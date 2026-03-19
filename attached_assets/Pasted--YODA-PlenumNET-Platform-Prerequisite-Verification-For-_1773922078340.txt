@@ -1,0 +1,623 @@
+# YODA — PlenumNET Platform Prerequisite Verification
+
+**For: PlenumNET.replit.app Build Team**
+**Document Reference: TM-2026-020.1-PREREQ**
+**Source Repository:** https://github.com/SigmaWolf-8/Ternary
+**PlenumNET Frontend:** https://PlenumNET.replit.app
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Date: March 19, 2026**
+
+---
+
+YODA is a multi-agent, multi-engine development intelligence platform that
+will consume PlenumNET as its cryptographic, networking, and infrastructure
+layer. Before YODA development begins, the PlenumNET platform must verify
+that every API surface, service, and primitive YODA depends on is
+operational, accessible, and performant.
+
+This checklist is organized by priority. Work top to bottom.
+Items marked BLOCKING must be resolved before YODA Phase 1 can start.
+Items marked REQUIRED must be resolved before YODA production launch.
+Items marked ENHANCEMENT can be deferred.
+
+---
+
+## 1. INTER-CUBE NODE INFRASTRUCTURE [BLOCKING]
+
+YODA's distributed inference topology depends on the Inter-Cube services.
+These must be verified on real nodes before any YODA networking code is
+written.
+
+Source: services/inter-cube/ (4,187 LOC Rust, 57 tests)
+
+### 1.1 Service Health — Single Node
+
+```
+[ ] CRS (Cube Registration Service) starts clean on a single node
+    Verify: node registers with 13-trit address [1,1,1,1,1,1,1,1,1,1,1,1,1]
+    Verify: TRN record created with correct neighbor map (26 neighbors computed)
+    Verify: registration endpoint responds to external queries
+    BLOCKING
+
+[ ] CON (Connectivity Overlay Network) starts clean on a single node
+    Verify: 26 virtual interfaces (cubetun0 through cubetun25) created
+    Verify: tunnel key derivation from address pair (TLSponge-385) functional
+    Verify: tunnel encryption/decryption round-trip succeeds
+    BLOCKING
+
+[ ] GLB (Geometric Load Balancer) starts clean on a single node
+    Verify: flow affinity hashing functional (hashFlowId)
+    Verify: routing table populated from neighbor map
+    Verify: request distribution across dimensions is even
+    BLOCKING
+
+[ ] FTS (Fault Tolerance Service) starts clean on a single node
+    Verify: heartbeat transmission on configured interval
+    Verify: heartbeat reception and acknowledgment
+    Verify: local health status reports Online
+    BLOCKING
+
+[ ] All four services co-exist on one node without port/resource conflicts
+    BLOCKING
+
+[ ] Docker Compose 4-node deployment (existing in repo) starts clean
+    Verify: all 4 nodes register with CRS
+    Verify: CON tunnels established between all neighbors
+    Verify: FTS heartbeats flowing between all nodes
+    Verify: GLB routes test requests between nodes
+    BLOCKING
+```
+
+### 1.2 Multi-Node Topology Verification
+
+```
+[ ] 27-node address scheme validated:
+    Central: [1,1,1,1,1,1,1,1,1,1,1,1,1]
+    26 neighbors: each dimension × 2 directions (trit 2 and trit 3)
+    Verify: all 26 neighbor addresses computable from central address
+    Verify: all 26 addresses are Hamming distance 1 from central
+    BLOCKING
+
+[ ] CRS handles 27 concurrent registrations without error
+    Verify: all 27 TRN records created
+    Verify: neighbor maps correct for all 27 nodes
+    REQUIRED
+
+[ ] CON establishes tunnels between all neighbor pairs
+    Verify: central node has 26 active tunnels
+    Verify: each neighbor node has tunnels to its own neighbors
+    Verify: tunnel keys derived independently by both endpoints (no exchange)
+    REQUIRED
+
+[ ] FTS detects node failure
+    Kill one node process → verify:
+    [ ] FTS transitions killed node to Suspect within heartbeat timeout
+    [ ] FTS transitions killed node to Down after confirmation period
+    [ ] FTS publishes dead-set to GLB
+    [ ] Surviving nodes update their neighbor status
+    REQUIRED
+
+[ ] GLB reroutes after failure
+    With one node Down:
+    [ ] GLB on central node stops routing to dead node
+    [ ] Requests that would have gone to dead node reroute to alternate path
+    [ ] No requests are silently dropped
+    REQUIRED
+
+[ ] FTS detects node recovery
+    Restart killed node → verify:
+    [ ] FTS transitions node back to Online
+    [ ] GLB resumes routing to recovered node
+    [ ] CON re-establishes tunnels
+    REQUIRED
+```
+
+### 1.3 CON Tunnel — NAT Traversal Compatibility
+
+```
+[ ] CON tunnel establishment: does it require both endpoints to be
+    directly reachable (both have routable IPs)?
+    Document: YES / NO
+    If YES → this is a dev task: extend CON to support outbound-initiated
+    tunnel connections for NAT-traversed nodes (see TM-2026-020.2 §4.10)
+    BLOCKING for multi-machine deployment, NOT blocking for single-machine
+
+[ ] CON tunnel establishment: can a node behind NAT initiate outbound
+    connection to a node with a public IP and maintain the tunnel?
+    Document: YES / NO
+    If NO → flag as P1 development task before Phase 2
+    REQUIRED
+
+[ ] CON tunnel behavior through a relay (rathole):
+    If traffic arrives at a node via a rathole-forwarded port rather than
+    a direct connection, does CON still function correctly?
+    Document: YES / NO / UNTESTED
+    REQUIRED
+```
+
+---
+
+## 2. CRYPTOGRAPHIC PRIMITIVES [BLOCKING]
+
+YODA consumes five PlenumNET crypto primitives. Each must expose a Rust API
+that the yoda-plenumnet-bridge crate can call directly (zero FFI).
+
+### 2.1 Phase Encryption
+
+```
+Source: server/salvi-core/phase-encryption.ts
+NOTE: If this is TypeScript only, a Rust API must be created or the
+algorithm must be ported to Rust for YODA's zero-FFI requirement.
+
+[ ] Rust API available for Phase Encryption
+    If currently TypeScript only: document plan to provide Rust crate
+    BLOCKING
+
+[ ] encrypt(plaintext, key, mode) → ciphertext
+    Modes available:
+    [ ] high_security — functional, tested
+    [ ] balanced — functional, tested
+    [ ] performance — functional, tested
+    [ ] adaptive — functional, tested (auto-selects mode)
+    BLOCKING
+
+[ ] decrypt(ciphertext, key, mode) → plaintext
+    Round-trip verified: encrypt → decrypt returns original plaintext
+    For all four modes
+    BLOCKING
+
+[ ] Guardian phase τ-derived tamper detection
+    Verify: tampered ciphertext detected and rejected
+    Verify: untampered ciphertext passes detection
+    BLOCKING
+
+[ ] Key derivation input: accepts TLSponge-385 derived key material
+    BLOCKING
+
+[ ] Key encapsulation: integrates with TL-KEM for key exchange
+    REQUIRED
+
+[ ] Performance benchmark on target hardware:
+    Encrypt throughput (MB/s) at each mode: ________
+    Decrypt throughput (MB/s) at each mode: ________
+    REQUIRED
+```
+
+### 2.2 TLSponge-385
+
+```
+Source: kernel sponge implementation in Ternary repo
+
+[ ] Rust crate with public API available
+    BLOCKING
+
+[ ] derive_key(input_material) → 385-bit key
+    Verify: deterministic — same input always produces same key
+    Verify: 385-bit post-quantum security claim documented
+    BLOCKING
+
+[ ] Performance benchmark on target hardware:
+    Key derivation latency: ________ µs
+    Throughput: ________ MB/s
+    REQUIRED
+
+[ ] AVX2/NEON SIMD optimizations active on target hardware
+    Verify: ~10 MB/s bulk throughput achieved
+    REQUIRED
+```
+
+### 2.3 TIS-27
+
+```
+Source: TIS-27 sponge hash implementation in Ternary repo
+
+[ ] Rust crate with public API available
+    BLOCKING
+
+[ ] hash(data) → 54-trit digest
+    Verify: deterministic — same input always produces same hash
+    Verify: different inputs produce different hashes (collision test)
+    BLOCKING
+
+[ ] Performance benchmark on target hardware:
+    Target: ~191 ns/hash
+    Actual: ________ ns/hash
+    Target: ~2.52 GB/s throughput
+    Actual: ________ GB/s
+    BLOCKING
+
+[ ] ARM64 NEON SIMD path functional (if running on ARM64)
+    Target: ~3.2 µs for sponge hash
+    Actual: ________ µs
+    REQUIRED
+```
+
+### 2.4 TL-DSA
+
+```
+Source: TL-DSA implementation in Ternary repo (34 modules)
+
+[ ] Rust crate with public API available
+    BLOCKING
+
+[ ] generate_keypair() → (public_key, private_key)
+    Verify: generates valid keypair
+    BLOCKING
+
+[ ] sign(message, private_key) → signature
+    Verify: produces signature for arbitrary message
+    BLOCKING
+
+[ ] verify(message, signature, public_key) → bool
+    Verify: returns true for valid signature
+    Verify: returns false for tampered message
+    Verify: returns false for wrong public key
+    BLOCKING
+
+[ ] Performance benchmark on target hardware:
+    Target: ~1,441 µs per sign operation
+    Actual: ________ µs
+    REQUIRED
+
+[ ] NIST PQC Level 5 / 192-bit quantum security claim documented
+    REQUIRED
+
+[ ] Key serialization: public_key and private_key can be serialized
+    to bytes and deserialized without loss
+    REQUIRED (needed for PostgreSQL storage)
+```
+
+### 2.5 TL-KEM
+
+```
+Source: TL-KEM implementation in Ternary repo
+
+[ ] Rust crate with public API available
+    BLOCKING
+
+[ ] encapsulate(public_key) → (ciphertext, shared_secret)
+    BLOCKING
+
+[ ] decapsulate(ciphertext, private_key) → shared_secret
+    Verify: shared_secret matches between encapsulate and decapsulate
+    BLOCKING
+
+[ ] Integration with Phase Encryption key input verified
+    REQUIRED
+```
+
+---
+
+## 3. PLENUMNET API SURFACE FOR YODA [BLOCKING]
+
+YODA's yoda-plenumnet-bridge crate will call these APIs directly.
+Each must be documented with function signature, input types, output types,
+and error handling.
+
+### 3.1 Crate Accessibility
+
+```
+[ ] All five crypto crates (Phase Encryption, TLSponge-385, TIS-27,
+    TL-DSA, TL-KEM) are importable as Rust dependencies
+    via path dependency in Cargo.toml:
+    [dependencies]
+    plenumnet-phase-encryption = { path = "../path/to/crate" }
+    Or via git dependency:
+    plenumnet-phase-encryption = { git = "https://github.com/SigmaWolf-8/Ternary" }
+    BLOCKING
+
+[ ] Crate names and paths documented:
+    Phase Encryption: crate name = ________  path = ________
+    TLSponge-385:     crate name = ________  path = ________
+    TIS-27:           crate name = ________  path = ________
+    TL-DSA:           crate name = ________  path = ________
+    TL-KEM:           crate name = ________  path = ________
+    BLOCKING
+
+[ ] All five crates compile on target hardware (ARM64 and/or x86_64)
+    cargo build succeeds with no errors for each crate
+    BLOCKING
+
+[ ] No conflicting dependency versions between PlenumNET crates and
+    YODA's dependencies (tokio, serde, etc.)
+    Verify: cargo build --workspace with both PlenumNET and YODA crates
+    BLOCKING
+```
+
+### 3.2 Inter-Cube Service APIs
+
+```
+[ ] CRS: register_node(address, metadata) → Result<TrnRecord>
+    API callable from external Rust code (not just internal service)
+    REQUIRED
+
+[ ] CRS: resolve_address(address) → Result<NodeInfo>
+    Returns IP, port, and service endpoints for a registered node
+    REQUIRED
+
+[ ] CRS: get_neighbors(address) → Result<Vec<NeighborInfo>>
+    Returns the 26 neighbor addresses and their connection status
+    REQUIRED
+
+[ ] GLB: route_request(flow_id, destination_family) → Result<NodeAddress>
+    Selects optimal node from a set based on geometric load balancing
+    REQUIRED
+
+[ ] FTS: get_node_status(address) → Result<NodeStatus>
+    Returns Online / Suspect / Down for a given node
+    REQUIRED
+
+[ ] FTS: subscribe_status_changes() → Stream<StatusChangeEvent>
+    Allows YODA to receive real-time notifications when nodes go down/up
+    ENHANCEMENT
+
+[ ] CON: send_through_tunnel(destination, payload) → Result<Response>
+    Sends encrypted payload through established tunnel and returns response
+    REQUIRED
+
+[ ] CON: tunnel_status(neighbor_address) → Result<TunnelStatus>
+    Returns Established / Rekeying / Failed for a specific tunnel
+    REQUIRED
+```
+
+---
+
+## 4. PLENUMNET REPLIT APP COMPATIBILITY [REQUIRED]
+
+YODA's frontend will either integrate with or run alongside
+PlenumNET.replit.app. These items verify compatibility.
+
+### 4.1 Hosting Environment
+
+```
+[ ] Current PlenumNET.replit.app tech stack documented:
+    Runtime: ________
+    Framework: ________
+    Database: ________
+    REQUIRED
+
+[ ] Can a Rust/Axum backend be deployed alongside the existing
+    PlenumNET.replit.app on the same Replit instance?
+    OR does YODA need its own Replit deployment?
+    Document: SAME INSTANCE / SEPARATE INSTANCE
+    REQUIRED
+
+[ ] If same instance: port allocation documented
+    PlenumNET app port: ________
+    YODA backend port: ________
+    YODA frontend port: ________
+    REQUIRED
+
+[ ] If separate instance: cross-origin communication path documented
+    YODA frontend → PlenumNET API: method = ________
+    PlenumNET → YODA backend: method = ________
+    REQUIRED
+
+[ ] PostgreSQL available on Replit deployment
+    Version: ________
+    Extensions available: pg_trgm [ ] pgvector [ ] uuid-ossp [ ]
+    If pgvector not available: document workaround or alternative
+    REQUIRED
+
+[ ] Replit outbound HTTPS requests functional
+    Verify: curl from Replit container to external URL succeeds
+    REQUIRED (needed for commercial/free-tier engine APIs
+    and rathole relay communication)
+
+[ ] Replit persistent storage
+    Verify: files survive container restart
+    Verify: compiled agent configs (agents/compiled/*.json) persist
+    REQUIRED
+
+[ ] Replit WebSocket support
+    Verify: WebSocket connections from browser to backend functional
+    REQUIRED (real-time DAG visualization)
+```
+
+### 4.2 Outbound Networking for Inference
+
+```
+[ ] Replit container can reach external inference endpoints:
+    [ ] Self-hosted via rathole relay: curl https://[vps-ip]:8001 succeeds
+    [ ] Commercial API: curl https://api.anthropic.com succeeds
+    [ ] Free-tier API: curl https://generativelanguage.googleapis.com succeeds
+    REQUIRED
+
+[ ] Replit container can maintain persistent HTTP connections
+    (needed for streaming inference responses)
+    REQUIRED
+
+[ ] No Replit-imposed rate limiting on outbound HTTPS requests
+    OR rate limits documented: ________ requests/minute
+    REQUIRED
+```
+
+---
+
+## 5. EXISTING PLENUMNET SERVICES — YODA DEPENDENCIES [REQUIRED]
+
+YODA optionally integrates with existing PlenumNET services. Verify
+which are available and document their API surfaces.
+
+### 5.1 TDNS (Ternary Domain Name System)
+
+```
+[ ] TDNS v2.5 operational on PlenumNET.replit.app
+    Verify: .plm TLD resolution functional
+    REQUIRED (for YODA project addressing if used)
+
+[ ] TDNS address resolution API callable from Rust
+    resolve(name) → Result<Address>
+    ENHANCEMENT
+```
+
+### 5.2 SignHere / SalviSign (if integrating for document signing)
+
+```
+[ ] SignHere e-signature service operational
+    Verify: signhere.replit.app accessible
+    ENHANCEMENT (Ronin code blocks could be co-signed)
+
+[ ] RFC 3161 TSA endpoint accessible from YODA backend
+    ENHANCEMENT
+```
+
+### 5.3 Maestro ERP (if integrating Task Bible)
+
+```
+[ ] Maestro Task Bible API surface documented
+    Create task: endpoint = ________
+    Update task: endpoint = ________
+    Query tasks: endpoint = ________
+    ENHANCEMENT (Task Bible integration is optional)
+
+[ ] Maestro project ↔ YODA project mapping supported
+    ENHANCEMENT
+```
+
+### 5.4 PPTPro (if integrating for monitoring)
+
+```
+[ ] PPTPro.replit.app accessible from YODA backend
+    ENHANCEMENT
+
+[ ] Bio-signal / tonal data integration path documented (if applicable)
+    ENHANCEMENT
+```
+
+---
+
+## 6. SECURITY INFRASTRUCTURE [REQUIRED]
+
+### 6.1 Key Management Infrastructure
+
+```
+[ ] PlenumNET has a documented pattern for storing TL-DSA keypairs
+    in PostgreSQL (or other persistent store)
+    YODA will store per-project keypairs encrypted via Phase Encryption
+    Verify: this pattern is consistent with existing PlenumNET practices
+    REQUIRED
+
+[ ] Key rotation procedure documented
+    How existing PlenumNET services handle key rotation
+    YODA will follow the same pattern
+    REQUIRED
+
+[ ] No global shared keys that YODA could accidentally overwrite
+    Verify: YODA's per-project keys are isolated from PlenumNET system keys
+    REQUIRED
+```
+
+### 6.2 Audit Trail Compatibility
+
+```
+[ ] Existing PlenumNET audit/logging format documented
+    YODA will produce signed JSON audit logs with TL-DSA signature chains
+    Verify: these logs can coexist with existing PlenumNET logs
+    REQUIRED
+
+[ ] TIS-27 hash format compatible across PlenumNET services
+    YODA hashes inference responses on receipt — the hash format must
+    match what other PlenumNET services produce/expect
+    Verify: hash output format documented (encoding, length, representation)
+    REQUIRED
+```
+
+---
+
+## 7. BENCHMARK TARGETS [REQUIRED]
+
+These benchmarks must be run on the actual target hardware that will
+host YODA (ARM64 laptop or dedicated server). Document actual numbers.
+
+```
+CRYPTO BENCHMARKS:
+[ ] TIS-27 hash latency:          target 191 ns    actual ________ ns
+[ ] TIS-27 throughput:            target 2.52 GB/s  actual ________ GB/s
+[ ] TL-DSA sign latency:          target 1,441 µs   actual ________ µs
+[ ] TL-DSA verify latency:        target ________ µs actual ________ µs
+[ ] TLSponge-385 bulk throughput: target ~10 MB/s    actual ________ MB/s
+[ ] Phase Encryption (high_security) throughput: ________ MB/s
+[ ] Phase Encryption (balanced) throughput:      ________ MB/s
+[ ] Phase Encryption (performance) throughput:   ________ MB/s
+[ ] ARM64 NEON sponge hash:       target ~3.2 µs    actual ________ µs
+
+INTER-CUBE BENCHMARKS (if topology deployed):
+[ ] CON tunnel establishment time:    ________ ms
+[ ] CON tunnel throughput:            ________ MB/s
+[ ] GLB routing latency:              ________ µs
+[ ] FTS failure detection time:       ________ seconds (heartbeat interval × threshold)
+[ ] CRS registration latency:         ________ ms
+[ ] CRS resolution latency:           ________ ms
+
+ALL TESTS PASSING:
+[ ] Inter-Cube test suite: 57/57 passing
+    Run: cargo test --workspace (in services/inter-cube/)
+    Actual: ________/57 passing
+    If any failures: document which tests fail and why
+    BLOCKING
+```
+
+---
+
+## 8. DOCUMENTATION DELIVERABLES [REQUIRED]
+
+The PlenumNET team must provide these documents to the YODA build team
+before Phase 1 starts.
+
+```
+[ ] Crypto API Reference
+    For each of the 5 crypto crates:
+    - Crate name and Cargo.toml path
+    - Public function signatures with types
+    - Error types and handling
+    - Example usage (5 lines minimum)
+    BLOCKING
+
+[ ] Inter-Cube Service API Reference
+    For CRS, CON, GLB, FTS:
+    - How to start each service programmatically (not just Docker)
+    - Public API functions/endpoints callable from external Rust code
+    - Configuration parameters
+    - Error types
+    REQUIRED
+
+[ ] PlenumNET.replit.app Architecture Document
+    - Current tech stack and deployment topology
+    - Port allocations
+    - Database schema (if shared)
+    - How YODA should integrate (shared instance vs. separate)
+    REQUIRED
+
+[ ] Phase Encryption Rust Migration Status
+    If phase-encryption.ts is TypeScript only:
+    - Timeline for Rust port OR
+    - Documented FFI bridge approach OR
+    - Alternative Rust-native encryption primitive recommended
+    BLOCKING (if TypeScript only)
+```
+
+---
+
+## 9. SIGN-OFF
+
+```
+PlenumNET team confirms:
+
+[ ] All BLOCKING items in Sections 1-8 are resolved
+[ ] All crypto crates compile and pass tests on target hardware
+[ ] Inter-Cube 57/57 tests passing
+[ ] Benchmark numbers documented
+[ ] API reference documents delivered to YODA build team
+[ ] Any known issues or limitations documented with workarounds
+
+Signed: _______________  Role: _______________  Date: ____________
+```
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Sherwood Park, Alberta, Canada*
+*RSalvi@Salvigroup.com*
+
+*Così sia, Fratello.*

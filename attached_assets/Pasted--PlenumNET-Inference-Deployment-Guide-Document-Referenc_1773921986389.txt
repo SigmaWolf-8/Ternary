@@ -1,0 +1,747 @@
+# PlenumNET Inference Deployment Guide
+
+**Document Reference: TM-2026-020.2**
+**Companion to: TM-2026-020.1 (YODA Product Specification v1.5)**
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Date: March 19, 2026**
+
+---
+
+## Table of Contents
+
+1. [Purpose & Scope](#1-purpose--scope)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Single-Node Deployment](#3-single-node-deployment)
+4. [NAT Traversal — Rathole Relay](#4-nat-traversal--rathole-relay)
+5. [27-Node Address Assignment](#5-27-node-address-assignment)
+6. [Single-Machine Topology Validation](#6-single-machine-topology-validation)
+7. [Multi-Machine Production Deployment](#7-multi-machine-production-deployment)
+8. [Specialized Node Roles](#8-specialized-node-roles)
+9. [Latency & Bandwidth Budget](#9-latency--bandwidth-budget)
+10. [Settings-to-Topology Integration](#10-settings-to-topology-integration)
+11. [Multi-Cube Scaling](#11-multi-cube-scaling)
+12. [Monitoring & Observability](#12-monitoring--observability)
+
+---
+
+## 1. Purpose & Scope
+
+This document describes how to deploy YODA's inference layer across PlenumNET's 13-dimensional hypercube topology. It covers everything from standing up a single node on a laptop to operating a 27-node distributed inference mesh with post-quantum encrypted transport.
+
+**TM-2026-020.1** (the YODA Product Specification) defines *what* the Inference Router does — engine-agnostic HTTP dispatch, diversity enforcement, capability scoring, censorship detection. This document defines *how* those HTTP requests travel through PlenumNET's infrastructure — addresses, tunnels, routing, failover, and the physical hardware underneath.
+
+The `yoda-plenumnet-bridge` crate is specified by both documents: its API surface by TM-2026-020.1 (what the Orchestrator and Inference Router call), its implementation by this document (how those calls translate to hypercube addresses and CON tunnels).
+
+---
+
+## 2. Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  REPLIT (or any host)                                        │
+│                                                               │
+│  ┌────────────────────────────────────────┐                  │
+│  │  YODA Axum Backend                      │                  │
+│  │  Orchestrator → Inference Router        │                  │
+│  │       │                                  │                  │
+│  │       │  HTTPS (outbound)               │                  │
+│  └───────┼──────────────────────────────────┘                  │
+│          │                                                     │
+└──────────┼─────────────────────────────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────────────┐
+│  RELAY NODE (VPS — rathole server)        │
+│  PlenumNET address: [1,1,1,1,1,1,1,1,1,1,1,1,2]             │
+│                                           │
+│  HTTPS endpoint ← receives from Replit    │
+│  Rathole tunnel → fans out to home nodes  │
+│  GLB routing  → geometric load balancing  │
+│  FTS monitor  → health tracking           │
+└──────────┬───────────────────────────────┘
+           │  Rathole Noise tunnel (outbound from home)
+           │  + CON tunnels (Phase 2+)
+           │
+    ┌──────┼──────┬──────────┐
+    ▼      ▼      ▼          ▼
+┌───────┐┌───────┐┌───────┐┌───────┐
+│Node 1 ││Node 2 ││Node 3 ││Node N │  ... up to 26
+│Qwen   ││DS-R1  ││Llama  ││Qwen   │  inference nodes
+│:8001  ││:8001  ││:8001  ││:8001  │  (local ports)
+└───────┘└───────┘└───────┘└───────┘
+   GPU      GPU      GPU      CPU
+```
+
+The key insight: **the hypercube topology IS the inference distribution layer.** GLB handles load balancing geometrically, FTS handles fault detection via heartbeats, CON provides PQ-encrypted transport, and CRS manages the address registry. No additional infrastructure is needed — the four PlenumNET services (`services/inter-cube/` — 4,187 LOC Rust, 57 tests) provide everything.
+
+---
+
+## 3. Single-Node Deployment
+
+The simplest deployment: your local machine becomes a PlenumNET node that also hosts inference engines. This is the starting point for development and testing.
+
+### 3.1 Setup Sequence
+
+**Step 1 — Assign a 13-trit address.** Choose the central address for your node:
+
+```
+Address: [1,1,1,1,1,1,1,1,1,1,1,1,1]  (all-ones in Rep C)
+```
+
+This address determines everything: tunnel keys, neighbor computation, routing position. Register it with CRS, which creates the TRN record and computes the 26-neighbor map.
+
+**Step 2 — Bring up the four PlenumNET services locally:**
+
+- **GLB** — geometric routing with flow affinity
+- **CON** — encrypted tunnels (26 virtual interfaces: `cubetun0` through `cubetun25`)
+- **CRS** — registration and resolution
+- **FTS** — heartbeat-based health monitoring
+
+The Docker Compose in the repo (`services/inter-cube/docker-compose.yml`) already orchestrates multi-node deployments. For a single node, run one instance.
+
+**Step 3 — Launch inference engines on the same machine:**
+
+```bash
+# Engine A — Qwen3.5-27B
+llama-server --model Qwen3.5-27B-Q4.gguf \
+  --port 8001 --ctx-size 16384 --host 127.0.0.1
+
+# Engine B — DeepSeek-R1-Distill-32B
+llama-server --model DeepSeek-R1-Distill-Qwen-32B-Q4.gguf \
+  --port 8002 --ctx-size 16384 --host 127.0.0.1
+
+# Engine C — Qwen3.5-9B
+llama-server --model Qwen3.5-9B-Q4.gguf \
+  --port 8003 --ctx-size 16384 --host 127.0.0.1
+```
+
+All three listen on `127.0.0.1` — no internet exposure. Inference requests arrive through PlenumNET tunnels, not the open internet.
+
+**Step 4 — Configure YODA's Inference Router** to send requests to this node's PlenumNET address. The request path: YODA → CON tunnel → local node → `127.0.0.1:800X` → response back through tunnel. Every request is automatically encrypted with TLSponge-385-derived tunnel keys, integrity-hashed with TIS-27 on receipt, and stored encrypted via Phase Encryption.
+
+### 3.2 What This Gives You
+
+- YODA's full four-step protocol running against three self-hosted engines
+- PQ-encrypted transport for all inference traffic (TLSponge-385 tunnel keys)
+- TIS-27 integrity hashing of every response on receipt (Section 9.6 of TM-2026-020.1)
+- Phase Encryption at rest for all stored artifacts (Section 9.1 of TM-2026-020.1)
+- Zero per-token cost
+- Zero content filtering
+- Foundation for scaling to 26 nodes without architectural changes
+
+---
+
+## 4. NAT Traversal — Rathole Relay
+
+### 4.1 The Problem
+
+YODA's Axum backend on Replit can make outbound HTTPS requests but cannot accept inbound connections or maintain persistent tunnel state. Your home machine is behind NAT. CON tunnels require a reachable endpoint on at least one side.
+
+### 4.2 The Solution — Rathole
+
+**Rathole** (`github.com/rathole-org/rathole`) is an open-source, high-performance reverse proxy for NAT traversal, written in Rust. Apache 2.0 licensed. The binary is ~500 KB. It solves the NAT problem cleanly with zero ongoing cost beyond a minimal VPS.
+
+Rathole runs in two halves: a **server** on a VPS with a public IP, and a **client** on your home machine behind NAT. The home machine initiates the outbound connection (NAT traversed). The VPS exposes your local services on public ports. Built-in Noise Protocol encryption secures the tunnel without certificate management.
+
+```
+Replit Container              Rathole Server (VPS)         Rathole Client (Home)
+┌──────────────┐             ┌──────────────────┐         ┌──────────────────┐
+│ YODA Backend │             │ Public IP         │         │ Behind NAT       │
+│              │  HTTPS POST │                   │  Noise  │                  │
+│ Inference    │────────────►│ :8001 → engine_a  │◄───────►│ 127.0.0.1:8001   │
+│ Router       │────────────►│ :8002 → engine_b  │  tunnel │ 127.0.0.1:8002   │
+│              │────────────►│ :8003 → engine_c  │(outbound│ 127.0.0.1:8003   │
+│              │◄────────────│                   │from home)│                  │
+└──────────────┘  responses  │ Rathole server    │         │ Rathole client   │
+                              │ ~500 KB binary    │         │ + llama-server   │
+                              └──────────────────┘         └──────────────────┘
+```
+
+### 4.3 Configuration
+
+**On the VPS (rathole server):**
+
+```toml
+# server.toml
+[server]
+bind_addr = "0.0.0.0:2333"
+
+[server.transport]
+type = "noise"
+
+[server.services.engine_a]
+token = "use_a_cryptographic_secret_here"
+bind_addr = "0.0.0.0:8001"
+
+[server.services.engine_b]
+token = "use_a_different_secret_here"
+bind_addr = "0.0.0.0:8002"
+
+[server.services.engine_c]
+token = "use_a_third_secret_here"
+bind_addr = "0.0.0.0:8003"
+```
+
+**On your home machine (rathole client):**
+
+```toml
+# client.toml
+[client]
+remote_addr = "your-vps-ip:2333"
+
+[client.transport]
+type = "noise"
+
+[client.services.engine_a]
+token = "use_a_cryptographic_secret_here"
+local_addr = "127.0.0.1:8001"
+
+[client.services.engine_b]
+token = "use_a_different_secret_here"
+local_addr = "127.0.0.1:8002"
+
+[client.services.engine_c]
+token = "use_a_third_secret_here"
+local_addr = "127.0.0.1:8003"
+```
+
+**Start both sides:**
+
+```bash
+# On VPS
+rathole server.toml
+
+# On home machine
+rathole client.toml
+```
+
+The home machine initiates the outbound connection — no inbound ports needed, NAT traversed. The VPS now exposes ports 8001/8002/8003. YODA's Inference Router on Replit sends requests to `your-vps-ip:8001`. Traffic flows through rathole's Noise-encrypted tunnel to your home `llama-server` on `127.0.0.1:8001`. Response returns the same path.
+
+Services can be added or removed dynamically via hot-reload of the configuration files — when you change an engine in YODA's Settings page, update the rathole config and it picks up the change without restart.
+
+### 4.4 Security Layers
+
+The inference request passes through **two independent encryption layers:**
+
+1. **Rathole's Noise Protocol** — encrypts the tunnel between VPS and home machine. Handles the NAT traversal transport. No certificates needed.
+2. **PlenumNET's Phase Encryption** — encrypts the inference payload at the application layer (when CON tunnels are deployed in later phases). Provides τ-derived tamper detection via the Guardian phase.
+
+In Phase 0 (rathole only, no PlenumNET services yet), Noise Protocol provides the transport encryption. In later phases, CON tunnels layer PlenumNET's PQ encryption on top. The two layers are independent and complementary — rathole secures the edge, PlenumNET secures the core.
+
+### 4.5 Relay Authentication
+
+**Production:** YODA's Inference Router authenticates requests to the relay using **TL-DSA signed tokens**. Each request carries a signature that the relay verifies before forwarding. This provides non-repudiation (proof the request originated from the authorized YODA instance) and is consistent with the TL-DSA signing used throughout the rest of the security architecture. The relay verifies the signature against YODA's registered public key.
+
+**Development-only fallback:** A shared secret (pre-shared API key in the request header) can be used during early development when the TL-DSA infrastructure isn't yet built. This is NOT suitable for production — it lacks non-repudiation and is vulnerable to replay attacks. The shared secret should be disabled once the PlenumNET Bridge crate's TL-DSA signing is operational.
+
+### 4.6 Relay Failure Behavior
+
+If the relay node (VPS) goes offline, YODA's Inference Router detects the failure via health check timeout (configurable, default 30 seconds). The degradation policy:
+
+**For self-hosted engines (routed through relay):** Inference requests queue with a configurable timeout (default: 5 minutes). If the relay recovers within the timeout, queued requests dispatch automatically. If the timeout expires, affected tasks transition to ESCALATED status with a "relay offline" reason code. The user is notified via the frontend pipeline visualization.
+
+**For commercial API engines (if any are configured):** These bypass the relay entirely — commercial API calls always route direct from Replit to the provider (see Section 4.7). They are unaffected by relay failure.
+
+**Automatic recovery:** The Inference Router retries the relay health check every 30 seconds. When the relay comes back online, queued requests resume in order. No manual intervention required.
+
+### 4.7 Credential Security — Trust Boundary
+
+The relay forwards inference requests to self-hosted engines only. It never handles commercial API keys or credentials.
+
+**Self-hosted engines:** Requests travel Replit → relay → home llama-server. No third-party credentials involved — the relay forwards raw HTTP payloads through the tunnel.
+
+**Commercial API engines:** If Engine C is configured as "Commercial → Anthropic → claude-sonnet-4-6," the Inference Router sends that request **directly from Replit to `api.anthropic.com`**, bypassing the relay entirely. The API key never touches the relay. This is enforced at the router level — commercial and free-tier hosting modes always use direct HTTPS, never tunnel through the relay.
+
+This means the relay is a **zero-trust bridge** — it forwards encrypted payloads between Replit and your home network but never has access to API credentials, inference content (Noise-encrypted in transit), or commercial provider tokens.
+
+### 4.8 Relay Node Address Assignment
+
+When PlenumNET services are deployed (Phase 1+), the VPS running rathole also gets a PlenumNET address adjacent to the inference nodes:
+
+```
+Central coordinator:  [1,1,1,1,1,1,1,1,1,1,1,1,1]
+Relay node (VPS):     [1,1,1,1,1,1,1,1,1,1,1,1,2]  (dim 13, trit 2)
+```
+
+At this point the VPS runs both rathole (bridging Replit) and PlenumNET services (bridging into the hypercube). Rathole handles the Replit edge; CON tunnels handle the intra-hypercube traffic.
+
+### 4.9 Alternative: Direct Public IP
+
+If your home machine has a publicly routable IP (static IP, port forwarding, or dynamic DNS), the relay is unnecessary. YODA's Inference Router sends requests directly to your machine's IP. Rathole is only needed when NAT prevents inbound connections.
+
+### 4.10 CON Tunnel Compatibility Note
+
+**Phase 0 prerequisite:** Verify that the current CON implementation (`overlay.rs`) supports relay-mediated tunnel establishment for NAT-traversed nodes. The current CON code establishes tunnels between two addresses — if it assumes both sides can reach each other directly (both have routable IPs), then NAT-traversed nodes behind rathole will need CON to be extended to support outbound-initiated tunnel connections (where the NAT-traversed node initiates the connection to the relay, and the relay bridges the tunnel to the target).
+
+If the current implementation requires direct reachability, flag this as a development task: **"Extend CON to support relay-mediated tunnel establishment"** — to be completed before Phase 2 (multi-node deployment). Phase 0 and Phase 1 work entirely through rathole and do not depend on CON for NAT traversal.
+
+---
+
+## 5. 27-Node Address Assignment
+
+### 5.1 The Central Coordinator
+
+```
+Central address: [1,1,1,1,1,1,1,1,1,1,1,1,1]
+```
+
+This is the coordinator node — it runs the CRS master registry, the primary GLB routing instance, and the FTS coordinator. It may also run inference, but its primary role is orchestration.
+
+### 5.2 The 26 Neighbors
+
+Each neighbor is generated by changing exactly one trit of the central address to either 2 or 3. This produces 13 dimensions × 2 directions = 26 addresses, all at Hamming distance 1 from the center.
+
+```
+Dim  Dir  Address                              Node ID   Role (example)
+───  ───  ─────────────────────────────────    ───────   ──────────────
+ 1    +   [2,1,1,1,1,1,1,1,1,1,1,1,1]         N01       Qwen3.5-27B (GPU)
+ 1    -   [3,1,1,1,1,1,1,1,1,1,1,1,1]         N02       DeepSeek-R1-32B (GPU)
+ 2    +   [1,2,1,1,1,1,1,1,1,1,1,1,1]         N03       Llama-3.1-70B (GPU)
+ 2    -   [1,3,1,1,1,1,1,1,1,1,1,1,1]         N04       Qwen3.5-9B (GPU)
+ 3    +   [1,1,2,1,1,1,1,1,1,1,1,1,1]         N05       Mistral-Nemo-12B (GPU)
+ 3    -   [1,1,3,1,1,1,1,1,1,1,1,1,1]         N06       GLM-5 (GPU)
+ 4    +   [1,1,1,2,1,1,1,1,1,1,1,1,1]         N07       Qwen3.5-27B (GPU)
+ 4    -   [1,1,1,3,1,1,1,1,1,1,1,1,1]         N08       DeepSeek-R1-32B (GPU)
+ 5    +   [1,1,1,1,2,1,1,1,1,1,1,1,1]         N09       Kimi-K2.5 (GPU, server)
+ 5    -   [1,1,1,1,3,1,1,1,1,1,1,1,1]         N10       Qwen3.5-122B (GPU, server)
+ 6    +   [1,1,1,1,1,2,1,1,1,1,1,1,1]         N11       Review: Qwen3.5-9B (GPU)
+ 6    -   [1,1,1,1,1,3,1,1,1,1,1,1,1]         N12       Review: DeepSeek-R1-14B (GPU)
+ 7    +   [1,1,1,1,1,1,2,1,1,1,1,1,1]         N13       Review: Mistral-Nemo (GPU)
+ 7    -   [1,1,1,1,1,1,3,1,1,1,1,1,1]         N14       Review: Qwen3.5-9B (CPU)
+ 8    +   [1,1,1,1,1,1,1,2,1,1,1,1,1]         N15       Review: Llama-3.1-8B (CPU)
+ 8    -   [1,1,1,1,1,1,1,3,1,1,1,1,1]         N16       Review: Phi-3-mini (CPU)
+ 9    +   [1,1,1,1,1,1,1,1,2,1,1,1,1]         N17       KB: Embedding index (CPU)
+ 9    -   [1,1,1,1,1,1,1,1,3,1,1,1,1]         N18       KB: Semantic retrieval (CPU)
+10    +   [1,1,1,1,1,1,1,1,1,2,1,1,1]         N19       KB: BM25 search (CPU)
+10    -   [1,1,1,1,1,1,1,1,1,3,1,1,1]         N20       Infra: CRS replica (CPU)
+11    +   [1,1,1,1,1,1,1,1,1,1,2,1,1]         N21       Infra: FTS coordinator (CPU)
+11    -   [1,1,1,1,1,1,1,1,1,1,3,1,1]         N22       Infra: GLB router (CPU)
+12    +   [1,1,1,1,1,1,1,1,1,1,1,2,1]         N23       Hot standby (CPU)
+12    -   [1,1,1,1,1,1,1,1,1,1,1,3,1]         N24       Hot standby (CPU)
+13    +   [1,1,1,1,1,1,1,1,1,1,1,1,2]         N25       Relay node (VPS)
+13    -   [1,1,1,1,1,1,1,1,1,1,1,1,3]         N26       Hot standby / overflow
+```
+
+### 5.3 Key Properties
+
+Every inference request from the central coordinator to any worker is exactly **one hop** — Hamming distance 1 means one tunnel traversal, one encryption/decryption pair, minimal latency.
+
+All 26 nodes are equidistant from the center. GLB's geometric routing distributes load evenly across dimensions. There is no structural bottleneck — the center node has 26 independent tunnel paths, one per neighbor.
+
+The addresses are deterministic — given the central address, the entire neighborhood is computable. The startup script iterates 13 dimensions × 2 directions and registers each node with CRS automatically.
+
+---
+
+## 6. Single-Machine Topology Validation
+
+### 6.1 Purpose
+
+Running 27 Docker containers on a single machine validates the **topology, routing, tunnel establishment, and failover behavior** before investing in distributed hardware. This is a correctness proof, not a performance environment.
+
+### 6.2 Docker Deployment
+
+Scale the existing `docker-compose.yml` from 4 nodes to 27:
+
+```yaml
+# docker-compose.27-node.yml (simplified)
+services:
+  node-center:
+    image: plenumnet-node
+    environment:
+      ADDRESS: "1,1,1,1,1,1,1,1,1,1,1,1,1"
+      ROLE: coordinator
+    networks: [hypercube]
+
+  node-01:
+    image: plenumnet-node
+    environment:
+      ADDRESS: "2,1,1,1,1,1,1,1,1,1,1,1,1"
+      ROLE: inference
+      MODEL: qwen3.5-27b
+      INFERENCE_PORT: 8001
+    networks: [hypercube]
+    # GPU passthrough for inference nodes:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+  # ... repeat for N02 through N26
+
+networks:
+  hypercube:
+    driver: bridge
+```
+
+### 6.3 Resource Reality Check
+
+27 containers, each running GLB + CON + CRS + FTS:
+
+- **Network interfaces:** 27 nodes × 26 tunnels = 702 virtual `cubetun` interfaces on one Docker bridge. Technically viable — Linux supports thousands of virtual interfaces. But monitoring and debugging 702 interfaces is operationally noisy. For validation purposes, this is fine. For production, distribute across machines.
+
+- **GPU sharing:** NVIDIA Container Toolkit can share one GPU across multiple containers via MPS (Multi-Process Service) or MIG (Multi-Instance GPU). But you are **time-slicing, not parallelizing** — total throughput doesn't increase, it's just divided. If your GPU generates 20 tok/s running one model, sharing it across 6 inference containers gives each ~3.3 tok/s. This validates the routing and protocol but does not represent production inference speeds.
+
+- **Memory:** Each PlenumNET service instance is a lightweight Rust binary (~10-30 MB RSS). 27 instances = ~400-800 MB for infrastructure alone. The inference models are the real memory consumers. On a 64 GB machine, you can realistically run 3-4 distinct quantized models plus the infrastructure containers. The remaining containers run without inference (infrastructure, knowledge base, standby roles).
+
+### 6.4 What to Validate
+
+- CRS correctly registers all 27 addresses and computes neighbor maps
+- CON establishes tunnels between all neighbors (26 tunnels per node)
+- GLB routes inference requests through the correct tunnels
+- FTS detects simulated node failures (kill a container, verify Suspect → Down transition)
+- GLB reroutes to surviving nodes after FTS declares a node Down
+- The YODA Inference Router successfully dispatches requests through the relay node to inference containers and receives valid responses
+- Diversity enforcement holds — the three reviewers are confirmed on three different nodes running three different model families
+
+---
+
+## 7. Multi-Machine Production Deployment
+
+### 7.1 When to Transition
+
+Move from single-machine Docker to multi-machine when:
+
+- You need real inference throughput (not time-sliced GPU sharing)
+- You have multiple physical machines available (desktop + laptop, desktop + cloud GPU, etc.)
+- You want to run models too large for one machine's memory
+
+### 7.2 Distribution Strategy
+
+The nodes distribute across machines based on their roles. Example with 3 physical machines:
+
+```
+Machine 1: Desktop (128 GB RAM, GPU)
+├── Central coordinator [1,1,1,...,1]
+├── N01: Qwen3.5-27B (GPU inference)
+├── N02: DeepSeek-R1-32B (GPU inference)
+├── N04: Qwen3.5-9B (GPU inference)
+├── N17-N19: Knowledge base nodes (CPU)
+└── N23-N24: Hot standbys (CPU)
+
+Machine 2: Cloud GPU (48 GB VRAM)
+├── N03: Llama-3.1-70B (GPU inference)
+├── N05: Mistral-Nemo-12B (GPU inference)
+├── N09: Kimi-K2.5 (GPU inference, if memory allows)
+├── N11-N13: Review nodes (GPU, smaller models)
+└── N20-N22: Infrastructure replicas (CPU)
+
+Machine 3: VPS ($5-10/month)
+├── N25: Relay node (public IP, no inference)
+└── N26: FTS monitor / overflow (CPU)
+```
+
+CON tunnels work identically over real networks as they do over Docker bridges. Both sides compute tunnel keys independently from their addresses — no manual key exchange, no certificate authority.
+
+### 7.3 Network Configuration
+
+Each machine needs to know the IP addresses of machines hosting its Hamming-distance-1 neighbors. The CRS registration process handles this: when a node registers, it provides its reachable IP and port. CRS publishes the TRN record, and neighbor nodes use this to establish CON tunnels.
+
+For machines behind NAT, the rathole relay handles the edge traversal. For CON tunnels between nodes within the home network, both nodes can typically reach each other directly (same LAN or Docker bridge). For CON tunnels between nodes on separate networks behind different NATs, verify that CON supports relay-mediated establishment — see Section 4.10 for the compatibility check.
+
+---
+
+## 8. Specialized Node Roles
+
+Not all 26 nodes need GPUs. The hypercube doesn't care what each node runs — it routes to addresses, not to services. The YODA Inference Router maps agent roles to node addresses based on the capability matrix.
+
+### 8.1 Role Stratification
+
+| Role | Nodes | Hardware | Purpose |
+|---|---|---|---|
+| Primary Inference (GPU) | 3–6 | GPU, 24+ GB RAM per model | Run large models (Qwen3.5-27B, DeepSeek-R1-32B, Llama-70B) for primary production tasks |
+| Review Inference (GPU/CPU) | 6–10 | GPU or CPU, smaller models | Run lightweight models (Qwen3.5-9B, Phi-3, Mistral-Nemo) for review tasks where speed > raw capability |
+| Knowledge Base (CPU) | 3–5 | CPU, 8+ GB RAM | Semantic indexing, embedding generation, BM25 search, vector similarity. Embedding models are lightweight (~1-2 GB) |
+| Infrastructure (CPU) | 2–3 | CPU, 1+ GB RAM | CRS master registry, FTS coordinator, GLB routing intelligence. Lightweight Rust binaries |
+| Relay (CPU) | 1 | VPS, public IP, 1 GB RAM | NAT traversal bridge for Replit. Routing only, no inference |
+| Hot Standby (CPU) | 2–4 | CPU, variable | Overflow capacity. Can be promoted to any role if a primary node fails |
+
+### 8.2 Dynamic Role Promotion
+
+Hot standby nodes can be promoted to inference roles by:
+
+1. Downloading the model GGUF file (or having it pre-staged)
+2. Starting a `llama-server` instance on the node
+3. Updating the node's capability entry in the model lineage database
+4. The Inference Router automatically discovers the new capacity via FTS health checks
+
+This happens without topology changes — the node's address and tunnels are already established. Only the service running on the node changes.
+
+---
+
+## 9. Latency & Bandwidth Budget
+
+### 9.1 Latency Components
+
+A single inference request through the PlenumNET topology has four latency components:
+
+```
+YODA Router → [HTTPS to relay] → [CON tunnel to node] → [llama-server inference] → [return path]
+    (1)              (2)                 (3)                     (4)
+```
+
+| Component | Typical Latency | Notes |
+|---|---|---|
+| (1) HTTPS to relay | 20-100 ms | Replit → VPS, depends on geography |
+| (2) CON tunnel hop | 10-100 ms | VPS → home, depends on ISP and distance |
+| (3) Model inference | 500 ms – 30 sec | Dominates. Depends on model size, hardware, prompt length |
+| (4) Return path | 30-200 ms | Same as (1)+(2) in reverse |
+| TIS-27 hash on receipt | 191 ns | Negligible |
+| TLSponge-385 encrypt/decrypt | ~3.2 µs | Negligible |
+
+**Total network overhead per request:** 60-400 ms round trip (tunnel + relay).
+
+### 9.2 Per-Task Overhead
+
+The four-step protocol has four sequential phases (even though reviews within each phase are concurrent). Each phase requires one round trip:
+
+| Scenario | RTT | Network Overhead (4 phases) | Impact on 5-sec inference | Impact on 500-ms inference |
+|---|---|---|---|---|
+| Optimistic (nearby VPS) | 100 ms | 400 ms | 2% — negligible | 20% — noticeable |
+| Midpoint (typical) | 200 ms | 800 ms | 4% — acceptable | 40% — significant |
+| Pessimistic (distant VPS) | 400 ms | 1,600 ms | 8% — acceptable | 80% — near doubling |
+
+Note: Review Intensity (Full/Medium/Light) changes the number of *concurrent* calls per phase, not the number of sequential phases. Network overhead is the same regardless of intensity — it's always 4 round trips.
+
+**Recommendation:** For self-hosted inference (2-10 sec/call), any VPS location works — tunnel overhead is noise. For commercial API engines (500ms/call), route those direct from Replit (bypassing the relay) as specified in Section 4.7 — commercial and free-tier hosting modes always use direct HTTPS, never tunnel through the relay. This eliminates tunnel overhead entirely for the latency-sensitive path and reinforces the zero-trust design: the relay never handles commercial API credentials or traffic.
+
+### 9.3 Optimization: Local-First Routing
+
+When YODA's Axum backend runs on the **same machine** as the inference nodes (not on Replit), the tunnel overhead drops to near zero — `localhost` to `localhost` through a CON tunnel has sub-millisecond RTT. This is the optimal self-hosted configuration and the natural end state: YODA's backend migrates off Replit onto the PlenumNET coordinator node.
+
+### 9.4 Bandwidth
+
+Inference requests are text (JSON payloads). A typical request is 2-20 KB (system prompt + context + task content). A typical response is 1-50 KB (structured JSON with code blocks). At 13 requests per task and 30 tasks per project:
+
+```
+Per project: 30 tasks × 13 requests × ~35 KB avg = ~13.6 MB
+```
+
+This is trivial bandwidth even on a residential internet connection. CON tunnel encryption adds ~0.1% overhead to payload size (TLSponge-385 block alignment). Bandwidth is never the bottleneck — inference compute time always dominates.
+
+---
+
+## 10. Settings-to-Topology Integration
+
+This section specifies the integration seam between YODA's Settings page (TM-2026-020.1, Section 4.2) and PlenumNET's address-based routing.
+
+### 10.1 The Abstraction Layer
+
+The YODA Settings page shows three engine slots. The `yoda-plenumnet-bridge` crate resolves each slot to N node addresses:
+
+```
+User sees:                  Bridge resolves to:
+
+Engine A: "qwen"      →    [N01, N04, N07, N11, N14]  (5 nodes running Qwen variants)
+Engine B: "deepseek"  →    [N02, N08, N12]             (3 nodes running DeepSeek)
+Engine C: "llama"     →    [N03, N15]                   (2 nodes running Llama)
+```
+
+For each inference request, the bridge:
+
+1. Identifies the target engine family from the request metadata
+2. Queries the capability matrix for online nodes in that family
+3. Selects the least-loaded node (via GLB flow affinity metrics)
+4. Routes the request through the CON tunnel to that node
+5. Returns the response to the Inference Router
+
+The user never sees node addresses. The Settings page shows family-level health: "Engine A: 5 nodes, 4 online, avg latency 2.3s."
+
+### 10.2 Extended Capability Matrix
+
+The capability matrix from TM-2026-020.1 Section 4.5 extends with node-level granularity:
+
+```json
+{
+  "qwen": {
+    "nodes": [
+      {
+        "address": "2,1,1,1,1,1,1,1,1,1,1,1,1",
+        "model": "Qwen3.5-27B",
+        "hardware": "M4 Max GPU",
+        "avg_latency_ms": 2300,
+        "capability_scores": {
+          "code_generation": 0.91,
+          "security_review": 0.78,
+          "architecture": 0.89,
+          "documentation": 0.85
+        },
+        "status": "online",
+        "last_heartbeat": "2026-03-19T15:41:00Z"
+      },
+      {
+        "address": "1,1,1,1,3,1,1,1,1,1,1,1,1",
+        "model": "Qwen3.5-9B",
+        "hardware": "CPU only",
+        "avg_latency_ms": 8500,
+        "capability_scores": {
+          "code_generation": 0.72,
+          "security_review": 0.65,
+          "architecture": 0.68,
+          "documentation": 0.74
+        },
+        "status": "online",
+        "last_heartbeat": "2026-03-19T15:41:02Z"
+      }
+    ]
+  }
+}
+```
+
+Capability scores attach to `(model, node_address)` pairs because the same model on different hardware performs differently. The Qwen3.5-27B on a GPU node scores higher on code generation than the Qwen3.5-9B on a CPU node. The meta-learning layer updates these scores after every review cycle based on actual outcomes.
+
+### 10.3 Fallback: Non-PlenumNET Engines
+
+Not all three engine slots need to route through PlenumNET. A user might configure:
+
+- Engine A: self-hosted via PlenumNET (Qwen family, 5 local nodes)
+- Engine B: self-hosted via PlenumNET (DeepSeek family, 3 local nodes)
+- Engine C: commercial API direct (Claude via `api.anthropic.com`)
+
+The Inference Router handles both paths transparently. PlenumNET-routed requests go through the bridge; direct API requests go through standard `reqwest` HTTPS. The Settings page `Hosting Mode` per slot determines the routing path.
+
+### 10.4 Model Lineage Database — Update Mechanism
+
+The `model_lineages.json` file (TM-2026-020.1, Section 4.3) maps model names to training lineage families for diversity validation. With new models emerging weekly, the update mechanism works through three channels:
+
+1. **Capomastro-hosted registry (primary):** The `compile-agents.sh` script checks a Capomastro-hosted registry endpoint for the latest `model_lineages.json` on each run. If a newer version exists, it downloads and replaces the local copy. This is the default update path — Capomastro maintains the canonical lineage mappings.
+
+2. **Manual user edits (immediate):** Users can add models to the lineage database directly via the Settings page. This is for models too new for the registry or custom fine-tunes. The user specifies the model name and assigns it to an existing family or creates a new family. Manual entries are preserved across registry updates.
+
+3. **Manual family tag override (per-engine):** In the Settings page, each engine slot has an optional "Family Override" field. If set, it overrides whatever `model_lineages.json` says about that model. This handles edge cases like distilled models that share a name with one family but behave more like another (e.g., DeepSeek-R1-Distill-Qwen-32B — DeepSeek training on Qwen architecture).
+
+---
+
+## 11. Multi-Cube Scaling
+
+### 11.1 Current Scope
+
+The 27-node deployment occupies the first-hop neighborhood of a single point in the 13D hypercube. The theoretical capacity of one Level-1 cube is 3¹³ = 1,594,323 nodes. The architecture scales to fill this space without changes — same geometry, same routing, same four services.
+
+### 11.2 Multi-User Scaling via MultiLevelAddr
+
+If YODA grows to serve multiple users, each user's inference cluster can be a **sub-region** within the cube:
+
+```
+User A's cluster: addresses [1,1,1,...] neighborhood (27 nodes)
+User B's cluster: addresses [2,2,2,...] neighborhood (27 nodes)
+User C's cluster: addresses [3,3,3,...] neighborhood (27 nodes)
+```
+
+These clusters are 13 hops apart (maximum distance in the cube), providing natural isolation. Gateway nodes at cluster boundaries can bridge traffic between clusters for shared services (e.g., a common Knowledge Base or agent config repository).
+
+### 11.3 Cubes of Cubes
+
+At Level 2, `MultiLevelAddr` composes cubes into cubes-of-cubes. A Level-2 address is `[cube_id, node_id]` where both are 13-trit values. This gives 3¹³ × 3¹³ = ~2.5 trillion addressable positions. Gateway nodes maintain CON tunnels to the outer address space.
+
+The 27-node local deployment is the seed. The architecture does not change as it scales — only the number of registered addresses and the depth of the `MultiLevelAddr` hierarchy.
+
+---
+
+## 12. Monitoring & Observability
+
+A 27-node deployment requires operational visibility beyond FTS heartbeats. This section specifies what metrics to surface and where.
+
+### 12.1 YODA Frontend Dashboard Integration
+
+The YODA frontend's engine health dashboard (TM-2026-020.1, Section 11.1) surfaces application-level metrics: which engines are online, inference queue depth, review step progress, and pipeline throughput. For PlenumNET deployments, the dashboard extends with topology-specific metrics fed from the `yoda-plenumnet-bridge` crate:
+
+- **Node health map** — all 27 nodes displayed with online/suspect/down status (sourced from FTS). Color-coded: green (online, healthy heartbeat), yellow (suspect, missed heartbeats), red (down, FTS declared dead).
+- **Tunnel status** — established/rekeying/failed per tunnel. For a 27-node deployment, 26 tunnels per node means 702 total — the dashboard shows aggregate health (e.g., "698/702 tunnels active") and flags specific failures.
+- **Per-node inference metrics** — average latency, tokens/second, queue depth, active requests. Sourced from the Inference Router's request tracking. Displayed per node address with model name and hardware type.
+- **GPU utilization per inference node** — if available via `nvidia-smi` or equivalent, surface GPU memory usage and compute utilization. Helps identify bottleneck nodes.
+- **Knowledge base storage** — total storage consumed, entries by project, auto-archive candidates approaching the retention threshold.
+
+### 12.2 PlenumNET-Native Metrics
+
+The four PlenumNET services produce their own operational metrics:
+
+- **CRS** — registered node count, TRN record freshness, registration latency
+- **FTS** — heartbeat success rate per node, suspect/down transition events, mean time to detection
+- **GLB** — flow distribution across dimensions, routing latency, load balance evenness
+- **CON** — tunnel establishment time, rekey events, bytes transferred per tunnel, encryption overhead
+
+These metrics are available via Rust `tracing` instrumentation in the service crates. For the MVP, log aggregation (stdout → structured JSON → any log viewer) is sufficient. For production, consider a lightweight Prometheus exporter crate exposing `/metrics` on each node, scrapeable by a central Prometheus/Grafana instance.
+
+### 12.3 Alerting
+
+Minimum alerting rules for production:
+
+- Any node transitions to Down status → immediate notification
+- Relay node health check fails → immediate notification (inference pipeline is blocked)
+- Inference queue depth exceeds configurable threshold → warning
+- Any engine returns >3 consecutive validation failures → warning
+- GPU memory utilization exceeds 90% on any inference node → warning
+
+Alerting integrates with whatever notification system the user already has — the `yoda-plenumnet-bridge` crate emits structured events that can drive webhooks, email, or Slack notifications.
+
+---
+
+## Appendix A — Startup Script (Pseudocode)
+
+```bash
+#!/bin/bash
+# deploy-27-nodes.sh
+# Registers 27 PlenumNET nodes: 1 central + 26 neighbors
+
+CENTER="1,1,1,1,1,1,1,1,1,1,1,1,1"
+TRITS=(2 3)  # the two non-center trit values
+
+# Register central coordinator
+register_node "$CENTER" --role coordinator
+
+# Register 26 neighbors
+for dim in $(seq 0 12); do
+  for trit in "${TRITS[@]}"; do
+    # Build address: copy center, replace trit at $dim with $trit
+    addr=$(build_neighbor_address "$CENTER" "$dim" "$trit")
+    node_id="N$(printf '%02d' $((dim * 2 + trit - 1)))"
+    
+    register_node "$addr" --role "$( get_role $node_id )" --id "$node_id"
+    start_services "$addr"  # GLB, CON, CRS, FTS
+    
+    # If this node runs inference, start llama-server
+    if is_inference_node "$node_id"; then
+      start_inference "$addr" --model "$( get_model $node_id )" --port 8001
+    fi
+  done
+done
+
+echo "27 nodes registered. Verifying tunnel establishment..."
+verify_tunnels "$CENTER"
+echo "Done."
+```
+
+---
+
+## Appendix B — Quick Reference
+
+| Item | Value |
+|---|---|
+| Central address | `[1,1,1,1,1,1,1,1,1,1,1,1,1]` |
+| Total nodes | 27 (1 center + 26 neighbors) |
+| Dimensions | 13 |
+| Tunnels per node | 26 (one per neighbor) |
+| Hop distance (center to any worker) | 1 |
+| NAT traversal | **Rathole** (Rust, Apache 2.0, ~500 KB binary) |
+| Rathole transport encryption | Noise Protocol |
+| Relay authentication | TL-DSA signed tokens (production), shared secret (dev-only) |
+| PlenumNET tunnel encryption | TLSponge-385 (derived keys, no manual exchange) |
+| Data encryption at rest | Phase Encryption (4 modes, τ-derived tamper detection) |
+| Key derivation | TLSponge-385 (385-bit PQ security) |
+| Key encapsulation | TL-KEM |
+| Integrity hashing | TIS-27 (191 ns/hash) |
+| Signing | TL-DSA (1,441 µs per signature) |
+| Relay node requirement | Only if YODA backend is on Replit behind NAT |
+| Relay hardware | VPS, 1 vCPU, 1 GB RAM, $5-10/month |
+| Level-1 cube capacity | 3¹³ = 1,594,323 nodes |
+| PlenumNET services (per node) | GLB, CON, CRS, FTS |
+| Source code | `services/inter-cube/` — 4,187 LOC Rust, 57 tests |
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Sherwood Park, Alberta, Canada*
+*RSalvi@Salvigroup.com*
+
+*Così sia, Fratello.*
