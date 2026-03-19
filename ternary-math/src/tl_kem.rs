@@ -86,6 +86,23 @@ impl TlKemVariant {
             TlKemVariant::TlKem1024 => 486,
         }
     }
+
+    fn tag_byte(&self) -> u8 {
+        match self {
+            TlKemVariant::TlKem512 => 0x01,
+            TlKemVariant::TlKem768 => 0x02,
+            TlKemVariant::TlKem1024 => 0x03,
+        }
+    }
+
+    fn from_tag_byte(b: u8) -> Result<Self, TlKemError> {
+        match b {
+            0x01 => Ok(TlKemVariant::TlKem512),
+            0x02 => Ok(TlKemVariant::TlKem768),
+            0x03 => Ok(TlKemVariant::TlKem1024),
+            _ => Err(TlKemError::InvalidFormat),
+        }
+    }
 }
 
 const KEM_MESSAGE_TRITS: usize = 243;
@@ -97,6 +114,50 @@ pub struct TlKemPublicKey {
     pub public_vec_t: TernaryPolyVec,
 }
 
+impl TlKemPublicKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.push(self.variant.tag_byte());
+        let seed_bytes = trits_to_bytes(&self.matrix_a_seed);
+        out.extend_from_slice(&(seed_bytes.len() as u32).to_le_bytes());
+        out.extend_from_slice(&seed_bytes);
+        let t_trits = poly_vec_to_trits(&self.public_vec_t);
+        let t_bytes = trits_to_bytes(&t_trits);
+        out.extend_from_slice(&(t_bytes.len() as u32).to_le_bytes());
+        out.extend_from_slice(&t_bytes);
+        out
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self, TlKemError> {
+        if data.is_empty() { return Err(TlKemError::InvalidFormat); }
+        let variant = TlKemVariant::from_tag_byte(data[0])?;
+        let params = variant.params();
+        let mut pos = 1;
+
+        let seed_len = read_u32_le(data, &mut pos)? as usize;
+        if pos + seed_len > data.len() { return Err(TlKemError::InvalidFormat); }
+        let seed_bytes = &data[pos..pos + seed_len];
+        let matrix_a_seed = bytes_to_trits(seed_bytes, 243);
+        pos += seed_len;
+
+        let t_len = read_u32_le(data, &mut pos)? as usize;
+        if pos + t_len > data.len() { return Err(TlKemError::InvalidFormat); }
+        let t_bytes = &data[pos..pos + t_len];
+        let t_trits = bytes_to_trits(t_bytes, params.k * params.n);
+        let mut polys = Vec::with_capacity(params.k);
+        for i in 0..params.k {
+            let start = i * params.n;
+            let end = start + params.n;
+            polys.push(TernaryPolynomial::from_coeffs_unchecked(t_trits[start..end].to_vec()));
+        }
+        Ok(TlKemPublicKey {
+            variant,
+            matrix_a_seed,
+            public_vec_t: TernaryPolyVec { polys, n: params.n },
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TlKemSecretKey {
     pub variant: TlKemVariant,
@@ -106,11 +167,100 @@ pub struct TlKemSecretKey {
     pub implicit_reject_seed: Vec<i8>,
 }
 
+impl TlKemSecretKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.push(self.variant.tag_byte());
+        let s_trits = poly_vec_to_trits(&self.secret_s);
+        let s_bytes = trits_to_bytes(&s_trits);
+        out.extend_from_slice(&(s_bytes.len() as u32).to_le_bytes());
+        out.extend_from_slice(&s_bytes);
+        let pk_bytes = self.public_key.to_bytes();
+        out.extend_from_slice(&(pk_bytes.len() as u32).to_le_bytes());
+        out.extend_from_slice(&pk_bytes);
+        let hash_bytes = trits_to_bytes(&self.hash_pk);
+        out.extend_from_slice(&(hash_bytes.len() as u32).to_le_bytes());
+        out.extend_from_slice(&hash_bytes);
+        let reject_bytes = trits_to_bytes(&self.implicit_reject_seed);
+        out.extend_from_slice(&(reject_bytes.len() as u32).to_le_bytes());
+        out.extend_from_slice(&reject_bytes);
+        out
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self, TlKemError> {
+        if data.is_empty() { return Err(TlKemError::InvalidFormat); }
+        let variant = TlKemVariant::from_tag_byte(data[0])?;
+        let params = variant.params();
+        let mut pos = 1;
+
+        let s_len = read_u32_le(data, &mut pos)? as usize;
+        if pos + s_len > data.len() { return Err(TlKemError::InvalidFormat); }
+        let s_trits = bytes_to_trits(&data[pos..pos + s_len], params.k * params.n);
+        let mut s_polys = Vec::with_capacity(params.k);
+        for i in 0..params.k {
+            let start = i * params.n;
+            let end = start + params.n;
+            s_polys.push(TernaryPolynomial::from_coeffs_unchecked(s_trits[start..end].to_vec()));
+        }
+        let secret_s = TernaryPolyVec { polys: s_polys, n: params.n };
+        pos += s_len;
+
+        let pk_len = read_u32_le(data, &mut pos)? as usize;
+        if pos + pk_len > data.len() { return Err(TlKemError::InvalidFormat); }
+        let public_key = TlKemPublicKey::from_bytes(&data[pos..pos + pk_len])?;
+        pos += pk_len;
+
+        let hash_len = read_u32_le(data, &mut pos)? as usize;
+        if pos + hash_len > data.len() { return Err(TlKemError::InvalidFormat); }
+        let hash_pk = bytes_to_trits(&data[pos..pos + hash_len], 243);
+        pos += hash_len;
+
+        let reject_len = read_u32_le(data, &mut pos)? as usize;
+        if pos + reject_len > data.len() { return Err(TlKemError::InvalidFormat); }
+        let implicit_reject_seed = bytes_to_trits(&data[pos..pos + reject_len], 243);
+
+        Ok(TlKemSecretKey { variant, secret_s, public_key, hash_pk, implicit_reject_seed })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TlKemCiphertext {
     pub variant: TlKemVariant,
     pub compressed_u: Vec<Vec<u8>>,
     pub compressed_v: Vec<u8>,
+}
+
+impl TlKemCiphertext {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.push(self.variant.tag_byte());
+        out.push(self.compressed_u.len() as u8);
+        for cu in &self.compressed_u {
+            out.extend_from_slice(&(cu.len() as u32).to_le_bytes());
+            out.extend_from_slice(cu);
+        }
+        out.extend_from_slice(&(self.compressed_v.len() as u32).to_le_bytes());
+        out.extend_from_slice(&self.compressed_v);
+        out
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self, TlKemError> {
+        if data.len() < 2 { return Err(TlKemError::InvalidFormat); }
+        let variant = TlKemVariant::from_tag_byte(data[0])?;
+        let k = data[1] as usize;
+        let mut pos = 2;
+        let mut compressed_u = Vec::with_capacity(k);
+        for _ in 0..k {
+            let cu_len = read_u32_le(data, &mut pos)? as usize;
+            if pos + cu_len > data.len() { return Err(TlKemError::InvalidFormat); }
+            compressed_u.push(data[pos..pos + cu_len].to_vec());
+            pos += cu_len;
+        }
+        let cv_len = read_u32_le(data, &mut pos)? as usize;
+        if pos + cv_len > data.len() { return Err(TlKemError::InvalidFormat); }
+        let compressed_v = data[pos..pos + cv_len].to_vec();
+        Ok(TlKemCiphertext { variant, compressed_u, compressed_v })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,6 +279,31 @@ impl SharedSecret {
     }
 }
 
+#[derive(Debug)]
+pub enum TlKemError {
+    Lattice(LatticeError),
+    InvalidSeed,
+    InvalidFormat,
+}
+
+impl std::fmt::Display for TlKemError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TlKemError::Lattice(e) => write!(f, "Lattice error: {}", e),
+            TlKemError::InvalidSeed => write!(f, "Invalid seed"),
+            TlKemError::InvalidFormat => write!(f, "Invalid serialized format"),
+        }
+    }
+}
+
+impl std::error::Error for TlKemError {}
+
+impl From<LatticeError> for TlKemError {
+    fn from(e: LatticeError) -> Self {
+        TlKemError::Lattice(e)
+    }
+}
+
 fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
     let mut bytes = Vec::new();
     for chunk in trits.chunks(5) {
@@ -142,27 +317,26 @@ fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
     bytes
 }
 
-#[derive(Debug)]
-pub enum TlKemError {
-    Lattice(LatticeError),
-    InvalidSeed,
-}
-
-impl std::fmt::Display for TlKemError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TlKemError::Lattice(e) => write!(f, "Lattice error: {}", e),
-            TlKemError::InvalidSeed => write!(f, "Invalid seed"),
+fn bytes_to_trits(bytes: &[u8], trit_count: usize) -> Vec<i8> {
+    let mut trits = Vec::with_capacity(trit_count);
+    for &byte in bytes {
+        let mut val = byte;
+        for _ in 0..5 {
+            if trits.len() >= trit_count { break; }
+            let remainder = val % 3;
+            trits.push(remainder as i8 - 1);
+            val /= 3;
         }
     }
+    trits.truncate(trit_count);
+    trits
 }
 
-impl std::error::Error for TlKemError {}
-
-impl From<LatticeError> for TlKemError {
-    fn from(e: LatticeError) -> Self {
-        TlKemError::Lattice(e)
-    }
+fn read_u32_le(data: &[u8], pos: &mut usize) -> Result<u32, TlKemError> {
+    if *pos + 4 > data.len() { return Err(TlKemError::InvalidFormat); }
+    let val = u32::from_le_bytes([data[*pos], data[*pos + 1], data[*pos + 2], data[*pos + 3]]);
+    *pos += 4;
+    Ok(val)
 }
 
 fn kem_hash(inputs: &[&[i8]], output_len: usize) -> Vec<i8> {
@@ -175,6 +349,23 @@ fn kem_hash(inputs: &[&[i8]], output_len: usize) -> Vec<i8> {
 
 fn generate_message(seed: &[i8]) -> Vec<i8> {
     kem_hash(&[seed, &[0i8, 1, -1]], KEM_MESSAGE_TRITS)
+}
+
+fn serialize_ciphertext_bytes(ct: &TlKemCiphertext) -> Vec<u8> {
+    let mut out = Vec::new();
+    for cu in &ct.compressed_u {
+        out.extend_from_slice(cu);
+    }
+    out.extend_from_slice(&ct.compressed_v);
+    out
+}
+
+fn ciphertext_to_trits_for_kdf(ct_bytes: &[u8]) -> Vec<i8> {
+    let mut trits = Vec::with_capacity(ct_bytes.len());
+    for &b in ct_bytes {
+        trits.push(((b % 3) as i8) - 1);
+    }
+    trits
 }
 
 pub fn keygen(variant: TlKemVariant, seed: &[i8]) -> Result<(TlKemPublicKey, TlKemSecretKey), TlKemError> {
@@ -237,17 +428,18 @@ pub fn encapsulate(pk: &TlKemPublicKey, randomness: &[i8]) -> Result<(TlKemCiphe
         .collect();
     let compressed_v = compress_ternary(&v, params.dv);
 
-    let ct_trits = ciphertext_to_trits(&compressed_u, &compressed_v);
-    let shared_trits = kem_hash(
-        &[shared_key_seed, &ct_trits],
-        pk.variant.shared_secret_trits(),
-    );
-
     let ct = TlKemCiphertext {
         variant: pk.variant,
         compressed_u,
         compressed_v,
     };
+
+    let ct_bytes = serialize_ciphertext_bytes(&ct);
+    let ct_trits = ciphertext_to_trits_for_kdf(&ct_bytes);
+    let shared_trits = kem_hash(
+        &[shared_key_seed, &ct_trits],
+        pk.variant.shared_secret_trits(),
+    );
 
     let shared = SharedSecret { trits: shared_trits };
 
@@ -279,12 +471,13 @@ pub fn decapsulate(sk: &TlKemSecretKey, ct: &TlKemCiphertext) -> Result<SharedSe
 
     let (ct_prime, _) = encapsulate_inner(&sk.public_key, &message, encaps_coins)?;
 
-    let ct_trits = ciphertext_to_trits(&ct.compressed_u, &ct.compressed_v);
-    let ct_prime_trits = ciphertext_to_trits(&ct_prime.compressed_u, &ct_prime.compressed_v);
+    let ct_bytes = serialize_ciphertext_bytes(ct);
+    let ct_prime_bytes = serialize_ciphertext_bytes(&ct_prime);
 
-    let match_flag = ct_eq_slices(&ct_trits, &ct_prime_trits);
+    let match_flag = ct_eq_byte_slices(&ct_bytes, &ct_prime_bytes);
     let match_bit = match_flag & 1;
 
+    let ct_trits = ciphertext_to_trits_for_kdf(&ct_bytes);
     let ss_accept = kem_hash(
         &[shared_key_seed, &ct_trits],
         sk.variant.shared_secret_trits(),
@@ -364,19 +557,6 @@ fn poly_vec_to_trits(v: &TernaryPolyVec) -> Vec<i8> {
     trits
 }
 
-fn ciphertext_to_trits(compressed_u: &[Vec<u8>], compressed_v: &[u8]) -> Vec<i8> {
-    let mut trits = Vec::new();
-    for cu in compressed_u {
-        for &b in cu {
-            trits.push(((b % 3) as i8) - 1);
-        }
-    }
-    for &b in compressed_v {
-        trits.push(((b % 3) as i8) - 1);
-    }
-    trits
-}
-
 #[inline(always)]
 fn ct_eq_u8(a: u8, b: u8) -> u8 {
     let x = a ^ b;
@@ -385,13 +565,13 @@ fn ct_eq_u8(a: u8, b: u8) -> u8 {
     (neg >> 8) as u8
 }
 
-fn ct_eq_slices(a: &[i8], b: &[i8]) -> u8 {
+fn ct_eq_byte_slices(a: &[u8], b: &[u8]) -> u8 {
     if a.len() != b.len() {
         return 0;
     }
     let mut diff: u8 = 0;
     for i in 0..a.len() {
-        diff |= (a[i] ^ b[i]) as u8;
+        diff |= a[i] ^ b[i];
     }
     ct_eq_u8(diff, 0)
 }
@@ -631,16 +811,105 @@ mod tests {
     }
 
     #[test]
-    fn test_ct_eq_slices() {
-        let a = vec![0i8, 1, -1, 0, 1];
-        let b = vec![0i8, 1, -1, 0, 1];
-        assert_ne!(ct_eq_slices(&a, &b), 0);
+    fn test_shared_secret_compat_sponge385_derive_key() {
+        let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
+        let (pk, sk) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
+        let (ct, shared1) = encapsulate(&pk, &randomness).unwrap();
+        let shared2 = decapsulate(&sk, &ct).unwrap();
 
-        let c = vec![0i8, 1, -1, 0, 0];
-        assert_eq!(ct_eq_slices(&a, &c), 0);
+        let kem_secret = shared1.to_bytes_32();
+        let kem_secret2 = shared2.to_bytes_32();
+        assert_eq!(kem_secret, kem_secret2);
 
-        let d = vec![0i8, 1, -1];
-        assert_eq!(ct_eq_slices(&a, &d), 0);
+        let domain = b"PlenumNET-CON-v3.0";
+        let addr_a = b"addr_a_test";
+        let addr_b = b"addr_b_test";
+        let epoch: u64 = 42;
+        let key1 = crate::tlsponge385::sponge385_derive_key(domain, addr_a, addr_b, &kem_secret, epoch);
+        let key2 = crate::tlsponge385::sponge385_derive_key(domain, addr_a, addr_b, &kem_secret2, epoch);
+        assert_eq!(key1, key2);
+        assert!(!key1.is_empty());
+    }
+
+    #[test]
+    fn test_public_key_serialization_roundtrip() {
+        for variant in [TlKemVariant::TlKem512, TlKemVariant::TlKem768, TlKemVariant::TlKem1024] {
+            let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1];
+            let (pk, _) = keygen(variant, &seed).unwrap();
+            let bytes = pk.to_bytes();
+            let pk2 = TlKemPublicKey::from_bytes(&bytes).unwrap();
+            assert_eq!(pk.variant, pk2.variant);
+            assert_eq!(pk.matrix_a_seed, pk2.matrix_a_seed);
+            assert_eq!(
+                poly_vec_to_trits(&pk.public_vec_t),
+                poly_vec_to_trits(&pk2.public_vec_t)
+            );
+        }
+    }
+
+    #[test]
+    fn test_secret_key_serialization_roundtrip() {
+        for variant in [TlKemVariant::TlKem512, TlKemVariant::TlKem768, TlKemVariant::TlKem1024] {
+            let seed = vec![1i8, 0, -1, 0, 1, -1, 0, 1];
+            let (_, sk) = keygen(variant, &seed).unwrap();
+            let bytes = sk.to_bytes();
+            let sk2 = TlKemSecretKey::from_bytes(&bytes).unwrap();
+            assert_eq!(sk.variant, sk2.variant);
+            assert_eq!(
+                poly_vec_to_trits(&sk.secret_s),
+                poly_vec_to_trits(&sk2.secret_s)
+            );
+            assert_eq!(sk.hash_pk, sk2.hash_pk);
+            assert_eq!(sk.implicit_reject_seed, sk2.implicit_reject_seed);
+        }
+    }
+
+    #[test]
+    fn test_ciphertext_serialization_roundtrip() {
+        let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
+        let (pk, _) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
+        let (ct, _) = encapsulate(&pk, &randomness).unwrap();
+
+        let bytes = ct.to_bytes();
+        let ct2 = TlKemCiphertext::from_bytes(&bytes).unwrap();
+        assert_eq!(ct.variant, ct2.variant);
+        assert_eq!(ct.compressed_u, ct2.compressed_u);
+        assert_eq!(ct.compressed_v, ct2.compressed_v);
+    }
+
+    #[test]
+    fn test_serialized_key_encapsulate_decapsulate() {
+        let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
+        let (pk, sk) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+
+        let pk_bytes = pk.to_bytes();
+        let sk_bytes = sk.to_bytes();
+        let pk2 = TlKemPublicKey::from_bytes(&pk_bytes).unwrap();
+        let sk2 = TlKemSecretKey::from_bytes(&sk_bytes).unwrap();
+
+        let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
+        let (ct, shared1) = encapsulate(&pk2, &randomness).unwrap();
+
+        let ct_bytes = ct.to_bytes();
+        let ct2 = TlKemCiphertext::from_bytes(&ct_bytes).unwrap();
+
+        let shared2 = decapsulate(&sk2, &ct2).unwrap();
+        assert_eq!(shared1, shared2);
+    }
+
+    #[test]
+    fn test_ct_eq_byte_slices() {
+        let a: Vec<u8> = vec![0, 1, 2, 3, 4];
+        let b: Vec<u8> = vec![0, 1, 2, 3, 4];
+        assert_ne!(ct_eq_byte_slices(&a, &b), 0);
+
+        let c: Vec<u8> = vec![0, 1, 2, 3, 5];
+        assert_eq!(ct_eq_byte_slices(&a, &c), 0);
+
+        let d: Vec<u8> = vec![0, 1, 2];
+        assert_eq!(ct_eq_byte_slices(&a, &d), 0);
     }
 
     #[test]
@@ -653,5 +922,22 @@ mod tests {
 
         let r0 = ct_select_vec(0, &a, &b);
         assert_eq!(r0, b);
+    }
+
+    #[test]
+    fn test_invalid_format_deserialization() {
+        assert!(TlKemPublicKey::from_bytes(&[]).is_err());
+        assert!(TlKemPublicKey::from_bytes(&[0xFF]).is_err());
+        assert!(TlKemSecretKey::from_bytes(&[]).is_err());
+        assert!(TlKemCiphertext::from_bytes(&[]).is_err());
+        assert!(TlKemCiphertext::from_bytes(&[0x01]).is_err());
+    }
+
+    #[test]
+    fn test_trits_bytes_roundtrip() {
+        let trits = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0];
+        let bytes = trits_to_bytes(&trits);
+        let recovered = bytes_to_trits(&bytes, trits.len());
+        assert_eq!(trits, recovered);
     }
 }
