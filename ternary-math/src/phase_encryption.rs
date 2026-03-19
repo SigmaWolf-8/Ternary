@@ -191,6 +191,8 @@ pub enum PhaseError {
     GuardianFailed,
     InvalidCiphertext,
     RandomnessError,
+    UnsupportedVersion(u32, u32),
+    MissingGuardian,
 }
 
 impl std::fmt::Display for PhaseError {
@@ -200,6 +202,8 @@ impl std::fmt::Display for PhaseError {
             PhaseError::GuardianFailed => write!(f, "Guardian phase tamper detection failed"),
             PhaseError::InvalidCiphertext => write!(f, "Invalid ciphertext format"),
             PhaseError::RandomnessError => write!(f, "Failed to generate random bytes"),
+            PhaseError::UnsupportedVersion(v, sv) => write!(f, "Unsupported ciphertext version {v}/sponge {sv} (only v3/sponge-v2 supported)"),
+            PhaseError::MissingGuardian => write!(f, "Guardian hash required for this mode but not present"),
         }
     }
 }
@@ -680,11 +684,8 @@ pub fn decrypt_with_mode(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mo
 }
 
 fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_override: Option<EncryptionMode>) -> Result<Vec<u8>, PhaseError> {
-    if ciphertext.version != 3 {
-        return Err(PhaseError::InvalidCiphertext);
-    }
-    if ciphertext.sponge_version != 2 {
-        return Err(PhaseError::InvalidCiphertext);
+    if ciphertext.version != 3 || ciphertext.sponge_version != 2 {
+        return Err(PhaseError::UnsupportedVersion(ciphertext.version as u32, ciphertext.sponge_version as u32));
     }
     if ciphertext.nonce.len() != NONCE_BYTES {
         return Err(PhaseError::InvalidCiphertext);
@@ -694,6 +695,10 @@ fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_overr
         Some(m) => get_phase_config(m),
         None => ciphertext.config.clone(),
     };
+
+    if config.guardian_enabled && ciphertext.guardian_hash.is_none() {
+        return Err(PhaseError::MissingGuardian);
+    }
 
     let mut nonce = [0u8; NONCE_BYTES];
     nonce.copy_from_slice(&ciphertext.nonce);
@@ -1194,7 +1199,7 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"version check", &key, EncryptionMode::Balanced).unwrap();
         ct.version = 2;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::InvalidCiphertext)));
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(2, 2))));
     }
 
     #[test]
@@ -1202,6 +1207,41 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"sponge version check", &key, EncryptionMode::Balanced).unwrap();
         ct.sponge_version = 1;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::InvalidCiphertext)));
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 1))));
+    }
+
+    #[test]
+    fn test_guardian_required_for_high_security() {
+        let key = test_key();
+        let mut ct = encrypt(b"guardian required", &key, EncryptionMode::HighSecurity).unwrap();
+        ct.guardian_hash = None;
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::MissingGuardian)));
+    }
+
+    #[test]
+    fn test_guardian_required_for_adaptive() {
+        let key = test_key();
+        let mut ct = encrypt(b"guardian required adaptive", &key, EncryptionMode::Adaptive).unwrap();
+        ct.guardian_hash = None;
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::MissingGuardian)));
+    }
+
+    #[test]
+    fn test_guardian_not_required_for_balanced() {
+        let key = test_key();
+        let mut ct = encrypt(b"no guardian balanced", &key, EncryptionMode::Balanced).unwrap();
+        ct.guardian_hash = None;
+        let result = decrypt(&ct, &key);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), b"no guardian balanced");
+    }
+
+    #[test]
+    fn test_guardian_not_required_for_performance() {
+        let key = test_key();
+        let mut ct = encrypt(b"no guardian perf", &key, EncryptionMode::Performance).unwrap();
+        ct.guardian_hash = None;
+        let result = decrypt(&ct, &key);
+        assert!(result.is_ok());
     }
 }
