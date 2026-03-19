@@ -1,0 +1,304 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division
+#
+# 27-Node Inter-Cube Deployment (TM-2026-020.2 §5.2)
+# Full 26-neighbor deployment: 1 CRS + 26 neighbor cubes.
+#
+# Roles per TM-2026-020.2 §6:
+#   inference  — YODA inference nodes (primary compute)
+#   review     — verification / audit nodes
+#   kb         — knowledge base / storage nodes
+#   infra      — infrastructure management nodes
+#   relay      — network relay / bridge nodes
+#   standby    — cold standby / failover nodes
+#
+# Usage:
+#   docker compose -f docker-compose.27-node.yml build
+#   docker compose -f docker-compose.27-node.yml up -d
+#   docker compose -f docker-compose.27-node.yml logs -f crs
+
+x-cube-defaults: &cube-defaults
+  build:
+    context: ../..
+    dockerfile: services/inter-cube/Dockerfile
+  environment: &cube-env
+    CUBE_MODE: cube
+    CUBE_CRS_URL: http://crs:8080
+    RUST_LOG: info
+  networks:
+    - cube-net-27
+  depends_on:
+    crs:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  # ── CRS Coordinator ──────────────────────────────────────────────
+  crs:
+    build:
+      context: ../..
+      dockerfile: services/inter-cube/Dockerfile
+    container_name: plenum-27-crs
+    environment:
+      CUBE_MODE: crs
+      RUST_LOG: info
+    ports:
+      - "8080:8080"
+    networks:
+      cube-net-27:
+        ipv4_address: 172.29.0.10
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Inference Nodes (8) ──────────────────────────────────────────
+  cube-inf-01:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-01
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-01:51820"
+      CUBE_ROLE: inference
+    ports: ["8101:8080"]
+
+  cube-inf-02:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-02
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-02:51820"
+      CUBE_ROLE: inference
+    ports: ["8102:8080"]
+
+  cube-inf-03:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-03
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-03:51820"
+      CUBE_ROLE: inference
+    ports: ["8103:8080"]
+
+  cube-inf-04:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-04
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-04:51820"
+      CUBE_ROLE: inference
+    ports: ["8104:8080"]
+
+  cube-inf-05:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-05
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-05:51820"
+      CUBE_ROLE: inference
+    ports: ["8105:8080"]
+
+  cube-inf-06:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-06
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-06:51820"
+      CUBE_ROLE: inference
+    ports: ["8106:8080"]
+
+  cube-inf-07:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-07
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-07:51820"
+      CUBE_ROLE: inference
+    ports: ["8107:8080"]
+
+  cube-inf-08:
+    <<: *cube-defaults
+    container_name: plenum-27-inf-08
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-inf-08:51820"
+      CUBE_ROLE: inference
+    ports: ["8108:8080"]
+
+  # ── Review Nodes (4) ────────────────────────────────────────────
+  cube-rev-01:
+    <<: *cube-defaults
+    container_name: plenum-27-rev-01
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-rev-01:51820"
+      CUBE_ROLE: review
+    ports: ["8111:8080"]
+
+  cube-rev-02:
+    <<: *cube-defaults
+    container_name: plenum-27-rev-02
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-rev-02:51820"
+      CUBE_ROLE: review
+    ports: ["8112:8080"]
+
+  cube-rev-03:
+    <<: *cube-defaults
+    container_name: plenum-27-rev-03
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-rev-03:51820"
+      CUBE_ROLE: review
+    ports: ["8113:8080"]
+
+  cube-rev-04:
+    <<: *cube-defaults
+    container_name: plenum-27-rev-04
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-rev-04:51820"
+      CUBE_ROLE: review
+    ports: ["8114:8080"]
+
+  # ── Knowledge Base Nodes (4) ────────────────────────────────────
+  cube-kb-01:
+    <<: *cube-defaults
+    container_name: plenum-27-kb-01
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-kb-01:51820"
+      CUBE_ROLE: kb
+    ports: ["8121:8080"]
+
+  cube-kb-02:
+    <<: *cube-defaults
+    container_name: plenum-27-kb-02
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-kb-02:51820"
+      CUBE_ROLE: kb
+    ports: ["8122:8080"]
+
+  cube-kb-03:
+    <<: *cube-defaults
+    container_name: plenum-27-kb-03
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-kb-03:51820"
+      CUBE_ROLE: kb
+    ports: ["8123:8080"]
+
+  cube-kb-04:
+    <<: *cube-defaults
+    container_name: plenum-27-kb-04
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-kb-04:51820"
+      CUBE_ROLE: kb
+    ports: ["8124:8080"]
+
+  # ── Infrastructure Nodes (4) ────────────────────────────────────
+  cube-infra-01:
+    <<: *cube-defaults
+    container_name: plenum-27-infra-01
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-infra-01:51820"
+      CUBE_ROLE: infra
+    ports: ["8131:8080"]
+
+  cube-infra-02:
+    <<: *cube-defaults
+    container_name: plenum-27-infra-02
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-infra-02:51820"
+      CUBE_ROLE: infra
+    ports: ["8132:8080"]
+
+  cube-infra-03:
+    <<: *cube-defaults
+    container_name: plenum-27-infra-03
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-infra-03:51820"
+      CUBE_ROLE: infra
+    ports: ["8133:8080"]
+
+  cube-infra-04:
+    <<: *cube-defaults
+    container_name: plenum-27-infra-04
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-infra-04:51820"
+      CUBE_ROLE: infra
+    ports: ["8134:8080"]
+
+  # ── Relay Nodes (4) ──────────────────────────────────────────────
+  cube-relay-01:
+    <<: *cube-defaults
+    container_name: plenum-27-relay-01
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-relay-01:51820"
+      CUBE_ROLE: relay
+    ports: ["8141:8080"]
+
+  cube-relay-02:
+    <<: *cube-defaults
+    container_name: plenum-27-relay-02
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-relay-02:51820"
+      CUBE_ROLE: relay
+    ports: ["8142:8080"]
+
+  cube-relay-03:
+    <<: *cube-defaults
+    container_name: plenum-27-relay-03
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-relay-03:51820"
+      CUBE_ROLE: relay
+    ports: ["8143:8080"]
+
+  cube-relay-04:
+    <<: *cube-defaults
+    container_name: plenum-27-relay-04
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-relay-04:51820"
+      CUBE_ROLE: relay
+    ports: ["8144:8080"]
+
+  # ── Standby Nodes (2) ──────────────────────────────────────────
+  cube-standby-01:
+    <<: *cube-defaults
+    container_name: plenum-27-standby-01
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-standby-01:51820"
+      CUBE_ROLE: standby
+    ports: ["8151:8080"]
+
+  cube-standby-02:
+    <<: *cube-defaults
+    container_name: plenum-27-standby-02
+    environment:
+      <<: *cube-env
+      CUBE_ENDPOINT: "cube-standby-02:51820"
+      CUBE_ROLE: standby
+    ports: ["8152:8080"]
+
+networks:
+  cube-net-27:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16

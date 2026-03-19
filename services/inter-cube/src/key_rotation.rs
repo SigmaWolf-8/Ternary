@@ -405,8 +405,8 @@ impl RotationOrchestrator {
             .map_err(RotationError::CapabilityDenied)?;
 
         let new_epoch = current_arc_epoch(unix_timestamp);
-        let next = if new_epoch == self.rotation.current_epoch() {
-            new_epoch + 1
+        let next = if new_epoch <= self.rotation.current_epoch() {
+            self.rotation.current_epoch() + 1
         } else {
             new_epoch
         };
@@ -570,8 +570,9 @@ mod tests {
         assert_eq!(compute_rotation_jitter(0),     0);
         assert_eq!(compute_rotation_jitter(900),   900);
         assert_eq!(compute_rotation_jitter(901),   0);
-        assert_eq!(compute_rotation_jitter(1_800), 900);
-        assert_eq!(compute_rotation_jitter(1_801), 0);
+        assert_eq!(compute_rotation_jitter(1_800), 899);
+        assert_eq!(compute_rotation_jitter(1_801), 900);
+        assert_eq!(compute_rotation_jitter(1_802), 0);
     }
 
     #[test]
