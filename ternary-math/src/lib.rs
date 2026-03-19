@@ -48,5 +48,6 @@ pub mod pt26_walk;
 pub mod ttc;
 pub mod ternary_lattice;
 pub mod tl_kem;
+pub mod phase_encryption;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_exports;
