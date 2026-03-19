@@ -368,6 +368,24 @@ fn ciphertext_to_trits_for_kdf(ct_bytes: &[u8]) -> Vec<i8> {
     trits
 }
 
+pub fn keygen_default(variant: TlKemVariant) -> Result<(TlKemPublicKey, TlKemSecretKey), TlKemError> {
+    let mut os_bytes = [0u8; 48];
+    getrandom::getrandom(&mut os_bytes).map_err(|_| TlKemError::InvalidSeed)?;
+    let seed: Vec<i8> = os_bytes.iter().map(|&b| ((b % 3) as i8) - 1).collect();
+    keygen(variant, &seed)
+}
+
+pub fn encapsulate_default(pk: &TlKemPublicKey) -> Result<(TlKemCiphertext, SharedSecret), TlKemError> {
+    let mut os_bytes = [0u8; 32];
+    getrandom::getrandom(&mut os_bytes).map_err(|_| TlKemError::InvalidSeed)?;
+    let randomness: Vec<i8> = os_bytes.iter().map(|&b| ((b % 3) as i8) - 1).collect();
+    encapsulate(pk, &randomness)
+}
+
+pub fn decapsulate_default(ct: &TlKemCiphertext, sk: &TlKemSecretKey) -> Result<SharedSecret, TlKemError> {
+    decapsulate(sk, ct)
+}
+
 pub fn keygen(variant: TlKemVariant, seed: &[i8]) -> Result<(TlKemPublicKey, TlKemSecretKey), TlKemError> {
     let params = variant.params();
     let k = params.k;
@@ -939,5 +957,29 @@ mod tests {
         let bytes = trits_to_bytes(&trits);
         let recovered = bytes_to_trits(&bytes, trits.len());
         assert_eq!(trits, recovered);
+    }
+
+    #[test]
+    fn test_keygen_default_512() {
+        let (pk, sk) = keygen_default(TlKemVariant::TlKem512).unwrap();
+        assert_eq!(pk.variant, TlKemVariant::TlKem512);
+        assert_eq!(sk.variant, TlKemVariant::TlKem512);
+        assert_eq!(pk.public_vec_t.polys.len(), 2);
+    }
+
+    #[test]
+    fn test_encapsulate_default_roundtrip() {
+        let (pk, sk) = keygen_default(TlKemVariant::TlKem512).unwrap();
+        let (ct, shared1) = encapsulate_default(&pk).unwrap();
+        let shared2 = decapsulate_default(&ct, &sk).unwrap();
+        assert_eq!(shared1, shared2);
+    }
+
+    #[test]
+    fn test_convenience_api_different_sessions() {
+        let (pk, _) = keygen_default(TlKemVariant::TlKem512).unwrap();
+        let (_, s1) = encapsulate_default(&pk).unwrap();
+        let (_, s2) = encapsulate_default(&pk).unwrap();
+        assert_ne!(s1, s2);
     }
 }
