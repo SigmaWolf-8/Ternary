@@ -145,6 +145,25 @@ cargo test
 
 420 tests across 15 modules.
 
+## Address Table (TM-2026-020.2 §5.2)
+
+The 27-node deployment assigns deterministic wire endpoints via `ADDRESS` env vars.
+Ternary cube addresses (54-trit) are allocated dynamically by CRS upon registration.
+The mapping between service names and roles:
+
+| Service | Role | Wire Endpoint | API Port |
+|---------|------|---------------|----------|
+| `crs` | coordinator | — | 8080 |
+| `cube-inf-01`..`cube-inf-08` | inference | `cube-inf-{N}:51820` | 8101–8108 |
+| `cube-rev-01`..`cube-rev-04` | review | `cube-rev-{N}:51820` | 8111–8114 |
+| `cube-kb-01`..`cube-kb-04` | kb | `cube-kb-{N}:51820` | 8121–8124 |
+| `cube-infra-01`..`cube-infra-04` | infra | `cube-infra-{N}:51820` | 8131–8134 |
+| `cube-relay-01`..`cube-relay-04` | relay | `cube-relay-{N}:51820` | 8141–8144 |
+| `cube-standby-01`..`cube-standby-02` | standby | `cube-standby-{N}:51820` | 8151–8152 |
+
+CRS assigns 54-trit addresses from the 3^13 address space upon registration.
+Docker service names serve as DNS-resolvable hostnames within the compose network.
+
 ## Known Gaps
 
 - NAT traversal / rathole integration not yet implemented (TM-2026-020.2 §4.10)
