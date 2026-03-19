@@ -621,6 +621,268 @@ pub fn signature_size(variant: TlDsaVariant) -> usize {
     params.l * params.n + 243
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// KEY SERIALIZATION (v2 lattice-based)
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Wire format — compact seed-based serialization.
+//
+// matrix_a and matrix_a_ntt are re-derived from matrix_a_seed on
+// deserialization, so they are NOT included in the wire encoding.
+//
+// PublicKey wire:
+//   variant_tag (1 byte)
+//   matrix_a_seed (243 i8 trits)
+//   public_t     (k * n i8 trits)
+//
+// SecretKey wire:
+//   variant_tag  (1 byte)
+//   matrix_a_seed (243 i8 trits)
+//   secret_s1    (l * n i8 trits)
+//   secret_s2    (k * n i8 trits)
+//   public_t     (k * n i8 trits)
+//   signing_seed (243 i8 trits)
+//
+// Variant tags: 0x2C = TL-DSA-44, 0x41 = TL-DSA-65, 0x57 = TL-DSA-87
+
+const VARIANT_TAG_44: u8 = 0x2C;
+const VARIANT_TAG_65: u8 = 0x41;
+const VARIANT_TAG_87: u8 = 0x57;
+const SEED_LEN: usize = 243;
+
+fn variant_to_tag(v: TlDsaVariant) -> u8 {
+    match v {
+        TlDsaVariant::TlDsa44 => VARIANT_TAG_44,
+        TlDsaVariant::TlDsa65 => VARIANT_TAG_65,
+        TlDsaVariant::TlDsa87 => VARIANT_TAG_87,
+    }
+}
+
+fn tag_to_variant(tag: u8) -> CryptoResult<TlDsaVariant> {
+    match tag {
+        VARIANT_TAG_44 => Ok(TlDsaVariant::TlDsa44),
+        VARIANT_TAG_65 => Ok(TlDsaVariant::TlDsa65),
+        VARIANT_TAG_87 => Ok(TlDsaVariant::TlDsa87),
+        _ => Err(CryptoError::UnsupportedAlgorithm(
+            alloc::format!("unknown TL-DSA variant tag: 0x{:02X}", tag),
+        )),
+    }
+}
+
+fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
+    trits.iter().map(|&t| t as u8).collect()
+}
+
+fn bytes_to_trits(bytes: &[u8]) -> CryptoResult<Vec<i8>> {
+    let mut trits = Vec::with_capacity(bytes.len());
+    for &b in bytes {
+        let t = b as i8;
+        if t < -1 || t > 1 {
+            return Err(CryptoError::InvalidTritValue(t));
+        }
+        trits.push(t);
+    }
+    Ok(trits)
+}
+
+fn polyvec_to_trit_bytes(v: &TernaryPolyVec) -> Vec<u8> {
+    let mut out = Vec::with_capacity(v.polys.len() * v.n);
+    for p in &v.polys {
+        out.extend(trits_to_bytes(&p.coeffs));
+    }
+    out
+}
+
+fn trit_bytes_to_polyvec(bytes: &[u8], count: usize, n: usize) -> CryptoResult<TernaryPolyVec> {
+    if bytes.len() != count * n {
+        return Err(CryptoError::InvalidInputLength {
+            expected: count * n,
+            actual: bytes.len(),
+        });
+    }
+    let mut polys = Vec::with_capacity(count);
+    for i in 0..count {
+        let trits = bytes_to_trits(&bytes[i * n..(i + 1) * n])?;
+        polys.push(TernaryPolynomial::from_coeffs(trits)?);
+    }
+    Ok(TernaryPolyVec { polys, n })
+}
+
+impl TlDsaPublicKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let params = self.variant.params();
+        let pk_trits_len = params.k * params.n;
+        let total = 1 + SEED_LEN + pk_trits_len;
+        let mut buf = Vec::with_capacity(total);
+
+        buf.push(variant_to_tag(self.variant));
+        buf.extend(trits_to_bytes(&self.matrix_a_seed));
+        buf.extend(polyvec_to_trit_bytes(&self.public_t));
+
+        buf
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> CryptoResult<Self> {
+        if bytes.is_empty() {
+            return Err(CryptoError::InvalidInputLength { expected: 1, actual: 0 });
+        }
+
+        let variant = tag_to_variant(bytes[0])?;
+        let params = variant.params();
+        let pk_trits_len = params.k * params.n;
+        let expected_len = 1 + SEED_LEN + pk_trits_len;
+
+        if bytes.len() != expected_len {
+            return Err(CryptoError::InvalidInputLength {
+                expected: expected_len,
+                actual: bytes.len(),
+            });
+        }
+
+        let mut offset = 1;
+        let matrix_a_seed = bytes_to_trits(&bytes[offset..offset + SEED_LEN])?;
+        offset += SEED_LEN;
+
+        let public_t = trit_bytes_to_polyvec(&bytes[offset..offset + pk_trits_len], params.k, params.n)?;
+
+        let matrix_a = expand_matrix_a(&matrix_a_seed, params.k, params.l, params.n);
+        let matrix_a_ntt = matrix_a.to_ntt();
+
+        Ok(TlDsaPublicKey {
+            variant,
+            matrix_a_seed,
+            public_t,
+            matrix_a,
+            matrix_a_ntt,
+        })
+    }
+
+    pub fn public_key_trits(&self) -> Vec<i8> {
+        poly_vec_to_trits(&self.public_t)
+    }
+}
+
+impl TlDsaSecretKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let params = self.variant.params();
+        let s1_len = params.l * params.n;
+        let s2_len = params.k * params.n;
+        let t_len  = params.k * params.n;
+        let total = 1 + SEED_LEN + s1_len + s2_len + t_len + SEED_LEN;
+        let mut buf = Vec::with_capacity(total);
+
+        buf.push(variant_to_tag(self.variant));
+        buf.extend(trits_to_bytes(&self.matrix_a_seed));
+        buf.extend(polyvec_to_trit_bytes(&self.secret_s1));
+        buf.extend(polyvec_to_trit_bytes(&self.secret_s2));
+        buf.extend(polyvec_to_trit_bytes(&self.public_t));
+        buf.extend(trits_to_bytes(&self.signing_seed));
+
+        buf
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> CryptoResult<Self> {
+        if bytes.is_empty() {
+            return Err(CryptoError::InvalidInputLength { expected: 1, actual: 0 });
+        }
+
+        let variant = tag_to_variant(bytes[0])?;
+        let params = variant.params();
+        let s1_len = params.l * params.n;
+        let s2_len = params.k * params.n;
+        let t_len  = params.k * params.n;
+        let expected_len = 1 + SEED_LEN + s1_len + s2_len + t_len + SEED_LEN;
+
+        if bytes.len() != expected_len {
+            return Err(CryptoError::InvalidInputLength {
+                expected: expected_len,
+                actual: bytes.len(),
+            });
+        }
+
+        let mut offset = 1;
+        let matrix_a_seed = bytes_to_trits(&bytes[offset..offset + SEED_LEN])?;
+        offset += SEED_LEN;
+
+        let secret_s1 = trit_bytes_to_polyvec(&bytes[offset..offset + s1_len], params.l, params.n)?;
+        offset += s1_len;
+
+        let secret_s2 = trit_bytes_to_polyvec(&bytes[offset..offset + s2_len], params.k, params.n)?;
+        offset += s2_len;
+
+        let public_t = trit_bytes_to_polyvec(&bytes[offset..offset + t_len], params.k, params.n)?;
+        offset += t_len;
+
+        let signing_seed = bytes_to_trits(&bytes[offset..offset + SEED_LEN])?;
+
+        let matrix_a = expand_matrix_a(&matrix_a_seed, params.k, params.l, params.n);
+        let matrix_a_ntt = matrix_a.to_ntt();
+
+        Ok(TlDsaSecretKey {
+            variant,
+            matrix_a_seed,
+            matrix_a,
+            matrix_a_ntt,
+            secret_s1,
+            secret_s2,
+            public_t,
+            signing_seed,
+        })
+    }
+
+    pub fn secret_key_trits(&self) -> Vec<i8> {
+        let mut out = Vec::new();
+        out.extend(poly_vec_to_trits(&self.secret_s1));
+        out.extend(poly_vec_to_trits(&self.secret_s2));
+        out
+    }
+}
+
+impl TlDsaSignature {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let params = self.variant.params();
+        let z_len = params.l * params.n;
+        let total = 1 + z_len + SEED_LEN;
+        let mut buf = Vec::with_capacity(total);
+
+        buf.push(variant_to_tag(self.variant));
+        buf.extend(polyvec_to_trit_bytes(&self.z));
+        buf.extend(trits_to_bytes(&self.challenge_hash));
+
+        buf
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> CryptoResult<Self> {
+        if bytes.is_empty() {
+            return Err(CryptoError::InvalidInputLength { expected: 1, actual: 0 });
+        }
+
+        let variant = tag_to_variant(bytes[0])?;
+        let params = variant.params();
+        let z_len = params.l * params.n;
+        let expected_len = 1 + z_len + SEED_LEN;
+
+        if bytes.len() != expected_len {
+            return Err(CryptoError::InvalidInputLength {
+                expected: expected_len,
+                actual: bytes.len(),
+            });
+        }
+
+        let mut offset = 1;
+        let z = trit_bytes_to_polyvec(&bytes[offset..offset + z_len], params.l, params.n)?;
+        offset += z_len;
+
+        let challenge_hash = bytes_to_trits(&bytes[offset..offset + SEED_LEN])?;
+
+        Ok(TlDsaSignature {
+            variant,
+            z,
+            challenge_hash,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -934,5 +1196,166 @@ mod tests {
         let sig87 = signature_size(TlDsaVariant::TlDsa87);
         assert!(sig65 > sig44);
         assert!(sig87 > sig65);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // SERIALIZATION ROUND-TRIP TESTS
+    // ═══════════════════════════════════════════════════════════
+
+    fn roundtrip_sign_verify(variant: TlDsaVariant, seed: &[i8], message: &[i8]) {
+        let (pk, sk) = keygen(variant, seed).unwrap();
+
+        let sig_orig = sign(&sk, message).unwrap();
+        assert!(verify(&pk, message, &sig_orig).unwrap(), "original sig must verify");
+
+        let pk_bytes = pk.to_bytes();
+        let sk_bytes = sk.to_bytes();
+        let sig_bytes = sig_orig.to_bytes();
+
+        let pk2 = TlDsaPublicKey::from_bytes(&pk_bytes).unwrap();
+        let sk2 = TlDsaSecretKey::from_bytes(&sk_bytes).unwrap();
+        let sig2 = TlDsaSignature::from_bytes(&sig_bytes).unwrap();
+
+        assert_eq!(pk2.variant, variant);
+        assert_eq!(sk2.variant, variant);
+        assert_eq!(sig2.variant, variant);
+
+        assert!(verify(&pk2, message, &sig2).unwrap(), "deserialized sig must verify with deserialized pk");
+        assert!(verify(&pk2, message, &sig_orig).unwrap(), "original sig must verify with deserialized pk");
+
+        let sig3 = sign(&sk2, message).unwrap();
+        assert!(verify(&pk, message, &sig3).unwrap(), "sig from deserialized sk must verify with original pk");
+        assert!(verify(&pk2, message, &sig3).unwrap(), "sig from deserialized sk must verify with deserialized pk");
+
+        assert_eq!(
+            sig_orig.challenge_hash, sig3.challenge_hash,
+            "deserialized sk must produce identical signatures (deterministic)"
+        );
+        assert_eq!(
+            poly_vec_to_trits(&sig_orig.z),
+            poly_vec_to_trits(&sig3.z),
+            "deserialized sk must produce identical z vectors"
+        );
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_44() {
+        let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
+        let message = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1];
+        roundtrip_sign_verify(TlDsaVariant::TlDsa44, &seed, &message);
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_65() {
+        let seed = vec![1i8, 0, -1, 1, 0, -1, 0, 1, -1, 1, 0, -1];
+        let message = vec![0i8, 1, -1, 0, 1, -1];
+        roundtrip_sign_verify(TlDsaVariant::TlDsa65, &seed, &message);
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_87() {
+        let seed = vec![-1i8, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1];
+        let message = vec![1i8, 1, 0, -1, -1, 0, 1, 1];
+        roundtrip_sign_verify(TlDsaVariant::TlDsa87, &seed, &message);
+    }
+
+    #[test]
+    fn test_pk_serialization_wire_size() {
+        let seed = vec![0i8, 1, -1, 0, 1];
+
+        for variant in [TlDsaVariant::TlDsa44, TlDsaVariant::TlDsa65, TlDsaVariant::TlDsa87] {
+            let (pk, _sk) = keygen(variant, &seed).unwrap();
+            let pk_bytes = pk.to_bytes();
+            let params = variant.params();
+            let expected = 1 + SEED_LEN + params.k * params.n;
+            assert_eq!(pk_bytes.len(), expected, "PK wire size mismatch for {:?}", variant);
+        }
+    }
+
+    #[test]
+    fn test_sk_serialization_wire_size() {
+        let seed = vec![0i8, 1, -1, 0, 1];
+
+        for variant in [TlDsaVariant::TlDsa44, TlDsaVariant::TlDsa65, TlDsaVariant::TlDsa87] {
+            let (_pk, sk) = keygen(variant, &seed).unwrap();
+            let sk_bytes = sk.to_bytes();
+            let params = variant.params();
+            let expected = 1 + SEED_LEN + params.l * params.n + params.k * params.n + params.k * params.n + SEED_LEN;
+            assert_eq!(sk_bytes.len(), expected, "SK wire size mismatch for {:?}", variant);
+        }
+    }
+
+    #[test]
+    fn test_sig_serialization_wire_size() {
+        let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
+
+        for variant in [TlDsaVariant::TlDsa44, TlDsaVariant::TlDsa65, TlDsaVariant::TlDsa87] {
+            let (_pk, sk) = keygen(variant, &seed).unwrap();
+            let msg = vec![1i8, 0, -1];
+            let sig = sign(&sk, &msg).unwrap();
+            let sig_bytes = sig.to_bytes();
+            let params = variant.params();
+            let expected = 1 + params.l * params.n + SEED_LEN;
+            assert_eq!(sig_bytes.len(), expected, "Sig wire size mismatch for {:?}", variant);
+        }
+    }
+
+    #[test]
+    fn test_serialization_variant_tag_first_byte() {
+        let seed = vec![0i8, 1, -1, 0, 1];
+
+        let (pk44, sk44) = keygen(TlDsaVariant::TlDsa44, &seed).unwrap();
+        assert_eq!(pk44.to_bytes()[0], VARIANT_TAG_44);
+        assert_eq!(sk44.to_bytes()[0], VARIANT_TAG_44);
+
+        let (pk65, sk65) = keygen(TlDsaVariant::TlDsa65, &seed).unwrap();
+        assert_eq!(pk65.to_bytes()[0], VARIANT_TAG_65);
+        assert_eq!(sk65.to_bytes()[0], VARIANT_TAG_65);
+
+        let (pk87, sk87) = keygen(TlDsaVariant::TlDsa87, &seed).unwrap();
+        assert_eq!(pk87.to_bytes()[0], VARIANT_TAG_87);
+        assert_eq!(sk87.to_bytes()[0], VARIANT_TAG_87);
+    }
+
+    #[test]
+    fn test_deserialization_rejects_invalid_tag() {
+        let mut buf = vec![0xFFu8; 500];
+        buf[0] = 0xFF;
+        assert!(TlDsaPublicKey::from_bytes(&buf).is_err());
+        assert!(TlDsaSecretKey::from_bytes(&buf).is_err());
+        assert!(TlDsaSignature::from_bytes(&buf).is_err());
+    }
+
+    #[test]
+    fn test_deserialization_rejects_empty() {
+        assert!(TlDsaPublicKey::from_bytes(&[]).is_err());
+        assert!(TlDsaSecretKey::from_bytes(&[]).is_err());
+        assert!(TlDsaSignature::from_bytes(&[]).is_err());
+    }
+
+    #[test]
+    fn test_deserialization_rejects_truncated() {
+        let seed = vec![0i8, 1, -1, 0, 1];
+        let (pk, sk) = keygen(TlDsaVariant::TlDsa44, &seed).unwrap();
+
+        let pk_bytes = pk.to_bytes();
+        assert!(TlDsaPublicKey::from_bytes(&pk_bytes[..pk_bytes.len() - 1]).is_err());
+
+        let sk_bytes = sk.to_bytes();
+        assert!(TlDsaSecretKey::from_bytes(&sk_bytes[..sk_bytes.len() - 1]).is_err());
+    }
+
+    #[test]
+    fn test_individual_key_accessors() {
+        let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
+        let (pk, sk) = keygen(TlDsaVariant::TlDsa44, &seed).unwrap();
+
+        let pk_trits = pk.public_key_trits();
+        assert_eq!(pk_trits.len(), 4 * 256);
+        assert!(pk_trits.iter().all(|&t| t >= -1 && t <= 1));
+
+        let sk_trits = sk.secret_key_trits();
+        let params = TlDsaVariant::TlDsa44.params();
+        assert_eq!(sk_trits.len(), (params.l + params.k) * params.n);
     }
 }
