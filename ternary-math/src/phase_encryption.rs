@@ -211,6 +211,243 @@ pub struct TsWireFormat {
     pub sponge_version: Option<u8>,
 }
 
+impl TsWireFormat {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(256);
+        buf.extend_from_slice(b"TSWF");
+        buf.push(1);
+
+        write_len_prefixed_str(&mut buf, &self.primary_phase.data);
+        buf.extend_from_slice(&self.primary_phase.phase.to_le_bytes());
+
+        write_len_prefixed_str(&mut buf, &self.secondary_phase.data);
+        buf.extend_from_slice(&self.secondary_phase.phase.to_le_bytes());
+
+        match &self.guardian_phase {
+            Some(g) => {
+                buf.push(1);
+                write_len_prefixed_str(&mut buf, &g.hash);
+                buf.extend_from_slice(&g.phase.to_le_bytes());
+            }
+            None => buf.push(0),
+        }
+
+        buf.push(self.config.mode as u8);
+        buf.extend_from_slice(&self.config.primary_phase.to_le_bytes());
+        buf.extend_from_slice(&self.config.secondary_offset.to_le_bytes());
+        buf.push(self.config.guardian_enabled as u8);
+        buf.extend_from_slice(&self.config.guardian_offset.to_le_bytes());
+
+        buf.extend_from_slice(&self.split_ratio.to_le_bytes());
+
+        write_optional_str(&mut buf, self.nonce.as_deref());
+        write_optional_str(&mut buf, self.mac.as_deref());
+
+        buf.push(self.version.unwrap_or(3));
+        buf.push(self.sponge_version.unwrap_or(2));
+
+        buf
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self, PhaseError> {
+        if data.len() < 9 || &data[0..4] != b"TSWF" || data[4] != 1 {
+            return Err(PhaseError::InvalidCiphertext);
+        }
+        let mut pos = 5;
+
+        let primary_data = read_len_prefixed_str(data, &mut pos)?;
+        let primary_phase = read_u16_le(data, &mut pos)?;
+
+        let secondary_data = read_len_prefixed_str(data, &mut pos)?;
+        let secondary_phase = read_u16_le(data, &mut pos)?;
+
+        let guardian_phase = if read_u8(data, &mut pos)? == 1 {
+            let hash = read_len_prefixed_str(data, &mut pos)?;
+            let phase = read_u16_le(data, &mut pos)?;
+            Some(TsGuardianEntry { hash, phase })
+        } else {
+            None
+        };
+
+        let mode_byte = read_u8(data, &mut pos)?;
+        let mode = match mode_byte {
+            0 => EncryptionMode::HighSecurity,
+            1 => EncryptionMode::Balanced,
+            2 => EncryptionMode::Performance,
+            3 => EncryptionMode::Adaptive,
+            _ => return Err(PhaseError::InvalidCiphertext),
+        };
+        let cfg_primary = read_u16_le(data, &mut pos)?;
+        let cfg_secondary_offset = read_u16_le(data, &mut pos)?;
+        let cfg_guardian_enabled = read_u8(data, &mut pos)? != 0;
+        let cfg_guardian_offset = read_u16_le(data, &mut pos)?;
+
+        let split_ratio = read_f64_le(data, &mut pos)?;
+
+        let nonce = read_optional_str(data, &mut pos)?;
+        let mac = read_optional_str(data, &mut pos)?;
+
+        let version = Some(read_u8(data, &mut pos)?);
+        let sponge_version = Some(read_u8(data, &mut pos)?);
+
+        Ok(TsWireFormat {
+            primary_phase: TsPhaseEntry { data: primary_data, phase: primary_phase },
+            secondary_phase: TsPhaseEntry { data: secondary_data, phase: secondary_phase },
+            guardian_phase,
+            config: PhaseConfig {
+                mode,
+                primary_phase: cfg_primary,
+                secondary_offset: cfg_secondary_offset,
+                guardian_enabled: cfg_guardian_enabled,
+                guardian_offset: cfg_guardian_offset,
+            },
+            split_ratio,
+            nonce,
+            mac,
+            version,
+            sponge_version,
+        })
+    }
+}
+
+impl PhaseCiphertext {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(256);
+        buf.extend_from_slice(b"PHCT");
+        buf.push(1);
+
+        write_len_prefixed_bytes(&mut buf, &self.primary_cipher);
+        write_len_prefixed_bytes(&mut buf, &self.secondary_cipher);
+        write_len_prefixed_str(&mut buf, &self.mac);
+        write_len_prefixed_bytes(&mut buf, &self.nonce);
+
+        buf.push(self.config.mode as u8);
+        buf.extend_from_slice(&self.config.primary_phase.to_le_bytes());
+        buf.extend_from_slice(&self.config.secondary_offset.to_le_bytes());
+        buf.push(self.config.guardian_enabled as u8);
+        buf.extend_from_slice(&self.config.guardian_offset.to_le_bytes());
+
+        write_optional_str(&mut buf, self.guardian_hash.as_deref());
+
+        buf.push(self.version);
+        buf.push(self.sponge_version);
+
+        buf
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Result<Self, PhaseError> {
+        if data.len() < 9 || &data[0..4] != b"PHCT" || data[4] != 1 {
+            return Err(PhaseError::InvalidCiphertext);
+        }
+        let mut pos = 5;
+
+        let primary_cipher = read_len_prefixed_bytes(data, &mut pos)?;
+        let secondary_cipher = read_len_prefixed_bytes(data, &mut pos)?;
+        let mac = read_len_prefixed_str(data, &mut pos)?;
+        let nonce = read_len_prefixed_bytes(data, &mut pos)?;
+        if nonce.len() != NONCE_BYTES {
+            return Err(PhaseError::InvalidCiphertext);
+        }
+
+        let mode_byte = read_u8(data, &mut pos)?;
+        let mode = match mode_byte {
+            0 => EncryptionMode::HighSecurity,
+            1 => EncryptionMode::Balanced,
+            2 => EncryptionMode::Performance,
+            3 => EncryptionMode::Adaptive,
+            _ => return Err(PhaseError::InvalidCiphertext),
+        };
+        let cfg_primary = read_u16_le(data, &mut pos)?;
+        let cfg_secondary_offset = read_u16_le(data, &mut pos)?;
+        let cfg_guardian_enabled = read_u8(data, &mut pos)? != 0;
+        let cfg_guardian_offset = read_u16_le(data, &mut pos)?;
+
+        let guardian_hash = read_optional_str(data, &mut pos)?;
+
+        let version = read_u8(data, &mut pos)?;
+        let sponge_version = read_u8(data, &mut pos)?;
+
+        Ok(PhaseCiphertext {
+            primary_cipher,
+            secondary_cipher,
+            mac,
+            nonce,
+            config: PhaseConfig {
+                mode,
+                primary_phase: cfg_primary,
+                secondary_offset: cfg_secondary_offset,
+                guardian_enabled: cfg_guardian_enabled,
+                guardian_offset: cfg_guardian_offset,
+            },
+            guardian_hash,
+            version,
+            sponge_version,
+        })
+    }
+}
+
+fn write_len_prefixed_bytes(buf: &mut Vec<u8>, data: &[u8]) {
+    buf.extend_from_slice(&(data.len() as u32).to_le_bytes());
+    buf.extend_from_slice(data);
+}
+
+fn write_len_prefixed_str(buf: &mut Vec<u8>, s: &str) {
+    write_len_prefixed_bytes(buf, s.as_bytes());
+}
+
+fn write_optional_str(buf: &mut Vec<u8>, s: Option<&str>) {
+    match s {
+        Some(v) => { buf.push(1); write_len_prefixed_str(buf, v); }
+        None => buf.push(0),
+    }
+}
+
+fn read_u8(data: &[u8], pos: &mut usize) -> Result<u8, PhaseError> {
+    if *pos >= data.len() { return Err(PhaseError::InvalidCiphertext); }
+    let v = data[*pos];
+    *pos += 1;
+    Ok(v)
+}
+
+fn read_u16_le(data: &[u8], pos: &mut usize) -> Result<u16, PhaseError> {
+    if *pos + 2 > data.len() { return Err(PhaseError::InvalidCiphertext); }
+    let v = u16::from_le_bytes([data[*pos], data[*pos + 1]]);
+    *pos += 2;
+    Ok(v)
+}
+
+fn read_f64_le(data: &[u8], pos: &mut usize) -> Result<f64, PhaseError> {
+    if *pos + 8 > data.len() { return Err(PhaseError::InvalidCiphertext); }
+    let mut arr = [0u8; 8];
+    arr.copy_from_slice(&data[*pos..*pos + 8]);
+    *pos += 8;
+    Ok(f64::from_le_bytes(arr))
+}
+
+fn read_len_prefixed_bytes(data: &[u8], pos: &mut usize) -> Result<Vec<u8>, PhaseError> {
+    if *pos + 4 > data.len() { return Err(PhaseError::InvalidCiphertext); }
+    let len = u32::from_le_bytes([data[*pos], data[*pos+1], data[*pos+2], data[*pos+3]]) as usize;
+    *pos += 4;
+    if *pos + len > data.len() { return Err(PhaseError::InvalidCiphertext); }
+    let v = data[*pos..*pos + len].to_vec();
+    *pos += len;
+    Ok(v)
+}
+
+fn read_len_prefixed_str(data: &[u8], pos: &mut usize) -> Result<String, PhaseError> {
+    let bytes = read_len_prefixed_bytes(data, pos)?;
+    String::from_utf8(bytes).map_err(|_| PhaseError::InvalidCiphertext)
+}
+
+fn read_optional_str(data: &[u8], pos: &mut usize) -> Result<Option<String>, PhaseError> {
+    let flag = read_u8(data, pos)?;
+    if flag == 1 {
+        Ok(Some(read_len_prefixed_str(data, pos)?))
+    } else {
+        Ok(None)
+    }
+}
+
 #[derive(Debug)]
 pub enum PhaseError {
     MacMismatch,
