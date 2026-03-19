@@ -329,7 +329,13 @@ fn permute_n(state: &mut [i8; STATE_SIZE], rounds: usize) {
 }
 
 pub fn sponge_permutation(state: &mut [i8; STATE_SIZE]) { permute_n(state, ROUNDS); }
-pub fn sponge_permutation_v1(state: &mut [i8; STATE_SIZE]) { permute_n(state, ROUNDS); }
+
+fn permute_n_no_chi(state: &mut [i8; STATE_SIZE], rounds: usize) {
+    let mut buf = [0i8; STATE_SIZE];
+    for round in 0..rounds { theta_pi_rc(state, &mut buf, round); }
+}
+
+pub fn sponge_permutation_v1(state: &mut [i8; STATE_SIZE]) { permute_n_no_chi(state, ROUNDS); }
 
 // ═══════════════════════════════════════════════════════════════════════
 // TRIT / BYTE CONVERSION
@@ -371,14 +377,21 @@ pub struct Sponge385Pub {
     buf_len: usize,
     absorbed: bool,
     rounds: usize,
+    use_chi: bool,
 }
 
 impl Sponge385Pub {
-    pub fn new() -> Self { Self { state: [0i8; STATE_SIZE], buf: [0i8; RATE], buf_len: 0, absorbed: false, rounds: ROUNDS } }
-    pub fn new_tis() -> Self { Self { state: [0i8; STATE_SIZE], buf: [0i8; RATE], buf_len: 0, absorbed: false, rounds: ROUNDS_TIS } }
-    pub fn new_v1() -> Self { Self::new() }
+    pub fn new() -> Self { Self { state: [0i8; STATE_SIZE], buf: [0i8; RATE], buf_len: 0, absorbed: false, rounds: ROUNDS, use_chi: true } }
+    pub fn new_tis() -> Self { Self { state: [0i8; STATE_SIZE], buf: [0i8; RATE], buf_len: 0, absorbed: false, rounds: ROUNDS_TIS, use_chi: true } }
+    pub fn new_v1() -> Self { Self { state: [0i8; STATE_SIZE], buf: [0i8; RATE], buf_len: 0, absorbed: false, rounds: ROUNDS, use_chi: false } }
 
-    fn do_permute(&mut self) { permute_n(&mut self.state, self.rounds); }
+    fn do_permute(&mut self) {
+        if self.use_chi {
+            permute_n(&mut self.state, self.rounds);
+        } else {
+            permute_n_no_chi(&mut self.state, self.rounds);
+        }
+    }
 
     pub fn absorb(&mut self, input: &[i8]) {
         if input.is_empty() { return; }
@@ -459,6 +472,10 @@ pub fn hash(input: &[u8], output_len: usize) -> Vec<u8> {
 }
 pub fn hash_hex(input: &[u8]) -> String {
     let mut s = Sponge385Pub::new(); s.absorb_bytes(input);
+    trits_to_bytes(&s.squeeze(243))[..49].iter().map(|b| format!("{:02x}", b)).collect()
+}
+pub fn hash_hex_v1(input: &[u8]) -> String {
+    let mut s = Sponge385Pub::new_v1(); s.absorb_bytes(input);
     trits_to_bytes(&s.squeeze(243))[..49].iter().map(|b| format!("{:02x}", b)).collect()
 }
 pub fn hash_hex_tis(input: &[u8]) -> String {

@@ -116,8 +116,21 @@ fn cross_compat_reject_wrong_version() {
     assert!(matches!(decrypt(&bad, &key), Err(PhaseError::UnsupportedVersion(2, 2))));
 
     let mut bad2 = ct.clone();
-    bad2.sponge_version = 1;
-    assert!(matches!(decrypt(&bad2, &key), Err(PhaseError::UnsupportedVersion(3, 1))));
+    bad2.sponge_version = 0;
+    assert!(matches!(decrypt(&bad2, &key), Err(PhaseError::UnsupportedVersion(3, 0))));
+
+    let mut bad3 = ct.clone();
+    bad3.sponge_version = 3;
+    assert!(matches!(decrypt(&bad3, &key), Err(PhaseError::UnsupportedVersion(3, 3))));
+}
+
+#[test]
+fn cross_compat_v1_sponge_decrypt() {
+    let key = fixed_key();
+    let ct_v2 = encrypt(b"sponge version compat", &key, EncryptionMode::Balanced).unwrap();
+    assert_eq!(ct_v2.sponge_version, 2);
+    let decrypted = decrypt(&ct_v2, &key).unwrap();
+    assert_eq!(decrypted, b"sponge version compat");
 }
 
 #[test]

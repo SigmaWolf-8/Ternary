@@ -429,6 +429,30 @@ fn sponge_hash_hex(input: &[u8]) -> String {
     crate::tlsponge385::hash_hex(input)
 }
 
+fn sponge_hash_hex_v1(input: &[u8]) -> String {
+    crate::tlsponge385::hash_hex_v1(input)
+}
+
+fn derive_key_for_version(secret: &[u8], sponge_version: u8) -> [u8; KEY_BYTES] {
+    let tag = b"PlenumNET-Phase-KeyDerive";
+    let mut input = Vec::with_capacity(secret.len() + tag.len());
+    input.extend_from_slice(secret);
+    input.extend_from_slice(tag);
+    let hash_hex = if sponge_version >= 2 {
+        sponge_hash_hex(&input)
+    } else {
+        sponge_hash_hex_v1(&input)
+    };
+    let mut key = [0u8; KEY_BYTES];
+    let hex_bytes = hash_hex.as_bytes();
+    for i in 0..KEY_BYTES {
+        let hi = hex_char_to_nibble(hex_bytes[i * 2]);
+        let lo = hex_char_to_nibble(hex_bytes[i * 2 + 1]);
+        key[i] = (hi << 4) | lo;
+    }
+    key
+}
+
 pub fn derive_key_from_secret(secret: &[u8]) -> [u8; KEY_BYTES] {
     let tag = b"PlenumNET-Phase-KeyDerive";
     let mut input = Vec::with_capacity(secret.len() + tag.len());
@@ -470,6 +494,14 @@ fn hex_char_to_nibble(c: u8) -> u8 {
     }
 }
 
+fn new_sponge_for_version(sponge_version: u8) -> Sponge385Pub {
+    if sponge_version >= 2 {
+        Sponge385Pub::new()
+    } else {
+        Sponge385Pub::new_v1()
+    }
+}
+
 fn duplex_encrypt(
     primary_bytes: &[u8],
     secondary_bytes: &[u8],
@@ -477,6 +509,7 @@ fn duplex_encrypt(
     nonce: &[u8; NONCE_BYTES],
     primary_angle: u16,
     secondary_angle: u16,
+    sponge_version: u8,
 ) -> (Vec<u8>, Vec<u8>, String) {
     let primary_ternary_angle = std_deg_to_ternary_deg(primary_angle);
     let secondary_ternary_angle = std_deg_to_ternary_deg(secondary_angle);
@@ -491,7 +524,7 @@ fn duplex_encrypt(
     let primary_trits = bytes_to_balanced_trits_6(primary_bytes);
     let secondary_trits = bytes_to_balanced_trits_6(secondary_bytes);
 
-    let mut duplex = Sponge385Pub::new();
+    let mut duplex = new_sponge_for_version(sponge_version);
     duplex.absorb_bytes(&domain_input);
 
     let ks1 = duplex.squeeze(primary_trits.len());
@@ -540,6 +573,7 @@ fn duplex_decrypt(
     nonce: &[u8; NONCE_BYTES],
     primary_angle: u16,
     secondary_angle: u16,
+    sponge_version: u8,
 ) -> Result<(Vec<u8>, Vec<u8>), PhaseError> {
     if primary_cipher.len() < 8 || secondary_cipher.len() < 8 {
         return Err(PhaseError::InvalidCiphertext);
@@ -586,7 +620,7 @@ fn duplex_decrypt(
     let cipher1_trits = cipher_bytes_to_trits(cipher1_bytes, trit_count1);
     let cipher2_trits = cipher_bytes_to_trits(cipher2_bytes, trit_count2);
 
-    let mut duplex = Sponge385Pub::new();
+    let mut duplex = new_sponge_for_version(sponge_version);
     duplex.absorb_bytes(&domain_input);
 
     let ks1 = duplex.squeeze(trit_count1);
@@ -654,7 +688,7 @@ pub fn encrypt_with_nonce(
     let secondary_angle = config.primary_phase + config.secondary_offset;
 
     let (primary_cipher, secondary_cipher, mac) = duplex_encrypt(
-        primary_bytes, secondary_bytes, key, nonce, primary_angle, secondary_angle,
+        primary_bytes, secondary_bytes, key, nonce, primary_angle, secondary_angle, 2,
     );
 
     let guardian_hash = if config.guardian_enabled {
@@ -684,8 +718,12 @@ pub fn decrypt_with_mode(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mo
 }
 
 fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_override: Option<EncryptionMode>) -> Result<Vec<u8>, PhaseError> {
-    if ciphertext.version != 3 || ciphertext.sponge_version != 2 {
+    if ciphertext.version != 3 {
         return Err(PhaseError::UnsupportedVersion(ciphertext.version as u32, ciphertext.sponge_version as u32));
+    }
+    let sv = ciphertext.sponge_version;
+    if sv != 1 && sv != 2 {
+        return Err(PhaseError::UnsupportedVersion(ciphertext.version as u32, sv as u32));
     }
     if ciphertext.nonce.len() != NONCE_BYTES {
         return Err(PhaseError::InvalidCiphertext);
@@ -714,6 +752,7 @@ fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_overr
         &nonce,
         primary_angle,
         secondary_angle,
+        sv,
     )?;
 
     let mut plaintext = Vec::with_capacity(primary_buf.len() + secondary_buf.len());
@@ -721,7 +760,8 @@ fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_overr
     plaintext.extend_from_slice(&secondary_buf);
 
     if let Some(gh) = &ciphertext.guardian_hash {
-        let computed = sponge_hash_hex(&plaintext);
+        let hash_fn = if sv >= 2 { sponge_hash_hex } else { sponge_hash_hex_v1 };
+        let computed = hash_fn(&plaintext);
         if !constant_time_eq(computed.as_bytes(), gh.as_bytes()) {
             return Err(PhaseError::GuardianFailed);
         }
@@ -1203,11 +1243,43 @@ mod tests {
     }
 
     #[test]
-    fn test_reject_wrong_sponge_version() {
+    fn test_reject_unsupported_sponge_version() {
         let key = test_key();
         let mut ct = encrypt(b"sponge version check", &key, EncryptionMode::Balanced).unwrap();
-        ct.sponge_version = 1;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 1))));
+        ct.sponge_version = 3;
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 3))));
+        ct.sponge_version = 0;
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 0))));
+    }
+
+    #[test]
+    fn test_v1_encrypt_v2_decrypt_cross_version() {
+        let key = test_key();
+        let plaintext = b"Cross-version sponge v1 encrypt test";
+        let nonce = [0x42u8; NONCE_BYTES];
+
+        let config = get_phase_config(EncryptionMode::Balanced);
+        let primary_angle = config.primary_phase;
+        let secondary_angle = config.primary_phase + config.secondary_offset;
+        let midpoint = (plaintext.len() + 1) / 2;
+        let primary_bytes = &plaintext[..midpoint];
+        let secondary_bytes = &plaintext[midpoint..];
+
+        let (pc, sc, mac) = duplex_encrypt(primary_bytes, secondary_bytes, &key, &nonce, primary_angle, secondary_angle, 1);
+
+        let ct = PhaseCiphertext {
+            primary_cipher: pc,
+            secondary_cipher: sc,
+            mac,
+            nonce: nonce.to_vec(),
+            config: config.clone(),
+            version: 3,
+            sponge_version: 1,
+            guardian_hash: None,
+        };
+
+        let decrypted = decrypt(&ct, &key).unwrap();
+        assert_eq!(decrypted, plaintext);
     }
 
     #[test]
