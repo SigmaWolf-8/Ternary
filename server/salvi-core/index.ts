@@ -70,4 +70,30 @@ export {
 
 export * from './error-handling';
 
-export * from './ancient-calendar-sync';
+export {
+  getSalviEpochAnchorPoints as getCalendarAnchorPoints,
+  getSalviEpochCalendarSync,
+  femtosecondsToAncientCalendars,
+  toMayanLongCount, toHebrewDate, toChineseSexagenary, toVedicKaliYuga,
+  toEgyptianCivil, toJulianDayNumber, toIslamicHijri, toByzantineAnnoMundi,
+  toThirteenMoonDate, toPersianDate, toEthiopianDate, toCopticDate,
+  toJapaneseKokiDate, toKoreanDangunDate, toThaiBuddhistDate, toIndianSakaDate,
+  toTibetanDate, toAztecTonalpohualliDate, toRomanAUCDate, toBengaliDate,
+  toBerberDate, toBalinesePawukonDate, toZoroastrianFasliDate, toAssyrianDate,
+  toNisgaaSeasonalDate, toYorubaDate, toJainDate, toTamilDate, toVietnameseDate,
+  toVikramSamvatDate, toKhmerDate, toBurmeseDate, toJavaneseDate, toMalayalamDate,
+  toNepalSambatDate, toNanakshahiDate, toBahaiDate, toMinguoDate, toIgboDate,
+  toAkanDate, toGregorianDate, toAboriginalSeasonalDate,
+} from './ancient-calendar-sync';
+export type {
+  AncientCalendarMapping, ThirteenMoonDate,
+  MayanLongCount, HebrewDate, ChineseSexagenary, VedicKaliYuga,
+  EgyptianCivil, JulianDayNumber, IslamicHijri, ByzantineAnnoMundi,
+  PersianDate, EthiopianDate, CopticDate, JapaneseKokiDate, KoreanDangunDate,
+  ThaiBuddhistDate, IndianSakaDate, TibetanDate, AztecTonalpohualliDate,
+  RomanAUCDate, BengaliDate, BerberDate, BalinesePawukonDate,
+  ZoroastrianFasliDate, AboriginalSeasonalDate, AssyrianDate, NisgaaSeasonalDate,
+  YorubaDate, JainDate, TamilDate, VietnameseDate, VikramSamvatDate,
+  KhmerDate, BurmeseDate, JavaneseDate, MalayalamDate, NepalSambatDate,
+  NanakshahiDate, BahaiDate, MinguoDate, IgboDate, AkanDate, GregorianDate,
+} from './ancient-calendar-sync';

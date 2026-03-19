@@ -1630,7 +1630,7 @@ export function registerSalviRoutes(app: Express): void {
   // =====================================================
 
   app.get("/api/salvi/crypto/tl-dsa/spec", (_req, res) => {
-    const variants: TlDsaVariant[] = ['TL-DSA-29', 'TL-DSA-58', 'TL-DSA-87'];
+    const variants: TlDsaVariant[] = ['TL-DSA-44', 'TL-DSA-65', 'TL-DSA-87'];
     const specs = variants.map(v => {
       try {
         const sigLen = isTlDsaNativeAvailable() ? tlDsaSigLenNative(v) : null;
@@ -1652,8 +1652,8 @@ export function registerSalviRoutes(app: Express): void {
   app.post("/api/salvi/crypto/tl-dsa/keygen", computationLimiter, (req, res) => {
     try {
       const variant = (req.body?.variant as TlDsaVariant) || 'TL-DSA-87';
-      if (!['TL-DSA-29', 'TL-DSA-58', 'TL-DSA-87'].includes(variant)) {
-        return res.status(400).json({ error: "Invalid variant. Use TL-DSA-29, TL-DSA-58, or TL-DSA-87" });
+      if (!['TL-DSA-44', 'TL-DSA-65', 'TL-DSA-87'].includes(variant)) {
+        return res.status(400).json({ error: "Invalid variant. Use TL-DSA-44, TL-DSA-65, or TL-DSA-87" });
       }
       const kp = tlDsaKeygenNative(variant);
       res.json({
@@ -1674,7 +1674,7 @@ export function registerSalviRoutes(app: Express): void {
       const { message, variant: v } = req.body || {};
       if (!message) return res.status(400).json({ error: "message (string) is required" });
       const variant: TlDsaVariant = v || 'TL-DSA-87';
-      if (!['TL-DSA-29', 'TL-DSA-58', 'TL-DSA-87'].includes(variant)) {
+      if (!['TL-DSA-44', 'TL-DSA-65', 'TL-DSA-87'].includes(variant)) {
         return res.status(400).json({ error: "Invalid variant" });
       }
       const kp = tlDsaKeygenNative(variant);
