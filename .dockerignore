@@ -1,31 +1,59 @@
+# Rust build artifacts (4.4 GB root target, 96 MB ternary-math target)
 target/
 ternary-math/target/
-ternary-math/benches/
-node_modules/
-.git/
-.github/
-.local/
-.cache/
-.canvas/
-attached_assets/
+libternary/target/
+
+# Source code (not needed at runtime — server is bundled into dist/)
+src/
 client/
 server/
 shared/
 script/
+services/
+tests/
+XPlenum/
+
+# Git and CI
+.git/
+.github/
+
+# Dev tooling and caches
+.local/
+.cache/
+.canvas/
+.pythonlibs/
+node_modules/.cache/
+
+# Attached assets (bundled into dist at build time)
+attached_assets/
+
+# Rust/WASM source files
+ternary-math/src/
+ternary-math/benches/
+libternary/src/
+
+# Documentation and config
 docs/
+salvi_docs/
 references/
 deployments/
-*.ts
-*.tsx
-!dist/**
+scripts/
+sign-here/
 *.md
 *.txt
 *.log
+
+# TypeScript source (compiled into dist/)
+*.ts
+*.tsx
+!dist/**
+
+# Config files not needed at runtime
 .replit
 replit.nix
-replit.md
 .gitignore
 .dockerignore
+Cargo.toml
 Cargo.lock
 drizzle.config.ts
 tsconfig.json
@@ -34,3 +62,8 @@ postcss.config.js
 vite.config.ts
 theme.json
 components.json
+
+# Large media files (exclude from source dirs, but dist/public is kept)
+attached_assets/*.mp4
+attached_assets/*.mov
+client/public/assets/*.mp4

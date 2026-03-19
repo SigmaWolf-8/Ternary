@@ -54,6 +54,7 @@ export default defineConfig({
         },
       },
     },
+    copyPublicDir: true,
   },
   server: {
     fs: {
