@@ -11,7 +11,13 @@
 //
 // Covers: TIS-27, TLSponge-385, TL-DSA (44/65/87), TL-KEM (512/768/1024),
 //         Phase Encryption v3 (all 4 modes × 1KB/64KB/1MB),
-//         Raw sponge permutation (v1 vs v2, SIMD-dispatched)
+//         Raw sponge permutation (v1 vs v2, SIMD auto-dispatch)
+//
+// SIMD note: The sponge permutation auto-dispatches AVX2 (x86_64) or NEON
+// (aarch64) at runtime. The v2 vs v1 permutation benchmark isolates the
+// chi-layer cost (v2 = chi+theta, v1 = theta-only). Both paths use the
+// same SIMD dispatch for theta-pi-rc. To measure scalar-only, run on a
+// platform without AVX2/NEON (e.g. QEMU user-mode emulation).
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, BatchSize, Throughput};
 
@@ -24,23 +30,38 @@ fn make_input(size: usize) -> Vec<u8> {
     (0..size).map(|i| ((i * 7 + 13) % 256) as u8).collect()
 }
 
+static SIZES: &[(usize, &str)] = &[
+    (48, "48B"),
+    (1024, "1KB"),
+    (65536, "64KB"),
+    (1048576, "1MB"),
+];
+
 fn bench_tis27(c: &mut Criterion) {
     let mut group = c.benchmark_group("TIS-27");
 
-    let input_48 = make_input(48);
-    group.bench_function("hash_hex_tis/48B", |b| {
-        b.iter(|| tlsponge385::hash_hex_tis(black_box(&input_48)))
-    });
-
-    for &(size, label) in &[(1024usize, "1KB"), (65536, "64KB"), (1048576, "1MB")] {
+    for &(size, label) in SIZES {
         let input = make_input(size);
         group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("hash_hex_tis", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::hash_hex_tis(black_box(data))),
+        );
 
         group.bench_with_input(
             BenchmarkId::new("derive_key_tis", label),
             &input,
             |b, data| b.iter(|| tlsponge385::derive_key_tis(
                 black_box(b"TIS-27-BENCH"), black_box(data), 32)),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("derive_key_bulk_tis", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::derive_key_bulk_tis(
+                black_box(b"TIS-BULK-BENCH"), black_box(data), 48)),
         );
     }
 
@@ -58,34 +79,20 @@ fn bench_tis27(c: &mut Criterion) {
 fn bench_tlsponge385(c: &mut Criterion) {
     let mut group = c.benchmark_group("TLSponge-385");
 
-    let input_48 = make_input(48);
-    group.bench_function("hash/48B", |b| {
-        b.iter(|| tlsponge385::hash(black_box(&input_48), 48))
-    });
-
-    group.bench_function("hash_hex/48B", |b| {
-        b.iter(|| tlsponge385::hash_hex(black_box(&input_48)))
-    });
-
-    group.bench_function("derive_key/48B", |b| {
-        b.iter(|| tlsponge385::derive_key(
-            black_box(b"SPONGE-BENCH"), black_box(&input_48), 48))
-    });
-
-    for &size in &[1024usize, 65536, 1048576] {
+    for &(size, label) in SIZES {
         let input = make_input(size);
-        let label = match size {
-            1024 => "1KB",
-            65536 => "64KB",
-            _ => "1MB",
-        };
-
         group.throughput(Throughput::Bytes(size as u64));
 
         group.bench_with_input(
             BenchmarkId::new("hash", label),
             &input,
             |b, data| b.iter(|| tlsponge385::hash(black_box(data), 48)),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("hash_hex", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::hash_hex(black_box(data))),
         );
 
         group.bench_with_input(
@@ -109,19 +116,21 @@ fn bench_tlsponge385(c: &mut Criterion) {
 fn bench_sponge_full_vs_tis(c: &mut Criterion) {
     let mut group = c.benchmark_group("Sponge-Full-vs-TIS");
 
-    let input_48 = make_input(48);
-
-    group.bench_function("hash_hex_full/48B", |b| {
-        b.iter(|| tlsponge385::hash_hex(black_box(&input_48)))
-    });
-
-    group.bench_function("hash_hex_tis/48B", |b| {
-        b.iter(|| tlsponge385::hash_hex_tis(black_box(&input_48)))
-    });
-
-    for &(size, label) in &[(1024usize, "1KB"), (65536, "64KB")] {
+    for &(size, label) in SIZES {
         let input = make_input(size);
         group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("hash_hex_full", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::hash_hex(black_box(data))),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("hash_hex_tis", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::hash_hex_tis(black_box(data))),
+        );
 
         group.bench_with_input(
             BenchmarkId::new("derive_key_full", label),
@@ -135,6 +144,20 @@ fn bench_sponge_full_vs_tis(c: &mut Criterion) {
             &input,
             |b, data| b.iter(|| tlsponge385::derive_key_tis(
                 black_box(b"TIS-BENCH"), black_box(data), 48)),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("derive_key_bulk_full", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::derive_key_bulk(
+                black_box(b"BULK-FULL"), black_box(data), 48)),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("derive_key_bulk_tis", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::derive_key_bulk_tis(
+                black_box(b"BULK-TIS"), black_box(data), 48)),
         );
     }
 
