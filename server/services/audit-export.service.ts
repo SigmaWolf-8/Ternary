@@ -286,7 +286,7 @@ export async function exportSignedJson(filters: {
   };
 
   const documentHash = crypto.createHash('sha3-256')
-    .update(JSON.stringify(documentPayload))
+    .update(canonicalJsonStringify(documentPayload))
     .digest('hex');
 
   const docSigResult = tlDsaSign(
@@ -386,7 +386,7 @@ export function verifySignedDocument(
     retentionPolicy: doc.retentionPolicy,
   };
   const reconstructedHash = crypto.createHash('sha3-256')
-    .update(JSON.stringify(docPayload))
+    .update(canonicalJsonStringify(docPayload))
     .digest('hex');
   if (reconstructedHash !== doc.documentSignature.signedHash) {
     errors.push(`Document hash mismatch: expected ${doc.documentSignature.signedHash}, got ${reconstructedHash}`);
