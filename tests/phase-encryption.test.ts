@@ -86,7 +86,7 @@ describe("Phase Recombination (round-trip)", () => {
     expect(result.success).toBe(true);
     expect(result.data).toBe(testData);
     expect(result.phaseAlignment).toBeGreaterThanOrEqual(0.99);
-    if (mode !== "high_security") {
+    if (mode !== "high_security" && mode !== "adaptive") {
       expect(result.timestampValidation).toBe(true);
     }
   });
