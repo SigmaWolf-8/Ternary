@@ -71,9 +71,16 @@ export interface SignedAuditDocument {
   documentSignature: {
     algorithm: string;
     variant: TlDsaVariant;
+    publicKeyHex: string;
     publicKeyHash: string;
     signature: string;
     signedHash: string;
+  };
+  retentionPolicy: {
+    deletionProhibited: true;
+    contentDeletionMarker: 'content_deleted';
+    metadataRetained: true;
+    description: string;
   };
   merkleRoot: string;
 }
@@ -239,6 +246,13 @@ export async function exportSignedJson(filters: {
   const recordHashes = signatureChain.map((e) => e.recordHash);
   const merkleRoot = computeMerkleRoot(recordHashes);
 
+  const retentionPolicy = {
+    deletionProhibited: true as const,
+    contentDeletionMarker: 'content_deleted' as const,
+    metadataRetained: true as const,
+    description: 'Audit records are immutable. Content deletion sets content_deleted marker; record metadata, hashes, and signatures are permanently retained.',
+  };
+
   const documentPayload = {
     version: '1.0.0' as const,
     exportedAt: new Date().toISOString(),
@@ -248,6 +262,7 @@ export async function exportSignedJson(filters: {
     merkleRoot,
     records,
     signatureChain,
+    retentionPolicy,
   };
 
   const documentHash = crypto.createHash('sha3-256')
@@ -269,6 +284,7 @@ export async function exportSignedJson(filters: {
     documentSignature: {
       algorithm: 'TL-DSA',
       variant: keyPair.variant,
+      publicKeyHex: keyPair.publicKey.toString('hex'),
       publicKeyHash,
       signature: docSigResult.signature.toString('hex'),
       signedHash: documentHash,
@@ -351,6 +367,7 @@ export function verifySignedDocument(
     merkleRoot: doc.merkleRoot,
     records: doc.records,
     signatureChain: doc.signatureChain,
+    retentionPolicy: doc.retentionPolicy,
   };
   const reconstructedHash = crypto.createHash('sha3-256')
     .update(JSON.stringify(docPayload))

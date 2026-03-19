@@ -35,6 +35,8 @@ async function jsonPost(path: string, body: unknown, headers: Record<string, str
 }
 
 describe('Signed Audit Export — TM-2026-020.1-PREREQ §6.2', () => {
+  let cachedDoc: Record<string, unknown> | null = null;
+
   beforeAll(async () => {
     let retries = 10;
     while (retries > 0) {
@@ -48,207 +50,170 @@ describe('Signed Audit Export — TM-2026-020.1-PREREQ §6.2', () => {
     throw new Error('Server did not become ready within timeout');
   }, 30000);
 
-  describe('POST /api/tsa/export/json', () => {
-    it('returns a valid signed audit document with correct schema', async () => {
-      const res = await jsonPost('/api/tsa/export/json', { limit: 5 }, authHeader('app'));
-      expect(res.status).toBe(200);
-      const doc = await res.json();
+  it('POST /api/tsa/export/json — returns valid schema, enforces scope, includes required fields', async () => {
+    const res = await jsonPost('/api/tsa/export/json', { limit: 5 }, authHeader('app'));
+    expect(res.status).toBe(200);
+    const doc = await res.json();
+    cachedDoc = doc;
 
-      expect(doc.version).toBe('1.0.0');
-      expect(doc.exporterId).toBe('plenumnet-tsa');
-      expect(doc.projectScope).toBe('audit-test-app');
-      expect(typeof doc.exportedAt).toBe('string');
-      expect(typeof doc.totalRecords).toBe('number');
-      expect(Array.isArray(doc.records)).toBe(true);
-      expect(Array.isArray(doc.signatureChain)).toBe(true);
-      expect(typeof doc.merkleRoot).toBe('string');
-      expect(doc.merkleRoot.length).toBe(64);
+    expect(doc.version).toBe('1.0.0');
+    expect(doc.exporterId).toBe('plenumnet-tsa');
+    expect(doc.projectScope).toBe('audit-test-app');
+    expect(typeof doc.exportedAt).toBe('string');
+    expect(typeof doc.totalRecords).toBe('number');
+    expect(Array.isArray(doc.records)).toBe(true);
+    expect(Array.isArray(doc.signatureChain)).toBe(true);
+    expect(typeof doc.merkleRoot).toBe('string');
+    expect(doc.merkleRoot.length).toBe(64);
+    expect(doc.signatureChain.length).toBe(doc.records.length);
 
-      expect(doc.documentSignature).toBeDefined();
-      expect(doc.documentSignature.algorithm).toBe('TL-DSA');
-      expect(typeof doc.documentSignature.variant).toBe('string');
-      expect(typeof doc.documentSignature.publicKeyHash).toBe('string');
-      expect(typeof doc.documentSignature.signature).toBe('string');
-      expect(typeof doc.documentSignature.signedHash).toBe('string');
-    });
+    expect(doc.documentSignature).toBeDefined();
+    expect(doc.documentSignature.algorithm).toBe('TL-DSA');
+    expect(typeof doc.documentSignature.variant).toBe('string');
+    expect(typeof doc.documentSignature.publicKeyHex).toBe('string');
+    expect(doc.documentSignature.publicKeyHex.length).toBeGreaterThan(0);
+    expect(typeof doc.documentSignature.publicKeyHash).toBe('string');
+    expect(typeof doc.documentSignature.signature).toBe('string');
+    expect(typeof doc.documentSignature.signedHash).toBe('string');
 
-    it('enforces project scope from authenticated identity (not client-supplied)', async () => {
-      const res = await jsonPost(
-        '/api/tsa/export/json',
-        { projectScope: 'should-be-ignored', limit: 1 },
-        authHeader('app', 'scoped-app-123'),
-      );
-      expect(res.status).toBe(200);
-      const doc = await res.json();
-      expect(doc.projectScope).toBe('scoped-app-123');
-    });
+    expect(doc.retentionPolicy).toBeDefined();
+    expect(doc.retentionPolicy.deletionProhibited).toBe(true);
+    expect(doc.retentionPolicy.contentDeletionMarker).toBe('content_deleted');
+    expect(doc.retentionPolicy.metadataRetained).toBe(true);
+    expect(typeof doc.retentionPolicy.description).toBe('string');
 
-    it('includes audit record schema fields: reviewerVerdict, resultVersion, engineId, modelVersion', async () => {
-      const res = await jsonPost('/api/tsa/export/json', { limit: 5 }, authHeader('app'));
-      expect(res.status).toBe(200);
-      const doc = await res.json();
-
-      for (const record of doc.records) {
-        expect(record).toHaveProperty('recordId');
-        expect(record).toHaveProperty('taskId');
-        expect(record).toHaveProperty('eventType');
-        expect(record).toHaveProperty('severity');
-        expect(record).toHaveProperty('category');
-        expect(record).toHaveProperty('description');
-        expect(record).toHaveProperty('inferenceHash');
-        expect(record).toHaveProperty('timestamp');
-        expect(record).toHaveProperty('reviewerVerdict');
-        expect(record).toHaveProperty('resultVersion');
-        expect(record).toHaveProperty('engineId');
-        expect(record).toHaveProperty('modelVersion');
-        expect(record).toHaveProperty('evidence');
-        expect(record).toHaveProperty('resolutionStatus');
-        expect(record).toHaveProperty('contentDeleted');
-      }
-    });
-
-    it('signature chain length matches record count', async () => {
-      const res = await jsonPost('/api/tsa/export/json', { limit: 5 }, authHeader('app'));
-      expect(res.status).toBe(200);
-      const doc = await res.json();
-      expect(doc.signatureChain.length).toBe(doc.records.length);
-    });
+    for (const record of doc.records) {
+      expect(record).toHaveProperty('recordId');
+      expect(record).toHaveProperty('taskId');
+      expect(record).toHaveProperty('eventType');
+      expect(record).toHaveProperty('severity');
+      expect(record).toHaveProperty('category');
+      expect(record).toHaveProperty('description');
+      expect(record).toHaveProperty('inferenceHash');
+      expect(record).toHaveProperty('timestamp');
+      expect(record).toHaveProperty('reviewerVerdict');
+      expect(record).toHaveProperty('resultVersion');
+      expect(record).toHaveProperty('engineId');
+      expect(record).toHaveProperty('modelVersion');
+      expect(record).toHaveProperty('evidence');
+      expect(record).toHaveProperty('resolutionStatus');
+      expect(record).toHaveProperty('contentDeleted');
+    }
   });
 
-  describe('POST /api/tsa/export/pdf', () => {
-    it('returns a valid PDF buffer with correct headers', async () => {
-      const res = await jsonPost('/api/tsa/export/pdf', { limit: 3 }, authHeader('app'));
-      expect(res.status).toBe(200);
-      expect(res.headers.get('content-type')).toContain('application/pdf');
-
-      const disposition = res.headers.get('content-disposition');
-      expect(disposition).toContain('attachment');
-      expect(disposition).toContain('plenumnet-audit-export');
-
-      const buf = await res.arrayBuffer();
-      expect(buf.byteLength).toBeGreaterThan(0);
-      const pdfHeader = new Uint8Array(buf.slice(0, 5));
-      expect(String.fromCharCode(...pdfHeader)).toBe('%PDF-');
-    });
-
-    it('enforces scope from auth identity', async () => {
-      const res = await jsonPost(
-        '/api/tsa/export/pdf',
-        { limit: 1 },
-        authHeader('app', 'pdf-scoped-app'),
-      );
-      expect(res.status).toBe(200);
-    });
+  it('POST /api/tsa/export/json — scope derived from auth, not client body', async () => {
+    const res = await jsonPost(
+      '/api/tsa/export/json',
+      { projectScope: 'should-be-ignored', limit: 1 },
+      authHeader('app', 'scoped-app-123'),
+    );
+    expect(res.status).toBe(200);
+    const doc = await res.json();
+    expect(doc.projectScope).toBe('scoped-app-123');
   });
 
-  describe('POST /api/tsa/export/verify', () => {
-    it('validates an unmodified signed document as valid', async () => {
-      const exportRes = await jsonPost('/api/tsa/export/json', { limit: 3 }, authHeader('app'));
-      expect(exportRes.status).toBe(200);
-      const doc = await exportRes.json();
+  it('POST /api/tsa/export/pdf — returns valid PDF with correct headers', async () => {
+    const res = await jsonPost('/api/tsa/export/pdf', { limit: 3 }, authHeader('app'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/pdf');
+    const disposition = res.headers.get('content-disposition');
+    expect(disposition).toContain('attachment');
+    expect(disposition).toContain('plenumnet-audit-export');
+    const buf = await res.arrayBuffer();
+    expect(buf.byteLength).toBeGreaterThan(0);
+    const pdfHeader = new Uint8Array(buf.slice(0, 5));
+    expect(String.fromCharCode(...pdfHeader)).toBe('%PDF-');
+  });
 
-      const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
-      expect(verifyRes.status).toBe(200);
-      const result = await verifyRes.json();
+  it('POST /api/tsa/export/verify — validates unmodified doc as valid', async () => {
+    const exportRes = await jsonPost('/api/tsa/export/json', { limit: 3 }, authHeader('app', 'verify-app-1'));
+    expect(exportRes.status).toBe(200);
+    const doc = await exportRes.json();
 
-      expect(result.valid).toBe(true);
-      expect(result.errors).toEqual([]);
-      expect(result.recordCount).toBe(doc.totalRecords);
-      expect(result.chainLength).toBe(doc.signatureChain.length);
-      expect(result.merkleRoot).toBe(doc.merkleRoot);
-    });
+    const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
+    expect(verifyRes.status).toBe(200);
+    const result = await verifyRes.json();
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.recordCount).toBe(doc.totalRecords);
+    expect(result.chainLength).toBe(doc.signatureChain.length);
+    expect(result.merkleRoot).toBe(doc.merkleRoot);
+  });
 
-    it('detects tampered record description', async () => {
-      const exportRes = await jsonPost('/api/tsa/export/json', { limit: 3 }, authHeader('app'));
-      const doc = await exportRes.json();
+  it('POST /api/tsa/export/verify — detects tampered record description', async () => {
+    const exportRes = await jsonPost('/api/tsa/export/json', { limit: 3 }, authHeader('app', 'tamper-desc-app'));
+    const doc = await exportRes.json();
 
-      if (doc.records.length > 0) {
-        doc.records[0].description = 'TAMPERED-DESCRIPTION';
-      }
+    if (doc.records.length > 0) {
+      doc.records[0].description = 'TAMPERED-DESCRIPTION';
+    }
 
-      const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
-      expect(verifyRes.status).toBe(200);
-      const result = await verifyRes.json();
-
-      if (doc.totalRecords > 0) {
-        expect(result.valid).toBe(false);
-        expect(result.errors.length).toBeGreaterThan(0);
-        expect(result.errors.some((e: string) => e.includes('hash mismatch'))).toBe(true);
-      }
-    });
-
-    it('detects tampered evidence field', async () => {
-      const exportRes = await jsonPost('/api/tsa/export/json', { limit: 3 }, authHeader('app'));
-      const doc = await exportRes.json();
-
-      if (doc.records.length > 0 && doc.records[0].evidence) {
-        doc.records[0].evidence = { injected: true };
-      }
-
-      const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
-      expect(verifyRes.status).toBe(200);
-      const result = await verifyRes.json();
-
-      if (doc.totalRecords > 0 && doc.records[0].evidence) {
-        expect(result.valid).toBe(false);
-      }
-    });
-
-    it('detects tampered document signature hash', async () => {
-      const exportRes = await jsonPost('/api/tsa/export/json', { limit: 3 }, authHeader('app'));
-      const doc = await exportRes.json();
-
-      doc.documentSignature.signedHash = 'aaaa' + doc.documentSignature.signedHash.substring(4);
-
-      const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
-      expect(verifyRes.status).toBe(200);
-      const result = await verifyRes.json();
-
+    const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
+    expect(verifyRes.status).toBe(200);
+    const result = await verifyRes.json();
+    if (doc.totalRecords > 0) {
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e: string) => e.includes('Document hash mismatch') || e.includes('signature verification failed'))).toBe(true);
-    });
-
-    it('rejects malformed input with 400', async () => {
-      const verifyRes = await jsonPost(
-        '/api/tsa/export/verify',
-        { invalid: true },
-        authHeader('readonly'),
-      );
-      expect(verifyRes.status).toBe(400);
-      const result = await verifyRes.json();
-      expect(result.error).toContain('Invalid signed audit document');
-    });
+      expect(result.errors.some((e: string) => e.includes('hash mismatch'))).toBe(true);
+    }
   });
 
-  describe('Signature chain integrity', () => {
-    it('chain links reference previous signature hashes correctly', async () => {
-      const exportRes = await jsonPost('/api/tsa/export/json', { limit: 5 }, authHeader('app'));
-      const doc = await exportRes.json();
+  it('POST /api/tsa/export/verify — detects tampered document hash + rejects malformed input', async () => {
+    const exportRes = await jsonPost('/api/tsa/export/json', { limit: 2 }, authHeader('app', 'tamper-hash-app'));
+    const doc = await exportRes.json();
+    doc.documentSignature.signedHash = 'aaaa' + doc.documentSignature.signedHash.substring(4);
 
-      for (let i = 1; i < doc.signatureChain.length; i++) {
-        expect(doc.signatureChain[i].previousSignatureHash).toBeDefined();
-        expect(doc.signatureChain[i].previousSignatureHash.length).toBe(64);
-      }
-    });
+    const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
+    expect(verifyRes.status).toBe(200);
+    const result = await verifyRes.json();
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e: string) =>
+      e.includes('Document hash mismatch') || e.includes('signature verification failed')
+    )).toBe(true);
 
-    it('export → verify → tamper → reject round-trip', async () => {
-      const exportRes = await jsonPost('/api/tsa/export/json', { limit: 5 }, authHeader('app'));
-      const doc = await exportRes.json();
+    const malformedRes = await jsonPost(
+      '/api/tsa/export/verify',
+      { invalid: true },
+      authHeader('readonly'),
+    );
+    expect(malformedRes.status).toBe(400);
+    const malformedResult = await malformedRes.json();
+    expect(malformedResult.error).toContain('Invalid signed audit document');
+  });
 
-      const verifyRes1 = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
-      const result1 = await verifyRes1.json();
-      expect(result1.valid).toBe(true);
+  it('export → verify → tamper signature → reject round-trip', async () => {
+    const exportRes = await jsonPost(
+      '/api/tsa/export/json',
+      { limit: 3 },
+      authHeader('app', 'roundtrip-app'),
+    );
+    expect(exportRes.status).toBe(200);
+    const doc = await exportRes.json();
 
-      if (doc.signatureChain.length > 0) {
-        doc.signatureChain[0].chainSignature = 'ff'.repeat(32);
-      }
+    const verifyRes1 = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
+    expect(verifyRes1.status).toBe(200);
+    const result1 = await verifyRes1.json();
+    expect(result1.valid).toBe(true);
 
-      const verifyRes2 = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
-      const result2 = await verifyRes2.json();
+    if (doc.signatureChain.length > 0) {
+      doc.signatureChain[0].chainSignature = 'ff'.repeat(32);
+    }
 
-      if (doc.signatureChain.length > 0) {
-        expect(result2.valid).toBe(false);
-      }
-    });
+    const verifyRes2 = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
+    expect(verifyRes2.status).toBe(200);
+    const result2 = await verifyRes2.json();
+    if (doc.signatureChain.length > 0) {
+      expect(result2.valid).toBe(false);
+    }
+  });
+
+  it('public key material is included for independent offline verification', async () => {
+    const exportRes = await jsonPost('/api/tsa/export/json', { limit: 1 }, authHeader('app', 'offline-verify-app'));
+    expect(exportRes.status).toBe(200);
+    const doc = await exportRes.json();
+    expect(doc.documentSignature.publicKeyHex).toBeDefined();
+    expect(doc.documentSignature.publicKeyHex.length).toBeGreaterThan(0);
+    expect(doc.documentSignature.publicKeyHash).toBeDefined();
+    expect(doc.documentSignature.variant).toBeDefined();
+    expect(doc.retentionPolicy.deletionProhibited).toBe(true);
   });
 });

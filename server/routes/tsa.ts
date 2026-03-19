@@ -222,7 +222,7 @@ export function createTsaRoutes(service: TsaService): Router {
   );
 
   router.post('/export/json',
-    rateLimit({ windowMs: 60_000, max: 10 }),
+    rateLimit({ windowMs: 60_000, max: 30 }),
     requireAuth('app'),
     async (req: AuthenticatedRequest, res: Response) => {
       try {
@@ -248,7 +248,7 @@ export function createTsaRoutes(service: TsaService): Router {
   );
 
   router.post('/export/pdf',
-    rateLimit({ windowMs: 60_000, max: 5 }),
+    rateLimit({ windowMs: 60_000, max: 15 }),
     requireAuth('app'),
     async (req: AuthenticatedRequest, res: Response) => {
       try {
