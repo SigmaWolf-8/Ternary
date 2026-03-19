@@ -28,6 +28,9 @@
  */
 
 import crypto from 'crypto';
+import path from 'path';
+import { createRequire as _createRequire } from 'module';
+import { fileURLToPath as _fileURLToPath } from 'url';
 
 // ═══════════════════════════════════════════════════════════════════════
 // NATIVE ADDON LOADING
@@ -42,14 +45,18 @@ interface NativeAddon {
 
 let nativeAddon: NativeAddon | null = null;
 
-/**
- * Attempt to load the native N-API addon.
- * Called lazily on first native function use.
- */
+function _getRequire(): NodeRequire {
+  if (typeof require !== 'undefined') return require;
+  return _createRequire(import.meta.url);
+}
+
 function loadNativeAddon(): NativeAddon {
   if (nativeAddon) return nativeAddon;
 
+  const _require = _getRequire();
+
   const paths = [
+    path.resolve(process.cwd(), 'ternary-math/napi/index.node'),
     '../../ternary-math/napi/index.node',
     '../../ternary-math/napi/ternary-napi.node',
     '../../../ternary-math/napi/index.node',
@@ -57,14 +64,12 @@ function loadNativeAddon(): NativeAddon {
 
   for (const p of paths) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const addon = require(p);
+      const addon = _require(p);
       if (typeof addon.tlDsaVerify === 'function') {
         nativeAddon = addon as NativeAddon;
         return nativeAddon;
       }
     } catch {
-      // Try next path
     }
   }
 

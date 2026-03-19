@@ -23,9 +23,8 @@ import { db } from '../db';
 import { securityAuditLog } from '@shared/schema';
 import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
 import {
-  sign as tlDsaSign,
-  verifyNative as tlDsaVerifyNative,
-  verify as tlDsaVerifyLegacy,
+  signNative as tlDsaSign,
+  verifyNative as tlDsaVerify,
   type TlDsaKeyPair,
   type TlDsaVariant,
 } from '../crypto/tl-dsa-bridge';
@@ -292,26 +291,12 @@ export async function exportSignedJson(filters: {
   };
 }
 
-function tlDsaVerifyWithFallback(
-  publicKey: Buffer,
-  message: Buffer,
-  signature: Buffer,
-  secretKey: Buffer,
-  variant: TlDsaVariant,
-): boolean {
-  try {
-    return tlDsaVerifyNative(publicKey, message, signature);
-  } catch {
-    return tlDsaVerifyLegacy(publicKey, message, signature, secretKey, variant);
-  }
-}
-
 export function verifySignedDocument(
   doc: SignedAuditDocument,
   publicKey: Buffer,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  const tsaKeyPair = getTlDsaTsaKeyPair();
+  const variant = doc.documentSignature.variant;
 
   for (let i = 0; i < doc.signatureChain.length; i++) {
     const entry = doc.signatureChain[i];
@@ -342,7 +327,7 @@ export function verifySignedDocument(
     const chainPayloadBuf = Buffer.from(chainPayload, 'utf8');
     const chainSigBuf = Buffer.from(entry.chainSignature, 'hex');
     try {
-      const chainSigValid = tlDsaVerifyWithFallback(publicKey, chainPayloadBuf, chainSigBuf, tsaKeyPair.secretKey, tsaKeyPair.variant);
+      const chainSigValid = tlDsaVerify(publicKey, chainPayloadBuf, chainSigBuf, variant);
       if (!chainSigValid) {
         errors.push(`Chain link ${i} (${entry.recordId}) TL-DSA signature verification failed`);
       }
@@ -378,7 +363,7 @@ export function verifySignedDocument(
   try {
     const docSigBuf = Buffer.from(doc.documentSignature.signature, 'hex');
     const docHashBuf = Buffer.from(doc.documentSignature.signedHash, 'hex');
-    const docSigValid = tlDsaVerifyWithFallback(publicKey, docHashBuf, docSigBuf, tsaKeyPair.secretKey, tsaKeyPair.variant);
+    const docSigValid = tlDsaVerify(publicKey, docHashBuf, docSigBuf, variant);
     if (!docSigValid) {
       errors.push('Document-level TL-DSA signature verification failed');
     }

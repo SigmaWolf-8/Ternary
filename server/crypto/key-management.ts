@@ -20,14 +20,17 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { keygen as tlDsaKeygen, type TlDsaKeyPair, type TlDsaVariant } from './tl-dsa-bridge';
+import { keygenNative as tlDsaKeygen, isNativeAvailable, type TlDsaKeyPair, type TlDsaVariant } from './tl-dsa-bridge';
 import { generateRSA4096KeyPair, type RSA4096KeyPair } from './rsa4096-signing';
 
 const KEYS_DIR = path.join(process.cwd(), 'server', 'crypto', 'tsa-keys');
 
 export type KeyType = 'tldsa-signing' | 'tldsa-tsa' | 'tldsa-cert' | 'rsa4096-cert' | 'mesh-signing';
 
+const KEY_FORMAT_NATIVE = 'native-tldsa-v1';
+
 interface StoredKeyBundle {
+  key_format?: string;
   tldsa_signing: { publicKey: string; secretKey: string; variant: TlDsaVariant };
   tldsa_tsa: { publicKey: string; secretKey: string; variant: TlDsaVariant };
   tldsa_cert: { publicKey: string; secretKey: string; variant: TlDsaVariant };
@@ -49,6 +52,13 @@ function ensureKeysDir(): void {
 function generateFreshKeys(): StoredKeyBundle {
   const now = new Date().toISOString();
 
+  if (!isNativeAvailable()) {
+    throw new Error(
+      'TL-DSA native addon is required for key generation. ' +
+      'Run `npm run build:napi` in ternary-math/napi.'
+    );
+  }
+
   const signingKeys = tlDsaKeygen('TL-DSA-65');
   const tsaKeys = tlDsaKeygen('TL-DSA-87');
   const certKeys = tlDsaKeygen('TL-DSA-65');
@@ -57,6 +67,7 @@ function generateFreshKeys(): StoredKeyBundle {
   const rsaKeys = generateRSA4096KeyPair();
 
   return {
+    key_format: KEY_FORMAT_NATIVE,
     tldsa_signing: {
       publicKey: signingKeys.publicKey.toString('hex'),
       secretKey: signingKeys.secretKey.toString('hex'),
@@ -91,8 +102,16 @@ function loadOrGenerateKeys(): StoredKeyBundle {
   try {
     if (fs.existsSync(KEY_FILE)) {
       const raw = fs.readFileSync(KEY_FILE, 'utf8');
-      cachedKeys = JSON.parse(raw) as StoredKeyBundle;
-      return cachedKeys;
+      const loaded = JSON.parse(raw) as StoredKeyBundle;
+
+      if (loaded.key_format === KEY_FORMAT_NATIVE) {
+        cachedKeys = loaded;
+        return cachedKeys;
+      }
+
+      console.log('[key-mgmt] Rotating keys: existing keys pre-date native TL-DSA — regenerating with native keygen');
+      const backupPath = KEY_FILE + `.pre-native.${Date.now()}.bak`;
+      fs.copyFileSync(KEY_FILE, backupPath);
     }
   } catch {
   }
