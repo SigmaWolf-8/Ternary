@@ -459,7 +459,7 @@ fn sponge_hash_hex_v1(input: &[u8]) -> String {
     crate::tlsponge385::hash_hex_v1(input)
 }
 
-fn derive_key_for_version(secret: &[u8], sponge_version: u8) -> [u8; KEY_BYTES] {
+pub fn derive_key_for_version(secret: &[u8], sponge_version: u8) -> [u8; KEY_BYTES] {
     let tag = b"PlenumNET-Phase-KeyDerive";
     let mut input = Vec::with_capacity(secret.len() + tag.len());
     input.extend_from_slice(secret);
@@ -691,8 +691,6 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 pub fn encrypt(plaintext: &[u8], key: &[u8; KEY_BYTES], mode: EncryptionMode) -> Result<PhaseCiphertext, PhaseError> {
-    let config = get_phase_config(mode);
-
     let mut nonce = [0u8; NONCE_BYTES];
     getrandom::getrandom(&mut nonce).map_err(|_| PhaseError::RandomnessError)?;
 
