@@ -33,6 +33,11 @@ x-cube-defaults: &cube-defaults
       condition: service_healthy
   restart: unless-stopped
 
+# ── Address Table (TM-2026-020.2 §5.2) ─────────────────────────
+# Each node receives a deterministic ADDRESS and ROLE from this file.
+# CRS allocates ternary addresses upon registration; the ADDRESS env
+# var provides the wire endpoint (host:port) for peer-to-peer comms.
+
 services:
   # ── CRS Coordinator ──────────────────────────────────────────────
   crs:
@@ -62,8 +67,8 @@ services:
     container_name: plenum-27-inf-01
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-01:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-01:51820"
+      ROLE: inference
     ports: ["8101:8080"]
 
   cube-inf-02:
@@ -71,8 +76,8 @@ services:
     container_name: plenum-27-inf-02
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-02:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-02:51820"
+      ROLE: inference
     ports: ["8102:8080"]
 
   cube-inf-03:
@@ -80,8 +85,8 @@ services:
     container_name: plenum-27-inf-03
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-03:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-03:51820"
+      ROLE: inference
     ports: ["8103:8080"]
 
   cube-inf-04:
@@ -89,8 +94,8 @@ services:
     container_name: plenum-27-inf-04
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-04:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-04:51820"
+      ROLE: inference
     ports: ["8104:8080"]
 
   cube-inf-05:
@@ -98,8 +103,8 @@ services:
     container_name: plenum-27-inf-05
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-05:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-05:51820"
+      ROLE: inference
     ports: ["8105:8080"]
 
   cube-inf-06:
@@ -107,8 +112,8 @@ services:
     container_name: plenum-27-inf-06
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-06:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-06:51820"
+      ROLE: inference
     ports: ["8106:8080"]
 
   cube-inf-07:
@@ -116,8 +121,8 @@ services:
     container_name: plenum-27-inf-07
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-07:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-07:51820"
+      ROLE: inference
     ports: ["8107:8080"]
 
   cube-inf-08:
@@ -125,8 +130,8 @@ services:
     container_name: plenum-27-inf-08
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-inf-08:51820"
-      CUBE_ROLE: inference
+      ADDRESS: "cube-inf-08:51820"
+      ROLE: inference
     ports: ["8108:8080"]
 
   # ── Review Nodes (4) ────────────────────────────────────────────
@@ -135,8 +140,8 @@ services:
     container_name: plenum-27-rev-01
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-rev-01:51820"
-      CUBE_ROLE: review
+      ADDRESS: "cube-rev-01:51820"
+      ROLE: review
     ports: ["8111:8080"]
 
   cube-rev-02:
@@ -144,8 +149,8 @@ services:
     container_name: plenum-27-rev-02
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-rev-02:51820"
-      CUBE_ROLE: review
+      ADDRESS: "cube-rev-02:51820"
+      ROLE: review
     ports: ["8112:8080"]
 
   cube-rev-03:
@@ -153,8 +158,8 @@ services:
     container_name: plenum-27-rev-03
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-rev-03:51820"
-      CUBE_ROLE: review
+      ADDRESS: "cube-rev-03:51820"
+      ROLE: review
     ports: ["8113:8080"]
 
   cube-rev-04:
@@ -162,8 +167,8 @@ services:
     container_name: plenum-27-rev-04
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-rev-04:51820"
-      CUBE_ROLE: review
+      ADDRESS: "cube-rev-04:51820"
+      ROLE: review
     ports: ["8114:8080"]
 
   # ── Knowledge Base Nodes (4) ────────────────────────────────────
@@ -172,8 +177,8 @@ services:
     container_name: plenum-27-kb-01
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-kb-01:51820"
-      CUBE_ROLE: kb
+      ADDRESS: "cube-kb-01:51820"
+      ROLE: kb
     ports: ["8121:8080"]
 
   cube-kb-02:
@@ -181,8 +186,8 @@ services:
     container_name: plenum-27-kb-02
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-kb-02:51820"
-      CUBE_ROLE: kb
+      ADDRESS: "cube-kb-02:51820"
+      ROLE: kb
     ports: ["8122:8080"]
 
   cube-kb-03:
@@ -190,8 +195,8 @@ services:
     container_name: plenum-27-kb-03
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-kb-03:51820"
-      CUBE_ROLE: kb
+      ADDRESS: "cube-kb-03:51820"
+      ROLE: kb
     ports: ["8123:8080"]
 
   cube-kb-04:
@@ -199,8 +204,8 @@ services:
     container_name: plenum-27-kb-04
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-kb-04:51820"
-      CUBE_ROLE: kb
+      ADDRESS: "cube-kb-04:51820"
+      ROLE: kb
     ports: ["8124:8080"]
 
   # ── Infrastructure Nodes (4) ────────────────────────────────────
@@ -209,8 +214,8 @@ services:
     container_name: plenum-27-infra-01
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-infra-01:51820"
-      CUBE_ROLE: infra
+      ADDRESS: "cube-infra-01:51820"
+      ROLE: infra
     ports: ["8131:8080"]
 
   cube-infra-02:
@@ -218,8 +223,8 @@ services:
     container_name: plenum-27-infra-02
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-infra-02:51820"
-      CUBE_ROLE: infra
+      ADDRESS: "cube-infra-02:51820"
+      ROLE: infra
     ports: ["8132:8080"]
 
   cube-infra-03:
@@ -227,8 +232,8 @@ services:
     container_name: plenum-27-infra-03
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-infra-03:51820"
-      CUBE_ROLE: infra
+      ADDRESS: "cube-infra-03:51820"
+      ROLE: infra
     ports: ["8133:8080"]
 
   cube-infra-04:
@@ -236,8 +241,8 @@ services:
     container_name: plenum-27-infra-04
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-infra-04:51820"
-      CUBE_ROLE: infra
+      ADDRESS: "cube-infra-04:51820"
+      ROLE: infra
     ports: ["8134:8080"]
 
   # ── Relay Nodes (4) ──────────────────────────────────────────────
@@ -246,8 +251,8 @@ services:
     container_name: plenum-27-relay-01
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-relay-01:51820"
-      CUBE_ROLE: relay
+      ADDRESS: "cube-relay-01:51820"
+      ROLE: relay
     ports: ["8141:8080"]
 
   cube-relay-02:
@@ -255,8 +260,8 @@ services:
     container_name: plenum-27-relay-02
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-relay-02:51820"
-      CUBE_ROLE: relay
+      ADDRESS: "cube-relay-02:51820"
+      ROLE: relay
     ports: ["8142:8080"]
 
   cube-relay-03:
@@ -264,8 +269,8 @@ services:
     container_name: plenum-27-relay-03
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-relay-03:51820"
-      CUBE_ROLE: relay
+      ADDRESS: "cube-relay-03:51820"
+      ROLE: relay
     ports: ["8143:8080"]
 
   cube-relay-04:
@@ -273,8 +278,8 @@ services:
     container_name: plenum-27-relay-04
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-relay-04:51820"
-      CUBE_ROLE: relay
+      ADDRESS: "cube-relay-04:51820"
+      ROLE: relay
     ports: ["8144:8080"]
 
   # ── Standby Nodes (2) ──────────────────────────────────────────
@@ -283,8 +288,8 @@ services:
     container_name: plenum-27-standby-01
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-standby-01:51820"
-      CUBE_ROLE: standby
+      ADDRESS: "cube-standby-01:51820"
+      ROLE: standby
     ports: ["8151:8080"]
 
   cube-standby-02:
@@ -292,8 +297,8 @@ services:
     container_name: plenum-27-standby-02
     environment:
       <<: *cube-env
-      CUBE_ENDPOINT: "cube-standby-02:51820"
-      CUBE_ROLE: standby
+      ADDRESS: "cube-standby-02:51820"
+      ROLE: standby
     ports: ["8152:8080"]
 
 networks:

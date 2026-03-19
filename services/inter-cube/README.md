@@ -29,8 +29,9 @@ Runs a worker cube. Registers with a remote CRS on boot, heartbeats every 30s, s
 |----------|---------|-------------|
 | `CUBE_MODE` | `all` | Operating mode: `crs`, `cube`, or `all` |
 | `CUBE_CRS_URL` | — | CRS base URL (required for cube mode) |
-| `CUBE_ENDPOINT` | `0.0.0.0:51820` | This cube's reachable address |
-| `CUBE_ROLE` | — | Role annotation (inference, review, kb, infra, relay, standby) |
+| `CUBE_ENDPOINT` / `ADDRESS` | `0.0.0.0:51820` | This cube's wire protocol endpoint |
+| `CUBE_ROLE` / `ROLE` | — | Role annotation (inference, review, kb, infra, relay, standby) |
+| `CUBE_API_PORT` / `API_PORT` | `8080` | HTTP API bind port |
 | `RUST_LOG` | `info` | Log level |
 | `PLENUM_REQUIRE_SIGNATURE` | `false` | Require TL-DSA signatures on registrations |
 | `PLENUM_ENABLE_RATE_LIMIT` | `false` | Enable per-IP rate limiting with PoW |

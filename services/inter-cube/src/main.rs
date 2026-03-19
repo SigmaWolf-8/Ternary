@@ -2,20 +2,25 @@
 // Patent(s) Pending — All Rights Reserved
 // Applied Physics Division
 //
-// PlenumNET Inter-Cube Infrastructure Daemon v0.2.0
+// PlenumNET Inter-Cube Infrastructure Daemon v0.3.0
 //
 // MODES (controlled by CUBE_MODE env var):
 //   "crs"  — Central Registration Service. Allocates addresses,
-//            accepts registrations, serves full API on :8080.
+//            accepts registrations, serves full API.
 //   "cube" — Worker cube. Registers with a remote CRS on boot,
 //            gets a unique address, heartbeats every 30s,
-//            serves local stats API on :8080.
+//            serves local stats API.
 //   "all"  — Same as "crs" (backward compat).
 //
 // ENV VARS:
 //   CUBE_MODE         — "crs", "cube", or "all" (default: "all")
 //   CUBE_CRS_URL      — CRS base URL (required for cube mode)
-//   CUBE_ENDPOINT     — This cube's reachable address (default: "0.0.0.0:51820")
+//   CUBE_ENDPOINT     — Wire protocol endpoint (default: "0.0.0.0:51820")
+//   ADDRESS           — Alias for CUBE_ENDPOINT
+//   CUBE_ROLE         — Role annotation (inference, review, kb, infra, relay, standby)
+//   ROLE              — Alias for CUBE_ROLE
+//   CUBE_API_PORT     — HTTP API bind port (default: 8080)
+//   API_PORT          — Alias for CUBE_API_PORT
 
 use inter_cube::*;
 use inter_cube::api::{
@@ -25,6 +30,26 @@ use inter_cube::api::{
 use std::env;
 use std::net::SocketAddr;
 use std::time::Duration;
+
+fn env_or(primary: &str, alias: &str, default: &str) -> String {
+    env::var(primary)
+        .or_else(|_| env::var(alias))
+        .unwrap_or_else(|_| default.to_string())
+}
+
+fn api_port() -> u16 {
+    env::var("CUBE_API_PORT")
+        .or_else(|_| env::var("API_PORT"))
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(8080)
+}
+
+fn role_label() -> Option<String> {
+    env::var("CUBE_ROLE")
+        .or_else(|_| env::var("ROLE"))
+        .ok()
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // CRS MODE
@@ -111,7 +136,11 @@ async fn run_crs_mode() {
     let shared_state = AppState::new_crs(crs, con, fts, glb, local_address);
     let app = crs_router(shared_state);
 
-    let listen_addr: SocketAddr = "0.0.0.0:8080".parse().unwrap();
+    let port = api_port();
+    let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+    if let Some(role) = role_label() {
+        println!("  Role:          {}", role);
+    }
     println!();
     println!("=== HTTP Server (CRS) ===");
     println!("  http://{}", listen_addr);
@@ -121,7 +150,7 @@ async fn run_crs_mode() {
 
     let listener = tokio::net::TcpListener::bind(listen_addr)
         .await
-        .expect("Failed to bind to port 8080");
+        .expect(&format!("Failed to bind to port {}", port));
 
     axum::serve(listener, app)
         .await
@@ -134,12 +163,15 @@ async fn run_crs_mode() {
 
 async fn run_cube_mode() {
     let crs_url = env::var("CUBE_CRS_URL").expect("CUBE_CRS_URL is required for cube mode");
-    let cube_endpoint = env::var("CUBE_ENDPOINT")
-        .unwrap_or_else(|_| "0.0.0.0:51820".to_string());
+    let cube_endpoint = env_or("CUBE_ENDPOINT", "ADDRESS", "0.0.0.0:51820");
+    let role = role_label();
 
     println!("[CUBE] Mode: worker cube");
     println!("[CUBE] CRS URL: {}", crs_url);
     println!("[CUBE] Endpoint: {}", cube_endpoint);
+    if let Some(ref r) = role {
+        println!("[CUBE] Role: {}", r);
+    }
     println!();
 
     // -- Derive a unique public key from endpoint using TIS-27 ---
@@ -335,7 +367,8 @@ async fn run_cube_mode() {
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
 
-    let listen_addr: SocketAddr = "0.0.0.0:8080".parse().unwrap();
+    let port = api_port();
+    let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     println!();
     println!("=== HTTP Server (Cube) ===");
     println!("  http://{}", listen_addr);
@@ -345,7 +378,7 @@ async fn run_cube_mode() {
 
     let listener = tokio::net::TcpListener::bind(listen_addr)
         .await
-        .expect("Failed to bind to port 8080");
+        .expect(&format!("Failed to bind to port {}", port));
 
     axum::serve(listener, app)
         .await

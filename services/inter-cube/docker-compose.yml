@@ -40,7 +40,8 @@ services:
     environment:
       CUBE_MODE: cube
       CUBE_CRS_URL: http://crs:8080
-      CUBE_ENDPOINT: "cube-1:51820"
+      ADDRESS: "cube-1:51820"
+      ROLE: inference
       RUST_LOG: info
     ports:
       - "8081:8080"
@@ -59,7 +60,8 @@ services:
     environment:
       CUBE_MODE: cube
       CUBE_CRS_URL: http://crs:8080
-      CUBE_ENDPOINT: "cube-2:51820"
+      ADDRESS: "cube-2:51820"
+      ROLE: inference
       RUST_LOG: info
     ports:
       - "8082:8080"
@@ -78,7 +80,8 @@ services:
     environment:
       CUBE_MODE: cube
       CUBE_CRS_URL: http://crs:8080
-      CUBE_ENDPOINT: "cube-3:51820"
+      ADDRESS: "cube-3:51820"
+      ROLE: relay
       RUST_LOG: info
     ports:
       - "8083:8080"
