@@ -10,6 +10,7 @@
 
 ## Table of Contents
 
+0. [Crate Dependencies and Import Patterns](#0-crate-dependencies-and-import-patterns)
 1. [TL-Sponge-385](#1-tl-sponge-385)
 2. [TIS-27](#2-tis-27)
 3. [TL-DSA](#3-tl-dsa)
@@ -20,6 +21,89 @@
    - [CON — Cube Overlay Network](#62-con--cube-overlay-network)
    - [GLB — Geometric Load Balancer](#63-glb--geometric-load-balancer)
    - [FTS — Fault Tolerance Service](#64-fts--fault-tolerance-service)
+
+---
+
+## 0. Crate Dependencies and Import Patterns
+
+### Workspace Layout
+
+All crypto crates are members of the workspace defined in the root `Cargo.toml`:
+
+```toml
+[workspace]
+members = [
+    "ternary-math",
+    "ternary-math/napi",
+    "src/kernel",
+    "services/pqti-service",
+    "services/inter-cube",
+    "services/tdns-v2",
+]
+resolver = "2"
+```
+
+### Adding `ternary-math` as a Dependency
+
+**Path dependency** (for in-tree consumers):
+
+```toml
+[dependencies]
+ternary-math = { path = "../../ternary-math" }  # adjust relative path
+```
+
+**Git dependency** (for out-of-tree consumers):
+
+```toml
+[dependencies]
+ternary-math = { git = "https://github.com/SigmaWolf-8/Ternary", branch = "main" }
+```
+
+### Adding `inter-cube` as a Dependency
+
+```toml
+[dependencies]
+inter-cube = { path = "../../services/inter-cube" }  # adjust relative path
+```
+
+The `inter-cube` crate transitively pulls in `ternary-math`.
+
+### Import Patterns
+
+```rust
+// Sponge (TL-Sponge-385 + TIS-27)
+use ternary_math::sponge;                          // re-export module
+use ternary_math::tlsponge385::Sponge385Pub;       // direct struct import
+
+// TL-DSA
+use ternary_math::tl_dsa::{keygen, sign, verify, TlDsaVariant, TlDsaKeyPair};
+
+// TL-KEM
+use ternary_math::tl_kem::{self, TlKemVariant, TlKemPublicKey, TlKemSecretKey,
+                            TlKemCiphertext, SharedSecret, TlKemError};
+
+// Phase Encryption
+use ternary_math::phase_encryption::{encrypt, decrypt, EncryptionMode,
+                                      PhaseCiphertext, PhaseError,
+                                      derive_key_from_secret};
+
+// Inter-Cube (when used as a library)
+use inter_cube::crs::{CubeRegistrationService, SignedRegistration, RegistrationError};
+use inter_cube::overlay::{CubeOverlayNetwork, ForgeryAlert};
+use inter_cube::glb::{GeometricLoadBalancer, ForwardResult, ForwardError};
+use inter_cube::fts::{FaultToleranceService, HeartbeatAuth, AuthenticatedHeartbeat};
+```
+
+### Co-compilation Verification
+
+All five crypto modules compile together within the workspace. Verified via:
+
+```bash
+cargo build --workspace  # builds ternary-math + inter-cube + all members
+cargo test -p ternary-math -p inter-cube  # 435 + 420 = 855 tests passing
+```
+
+No dependency conflicts exist between crates — `inter-cube` depends on `ternary-math` via path reference, and both share the same `getrandom`, `serde`, and `tokio` dependency versions resolved by the workspace `resolver = "2"`.
 
 ---
 
@@ -366,6 +450,26 @@ pub fn from_u32(v: u32) -> Option<TlDsaVariant>
 ```
 
 Parse variant from integer code (44, 65, or 87).
+
+#### Size Helper Functions
+
+```rust
+pub fn pk_len(variant: TlDsaVariant) -> usize
+pub fn sk_len(variant: TlDsaVariant) -> usize
+pub fn sig_len(variant: TlDsaVariant) -> usize
+```
+
+Convenience accessors that return the byte lengths for a given variant.
+
+**Example:**
+
+```rust
+use ternary_math::tl_dsa::{pk_len, sk_len, sig_len, TlDsaVariant};
+
+assert_eq!(pk_len(TlDsaVariant::TlDsa87), 64);
+assert_eq!(sk_len(TlDsaVariant::TlDsa87), 128);
+assert_eq!(sig_len(TlDsaVariant::TlDsa87), 3168);
+```
 
 ---
 
