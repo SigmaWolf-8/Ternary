@@ -672,15 +672,34 @@ pub fn encrypt_with_nonce(
 }
 
 pub fn decrypt(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES]) -> Result<Vec<u8>, PhaseError> {
+    decrypt_inner(ciphertext, key, None)
+}
+
+pub fn decrypt_with_mode(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode: EncryptionMode) -> Result<Vec<u8>, PhaseError> {
+    decrypt_inner(ciphertext, key, Some(mode))
+}
+
+fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_override: Option<EncryptionMode>) -> Result<Vec<u8>, PhaseError> {
+    if ciphertext.version != 3 {
+        return Err(PhaseError::InvalidCiphertext);
+    }
+    if ciphertext.sponge_version != 2 {
+        return Err(PhaseError::InvalidCiphertext);
+    }
     if ciphertext.nonce.len() != NONCE_BYTES {
         return Err(PhaseError::InvalidCiphertext);
     }
 
+    let config = match mode_override {
+        Some(m) => get_phase_config(m),
+        None => ciphertext.config.clone(),
+    };
+
     let mut nonce = [0u8; NONCE_BYTES];
     nonce.copy_from_slice(&ciphertext.nonce);
 
-    let primary_angle = ciphertext.config.primary_phase;
-    let secondary_angle = ciphertext.config.primary_phase + ciphertext.config.secondary_offset;
+    let primary_angle = config.primary_phase;
+    let secondary_angle = config.primary_phase + config.secondary_offset;
 
     let (primary_buf, secondary_buf) = duplex_decrypt(
         &ciphertext.primary_cipher,
@@ -696,9 +715,9 @@ pub fn decrypt(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES]) -> Result<Ve
     plaintext.extend_from_slice(&primary_buf);
     plaintext.extend_from_slice(&secondary_buf);
 
-    if let Some(guardian_hash) = &ciphertext.guardian_hash {
+    if let Some(gh) = &ciphertext.guardian_hash {
         let computed = sponge_hash_hex(&plaintext);
-        if !constant_time_eq(computed.as_bytes(), guardian_hash.as_bytes()) {
+        if !constant_time_eq(computed.as_bytes(), gh.as_bytes()) {
             return Err(PhaseError::GuardianFailed);
         }
     }
@@ -1150,5 +1169,39 @@ mod tests {
         assert_eq!(wire.primary_data_b64, wire2.primary_data_b64);
         assert_eq!(wire.secondary_data_b64, wire2.secondary_data_b64);
         assert_eq!(wire.mac, wire2.mac);
+    }
+
+    #[test]
+    fn test_decrypt_with_mode() {
+        let key = test_key();
+        let plaintext = b"decrypt_with_mode API test";
+        for mode in [
+            EncryptionMode::HighSecurity,
+            EncryptionMode::Balanced,
+            EncryptionMode::Performance,
+            EncryptionMode::Adaptive,
+        ] {
+            let ct = encrypt(plaintext, &key, mode).unwrap();
+            let d1 = decrypt(&ct, &key).unwrap();
+            let d2 = decrypt_with_mode(&ct, &key, mode).unwrap();
+            assert_eq!(d1, d2, "decrypt and decrypt_with_mode should match for {:?}", mode);
+            assert_eq!(d1, plaintext);
+        }
+    }
+
+    #[test]
+    fn test_reject_wrong_version() {
+        let key = test_key();
+        let mut ct = encrypt(b"version check", &key, EncryptionMode::Balanced).unwrap();
+        ct.version = 2;
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::InvalidCiphertext)));
+    }
+
+    #[test]
+    fn test_reject_wrong_sponge_version() {
+        let key = test_key();
+        let mut ct = encrypt(b"sponge version check", &key, EncryptionMode::Balanced).unwrap();
+        ct.sponge_version = 1;
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::InvalidCiphertext)));
     }
 }
