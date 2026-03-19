@@ -299,6 +299,7 @@ export function createTsaRoutes(service: TsaService): Router {
         const result = verifySignedDocument(doc, embeddedPk);
         res.status(200).json({
           valid: result.valid,
+          keyTrusted: result.keyTrusted,
           errors: result.errors,
           recordCount: doc.records.length,
           chainLength: doc.signatureChain.length,

@@ -93,6 +93,27 @@ export interface SignatureChainEntry {
 
 const GENESIS_HASH = crypto.createHash('sha3-256').update('audit-chain-genesis').digest('hex');
 
+export async function tombstoneAuditContent(recordId: number): Promise<boolean> {
+  const [updated] = await db
+    .update(securityAuditLog)
+    .set({
+      description: '[CONTENT DELETED — retention policy]',
+      evidence: { redacted: true, reason: 'content_deleted' },
+      resolutionStatus: 'content_deleted',
+    })
+    .where(eq(securityAuditLog.id, recordId))
+    .returning({ id: securityAuditLog.id });
+  return !!updated;
+}
+
+export async function deleteAuditRecord(_recordId: number): Promise<never> {
+  throw new Error(
+    'Audit records cannot be deleted. Use tombstoneAuditContent() to redact ' +
+    'content while preserving the record, its metadata, hashes, and signatures ' +
+    'per TM-2026-020.1-PREREQ §6.2 retention policy.'
+  );
+}
+
 function canonicalJsonStringify(obj: unknown): string {
   if (obj === null || obj === undefined) return JSON.stringify(obj);
   if (typeof obj !== 'object') return JSON.stringify(obj);
@@ -294,9 +315,20 @@ export async function exportSignedJson(filters: {
 export function verifySignedDocument(
   doc: SignedAuditDocument,
   publicKey: Buffer,
-): { valid: boolean; errors: string[] } {
+): { valid: boolean; errors: string[]; keyTrusted: boolean } {
   const errors: string[] = [];
   const variant = doc.documentSignature.variant;
+
+  const tsaKeyPair = getTlDsaTsaKeyPair();
+  const tsaPkHex = tsaKeyPair.publicKey.toString('hex');
+  const docPkHex = doc.documentSignature.publicKeyHex;
+  const keyTrusted = tsaPkHex === docPkHex;
+  if (!keyTrusted) {
+    errors.push(
+      `Document public key does not match server TSA key. ` +
+      `Document key: ${docPkHex.slice(0, 16)}…, Server TSA key: ${tsaPkHex.slice(0, 16)}…`
+    );
+  }
 
   for (let i = 0; i < doc.signatureChain.length; i++) {
     const entry = doc.signatureChain[i];
@@ -371,7 +403,7 @@ export function verifySignedDocument(
     errors.push(`Document signature verify error: ${(e as Error).message}`);
   }
 
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, keyTrusted };
 }
 
 export async function exportSignedPdf(filters: {
@@ -421,9 +453,14 @@ export async function exportSignedPdf(filters: {
     doc.fontSize(9).font('Helvetica');
     doc.text(`Algorithm: ${signedDoc.documentSignature.algorithm}`);
     doc.text(`Variant: ${signedDoc.documentSignature.variant}`);
-    doc.text(`Public Key Hash: ${signedDoc.documentSignature.publicKeyHash.substring(0, 48)}...`);
-    doc.text(`Document Hash: ${signedDoc.documentSignature.signedHash.substring(0, 48)}...`);
-    doc.text(`Signature: ${signedDoc.documentSignature.signature.substring(0, 64)}...`);
+    doc.text(`Public Key (SHA3-256): ${signedDoc.documentSignature.publicKeyHash}`);
+    doc.text(`Public Key (hex): ${signedDoc.documentSignature.publicKeyHex}`);
+    doc.text(`Document Hash (SHA3-256): ${signedDoc.documentSignature.signedHash}`);
+    doc.moveDown(0.3);
+    doc.fontSize(8).font('Helvetica-Oblique');
+    doc.text('This PDF is a rendering of a signed JSON document. The document hash above is');
+    doc.text('computed over the canonical JSON payload. Verify by comparing this hash against');
+    doc.text('the JSON export via POST /api/tsa/export/verify.');
     doc.moveDown(1);
 
     doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();

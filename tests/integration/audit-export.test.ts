@@ -125,7 +125,7 @@ describe('Signed Audit Export — TM-2026-020.1-PREREQ §6.2', () => {
     expect(String.fromCharCode(...pdfHeader)).toBe('%PDF-');
   });
 
-  it('POST /api/tsa/export/verify — validates unmodified doc as valid', async () => {
+  it('POST /api/tsa/export/verify — validates unmodified doc as valid + key trusted', async () => {
     const exportRes = await jsonPost('/api/tsa/export/json', { limit: 3 }, authHeader('app', 'verify-app-1'));
     expect(exportRes.status).toBe(200);
     const doc = await exportRes.json();
@@ -134,10 +134,26 @@ describe('Signed Audit Export — TM-2026-020.1-PREREQ §6.2', () => {
     expect(verifyRes.status).toBe(200);
     const result = await verifyRes.json();
     expect(result.valid).toBe(true);
+    expect(result.keyTrusted).toBe(true);
     expect(result.errors).toEqual([]);
     expect(result.recordCount).toBe(doc.totalRecords);
     expect(result.chainLength).toBe(doc.signatureChain.length);
     expect(result.merkleRoot).toBe(doc.merkleRoot);
+  });
+
+  it('POST /api/tsa/export/verify — detects forged key (self-authenticating forgery)', async () => {
+    const exportRes = await jsonPost('/api/tsa/export/json', { limit: 1 }, authHeader('app', 'forged-key-app'));
+    expect(exportRes.status).toBe(200);
+    const doc = await exportRes.json();
+
+    doc.documentSignature.publicKeyHex = 'ff'.repeat(doc.documentSignature.publicKeyHex.length / 2);
+
+    const verifyRes = await jsonPost('/api/tsa/export/verify', doc, authHeader('readonly'));
+    expect(verifyRes.status).toBe(200);
+    const result = await verifyRes.json();
+    expect(result.valid).toBe(false);
+    expect(result.keyTrusted).toBe(false);
+    expect(result.errors.some((e: string) => e.includes('does not match server TSA key'))).toBe(true);
   });
 
   it('POST /api/tsa/export/verify — detects tampered record description', async () => {
@@ -215,5 +231,11 @@ describe('Signed Audit Export — TM-2026-020.1-PREREQ §6.2', () => {
     expect(doc.documentSignature.publicKeyHash).toBeDefined();
     expect(doc.documentSignature.variant).toBeDefined();
     expect(doc.retentionPolicy.deletionProhibited).toBe(true);
+  });
+
+  it('retention policy: deleteAuditRecord throws, tombstone is the only content removal path', async () => {
+    const { deleteAuditRecord } = await import('../../server/services/audit-export.service');
+    await expect(deleteAuditRecord(1)).rejects.toThrow('Audit records cannot be deleted');
+    await expect(deleteAuditRecord(1)).rejects.toThrow('tombstoneAuditContent');
   });
 });
