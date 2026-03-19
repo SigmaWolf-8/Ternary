@@ -6,7 +6,7 @@
  * PLENUMNET RFC 3161 TSA API ROUTES
  * Location:   server/routes/tsa.ts
  *
- * 8 endpoints under /api/tsa/*
+ * 11 endpoints under /api/tsa/*
  * Kong service #21: plenumnet-tsa
  */
 
@@ -14,6 +14,12 @@ import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { TsaService, TSA_POLICIES } from '../services/tsa-service';
 import { compressData, decompressData } from '../ternary';
+import {
+  exportSignedJson,
+  exportSignedPdf,
+  verifySignedDocument,
+  type SignedAuditDocument,
+} from '../services/audit-export.service';
 
 interface CompactCalendarContext {
   ts: string;
@@ -212,6 +218,84 @@ export function createTsaRoutes(service: TsaService): Router {
       }
 
       res.json(result);
+    },
+  );
+
+  router.post('/export/json',
+    rateLimit({ windowMs: 60_000, max: 10 }),
+    requireAuth('app'),
+    async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const { projectScope, since, until, severity, category, eventType, limit } = req.body;
+        const doc = await exportSignedJson({
+          projectScope: projectScope || req.auth?.appId || 'all',
+          since,
+          until,
+          severity,
+          category,
+          eventType,
+          limit: limit ? Math.min(parseInt(limit, 10), 500) : 500,
+        });
+        res.status(200).json(doc);
+      } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+      }
+    },
+  );
+
+  router.post('/export/pdf',
+    rateLimit({ windowMs: 60_000, max: 5 }),
+    requireAuth('app'),
+    async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const { projectScope, since, until, severity, category, eventType, limit } = req.body;
+        const pdfBuffer = await exportSignedPdf({
+          projectScope: projectScope || req.auth?.appId || 'all',
+          since,
+          until,
+          severity,
+          category,
+          eventType,
+          limit: limit ? Math.min(parseInt(limit, 10), 100) : 100,
+        });
+        res.status(200)
+          .set('Content-Type', 'application/pdf')
+          .set('Content-Disposition', `attachment; filename="plenumnet-audit-export-${Date.now()}.pdf"`)
+          .send(pdfBuffer);
+      } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+      }
+    },
+  );
+
+  router.post('/export/verify',
+    rateLimit({ windowMs: 60_000, max: 20 }),
+    requireAuth('readonly'),
+    async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const doc = req.body as SignedAuditDocument;
+        if (!doc || !doc.version || !doc.records || !doc.signatureChain || !doc.documentSignature) {
+          return res.status(400).json({
+            error: 'Invalid signed audit document',
+            required: ['version', 'records', 'signatureChain', 'documentSignature'],
+          });
+        }
+
+        const { getTlDsaTsaKeyPair } = await import('../crypto/key-management');
+        const keyPair = getTlDsaTsaKeyPair();
+
+        const result = verifySignedDocument(doc, keyPair.publicKey, keyPair.secretKey);
+        res.status(200).json({
+          valid: result.valid,
+          errors: result.errors,
+          recordCount: doc.records.length,
+          chainLength: doc.signatureChain.length,
+          merkleRoot: doc.merkleRoot,
+          documentHash: doc.documentSignature.signedHash,
+        });
+      } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+      }
     },
   );
 

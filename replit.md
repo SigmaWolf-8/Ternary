@@ -54,7 +54,7 @@ Five modules provide classical simulation of quantum ternary (qutrit/qudit) oper
 This system orchestrates 28 specialist AI agents for parallel query analysis, featuring an Etymology Audit, Veritas Fact-Check, unified Situation Report generation, and Lexical Protocol enforcement.
 
 ### RFC 3161 Time-Stamping Authority (TSA)
-A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161, featuring Merkle tamper-evident audit logs and dual-signature (RSA-4096 + TL-DSA-87).
+A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161, featuring Merkle tamper-evident audit logs and dual-signature (RSA-4096 + TL-DSA-87). Includes Signed Audit Export (TM-2026-020.1-PREREQ §6.2): `POST /api/tsa/export/json` returns TL-DSA signed audit documents with SHA3-256 signature chains and Merkle root; `POST /api/tsa/export/pdf` generates formatted PDF reports with embedded signatures; `POST /api/tsa/export/verify` validates chain integrity and tamper evidence. Service implemented in `server/services/audit-export.service.ts`.
 
 ### TL-Sponge-385 Document Hashing
 A TypeScript port of TL-Sponge-385 for document hashing, exposed via a dedicated API endpoint.
