@@ -31,6 +31,15 @@ import {
 } from '../crypto/tl-dsa-bridge';
 import { getTlDsaTsaKeyPair } from '../crypto/key-management';
 
+interface EvidencePayload {
+  taskId?: string;
+  reviewerVerdict?: string;
+  resultVersion?: string;
+  engineId?: string;
+  modelVersion?: string;
+  [key: string]: unknown;
+}
+
 export interface AuditRecord {
   recordId: string;
   taskId: string | null;
@@ -42,6 +51,10 @@ export interface AuditRecord {
   affectedComponent: string | null;
   inferenceHash: string;
   timestamp: string;
+  reviewerVerdict: string | null;
+  resultVersion: string | null;
+  engineId: string | null;
+  modelVersion: string | null;
   evidence: Record<string, unknown> | null;
   resolutionStatus: string;
   contentDeleted: boolean;
@@ -115,7 +128,7 @@ function computeMerkleRoot(hashes: string[]): string {
 }
 
 export async function queryAuditRecords(filters: {
-  projectScope?: string;
+  authenticatedAppId: string;
   since?: string;
   until?: string;
   severity?: string;
@@ -124,6 +137,8 @@ export async function queryAuditRecords(filters: {
   limit?: number;
 }): Promise<AuditRecord[]> {
   const conditions = [];
+
+  conditions.push(eq(securityAuditLog.userId, filters.authenticatedAppId));
 
   if (filters.since) {
     conditions.push(gte(securityAuditLog.createdAt, new Date(filters.since)));
@@ -144,27 +159,36 @@ export async function queryAuditRecords(filters: {
   const rows = await db
     .select()
     .from(securityAuditLog)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(securityAuditLog.createdAt))
     .limit(filters.limit || 500);
 
-  return rows.map((row) => ({
-    recordId: `SAL-${row.id}`,
-    taskId: (row.evidence as any)?.taskId || null,
-    eventType: row.eventType,
-    severity: row.severity,
-    category: row.category,
-    description: row.description,
-    actor: row.actor,
-    affectedComponent: row.affectedComponent,
-    inferenceHash: computeInferenceHash(
-      `${row.id}|${row.eventType}|${row.severity}|${row.createdAt.toISOString()}`
-    ),
-    timestamp: row.createdAt.toISOString(),
-    evidence: row.evidence,
-    resolutionStatus: row.resolutionStatus,
-    contentDeleted: false,
-  }));
+  return rows.map((row) => {
+    const evidence = row.evidence as EvidencePayload | null;
+    const isDeleted = row.resolutionStatus === 'content_deleted';
+
+    return {
+      recordId: `SAL-${row.id}`,
+      taskId: evidence?.taskId || null,
+      eventType: row.eventType,
+      severity: row.severity,
+      category: row.category,
+      description: isDeleted ? '[content deleted per retention policy]' : row.description,
+      actor: row.actor,
+      affectedComponent: row.affectedComponent,
+      inferenceHash: computeInferenceHash(
+        `${row.id}|${row.eventType}|${row.severity}|${row.createdAt.toISOString()}`
+      ),
+      timestamp: row.createdAt.toISOString(),
+      reviewerVerdict: evidence?.reviewerVerdict || null,
+      resultVersion: evidence?.resultVersion || null,
+      engineId: evidence?.engineId || null,
+      modelVersion: evidence?.modelVersion || null,
+      evidence: isDeleted ? null : (row.evidence as Record<string, unknown> | null),
+      resolutionStatus: row.resolutionStatus,
+      contentDeleted: isDeleted,
+    };
+  });
 }
 
 function buildSignatureChain(
@@ -200,7 +224,7 @@ function buildSignatureChain(
 }
 
 export async function exportSignedJson(filters: {
-  projectScope?: string;
+  authenticatedAppId: string;
   since?: string;
   until?: string;
   severity?: string;
@@ -219,7 +243,7 @@ export async function exportSignedJson(filters: {
     version: '1.0.0' as const,
     exportedAt: new Date().toISOString(),
     exporterId: 'plenumnet-tsa',
-    projectScope: filters.projectScope || 'all',
+    projectScope: filters.authenticatedAppId,
     totalRecords: records.length,
     merkleRoot,
     records,
@@ -350,7 +374,7 @@ export function verifySignedDocument(
 }
 
 export async function exportSignedPdf(filters: {
-  projectScope?: string;
+  authenticatedAppId: string;
   since?: string;
   until?: string;
   severity?: string;
@@ -424,8 +448,13 @@ export async function exportSignedPdf(filters: {
       doc.text(`Description: ${record.description.substring(0, 200)}${record.description.length > 200 ? '...' : ''}`);
       if (record.actor) doc.text(`Actor: ${record.actor}`);
       if (record.affectedComponent) doc.text(`Component: ${record.affectedComponent}`);
+      if (record.reviewerVerdict) doc.text(`Reviewer Verdict: ${record.reviewerVerdict}`);
+      if (record.resultVersion) doc.text(`Result Version: ${record.resultVersion}`);
+      if (record.engineId) doc.text(`Engine ID: ${record.engineId}`);
+      if (record.modelVersion) doc.text(`Model Version: ${record.modelVersion}`);
       doc.text(`TIS-27 Hash: ${record.inferenceHash}`);
       doc.text(`Resolution: ${record.resolutionStatus}`);
+      if (record.contentDeleted) doc.text(`Content Status: DELETED (retention policy)`);
       if (chainEntry) {
         doc.text(`Record Hash: ${chainEntry.recordHash.substring(0, 32)}...`);
         doc.text(`Chain Sig: ${chainEntry.chainSignature.substring(0, 48)}...`);

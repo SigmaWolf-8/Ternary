@@ -226,9 +226,13 @@ export function createTsaRoutes(service: TsaService): Router {
     requireAuth('app'),
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { projectScope, since, until, severity, category, eventType, limit } = req.body;
+        const appId = req.auth?.appId;
+        if (!appId) {
+          return res.status(403).json({ error: 'Missing authenticated app identity' });
+        }
+        const { since, until, severity, category, eventType, limit } = req.body;
         const doc = await exportSignedJson({
-          projectScope: projectScope || req.auth?.appId || 'all',
+          authenticatedAppId: appId,
           since,
           until,
           severity,
@@ -248,9 +252,13 @@ export function createTsaRoutes(service: TsaService): Router {
     requireAuth('app'),
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { projectScope, since, until, severity, category, eventType, limit } = req.body;
+        const appId = req.auth?.appId;
+        if (!appId) {
+          return res.status(403).json({ error: 'Missing authenticated app identity' });
+        }
+        const { since, until, severity, category, eventType, limit } = req.body;
         const pdfBuffer = await exportSignedPdf({
-          projectScope: projectScope || req.auth?.appId || 'all',
+          authenticatedAppId: appId,
           since,
           until,
           severity,
