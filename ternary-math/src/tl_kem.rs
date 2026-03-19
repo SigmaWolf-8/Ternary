@@ -368,25 +368,25 @@ fn ciphertext_to_trits_for_kdf(ct_bytes: &[u8]) -> Vec<i8> {
     trits
 }
 
-pub fn keygen_default(variant: TlKemVariant) -> Result<(TlKemPublicKey, TlKemSecretKey), TlKemError> {
+pub fn keygen(variant: TlKemVariant) -> Result<(TlKemPublicKey, TlKemSecretKey), TlKemError> {
     let mut os_bytes = [0u8; 48];
     getrandom::getrandom(&mut os_bytes).map_err(|_| TlKemError::InvalidSeed)?;
     let seed: Vec<i8> = os_bytes.iter().map(|&b| ((b % 3) as i8) - 1).collect();
-    keygen(variant, &seed)
+    keygen_with_seed(variant, &seed)
 }
 
-pub fn encapsulate_default(pk: &TlKemPublicKey) -> Result<(TlKemCiphertext, SharedSecret), TlKemError> {
+pub fn encapsulate(pk: &TlKemPublicKey) -> Result<(TlKemCiphertext, SharedSecret), TlKemError> {
     let mut os_bytes = [0u8; 32];
     getrandom::getrandom(&mut os_bytes).map_err(|_| TlKemError::InvalidSeed)?;
     let randomness: Vec<i8> = os_bytes.iter().map(|&b| ((b % 3) as i8) - 1).collect();
-    encapsulate(pk, &randomness)
+    encapsulate_with_randomness(pk, &randomness)
 }
 
-pub fn decapsulate_default(ct: &TlKemCiphertext, sk: &TlKemSecretKey) -> Result<SharedSecret, TlKemError> {
-    decapsulate(sk, ct)
+pub fn decapsulate(ct: &TlKemCiphertext, sk: &TlKemSecretKey) -> Result<SharedSecret, TlKemError> {
+    decapsulate_inner_fo(sk, ct)
 }
 
-pub fn keygen(variant: TlKemVariant, seed: &[i8]) -> Result<(TlKemPublicKey, TlKemSecretKey), TlKemError> {
+pub fn keygen_with_seed(variant: TlKemVariant, seed: &[i8]) -> Result<(TlKemPublicKey, TlKemSecretKey), TlKemError> {
     let params = variant.params();
     let k = params.k;
     let n = params.n;
@@ -419,7 +419,7 @@ pub fn keygen(variant: TlKemVariant, seed: &[i8]) -> Result<(TlKemPublicKey, TlK
     Ok((pk, sk))
 }
 
-pub fn encapsulate(pk: &TlKemPublicKey, randomness: &[i8]) -> Result<(TlKemCiphertext, SharedSecret), TlKemError> {
+pub fn encapsulate_with_randomness(pk: &TlKemPublicKey, randomness: &[i8]) -> Result<(TlKemCiphertext, SharedSecret), TlKemError> {
     let params = pk.variant.params();
     let k = params.k;
     let n = params.n;
@@ -464,7 +464,7 @@ pub fn encapsulate(pk: &TlKemPublicKey, randomness: &[i8]) -> Result<(TlKemCiphe
     Ok((ct, shared))
 }
 
-pub fn decapsulate(sk: &TlKemSecretKey, ct: &TlKemCiphertext) -> Result<SharedSecret, TlKemError> {
+fn decapsulate_inner_fo(sk: &TlKemSecretKey, ct: &TlKemCiphertext) -> Result<SharedSecret, TlKemError> {
     let params = sk.variant.params();
     let n = params.n;
 
@@ -652,7 +652,7 @@ mod tests {
     #[test]
     fn test_keygen_512() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
         assert_eq!(pk.variant, TlKemVariant::TlKem512);
         assert_eq!(sk.variant, TlKemVariant::TlKem512);
         assert_eq!(pk.public_vec_t.polys.len(), 2);
@@ -663,7 +663,7 @@ mod tests {
     #[test]
     fn test_keygen_768() {
         let seed = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 0, 1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem768, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem768, &seed).unwrap();
         assert_eq!(pk.public_vec_t.polys.len(), 3);
         assert_eq!(sk.secret_s.polys.len(), 3);
     }
@@ -671,7 +671,7 @@ mod tests {
     #[test]
     fn test_keygen_1024() {
         let seed = vec![-1i8, 0, 1, -1, 0, 1, -1, 0, 1, 0, -1, 1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem1024, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem1024, &seed).unwrap();
         assert_eq!(pk.public_vec_t.polys.len(), 4);
         assert_eq!(sk.secret_s.polys.len(), 4);
     }
@@ -679,8 +679,8 @@ mod tests {
     #[test]
     fn test_keygen_deterministic() {
         let seed = vec![0i8, 1, -1, 0, 1];
-        let (pk1, sk1) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
-        let (pk2, sk2) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk1, sk1) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk2, sk2) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
         assert_eq!(pk1.matrix_a_seed, pk2.matrix_a_seed);
         assert_eq!(
             poly_vec_to_trits(&pk1.public_vec_t),
@@ -695,11 +695,11 @@ mod tests {
     #[test]
     fn test_encapsulate_decapsulate_512() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
 
         let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
-        let (ct, shared1) = encapsulate(&pk, &randomness).unwrap();
-        let shared2 = decapsulate(&sk, &ct).unwrap();
+        let (ct, shared1) = encapsulate_with_randomness(&pk, &randomness).unwrap();
+        let shared2 = decapsulate(&ct, &sk).unwrap();
 
         assert_eq!(shared1.trits.len(), 243);
         assert_eq!(shared2.trits.len(), 243);
@@ -709,11 +709,11 @@ mod tests {
     #[test]
     fn test_encapsulate_decapsulate_768() {
         let seed = vec![1i8, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem768, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem768, &seed).unwrap();
 
         let randomness = vec![-1i8, 0, 1, -1, 0, 1];
-        let (ct, shared1) = encapsulate(&pk, &randomness).unwrap();
-        let shared2 = decapsulate(&sk, &ct).unwrap();
+        let (ct, shared1) = encapsulate_with_randomness(&pk, &randomness).unwrap();
+        let shared2 = decapsulate(&ct, &sk).unwrap();
 
         assert_eq!(shared1, shared2);
     }
@@ -721,11 +721,11 @@ mod tests {
     #[test]
     fn test_encapsulate_decapsulate_1024() {
         let seed = vec![0i8, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem1024, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem1024, &seed).unwrap();
 
         let randomness = vec![1i8, 1, -1, 0, -1, 1, 0];
-        let (ct, shared1) = encapsulate(&pk, &randomness).unwrap();
-        let shared2 = decapsulate(&sk, &ct).unwrap();
+        let (ct, shared1) = encapsulate_with_randomness(&pk, &randomness).unwrap();
+        let shared2 = decapsulate(&ct, &sk).unwrap();
 
         assert_eq!(shared1.trits.len(), 486);
         assert_eq!(shared2.trits.len(), 486);
@@ -735,13 +735,13 @@ mod tests {
     #[test]
     fn test_different_randomness_different_secrets() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1];
-        let (pk, _) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, _) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
 
         let r1 = vec![0i8, 0, 0, 0, 0];
         let r2 = vec![1i8, 0, 0, 0, 0];
 
-        let (_, shared1) = encapsulate(&pk, &r1).unwrap();
-        let (_, shared2) = encapsulate(&pk, &r2).unwrap();
+        let (_, shared1) = encapsulate_with_randomness(&pk, &r1).unwrap();
+        let (_, shared2) = encapsulate_with_randomness(&pk, &r2).unwrap();
 
         assert_ne!(shared1, shared2);
     }
@@ -751,12 +751,12 @@ mod tests {
         let seed1 = vec![0i8, 1, -1, 0, 1, -1];
         let seed2 = vec![1i8, -1, 0, 1, -1, 0];
 
-        let (pk1, _sk1) = keygen(TlKemVariant::TlKem512, &seed1).unwrap();
-        let (_pk2, sk2) = keygen(TlKemVariant::TlKem512, &seed2).unwrap();
+        let (pk1, _sk1) = keygen_with_seed(TlKemVariant::TlKem512, &seed1).unwrap();
+        let (_pk2, sk2) = keygen_with_seed(TlKemVariant::TlKem512, &seed2).unwrap();
 
         let randomness = vec![0i8, 1, -1, 0, 1];
-        let (ct, shared_encaps) = encapsulate(&pk1, &randomness).unwrap();
-        let shared_decaps = decapsulate(&sk2, &ct).unwrap();
+        let (ct, shared_encaps) = encapsulate_with_randomness(&pk1, &randomness).unwrap();
+        let shared_decaps = decapsulate(&ct, &sk2).unwrap();
 
         assert_ne!(shared_encaps, shared_decaps);
     }
@@ -764,10 +764,10 @@ mod tests {
     #[test]
     fn test_implicit_reject() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
 
         let randomness = vec![0i8, 1, -1];
-        let (mut ct, _) = encapsulate(&pk, &randomness).unwrap();
+        let (mut ct, _) = encapsulate_with_randomness(&pk, &randomness).unwrap();
 
         if let Some(first_u) = ct.compressed_u.first_mut() {
             if let Some(byte) = first_u.first_mut() {
@@ -775,7 +775,7 @@ mod tests {
             }
         }
 
-        let shared_reject = decapsulate(&sk, &ct).unwrap();
+        let shared_reject = decapsulate(&ct, &sk).unwrap();
         assert!(!shared_reject.trits.is_empty());
     }
 
@@ -806,9 +806,9 @@ mod tests {
     #[test]
     fn test_shared_secret_to_bytes_32() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, _) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, _) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
         let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
-        let (_, shared) = encapsulate(&pk, &randomness).unwrap();
+        let (_, shared) = encapsulate_with_randomness(&pk, &randomness).unwrap();
 
         let bytes = shared.to_bytes_32();
         assert_eq!(bytes.len(), 32);
@@ -820,10 +820,10 @@ mod tests {
     #[test]
     fn test_shared_secret_to_bytes_32_different_secrets() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1];
-        let (pk, _) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, _) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
 
-        let (_, s1) = encapsulate(&pk, &[0i8, 0, 0, 0, 0]).unwrap();
-        let (_, s2) = encapsulate(&pk, &[1i8, 0, 0, 0, 0]).unwrap();
+        let (_, s1) = encapsulate_with_randomness(&pk, &[0i8, 0, 0, 0, 0]).unwrap();
+        let (_, s2) = encapsulate_with_randomness(&pk, &[1i8, 0, 0, 0, 0]).unwrap();
 
         assert_ne!(s1.to_bytes_32(), s2.to_bytes_32());
     }
@@ -831,10 +831,10 @@ mod tests {
     #[test]
     fn test_shared_secret_compat_sponge385_derive_key() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
         let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
-        let (ct, shared1) = encapsulate(&pk, &randomness).unwrap();
-        let shared2 = decapsulate(&sk, &ct).unwrap();
+        let (ct, shared1) = encapsulate_with_randomness(&pk, &randomness).unwrap();
+        let shared2 = decapsulate(&ct, &sk).unwrap();
 
         let kem_secret = shared1.to_bytes_32();
         let kem_secret2 = shared2.to_bytes_32();
@@ -854,7 +854,7 @@ mod tests {
     fn test_public_key_serialization_roundtrip() {
         for variant in [TlKemVariant::TlKem512, TlKemVariant::TlKem768, TlKemVariant::TlKem1024] {
             let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1];
-            let (pk, _) = keygen(variant, &seed).unwrap();
+            let (pk, _) = keygen_with_seed(variant, &seed).unwrap();
             let bytes = pk.to_bytes();
             let pk2 = TlKemPublicKey::from_bytes(&bytes).unwrap();
             assert_eq!(pk.variant, pk2.variant);
@@ -870,7 +870,7 @@ mod tests {
     fn test_secret_key_serialization_roundtrip() {
         for variant in [TlKemVariant::TlKem512, TlKemVariant::TlKem768, TlKemVariant::TlKem1024] {
             let seed = vec![1i8, 0, -1, 0, 1, -1, 0, 1];
-            let (_, sk) = keygen(variant, &seed).unwrap();
+            let (_, sk) = keygen_with_seed(variant, &seed).unwrap();
             let bytes = sk.to_bytes();
             let sk2 = TlKemSecretKey::from_bytes(&bytes).unwrap();
             assert_eq!(sk.variant, sk2.variant);
@@ -886,9 +886,9 @@ mod tests {
     #[test]
     fn test_ciphertext_serialization_roundtrip() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, _) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, _) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
         let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
-        let (ct, _) = encapsulate(&pk, &randomness).unwrap();
+        let (ct, _) = encapsulate_with_randomness(&pk, &randomness).unwrap();
 
         let bytes = ct.to_bytes();
         let ct2 = TlKemCiphertext::from_bytes(&bytes).unwrap();
@@ -900,7 +900,7 @@ mod tests {
     #[test]
     fn test_serialized_key_encapsulate_decapsulate() {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, sk) = keygen(TlKemVariant::TlKem512, &seed).unwrap();
+        let (pk, sk) = keygen_with_seed(TlKemVariant::TlKem512, &seed).unwrap();
 
         let pk_bytes = pk.to_bytes();
         let sk_bytes = sk.to_bytes();
@@ -908,12 +908,12 @@ mod tests {
         let sk2 = TlKemSecretKey::from_bytes(&sk_bytes).unwrap();
 
         let randomness = vec![1i8, 0, -1, 1, 0, -1, 1, 0, -1, 1];
-        let (ct, shared1) = encapsulate(&pk2, &randomness).unwrap();
+        let (ct, shared1) = encapsulate_with_randomness(&pk2, &randomness).unwrap();
 
         let ct_bytes = ct.to_bytes();
         let ct2 = TlKemCiphertext::from_bytes(&ct_bytes).unwrap();
 
-        let shared2 = decapsulate(&sk2, &ct2).unwrap();
+        let shared2 = decapsulate(&ct2, &sk2).unwrap();
         assert_eq!(shared1, shared2);
     }
 
@@ -960,26 +960,26 @@ mod tests {
     }
 
     #[test]
-    fn test_keygen_default_512() {
-        let (pk, sk) = keygen_default(TlKemVariant::TlKem512).unwrap();
+    fn test_keygen_os_randomness() {
+        let (pk, sk) = keygen(TlKemVariant::TlKem512).unwrap();
         assert_eq!(pk.variant, TlKemVariant::TlKem512);
         assert_eq!(sk.variant, TlKemVariant::TlKem512);
         assert_eq!(pk.public_vec_t.polys.len(), 2);
     }
 
     #[test]
-    fn test_encapsulate_default_roundtrip() {
-        let (pk, sk) = keygen_default(TlKemVariant::TlKem512).unwrap();
-        let (ct, shared1) = encapsulate_default(&pk).unwrap();
-        let shared2 = decapsulate_default(&ct, &sk).unwrap();
+    fn test_encapsulate_decapsulate_primary_api() {
+        let (pk, sk) = keygen(TlKemVariant::TlKem512).unwrap();
+        let (ct, shared1) = encapsulate(&pk).unwrap();
+        let shared2 = decapsulate(&ct, &sk).unwrap();
         assert_eq!(shared1, shared2);
     }
 
     #[test]
-    fn test_convenience_api_different_sessions() {
-        let (pk, _) = keygen_default(TlKemVariant::TlKem512).unwrap();
-        let (_, s1) = encapsulate_default(&pk).unwrap();
-        let (_, s2) = encapsulate_default(&pk).unwrap();
+    fn test_primary_api_different_sessions() {
+        let (pk, _) = keygen(TlKemVariant::TlKem512).unwrap();
+        let (_, s1) = encapsulate(&pk).unwrap();
+        let (_, s2) = encapsulate(&pk).unwrap();
         assert_ne!(s1, s2);
     }
 }
