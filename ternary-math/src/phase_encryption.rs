@@ -130,59 +130,85 @@ impl PhaseCiphertext {
     }
 
     pub fn to_ts_wire_format(&self) -> TsWireFormat {
+        let guardian_phase = if self.config.guardian_enabled {
+            self.guardian_hash.as_ref().map(|h| TsGuardianEntry {
+                hash: h.clone(),
+                phase: self.config.guardian_offset,
+            })
+        } else {
+            None
+        };
+
         TsWireFormat {
-            primary_data_b64: self.primary_cipher_b64(),
-            primary_phase: self.config.primary_phase,
-            secondary_data_b64: self.secondary_cipher_b64(),
-            secondary_phase: self.config.primary_phase + self.config.secondary_offset,
+            primary_phase: TsPhaseEntry {
+                data: self.primary_cipher_b64(),
+                phase: self.config.primary_phase,
+            },
+            secondary_phase: TsPhaseEntry {
+                data: self.secondary_cipher_b64(),
+                phase: self.config.primary_phase + self.config.secondary_offset,
+            },
+            guardian_phase,
             config: self.config.clone(),
             split_ratio: 0.5,
-            nonce_hex: self.nonce_hex(),
-            mac: self.mac.clone(),
-            version: self.version,
-            sponge_version: self.sponge_version,
-            guardian_hash: self.guardian_hash.clone(),
-            guardian_phase: if self.config.guardian_enabled { Some(self.config.guardian_offset) } else { None },
+            nonce: Some(self.nonce_hex()),
+            mac: Some(self.mac.clone()),
+            version: Some(self.version),
+            sponge_version: Some(self.sponge_version),
         }
     }
 
     pub fn from_ts_wire_format(wire: &TsWireFormat) -> Result<Self, PhaseError> {
-        let primary_cipher = base64_decode(&wire.primary_data_b64)
+        let primary_cipher = base64_decode(&wire.primary_phase.data)
             .map_err(|_| PhaseError::InvalidCiphertext)?;
-        let secondary_cipher = base64_decode(&wire.secondary_data_b64)
+        let secondary_cipher = base64_decode(&wire.secondary_phase.data)
             .map_err(|_| PhaseError::InvalidCiphertext)?;
-        let nonce = hex_decode(&wire.nonce_hex)
-            .map_err(|_| PhaseError::InvalidCiphertext)?;
+        let nonce_hex = wire.nonce.as_deref().ok_or(PhaseError::InvalidCiphertext)?;
+        let nonce = hex_decode(nonce_hex).map_err(|_| PhaseError::InvalidCiphertext)?;
         if nonce.len() != NONCE_BYTES {
             return Err(PhaseError::InvalidCiphertext);
         }
+        let mac = wire.mac.as_deref().ok_or(PhaseError::InvalidCiphertext)?.to_string();
+        let version = wire.version.unwrap_or(3);
+        let sponge_version = wire.sponge_version.unwrap_or(2);
+        let guardian_hash = wire.guardian_phase.as_ref().map(|g| g.hash.clone());
+
         Ok(PhaseCiphertext {
             primary_cipher,
             secondary_cipher,
-            mac: wire.mac.clone(),
+            mac,
             nonce,
             config: wire.config.clone(),
-            guardian_hash: wire.guardian_hash.clone(),
-            version: wire.version,
-            sponge_version: wire.sponge_version,
+            guardian_hash,
+            version,
+            sponge_version,
         })
     }
 }
 
 #[derive(Debug, Clone)]
+pub struct TsPhaseEntry {
+    pub data: String,
+    pub phase: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct TsGuardianEntry {
+    pub hash: String,
+    pub phase: u16,
+}
+
+#[derive(Debug, Clone)]
 pub struct TsWireFormat {
-    pub primary_data_b64: String,
-    pub primary_phase: u16,
-    pub secondary_data_b64: String,
-    pub secondary_phase: u16,
+    pub primary_phase: TsPhaseEntry,
+    pub secondary_phase: TsPhaseEntry,
+    pub guardian_phase: Option<TsGuardianEntry>,
     pub config: PhaseConfig,
     pub split_ratio: f64,
-    pub nonce_hex: String,
-    pub mac: String,
-    pub version: u8,
-    pub sponge_version: u8,
-    pub guardian_hash: Option<String>,
-    pub guardian_phase: Option<u16>,
+    pub nonce: Option<String>,
+    pub mac: Option<String>,
+    pub version: Option<u8>,
+    pub sponge_version: Option<u8>,
 }
 
 #[derive(Debug)]
@@ -709,12 +735,12 @@ pub fn encrypt_with_nonce(
     })
 }
 
-pub fn decrypt(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES]) -> Result<Vec<u8>, PhaseError> {
-    decrypt_inner(ciphertext, key, None)
+pub fn decrypt(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode: EncryptionMode) -> Result<Vec<u8>, PhaseError> {
+    decrypt_inner(ciphertext, key, Some(mode))
 }
 
-pub fn decrypt_with_mode(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode: EncryptionMode) -> Result<Vec<u8>, PhaseError> {
-    decrypt_inner(ciphertext, key, Some(mode))
+pub fn decrypt_implicit(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES]) -> Result<Vec<u8>, PhaseError> {
+    decrypt_inner(ciphertext, key, None)
 }
 
 fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_override: Option<EncryptionMode>) -> Result<Vec<u8>, PhaseError> {
@@ -840,7 +866,7 @@ mod tests {
         let ct = encrypt(plaintext, &key, EncryptionMode::HighSecurity).unwrap();
         assert_eq!(ct.version, 3);
         assert!(ct.guardian_hash.is_some());
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -850,7 +876,7 @@ mod tests {
         let plaintext = b"Balanced mode encryption test data";
         let ct = encrypt(plaintext, &key, EncryptionMode::Balanced).unwrap();
         assert!(ct.guardian_hash.is_none());
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -860,7 +886,7 @@ mod tests {
         let plaintext = b"Performance mode fast encryption";
         let ct = encrypt(plaintext, &key, EncryptionMode::Performance).unwrap();
         assert!(ct.guardian_hash.is_none());
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -870,7 +896,7 @@ mod tests {
         let plaintext = b"Adaptive mode with guardian phase enabled";
         let ct = encrypt(plaintext, &key, EncryptionMode::Adaptive).unwrap();
         assert!(ct.guardian_hash.is_some());
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -885,7 +911,7 @@ mod tests {
             EncryptionMode::Adaptive,
         ] {
             let ct = encrypt(plaintext, &key, mode).unwrap();
-            let decrypted = decrypt(&ct, &key).unwrap();
+            let decrypted = decrypt_implicit(&ct, &key).unwrap();
             assert_eq!(decrypted, plaintext, "Failed for mode {:?}", mode);
         }
     }
@@ -895,7 +921,7 @@ mod tests {
         let key = test_key();
         let plaintext = b"";
         let ct = encrypt(plaintext, &key, EncryptionMode::Balanced).unwrap();
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -904,7 +930,7 @@ mod tests {
         let key = test_key();
         let plaintext: Vec<u8> = (0..4096).map(|i| (i % 256) as u8).collect();
         let ct = encrypt(&plaintext, &key, EncryptionMode::Balanced).unwrap();
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -914,7 +940,7 @@ mod tests {
         let key2 = derive_key_from_secret(b"key-two");
         let plaintext = b"This should not decrypt with wrong key";
         let ct = encrypt(plaintext, &key1, EncryptionMode::Balanced).unwrap();
-        let result = decrypt(&ct, &key2);
+        let result = decrypt_implicit(&ct, &key2);
         assert!(result.is_err());
     }
 
@@ -926,7 +952,7 @@ mod tests {
         if let Some(byte) = ct.primary_cipher.get_mut(10) {
             *byte = byte.wrapping_add(1);
         }
-        let result = decrypt(&ct, &key);
+        let result = decrypt_implicit(&ct, &key);
         assert!(matches!(result, Err(PhaseError::MacMismatch)));
     }
 
@@ -937,7 +963,7 @@ mod tests {
         let mut ct = encrypt(plaintext, &key, EncryptionMode::HighSecurity).unwrap();
         assert!(ct.guardian_hash.is_some());
         ct.guardian_hash = Some(sponge_hash_hex(b"different data"));
-        let result = decrypt(&ct, &key);
+        let result = decrypt_implicit(&ct, &key);
         assert!(matches!(result, Err(PhaseError::GuardianFailed)));
     }
 
@@ -983,7 +1009,7 @@ mod tests {
         let key = derive_key_from_kem_secret(&kem_secret);
         let plaintext = b"Encrypted with TL-KEM derived key";
         let ct = encrypt(plaintext, &key, EncryptionMode::HighSecurity).unwrap();
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -992,7 +1018,7 @@ mod tests {
         let key = test_key();
         let plaintext = "Unicode test: 日本語テスト 🔐 Ñoño";
         let ct = encrypt(plaintext.as_bytes(), &key, EncryptionMode::Balanced).unwrap();
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(std::str::from_utf8(&decrypted).unwrap(), plaintext);
     }
 
@@ -1017,7 +1043,7 @@ mod tests {
         let key = test_key();
         let plaintext = b"X";
         let ct = encrypt(plaintext, &key, EncryptionMode::HighSecurity).unwrap();
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -1027,7 +1053,7 @@ mod tests {
         let plaintext = b"OddLengthInput!";
         assert_eq!(plaintext.len() % 2, 1);
         let ct = encrypt(plaintext, &key, EncryptionMode::Balanced).unwrap();
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -1044,7 +1070,7 @@ mod tests {
             version: 3,
             sponge_version: 2,
         };
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::InvalidCiphertext)));
+        assert!(matches!(decrypt_implicit(&ct, &key), Err(PhaseError::InvalidCiphertext)));
     }
 
     #[test]
@@ -1066,7 +1092,7 @@ mod tests {
             version: 3,
             sponge_version: 2,
         };
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::InvalidCiphertext)));
+        assert!(matches!(decrypt_implicit(&ct, &key), Err(PhaseError::InvalidCiphertext)));
     }
 
     #[test]
@@ -1080,7 +1106,7 @@ mod tests {
         let secondary_snapshot = ct.secondary_cipher.clone();
         let guardian_snapshot = ct.guardian_hash.clone();
 
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
 
         let ct2 = encrypt_with_nonce(plaintext, &key, EncryptionMode::HighSecurity, &nonce).unwrap();
@@ -1096,15 +1122,15 @@ mod tests {
         let plaintext = b"Wire format roundtrip test data";
         let ct = encrypt(plaintext, &key, EncryptionMode::HighSecurity).unwrap();
         let wire = ct.to_ts_wire_format();
-        assert_eq!(wire.version, 3);
-        assert_eq!(wire.sponge_version, 2);
-        assert!(wire.guardian_hash.is_some());
+        assert_eq!(wire.version, Some(3));
+        assert_eq!(wire.sponge_version, Some(2));
+        assert!(wire.guardian_phase.is_some());
         assert_eq!(wire.split_ratio, 0.5);
-        assert_eq!(wire.primary_phase, 0);
-        assert_eq!(wire.secondary_phase, 10);
+        assert_eq!(wire.primary_phase.phase, 0);
+        assert_eq!(wire.secondary_phase.phase, 10);
 
         let ct2 = PhaseCiphertext::from_ts_wire_format(&wire).unwrap();
-        let decrypted = decrypt(&ct2, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct2, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -1116,13 +1142,13 @@ mod tests {
         let ct = encrypt_with_nonce(plaintext, &key, EncryptionMode::Balanced, &nonce).unwrap();
         let wire = ct.to_ts_wire_format();
 
-        let decoded_primary = base64_decode(&wire.primary_data_b64).unwrap();
+        let decoded_primary = base64_decode(&wire.primary_phase.data).unwrap();
         assert_eq!(decoded_primary, ct.primary_cipher);
 
-        let decoded_secondary = base64_decode(&wire.secondary_data_b64).unwrap();
+        let decoded_secondary = base64_decode(&wire.secondary_phase.data).unwrap();
         assert_eq!(decoded_secondary, ct.secondary_cipher);
 
-        let decoded_nonce = hex_decode(&wire.nonce_hex).unwrap();
+        let decoded_nonce = hex_decode(wire.nonce.as_deref().unwrap()).unwrap();
         assert_eq!(decoded_nonce, ct.nonce);
     }
 
@@ -1139,7 +1165,7 @@ mod tests {
             let ct = encrypt(plaintext, &key, mode).unwrap();
             let wire = ct.to_ts_wire_format();
             let ct2 = PhaseCiphertext::from_ts_wire_format(&wire).unwrap();
-            let decrypted = decrypt(&ct2, &key).unwrap();
+            let decrypted = decrypt_implicit(&ct2, &key).unwrap();
             assert_eq!(decrypted, plaintext, "Wire roundtrip failed for mode {:?}", mode);
         }
     }
@@ -1147,18 +1173,15 @@ mod tests {
     #[test]
     fn test_wire_format_invalid_b64() {
         let wire = TsWireFormat {
-            primary_data_b64: "not!valid!base64".to_string(),
-            primary_phase: 0,
-            secondary_data_b64: "also!invalid".to_string(),
-            secondary_phase: 4,
+            primary_phase: TsPhaseEntry { data: "not!valid!base64".to_string(), phase: 0 },
+            secondary_phase: TsPhaseEntry { data: "also!invalid".to_string(), phase: 4 },
+            guardian_phase: None,
             config: get_phase_config(EncryptionMode::Balanced),
             split_ratio: 0.5,
-            nonce_hex: "00".repeat(32),
-            mac: "00".repeat(49),
-            version: 3,
-            sponge_version: 2,
-            guardian_hash: None,
-            guardian_phase: None,
+            nonce: Some("00".repeat(32)),
+            mac: Some("00".repeat(49)),
+            version: Some(3),
+            sponge_version: Some(2),
         };
         assert!(matches!(PhaseCiphertext::from_ts_wire_format(&wire), Err(PhaseError::InvalidCiphertext)));
     }
@@ -1168,7 +1191,7 @@ mod tests {
         let key = test_key();
         let ct = encrypt(b"test", &key, EncryptionMode::Balanced).unwrap();
         let mut wire = ct.to_ts_wire_format();
-        wire.nonce_hex = "aabb".to_string();
+        wire.nonce = Some("aabb".to_string());
         assert!(matches!(PhaseCiphertext::from_ts_wire_format(&wire), Err(PhaseError::InvalidCiphertext)));
     }
 
@@ -1189,7 +1212,7 @@ mod tests {
         assert_eq!(ct.sponge_version, 2);
         assert_eq!(ct.version, 3);
         let wire = ct.to_ts_wire_format();
-        assert_eq!(wire.sponge_version, 2);
+        assert_eq!(wire.sponge_version, Some(2));
     }
 
     #[test]
@@ -1201,18 +1224,19 @@ mod tests {
         let ct = encrypt_with_nonce(plaintext, &key, EncryptionMode::Balanced, &nonce).unwrap();
         let wire = ct.to_ts_wire_format();
 
-        assert_eq!(wire.version, 3);
-        assert_eq!(wire.sponge_version, 2);
-        assert_eq!(wire.nonce_hex, "01".repeat(32));
-        assert!(!wire.primary_data_b64.is_empty());
-        assert!(!wire.secondary_data_b64.is_empty());
-        assert!(!wire.mac.is_empty());
-        assert_eq!(wire.mac.len(), 98);
+        assert_eq!(wire.version, Some(3));
+        assert_eq!(wire.sponge_version, Some(2));
+        assert_eq!(wire.nonce.as_deref().unwrap(), &"01".repeat(32));
+        assert!(!wire.primary_phase.data.is_empty());
+        assert!(!wire.secondary_phase.data.is_empty());
+        let mac = wire.mac.as_deref().unwrap();
+        assert!(!mac.is_empty());
+        assert_eq!(mac.len(), 98);
 
         let ct2 = encrypt_with_nonce(plaintext, &key, EncryptionMode::Balanced, &nonce).unwrap();
         let wire2 = ct2.to_ts_wire_format();
-        assert_eq!(wire.primary_data_b64, wire2.primary_data_b64);
-        assert_eq!(wire.secondary_data_b64, wire2.secondary_data_b64);
+        assert_eq!(wire.primary_phase.data, wire2.primary_phase.data);
+        assert_eq!(wire.secondary_phase.data, wire2.secondary_phase.data);
         assert_eq!(wire.mac, wire2.mac);
     }
 
@@ -1227,9 +1251,9 @@ mod tests {
             EncryptionMode::Adaptive,
         ] {
             let ct = encrypt(plaintext, &key, mode).unwrap();
-            let d1 = decrypt(&ct, &key).unwrap();
-            let d2 = decrypt_with_mode(&ct, &key, mode).unwrap();
-            assert_eq!(d1, d2, "decrypt and decrypt_with_mode should match for {:?}", mode);
+            let d1 = decrypt_implicit(&ct, &key).unwrap();
+            let d2 = decrypt(&ct, &key, mode).unwrap();
+            assert_eq!(d1, d2, "decrypt_implicit and decrypt should match for {:?}", mode);
             assert_eq!(d1, plaintext);
         }
     }
@@ -1239,7 +1263,7 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"version check", &key, EncryptionMode::Balanced).unwrap();
         ct.version = 2;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(2, 2))));
+        assert!(matches!(decrypt_implicit(&ct, &key), Err(PhaseError::UnsupportedVersion(2, 2))));
     }
 
     #[test]
@@ -1247,9 +1271,9 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"sponge version check", &key, EncryptionMode::Balanced).unwrap();
         ct.sponge_version = 4;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 4))));
+        assert!(matches!(decrypt_implicit(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 4))));
         ct.sponge_version = 0;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 0))));
+        assert!(matches!(decrypt_implicit(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 0))));
     }
 
     #[test]
@@ -1258,7 +1282,7 @@ mod tests {
         let mut ct = encrypt(b"sponge v3 test", &key, EncryptionMode::Balanced).unwrap();
         assert_eq!(ct.sponge_version, 2);
         ct.sponge_version = 3;
-        let result = decrypt(&ct, &key);
+        let result = decrypt_implicit(&ct, &key);
         assert!(result.is_ok());
     }
 
@@ -1288,7 +1312,7 @@ mod tests {
             guardian_hash: None,
         };
 
-        let decrypted = decrypt(&ct, &key).unwrap();
+        let decrypted = decrypt_implicit(&ct, &key).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -1297,7 +1321,7 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"guardian required", &key, EncryptionMode::HighSecurity).unwrap();
         ct.guardian_hash = None;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::MissingGuardian)));
+        assert!(matches!(decrypt_implicit(&ct, &key), Err(PhaseError::MissingGuardian)));
     }
 
     #[test]
@@ -1305,7 +1329,7 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"guardian required adaptive", &key, EncryptionMode::Adaptive).unwrap();
         ct.guardian_hash = None;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::MissingGuardian)));
+        assert!(matches!(decrypt_implicit(&ct, &key), Err(PhaseError::MissingGuardian)));
     }
 
     #[test]
@@ -1313,7 +1337,7 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"no guardian balanced", &key, EncryptionMode::Balanced).unwrap();
         ct.guardian_hash = None;
-        let result = decrypt(&ct, &key);
+        let result = decrypt_implicit(&ct, &key);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), b"no guardian balanced");
     }
@@ -1323,7 +1347,7 @@ mod tests {
         let key = test_key();
         let mut ct = encrypt(b"no guardian perf", &key, EncryptionMode::Performance).unwrap();
         ct.guardian_hash = None;
-        let result = decrypt(&ct, &key);
+        let result = decrypt_implicit(&ct, &key);
         assert!(result.is_ok());
     }
 }
