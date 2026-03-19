@@ -116,6 +116,75 @@ pub struct PhaseCiphertext {
     pub sponge_version: u8,
 }
 
+impl PhaseCiphertext {
+    pub fn primary_cipher_b64(&self) -> String {
+        base64_encode(&self.primary_cipher)
+    }
+
+    pub fn secondary_cipher_b64(&self) -> String {
+        base64_encode(&self.secondary_cipher)
+    }
+
+    pub fn nonce_hex(&self) -> String {
+        self.nonce.iter().map(|b| format!("{:02x}", b)).collect()
+    }
+
+    pub fn to_ts_wire_format(&self) -> TsWireFormat {
+        TsWireFormat {
+            primary_data_b64: self.primary_cipher_b64(),
+            primary_phase: self.config.primary_phase,
+            secondary_data_b64: self.secondary_cipher_b64(),
+            secondary_phase: self.config.primary_phase + self.config.secondary_offset,
+            config: self.config.clone(),
+            split_ratio: 0.5,
+            nonce_hex: self.nonce_hex(),
+            mac: self.mac.clone(),
+            version: self.version,
+            sponge_version: self.sponge_version,
+            guardian_hash: self.guardian_hash.clone(),
+            guardian_phase: if self.config.guardian_enabled { Some(self.config.guardian_offset) } else { None },
+        }
+    }
+
+    pub fn from_ts_wire_format(wire: &TsWireFormat) -> Result<Self, PhaseError> {
+        let primary_cipher = base64_decode(&wire.primary_data_b64)
+            .map_err(|_| PhaseError::InvalidCiphertext)?;
+        let secondary_cipher = base64_decode(&wire.secondary_data_b64)
+            .map_err(|_| PhaseError::InvalidCiphertext)?;
+        let nonce = hex_decode(&wire.nonce_hex)
+            .map_err(|_| PhaseError::InvalidCiphertext)?;
+        if nonce.len() != NONCE_BYTES {
+            return Err(PhaseError::InvalidCiphertext);
+        }
+        Ok(PhaseCiphertext {
+            primary_cipher,
+            secondary_cipher,
+            mac: wire.mac.clone(),
+            nonce,
+            config: wire.config.clone(),
+            guardian_hash: wire.guardian_hash.clone(),
+            version: wire.version,
+            sponge_version: wire.sponge_version,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TsWireFormat {
+    pub primary_data_b64: String,
+    pub primary_phase: u16,
+    pub secondary_data_b64: String,
+    pub secondary_phase: u16,
+    pub config: PhaseConfig,
+    pub split_ratio: f64,
+    pub nonce_hex: String,
+    pub mac: String,
+    pub version: u8,
+    pub sponge_version: u8,
+    pub guardian_hash: Option<String>,
+    pub guardian_phase: Option<u16>,
+}
+
 #[derive(Debug)]
 pub enum PhaseError {
     MacMismatch,
@@ -136,6 +205,77 @@ impl std::fmt::Display for PhaseError {
 }
 
 impl std::error::Error for PhaseError {}
+
+fn base64_encode(data: &[u8]) -> String {
+    const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    let mut i = 0;
+    while i + 2 < data.len() {
+        let n = ((data[i] as u32) << 16) | ((data[i+1] as u32) << 8) | data[i+2] as u32;
+        out.push(B64[(n >> 18) as usize & 63] as char);
+        out.push(B64[(n >> 12) as usize & 63] as char);
+        out.push(B64[(n >> 6) as usize & 63] as char);
+        out.push(B64[n as usize & 63] as char);
+        i += 3;
+    }
+    let rem = data.len() - i;
+    if rem == 1 {
+        let n = (data[i] as u32) << 16;
+        out.push(B64[(n >> 18) as usize & 63] as char);
+        out.push(B64[(n >> 12) as usize & 63] as char);
+        out.push('=');
+        out.push('=');
+    } else if rem == 2 {
+        let n = ((data[i] as u32) << 16) | ((data[i+1] as u32) << 8);
+        out.push(B64[(n >> 18) as usize & 63] as char);
+        out.push(B64[(n >> 12) as usize & 63] as char);
+        out.push(B64[(n >> 6) as usize & 63] as char);
+        out.push('=');
+    }
+    out
+}
+
+fn base64_decode(s: &str) -> Result<Vec<u8>, &'static str> {
+    fn b64val(c: u8) -> Result<u8, &'static str> {
+        match c {
+            b'A'..=b'Z' => Ok(c - b'A'),
+            b'a'..=b'z' => Ok(c - b'a' + 26),
+            b'0'..=b'9' => Ok(c - b'0' + 52),
+            b'+' => Ok(62),
+            b'/' => Ok(63),
+            b'=' => Ok(0),
+            _ => Err("invalid base64 char"),
+        }
+    }
+    let bytes = s.as_bytes();
+    if bytes.len() % 4 != 0 { return Err("invalid base64 length"); }
+    let mut out = Vec::with_capacity(bytes.len() / 4 * 3);
+    let mut i = 0;
+    while i < bytes.len() {
+        let a = b64val(bytes[i])?; let b = b64val(bytes[i+1])?;
+        let c = b64val(bytes[i+2])?; let d = b64val(bytes[i+3])?;
+        let n = ((a as u32) << 18) | ((b as u32) << 12) | ((c as u32) << 6) | d as u32;
+        out.push((n >> 16) as u8);
+        if bytes[i+2] != b'=' { out.push((n >> 8) as u8); }
+        if bytes[i+3] != b'=' { out.push(n as u8); }
+        i += 4;
+    }
+    Ok(out)
+}
+
+fn hex_decode(s: &str) -> Result<Vec<u8>, &'static str> {
+    let bytes = s.as_bytes();
+    if bytes.len() % 2 != 0 { return Err("odd hex length"); }
+    let mut out = Vec::with_capacity(bytes.len() / 2);
+    let mut i = 0;
+    while i < bytes.len() {
+        let hi = hex_char_to_nibble(bytes[i]);
+        let lo = hex_char_to_nibble(bytes[i+1]);
+        out.push((hi << 4) | lo);
+        i += 2;
+    }
+    Ok(out)
+}
 
 fn std_deg_to_ternary_deg(std_deg: u16) -> u16 {
     ((std_deg as u32 * TERNARY_FULL_CIRCLE + STD_FULL_CIRCLE / 2) / STD_FULL_CIRCLE) as u16
@@ -884,5 +1024,131 @@ mod tests {
         assert_eq!(ct2.primary_cipher, primary_snapshot);
         assert_eq!(ct2.secondary_cipher, secondary_snapshot);
         assert_eq!(ct2.guardian_hash, guardian_snapshot);
+    }
+
+    #[test]
+    fn test_wire_format_roundtrip() {
+        let key = test_key();
+        let plaintext = b"Wire format roundtrip test data";
+        let ct = encrypt(plaintext, &key, EncryptionMode::HighSecurity).unwrap();
+        let wire = ct.to_ts_wire_format();
+        assert_eq!(wire.version, 3);
+        assert_eq!(wire.sponge_version, 2);
+        assert!(wire.guardian_hash.is_some());
+        assert_eq!(wire.split_ratio, 0.5);
+        assert_eq!(wire.primary_phase, 0);
+        assert_eq!(wire.secondary_phase, 10);
+
+        let ct2 = PhaseCiphertext::from_ts_wire_format(&wire).unwrap();
+        let decrypted = decrypt(&ct2, &key).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_wire_format_b64_integrity() {
+        let key = test_key();
+        let nonce = [0xABu8; NONCE_BYTES];
+        let plaintext = b"Base64 encoding verification";
+        let ct = encrypt_with_nonce(plaintext, &key, EncryptionMode::Balanced, &nonce).unwrap();
+        let wire = ct.to_ts_wire_format();
+
+        let decoded_primary = base64_decode(&wire.primary_data_b64).unwrap();
+        assert_eq!(decoded_primary, ct.primary_cipher);
+
+        let decoded_secondary = base64_decode(&wire.secondary_data_b64).unwrap();
+        assert_eq!(decoded_secondary, ct.secondary_cipher);
+
+        let decoded_nonce = hex_decode(&wire.nonce_hex).unwrap();
+        assert_eq!(decoded_nonce, ct.nonce);
+    }
+
+    #[test]
+    fn test_wire_format_all_modes() {
+        let key = test_key();
+        let plaintext = b"Testing wire format across all modes";
+        for mode in [
+            EncryptionMode::HighSecurity,
+            EncryptionMode::Balanced,
+            EncryptionMode::Performance,
+            EncryptionMode::Adaptive,
+        ] {
+            let ct = encrypt(plaintext, &key, mode).unwrap();
+            let wire = ct.to_ts_wire_format();
+            let ct2 = PhaseCiphertext::from_ts_wire_format(&wire).unwrap();
+            let decrypted = decrypt(&ct2, &key).unwrap();
+            assert_eq!(decrypted, plaintext, "Wire roundtrip failed for mode {:?}", mode);
+        }
+    }
+
+    #[test]
+    fn test_wire_format_invalid_b64() {
+        let wire = TsWireFormat {
+            primary_data_b64: "not!valid!base64".to_string(),
+            primary_phase: 0,
+            secondary_data_b64: "also!invalid".to_string(),
+            secondary_phase: 4,
+            config: get_phase_config(EncryptionMode::Balanced),
+            split_ratio: 0.5,
+            nonce_hex: "00".repeat(32),
+            mac: "00".repeat(49),
+            version: 3,
+            sponge_version: 2,
+            guardian_hash: None,
+            guardian_phase: None,
+        };
+        assert!(matches!(PhaseCiphertext::from_ts_wire_format(&wire), Err(PhaseError::InvalidCiphertext)));
+    }
+
+    #[test]
+    fn test_wire_format_invalid_nonce_len() {
+        let key = test_key();
+        let ct = encrypt(b"test", &key, EncryptionMode::Balanced).unwrap();
+        let mut wire = ct.to_ts_wire_format();
+        wire.nonce_hex = "aabb".to_string();
+        assert!(matches!(PhaseCiphertext::from_ts_wire_format(&wire), Err(PhaseError::InvalidCiphertext)));
+    }
+
+    #[test]
+    fn test_base64_encode_decode_roundtrip() {
+        let test_cases: &[&[u8]] = &[b"", b"a", b"ab", b"abc", b"abcd", b"Hello, World!"];
+        for &input in test_cases {
+            let encoded = base64_encode(input);
+            let decoded = base64_decode(&encoded).unwrap();
+            assert_eq!(decoded, input, "base64 roundtrip failed for {:?}", input);
+        }
+    }
+
+    #[test]
+    fn test_sponge_version_in_ciphertext() {
+        let key = test_key();
+        let ct = encrypt(b"version test", &key, EncryptionMode::Balanced).unwrap();
+        assert_eq!(ct.sponge_version, 2);
+        assert_eq!(ct.version, 3);
+        let wire = ct.to_ts_wire_format();
+        assert_eq!(wire.sponge_version, 2);
+    }
+
+    #[test]
+    fn test_cross_compat_deterministic_vectors() {
+        let key = derive_key_from_secret(b"cross-compat-test-2026");
+        let nonce = [0x01u8; NONCE_BYTES];
+        let plaintext = b"Cross-language compatibility vector";
+
+        let ct = encrypt_with_nonce(plaintext, &key, EncryptionMode::Balanced, &nonce).unwrap();
+        let wire = ct.to_ts_wire_format();
+
+        assert_eq!(wire.version, 3);
+        assert_eq!(wire.sponge_version, 2);
+        assert_eq!(wire.nonce_hex, "01".repeat(32));
+        assert!(!wire.primary_data_b64.is_empty());
+        assert!(!wire.secondary_data_b64.is_empty());
+        assert!(!wire.mac.is_empty());
+        assert_eq!(wire.mac.len(), 98);
+
+        let ct2 = encrypt_with_nonce(plaintext, &key, EncryptionMode::Balanced, &nonce).unwrap();
+        let wire2 = ct2.to_ts_wire_format();
+        assert_eq!(wire.primary_data_b64, wire2.primary_data_b64);
+        assert_eq!(wire.secondary_data_b64, wire2.secondary_data_b64);
+        assert_eq!(wire.mac, wire2.mac);
     }
 }
