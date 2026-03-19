@@ -96,14 +96,18 @@ use inter_cube::fts::{FaultToleranceService, HeartbeatAuth, AuthenticatedHeartbe
 
 ### Co-compilation Verification
 
-All five crypto modules compile together within the workspace. Verified via:
+The crypto crates (`ternary-math` and `inter-cube`) compile together within the workspace:
 
 ```bash
-cargo build --workspace  # builds ternary-math + inter-cube + all members
-cargo test -p ternary-math -p inter-cube  # 435 + 420 = 855 tests passing
+cargo check -p ternary-math -p inter-cube   # compiles both crates (warnings only)
+cargo test -p ternary-math                   # 435 tests passing
+cargo test -p inter-cube                     # 420 tests passing
 ```
 
-No dependency conflicts exist between crates — `inter-cube` depends on `ternary-math` via path reference, and both share the same `getrandom`, `serde`, and `tokio` dependency versions resolved by the workspace `resolver = "2"`.
+> **Note:** `cargo build --workspace` may fail due to unrelated crates (e.g., `pqti-service`
+> serialization updates pending). Use `-p` flags to target the crypto crates specifically.
+
+`inter-cube` depends on `ternary-math` via workspace-relative path. The workspace `resolver = "2"` handles dependency resolution across all members.
 
 ---
 
