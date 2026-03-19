@@ -10,7 +10,8 @@
 // Per TM-2026-020.1-PREREQ §7
 //
 // Covers: TIS-27, TLSponge-385, TL-DSA (44/65/87), TL-KEM (512/768/1024),
-//         Phase Encryption v3 (1KB/64KB/1MB)
+//         Phase Encryption v3 (all 4 modes × 1KB/64KB/1MB),
+//         Raw sponge permutation (v1 vs v2, SIMD-dispatched)
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, BatchSize, Throughput};
 
@@ -31,12 +32,17 @@ fn bench_tis27(c: &mut Criterion) {
         b.iter(|| tlsponge385::hash_hex_tis(black_box(&input_48)))
     });
 
-    let input_1k = make_input(1024);
-    group.throughput(Throughput::Bytes(1024));
-    group.bench_function("derive_key_tis/1KB", |b| {
-        b.iter(|| tlsponge385::derive_key_tis(
-            black_box(b"TIS-27-BENCH"), black_box(&input_1k), 32))
-    });
+    for &(size, label) in &[(1024usize, "1KB"), (65536, "64KB"), (1048576, "1MB")] {
+        let input = make_input(size);
+        group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("derive_key_tis", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::derive_key_tis(
+                black_box(b"TIS-27-BENCH"), black_box(data), 32)),
+        );
+    }
 
     let domains: Vec<&[u8]> = (0..26).map(|_| b"TIS-BATCH" as &[u8]).collect();
     let materials: Vec<Vec<u8>> = (0..26).map(|i| (i as u32).to_le_bytes().to_vec()).collect();
@@ -75,6 +81,7 @@ fn bench_tlsponge385(c: &mut Criterion) {
         };
 
         group.throughput(Throughput::Bytes(size as u64));
+
         group.bench_with_input(
             BenchmarkId::new("hash", label),
             &input,
@@ -82,10 +89,52 @@ fn bench_tlsponge385(c: &mut Criterion) {
         );
 
         group.bench_with_input(
+            BenchmarkId::new("derive_key", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::derive_key(
+                black_box(b"SPONGE-BENCH"), black_box(data), 48)),
+        );
+
+        group.bench_with_input(
             BenchmarkId::new("derive_key_bulk", label),
             &input,
             |b, data| b.iter(|| tlsponge385::derive_key_bulk(
                 black_box(b"BULK-BENCH"), black_box(data), 48)),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_sponge_full_vs_tis(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Sponge-Full-vs-TIS");
+
+    let input_48 = make_input(48);
+
+    group.bench_function("hash_hex_full/48B", |b| {
+        b.iter(|| tlsponge385::hash_hex(black_box(&input_48)))
+    });
+
+    group.bench_function("hash_hex_tis/48B", |b| {
+        b.iter(|| tlsponge385::hash_hex_tis(black_box(&input_48)))
+    });
+
+    for &(size, label) in &[(1024usize, "1KB"), (65536, "64KB")] {
+        let input = make_input(size);
+        group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("derive_key_full", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::derive_key(
+                black_box(b"FULL-BENCH"), black_box(data), 48)),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("derive_key_tis", label),
+            &input,
+            |b, data| b.iter(|| tlsponge385::derive_key_tis(
+                black_box(b"TIS-BENCH"), black_box(data), 48)),
         );
     }
 
@@ -168,31 +217,41 @@ fn bench_phase_encryption(c: &mut Criterion) {
         n
     };
 
-    for &(size, label) in &[(1024usize, "1KB"), (65536, "64KB"), (1048576, "1MB")] {
-        let plaintext = make_input(size);
+    let modes = [
+        (EncryptionMode::HighSecurity, "HighSec"),
+        (EncryptionMode::Balanced, "Balanced"),
+        (EncryptionMode::Performance, "Perf"),
+        (EncryptionMode::Adaptive, "Adaptive"),
+    ];
 
-        group.throughput(Throughput::Bytes(size as u64));
+    for &(mode, mode_label) in &modes {
+        for &(size, size_label) in &[(1024usize, "1KB"), (65536, "64KB"), (1048576, "1MB")] {
+            let plaintext = make_input(size);
+            let bench_id = format!("{}/{}", mode_label, size_label);
 
-        group.bench_with_input(
-            BenchmarkId::new("encrypt", label),
-            &plaintext,
-            |b, data| b.iter(|| phase_encryption::encrypt_with_nonce(
-                black_box(data), black_box(&key),
-                black_box(EncryptionMode::Balanced), black_box(&nonce))
-            ),
-        );
+            group.throughput(Throughput::Bytes(size as u64));
 
-        let ct = phase_encryption::encrypt_with_nonce(
-            &plaintext, &key, EncryptionMode::Balanced, &nonce)
-            .expect("phase encrypt");
+            group.bench_with_input(
+                BenchmarkId::new("encrypt", &bench_id),
+                &plaintext,
+                |b, data| b.iter(|| phase_encryption::encrypt_with_nonce(
+                    black_box(data), black_box(&key),
+                    black_box(mode), black_box(&nonce))
+                ),
+            );
 
-        group.bench_with_input(
-            BenchmarkId::new("decrypt", label),
-            &ct,
-            |b, ciphertext| b.iter(|| phase_encryption::decrypt(
-                black_box(ciphertext), black_box(&key), black_box(EncryptionMode::Balanced))
-            ),
-        );
+            let ct = phase_encryption::encrypt_with_nonce(
+                &plaintext, &key, mode, &nonce)
+                .expect("phase encrypt");
+
+            group.bench_with_input(
+                BenchmarkId::new("decrypt", &bench_id),
+                &ct,
+                |b, ciphertext| b.iter(|| phase_encryption::decrypt(
+                    black_box(ciphertext), black_box(&key), black_box(mode))
+                ),
+            );
+        }
     }
 
     group.finish();
@@ -207,7 +266,7 @@ fn bench_sponge_permutation(c: &mut Criterion) {
         s
     };
 
-    group.bench_function("v2_full_9rounds", |b| {
+    group.bench_function("v2_chi_9rounds", |b| {
         b.iter_batched(
             || init_state,
             |mut state| { tlsponge385::sponge_permutation(black_box(&mut state)); state },
@@ -230,6 +289,7 @@ criterion_group!(
     benches,
     bench_tis27,
     bench_tlsponge385,
+    bench_sponge_full_vs_tis,
     bench_tl_dsa,
     bench_tl_kem,
     bench_phase_encryption,
