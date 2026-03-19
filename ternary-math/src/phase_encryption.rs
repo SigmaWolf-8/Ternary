@@ -495,9 +495,9 @@ fn hex_char_to_nibble(c: u8) -> u8 {
 }
 
 fn new_sponge_for_version(sponge_version: u8) -> Sponge385Pub {
-    if sponge_version >= 2 {
+    if sponge_version >= 2 { // v2 and v3 both use chi permutation
         Sponge385Pub::new()
-    } else {
+    } else { // v1 uses no-chi permutation for backward compat
         Sponge385Pub::new_v1()
     }
 }
@@ -722,7 +722,7 @@ fn decrypt_inner(ciphertext: &PhaseCiphertext, key: &[u8; KEY_BYTES], mode_overr
         return Err(PhaseError::UnsupportedVersion(ciphertext.version as u32, ciphertext.sponge_version as u32));
     }
     let sv = ciphertext.sponge_version;
-    if sv != 1 && sv != 2 {
+    if sv == 0 || sv > 3 {
         return Err(PhaseError::UnsupportedVersion(ciphertext.version as u32, sv as u32));
     }
     if ciphertext.nonce.len() != NONCE_BYTES {
@@ -1246,10 +1246,20 @@ mod tests {
     fn test_reject_unsupported_sponge_version() {
         let key = test_key();
         let mut ct = encrypt(b"sponge version check", &key, EncryptionMode::Balanced).unwrap();
-        ct.sponge_version = 3;
-        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 3))));
+        ct.sponge_version = 4;
+        assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 4))));
         ct.sponge_version = 0;
         assert!(matches!(decrypt(&ct, &key), Err(PhaseError::UnsupportedVersion(3, 0))));
+    }
+
+    #[test]
+    fn test_sponge_v3_accepted() {
+        let key = test_key();
+        let mut ct = encrypt(b"sponge v3 test", &key, EncryptionMode::Balanced).unwrap();
+        assert_eq!(ct.sponge_version, 2);
+        ct.sponge_version = 3;
+        let result = decrypt(&ct, &key);
+        assert!(result.is_ok());
     }
 
     #[test]
