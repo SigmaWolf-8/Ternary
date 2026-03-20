@@ -646,7 +646,7 @@ export function MarketingTopNav() {
           }}
           data-testid="marketing-top-nav"
         >
-          <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 lg:px-6">
+          <div className="relative mx-auto flex h-28 max-w-7xl items-center gap-4 px-4 lg:px-6 pb-4">
             <Link
               href="/"
               className="flex items-center gap-3 mr-2"
