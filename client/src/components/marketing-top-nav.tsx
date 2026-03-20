@@ -52,6 +52,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
 import { triggerInstallDialog } from "@/components/InstallExtensionCard";
@@ -617,6 +618,7 @@ export function MarketingTopNav() {
   }, []);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
 
   const handleNavigate = useCallback((href: string) => {
     setLocation(href);
@@ -651,33 +653,9 @@ export function MarketingTopNav() {
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
             <div className="ml-auto flex items-center gap-2">
-              {!isMobile && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (navEmail) navSignupMutation.mutate({ email: navEmail });
-                  }}
-                  className="flex items-center gap-1.5"
-                  data-testid="form-nav-signup"
-                >
-                  <Input
-                    type="email"
-                    placeholder="Enter your email for early access"
-                    value={navEmail}
-                    onChange={(e) => setNavEmail(e.target.value)}
-                    className="h-8 w-52 text-xs"
-                    style={{
-                      background: "hsl(20,12%,9%)",
-                      border: "1px solid hsl(20,10%,15%)",
-                      color: "#E4DFD5",
-                      fontFamily: "'Consolas', 'Menlo', monospace",
-                    }}
-                    required
-                    data-testid="input-nav-email"
-                    aria-label="Email address for early access"
-                  />
+              <Popover open={waitlistOpen} onOpenChange={setWaitlistOpen}>
+                <PopoverTrigger asChild>
                   <Button
-                    type="submit"
                     size="sm"
                     className="h-8 text-xs"
                     style={{
@@ -689,14 +667,70 @@ export function MarketingTopNav() {
                       fontSize: "10px",
                       letterSpacing: "0.06em",
                     }}
-                    disabled={navSignupMutation.isPending}
-                    data-testid="button-nav-signup"
+                    data-testid="button-nav-waitlist-trigger"
                   >
-                    {navSignupMutation.isPending ? "Joining..." : "Join Waitlist"}
+                    Join Waitlist
                     <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
-                </form>
-              )}
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-80 p-4"
+                  style={{
+                    background: "hsl(20,12%,7%)",
+                    border: "1px solid hsl(20,10%,15%)",
+                  }}
+                  align="end"
+                >
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (navEmail) {
+                        navSignupMutation.mutate({ email: navEmail }, {
+                          onSuccess: () => setWaitlistOpen(false),
+                        });
+                      }
+                    }}
+                    className="flex flex-col gap-3"
+                    data-testid="form-nav-signup"
+                  >
+                    <p style={{ color: "#E4DFD5", fontSize: "13px", fontFamily: "'Segoe UI', -apple-system, sans-serif" }}>
+                      Get early access to PlenumNET
+                    </p>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={navEmail}
+                      onChange={(e) => setNavEmail(e.target.value)}
+                      className="h-9 text-sm"
+                      style={{
+                        background: "hsl(20,12%,9%)",
+                        border: "1px solid hsl(20,10%,18%)",
+                        color: "#E4DFD5",
+                        fontFamily: "'Consolas', 'Menlo', monospace",
+                      }}
+                      required
+                      data-testid="input-nav-email"
+                      aria-label="Email address for early access"
+                    />
+                    <Button
+                      type="submit"
+                      className="h-9 w-full text-xs"
+                      style={{
+                        background: "#38BDF8",
+                        color: "#090807",
+                        fontFamily: "'Orbitron', sans-serif",
+                        fontWeight: 700,
+                        fontSize: "11px",
+                        letterSpacing: "0.06em",
+                      }}
+                      disabled={navSignupMutation.isPending}
+                      data-testid="button-nav-signup"
+                    >
+                      {navSignupMutation.isPending ? "Joining..." : "Submit"}
+                    </Button>
+                  </form>
+                </PopoverContent>
+              </Popover>
 
               <Button
                 variant="ghost"
