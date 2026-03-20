@@ -1,0 +1,178 @@
+=== YODA Self-Host Installer ===
+Model  : DeepSeek-R1-Distill-Qwen-7B
+Port   : 8080
+
+Local endpoint : 10.0.0.35:51820
+
+Checking Rust/Cargo...
+  OK Cargo already installed: cargo 1.94.0 (85eff7c80 2026-01-15)
+
+Installing PlenumNET (inter-cube)...
+  -> Repository exists, updating...
+  -> Already up to date.
+  -> Existing checkout is incomplete -- re-cloning...
+  -> Cloning PlenumNET...
+Cloning into 'C:\Users\Sigma\PlenumNET'...
+remote: Enumerating objects: 2039, done.
+remote: Counting objects: 100% (2039/2039), done.
+remote: Compressing objects: 100% (1825/1825), done.
+remote: Total 2039 (delta 209), reused 1785 (delta 175), pack-reused 0 (from 0)
+Receiving objects: 100% (2039/2039), 37.45 MiB | 13.00 MiB/s, done.
+Resolving deltas: 100% (209/209), done.
+  -> Building inter-cube daemon (first build takes a few minutes)...
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+    Updating crates.io index
+  Downloaded hostname v0.4.2
+  Downloaded 1 crate (12.7KiB) in 1.94s
+   Compiling unicode-ident v1.0.24
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.44
+   Compiling cfg-if v1.0.4
+   Compiling windows-link v0.2.1
+   Compiling smallvec v1.15.1
+   Compiling windows_aarch64_msvc v0.53.1
+   Compiling pin-project-lite v0.2.16
+   Compiling once_cell v1.21.3
+   Compiling itoa v1.0.17
+   Compiling stable_deref_trait v1.2.1
+   Compiling bytes v1.11.1
+   Compiling futures-core v0.3.32
+   Compiling parking_lot_core v0.9.12
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling windows-sys v0.61.2
+   Compiling find-msvc-tools v0.1.9
+   Compiling windows_aarch64_msvc v0.52.6
+   Compiling shlex v1.3.0
+   Compiling writeable v0.5.5
+   Compiling icu_locid_transform_data v1.5.1
+   Compiling wasm-bindgen-shared v0.2.114
+   Compiling serde_core v1.0.228
+   Compiling litemap v0.7.4
+   Compiling http v1.4.0
+   Compiling cc v1.2.56
+   Compiling windows-targets v0.53.5
+   Compiling tracing-core v0.1.36
+   Compiling rustversion v1.0.22
+   Compiling icu_properties_data v1.5.1
+   Compiling futures-task v0.3.32
+   Compiling windows-sys v0.60.2
+   Compiling slab v0.4.12
+   Compiling log v0.4.29
+   Compiling parking_lot v0.12.5
+   Compiling futures-util v0.3.32
+   Compiling windows-targets v0.52.6
+   Compiling getrandom v0.2.17
+   Compiling crossbeam-utils v0.8.21
+   Compiling zeroize v1.8.2
+   Compiling httparse v1.10.1
+   Compiling syn v2.0.117
+   Compiling icu_normalizer_data v1.5.1
+   Compiling http-body v1.0.1
+   Compiling tower-service v0.3.3
+   Compiling percent-encoding v2.3.2
+   Compiling rustls-pki-types v1.14.0
+   Compiling windows-sys v0.52.0
+   Compiling socket2 v0.6.2
+   Compiling libc v0.2.182
+   Compiling ring v0.17.14
+   Compiling try-lock v0.2.5
+   Compiling mio v1.1.1
+   Compiling serde v1.0.228
+   Compiling untrusted v0.9.0
+   Compiling want v0.3.1
+   Compiling sync_wrapper v1.0.2
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+error: failed to run custom build command for `ring v0.17.14`
+
+Caused by:
+  process didn't exit successfully: `C:\Users\Sigma\PlenumNET\target\release\build\ring-6dd8752c0a836cb1\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=CARGO_MANIFEST_DIR
+  cargo:rerun-if-env-changed=CARGO_PKG_NAME
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_MAJOR
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_MINOR
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_PATCH
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_PRE
+  cargo:rerun-if-env-changed=CARGO_MANIFEST_LINKS
+  cargo:rerun-if-env-changed=RING_PREGENERATE_ASM
+  cargo:rerun-if-env-changed=OUT_DIR
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENV
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENDIAN
+  OPT_LEVEL = Some(3)
+  OUT_DIR = Some(C:\Users\Sigma\PlenumNET\target\release\build\ring-4da57ffce9d7f648\out)
+  TARGET = Some(aarch64-pc-windows-msvc)
+  CARGO_ENCODED_RUSTFLAGS = Some()
+  cargo:rerun-if-env-changed=VCINSTALLDIR
+  VCINSTALLDIR = None
+  cargo:rerun-if-env-changed=VSTEL_MSBuildProjectFullPath
+  VSTEL_MSBuildProjectFullPath = None
+  cargo:rerun-if-env-changed=VCToolsVersion
+  VCToolsVersion = None
+  cargo:rerun-if-env-changed=VSCMD_ARG_VCVARS_SPECTRE
+  VSCMD_ARG_VCVARS_SPECTRE = None
+  cargo:rerun-if-env-changed=WindowsSdkDir
+  WindowsSdkDir = None
+  cargo:rerun-if-env-changed=WindowsSDKVersion
+  WindowsSDKVersion = None
+  cargo:rerun-if-env-changed=LIB
+  LIB = None
+  PATH = Some(C:\Users\Sigma\PlenumNET\target\release;C:\Users\Sigma\PlenumNET\target\release\deps;C:\Users\Sigma\.rustup\toolchains\stable-aarch64-pc-windows-msvc\lib\rustlib\aarch64-pc-windows-msvc\lib;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files\Kraken Desktop\;C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\Git\cmd;C:\Program Files\dotnet\;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\;C:\Users\Sigma\.cargo\bin;C:\Users\Sigma\AppData\Local\Microsoft\WindowsApps;C:\Users\Sigma\AppData\Local\Python\bin;C:\Users\Sigma\.lmstudio\bin;C:\Users\Sigma\.dotnet\tools;C:\Users\Sigma\AppData\Local\Programs\Ollama;C:\Users\Sigma\.rustup\toolchains\stable-aarch64-pc-windows-msvc\bin)
+  cargo:rerun-if-env-changed=INCLUDE
+  INCLUDE = None
+  HOST = Some(aarch64-pc-windows-msvc)
+  cargo:rerun-if-env-changed=CC_aarch64-pc-windows-msvc
+  CC_aarch64-pc-windows-msvc = None
+  cargo:rerun-if-env-changed=CC_aarch64_pc_windows_msvc
+  CC_aarch64_pc_windows_msvc = None
+  cargo:rerun-if-env-changed=HOST_CC
+  HOST_CC = None
+  cargo:rerun-if-env-changed=CC
+  CC = None
+  cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+  CRATE_CC_NO_DEFAULTS = None
+  CARGO_CFG_TARGET_FEATURE = Some(neon)
+  DEBUG = Some(false)
+  cargo:rerun-if-env-changed=CFLAGS
+  CFLAGS = None
+  cargo:rerun-if-env-changed=HOST_CFLAGS
+  HOST_CFLAGS = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64_pc_windows_msvc
+  CFLAGS_aarch64_pc_windows_msvc = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64-pc-windows-msvc
+  CFLAGS_aarch64-pc-windows-msvc = None
+  cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+
+  --- stderr
+
+
+  error occurred in cc-rs: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+
+
+warning: build failed, waiting for other jobs to finish...
+
+=== INSTALLER ERROR ===
+Build completed but no inter-cube binary found in C:\Users\Sigma\PlenumNET\target\release -- check cargo output above for errors.
+
+Press Enter to close:
+
+Build completed but no inter-cube binary found in C:\Users\Sigma\PlenumNET\target\release -- check cargo output above
+for errors.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_187810028.ps1:105 char:3
++   throw "Build completed but no inter-cube binary found in $relDir -- ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Build completed...ove for errors.:String) [], RuntimeException
+    + FullyQualifiedErrorId : Build completed but no inter-cube binary found in C:\Users\Sigma\PlenumNET\target\releas
+   e -- check cargo output above for errors.
+
+Press any key to continue . . .
