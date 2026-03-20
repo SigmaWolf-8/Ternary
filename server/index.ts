@@ -503,6 +503,36 @@ function startPqtiService(): ChildProcess | null {
     res.sendFile(filePath);
   });
 
+  const interCubeProxy = async (req: any, res: any) => {
+    try {
+      const targetUrl = `http://127.0.0.1:8181${req.originalUrl}`;
+      const fetchOpts: RequestInit = {
+        method: req.method,
+        headers: { "Content-Type": "application/json" },
+      };
+      if (req.method !== "GET" && req.method !== "HEAD" && req.body) {
+        fetchOpts.body = JSON.stringify(req.body);
+      }
+      const upstream = await fetch(targetUrl, fetchOpts);
+      const body = await upstream.text();
+      res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
+    } catch (e: any) {
+      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+    }
+  };
+  app.all("/api/salvi/inter-cube/:service/:action", interCubeProxy);
+  app.all("/api/salvi/inter-cube/:service", interCubeProxy);
+
+  app.get("/health/crs", async (_req, res) => {
+    try {
+      const upstream = await fetch("http://127.0.0.1:8181/health");
+      const body = await upstream.text();
+      res.status(upstream.status).setHeader("Content-Type", "application/json").send(body);
+    } catch (e: any) {
+      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+    }
+  });
+
   app.get("/api/yoda-installer", async (_req, res) => {
     try {
       const scriptPath = path.resolve("rerun-yoda-install.ps1");
@@ -527,10 +557,28 @@ function startPqtiService(): ChildProcess | null {
     await setupVite(httpServer, app);
   }
 
+  const { spawn } = await import("child_process");
+  const daemonPath = "/home/runner/workspace/target/release/inter-cube-daemon";
+  if (existsSync(daemonPath)) {
+    const crsProc = spawn(daemonPath, [], {
+      env: {
+        ...process.env,
+        CUBE_MODE: "crs",
+        CUBE_API_PORT: "8181",
+        CUBE_IDENTITY_PASSPHRASE: "plenumlan-prototype-2026",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: false,
+    });
+    crsProc.stdout?.on("data", (d: Buffer) => console.log(`[crs-daemon] ${d.toString().trim()}`));
+    crsProc.stderr?.on("data", (d: Buffer) => console.error(`[crs-daemon] ${d.toString().trim()}`));
+    crsProc.on("exit", (code: number | null) => console.log(`[crs-daemon] exited with code ${code}`));
+    console.log(`[crs-daemon] spawned (PID ${crsProc.pid}, port 8181, mode=crs)`);
+  } else {
+    console.log("[crs-daemon] binary not found — skipping");
+  }
+
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
