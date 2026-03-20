@@ -503,7 +503,7 @@ function startPqtiService(): ChildProcess | null {
     res.sendFile(filePath);
   });
 
-  app.get("/rerun-yoda-install.ps1", async (_req, res) => {
+  app.get(["/rerun-yoda-install.ps1", "/dl/yoda-install.ps1"], async (_req, res) => {
     try {
       const scriptPath = path.resolve("rerun-yoda-install.ps1");
       const { readFile } = await import("fs/promises");
