@@ -646,6 +646,23 @@ function startPqtiService(): ChildProcess | null {
     }
   });
 
+  app.get("/api/yoda-installer.bat", async (_req, res) => {
+    const bat = [
+      "@echo off",
+      "title YODA Installer",
+      'set "PS_FILE=%TEMP%\\yoda-install-%RANDOM%.ps1"',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri \'https://plenumnet.replit.app/api/yoda-installer\' -OutFile \'%PS_FILE%\' -UseBasicParsing"',
+      'if not exist "%PS_FILE%" ( echo ERROR: Failed to download installer. & pause & exit /b 1 )',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_FILE%"',
+      'del "%PS_FILE%" 2>nul',
+      "pause",
+    ].join("\r\n") + "\r\n";
+    res.setHeader("Content-Type", "application/x-bat");
+    res.setHeader("Content-Disposition", 'attachment; filename="yoda-install.bat"');
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.send(bat);
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
