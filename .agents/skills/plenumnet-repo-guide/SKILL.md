@@ -631,7 +631,7 @@ In a 13D ternary hypercube:
 
 ### 3.2 Inter-Cube Infrastructure Services (4)
 
-Combined: 4,187 lines Rust, 57 tests, 4-node Docker deployment, 11 HTTP endpoints.
+Combined: 18,649 lines Rust (26 modules), 422 tests, 4-node Docker deployment, 12 HTTP endpoints.
 
 #### 3.2.1 The Eight-Constraint System (d = 13 Unique Solution)
 
@@ -703,6 +703,7 @@ At maximum distance (d=13), the shortest path count (6.2 billion) exceeds total 
 - Dimension density tracking
 - Drift detection and redirect management
 - Verification and re-scan protocols
+- In-place public key update via `update_public_key()` / `POST /crs/update-key` (no address reallocation)
 
 **FTS — Fault Tolerance Service** (`fts.rs`)
 - Heartbeat-based failure detection
@@ -712,7 +713,26 @@ At maximum distance (d=13), the shortest path count (6.2 billion) exceeds total 
 - HPTP anomaly tracking
 - Dead-set publication feeds GLB for real-time path avoidance
 
-#### 3.2.5 Cubes-of-Cubes Scaling
+#### 3.2.5 Daemon Identity & Key Rotation
+
+**Daemon Identity** (`daemon_identity.rs`, `identity.rs`)
+- Persistent encrypted MasterSecret stored at `~/.plenumnet/identity/master.key` (or `CUBE_IDENTITY_DIR`)
+- Generated via OS CSPRNG (`getrandom` crate) — 48-byte secret
+- Encrypted at rest with passphrase from `CUBE_IDENTITY_PASSPHRASE` env var (or hostname-derived fallback)
+- File permissions set to 0o600 on Unix
+- PT26-DSA keypair derived from MasterSecret via `DaemonIdentity::init()`
+
+**Daemon Modes** (`main.rs` — `CUBE_MODE` env var)
+- `CUBE_MODE=crs`: Starts CRS node with real PT26-DSA identity; registers with own public key, derives address-bound TL-DSA-87 key after address assignment, updates CRS registry in-place
+- `CUBE_MODE=cube`: Starts cube node; registers with CRS using PT26-DSA pk, derives address-bound key after assignment, updates CRS via `/crs/update-key`, runs 30s heartbeat with rotation checks
+- `CUBE_MODE=keygen`: Generates/loads identity, prints hex public key, and exits
+
+**Key Rotation** (`key_rotation.rs`)
+- Radian epoch rotation: 14-day units from Salvi Epoch (2025-04-01T00:00:00Z)
+- `RotationOrchestrator::check_and_rotate()` called every 30s in heartbeat loop
+- On epoch boundary: generates new MasterSecret, re-derives address-bound TL-DSA-87 keypair, persists new encrypted secret, updates CRS key via `/crs/update-key` (no address reallocation)
+
+#### 3.2.6 Cubes-of-Cubes Scaling
 
 | Level | Address format | Nodes | Scale |
 |-------|---------------|-------|-------|
@@ -722,7 +742,7 @@ At maximum distance (d=13), the shortest path count (6.2 billion) exceeds total 
 
 Same geometry, same routing math, same four services. No architectural change. Max hops per level: 13 (each level adds at most 13 hops — geometric routing applied recursively). Gateway nodes at cube boundaries maintain tunnels to geometric neighbors in the outer address space.
 
-#### 3.2.6 Comparison to Existing Systems
+#### 3.2.7 Comparison to Existing Systems
 
 | System | How it routes | How it secures | What it stores |
 |--------|--------------|----------------|----------------|
@@ -1291,7 +1311,7 @@ Test totals: **2,276** (1,783 Rust #[test] + 493 TypeScript). Single source of t
 │   └── crypto-utils.ts        AES-256-GCM token encryption
 ├── services/                  8 microservices
 │   ├── tdns-v2/               TDNS v2.5 (Rust, 19 modules + 2 binaries)
-│   ├── inter-cube/            Inter-Cube Infrastructure (Rust, 4,187 LOC, 57 tests)
+│   ├── inter-cube/            Inter-Cube Infrastructure (Rust, 18,649 LOC, 26 modules, 422 tests)
 │   ├── blockchain/            Hedera, XRPL, Algorand services
 │   ├── payment-listener/      Payment processing
 │   ├── sfk-core-api/          SFK Operations Pipeline
