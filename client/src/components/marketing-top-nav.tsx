@@ -422,8 +422,8 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         <NavigationMenuItem>
           <NavigationMenuTrigger
             data-testid="nav-trigger-platform"
-            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
-            className="hover:!text-[#E4DFD5] data-[state=open]:!text-[#38BDF8]"
+            style={{ color: "#E4DFD5", fontSize: "20px", fontWeight: 800, letterSpacing: "0.12em", fontFamily: "'Orbitron', sans-serif", textTransform: "uppercase" as const, textShadow: "0 1px 0 rgba(0,0,0,0.1), 0 2px 0 rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.08), 0 0 20px rgba(56,189,248,0.15)" }}
+            className="hover:!text-[#38BDF8] data-[state=open]:!text-[#38BDF8]"
           >
             Platform
           </NavigationMenuTrigger>
@@ -435,8 +435,8 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         <NavigationMenuItem>
           <NavigationMenuTrigger
             data-testid="nav-trigger-developers"
-            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
-            className="hover:!text-[#E4DFD5] data-[state=open]:!text-[#38BDF8]"
+            style={{ color: "#E4DFD5", fontSize: "20px", fontWeight: 800, letterSpacing: "0.12em", fontFamily: "'Orbitron', sans-serif", textTransform: "uppercase" as const, textShadow: "0 1px 0 rgba(0,0,0,0.1), 0 2px 0 rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.08), 0 0 20px rgba(56,189,248,0.15)" }}
+            className="hover:!text-[#38BDF8] data-[state=open]:!text-[#38BDF8]"
           >
             Developers
           </NavigationMenuTrigger>
@@ -448,8 +448,8 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         <NavigationMenuItem>
           <NavigationMenuTrigger
             data-testid="nav-trigger-company"
-            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
-            className="hover:!text-[#E4DFD5] data-[state=open]:!text-[#38BDF8]"
+            style={{ color: "#E4DFD5", fontSize: "20px", fontWeight: 800, letterSpacing: "0.12em", fontFamily: "'Orbitron', sans-serif", textTransform: "uppercase" as const, textShadow: "0 1px 0 rgba(0,0,0,0.1), 0 2px 0 rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.08), 0 0 20px rgba(56,189,248,0.15)" }}
+            className="hover:!text-[#38BDF8] data-[state=open]:!text-[#38BDF8]"
           >
             Company
           </NavigationMenuTrigger>
@@ -647,32 +647,6 @@ export function MarketingTopNav() {
           data-testid="marketing-top-nav"
         >
           <div className="relative mx-auto flex h-28 max-w-7xl items-center gap-4 px-4 lg:px-6 pb-4">
-            <Link
-              href="/"
-              className="flex items-center gap-3 mr-2"
-              data-testid="link-logo"
-            >
-              <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6" />
-              <h1
-                className="truncate uppercase"
-                style={{
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: "20px",
-                  fontWeight: 800,
-                  letterSpacing: "0.12em",
-                  color: "#E4DFD5",
-                  textShadow: [
-                    "0 1px 0 rgba(0,0,0,0.1)",
-                    "0 2px 0 rgba(0,0,0,0.07)",
-                    "0 3px 8px rgba(0,0,0,0.08)",
-                    "0 0 20px rgba(56,189,248,0.15)",
-                  ].join(", "),
-                }}
-              >
-                PlenumNET
-              </h1>
-            </Link>
-
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
             <div className="ml-auto flex items-center gap-2">
