@@ -402,10 +402,7 @@ async fn run_cube_mode() {
 
     let crs_url_for_heartbeat = crs_url.clone();
     let endpoint_for_heartbeat = cube_endpoint.clone();
-    let addr_trits: Vec<u8> = addr_str
-        .chars()
-        .filter_map(|c| c.to_digit(10).map(|d| d as u8))
-        .collect();
+    let addr_trits: Vec<u8> = local_address.to_bytes().to_vec();
     let orchestrator_hb = orchestrator.clone();
     let local_addr_hb = local_address.clone();
     let passphrase_hb = passphrase.clone();

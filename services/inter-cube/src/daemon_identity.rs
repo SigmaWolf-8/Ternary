@@ -55,6 +55,11 @@ pub fn encryption_passphrase() -> Vec<u8> {
     if let Ok(pp) = env::var("CUBE_IDENTITY_PASSPHRASE") {
         return pp.into_bytes();
     }
+    println!(
+        "[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. \
+         Using hostname-derived fallback passphrase. \
+         Set CUBE_IDENTITY_PASSPHRASE for production deployments."
+    );
     let hostname = hostname::get()
         .map(|h| h.to_string_lossy().into_owned())
         .unwrap_or_else(|_| "plenumnet-node".to_string());
