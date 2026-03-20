@@ -5,30 +5,37 @@
 // PlenumNET Inter-Cube Infrastructure Daemon v0.3.0
 //
 // MODES (controlled by CUBE_MODE env var):
-//   "crs"  — Central Registration Service. Allocates addresses,
-//            accepts registrations, serves full API.
-//   "cube" — Worker cube. Registers with a remote CRS on boot,
-//            gets a unique address, heartbeats every 30s,
-//            serves local stats API.
-//   "all"  — Same as "crs" (backward compat).
+//   "crs"    — Central Registration Service. Allocates addresses,
+//              accepts registrations, serves full API.
+//   "cube"   — Worker cube. Registers with a remote CRS on boot,
+//              gets a unique address, heartbeats every 30s,
+//              serves local stats API.
+//   "all"    — Same as "crs" (backward compat).
+//   "keygen" — Generate PT26-DSA identity keypair and exit.
 //
 // ENV VARS:
-//   CUBE_MODE         — "crs", "cube", or "all" (default: "all")
-//   CUBE_CRS_URL      — CRS base URL (required for cube mode)
-//   CUBE_ENDPOINT     — Wire protocol endpoint (default: "0.0.0.0:51820")
-//   ADDRESS           — Alias for CUBE_ENDPOINT
-//   CUBE_ROLE         — Role annotation (inference, review, kb, infra, relay, standby)
-//   ROLE              — Alias for CUBE_ROLE
-//   CUBE_API_PORT     — HTTP API bind port (default: 8080)
-//   API_PORT          — Alias for CUBE_API_PORT
+//   CUBE_MODE                  — "crs", "cube", "all", or "keygen" (default: "all")
+//   CUBE_CRS_URL               — CRS base URL (required for cube mode)
+//   CUBE_ENDPOINT              — Wire protocol endpoint (default: "0.0.0.0:51820")
+//   ADDRESS                    — Alias for CUBE_ENDPOINT
+//   CUBE_ROLE                  — Role annotation (inference, review, kb, infra, relay, standby)
+//   ROLE                       — Alias for CUBE_ROLE
+//   CUBE_API_PORT              — HTTP API bind port (default: 8080)
+//   API_PORT                   — Alias for CUBE_API_PORT
+//   CUBE_IDENTITY_DIR          — Directory for master.key (default: ~/.plenumnet/identity/)
+//   CUBE_IDENTITY_PASSPHRASE   — Passphrase for master.key encryption
 
 use inter_cube::*;
 use inter_cube::api::{
     AppState, crs_router, cube_router, parse_address_string,
     CRS_ROUTE_COUNT, CUBE_ROUTE_COUNT,
 };
+use inter_cube::daemon_identity::{DaemonIdentity, encryption_passphrase, identity_dir, save_master_secret};
+use inter_cube::address_keys::derive_identity_keypair;
+use inter_cube::key_rotation::RotationOrchestrator;
 use std::env;
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 fn env_or(primary: &str, alias: &str, default: &str) -> String {
@@ -56,16 +63,18 @@ fn role_label() -> Option<String> {
 // ═══════════════════════════════════════════════════════════════════════
 
 async fn run_crs_mode() {
-    // -- Step 1: CRS - Allocate address --------------------------
+    let identity = DaemonIdentity::init();
+
     let mut crs = CubeRegistrationService::new();
     let endpoint: SocketAddr = "0.0.0.0:51820".parse().unwrap();
-    let public_key = vec![0xABu8; 32];
+    let public_key = identity.pk_hex.as_bytes().to_vec();
 
     let registration = crs
         .register(endpoint, public_key, None)
         .expect("CRS: address allocation failed");
 
     println!("[CRS] Registered with address: {}", registration.address);
+    println!("[CRS] PT26-DSA identity: {}...", &identity.pk_hex[..16]);
 
     let mut reg_count = 0;
     let mut unreg_count = 0;
@@ -81,7 +90,6 @@ async fn run_crs_mode() {
         reg_count, unreg_count
     );
 
-    // -- Step 2: CON - Build overlay tunnels ---------------------
     let mut con = CubeOverlayNetwork::new(registration.address.clone());
     for nbr_info in &registration.neighbors {
         if let Some(ep) = nbr_info.endpoint {
@@ -100,7 +108,6 @@ async fn run_crs_mode() {
         keys.len()
     );
 
-    // -- Step 3: FTS - Heartbeat monitoring ----------------------
     let fts = FaultToleranceService::new(registration.address.clone());
     let (up, suspect, down, recovering) = fts.state_counts();
     println!(
@@ -108,15 +115,25 @@ async fn run_crs_mode() {
         up, suspect, down, recovering
     );
 
-    // -- Step 4: GLB - Forwarding engine -------------------------
     let glb = GeometricLoadBalancer::new(registration.address.clone());
     println!(
         "[GLB] {} live neighbors, ready to forward",
         glb.live_neighbor_count()
     );
 
-    // -- Summary -------------------------------------------------
     let local_address = registration.address.clone();
+
+    let addr_bound_kp = derive_identity_keypair(&local_address, &identity.master_secret);
+    let addr_bound_pk_hex: String = addr_bound_kp
+        .public_key
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect();
+    println!(
+        "[IDENTITY] Address-bound TL-DSA-87 key derived (pk: {}...)",
+        &addr_bound_pk_hex[..16.min(addr_bound_pk_hex.len())]
+    );
+
     println!();
     println!("=== Inter-Cube Stack Active ===");
     println!("  Address:       {}", local_address);
@@ -127,12 +144,12 @@ async fn run_crs_mode() {
     );
     println!("  Dimensions:    {}", DIMENSIONS);
     println!("  Neighbors:     {}", NEIGHBORS_PER_CUBE);
-    println!("  Protocol:      PQ-Native (TL-Sponge-385 key derivation)");
+    println!("  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)");
+    println!("  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)");
     println!();
     println!("  CRS -> CON -> FTS -> GLB pipeline operational.");
     println!("  The geometry IS the routing protocol.");
 
-    // -- Step 5: START HTTP SERVER (full CRS API) -----------------
     let shared_state = AppState::new_crs(crs, con, fts, glb, local_address);
     let app = crs_router(shared_state);
 
@@ -174,12 +191,9 @@ async fn run_cube_mode() {
     }
     println!();
 
-    // -- Derive a unique public key from endpoint using TIS-27 ---
-    let key_bytes =
-        ternary_math::sponge::derive_key(b"PlenumNET-endpoint-key-v1", cube_endpoint.as_bytes(), 32);
-    let key_hex: String = key_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let identity = DaemonIdentity::init();
+    let key_hex = identity.pk_hex.clone();
 
-    // -- Resolve hostname to IP for SocketAddr compatibility ------
     let resolved_endpoint = match tokio::net::lookup_host(&cube_endpoint).await {
         Ok(mut addrs) => match addrs.next() {
             Some(sa) => {
@@ -203,7 +217,6 @@ async fn run_cube_mode() {
         }
     };
 
-    // -- Register with CRS (retry up to 10 times) ----------------
     let client = reqwest::Client::new();
     let register_url = format!("{}/api/salvi/inter-cube/crs/register", crs_url);
 
@@ -248,7 +261,6 @@ async fn run_cube_mode() {
 
     let reg_data = response_body.expect("Failed to register with CRS after 10 attempts");
 
-    // -- Parse assigned address -----------------------------------
     let addr_str = reg_data["address"]
         .as_str()
         .expect("CRS response missing 'address' field");
@@ -265,7 +277,46 @@ async fn run_cube_mode() {
         registered_nbrs, total_nbrs
     );
 
-    // -- Initialize local stack with assigned address -------------
+    let addr_bound_kp = derive_identity_keypair(&local_address, &identity.master_secret);
+    let addr_bound_pk_hex: String = addr_bound_kp
+        .public_key
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect();
+    println!(
+        "[IDENTITY] Address-bound TL-DSA-87 key derived (pk: {}...)",
+        &addr_bound_pk_hex[..16.min(addr_bound_pk_hex.len())]
+    );
+
+    let addr_trits_vec: Vec<u8> = local_address.to_bytes().to_vec();
+    let update_key_url = format!("{}/api/salvi/inter-cube/crs/update-key", crs_url);
+    let reregister_result = client
+        .post(&update_key_url)
+        .json(&serde_json::json!({
+            "address": addr_trits_vec,
+            "publicKey": addr_bound_pk_hex,
+        }))
+        .send()
+        .await;
+
+    match reregister_result {
+        Ok(resp) if resp.status().is_success() => {
+            println!("[IDENTITY] Updated CRS with address-bound public key");
+        }
+        Ok(resp) => {
+            println!(
+                "[IDENTITY] WARNING: Key update returned {}, continuing with initial key",
+                resp.status()
+            );
+        }
+        Err(e) => {
+            println!(
+                "[IDENTITY] WARNING: Key update failed: {}, continuing with initial key",
+                e
+            );
+        }
+    }
+
     let mut con = CubeOverlayNetwork::new(local_address.clone());
 
     if let Some(neighbors) = reg_data["neighbors"].as_array() {
@@ -310,7 +361,6 @@ async fn run_cube_mode() {
         glb.live_neighbor_count()
     );
 
-    // -- Summary -------------------------------------------------
     println!();
     println!("=== Inter-Cube Stack Active (Cube Mode) ===");
     println!("  Address:       {}", local_address);
@@ -320,18 +370,36 @@ async fn run_cube_mode() {
         "  Neighbors:     {} ({} registered)",
         NEIGHBORS_PER_CUBE, registered_nbrs
     );
-    println!("  Protocol:      PQ-Native (TL-Sponge-385 key derivation)");
+    println!("  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)");
+    println!("  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)");
     println!();
     println!("  CON -> FTS -> GLB pipeline operational.");
     println!("  The geometry IS the routing protocol.");
 
-    // -- Heartbeat background task --------------------------------
+    let now_ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let registration_timestamp = now_ts;
+    let passphrase = encryption_passphrase();
+    let orchestrator = RotationOrchestrator::new(
+        local_address.clone(),
+        registration_timestamp,
+        identity.master_secret.clone(),
+        identity.current_radian_epoch(),
+        passphrase.clone(),
+    );
+    let orchestrator = Arc::new(Mutex::new(orchestrator));
+
     let crs_url_for_heartbeat = crs_url.clone();
     let endpoint_for_heartbeat = cube_endpoint.clone();
     let addr_trits: Vec<u8> = addr_str
         .chars()
         .filter_map(|c| c.to_digit(10).map(|d| d as u8))
         .collect();
+    let orchestrator_hb = orchestrator.clone();
+    let local_addr_hb = local_address.clone();
+    let passphrase_hb = passphrase.clone();
 
     tokio::spawn(async move {
         let hb_client = reqwest::Client::new();
@@ -339,8 +407,87 @@ async fn run_cube_mode() {
             "{}/api/salvi/inter-cube/crs/heartbeat",
             crs_url_for_heartbeat
         );
+        let update_key_url = format!(
+            "{}/api/salvi/inter-cube/crs/update-key",
+            crs_url_for_heartbeat
+        );
         loop {
             tokio::time::sleep(Duration::from_secs(30)).await;
+
+            let unix_now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            let rotation_result = {
+                if let Ok(mut orch) = orchestrator_hb.lock() {
+                    match orch.check_and_rotate(unix_now) {
+                        Ok(Some(event)) => {
+                            println!(
+                                "[ROTATION] Key rotated: epoch {} -> {} (forced={})",
+                                event.old_epoch, event.new_epoch, event.forced
+                            );
+
+                            let new_kp = derive_identity_keypair(
+                                &local_addr_hb,
+                                orch.current_secret(),
+                            );
+                            let new_pk_hex: String = new_kp
+                                .public_key
+                                .iter()
+                                .map(|b| format!("{:02x}", b))
+                                .collect();
+
+                            let dir = identity_dir();
+                            let key_path = dir.join("master.key");
+                            save_master_secret(
+                                orch.current_secret(),
+                                &passphrase_hb,
+                                &dir,
+                                &key_path,
+                            );
+
+                            Some(new_pk_hex)
+                        }
+                        Ok(None) => None,
+                        Err(e) => {
+                            println!("[ROTATION] Check failed: {}", e);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                }
+            };
+
+            if let Some(new_pk_hex) = rotation_result {
+                let rereg_result = hb_client
+                    .post(&update_key_url)
+                    .json(&serde_json::json!({
+                        "address": addr_trits,
+                        "publicKey": new_pk_hex,
+                    }))
+                    .send()
+                    .await;
+
+                match rereg_result {
+                    Ok(resp) if resp.status().is_success() => {
+                        println!("[ROTATION] Re-registered with rotated key");
+                        if let Ok(mut orch) = orchestrator_hb.lock() {
+                            orch.reregistration_complete();
+                        }
+                    }
+                    Ok(resp) => {
+                        println!(
+                            "[ROTATION] WARNING: Re-registration returned {}",
+                            resp.status()
+                        );
+                    }
+                    Err(e) => {
+                        println!("[ROTATION] WARNING: Re-registration failed: {}", e);
+                    }
+                }
+            }
 
             let result = hb_client
                 .post(&hb_url)
@@ -363,7 +510,6 @@ async fn run_cube_mode() {
         }
     });
 
-    // -- Start HTTP server (stats-only, no CRS endpoints) ---------
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
 
@@ -373,7 +519,7 @@ async fn run_cube_mode() {
     println!("=== HTTP Server (Cube) ===");
     println!("  http://{}", listen_addr);
     println!("  {} routes active", CUBE_ROUTE_COUNT);
-    println!("  Heartbeat every 30s to CRS. Ctrl+C to stop.");
+    println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
     println!();
 
     let listener = tokio::net::TcpListener::bind(listen_addr)
@@ -405,9 +551,10 @@ async fn main() {
     match mode.as_str() {
         "crs" | "all" => run_crs_mode().await,
         "cube" => run_cube_mode().await,
+        "keygen" => inter_cube::daemon_identity::run_keygen(),
         other => {
             println!(
-                "ERROR: Unknown CUBE_MODE '{}'. Use 'crs', 'cube', or 'all'.",
+                "ERROR: Unknown CUBE_MODE '{}'. Use 'crs', 'cube', 'keygen', or 'all'.",
                 other
             );
             std::process::exit(1);

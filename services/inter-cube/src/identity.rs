@@ -241,6 +241,11 @@ impl MasterSecret {
         self.inner.is_empty()
     }
 
+    /// Make `collect_entropy_seed` accessible to persistence module.
+    pub(crate) fn entropy_seed() -> Vec<u8> {
+        Self::collect_entropy_seed()
+    }
+
     /// Collect entropy seed material.
     ///
     /// Combines multiple sources to build a high-entropy seed:

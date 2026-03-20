@@ -319,6 +319,58 @@ pub async fn crs_register(
     }
 }
 
+/// POST /api/salvi/inter-cube/crs/update-key (CRS mode only).
+pub async fn crs_update_key(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let crs_mutex = state.crs.as_ref().ok_or((
+        StatusCode::BAD_REQUEST,
+        Json(serde_json::json!({"error": "This node is not a CRS"})),
+    ))?;
+
+    let address_arr = req["address"]
+        .as_array()
+        .ok_or((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Missing 'address' array"})),
+        ))?;
+    let mut arr = [0u8; 13];
+    for (i, v) in address_arr.iter().take(13).enumerate() {
+        arr[i] = v.as_u64().unwrap_or(0) as u8;
+    }
+    let addr = CubeAddr::try_from_bytes(&arr).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Invalid Rep C address"})),
+        )
+    })?;
+
+    let public_key = req["publicKey"]
+        .as_str()
+        .ok_or((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Missing 'publicKey'"})),
+        ))?
+        .as_bytes()
+        .to_vec();
+
+    let mut crs = crs_mutex.lock().unwrap();
+    match crs.update_public_key(&addr, public_key) {
+        Ok(()) => {
+            println!("[CRS] Public key updated for {}", addr);
+            Ok(Json(serde_json::json!({
+                "status": "ok",
+                "address": format!("{}", addr),
+            })))
+        }
+        Err(e) => Err((
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": format!("{:?}", e)})),
+        )),
+    }
+}
+
 /// POST /api/salvi/inter-cube/crs/heartbeat (CRS mode only).
 pub async fn crs_heartbeat(
     State(state): State<Arc<AppState>>,
@@ -509,6 +561,7 @@ pub fn crs_router(state: Arc<AppState>) -> Router {
         .route("/health", get(health_check))
         .route("/api/salvi/inter-cube/crs/stats", get(crs_stats))
         .route("/api/salvi/inter-cube/crs/register", post(crs_register))
+        .route("/api/salvi/inter-cube/crs/update-key", post(crs_update_key))
         .route("/api/salvi/inter-cube/crs/heartbeat", post(crs_heartbeat))
         .route("/api/salvi/inter-cube/glb/forward", post(glb_forward))
         .route("/api/salvi/inter-cube/glb/stats", get(glb_stats))
@@ -548,7 +601,7 @@ pub fn cube_router(state: Arc<AppState>) -> Router {
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Number of routes in CRS mode.
-pub const CRS_ROUTE_COUNT: usize = 11;
+pub const CRS_ROUTE_COUNT: usize = 12;
 
 /// Number of routes in cube mode.
 pub const CUBE_ROUTE_COUNT: usize = 8;

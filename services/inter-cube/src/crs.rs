@@ -246,6 +246,8 @@ pub enum RegistrationError {
     /// Signed registration required but unsigned payload received.
     /// Only when `PlenumConfig.require_signature == true`.
     SignatureRequired,
+    /// Address not found in registry (for key update).
+    AddressNotFound,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -782,6 +784,21 @@ impl CubeRegistrationService {
 
     // ═══════════════════════════════════════════════════════════════
     // STATISTICS
+    pub fn update_public_key(
+        &mut self,
+        addr: &CubeAddr,
+        new_public_key: Vec<u8>,
+    ) -> Result<(), RegistrationError> {
+        match self.registry.get_mut(addr) {
+            Some(record) => {
+                record.public_key = new_public_key;
+                record.last_heartbeat = std::time::Instant::now();
+                Ok(())
+            }
+            None => Err(RegistrationError::AddressNotFound),
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════
 
     /// Number of registered cubes.
