@@ -503,12 +503,14 @@ function startPqtiService(): ChildProcess | null {
     res.sendFile(filePath);
   });
 
-  app.get(["/rerun-yoda-install.ps1", "/dl/yoda-install.ps1"], async (_req, res) => {
+  app.get("/api/yoda-installer", async (_req, res) => {
     try {
       const scriptPath = path.resolve("rerun-yoda-install.ps1");
       const { readFile } = await import("fs/promises");
       const script = await readFile(scriptPath, "utf-8");
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
       res.send(script);
     } catch {
       res.status(404).send("Script not found");
