@@ -263,9 +263,9 @@ if ($llamaServer) {
   New-Item -ItemType Directory -Force -Path $LLAMA_DIR | Out-Null
   $release = (Invoke-RestMethod "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest").tag_name
   if ($cpuArch -eq "Arm64") {
-    $zipName = "llama-$release-bin-win-arm64.zip"
+    $zipName = "llama-$release-bin-win-cpu-arm64.zip"
   } else {
-    $zipName = "llama-$release-bin-win-avx2-x64.zip"
+    $zipName = "llama-$release-bin-win-cpu-x64.zip"
   }
   $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/$zipName"
   Write-Host "  -> Downloading llama.cpp $release ($zipName)..."
