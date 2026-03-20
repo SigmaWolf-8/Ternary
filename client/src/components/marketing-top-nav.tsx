@@ -660,13 +660,15 @@ export function MarketingTopNav() {
                     size="sm"
                     className="h-7 text-xs px-4"
                     style={{
-                      background: "linear-gradient(180deg, hsl(20,10%,18%) 0%, hsl(20,12%,10%) 100%)",
-                      border: "1px solid hsl(20,10%,22%)",
+                      background: "linear-gradient(180deg, hsl(20,10%,24%) 0%, hsl(20,12%,14%) 50%, hsl(20,12%,10%) 100%)",
+                      border: "1px solid hsl(20,10%,28%)",
+                      borderBottom: "2px solid hsl(20,10%,6%)",
                       color: "#FFFFFF",
                       fontFamily: "'Segoe UI', -apple-system, sans-serif",
                       fontWeight: 600,
                       letterSpacing: "0.04em",
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 4px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.03)",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -1px 0 rgba(0,0,0,0.3), 0 3px 6px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.05)",
+                      borderRadius: "5px",
                     }}
                     data-testid="button-nav-waitlist-trigger"
                   >
