@@ -1,0 +1,56 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8080"; $env:CUBE_CRS_URL="https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
+.\target\release\inter-cube-daemon.exe : The term '.\target\release\inter-cube-daemon.exe' is not recognized as the
+name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was
+included, verify that the path is correct and try again.
+At line:1 char:151
++ ... d9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
++                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (.\target\release\inter-cube-daemon.exe:String) [], CommandNotFoundExcep
+   tion
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> cd c:\PlenumNET
+PS C:\PlenumNET> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8080"; $env:CUBE_CRS_URL="https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev
+[CUBE] Endpoint: 0.0.0.0:51820
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Master secret encrypted and saved to .plenumnet/identity\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0303030201010202...)
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 2/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 3/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 4/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 5/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 6/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 7/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 8/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 9/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 10/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+
+thread 'main' (82156) panicked at services\inter-cube\src\main.rs:271:34:
+Failed to register with CRS after 10 attempts
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\PlenumNET>

@@ -226,7 +226,10 @@ async fn run_cube_mode() {
         }
     };
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .user_agent("PlenumNET-InterCube/0.2.0")
+        .build()
+        .expect("Failed to build HTTP client");
     let register_url = format!("{}/api/salvi/inter-cube/crs/register", crs_url);
 
     let mut response_body: Option<serde_json::Value> = None;
@@ -408,7 +411,10 @@ async fn run_cube_mode() {
     let passphrase_hb = passphrase.clone();
 
     tokio::spawn(async move {
-        let hb_client = reqwest::Client::new();
+        let hb_client = reqwest::Client::builder()
+            .user_agent("PlenumNET-InterCube/0.2.0")
+            .build()
+            .expect("Failed to build HTTP client");
         let hb_url = format!(
             "{}/api/salvi/inter-cube/crs/heartbeat",
             crs_url_for_heartbeat
