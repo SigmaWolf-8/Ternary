@@ -1,0 +1,37 @@
+    Finished `release` profile [optimized] target(s) in 25.14s
+PS C:\PlenumNET> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8080"; $env:CUBE_CRS_URL="https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev
+[CUBE] Endpoint: 0.0.0.0:51820
+
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 2/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 3/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 4/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 5/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 6/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 7/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 8/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 9/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+[CUBE] Registration attempt 10/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/crs/register
+[CUBE] CRS returned 403 Forbidden, retrying...
+
+thread 'main' (138072) panicked at services\inter-cube\src\main.rs:570:34:
+Failed to register with CRS after 10 attempts
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\PlenumNET>
