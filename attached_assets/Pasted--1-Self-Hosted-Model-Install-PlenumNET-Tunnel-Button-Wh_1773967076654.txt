@@ -1,0 +1,189 @@
+#1 - Self-Hosted Model Install & PlenumNET Tunnel Button
+What & Why
+Add a single "Install & Connect" button to each Engine slot when self-hosted mode is active. Clicking downloads a platform-specific script that in one run:
+
+Installs PlenumNET (clones Ternary repo, builds only inter-cube with --package inter-cube)
+Starts inter-cube-daemon in cube mode → daemon calls out to YODA's CRS, tunnel is live immediately
+Waits for and verifies tunnel registration with a status check
+Installs Ollama and pulls the selected model (slow step — happens while tunnel is already up)
+Starts Ollama serving locally (localhost:11434, never exposed publicly)
+YODA on Replit runs the CRS side (inter-cube-daemon in crs mode). The server initiates outbound — no port-forwarding, no firewall rules needed. T-14 mutual auth handshake (TLSponge-385 HMAC / TL-KEM) happens automatically. Heartbeats every 30s keep the tunnel alive. YODA's GLB routes inference requests to the server through the established tunnel.
+
+Cloud providers (Anthropic, OpenAI, xAI, Google, DeepSeek API) never show the button — those need only an API key.
+
+Architecture
+User's server (fully private — zero ports opened)     YODA on Replit
+──────────────────────────────────────────            ─────────────────────────────────
+inter-cube-daemon (cube mode)
+  ├─ initiates outbound connection ─────────────────► CRS accepts registration
+  ├─ T-14 mutual auth handshake                        assigns 13D address
+  └─ heartbeat every 30s (keeps tunnel alive) ───────► CRS keeps record live
+         │
+         │◄── inference request arrives via tunnel ◄── GLB forwards here
+         │
+         └─► localhost:11434  (Ollama, same machine, never exposed)
+CUBE_ENDPOINT=<ip>:51820 = logical routing label for hypercube topology.
+Port 51820 is NOT publicly exposed. No firewall rules. No port forwarding.
+Six issues resolved (from architecture review)
+Issue 1 — CUBE_CRS_URL must not use window.location.origin
+window.location.origin would embed localhost in dev builds, making the user's script point nowhere. Instead:
+
+Add a VITE_CRS_URL environment variable set to the deployed .replit.app domain
+The modal reads import.meta.env.VITE_CRS_URL for the embedded URL
+If VITE_CRS_URL is unset (dev environment), the modal displays a warning: "CRS URL not configured — this script will only work when YODA is deployed"
+Sub-task 3 must use import.meta.env.VITE_CRS_URL not window.location.origin
+Issue 2 — Build only inter-cube, not the entire Ternary repo
+The existing install.sh runs cargo build --release which builds everything (10–20 min, hundreds of crates). The generated script must override this:
+
+cd ~/PlenumNET && cargo build --release --package inter-cube
+This builds only the inter-cube daemon and its direct deps. Much faster.
+
+Issue 3 — Verify Cargo path resolution for inter-cube git dep
+inter-cube depends on ternary-math = { path = "../../ternary-math" }. When added as a git dep in YODA's workspace, Cargo resolves this from the repo root of the git checkout — it should work, but must be explicitly tested during sub-task 1. If the path dep fails, the fix is to add ternary-math as a second explicit git dep in YODA's Cargo.toml and use a [patch] section to override:
+
+[patch."https://github.com/SigmaWolf-8/Ternary"]
+ternary-math = { git = "https://github.com/SigmaWolf-8/Ternary" }
+Issue 4 — OS-specific IP detection (hostname -I doesn't exist on macOS)
+The bash script must detect OS and use the right command:
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "0.0.0.0")
+else
+  LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "0.0.0.0")
+fi
+CUBE_ENDPOINT="${LOCAL_IP}:51820"
+Issue 5 — Verification step after tunnel start
+After starting the daemon in background, the script must verify the tunnel actually registered before proceeding:
+
+echo "Waiting for tunnel registration..."
+REGISTERED=false
+for i in $(seq 1 12); do
+  sleep 5
+  if curl -sf "${CUBE_CRS_URL}/health" > /dev/null 2>&1; then
+    echo "✓ Tunnel is live — registered with YODA CRS"
+    REGISTERED=true
+    break
+  fi
+  echo "  ... checking ($((i * 5))s)"
+done
+if [ "$REGISTERED" = false ]; then
+  echo "✗ Tunnel did not register within 60s. Check your internet connection and try again."
+  exit 1
+fi
+Issue 6 — Background process persistence (noted as future work)
+The daemon is started with & — it dies on terminal close and doesn't survive reboots. This version does NOT install launchd (macOS) or systemd (Linux) services — that is explicitly out of scope for v1. The script must print at the end:
+
+NOTE: The tunnel will stop when this terminal closes.
+To reconnect after reboot, re-run:
+  CUBE_MODE=cube CUBE_CRS_URL=<YODA_URL> ... ~/PlenumNET/target/release/inter-cube-daemon
+Persistent service install (launchd/systemd) is planned for a future version.
+Done looks like
+On YODA Replit: inter-cube-daemon starts in CRS mode alongside yoda-api on boot
+CRS listens on internal port 8081 (avoids conflict with yoda-api's 8080)
+scripts/replit-run.sh starts both processes
+"Install & Connect" button appears below <ModelCard> only when mode === 'self_hosted' and the model is in OLLAMA_TAG or MANUAL_INSTALL_URL
+Modal with two OS tabs (macOS/Linux bash, Windows PowerShell), auto-selected from navigator.userAgent
+Script embeds VITE_CRS_URL, uses --package inter-cube, has OS-specific IP detection, verifies tunnel registration, and prints the persistence warning
+Copy and Download buttons work as expected
+GLM-5 and Kimi-K2.5 show manual-install notice with provider links instead of a script
+Modal is keyboard accessible (Escape closes, focus trapped)
+Ollama tag coverage (11 of 13 self-hosted models)
+YODA model name	Ollama pull tag
+Llama-3.1-8B	llama3.1:8b
+Qwen3.5-9B	qwen3:9b
+Mistral-Nemo-12B	mistral-nemo
+Qwen3.5-27B	qwen3:27b
+Qwen3.5-35B-A3B	qwen3:35b-a3b
+DeepSeek-R1-Distill-Qwen-32B	deepseek-r1:32b
+DeepSeek-R1-Distill-Llama-70B	deepseek-r1:70b
+Llama-3.1-70B	llama3.1:70b
+Mistral-Large-3	mistral-large:123b
+Qwen3.5-122B	qwen3:122b
+Llama-4-Maverick	llama4:maverick
+Manual install only:
+
+GLM-5 → https://huggingface.co/THUDM/GLM-4
+Kimi-K2.5 → https://huggingface.co/moonshotai/Kimi-K2-Instruct
+Frontend progress indicator
+After the user clicks Copy or Download, the modal enters a live "waiting" state that polls YODA until the laptop registers.
+
+Session token binding (how YODA knows which registration is yours)
+When the modal opens, it generates a cryptographically random sessionToken (UUID v4) in the browser
+The token is embedded in the generated script as an env var: CUBE_SESSION_TOKEN=<uuid>
+The laptop's inter-cube-daemon sends the token in the registration body: POST /api/salvi/inter-cube/crs/register with { endpoint, publicKey, sessionToken }
+The yoda-crs wrapper intercepts the registration, extracts sessionToken, stores token → {status: registered, address} in an in-memory RwLock<HashMap>, then forwards the stripped request to the inner CRS — zero changes to the inter-cube API
+A new endpoint on yoda-crs (port 8081): GET /api/yoda/crs/session/:token
+Returns { "status": "pending" } until registration arrives
+Returns { "status": "registered", "address": "<13D cube address>" } once the laptop has connected
+Frontend state machine in ModelInstallModal
+The modal has four states after Copy/Download is clicked:
+
+State	UI shown
+waiting	Animated spinner + "Waiting for your server to connect..."
+connected	Green ✓ + "Connected — registered as [13D address]" + "You can close this window"
+timeout	Warning + "No connection after 10 minutes. Re-run the script and try again."
+error	Red banner if polling itself fails (network error)
+Polling: GET ${VITE_CRS_URL}/api/yoda/crs/session/${token} every 3 seconds using setInterval. Stops on connected, timeout (after 200 × 3s = 10 min), or modal close.
+
+Script addition for session token
+The bash script receives CUBE_SESSION_TOKEN as an additional env var and passes it to the daemon:
+
+CUBE_MODE=cube \
+CUBE_CRS_URL="<YODA_URL>" \
+CUBE_ENDPOINT="${LOCAL_IP}:51820" \
+CUBE_SESSION_TOKEN="<uuid>" \
+CUBE_ROLE=inference \
+~/PlenumNET/target/release/inter-cube-daemon &
+Out of scope
+No changes to the Rust bridge's public API, types, or flow
+No changes to the inter-cube library itself (session token handling is in the yoda-crs wrapper layer only)
+No llama.cpp / LM Studio scripts
+No launchd/systemd service install (noted in script as future work)
+No automatic endpoint URL field population after registration
+No changes to existing agent logic
+Sub-tasks
+1. Add CRS daemon to YODA workspace
+Add inter-cube = { git = "https://github.com/SigmaWolf-8/Ternary", package = "inter-cube" } to root Cargo.toml
+Test that Cargo resolves the ternary-math path dep from within the git checkout. If it fails, add the [patch] workaround described in Issue 3 above
+Create crates/yoda-crs/ binary crate with the following responsibilities:
+Start the inner CRS (from inter-cube lib) on port 8081
+Define its own ExtendedRegisterRequest that adds an optional sessionToken: Option<String> field on top of the standard fields — this is the ONLY struct change, it never touches inter-cube's types
+On registration: extract sessionToken if present, store token → pending in Arc<RwLock<HashMap<String, SessionStatus>>>, forward stripped registration to inner CRS, on success update token → {registered, address}
+Expose GET /api/yoda/crs/session/:token returning {"status":"pending"} or {"status":"registered","address":"..."}
+Expose all standard CRS routes (proxied to inner CRS) on the same port
+Add crates/yoda-crs to workspace members in root Cargo.toml
+Add VITE_CRS_URL environment variable pointing to the deployed .replit.app domain
+In scripts/replit-run.sh: CUBE_MODE=crs CUBE_API_PORT=8081 ./target/release/yoda-crs &
+Relevant files: Cargo.toml, scripts/replit-run.sh, new crates/yoda-crs/
+2. Add Ollama tag map and install metadata to EngineSlot.tsx
+Export OLLAMA_TAG: Record<string, string> for all 11 compatible models
+Export MANUAL_INSTALL_URL: Record<string, string> for GLM-5 and Kimi-K2.5
+Relevant file: frontend/src/components/settings/EngineSlot.tsx:149-155
+3. Build ModelInstallModal.tsx
+New file: frontend/src/components/settings/ModelInstallModal.tsx
+Props: modelName: string, onClose: () => void
+On mount: generate a UUID v4 sessionToken (via crypto.randomUUID()) stored in component state
+Two OS tabs (bash / PowerShell), auto-selected from navigator.userAgent
+CRS URL sourced from import.meta.env.VITE_CRS_URL — NOT window.location.origin. Show warning banner if unset.
+Bash script embeds sessionToken as CUBE_SESSION_TOKEN env var alongside the daemon invocation
+Script also includes: --package inter-cube build flag, OS-specific IP detection (Issue 4), tunnel verification loop in terminal (Issue 5), persistence warning footer (Issue 6)
+Progress indicator state machine — activates after user clicks Copy or Download:
+waiting: spinner + "Waiting for your server to connect..." — polls GET ${VITE_CRS_URL}/api/yoda/crs/session/${sessionToken} every 3s via setInterval
+connected: green ✓ + "Connected — registered as [address]" + "You can close this window" — stops polling
+timeout: warning + "No connection after 10 minutes. Re-run the script and try again." — stops polling after 200 polls (10 min)
+error: red banner if fetch itself throws (network error) — stops polling
+For non-Ollama models (GLM-5, Kimi-K2.5): manual-install notice with provider link, no polling state
+Copy (navigator.clipboard) and Download (URL.createObjectURL) buttons
+Keyboard accessible: Escape closes, focus trapped, polling clears on unmount (clearInterval in useEffect cleanup)
+4. Wire Install & Connect button into EngineSlotCard
+In EngineSlot.tsx, add installModalOpen state
+Render button below <ModelCard> when mode === 'self_hosted' and model is in OLLAMA_TAG or MANUAL_INSTALL_URL
+Render <ModelInstallModal> when open
+Relevant file: frontend/src/components/settings/EngineSlot.tsx (~line 483)
+Key files
+Cargo.toml (root workspace)
+scripts/replit-run.sh
+crates/yoda-crs/src/main.rs (new)
+crates/yoda-crs/Cargo.toml (new)
+frontend/src/components/settings/EngineSlot.tsx
+frontend/src/components/settings/ModelInstallModal.tsx (new)

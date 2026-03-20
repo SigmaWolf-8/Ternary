@@ -1,0 +1,101 @@
+#1 - Self-Hosted Model Install & PlenumNET Tunnel Button
+What & Why
+Add a single "Install & Connect" button to each Engine slot when self-hosted mode is active. Clicking downloads a platform-specific script that in one run:
+
+Installs PlenumNET (via the existing install.sh from the Ternary repo — clones, builds inter-cube-daemon)
+Starts inter-cube-daemon in cube mode → daemon calls out to YODA's CRS, tunnel is live immediately
+Installs Ollama and pulls the selected model (slow step — happens while tunnel is already up)
+Starts Ollama serving locally (localhost:11434, never exposed publicly)
+YODA on Replit runs the CRS side (inter-cube-daemon in crs mode). The user's laptop initiates outbound — no port-forwarding needed. T-14 mutual auth handshake (TLSponge-385 HMAC / TL-KEM) happens automatically. Heartbeats every 30s keep the tunnel alive. YODA's GLB then routes inference requests to the laptop through the established tunnel.
+
+Cloud providers (Anthropic, OpenAI, xAI, Google, DeepSeek API) never show the button — those need only an API key.
+
+Architecture
+User's server (fully private — zero ports opened)     YODA on Replit
+──────────────────────────────────────────            ─────────────────────────────────
+inter-cube-daemon (cube mode)
+  ├─ initiates outbound connection ─────────────────► CRS accepts registration
+  ├─ T-14 mutual auth handshake                        assigns 13D address
+  └─ heartbeat every 30s (keeps tunnel alive) ───────► CRS keeps record live
+         │
+         │◄── inference request arrives via tunnel ◄── GLB forwards here
+         │
+         └─► localhost:11434  (Ollama, same machine, never exposed)
+CUBE_ENDPOINT=<ip>:51820 = logical routing label for hypercube topology.
+Port 51820 is NOT publicly exposed. No firewall rules. No port forwarding.
+Done looks like
+On YODA Replit: inter-cube-daemon starts in CRS mode alongside yoda-api on boot.
+CRS listens on an internal port (via CUBE_API_PORT env var, default 8081 to avoid conflicts with yoda-api's 8080)
+scripts/replit-run.sh starts both the API and the CRS daemon
+An "Install & Connect" button appears below <ModelCard> only when mode === 'self_hosted' and the model name is in OLLAMA_TAG or MANUAL_INSTALL_URL
+Clicking opens a modal with two OS tabs — macOS/Linux (bash) and Windows (PowerShell) — auto-selected via navigator.userAgent
+Each tab shows the complete script in a monospace block:
+macOS/Linux bash script:
+Install PlenumNET first: curl -fsSL https://plenumnet.replit.app/install/install.sh | bash (clones Ternary repo, builds inter-cube-daemon)
+Start tunnel immediately: CUBE_MODE=cube CUBE_CRS_URL=<YODA_DEPLOYED_URL> CUBE_ENDPOINT=$(hostname -I | awk '{print $1}'):51820 CUBE_ROLE=inference ~/PlenumNET/target/release/inter-cube-daemon & — daemon reaches out to YODA's CRS (outbound only), T-14 handshake, tunnel is live. Script must include a comment: "# No ports need to be opened — the daemon calls out to YODA, your router allows this naturally. Port 51820 is a logical routing label only."
+Install Ollama if missing (curl -fsSL https://ollama.com/install.sh | sh)
+ollama pull <tag> for the selected model (slow — may take minutes)
+Ensure ollama serve is running in background
+Echo: "Tunnel is live and model is ready. Return to YODA — your laptop is registered."
+Windows PowerShell script: same 6 steps adapted for PowerShell (Invoke-WebRequest for Ollama, winget/scoop for Rust if missing, same inter-cube-daemon invocation)
+The YODA_DEPLOYED_URL is embedded at script-generation time using window.location.origin (the real Replit .app domain)
+"Copy" button: copies script to clipboard with brief "Copied!" confirm
+"Download" button: saves as yoda-connect-<modelslug>.sh or .ps1
+For GLM-5 and Kimi-K2.5 (not on Ollama): modal shows a notice explaining why and links directly to the provider's installation page instead of generating a script
+Modal closes on Escape, backdrop click, or Close button
+Ollama tag coverage (11 of 13 self-hosted models)
+YODA model name	Ollama pull tag
+Llama-3.1-8B	llama3.1:8b
+Qwen3.5-9B	qwen3:9b
+Mistral-Nemo-12B	mistral-nemo
+Qwen3.5-27B	qwen3:27b
+Qwen3.5-35B-A3B	qwen3:35b-a3b
+DeepSeek-R1-Distill-Qwen-32B	deepseek-r1:32b
+DeepSeek-R1-Distill-Llama-70B	deepseek-r1:70b
+Llama-3.1-70B	llama3.1:70b
+Mistral-Large-3	mistral-large:123b
+Qwen3.5-122B	qwen3:122b
+Llama-4-Maverick	llama4:maverick
+Manual install only (no Ollama tag):
+
+GLM-5 → https://huggingface.co/THUDM/GLM-4
+Kimi-K2.5 → https://huggingface.co/moonshotai/Kimi-K2-Instruct
+Out of scope
+No changes to the Rust bridge's public API, types, or flow
+No llama.cpp / LM Studio scripts
+No automatic endpoint URL auto-population after tunnel registration (future work)
+No live connection status polling in the frontend (future work)
+No changes to existing agent logic
+Sub-tasks
+1. Add CRS daemon to YODA workspace
+Add inter-cube as a Cargo git dependency in the root Cargo.toml: inter-cube = { git = "https://github.com/SigmaWolf-8/Ternary", package = "inter-cube" }
+Create crates/yoda-crs/ binary crate: a thin main.rs that reads CUBE_MODE (defaults to crs) and CUBE_API_PORT (defaults to 8081) then delegates to the inter-cube library's CRS startup
+Add crates/yoda-crs to workspace members in root Cargo.toml
+In scripts/replit-run.sh: start the CRS in background alongside yoda-api
+CUBE_MODE=crs CUBE_API_PORT=8081 ./target/release/yoda-crs &
+Relevant files: Cargo.toml, scripts/replit-run.sh, new crates/yoda-crs/
+2. Add Ollama tag map and install metadata to EngineSlot.tsx
+Export OLLAMA_TAG: Record<string, string> mapping the 11 compatible self-hosted model display names to their Ollama pull tags (table above)
+Export MANUAL_INSTALL_URL: Record<string, string> for GLM-5 and Kimi-K2.5 with HuggingFace links
+Relevant file: frontend/src/components/settings/EngineSlot.tsx:149-155
+3. Build ModelInstallModal.tsx
+New file: frontend/src/components/settings/ModelInstallModal.tsx
+Props: modelName: string, onClose: () => void
+Two OS tabs (bash / PowerShell), auto-selected from navigator.userAgent
+For Ollama-supported models: builds and displays the full 6-step script using OLLAMA_TAG[modelName] and window.location.origin
+For non-Ollama models (GLM-5, Kimi-K2.5): renders a manual-install notice with MANUAL_INSTALL_URL[modelName]
+Copy button: navigator.clipboard.writeText(script) with "Copied!" confirm state (1.5s)
+Download button: URL.createObjectURL(new Blob([script])) → triggers <a> download
+Keyboard accessible: Escape closes, focus trapped inside
+4. Wire Install & Connect button into EngineSlotCard
+In EngineSlot.tsx, add state installModalOpen: boolean
+Below <ModelCard>: render a small "Install & Connect" button when mode === 'self_hosted' AND modelName is a key in OLLAMA_TAG or MANUAL_INSTALL_URL
+Render <ModelInstallModal modelName={modelName} onClose={() => setInstallModalOpen(false)} /> when open
+Relevant file: frontend/src/components/settings/EngineSlot.tsx (EngineSlotCard component ~line 483)
+Key files
+Cargo.toml (root workspace)
+scripts/replit-run.sh
+crates/yoda-crs/src/main.rs (new)
+crates/yoda-crs/Cargo.toml (new)
+frontend/src/components/settings/EngineSlot.tsx
+frontend/src/components/settings/ModelInstallModal.tsx (new)
