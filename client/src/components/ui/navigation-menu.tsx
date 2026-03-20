@@ -66,7 +66,7 @@ const NavigationMenuItem = React.forwardRef<
 NavigationMenuItem.displayName = "NavigationMenuItem"
 
 const navigationMenuTriggerStyle = cva(
-  "group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=open]:text-accent-foreground data-[state=open]:bg-accent/50 data-[state=open]:hover:bg-accent data-[state=open]:focus:bg-accent"
+  "group inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-transparent focus:bg-transparent focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-transparent data-[state=open]:hover:bg-transparent data-[state=open]:focus:bg-transparent"
 )
 
 const NavigationMenuTrigger = React.forwardRef<
@@ -99,7 +99,7 @@ const NavigationMenuContent = React.forwardRef<
     )}
     {...props}
   >
-    <div className="rounded-md border bg-popover text-popover-foreground shadow-lg">
+    <div className="rounded-md border shadow-lg" style={{ background: "hsl(20,12%,7%)", borderColor: "hsl(20,10%,15%)", color: "#E4DFD5" }}>
       {children}
     </div>
   </NavigationMenuPrimitive.Content>
