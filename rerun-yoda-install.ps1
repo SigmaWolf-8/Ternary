@@ -149,9 +149,16 @@ $env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
 Write-Host "  -> Generating PT26-DSA identity keypair..."
 $env:CUBE_MODE = "keygen"
 $keygenLog = Join-Path $LOG_DIR "keygen.log"
+$ErrorActionPreference = "Continue"
 $keygenOutput = & $DAEMON_PATH 2>$keygenLog
+$ErrorActionPreference = "Stop"
 $env:CUBE_MODE = $null
-$PUB_KEY = ($keygenOutput | Select-Object -Last 1).Trim()
+$pkLine = $keygenOutput | Where-Object { $_ -match "PT26-DSA Public Key" } | Select-Object -First 1
+if ($pkLine -match ':\s*([0-9a-fA-F]+)\s*$') {
+  $PUB_KEY = $matches[1]
+} else {
+  $PUB_KEY = ""
+}
 if (-not $PUB_KEY) {
   Write-Host "  Keygen output:" -ForegroundColor Yellow
   $keygenOutput | ForEach-Object { Write-Host "    $_" }
@@ -161,12 +168,12 @@ Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Le
 
 # -- 6. Start CRS daemon on port 51820 ------------------------------------
 Write-Host ""
-Write-Host "Starting PlenumNET CRS daemon on port 51820..."
+Write-Host "Starting PlenumNET CRS daemon on port 8080..."
 Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 500
 
 $env:CUBE_MODE     = "crs"
-$env:CUBE_CRS_PORT = "51820"
+$env:CUBE_API_PORT = "8080"
 $daemonOutLog = Join-Path $LOG_DIR "intercube-crs-out.log"
 $daemonErrLog = Join-Path $LOG_DIR "intercube-crs-err.log"
 $daemonProc = Start-Process -FilePath $DAEMON_PATH -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
@@ -175,16 +182,16 @@ Start-Sleep -Seconds 3
 
 # -- 7. Verify port is open ------------------------------------------------
 Write-Host ""
-Write-Host "Verifying port 51820..."
-$portCheck = Get-NetTCPConnection -LocalPort 51820 -ErrorAction SilentlyContinue
+Write-Host "Verifying port 8080..."
+$portCheck = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
 if ($portCheck) {
-  Write-Host "  OK Port 51820 is OPEN and listening" -ForegroundColor Green
+  Write-Host "  OK Port 8080 is OPEN and listening" -ForegroundColor Green
 } else {
   Write-Host "  Checking via HTTP..."
 }
 
 try {
-  $health = Invoke-RestMethod -Uri "http://127.0.0.1:51820/api/salvi/inter-cube/crs/cubes" -TimeoutSec 5 -ErrorAction Stop
+  $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/salvi/inter-cube/crs/stats" -TimeoutSec 5 -ErrorAction Stop
   Write-Host "  OK CRS endpoint responded" -ForegroundColor Green
 } catch {
   Write-Host "  -> HTTP check inconclusive: $_" -ForegroundColor Yellow
@@ -197,7 +204,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "  PlenumNET Inter-Cube daemon is LIVE" -ForegroundColor Green
 Write-Host "  Binary : $DAEMON_PATH" -ForegroundColor Green
 Write-Host "  PID    : $($daemonProc.Id)" -ForegroundColor Green
-Write-Host "  Port   : 51820" -ForegroundColor Green
+Write-Host "  Port   : 8080 (API) / 51820 (wire)" -ForegroundColor Green
 Write-Host "  PubKey : $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green
 Write-Host "  Logs   : $LOG_DIR" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green

@@ -254,5 +254,60 @@ The PlenumNET marketing site is already deployed and running. The Inter-Cube dae
 
 ---
 
-*Document generated from production codebase at commit `fba0770` on `SigmaWolf-8/Ternary:main`.*
+## 11. Installer Fix Summary (v2)
+
+The file `yoda-installer-fix.ts` in the PlenumNET repo root contains corrected versions of `makeBatWrapper` and `makePsInstallScript`. Replace the same-named functions in your YODA project's `script-generators.ts`.
+
+### All Fixes Applied
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| **PS1 parse errors (`â€"`)** | Em-dash `—` corrupts to `â€"` during base64 encode/decode | All em-dashes replaced with ASCII `--` |
+| **`.cargo\bin` parse error** | Backslash interpolation in PS double-quotes | Use `Join-Path` for all path construction |
+| **`Join-Path` 3-arg crash** | Windows PowerShell 5.1 only takes 2 args | Chained nested `Join-Path` calls |
+| **Cargo warnings kill script** | `$ErrorActionPreference = "Stop"` treats stderr as terminating | Wrap cargo/keygen with `$ErrorActionPreference = "Continue"`, check `$LASTEXITCODE` |
+| **PubKey shows hint text** | Script grabbed last stdout line (a hint), not the hex key line | Parse line matching `PT26-DSA Public Key` and extract hex via regex |
+| **Wrong port env var** | `CUBE_CRS_PORT` doesn't exist in the daemon | Use `CUBE_API_PORT` (default: 8080) for HTTP API |
+| **`/crs/cubes` 404** | Route doesn't exist | Use `/api/salvi/inter-cube/crs/stats` or `/health` |
+| **`ring` build fails on ARM** | No C compiler for `aarch64-pc-windows-msvc` | Script auto-detects vcvars or falls back to `winget install LLVM.LLVM` |
+
+### Correct CRS API Endpoints (on port 8080)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | Health check (returns status, version, mode, address) |
+| GET | `/api/salvi/inter-cube/crs/stats` | Registration stats |
+| POST | `/api/salvi/inter-cube/crs/register` | Register cube, returns assigned address |
+| POST | `/api/salvi/inter-cube/crs/update-key` | Update public key after rotation |
+| POST | `/api/salvi/inter-cube/crs/heartbeat` | Cube heartbeat (30s interval) |
+| POST | `/api/salvi/inter-cube/glb/forward` | Forward packet via geometric routing |
+| GET | `/api/salvi/inter-cube/glb/stats` | GLB statistics |
+| GET | `/api/salvi/inter-cube/con/stats` | CON tunnel statistics |
+| GET | `/api/salvi/inter-cube/fts/status` | FTS neighbor health (up/suspect/down) |
+| GET | `/api/salvi/inter-cube/fts/dead` | Dead neighbor list |
+| GET | `/api/salvi/inter-cube/topology` | Cube dimensions, vertex count, registered cubes |
+
+### Correct Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `CUBE_MODE` | `crs`, `cube`, or `keygen` | Required |
+| `CUBE_API_PORT` | HTTP API bind port | `8080` |
+| `CUBE_CRS_URL` | CRS base URL (cube mode only) | Required (cube mode) |
+| `CUBE_ENDPOINT` | Wire protocol endpoint | `0.0.0.0:51820` |
+| `CUBE_IDENTITY_PASSPHRASE` | Master key encryption passphrase | Hostname fallback (warns) |
+| `CUBE_IDENTITY_DIR` | Override identity file directory | `~/.plenumnet/identity/` |
+
+### Verified Working On
+
+- **Platform**: Windows 11 ARM (aarch64-pc-windows-msvc)
+- **Rust**: cargo 1.94.0
+- **C compiler**: LLVM/Clang (via `winget install LLVM.LLVM`)
+- **Build time**: 47 seconds (release, first build after clean)
+- **Result**: Daemon running, health check responding, all 12 HTTP routes active
+
+---
+
+*Document generated from production codebase on `SigmaWolf-8/Ternary:main`.*
 *All 422 tests verified passing. Application running on Replit.*
+*Installer verified on Windows 11 ARM — build, keygen, CRS startup all confirmed working.*

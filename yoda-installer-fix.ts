@@ -193,9 +193,16 @@ foreach ($member in @((Join-Path "services" "inter-cube" "Cargo.toml"), (Join-Pa
   }
 }
 Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)..."
+Write-Host "  Cargo warnings are normal -- only errors matter." -ForegroundColor Gray
 Push-Location $PLENUMNET_DIR
-cargo build --release --package inter-cube
+$ErrorActionPreference = "Continue"
+cargo build --release --package inter-cube 2>&1 | ForEach-Object { Write-Host $_ }
+$cargoBuildExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
 Pop-Location
+if ($cargoBuildExit -ne 0) {
+  throw "cargo build failed with exit code $cargoBuildExit -- check the output above for errors."
+}
 $relDir = Join-Path $PLENUMNET_DIR "target" "release"
 $daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
   Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
@@ -236,13 +243,22 @@ $env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
 Write-Host "  -> Generating PT26-DSA identity keypair..."
 $env:CUBE_MODE = "keygen"
 $keygenLog = Join-Path $LOG_DIR "keygen.log"
+$ErrorActionPreference = "Continue"
 $keygenOutput = & $DAEMON_PATH 2>$keygenLog
+$ErrorActionPreference = "Stop"
 $env:CUBE_MODE = $null
-$PUB_KEY = ($keygenOutput | Select-Object -Last 1).Trim()
-if (-not $PUB_KEY) {
-  throw "Daemon keygen produced no output -- check $keygenLog for details."
+$pkLine = $keygenOutput | Where-Object { $_ -match "PT26-DSA Public Key" } | Select-Object -First 1
+if ($pkLine -match ':\s*([0-9a-fA-F]+)\s*$') {
+  $PUB_KEY = $matches[1]
+} else {
+  $PUB_KEY = ""
 }
-Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(16, $PUB_KEY.Length)))..."
+if (-not $PUB_KEY) {
+  Write-Host "  Keygen output:" -ForegroundColor Yellow
+  $keygenOutput | ForEach-Object { Write-Host "    $_" }
+  throw "Daemon keygen produced no public key -- check $keygenLog for details."
+}
+Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..."
 
 # -- 6. Install llama.cpp -------------------------------------------------
 Write-Host ""
