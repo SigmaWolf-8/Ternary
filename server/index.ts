@@ -503,6 +503,42 @@ function startPqtiService(): ChildProcess | null {
     res.sendFile(filePath);
   });
 
+  app.get("/api/salvi/inter-cube/relay/register", async (req, res) => {
+    try {
+      const { publicKey, endpoint } = req.query as { publicKey?: string; endpoint?: string };
+      if (!publicKey || !endpoint) {
+        return res.status(400).json({ error: "publicKey and endpoint query params required" });
+      }
+      const upstream = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicKey, endpoint }),
+      });
+      const body = await upstream.text();
+      res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
+    } catch (e: any) {
+      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+    }
+  });
+
+  app.get("/api/salvi/inter-cube/relay/heartbeat", async (req, res) => {
+    try {
+      const { address, publicKey } = req.query as { address?: string; publicKey?: string };
+      if (!address) {
+        return res.status(400).json({ error: "address query param required" });
+      }
+      const upstream = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, publicKey: publicKey || "" }),
+      });
+      const body = await upstream.text();
+      res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
+    } catch (e: any) {
+      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+    }
+  });
+
   const interCubeProxy = async (req: any, res: any) => {
     try {
       const targetUrl = `http://127.0.0.1:8181${req.originalUrl}`;

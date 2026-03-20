@@ -230,23 +230,33 @@ async fn run_cube_mode() {
         .user_agent("PlenumNET-InterCube/0.2.0")
         .build()
         .expect("Failed to build HTTP client");
-    let register_url = format!("{}/api/salvi/inter-cube/crs/register", crs_url);
+    let endpoint_encoded = resolved_endpoint.replace(":", "%3A");
+    let register_url = format!(
+        "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint={}",
+        crs_url, key_hex, endpoint_encoded
+    );
+    let register_url_post = format!("{}/api/salvi/inter-cube/crs/register", crs_url);
 
     let mut response_body: Option<serde_json::Value> = None;
     for attempt in 1..=10 {
         println!(
             "[CUBE] Registration attempt {}/10 -> {}",
-            attempt, register_url
+            attempt,
+            if attempt <= 5 { &register_url } else { &register_url_post }
         );
 
-        let result = client
-            .post(&register_url)
-            .json(&serde_json::json!({
-                "endpoint": resolved_endpoint,
-                "publicKey": key_hex,
-            }))
-            .send()
-            .await;
+        let result = if attempt <= 5 {
+            client.get(&register_url).send().await
+        } else {
+            client
+                .post(&register_url_post)
+                .json(&serde_json::json!({
+                    "endpoint": resolved_endpoint,
+                    "publicKey": key_hex,
+                }))
+                .send()
+                .await
+        };
 
         match result {
             Ok(resp) if resp.status().is_success() => {
@@ -409,14 +419,15 @@ async fn run_cube_mode() {
     let orchestrator_hb = orchestrator.clone();
     let local_addr_hb = local_address.clone();
     let passphrase_hb = passphrase.clone();
+    let key_hex_hb = key_hex.clone();
 
     tokio::spawn(async move {
         let hb_client = reqwest::Client::builder()
             .user_agent("PlenumNET-InterCube/0.2.0")
             .build()
             .expect("Failed to build HTTP client");
-        let hb_url = format!(
-            "{}/api/salvi/inter-cube/crs/heartbeat",
+        let hb_url_base = format!(
+            "{}/api/salvi/inter-cube/relay/heartbeat",
             crs_url_for_heartbeat
         );
         let update_key_url = format!(
@@ -501,12 +512,13 @@ async fn run_cube_mode() {
                 }
             }
 
+            let addr_str_hb: String = addr_trits.iter().map(|t| t.to_string()).collect();
+            let hb_url = format!(
+                "{}?address={}&publicKey={}",
+                hb_url_base, addr_str_hb, key_hex_hb
+            );
             let result = hb_client
-                .post(&hb_url)
-                .json(&serde_json::json!({
-                    "address": addr_trits,
-                    "endpoint": endpoint_for_heartbeat,
-                }))
+                .get(&hb_url)
                 .send()
                 .await;
 
