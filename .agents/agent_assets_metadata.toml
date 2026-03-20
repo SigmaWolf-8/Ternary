@@ -36,3 +36,9 @@ id = "_wycyy965eATUstJ3t-ES"
 uri = "file://docs/plenumlan-api-mapping.md"
 type = "text"
 title = "API-to-PlenumLAN Mapping Document"
+
+[[outputs]]
+id = "1kTYCFcuwYRYQp06vWXsO"
+uri = "file://YODA-HANDOFF.md"
+type = "text"
+title = "YODA App — PlenumNET Inter-Cube Integration Handoff"
