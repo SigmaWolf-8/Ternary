@@ -633,8 +633,9 @@ export function MarketingTopNav() {
           Skip to main content
         </a>
         <header
-          className="fixed top-0 z-[9999] w-full"
+          className="fixed top-0 z-[9999] w-full flex flex-col"
           style={{
+            height: "140px",
             background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)",
             boxShadow: [
               "inset 0 1px 0 rgba(255,255,255,0.07)",
@@ -646,7 +647,7 @@ export function MarketingTopNav() {
           }}
           data-testid="marketing-top-nav"
         >
-          <div className="relative mx-auto flex h-[12rem] max-w-7xl items-center gap-4 px-4 lg:px-6">
+          <div className="flex-1 mx-auto flex max-w-7xl items-center gap-4 px-4 lg:px-6">
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
             <div className="ml-auto flex items-center gap-2">
