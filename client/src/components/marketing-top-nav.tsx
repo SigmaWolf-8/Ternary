@@ -648,21 +648,26 @@ export function MarketingTopNav() {
           )}
           data-testid="marketing-top-nav"
         >
-          <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 lg:px-6">
+          <div className="mx-auto flex h-[6.5rem] max-w-7xl items-center gap-4 px-4 lg:px-6">
             <Link
               href="/"
               className="flex items-center mr-2 shrink-0"
               data-testid="link-logo"
             >
               <video
-                ref={(el) => { if (el) { el.muted = true; el.play().catch(() => {}); } }}
+                ref={(el) => {
+                  if (el) {
+                    el.muted = true;
+                    el.play().catch(() => {});
+                    el.onended = () => { el.pause(); el.currentTime = el.duration; };
+                  }
+                }}
                 src={plenumLogoVideo}
                 poster="/plenum-logo-poster.jpg"
                 autoPlay
-                loop
                 muted
                 playsInline
-                className="h-12 w-auto rounded"
+                className="h-[5.5rem] w-auto rounded"
                 data-testid="logo-video"
               />
             </Link>
@@ -733,14 +738,19 @@ export function MarketingTopNav() {
                     <SheetHeader>
                       <SheetTitle className="flex items-center gap-2">
                         <video
-                          ref={(el) => { if (el) { el.muted = true; el.play().catch(() => {}); } }}
+                          ref={(el) => {
+                            if (el) {
+                              el.muted = true;
+                              el.play().catch(() => {});
+                              el.onended = () => { el.pause(); el.currentTime = el.duration; };
+                            }
+                          }}
                           src={plenumLogoVideo}
                           poster="/plenum-logo-poster.jpg"
                           autoPlay
-                          loop
                           muted
                           playsInline
-                          className="h-10 w-auto rounded"
+                          className="h-16 w-auto rounded"
                         />
                       </SheetTitle>
                     </SheetHeader>
