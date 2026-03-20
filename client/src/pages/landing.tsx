@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_1771299513785.png";
+import plenumLogoHero from "@assets/grok-image-ebaf13d7-ebe9-4a1d-bbd3-62c2ec9a6762_1774012887299.png";
 import { PLATFORM } from "@shared/constants";
 import { 
   Code, 
@@ -246,21 +247,7 @@ function HeroSection() {
             `,
           }}
         >
-          <span className="text-primary" style={{ textShadow: `
-              0 1px 0 rgba(0,85,210,0.50),
-              0 2px 0 rgba(0,80,200,0.45),
-              0 3px 0 rgba(0,75,190,0.40),
-              0 4px 0 rgba(0,70,180,0.35),
-              0 5px 0 rgba(0,65,170,0.30),
-              0 6px 0 rgba(0,60,160,0.26),
-              0 7px 0 rgba(0,55,150,0.22),
-              0 8px 0 rgba(0,50,140,0.18),
-              0 9px 0 rgba(0,45,130,0.14),
-              0 10px 0 rgba(0,40,120,0.10),
-              0 12px 8px rgba(0,30,100,0.18),
-              0 18px 16px rgba(0,30,100,0.12),
-              0 26px 30px rgba(0,30,100,0.07)
-            ` }}>PlenumNET</span> ~ A Geometrically Derived<br />Self Healing Computing Universe
+          <img src={plenumLogoHero} alt="PlenumNET" className="inline-block h-[1.8em] align-middle -mt-1 mr-1" style={{ objectFit: "contain", objectPosition: "center" }} /> ~ A Geometrically Derived<br />Self Healing Computing Universe
         </h1>
 
         <motion.div
