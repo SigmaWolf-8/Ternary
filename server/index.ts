@@ -593,23 +593,37 @@ function startPqtiService(): ChildProcess | null {
     await setupVite(httpServer, app);
   }
 
-  const { spawn } = await import("child_process");
-  const daemonPath = "/home/runner/workspace/target/release/inter-cube-daemon";
-  if (existsSync(daemonPath)) {
-    const crsProc = spawn(daemonPath, [], {
-      env: {
-        ...process.env,
-        CUBE_MODE: "crs",
-        CUBE_API_PORT: "8181",
-        CUBE_IDENTITY_PASSPHRASE: "plenumlan-prototype-2026",
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: false,
-    });
-    crsProc.stdout?.on("data", (d: Buffer) => console.log(`[crs-daemon] ${d.toString().trim()}`));
-    crsProc.stderr?.on("data", (d: Buffer) => console.error(`[crs-daemon] ${d.toString().trim()}`));
-    crsProc.on("exit", (code: number | null) => console.log(`[crs-daemon] exited with code ${code}`));
-    console.log(`[crs-daemon] spawned (PID ${crsProc.pid}, port 8181, mode=crs)`);
+  const { spawn: spawnCrs } = await import("child_process");
+  const selfDir = path.dirname(new URL(import.meta.url).pathname);
+  const daemonCandidates = [
+    path.resolve(selfDir, "inter-cube-daemon"),
+    "/home/runner/workspace/target/release/inter-cube-daemon",
+    path.resolve("target/release/inter-cube-daemon"),
+    path.resolve("dist/inter-cube-daemon"),
+  ];
+  const daemonPath = daemonCandidates.find((p) => existsSync(p)) || "";
+  if (daemonPath) {
+    try {
+      const crsProc = spawnCrs(daemonPath, [], {
+        env: {
+          ...process.env,
+          CUBE_MODE: "crs",
+          CUBE_API_PORT: "8181",
+          CUBE_IDENTITY_PASSPHRASE: "plenumlan-prototype-2026",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+        detached: false,
+      });
+      crsProc.on("error", (err: Error) => {
+        console.log(`[crs-daemon] spawn error (non-fatal): ${err.message}`);
+      });
+      crsProc.stdout?.on("data", (d: Buffer) => console.log(`[crs-daemon] ${d.toString().trim()}`));
+      crsProc.stderr?.on("data", (d: Buffer) => console.error(`[crs-daemon] ${d.toString().trim()}`));
+      crsProc.on("exit", (code: number | null) => console.log(`[crs-daemon] exited with code ${code}`));
+      console.log(`[crs-daemon] spawned (PID ${crsProc.pid}, port 8181, mode=crs)`);
+    } catch (err: any) {
+      console.log(`[crs-daemon] failed to spawn (non-fatal): ${err.message}`);
+    }
   } else {
     console.log("[crs-daemon] binary not found — skipping");
   }

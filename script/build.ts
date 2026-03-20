@@ -15,7 +15,9 @@
 
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, copyFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -84,6 +86,17 @@ async function buildAll() {
       ].join(' '),
     },
   });
+
+  const daemonSrc = path.resolve("target/release/inter-cube-daemon");
+  if (existsSync(daemonSrc)) {
+    const daemonDst = path.resolve("dist/inter-cube-daemon");
+    await copyFile(daemonSrc, daemonDst);
+    const { chmod } = await import("fs/promises");
+    await chmod(daemonDst, 0o755);
+    console.log("copied inter-cube-daemon to dist/");
+  } else {
+    console.log("inter-cube-daemon binary not found — skipping copy");
+  }
 }
 
 buildAll().catch((err) => {
