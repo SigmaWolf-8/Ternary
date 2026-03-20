@@ -1,0 +1,107 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> @'
+>> # YODA Re-run Installer
+>> $ErrorActionPreference = "Stop"
+>> Write-Host "=== YODA Re-run Installer ===" -ForegroundColor Cyan
+>> Write-Host ""
+>> Write-Host "Checking for MSVC ARM64 build tools..."
+>> $vsWhere = $null
+>> foreach ($p in @("${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe","${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe","C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe","C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe")) { if (Test-Path $p) { $vsWhere = $p; break } }
+>> $vsPath = $null
+>> if ($vsWhere) {
+>>   $vsPath = & $vsWhere -latest -property installationPath 2>$null
+>>   if ($vsPath) {
+>>     Write-Host "  OK Visual Studio at: $vsPath" -ForegroundColor Green
+>>     $clExe = Get-ChildItem -Path $vsPath -Recurse -Filter "cl.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -match "arm64" } | Select-Object -First 1
+>>     if ($clExe) { Write-Host "  OK ARM64 cl.exe: $($clExe.FullName)" -ForegroundColor Green }
+>>     else { Write-Host "  WARNING: ARM64 cl.exe NOT found." -ForegroundColor Red; Write-Host "  Install: MSVC v143 ARM64/ARM64EC build tools + Windows 11 SDK" -ForegroundColor Yellow; Read-Host "Press Enter after installing, or Ctrl+C to abort" }
+>>   }
+>> } else {
+>>   Write-Host "  vswhere not found -- searching directly..." -ForegroundColor Yellow
+>>   $clSearch = Get-ChildItem -Path "C:\Program Files*\Microsoft Visual Studio" -Recurse -Filter "cl.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -match "arm64" } | Select-Object -First 1
+>>   if ($clSearch) { Write-Host "  OK ARM64 cl.exe: $($clSearch.FullName)" -ForegroundColor Green; $vsPath = ($clSearch.FullName -split "\\VC\\")[0] }
+>>   else { Write-Host "  No ARM64 cl.exe found." -ForegroundColor Red; Read-Host "Press Enter to continue anyway, or Ctrl+C to abort" }
+>> }
+>> Write-Host ""; Write-Host "Setting up VS environment..."
+>> $vcvarsPath = $null
+>> if ($vsPath) { foreach ($tp in @((Join-Path $vsPath "VC\Auxiliary\Build\vcvarsarm64.bat"),(Join-Path $vsPath "VC\Auxiliary\Build\vcvarsx86_arm64.bat"),(Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat"))) { if (Test-Path $tp) { $vcvarsPath = $tp; break } } }
+>> if ($vcvarsPath) {
+>>   Write-Host "  -> $vcvarsPath"
+>>   $vcCmd = if ($vcvarsPath -match "vcvarsall") { "`"$vcvarsPath`" arm64" } else { "`"$vcvarsPath`"" }
+>>   cmd /c "$vcCmd >nul 2>&1 && set" | ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') } }
+>>   Write-Host "  OK VS environment loaded" -ForegroundColor Green
+>> } else {
+>>   Write-Host "  No vcvars found -- trying LLVM..." -ForegroundColor Yellow
+>>   if (-not (Get-Command clang -ErrorAction SilentlyContinue)) { Write-Host "  -> Installing LLVM via winget..." -ForegroundColor Yellow; winget install LLVM.LLVM --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null; $env:PATH += ";C:\Program Files\LLVM\bin" }
+>>   if (Get-Command clang -ErrorAction SilentlyContinue) { Write-Host "  OK Clang available" -ForegroundColor Green; $env:CC = "clang" }
+>>   else { Write-Host "  WARNING: No C compiler found" -ForegroundColor Red }
+>> }
+>> $PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
+>> $MODELS_DIR = Join-Path $env:USERPROFILE "yoda-models"
+>> $LOG_DIR = Join-Path $MODELS_DIR "logs"
+>> $IDENTITY_DIR = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
+>> New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+>> Write-Host ""; Write-Host "Cleaning previous failed build..."
+>> $ringBuildDir = Join-Path (Join-Path (Join-Path $PLENUMNET_DIR "target") "release") "build"
+>> if (Test-Path $ringBuildDir) { Get-ChildItem -Path $ringBuildDir -Directory -Filter "ring-*" | Remove-Item -Recurse -Force; Write-Host "  OK Cleaned ring artifacts" }
+>> Write-Host ""; Write-Host "Building inter-cube daemon (takes a few minutes)..."
+>> Push-Location $PLENUMNET_DIR
+>> cargo build --release --package inter-cube 2>&1 | Tee-Object -Variable buildOutput
+>> $buildExitCode = $LASTEXITCODE
+>> Pop-Location
+>> if ($buildExitCode -ne 0) { Write-Host "=== BUILD FAILED ===" -ForegroundColor Red; Write-Host "If ring/cc failed, try: winget install LLVM.LLVM" -ForegroundColor Yellow; Read-Host "Press Enter to close"; exit 1 }
+>> $relDir = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
+>> $daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
+>> if (-not $daemonBin) { throw "No binary found in $relDir" }
+>> $DAEMON_PATH = $daemonBin.FullName
+>> Write-Host "  OK Daemon: $DAEMON_PATH" -ForegroundColor Green
+>> Write-Host ""; Write-Host "Setting up identity..."
+>> New-Item -ItemType Directory -Force -Path $IDENTITY_DIR | Out-Null
+>> $PASSPHRASE_FILE = Join-Path $IDENTITY_DIR ".passphrase"
+>> if (Test-Path $PASSPHRASE_FILE) { $CUBE_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim(); Write-Host "  -> Loaded existing passphrase" }
+>> else { $rng = [System.Security.Cryptography.RNGCryptoServiceProvider]::new(); $bytes = [byte[]]::new(24); $rng.GetBytes($bytes); $CUBE_PASSPHRASE = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""; $rng.Dispose(); $CUBE_PASSPHRASE | Set-Content -Path $PASSPHRASE_FILE -NoNewline; Write-Host "  OK Generated passphrase" }
+>> $env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
+>> Write-Host "  -> Generating PT26-DSA keypair..."
+>> $env:CUBE_MODE = "keygen"; $keygenLog = Join-Path $LOG_DIR "keygen.log"; $keygenOutput = & $DAEMON_PATH 2>$keygenLog; $env:CUBE_MODE = $null
+>> $PUB_KEY = ($keygenOutput | Select-Object -Last 1).Trim()
+>> if (-not $PUB_KEY) { throw "Keygen failed -- check $keygenLog" }
+>> Write-Host "  OK PubKey: $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green
+>> Write-Host ""; Write-Host "Starting CRS daemon on port 51820..."
+>> Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+>> Start-Sleep -Milliseconds 500
+>> $env:CUBE_MODE = "crs"; $env:CUBE_CRS_PORT = "51820"
+>> $daemonOutLog = Join-Path $LOG_DIR "intercube-crs-out.log"; $daemonErrLog = Join-Path $LOG_DIR "intercube-crs-err.log"
+>> $daemonProc = Start-Process -FilePath $DAEMON_PATH -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
+>> Write-Host "  OK Daemon PID $($daemonProc.Id)" -ForegroundColor Green
+>> Start-Sleep -Seconds 3
+>> Write-Host ""; Write-Host "Verifying port 51820..."
+>> try { $h = Invoke-RestMethod -Uri "http://127.0.0.1:51820/api/salvi/inter-cube/crs/cubes" -TimeoutSec 5 -ErrorAction Stop; Write-Host "  OK CRS responded" -ForegroundColor Green } catch { Write-Host "  -> Check log: $daemonOutLog" -ForegroundColor Yellow }
+>> Write-Host ""; Write-Host "========================================" -ForegroundColor Green; Write-Host "  PlenumNET Inter-Cube daemon is LIVE" -ForegroundColor Green; Write-Host "  Binary : $DAEMON_PATH" -ForegroundColor Green; Write-Host "  PID    : $($daemonProc.Id)" -ForegroundColor Green; Write-Host "  Port   : 51820" -ForegroundColor Green; Write-Host "  PubKey : $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green; Write-Host "========================================" -ForegroundColor Green
+>> Write-Host ""; Write-Host "To stop: Stop-Process -Id $($daemonProc.Id)" -ForegroundColor Yellow
+>> Read-Host "Press Enter to close (daemon keeps running)"
+>> '@ | Set-Content "$env:TEMP\yoda-rerun.ps1" -Encoding UTF8; & "$env:TEMP\yoda-rerun.ps1"
+=== YODA Re-run Installer ===
+
+Checking for MSVC ARM64 build tools...
+
+Setting up VS environment...
+  No vcvars found -- trying LLVM...
+  -> Installing LLVM via winget...
+  OK Clang available
+
+Cleaning previous failed build...
+  OK Cleaned ring artifacts
+
+Building inter-cube daemon (takes a few minutes)...
+cargo : warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+At C:\Users\Sigma\AppData\Local\Temp\yoda-rerun.ps1:47 char:1
++ cargo build --release --package inter-cube 2>&1 | Tee-Object -Variabl ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: profil...workspace root::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+PS C:\Users\Sigma\PlenumNET>
