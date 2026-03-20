@@ -1,0 +1,291 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd c:\plenumNET
+PS C:\plenumNET> cd C:\PlenumNET
+PS C:\PlenumNET>
+PS C:\PlenumNET> # Read the file
+PS C:\PlenumNET> $f = Get-Content "services\inter-cube\src\main.rs" -Raw
+PS C:\PlenumNET>
+PS C:\PlenumNET> # Find and replace - using simple literal match
+PS C:\PlenumNET> $f = $f -replace [regex]::Escape('let register_url = format!("{}/api/salvi/inter-cube/crs/register", crs_url);'), @'
+>> let endpoint_encoded = resolved_endpoint.replace(":", "%3A");
+>>     let register_url = format!(
+>>         "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint={}",
+>>         crs_url, key_hex, endpoint_encoded
+>>     );
+>> '@
+PS C:\PlenumNET>
+PS C:\PlenumNET> # Replace .post with .get
+PS C:\PlenumNET> $f = $f -replace [regex]::Escape('.post(&register_url)'), '.get(&register_url)'
+PS C:\PlenumNET>
+PS C:\PlenumNET> # Remove the .json() call on registration (GET doesn't need a body)
+PS C:\PlenumNET> $f = $f -replace '\.json\(&serde_json::json!\(\{\s*"endpoint": resolved_endpoint,\s*"publicKey": key_hex,\s*\}\)\)', ''
+PS C:\PlenumNET>
+PS C:\PlenumNET> Set-Content "services\inter-cube\src\main.rs" $f -NoNewline
+PS C:\PlenumNET>
+PS C:\PlenumNET> # Rebuild
+PS C:\PlenumNET> $env:CC = "clang"; $env:AR = "llvm-ar"; $env:PATH += ";C:\Program Files\LLVM\bin"
+PS C:\PlenumNET> cargo build --release --package inter-cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: function `rot` is never used
+  --> ternary-math\src\tis_sponge.rs:88:4
+   |
+88 | fn rot(src: &[u8], dst: &mut [u8], dist: usize, w: usize) {
+   |    ^^^
+
+warning: `ternary-math` (lib) generated 4 warnings (run `cargo fix --lib -p ternary-math` to apply 1 suggestion)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:40:34
+   |
+40 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+   --> services\inter-cube\src\overlay.rs:214:5
+    |
+204 | pub struct CubeOverlayNetwork {
+    |            ------------------ fields in this struct
+...
+214 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+215 |     /// Key rotation interval.
+216 |     key_rotation_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `count` is never used
+   --> services\inter-cube\src\crs.rs:235:8
+    |
+170 | impl AddressAllocator {
+    | --------------------- method in this implementation
+...
+235 |     fn count(&self) -> u64 {
+    |        ^^^^^
+
+warning: field `heartbeat_interval` is never read
+   --> services\inter-cube\src\crs.rs:259:5
+    |
+253 | pub struct CubeRegistrationService {
+    |            ----------------------- field in this struct
+...
+259 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: `inter-cube` (lib) generated 5 warnings (run `cargo fix --lib -p inter-cube` to apply 2 suggestions)
+   Compiling inter-cube v0.2.0 (C:\PlenumNET\services\inter-cube)
+    Finished `release` profile [optimized] target(s) in 21.77s
+PS C:\PlenumNET> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8080"; $env:CUBE_CRS_URL="https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev
+[CUBE] Endpoint: 0.0.0.0:51820
+
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 2/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 3/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 4/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 5/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 6/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 7/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 8/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 9/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 10/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+
+thread 'main' (109048) panicked at services\inter-cube\src\main.rs:571:34:
+Failed to register with CRS after 10 attempts
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\PlenumNET> (Get-Content "services\inter-cube\src\main.rs")[228..250]
+        )
+    })?;
+
+    let mut crs = crs_mutex.lock().unwrap();
+    let found = crs.heartbeat(&addr, endpoint);
+    if found {
+        Ok(Json(serde_json::json!({
+            "status": "ok",
+            "address": format!("{}", addr),
+        })))
+    } else {
+        Err((
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Address not registered"})),
+        ))
+    }
+}
+
+/// POST /api/salvi/inter-cube/glb/forward
+async fn glb_forward(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<ForwardRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+PS C:\PlenumNET> cd C:\PlenumNET
+PS C:\PlenumNET> $f = Get-Content "services\inter-cube\src\main.rs" -Raw
+PS C:\PlenumNET> $f = $f -replace [regex]::Escape('reqwest::Client::new()'), 'reqwest::Client::builder().user_agent("PlenumNET-InterCube/0.2.0").build().expect("HTTP client")'
+PS C:\PlenumNET> Set-Content "services\inter-cube\src\main.rs" $f -NoNewline
+PS C:\PlenumNET>
+PS C:\PlenumNET> $env:CC = "clang"; $env:AR = "llvm-ar"; $env:PATH += ";C:\Program Files\LLVM\bin"
+PS C:\PlenumNET> cargo build --release --package inter-cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: function `rot` is never used
+  --> ternary-math\src\tis_sponge.rs:88:4
+   |
+88 | fn rot(src: &[u8], dst: &mut [u8], dist: usize, w: usize) {
+   |    ^^^
+
+warning: `ternary-math` (lib) generated 4 warnings (run `cargo fix --lib -p ternary-math` to apply 1 suggestion)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:40:34
+   |
+40 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+   --> services\inter-cube\src\overlay.rs:214:5
+    |
+204 | pub struct CubeOverlayNetwork {
+    |            ------------------ fields in this struct
+...
+214 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+215 |     /// Key rotation interval.
+216 |     key_rotation_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `count` is never used
+   --> services\inter-cube\src\crs.rs:235:8
+    |
+170 | impl AddressAllocator {
+    | --------------------- method in this implementation
+...
+235 |     fn count(&self) -> u64 {
+    |        ^^^^^
+
+warning: field `heartbeat_interval` is never read
+   --> services\inter-cube\src\crs.rs:259:5
+    |
+253 | pub struct CubeRegistrationService {
+    |            ----------------------- field in this struct
+...
+259 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: `inter-cube` (lib) generated 5 warnings (run `cargo fix --lib -p inter-cube` to apply 2 suggestions)
+   Compiling inter-cube v0.2.0 (C:\PlenumNET\services\inter-cube)
+    Finished `release` profile [optimized] target(s) in 21.40s
+PS C:\PlenumNET>
+PS C:\PlenumNET> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8080"; $env:CUBE_CRS_URL="https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev
+[CUBE] Endpoint: 0.0.0.0:51820
+
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 2/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 3/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 4/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 5/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 6/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 7/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
+[CUBE] Registration attempt 8/10 -> https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] Failed to parse response: error decoding response body
