@@ -247,7 +247,7 @@ function HeroSection() {
             `,
           }}
         >
-          <img src={plenumLogoHero} alt="PlenumNET" className="inline-block h-[3em] align-middle -mt-2 mr-2" style={{ objectFit: "contain", objectPosition: "center" }} /> ~ A Geometrically Derived<br />Self Healing Computing Universe
+          <img src={plenumLogoHero} alt="PlenumNET" className="inline-block h-[3em] align-middle mt-1 mr-2" style={{ objectFit: "contain", objectPosition: "center" }} /> ~ A Geometrically Derived<br />Self Healing Computing Universe
         </h1>
 
         <motion.div
