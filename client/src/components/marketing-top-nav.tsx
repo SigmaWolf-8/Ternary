@@ -26,7 +26,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, Sun, Moon, ExternalLink, ArrowRight } from "lucide-react";
-import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_1771299513785.png";
+const plenumLogoVideo = "/plenum-logo-animated.mp4";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,8 +52,6 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
 import { triggerInstallDialog } from "@/components/InstallExtensionCard";
@@ -651,35 +649,23 @@ export function MarketingTopNav() {
           data-testid="marketing-top-nav"
         >
           <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 lg:px-6">
-            <div className="flex flex-col mr-2">
-              <Link
-                href="/"
-                className="flex items-center gap-2 font-semibold text-foreground"
-                data-testid="link-logo"
-              >
-                <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
-                <span className="text-base">PlenumNET</span>
-              </Link>
-              {!isMobile && (
-                <div className="flex flex-col gap-0.5 mt-0.5 pl-6">
-                  <Badge
-                    variant="outline"
-                    className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-1.5 py-0 text-[9px] w-fit leading-tight"
-                    data-testid="badge-status"
-                  >
-                    <Check className="w-2 h-2 mr-0.5" />
-                    Production Ready
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-primary/30 bg-primary/10 text-primary px-1.5 py-0 text-[9px] w-fit leading-tight"
-                    data-testid="badge-pq"
-                  >
-                    Post-Quantum Secure
-                  </Badge>
-                </div>
-              )}
-            </div>
+            <Link
+              href="/"
+              className="flex items-center mr-2 shrink-0"
+              data-testid="link-logo"
+            >
+              <video
+                ref={(el) => { if (el) { el.muted = true; el.play().catch(() => {}); } }}
+                src={plenumLogoVideo}
+                poster="/plenum-logo-poster.jpg"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="h-12 w-auto rounded"
+                data-testid="logo-video"
+              />
+            </Link>
 
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
@@ -746,8 +732,16 @@ export function MarketingTopNav() {
                   <SheetContent side="right" className="w-[300px] sm:w-[360px]">
                     <SheetHeader>
                       <SheetTitle className="flex items-center gap-2">
-                        <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
-                        PlenumNET
+                        <video
+                          ref={(el) => { if (el) { el.muted = true; el.play().catch(() => {}); } }}
+                          src={plenumLogoVideo}
+                          poster="/plenum-logo-poster.jpg"
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="h-10 w-auto rounded"
+                        />
                       </SheetTitle>
                     </SheetHeader>
                     <MobileNav onClose={() => setMobileOpen(false)} navEmail={navEmail} setNavEmail={setNavEmail} navSignupMutation={navSignupMutation} />
