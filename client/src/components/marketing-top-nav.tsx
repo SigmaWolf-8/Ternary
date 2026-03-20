@@ -413,14 +413,19 @@ function StandardDropdownItem({ item }: { item: NavLinkItem }) {
 function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
   return (
     <NavigationMenu
-      className="hidden md:flex [&_button]:text-gray-300 [&_button:hover]:text-white [&_button]:bg-transparent [&_button:hover]:bg-white/10"
+      className="hidden md:flex [&_button]:bg-transparent [&_button:hover]:bg-transparent"
+      style={{ fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
       delayDuration={100}
       skipDelayDuration={300}
       onValueChange={(val: string) => onOpenChange?.(val !== "")}
     >
       <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuTrigger data-testid="nav-trigger-platform">
+          <NavigationMenuTrigger
+            data-testid="nav-trigger-platform"
+            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em" }}
+            className="hover:!text-[#8A8578] data-[state=open]:!text-[#D4A017]"
+          >
             Platform
           </NavigationMenuTrigger>
           <NavigationMenuContent className="left-0">
@@ -429,7 +434,11 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         </NavigationMenuItem>
 
         <NavigationMenuItem>
-          <NavigationMenuTrigger data-testid="nav-trigger-developers">
+          <NavigationMenuTrigger
+            data-testid="nav-trigger-developers"
+            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em" }}
+            className="hover:!text-[#8A8578] data-[state=open]:!text-[#D4A017]"
+          >
             Developers
           </NavigationMenuTrigger>
           <NavigationMenuContent className="left-0">
@@ -438,7 +447,11 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         </NavigationMenuItem>
 
         <NavigationMenuItem>
-          <NavigationMenuTrigger data-testid="nav-trigger-company">
+          <NavigationMenuTrigger
+            data-testid="nav-trigger-company"
+            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em" }}
+            className="hover:!text-[#8A8578] data-[state=open]:!text-[#D4A017]"
+          >
             Company
           </NavigationMenuTrigger>
           <NavigationMenuContent className="right-0 left-auto">
@@ -622,19 +635,22 @@ export function MarketingTopNav() {
         </a>
         <header
           className="fixed top-0 z-[9999] w-full"
-          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          style={{
+            fontFamily: "'Segoe UI', -apple-system, sans-serif",
+            background: "linear-gradient(135deg, #0D0C0B 0%, #1A1816 100%)",
+            borderBottom: "1px solid #2A2520",
+          }}
           data-testid="marketing-top-nav"
         >
-          <div className="h-[2px] w-full bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
-          <div className="w-full bg-gray-950/95 backdrop-blur-md border-b border-white/10">
           <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 lg:px-6">
             <Link
               href="/"
-              className="flex items-center gap-2.5 font-semibold text-white mr-2"
+              className="flex items-center gap-2.5 mr-2"
+              style={{ color: "#D4A017", fontWeight: 600, letterSpacing: "0.5px" }}
               data-testid="link-logo"
             >
               <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
-              <span className="text-lg tracking-tight">PlenumNET</span>
+              <span className="text-[15px]">PlenumNET</span>
             </Link>
 
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
@@ -654,7 +670,13 @@ export function MarketingTopNav() {
                     placeholder="Enter your email for early access"
                     value={navEmail}
                     onChange={(e) => setNavEmail(e.target.value)}
-                    className="h-8 w-52 text-xs bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    className="h-8 w-52 text-xs"
+                    style={{
+                      background: "#1A1816",
+                      border: "1px solid #2A2520",
+                      color: "#E4DFD5",
+                      fontFamily: "'Consolas', 'Menlo', monospace",
+                    }}
                     required
                     data-testid="input-nav-email"
                     aria-label="Email address for early access"
@@ -662,8 +684,13 @@ export function MarketingTopNav() {
                   <Button
                     type="submit"
                     size="sm"
-                    variant="outline"
-                    className="h-8 text-xs border-white/20 text-white hover:bg-white/10"
+                    className="h-8 text-xs"
+                    style={{
+                      background: "#D4A017",
+                      color: "#090807",
+                      border: "none",
+                      fontWeight: 600,
+                    }}
                     disabled={navSignupMutation.isPending}
                     data-testid="button-nav-signup"
                   >
@@ -677,7 +704,8 @@ export function MarketingTopNav() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                className="text-gray-300 hover:text-white hover:bg-white/10"
+                style={{ color: "#8A8578" }}
+                className="hover:!text-[#D4A017]"
                 aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
                 data-testid="button-theme-toggle"
               >
@@ -694,16 +722,25 @@ export function MarketingTopNav() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-gray-300 hover:text-white hover:bg-white/10"
+                      style={{ color: "#8A8578" }}
+                      className="hover:!text-[#D4A017]"
                       aria-label="Open menu"
                       data-testid="button-mobile-menu"
                     >
                       <Menu className="w-5 h-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="right" className="w-[300px] sm:w-[360px]">
+                  <SheetContent
+                    side="right"
+                    className="w-[300px] sm:w-[360px]"
+                    style={{
+                      background: "#0D0C0B",
+                      borderLeft: "1px solid #2A2520",
+                      color: "#E4DFD5",
+                    }}
+                  >
                     <SheetHeader>
-                      <SheetTitle className="flex items-center gap-2">
+                      <SheetTitle className="flex items-center gap-2" style={{ color: "#D4A017" }}>
                         <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
                         PlenumNET
                       </SheetTitle>
@@ -713,7 +750,6 @@ export function MarketingTopNav() {
                 </Sheet>
               )}
             </div>
-          </div>
           </div>
         </header>
       </AnchorScrollContext.Provider>
