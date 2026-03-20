@@ -1,0 +1,46 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> cd C:\PlenumNET
+PS C:\PlenumNET> $env:CUBE_MODE="cube"
+PS C:\PlenumNET> $env:CUBE_API_PORT="8080"
+PS C:\PlenumNET> $env:CUBE_CRS_URL="https://plenumnet.replit.app"
+PS C:\PlenumNET> .\target\release\inter-cube-daemon.exe
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 2/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 3/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 4/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 5/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 6/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 7/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 8/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 9/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+[CUBE] Registration attempt 10/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+[CUBE] CRS returned 502 Bad Gateway, retrying...
+
+thread 'main' (35708) panicked at services\inter-cube\src\main.rs:571:34:
+Failed to register with CRS after 10 attempts
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\PlenumNET>
