@@ -1,0 +1,50 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8080"; $env:CUBE_CRS_URL="https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
+.\target\release\inter-cube-daemon.exe : The term '.\target\release\inter-cube-daemon.exe' is not recognized as the
+name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was
+included, verify that the path is correct and try again.
+At line:1 char:151
++ ... d9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
++                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (.\target\release\inter-cube-daemon.exe:String) [], CommandNotFoundExcep
+   tion
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> cd c:\PlenumNET\
+PS C:\PlenumNET> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8080"; $env:CUBE_CRS_URL="https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
+.\target\release\inter-cube-daemon.exe : The term '.\target\release\inter-cube-daemon.exe' is not recognized as the
+name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was
+included, verify that the path is correct and try again.
+At line:1 char:151
++ ... d9pb9n5txn.picard.replit.dev"; .\target\release\inter-cube-daemon.exe
++                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (.\target\release\inter-cube-daemon.exe:String) [], CommandNotFoundExcep
+   tion
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\PlenumNET> Get-ChildItem -Path C:\ -Recurse -Filter "inter-cube-daemon.exe" -ErrorAction SilentlyContinue | Select-Object FullName
+
+FullName
+--------
+C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe
+
+
+PS C:\PlenumNET> $SOURCE = "C:\Users\Sigma\PlenumNET"
+PS C:\PlenumNET> $DEST   = "C:\PlenumNET"
+PS C:\PlenumNET> $srcBin = "$SOURCE\target\release"
+PS C:\PlenumNET> $dstBin = "$DEST\target\release"
+PS C:\PlenumNET> New-Item -ItemType Directory -Force -Path $dstBin | Out-Null
+PS C:\PlenumNET> Copy-Item -Path "$srcBin\inter-cube-daemon.exe" -Destination $dstBin -Force
+PS C:\PlenumNET> Write-Host "OK Binary copied to $dstBin" -ForegroundColor Green
+OK Binary copied to C:\PlenumNET\target\release
+PS C:\PlenumNET>
+PS C:\PlenumNET> # Verify
+PS C:\PlenumNET> $finalBin = "$dstBin\inter-cube-daemon.exe"
+PS C:\PlenumNET> $size = [math]::Round((Get-Item $finalBin).Length / 1MB, 1)
+PS C:\PlenumNET> Write-Host "Ready: $finalBin ($size MB)" -ForegroundColor Green
+Ready: C:\PlenumNET\target\release\inter-cube-daemon.exe (3.3 MB)
+PS C:\PlenumNET>
