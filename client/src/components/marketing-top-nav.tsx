@@ -658,20 +658,19 @@ export function MarketingTopNav() {
                 <PopoverTrigger asChild>
                   <Button
                     size="sm"
-                    className="h-8 text-xs"
+                    className="h-6 text-[9px] px-3"
                     style={{
-                      background: "transparent",
-                      border: "1px solid #38BDF8",
-                      color: "#38BDF8",
-                      fontFamily: "'Orbitron', sans-serif",
+                      background: "linear-gradient(180deg, hsl(20,10%,18%) 0%, hsl(20,12%,10%) 100%)",
+                      border: "1px solid hsl(20,10%,22%)",
+                      color: "#8A8578",
+                      fontFamily: "'Segoe UI', -apple-system, sans-serif",
                       fontWeight: 600,
-                      fontSize: "10px",
-                      letterSpacing: "0.06em",
+                      letterSpacing: "0.04em",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 4px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.03)",
                     }}
                     data-testid="button-nav-waitlist-trigger"
                   >
                     Join Waitlist
-                    <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
