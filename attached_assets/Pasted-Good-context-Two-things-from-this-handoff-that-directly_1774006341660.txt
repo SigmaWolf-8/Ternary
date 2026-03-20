@@ -1,0 +1,21 @@
+Good context. Two things from this handoff that directly affect task #2 (which is now drafted and waiting for your approval):
+
+1. CUBE_IDENTITY_PASSPHRASE needs to be in the installer
+
+CUBE_MODE=keygen requires this to encrypt/decrypt the master.key file. If it's not set, the daemon falls back to a hostname-derived passphrase and prints a warning — acceptable for now, but the install script should set it explicitly so the passphrase is consistent between the keygen call and the later daemon startup. The simplest approach: generate a random passphrase once during install, write it to ~/.plenumnet/identity/.passphrase (mode 600), and export it before every daemon invocation.
+
+2. Env var name — CRS_URL vs CUBE_CRS_URL
+
+The handoff says the daemon reads CRS_URL. Our current scripts export CUBE_CRS_URL. That's a mismatch that would silently break the daemon's CRS registration. Task #2 will fix this when it touches the daemon startup blocks.
+
+I'll update the task #2 description to capture both of these before it goes to implementation:
+
+Task #2 updated with three additional details from that handoff:
+
+CUBE_IDENTITY_PASSPHRASE management — The install script will generate a random passphrase on first run, write it to ~/.plenumnet/identity/.passphrase (mode 600), and export it before every daemon call — keygen, the live daemon startup, and reconnect. This keeps the key consistent: the same passphrase that encrypted master.key on install is used to decrypt it on reconnect.
+
+CRS_URL env var bug — The handoff confirms the daemon reads CRS_URL. All four scripts currently export CUBE_CRS_URL, which the daemon silently ignores. Task #2 will fix this across all four functions.
+
+Reconnect simplification still holds — Since the daemon self-registers using CRS_URL, CUBE_ENDPOINT, and CUBE_SESSION_TOKEN on startup, the explicit registration block stays out of reconnect. The script just loads the passphrase and starts both processes.
+
+Everything else in the handoff (the crypto suite details, the 26-module breakdown, the 422 tests) is context for task #18, which is already complete on the Ternary side.
