@@ -134,6 +134,15 @@ async fn run_crs_mode() {
         &addr_bound_pk_hex[..16.min(addr_bound_pk_hex.len())]
     );
 
+    match crs.update_public_key(&local_address, addr_bound_pk_hex.as_bytes().to_vec()) {
+        Ok(()) => {
+            println!("[IDENTITY] CRS registry updated with address-bound key");
+        }
+        Err(e) => {
+            println!("[IDENTITY] WARNING: CRS key update failed: {:?}", e);
+        }
+    }
+
     println!();
     println!("=== Inter-Cube Stack Active ===");
     println!("  Address:       {}", local_address);
