@@ -186,17 +186,8 @@ impl MasterSecret {
     pub fn generate() -> Result<Self, IdentityError> {
         let mut bytes = vec![0u8; MASTER_SECRET_LEN];
 
-        // Primary: OS CSPRNG via getrandom-compatible approach
-        // In production, use the `getrandom` crate. Here we use
-        // TLSponge-385 with high-entropy seed material as the
-        // generation method (avoids adding a crate dependency).
-        let seed_material = Self::collect_entropy_seed();
-        let derived = ternary_math::sponge::derive_key(
-            MS_GEN_DOMAIN,
-            &seed_material,
-            MASTER_SECRET_LEN,
-        );
-        bytes.copy_from_slice(&derived);
+        getrandom::getrandom(&mut bytes)
+            .map_err(|_| IdentityError::EntropyFailure)?;
 
         Ok(MasterSecret { inner: bytes })
     }

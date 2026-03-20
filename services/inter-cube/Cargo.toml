@@ -42,6 +42,9 @@ hex = "0.4"
 # Hostname detection for default passphrase derivation
 hostname = "0.4"
 
+# OS-level CSPRNG for master secret generation
+getrandom = "0.2"
+
 # Logging
 tracing = "0.1"
 
