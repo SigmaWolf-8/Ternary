@@ -1,0 +1,420 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> @'
+>> $ErrorActionPreference = "Stop"
+>> Write-Host "=== YODA Re-run Installer ===" -ForegroundColor Cyan
+>> Write-Host ""
+>> Write-Host "Checking for MSVC ARM64 build tools..."
+>> $vsWhere = $null
+>> foreach ($p in @("${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe","${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe","C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe","C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe")) { if (Test-Path $p) { $vsWhere = $p; break } }
+>> $vsPath = $null
+>> if ($vsWhere) {
+>>   $vsPath = & $vsWhere -latest -property installationPath 2>$null
+>>   if ($vsPath) {
+>>     Write-Host "  OK Visual Studio at: $vsPath" -ForegroundColor Green
+>>     $clExe = Get-ChildItem -Path $vsPath -Recurse -Filter "cl.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -match "arm64" } | Select-Object -First 1
+>>     if ($clExe) { Write-Host "  OK ARM64 cl.exe: $($clExe.FullName)" -ForegroundColor Green }
+>>     else { Write-Host "  WARNING: ARM64 cl.exe NOT found." -ForegroundColor Red; Write-Host "  Install: MSVC v143 ARM64/ARM64EC build tools + Windows 11 SDK" -ForegroundColor Yellow; Read-Host "Press Enter after installing, or Ctrl+C to abort" }
+>>   }
+>> } else {
+>>   Write-Host "  vswhere not found -- searching directly..." -ForegroundColor Yellow
+>>   $clSearch = Get-ChildItem -Path "C:\Program Files*\Microsoft Visual Studio" -Recurse -Filter "cl.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -match "arm64" } | Select-Object -First 1
+>>   if ($clSearch) { Write-Host "  OK ARM64 cl.exe: $($clSearch.FullName)" -ForegroundColor Green; $vsPath = ($clSearch.FullName -split "\\VC\\")[0] }
+>> }
+>> Write-Host ""; Write-Host "Setting up build environment..."
+>> $vcvarsPath = $null
+>> if ($vsPath) { foreach ($tp in @((Join-Path $vsPath "VC\Auxiliary\Build\vcvarsarm64.bat"),(Join-Path $vsPath "VC\Auxiliary\Build\vcvarsx86_arm64.bat"),(Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat"))) { if (Test-Path $tp) { $vcvarsPath = $tp; break } } }
+>> if ($vcvarsPath) {
+>>   Write-Host "  -> $vcvarsPath"
+>>   $vcCmd = if ($vcvarsPath -match "vcvarsall") { "`"$vcvarsPath`" arm64" } else { "`"$vcvarsPath`"" }
+>>   cmd /c "$vcCmd >nul 2>&1 && set" | ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') } }
+>>   Write-Host "  OK VS environment loaded" -ForegroundColor Green
+>> } else {
+>>   Write-Host "  No vcvars found -- checking for clang..." -ForegroundColor Yellow
+>>   if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
+>>     $env:PATH += ";C:\Program Files\LLVM\bin"
+>>   }
+>>   if (Get-Command clang -ErrorAction SilentlyContinue) { Write-Host "  OK Clang available" -ForegroundColor Green; $env:CC = "clang" }
+>>   else { Write-Host "  -> Installing LLVM via winget..." -ForegroundColor Yellow; winget install LLVM.LLVM --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null; $env:PATH += ";C:\Program Files\LLVM\bin"; $env:CC = "clang" }
+>> }
+>> $PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
+>> $MODELS_DIR = Join-Path $env:USERPROFILE "yoda-models"
+>> $LOG_DIR = Join-Path $MODELS_DIR "logs"
+>> $IDENTITY_DIR = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
+>> New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+>> Write-Host ""; Write-Host "Cleaning previous failed build..."
+>> $ringBuildDir = Join-Path (Join-Path (Join-Path $PLENUMNET_DIR "target") "release") "build"
+>> if (Test-Path $ringBuildDir) { Get-ChildItem -Path $ringBuildDir -Directory -Filter "ring-*" | Remove-Item -Recurse -Force; Write-Host "  OK Cleaned ring artifacts" }
+>> Write-Host ""; Write-Host "Building inter-cube daemon (takes a few minutes on first build)..."
+>> Write-Host "  Cargo warnings are normal -- only errors matter." -ForegroundColor Gray
+>> Push-Location $PLENUMNET_DIR
+>> $ErrorActionPreference = "Continue"
+>> cargo build --release --package inter-cube 2>&1 | ForEach-Object { Write-Host $_ }
+>> $buildExitCode = $LASTEXITCODE
+>> $ErrorActionPreference = "Stop"
+>> Pop-Location
+>> if ($buildExitCode -ne 0) { Write-Host "=== BUILD FAILED ===" -ForegroundColor Red; Write-Host "Check the output above for the actual error." -ForegroundColor Yellow; Read-Host "Press Enter to close"; exit 1 }
+>> $relDir = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
+>> $daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
+>> if (-not $daemonBin) { throw "No binary found in $relDir" }
+>> $DAEMON_PATH = $daemonBin.FullName
+>> Write-Host "  OK Daemon: $DAEMON_PATH" -ForegroundColor Green
+>> Write-Host ""; Write-Host "Setting up identity..."
+>> New-Item -ItemType Directory -Force -Path $IDENTITY_DIR | Out-Null
+>> $PASSPHRASE_FILE = Join-Path $IDENTITY_DIR ".passphrase"
+>> if (Test-Path $PASSPHRASE_FILE) { $CUBE_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim(); Write-Host "  -> Loaded existing passphrase" }
+>> else { $rng = [System.Security.Cryptography.RNGCryptoServiceProvider]::new(); $bytes = [byte[]]::new(24); $rng.GetBytes($bytes); $CUBE_PASSPHRASE = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""; $rng.Dispose(); $CUBE_PASSPHRASE | Set-Content -Path $PASSPHRASE_FILE -NoNewline; Write-Host "  OK Generated passphrase" }
+>> $env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
+>> Write-Host "  -> Generating PT26-DSA keypair..."
+>> $ErrorActionPreference = "Continue"
+>> $env:CUBE_MODE = "keygen"; $keygenLog = Join-Path $LOG_DIR "keygen.log"; $keygenOutput = & $DAEMON_PATH 2>$keygenLog; $env:CUBE_MODE = $null
+>> $ErrorActionPreference = "Stop"
+>> $PUB_KEY = ($keygenOutput | Select-Object -Last 1).Trim()
+>> if (-not $PUB_KEY) { throw "Keygen failed -- check $keygenLog" }
+>> Write-Host "  OK PubKey: $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green
+>> Write-Host ""; Write-Host "Starting CRS daemon on port 51820..."
+>> Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+>> Start-Sleep -Milliseconds 500
+>> $env:CUBE_MODE = "crs"; $env:CUBE_CRS_PORT = "51820"
+>> $daemonOutLog = Join-Path $LOG_DIR "intercube-crs-out.log"; $daemonErrLog = Join-Path $LOG_DIR "intercube-crs-err.log"
+>> $daemonProc = Start-Process -FilePath $DAEMON_PATH -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
+>> Write-Host "  OK Daemon PID $($daemonProc.Id)" -ForegroundColor Green
+>> Start-Sleep -Seconds 3
+>> Write-Host ""; Write-Host "Verifying port 51820..."
+>> $portCheck = Get-NetTCPConnection -LocalPort 51820 -ErrorAction SilentlyContinue
+>> if ($portCheck) { Write-Host "  OK Port 51820 is OPEN" -ForegroundColor Green }
+>> try { $h = Invoke-RestMethod -Uri "http://127.0.0.1:51820/api/salvi/inter-cube/crs/cubes" -TimeoutSec 5 -ErrorAction Stop; Write-Host "  OK CRS endpoint responded" -ForegroundColor Green } catch { Write-Host "  -> Check log: $daemonOutLog" -ForegroundColor Yellow }
+>> Write-Host ""; Write-Host "========================================" -ForegroundColor Green; Write-Host "  PlenumNET Inter-Cube daemon is LIVE" -ForegroundColor Green; Write-Host "  Binary : $DAEMON_PATH" -ForegroundColor Green; Write-Host "  PID    : $($daemonProc.Id)" -ForegroundColor Green; Write-Host "  Port   : 51820" -ForegroundColor Green; Write-Host "  PubKey : $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green; Write-Host "========================================" -ForegroundColor Green
+>> Write-Host ""; Write-Host "To stop: Stop-Process -Id $($daemonProc.Id)" -ForegroundColor Yellow
+>> Read-Host "Press Enter to close (daemon keeps running)"
+>> '@ | Set-Content "$env:TEMP\yoda-rerun.ps1" -Encoding UTF8; & "$env:TEMP\yoda-rerun.ps1"
+=== YODA Re-run Installer ===
+
+Checking for MSVC ARM64 build tools...
+
+Setting up build environment...
+  No vcvars found -- checking for clang...
+  OK Clang available
+
+Cleaning previous failed build...
+  OK Cleaned ring artifacts
+
+Building inter-cube daemon (takes a few minutes on first build)...
+  Cargo warnings are normal -- only errors matter.
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+   Compiling ring v0.17.14
+   Compiling zerovec-derive v0.10.3
+   Compiling displaydoc v0.2.5
+   Compiling tokio-macros v2.6.0
+   Compiling tracing-attributes v0.1.31
+   Compiling icu_provider_macros v1.5.0
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.7.5
+   Compiling serde_derive v1.0.228
+   Compiling futures-channel v0.3.32
+   Compiling pin-utils v0.1.0
+   Compiling atomic-waker v1.1.2
+   Compiling write16 v1.0.0
+   Compiling utf16_iter v1.0.5
+   Compiling zmij v1.0.21
+   Compiling tower-layer v0.3.3
+   Compiling httpdate v1.0.3
+   Compiling rustls v0.23.37
+   Compiling tokio v1.49.0
+   Compiling utf8_iter v1.0.4
+   Compiling wasm-bindgen-shared v0.2.114
+   Compiling crossbeam-epoch v0.9.18
+   Compiling libc v0.2.182
+   Compiling form_urlencoded v1.2.2
+   Compiling autocfg v1.5.0
+   Compiling bumpalo v3.20.2
+   Compiling serde_json v1.0.149
+   Compiling rayon-core v1.12.1
+   Compiling ipnet v2.12.0
+   Compiling base64 v0.22.1
+   Compiling subtle v2.6.1
+   Compiling wasm-bindgen-macro-support v0.2.114
+   Compiling zerofrom v0.1.5
+   Compiling crossbeam-deque v0.8.6
+   Compiling tracing v0.1.44
+   Compiling wasm-bindgen v0.2.114
+   Compiling num-traits v0.2.19
+   Compiling yoke v0.7.5
+   Compiling http-body-util v0.1.3
+   Compiling libm v0.2.16
+   Compiling ryu v1.0.23
+   Compiling unicode-ident v1.0.24
+   Compiling memchr v2.8.0
+   Compiling zerovec v0.10.4
+   Compiling webpki-roots v1.0.6
+   Compiling async-trait v0.1.89
+   Compiling either v1.15.0
+   Compiling bitflags v2.11.0
+   Compiling mime v0.3.17
+   Compiling iri-string v0.7.10
+   Compiling serde_path_to_error v0.1.20
+   Compiling rayon v1.10.0
+   Compiling axum-core v0.4.5
+   Compiling tinystr v0.7.5
+   Compiling icu_collections v1.5.0
+   Compiling serde v1.0.228
+   Compiling matchit v0.7.3
+   Compiling icu_locid v1.5.0
+   Compiling hostname v0.4.2
+   Compiling serde_urlencoded v0.7.1
+   Compiling chrono v0.4.44
+   Compiling hex v0.4.3
+   Compiling icu_provider v1.5.0
+   Compiling wasm-bindgen-macro v0.2.114
+   Compiling icu_locid_transform v1.5.0
+   Compiling icu_properties v1.5.1
+   Compiling ternary-math v0.1.0 (C:\Users\Sigma\PlenumNET\ternary-math)
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+   Compiling hyper v1.8.1
+   Compiling tower v0.5.3
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:1994:47
+     |
+1994 |     let independent = aflags & 0x04 != 0; let adaptive_rep = aflags & 0x08 != 0;
+     |                                               ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: unused variable: `mode`
+    --> ternary-math\src\ttc.rs:2048:9
+     |
+2048 |     let mode = CompressionMode::from_u8(compressed[0x05])?;
+     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_mode`
+System.Management.Automation.RemoteException
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:2055:9
+     |
+2055 |     let adaptive_rep = aflags & 0x08 != 0;
+     |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+System.Management.Automation.RemoteException
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `TRIBONACCI_SEQ` is never used
+   --> ternary-math\src\ttc.rs:119:7
+    |
+119 | const TRIBONACCI_SEQ: [u64; 30] = [
+    |       ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: associated function `new` is never used
+   --> ternary-math\src\ttc.rs:538:8
+    |
+536 | impl TritStreamWriter {
+    | --------------------- associated function in this implementation
+537 |     #[inline]
+538 |     fn new() -> Self { Self { buffer: Vec::new(), pending: [0; 5], count: 0, total_trits: 0 } }
+    |        ^^^
+System.Management.Automation.RemoteException
+warning: method `is_exhausted` is never used
+   --> ternary-math\src\ttc.rs:619:8
+    |
+593 | impl<'a> TritStreamReader<'a> {
+    | ----------------------------- method in this implementation
+...
+619 |     fn is_exhausted(&self) -> bool {
+    |        ^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `deserialize_ternary_enhanced` is never used
+    --> ternary-math\src\ttc.rs:1601:4
+     |
+1601 | fn deserialize_ternary_enhanced(payload: &[u8], _adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+   Compiling tower-http v0.6.8
+   Compiling rustls-webpki v0.103.9
+   Compiling hyper-util v0.1.20
+   Compiling icu_normalizer v1.5.0
+   Compiling idna_adapter v1.2.0
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling axum v0.7.9
+   Compiling tokio-rustls v0.26.4
+   Compiling hyper-rustls v0.27.7
+   Compiling reqwest v0.12.28
+warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+   Compiling inter-cube v0.2.0 (C:\Users\Sigma\PlenumNET\services\inter-cube)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:48:34
+   |
+48 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: unused import: `Path`
+  --> services\inter-cube\src\persistence.rs:60:17
+   |
+60 | use std::path::{Path, PathBuf};
+   |                 ^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `DIMENSIONS`
+  --> services\inter-cube\src\lattice_mixer.rs:49:34
+   |
+49 | use crate::cube_addr::{CubeAddr, DIMENSIONS};
+   |                                  ^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `TOTAL_VERTICES`
+  --> services\inter-cube\src\sampling.rs:51:46
+   |
+51 | use crate::cube_addr::{CubeAddr, DIMENSIONS, TOTAL_VERTICES};
+   |                                              ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `DimensionDensity`
+  --> services\inter-cube\src\sampling.rs:52:42
+   |
+52 | use crate::placement::{hamming_distance, DimensionDensity};
+   |                                          ^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `std::collections::HashMap`
+  --> services\inter-cube\src\pt26_parallel.rs:13:5
+   |
+13 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+  --> services\inter-cube\src\pt26_parallel.rs:18:46
+   |
+18 |     DIMENSIONS, NUM_SIGMAS, STEP_COMMIT_LEN, SIG_COMMIT_LEN,
+   |                                              ^^^^^^^^^^^^^^
+19 |     DOMAIN_MSG, DOMAIN_SIG,
+   |                 ^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: unused variable: `min_c`
+   --> services\inter-cube\src\dimension_tracker.rs:224:17
+    |
+224 |             let min_c = *counts.iter().min().unwrap();
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_min_c`
+System.Management.Automation.RemoteException
+warning: variable does not need to be mutable
+  --> services\inter-cube\src\pt26_parallel.rs:84:17
+   |
+84 |             let mut current_trits = addr_bytes;
+   |                 ----^^^^^^^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+   --> services\inter-cube\src\overlay.rs:273:5
+    |
+263 | pub struct CubeOverlayNetwork {
+    |            ------------------ fields in this struct
+...
+273 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+274 |     /// Key rotation interval.
+275 |     key_rotation_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: method `count` is never used
+   --> services\inter-cube\src\crs.rs:340:8
+    |
+275 | impl AddressAllocator {
+    | --------------------- method in this implementation
+...
+340 |     fn count(&self) -> u64 {
+    |        ^^^^^
+System.Management.Automation.RemoteException
+warning: field `heartbeat_interval` is never read
+   --> services\inter-cube\src\crs.rs:468:5
+    |
+462 | pub struct CubeRegistrationService {
+    |            ----------------------- field in this struct
+...
+468 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: associated function `entropy_seed` is never used
+   --> services\inter-cube\src\identity.rs:236:19
+    |
+180 | impl MasterSecret {
+    | ----------------- associated function in this implementation
+...
+236 |     pub(crate) fn entropy_seed() -> Vec<u8> {
+    |                   ^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `GRID_ROWS` is never used
+  --> services\inter-cube\src\wire_ecc.rs:74:7
+   |
+74 | const GRID_ROWS: usize = 3;
+   |       ^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `OVERFLOW` is never used
+  --> services\inter-cube\src\wire_ecc.rs:75:7
+   |
+75 | const OVERFLOW: usize = 4;
+   |       ^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `ROW_SIZES` is never used
+   --> services\inter-cube\src\wire_ecc.rs:110:7
+    |
+110 | const ROW_SIZES: [usize; 4] = [3, 3, 3, 4];
+    |       ^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: `inter-cube` (lib) generated 17 warnings (run `cargo fix --lib -p inter-cube` to apply 10 suggestions)
+    Finished `release` profile [optimized] target(s) in 47.05s
+  OK Daemon: C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe
+
+Setting up identity...
+  OK Generated passphrase
+  -> Generating PT26-DSA keypair...
+  OK PubKey: Set CUBE_IDENTITY_PASSPHRASE to ...
+
+Starting CRS daemon on port 51820...
+  OK Daemon PID 37196
+
+Verifying port 51820...
+  -> Check log: C:\Users\Sigma\yoda-models\logs\intercube-crs-out.log
+
+========================================
+  PlenumNET Inter-Cube daemon is LIVE
+  Binary : C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe
+  PID    : 37196
+  Port   : 51820
+  PubKey : Set CUBE_IDENTITY_PASSPHRASE to ...
+========================================
+
+To stop: Stop-Process -Id 37196
+Press Enter to close (daemon keeps running):
