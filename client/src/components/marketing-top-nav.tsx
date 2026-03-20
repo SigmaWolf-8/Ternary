@@ -757,6 +757,7 @@ export function MarketingTopNav() {
               )}
             </div>
           </div>
+          <div className="pb-8">
           <svg
             className="w-full"
             height="16"
@@ -776,6 +777,7 @@ export function MarketingTopNav() {
             <line x1="780" y1="1" x2="780" y2="15"
               stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
           </svg>
+          </div>
         </header>
       </AnchorScrollContext.Provider>
     </NavigateContext.Provider>
