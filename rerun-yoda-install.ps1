@@ -1,4 +1,5 @@
-# PlenumLAN Cube Node Installer / Re-run Script
+# YODA Self-Host Installer (Windows)
+# Model: DeepSeek-R1-Distill-Qwen-7B  |  LLM Port: 8080  |  Cube API Port: 8081
 # Connects to the PlenumNET CRS at https://plenumnet.replit.app
 $ErrorActionPreference = "Stop"
 trap {
@@ -11,15 +12,24 @@ trap {
 }
 
 $CRS_URL       = "https://plenumnet.replit.app"
-$PLENUMNET_DIR = "C:\PlenumNET"
+$GGUF_REPO     = "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF"
+$GGUF_FILE     = "DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf"
+$LLM_PORT      = 8080
+$CUBE_API_PORT = 8081
+$PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
 $IDENTITY_DIR  = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
-$LOG_DIR       = Join-Path $PLENUMNET_DIR "logs"
+$MODELS_DIR    = Join-Path $env:USERPROFILE "yoda-models"
+$MODEL_PATH    = Join-Path $MODELS_DIR $GGUF_FILE
+$LOG_DIR       = Join-Path $MODELS_DIR "logs"
+$LLAMA_DIR     = Join-Path $env:USERPROFILE "llama.cpp"
 
-Write-Host "=== PlenumLAN Cube Node Installer ===" -ForegroundColor Cyan
-Write-Host "CRS  : $CRS_URL"
+Write-Host "=== YODA Self-Host Installer ===" -ForegroundColor Cyan
+Write-Host "Model  : DeepSeek-R1-Distill-Qwen-7B"
+Write-Host "LLM    : http://localhost:$LLM_PORT  (OpenAI-compatible)"
+Write-Host "CRS    : $CRS_URL"
 Write-Host ""
 
-# -- 1. Detect local IP -----------------------------------------------------
+# -- 1. Detect local IP -------------------------------------------------------
 $ip = (Get-NetIPAddress -AddressFamily IPv4 |
   Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254' -and $_.PrefixOrigin -ne 'WellKnown' } |
   Sort-Object @{ Expression = { switch -Wildcard ($_.InterfaceAlias) { 'Wi-Fi*' { 0 } 'Ethernet*' { 1 } default { 2 } } } } |
@@ -31,7 +41,7 @@ if ($ip -eq "0.0.0.0") {
   Write-Host "  WARN Could not detect local IP -- routing may fail." -ForegroundColor Yellow
 }
 
-# -- 2. Check Rust/Cargo ----------------------------------------------------
+# -- 2. Check / install Rust --------------------------------------------------
 Write-Host ""
 Write-Host "Checking Rust/Cargo..."
 if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
@@ -46,13 +56,16 @@ if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
 } else {
   Write-Host "  OK Cargo already installed: $(cargo --version 2>$null)"
 }
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+  throw "cargo not found after install -- restart this script in a new terminal so PATH is refreshed."
+}
 
-# -- 3. Check Git ------------------------------------------------------------
+# -- 3. Check Git --------------------------------------------------------------
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw "Git is not installed. Install it from https://git-scm.com/download/win then re-run this installer."
 }
 
-# -- 4. Find Visual Studio and ARM64 build tools -----------------------------
+# -- 4. Find Visual Studio and ARM64 build tools ------------------------------
 Write-Host ""
 Write-Host "Setting up build environment for the ring crypto crate..."
 $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
@@ -165,6 +178,12 @@ if (Test-Path (Join-Path $PLENUMNET_DIR ".git")) {
 } else {
   Invoke-ClonePlenumNET
 }
+foreach ($member in @((Join-Path (Join-Path "services" "inter-cube") "Cargo.toml"), (Join-Path "ternary-math" "Cargo.toml"))) {
+  $full = Join-Path $PLENUMNET_DIR $member
+  if (-not (Test-Path $full)) {
+    throw "$member missing after clone -- check network and try again."
+  }
+}
 
 Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)..."
 Write-Host "  Cargo warnings are normal -- only errors matter." -ForegroundColor Gray
@@ -234,47 +253,141 @@ if (-not $PUB_KEY) {
 }
 Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green
 
-# -- 7. Start cube daemon connecting to Replit CRS ---------------------------
+# -- 7. Install llama.cpp -----------------------------------------------------
+Write-Host ""
+Write-Host "Installing llama.cpp..."
+$llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($llamaServer) {
+  Write-Host "  OK llama-server.exe: $($llamaServer.FullName)"
+} else {
+  New-Item -ItemType Directory -Force -Path $LLAMA_DIR | Out-Null
+  $release = (Invoke-RestMethod "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest").tag_name
+  if ($cpuArch -eq "Arm64") {
+    $zipName = "llama-$release-bin-win-arm64.zip"
+  } else {
+    $zipName = "llama-$release-bin-win-avx2-x64.zip"
+  }
+  $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/$zipName"
+  Write-Host "  -> Downloading llama.cpp $release ($zipName)..."
+  $zipPath = Join-Path $env:TEMP "llamacpp.zip"
+  if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+    curl.exe -fL "$zipUrl" -o "$zipPath"
+  } else {
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
+  }
+  Expand-Archive -Path $zipPath -DestinationPath $LLAMA_DIR -Force
+  Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+  $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" | Select-Object -First 1
+  if (-not $llamaServer) { throw "llama-server.exe not found after extraction -- the zip may be for a different CPU architecture." }
+  Write-Host "  OK llama.cpp installed: $($llamaServer.FullName)" -ForegroundColor Green
+}
+$LLAMA_SERVER = $llamaServer.FullName
+
+# -- 8. Download GGUF model ----------------------------------------------------
+Write-Host ""
+Write-Host "Downloading model: $GGUF_FILE"
+Write-Host "  Source : https://huggingface.co/$GGUF_REPO"
+Write-Host "  Dest   : $MODEL_PATH"
+New-Item -ItemType Directory -Force -Path $MODELS_DIR | Out-Null
+if ((Test-Path $MODEL_PATH) -and (Get-Item $MODEL_PATH).Length -gt 0) {
+  $sz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
+  Write-Host "  OK Already downloaded ($sz GB), skipping"
+} else {
+  Write-Host "  (This may be several GB -- download resumes if interrupted)"
+  $modelUrl = "https://huggingface.co/$GGUF_REPO/resolve/main/$GGUF_FILE"
+  if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+    curl.exe -fL -C - --progress-bar "$modelUrl" -o "$MODEL_PATH"
+  } else {
+    try {
+      Start-BitsTransfer -Source $modelUrl -Destination $MODEL_PATH -Priority Normal
+    } catch {
+      Write-Host "  -> BITS unavailable, falling back to direct download..."
+      $wc = New-Object System.Net.WebClient
+      $wc.DownloadFile($modelUrl, $MODEL_PATH)
+    }
+  }
+}
+if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
+  throw "Model file missing or empty after download -- check your internet connection and disk space."
+}
+$modelSz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
+Write-Host "  OK Model ready ($modelSz GB)" -ForegroundColor Green
+
+# -- 9. Register with PlenumNET CRS -------------------------------------------
+Write-Host ""
+Write-Host "Registering with PlenumNET CRS..."
+$regOk = $false
+for ($attempt = 1; $attempt -le 5; $attempt++) {
+  try {
+    $regResult = Invoke-RestMethod -Uri "$CRS_URL/api/salvi/inter-cube/relay/register?publicKey=$PUB_KEY&endpoint=$CUBE_ENDPOINT" -TimeoutSec 15 -ErrorAction Stop
+    $regOk = $true
+    break
+  } catch {
+    Write-Host "  Attempt $attempt failed: $_ -- retrying in 3s..."
+    Start-Sleep -Seconds 3
+  }
+}
+if (-not $regOk) { throw "CRS registration failed after 5 attempts -- check your internet connection." }
+$CUBE_ADDRESS = $regResult.address
+Write-Host "  OK Registered with CRS -- ternary address: $CUBE_ADDRESS" -ForegroundColor Green
+
+# -- 10. Start llama-server ----------------------------------------------------
+Write-Host ""
+Write-Host "Starting llama-server on port $LLM_PORT..."
+Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 800
+$serverOutLog = Join-Path $LOG_DIR "llama-server-$LLM_PORT-out.log"
+$serverErrLog = Join-Path $LOG_DIR "llama-server-$LLM_PORT-err.log"
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model `"$MODEL_PATH`" --port $LLM_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
+Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverOutLog" -ForegroundColor Green
+Start-Sleep -Seconds 2
+
+# -- 11. Start PlenumNET cube daemon -------------------------------------------
 Write-Host ""
 Write-Host "Starting PlenumNET cube daemon..."
-Write-Host "  CRS  : $CRS_URL"
-Write-Host "  Node : $CUBE_ENDPOINT"
 Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 500
 
 $env:CUBE_MODE     = "cube"
 $env:CUBE_CRS_URL  = $CRS_URL
 $env:CUBE_ENDPOINT = $CUBE_ENDPOINT
-$env:CUBE_API_PORT = "8080"
+$env:CUBE_API_PORT = "$CUBE_API_PORT"
 $daemonOutLog = Join-Path $LOG_DIR "intercube-cube-out.log"
 $daemonErrLog = Join-Path $LOG_DIR "intercube-cube-err.log"
 $daemonProc = Start-Process -FilePath $DAEMON_PATH -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
-Write-Host "  OK Daemon started (PID $($daemonProc.Id))" -ForegroundColor Green
-Start-Sleep -Seconds 5
+Write-Host "  OK Daemon started (PID $($daemonProc.Id)) -- log: $daemonOutLog" -ForegroundColor Green
+Start-Sleep -Seconds 3
 
-# -- 8. Verify registration -------------------------------------------------
+# -- 12. Verify ----------------------------------------------------------------
 Write-Host ""
-Write-Host "Verifying CRS registration..."
+Write-Host "Verifying services..."
 try {
   $health = Invoke-RestMethod -Uri "$CRS_URL/health/crs" -TimeoutSec 10 -ErrorAction Stop
-  Write-Host "  OK CRS reachable: $($health.service) v$($health.version)" -ForegroundColor Green
+  Write-Host "  OK CRS reachable: $($health.service)" -ForegroundColor Green
 } catch {
-  Write-Host "  WARN CRS health check failed: $_ " -ForegroundColor Yellow
-  Write-Host "  Check log: $daemonOutLog" -ForegroundColor Yellow
+  Write-Host "  WARN CRS health check failed: $_" -ForegroundColor Yellow
+}
+try {
+  $llamaHealth = Invoke-WebRequest -Uri "http://localhost:$LLM_PORT/health" -TimeoutSec 10 -ErrorAction Stop
+  Write-Host "  OK llama-server healthy (port $LLM_PORT)" -ForegroundColor Green
+} catch {
+  Write-Host "  WARN llama-server not responding yet (model may still be loading) -- check logs: $serverErrLog" -ForegroundColor Yellow
 }
 
-# -- 9. Summary --------------------------------------------------------------
+# -- 13. Summary ---------------------------------------------------------------
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "  PlenumLAN Cube Node is LIVE" -ForegroundColor Green
-Write-Host "  Binary   : $DAEMON_PATH" -ForegroundColor Green
-Write-Host "  PID      : $($daemonProc.Id)" -ForegroundColor Green
-Write-Host "  CRS      : $CRS_URL" -ForegroundColor Green
-Write-Host "  Endpoint : $CUBE_ENDPOINT" -ForegroundColor Green
-Write-Host "  PubKey   : $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green
-Write-Host "  Logs     : $LOG_DIR" -ForegroundColor Green
+Write-Host "  YODA Setup Complete!" -ForegroundColor Green
+Write-Host "  Model   : DeepSeek-R1-Distill-Qwen-7B" -ForegroundColor Green
+Write-Host "  LLM API : http://localhost:$LLM_PORT  (OpenAI-compatible)" -ForegroundColor Green
+Write-Host "  Cube    : $CUBE_ADDRESS" -ForegroundColor Green
+Write-Host "  CRS     : $CRS_URL" -ForegroundColor Green
+Write-Host "  Endpoint: $CUBE_ENDPOINT" -ForegroundColor Green
+Write-Host "  PubKey  : $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green
+Write-Host "  Logs    : $LOG_DIR" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Daemon runs in the background." -ForegroundColor Yellow
-Write-Host "To stop it: Stop-Process -Id $($daemonProc.Id)" -ForegroundColor Yellow
-Read-Host "Press Enter to close (daemon keeps running)"
+Write-Host "Both processes run in the background." -ForegroundColor Yellow
+Write-Host "Logs: $LOG_DIR" -ForegroundColor Yellow
+Write-Host "To stop: Stop-Process -Id $($serverProc.Id); Stop-Process -Id $($daemonProc.Id)" -ForegroundColor Yellow
+Read-Host "Press Enter to close (processes keep running)"

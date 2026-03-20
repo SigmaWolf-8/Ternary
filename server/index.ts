@@ -503,70 +503,133 @@ function startPqtiService(): ChildProcess | null {
     res.sendFile(filePath);
   });
 
-  app.get("/api/salvi/inter-cube/relay/register", async (req, res) => {
-    try {
-      const { publicKey, endpoint } = req.query as { publicKey?: string; endpoint?: string };
-      if (!publicKey || !endpoint) {
-        return res.status(400).json({ error: "publicKey and endpoint query params required" });
-      }
-      const upstream = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicKey, endpoint }),
-      });
-      const body = await upstream.text();
-      res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
-    } catch (e: any) {
-      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+  const DIMENSIONS = 13;
+  const TOTAL_ADDRESSES = Math.pow(3, DIMENSIONS);
+  const crsRegistry = new Map<string, { publicKey: string; endpoint: string; lastSeen: number }>();
+  let crsAddressCounter = 1;
+
+  function toTernary(n: number, digits: number): string {
+    let result = "";
+    let val = n;
+    for (let i = 0; i < digits; i++) {
+      result = ((val % 3) + 1).toString() + result;
+      val = Math.floor(val / 3);
     }
+    return result;
+  }
+
+  function getNeighbors(addr: string): { address: string; endpoint: string | null; registered: boolean }[] {
+    const neighbors: { address: string; endpoint: string | null; registered: boolean }[] = [];
+    for (let dim = 0; dim < DIMENSIONS; dim++) {
+      const pos = DIMENSIONS - 1 - dim;
+      const digit = parseInt(addr[pos]);
+      for (const delta of [1, 2]) {
+        const newDigit = ((digit - 1 + delta) % 3) + 1;
+        const neighborAddr = addr.substring(0, pos) + newDigit.toString() + addr.substring(pos + 1);
+        const entry = crsRegistry.get(neighborAddr);
+        neighbors.push({
+          address: neighborAddr,
+          endpoint: entry?.endpoint || null,
+          registered: !!entry,
+        });
+      }
+    }
+    return neighbors;
+  }
+
+  async function tryCrsDaemon(url: string, opts: RequestInit): Promise<globalThis.Response | null> {
+    try {
+      const resp = await fetch(url, opts);
+      return resp;
+    } catch {
+      return null;
+    }
+  }
+
+  app.get("/api/salvi/inter-cube/relay/register", async (req, res) => {
+    const { publicKey, endpoint } = req.query as { publicKey?: string; endpoint?: string };
+    if (!publicKey || !endpoint) {
+      return res.status(400).json({ error: "publicKey and endpoint query params required" });
+    }
+    const upstream = await tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publicKey, endpoint }),
+    });
+    if (upstream) {
+      const body = await upstream.text();
+      return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
+    }
+    const existingAddr = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];
+    let addr: string;
+    if (existingAddr) {
+      addr = existingAddr;
+      crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now() });
+    } else {
+      addr = toTernary(crsAddressCounter++, DIMENSIONS);
+      crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now() });
+    }
+    const neighbors = getNeighbors(addr);
+    const registeredNeighbors = neighbors.filter((n) => n.registered).length;
+    log(`CRS(TS) registered ${publicKey.substring(0, 16)}... as ${addr} (${registeredNeighbors}/${neighbors.length} neighbors)`, "crs");
+    res.json({ address: addr, endpoint, neighbors, registeredNeighbors, totalNeighbors: neighbors.length });
   });
 
   app.get("/api/salvi/inter-cube/relay/heartbeat", async (req, res) => {
-    try {
-      const { address, publicKey } = req.query as { address?: string; publicKey?: string };
-      if (!address) {
-        return res.status(400).json({ error: "address query param required" });
-      }
-      const upstream = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/heartbeat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, publicKey: publicKey || "" }),
-      });
+    const { address, publicKey } = req.query as { address?: string; publicKey?: string };
+    if (!address) {
+      return res.status(400).json({ error: "address query param required" });
+    }
+    const upstream = await tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/heartbeat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, publicKey: publicKey || "" }),
+    });
+    if (upstream) {
       const body = await upstream.text();
-      res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
-    } catch (e: any) {
-      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+      return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
+    }
+    const entry = crsRegistry.get(address as string);
+    if (entry) {
+      entry.lastSeen = Date.now();
+      res.json({ status: "ok", address });
+    } else {
+      res.status(404).json({ error: "Address not registered" });
     }
   });
 
   const interCubeProxy = async (req: any, res: any) => {
-    try {
-      const targetUrl = `http://127.0.0.1:8181${req.originalUrl}`;
-      const fetchOpts: RequestInit = {
-        method: req.method,
-        headers: { "Content-Type": "application/json" },
-      };
-      if (req.method !== "GET" && req.method !== "HEAD" && req.body) {
-        fetchOpts.body = JSON.stringify(req.body);
-      }
-      const upstream = await fetch(targetUrl, fetchOpts);
+    const upstream = await tryCrsDaemon(`http://127.0.0.1:8181${req.originalUrl}`, {
+      method: req.method,
+      headers: { "Content-Type": "application/json" },
+      ...(req.method !== "GET" && req.method !== "HEAD" && req.body ? { body: JSON.stringify(req.body) } : {}),
+    });
+    if (upstream) {
       const body = await upstream.text();
-      res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
-    } catch (e: any) {
-      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+      return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
     }
+    if (req.params.service === "crs" && req.params.action === "register") {
+      const { publicKey, endpoint: ep } = req.body || {};
+      if (!publicKey || !ep) return res.status(400).json({ error: "publicKey and endpoint required" });
+      const addr = toTernary(crsAddressCounter++, DIMENSIONS);
+      crsRegistry.set(addr, { publicKey, endpoint: ep, lastSeen: Date.now() });
+      return res.json({ address: addr, endpoint: ep, neighbors: getNeighbors(addr), registeredNeighbors: 0, totalNeighbors: DIMENSIONS * 2 });
+    }
+    if (req.params.service === "crs" && req.params.action === "stats") {
+      return res.json({ registeredCubes: crsRegistry.size, availableAddresses: TOTAL_ADDRESSES - crsRegistry.size, totalAddressSpace: TOTAL_ADDRESSES, dimensions: DIMENSIONS });
+    }
+    res.status(503).json({ error: "CRS daemon not available for this endpoint" });
   };
   app.all("/api/salvi/inter-cube/:service/:action", interCubeProxy);
   app.all("/api/salvi/inter-cube/:service", interCubeProxy);
 
   app.get("/health/crs", async (_req, res) => {
-    try {
-      const upstream = await fetch("http://127.0.0.1:8181/health");
+    const upstream = await tryCrsDaemon("http://127.0.0.1:8181/health", { method: "GET" });
+    if (upstream) {
       const body = await upstream.text();
-      res.status(upstream.status).setHeader("Content-Type", "application/json").send(body);
-    } catch (e: any) {
-      res.status(502).json({ error: "CRS daemon unreachable", detail: e.message });
+      return res.status(upstream.status).setHeader("Content-Type", "application/json").send(body);
     }
+    res.json({ status: "ok", service: "PlenumNET Inter-Cube Infrastructure (TS fallback)", version: "0.2.0", mode: "crs", address: toTernary(0, DIMENSIONS), registeredCubes: crsRegistry.size });
   });
 
   app.get("/api/yoda-installer", async (_req, res) => {
