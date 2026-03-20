@@ -1,14 +1,22 @@
-# YODA Re-run Installer -- paste into PowerShell and hit Enter
-# This cleans the failed build and retries from the cargo step
+# YODA Re-run Installer
 $ErrorActionPreference = "Stop"
-
 Write-Host "=== YODA Re-run Installer ===" -ForegroundColor Cyan
 Write-Host ""
 
-# -- 1. Verify MSVC ARM64 build tools are now installed -------------------
+# -- 1. Find Visual Studio and ARM64 build tools --------------------------
 Write-Host "Checking for MSVC ARM64 build tools..."
-$vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-if (Test-Path $vsWhere) {
+$vsWhere = $null
+$searchPaths = @(
+  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+  "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe",
+  "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe",
+  "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
+)
+foreach ($p in $searchPaths) {
+  if (Test-Path $p) { $vsWhere = $p; break }
+}
+$vsPath = $null
+if ($vsWhere) {
   $vsPath = & $vsWhere -latest -property installationPath 2>$null
   if ($vsPath) {
     Write-Host "  OK Visual Studio found at: $vsPath" -ForegroundColor Green
@@ -19,13 +27,26 @@ if (Test-Path $vsWhere) {
     } else {
       Write-Host "  WARNING: ARM64 cl.exe NOT found." -ForegroundColor Red
       Write-Host "  Open Visual Studio Installer -> Modify -> Individual Components" -ForegroundColor Yellow
-      Write-Host "  Check: 'MSVC v143 - VS 2022 C++ ARM64/ARM64EC build tools (Latest)'" -ForegroundColor Yellow
-      Write-Host "  Check: 'Windows 11 SDK (latest version)'" -ForegroundColor Yellow
+      Write-Host "  Check: MSVC v143 - VS 2022 C++ ARM64/ARM64EC build tools (Latest)" -ForegroundColor Yellow
+      Write-Host "  Check: Windows 11 SDK (latest version)" -ForegroundColor Yellow
       Read-Host "Press Enter after installing, or Ctrl+C to abort"
     }
+  } else {
+    Write-Host "  WARNING: vswhere found but returned no installation" -ForegroundColor Yellow
   }
 } else {
-  Write-Host "  vswhere.exe not found -- will attempt build anyway" -ForegroundColor Yellow
+  Write-Host "  WARNING: vswhere.exe not found -- searching for cl.exe directly..." -ForegroundColor Yellow
+  $clSearch = Get-ChildItem -Path "C:\Program Files*\Microsoft Visual Studio" -Recurse -Filter "cl.exe" -ErrorAction SilentlyContinue |
+    Where-Object { $_.DirectoryName -match "arm64" } | Select-Object -First 1
+  if ($clSearch) {
+    Write-Host "  OK Found ARM64 cl.exe: $($clSearch.FullName)" -ForegroundColor Green
+    $vsPath = ($clSearch.FullName -split "\\VC\\")[0]
+  } else {
+    Write-Host "  No ARM64 cl.exe found anywhere." -ForegroundColor Red
+    Write-Host "  Install via: Visual Studio Installer -> Modify -> Individual Components" -ForegroundColor Yellow
+    Write-Host "  Check: MSVC v143 - VS 2022 C++ ARM64/ARM64EC build tools (Latest)" -ForegroundColor Yellow
+    Read-Host "Press Enter after installing, or Ctrl+C to abort"
+  }
 }
 
 # -- 2. Set up VS environment for ARM64 -----------------------------------
@@ -33,44 +54,55 @@ Write-Host ""
 Write-Host "Setting up Visual Studio environment for ARM64..."
 $vcvarsPath = $null
 if ($vsPath) {
-  $vcvarsPath = Join-Path $vsPath "VC\Auxiliary\Build\vcvarsarm64.bat"
-  if (-not (Test-Path $vcvarsPath)) {
-    $vcvarsPath = Join-Path $vsPath "VC\Auxiliary\Build\vcvarsx86_arm64.bat"
-  }
-  if (-not (Test-Path $vcvarsPath)) {
-    $vcvarsPath = Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat"
+  $tryPaths = @(
+    (Join-Path $vsPath "VC\Auxiliary\Build\vcvarsarm64.bat"),
+    (Join-Path $vsPath "VC\Auxiliary\Build\vcvarsx86_arm64.bat"),
+    (Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat")
+  )
+  foreach ($tp in $tryPaths) {
+    if (Test-Path $tp) { $vcvarsPath = $tp; break }
   }
 }
-if ($vcvarsPath -and (Test-Path $vcvarsPath)) {
+if ($vcvarsPath) {
   Write-Host "  -> Running: $vcvarsPath"
-  $vcvarsCmd = if ($vcvarsPath -match "vcvarsall") { "`"$vcvarsPath`" arm64" } else { "`"$vcvarsPath`"" }
-  cmd /c "$vcvarsCmd >nul 2>&1 && set" | ForEach-Object {
-    if ($_ -match '^([^=]+)=(.*)$') {
-      [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
-    }
+  $vcCmd = if ($vcvarsPath -match "vcvarsall") { "`"$vcvarsPath`" arm64" } else { "`"$vcvarsPath`"" }
+  cmd /c "$vcCmd >nul 2>&1 && set" | ForEach-Object {
+    if ($_ -match '^([^=]+)=(.*)$') { [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') }
   }
   Write-Host "  OK VS environment loaded" -ForegroundColor Green
 } else {
-  Write-Host "  WARNING: Could not find vcvars script -- build may still fail" -ForegroundColor Yellow
+  Write-Host "  WARNING: Could not find vcvars script -- trying LLVM/Clang fallback..." -ForegroundColor Yellow
+  if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
+    Write-Host "  -> Installing LLVM via winget (this takes a minute)..." -ForegroundColor Yellow
+    winget install LLVM.LLVM --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
+    $env:PATH += ";C:\Program Files\LLVM\bin"
+  }
+  if (Get-Command clang -ErrorAction SilentlyContinue) {
+    Write-Host "  OK Clang available: $(clang --version 2>&1 | Select-Object -First 1)" -ForegroundColor Green
+    $env:CC = "clang"
+  } else {
+    Write-Host "  WARNING: No C compiler found -- build will likely fail" -ForegroundColor Red
+  }
 }
 
-# -- 3. Paths --------------------------------------------------------------
+# -- 3. Paths (PS 5.1 compatible -- no 3-arg Join-Path) --------------------
 $PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
-$LOG_DIR       = Join-Path $env:USERPROFILE "yoda-models" "logs"
-$IDENTITY_DIR  = Join-Path $env:USERPROFILE ".plenumnet" "identity"
+$MODELS_DIR    = Join-Path $env:USERPROFILE "yoda-models"
+$LOG_DIR       = Join-Path $MODELS_DIR "logs"
+$IDENTITY_DIR  = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
 
 # -- 4. Clean previous failed build and rebuild ----------------------------
 Write-Host ""
 Write-Host "Cleaning previous failed build..."
-$ringBuildDir = Join-Path $PLENUMNET_DIR "target" "release" "build"
+$ringBuildDir = Join-Path (Join-Path $PLENUMNET_DIR "target") (Join-Path "release" "build")
 if (Test-Path $ringBuildDir) {
   Get-ChildItem -Path $ringBuildDir -Directory -Filter "ring-*" | Remove-Item -Recurse -Force
   Write-Host "  OK Cleaned ring build artifacts"
 }
 
 Write-Host ""
-Write-Host "Building inter-cube daemon (this takes a few minutes on first build)..."
+Write-Host "Building inter-cube daemon (this takes a few minutes)..."
 Push-Location $PLENUMNET_DIR
 cargo build --release --package inter-cube 2>&1 | Tee-Object -Variable buildOutput
 $buildExitCode = $LASTEXITCODE
@@ -81,19 +113,16 @@ if ($buildExitCode -ne 0) {
   Write-Host "=== BUILD FAILED ===" -ForegroundColor Red
   Write-Host "The build output above should show the specific error." -ForegroundColor Red
   Write-Host ""
-  Write-Host "If ring still fails, try installing LLVM/Clang:" -ForegroundColor Yellow
-  Write-Host "  winget install LLVM.LLVM" -ForegroundColor Yellow
+  Write-Host "If ring/cc failed, try: winget install LLVM.LLVM" -ForegroundColor Yellow
   Write-Host "Then re-run this script." -ForegroundColor Yellow
   Read-Host "Press Enter to close"
   exit 1
 }
 
-$relDir = Join-Path $PLENUMNET_DIR "target" "release"
+$relDir = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
 $daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
   Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
-if (-not $daemonBin) {
-  throw "Build succeeded but no inter-cube binary found in $relDir"
-}
+if (-not $daemonBin) { throw "Build succeeded but no inter-cube binary found in $relDir" }
 $DAEMON_PATH = $daemonBin.FullName
 Write-Host "  OK Daemon built: $DAEMON_PATH" -ForegroundColor Green
 
@@ -105,7 +134,7 @@ $PASSPHRASE_FILE = Join-Path $IDENTITY_DIR ".passphrase"
 
 if (Test-Path $PASSPHRASE_FILE) {
   $CUBE_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim()
-  Write-Host "  -> Loaded existing identity passphrase"
+  Write-Host "  -> Loaded existing passphrase"
 } else {
   $rng   = [System.Security.Cryptography.RNGCryptoServiceProvider]::new()
   $bytes = [byte[]]::new(24)
@@ -113,7 +142,7 @@ if (Test-Path $PASSPHRASE_FILE) {
   $CUBE_PASSPHRASE = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
   $rng.Dispose()
   $CUBE_PASSPHRASE | Set-Content -Path $PASSPHRASE_FILE -NoNewline
-  Write-Host "  OK Generated and saved identity passphrase"
+  Write-Host "  OK Generated passphrase"
 }
 $env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
 
@@ -146,7 +175,7 @@ Start-Sleep -Seconds 3
 
 # -- 7. Verify port is open ------------------------------------------------
 Write-Host ""
-Write-Host "Verifying port 51820 is listening..."
+Write-Host "Verifying port 51820..."
 $portCheck = Get-NetTCPConnection -LocalPort 51820 -ErrorAction SilentlyContinue
 if ($portCheck) {
   Write-Host "  OK Port 51820 is OPEN and listening" -ForegroundColor Green
@@ -155,17 +184,11 @@ if ($portCheck) {
 }
 
 try {
-  $health = Invoke-RestMethod -Uri "http://127.0.0.1:51820/api/salvi/inter-cube/crs/health" -TimeoutSec 5 -ErrorAction Stop
-  Write-Host "  OK CRS health endpoint responded" -ForegroundColor Green
-  Write-Host "  $($health | ConvertTo-Json -Compress)" -ForegroundColor Cyan
+  $health = Invoke-RestMethod -Uri "http://127.0.0.1:51820/api/salvi/inter-cube/crs/cubes" -TimeoutSec 5 -ErrorAction Stop
+  Write-Host "  OK CRS endpoint responded" -ForegroundColor Green
 } catch {
-  try {
-    $cubes = Invoke-RestMethod -Uri "http://127.0.0.1:51820/api/salvi/inter-cube/crs/cubes" -TimeoutSec 5 -ErrorAction Stop
-    Write-Host "  OK CRS cubes endpoint responded" -ForegroundColor Green
-  } catch {
-    Write-Host "  -> HTTP check failed: $_" -ForegroundColor Yellow
-    Write-Host "  -> Check log: $daemonOutLog" -ForegroundColor Yellow
-  }
+  Write-Host "  -> HTTP check inconclusive: $_" -ForegroundColor Yellow
+  Write-Host "  -> Check log: $daemonOutLog" -ForegroundColor Yellow
 }
 
 # -- 8. Summary ------------------------------------------------------------
@@ -179,7 +202,6 @@ Write-Host "  PubKey : $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length))
 Write-Host "  Logs   : $LOG_DIR" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "The daemon is running in the background." -ForegroundColor Yellow
+Write-Host "Daemon runs in the background." -ForegroundColor Yellow
 Write-Host "To stop it: Stop-Process -Id $($daemonProc.Id)" -ForegroundColor Yellow
-Write-Host ""
-Read-Host "Press Enter to close this window (daemon keeps running)"
+Read-Host "Press Enter to close (daemon keeps running)"
