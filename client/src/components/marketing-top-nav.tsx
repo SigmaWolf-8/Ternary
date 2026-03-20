@@ -635,7 +635,7 @@ export function MarketingTopNav() {
         <header
           className="fixed top-0 z-[9999] w-full flex flex-col"
           style={{
-            height: "140px",
+            height: "125px",
             background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)",
             boxShadow: [
               "inset 0 1px 0 rgba(255,255,255,0.07)",
