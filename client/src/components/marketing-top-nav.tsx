@@ -414,7 +414,6 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
   return (
     <NavigationMenu
       className="hidden md:flex [&_button]:bg-transparent [&_button:hover]:bg-transparent"
-      style={{ fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
       delayDuration={100}
       skipDelayDuration={300}
       onValueChange={(val: string) => onOpenChange?.(val !== "")}
@@ -423,8 +422,8 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         <NavigationMenuItem>
           <NavigationMenuTrigger
             data-testid="nav-trigger-platform"
-            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em" }}
-            className="hover:!text-[#8A8578] data-[state=open]:!text-[#D4A017]"
+            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
+            className="hover:!text-[#E4DFD5] data-[state=open]:!text-[#38BDF8]"
           >
             Platform
           </NavigationMenuTrigger>
@@ -436,8 +435,8 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         <NavigationMenuItem>
           <NavigationMenuTrigger
             data-testid="nav-trigger-developers"
-            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em" }}
-            className="hover:!text-[#8A8578] data-[state=open]:!text-[#D4A017]"
+            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
+            className="hover:!text-[#E4DFD5] data-[state=open]:!text-[#38BDF8]"
           >
             Developers
           </NavigationMenuTrigger>
@@ -449,8 +448,8 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         <NavigationMenuItem>
           <NavigationMenuTrigger
             data-testid="nav-trigger-company"
-            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em" }}
-            className="hover:!text-[#8A8578] data-[state=open]:!text-[#D4A017]"
+            style={{ color: "#5A5548", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", fontFamily: "'Segoe UI', -apple-system, sans-serif" }}
+            className="hover:!text-[#E4DFD5] data-[state=open]:!text-[#38BDF8]"
           >
             Company
           </NavigationMenuTrigger>
@@ -636,21 +635,42 @@ export function MarketingTopNav() {
         <header
           className="fixed top-0 z-[9999] w-full"
           style={{
-            fontFamily: "'Segoe UI', -apple-system, sans-serif",
-            background: "linear-gradient(135deg, #0D0C0B 0%, #1A1816 100%)",
-            borderBottom: "1px solid #2A2520",
+            background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)",
+            boxShadow: [
+              "inset 0 1px 0 rgba(255,255,255,0.07)",
+              "inset 0 14px 48px rgba(0,0,0,0.6)",
+              "inset 0 -14px 48px rgba(0,0,0,0.45)",
+              "0 4px 28px rgba(0,0,0,0.65)",
+              "0 1px 0 rgba(255,255,255,0.04)",
+            ].join(", "),
           }}
           data-testid="marketing-top-nav"
         >
-          <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 lg:px-6">
+          <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 lg:px-6">
             <Link
               href="/"
-              className="flex items-center gap-2.5 mr-2"
-              style={{ color: "#D4A017", fontWeight: 600, letterSpacing: "0.5px" }}
+              className="flex items-center gap-3 mr-2"
               data-testid="link-logo"
             >
-              <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
-              <span className="text-[15px]">PlenumNET</span>
+              <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6" />
+              <h1
+                className="truncate uppercase"
+                style={{
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontSize: "20px",
+                  fontWeight: 800,
+                  letterSpacing: "0.12em",
+                  color: "#E4DFD5",
+                  textShadow: [
+                    "0 1px 0 rgba(0,0,0,0.1)",
+                    "0 2px 0 rgba(0,0,0,0.07)",
+                    "0 3px 8px rgba(0,0,0,0.08)",
+                    "0 0 20px rgba(56,189,248,0.15)",
+                  ].join(", "),
+                }}
+              >
+                PlenumNET
+              </h1>
             </Link>
 
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
@@ -672,8 +692,8 @@ export function MarketingTopNav() {
                     onChange={(e) => setNavEmail(e.target.value)}
                     className="h-8 w-52 text-xs"
                     style={{
-                      background: "#1A1816",
-                      border: "1px solid #2A2520",
+                      background: "hsl(20,12%,9%)",
+                      border: "1px solid hsl(20,10%,15%)",
                       color: "#E4DFD5",
                       fontFamily: "'Consolas', 'Menlo', monospace",
                     }}
@@ -686,15 +706,18 @@ export function MarketingTopNav() {
                     size="sm"
                     className="h-8 text-xs"
                     style={{
-                      background: "#D4A017",
-                      color: "#090807",
-                      border: "none",
+                      background: "transparent",
+                      border: "1px solid #38BDF8",
+                      color: "#38BDF8",
+                      fontFamily: "'Orbitron', sans-serif",
                       fontWeight: 600,
+                      fontSize: "10px",
+                      letterSpacing: "0.06em",
                     }}
                     disabled={navSignupMutation.isPending}
                     data-testid="button-nav-signup"
                   >
-                    {navSignupMutation.isPending ? "Joining..." : "Join the Waitlist"}
+                    {navSignupMutation.isPending ? "Joining..." : "Join Waitlist"}
                     <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 </form>
@@ -704,8 +727,8 @@ export function MarketingTopNav() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                style={{ color: "#8A8578" }}
-                className="hover:!text-[#D4A017]"
+                style={{ color: "#5A5548" }}
+                className="hover:!text-[#E4DFD5]"
                 aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
                 data-testid="button-theme-toggle"
               >
@@ -722,8 +745,8 @@ export function MarketingTopNav() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      style={{ color: "#8A8578" }}
-                      className="hover:!text-[#D4A017]"
+                      style={{ color: "#5A5548" }}
+                      className="hover:!text-[#E4DFD5]"
                       aria-label="Open menu"
                       data-testid="button-mobile-menu"
                     >
@@ -734,13 +757,21 @@ export function MarketingTopNav() {
                     side="right"
                     className="w-[300px] sm:w-[360px]"
                     style={{
-                      background: "#0D0C0B",
-                      borderLeft: "1px solid #2A2520",
+                      background: "hsl(20,12%,6%)",
+                      borderLeft: "1px solid hsl(20,10%,15%)",
                       color: "#E4DFD5",
                     }}
                   >
                     <SheetHeader>
-                      <SheetTitle className="flex items-center gap-2" style={{ color: "#D4A017" }}>
+                      <SheetTitle
+                        className="flex items-center gap-2 uppercase"
+                        style={{
+                          fontFamily: "'Orbitron', sans-serif",
+                          fontWeight: 800,
+                          letterSpacing: "0.12em",
+                          color: "#E4DFD5",
+                        }}
+                      >
                         <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
                         PlenumNET
                       </SheetTitle>
@@ -751,6 +782,25 @@ export function MarketingTopNav() {
               )}
             </div>
           </div>
+          <svg
+            className="absolute bottom-0 left-0 right-0 w-full"
+            height="16"
+            viewBox="0 0 1000 16"
+            preserveAspectRatio="none"
+            fill="none"
+            style={{ color: "#38BDF8" }}
+          >
+            <line x1="0" y1="8" x2="1000" y2="8"
+              stroke="currentColor" strokeWidth="1" opacity="0.3" />
+            <line x1="80" y1="1" x2="80" y2="15"
+              stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+            <line x1="92" y1="1" x2="92" y2="15"
+              stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+            <line x1="420" y1="3" x2="420" y2="13"
+              stroke="currentColor" strokeWidth="1" opacity="0.35" />
+            <line x1="780" y1="1" x2="780" y2="15"
+              stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
+          </svg>
         </header>
       </AnchorScrollContext.Provider>
     </NavigateContext.Provider>

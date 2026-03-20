@@ -107,7 +107,7 @@ function AppRouter() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <MarketingTopNav />
       <InstallExtensionDialog />
-      <main id="main-content" className="flex-1 pt-[3.75rem]">
+      <main id="main-content" className="flex-1 pt-[5rem]">
         <Suspense fallback={<LoadingSpinner />}>
           <Switch>
             {/* Marketing and Company */}
