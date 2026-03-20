@@ -225,7 +225,7 @@ function HeroSection() {
 
 
         <h1 
-          className="text-3xl md:text-4xl lg:text-[2.8rem] font-bold leading-[0.95] mb-6 text-center"
+          className="text-3xl md:text-4xl lg:text-[2.8rem] font-bold leading-[0.8] mb-6 text-center"
           data-testid="text-hero-title"
           id="hero-title"
           style={{
