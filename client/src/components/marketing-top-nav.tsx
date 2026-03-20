@@ -414,7 +414,7 @@ function StandardDropdownItem({ item }: { item: NavLinkItem }) {
 function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
   return (
     <NavigationMenu
-      className="hidden md:flex [&_button]:bg-transparent [&_button:hover]:bg-transparent"
+      className="hidden md:flex [&_button]:bg-transparent [&_button:hover]:bg-transparent justify-start"
       delayDuration={100}
       skipDelayDuration={300}
       onValueChange={(val: string) => onOpenChange?.(val !== "")}
