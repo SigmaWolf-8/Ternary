@@ -219,7 +219,7 @@ function HeroSection() {
   });
 
   return (
-    <section id="hero" className="relative pt-16 pb-12 md:pt-20 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
+    <section id="hero" className="relative pt-6 pb-12 md:pt-8 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="relative z-10 max-w-7xl mx-auto px-5">
 
 
