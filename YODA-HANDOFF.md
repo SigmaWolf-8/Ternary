@@ -119,7 +119,7 @@ The CRS node will:
 ```bash
 # Set environment variables
 export CUBE_MODE=cube
-export CRS_URL="https://<yoda-replit-domain>"
+export CUBE_CRS_URL="https://<yoda-replit-domain>"
 export CUBE_ENDPOINT="<your-ip-or-hostname>:port"
 export CUBE_IDENTITY_PASSPHRASE="<strong-passphrase>"   # REQUIRED for production
 
@@ -177,7 +177,7 @@ When a rotation fires:
 | `CUBE_MODE` | `crs`, `cube`, or `keygen` | Yes |
 | `CUBE_IDENTITY_PASSPHRASE` | Encryption passphrase for master.key | Strongly recommended |
 | `CUBE_IDENTITY_DIR` | Override identity file directory | No (default: `~/.plenumnet/identity/`) |
-| `CRS_URL` | CRS endpoint URL (cube mode only) | Yes (cube mode) |
+| `CUBE_CRS_URL` | CRS endpoint URL (cube mode only) | Yes (cube mode) |
 | `CUBE_ENDPOINT` | This node's reachable endpoint (cube mode) | Yes (cube mode) |
 
 **Security note**: If `CUBE_IDENTITY_PASSPHRASE` is not set, the daemon falls back to a hostname-derived passphrase and prints a warning. This is acceptable for development but should always be set explicitly in production.
