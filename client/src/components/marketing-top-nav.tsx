@@ -23,7 +23,7 @@
  * ──────────────────────────────────────────────
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, Sun, Moon, ExternalLink, ArrowRight } from "lucide-react";
 import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_1771299513785.png";
@@ -52,8 +52,6 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
 import { triggerInstallDialog } from "@/components/InstallExtensionCard";
@@ -415,7 +413,7 @@ function StandardDropdownItem({ item }: { item: NavLinkItem }) {
 function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
   return (
     <NavigationMenu
-      className="hidden md:flex"
+      className="hidden md:flex [&_button]:text-gray-300 [&_button:hover]:text-white [&_button]:bg-transparent [&_button:hover]:bg-white/10"
       delayDuration={100}
       skipDelayDuration={300}
       onValueChange={(val: string) => onOpenChange?.(val !== "")}
@@ -606,28 +604,7 @@ export function MarketingTopNav() {
     }
   }, []);
 
-  const lastScrollY = useRef(0);
-  const [visible, setVisible] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const handleScroll = useCallback(() => {
-    if (menuOpen) return;
-    const currentY = window.scrollY;
-    const delta = currentY - lastScrollY.current;
-    if (currentY < 80) {
-      setVisible(true);
-    } else if (delta > 8) {
-      setVisible(false);
-    } else if (delta < -4) {
-      setVisible(true);
-    }
-    lastScrollY.current = currentY;
-  }, [menuOpen]);
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
 
   const handleNavigate = useCallback((href: string) => {
     setLocation(href);
@@ -644,42 +621,21 @@ export function MarketingTopNav() {
           Skip to main content
         </a>
         <header
-          className={cn(
-            "sticky top-0 z-[9999] w-full border-b bg-background/95 backdrop-blur-sm transition-transform duration-300",
-            !visible && "-translate-y-full"
-          )}
+          className="fixed top-0 z-[9999] w-full"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
           data-testid="marketing-top-nav"
         >
-          <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 lg:px-6">
-            <div className="flex flex-col mr-2">
-              <Link
-                href="/"
-                className="flex items-center gap-2 font-semibold text-foreground"
-                data-testid="link-logo"
-              >
-                <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
-                <span className="text-base">PlenumNET</span>
-              </Link>
-              {!isMobile && (
-                <div className="flex flex-col gap-0.5 mt-0.5 pl-6">
-                  <Badge
-                    variant="outline"
-                    className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-1.5 py-0 text-[9px] w-fit leading-tight"
-                    data-testid="badge-status"
-                  >
-                    <Check className="w-2 h-2 mr-0.5" />
-                    Production Ready
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-primary/30 bg-primary/10 text-primary px-1.5 py-0 text-[9px] w-fit leading-tight"
-                    data-testid="badge-pq"
-                  >
-                    Post-Quantum Secure
-                  </Badge>
-                </div>
-              )}
-            </div>
+          <div className="h-[2px] w-full bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
+          <div className="w-full bg-gray-950/95 backdrop-blur-md border-b border-white/10">
+          <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 lg:px-6">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 font-semibold text-white mr-2"
+              data-testid="link-logo"
+            >
+              <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
+              <span className="text-lg tracking-tight">PlenumNET</span>
+            </Link>
 
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
@@ -698,7 +654,7 @@ export function MarketingTopNav() {
                     placeholder="Enter your email for early access"
                     value={navEmail}
                     onChange={(e) => setNavEmail(e.target.value)}
-                    className="h-8 w-52 text-xs"
+                    className="h-8 w-52 text-xs bg-white/10 border-white/20 text-white placeholder:text-gray-400"
                     required
                     data-testid="input-nav-email"
                     aria-label="Email address for early access"
@@ -707,7 +663,7 @@ export function MarketingTopNav() {
                     type="submit"
                     size="sm"
                     variant="outline"
-                    className="h-8 text-xs border-border text-foreground hover:bg-muted/50"
+                    className="h-8 text-xs border-white/20 text-white hover:bg-white/10"
                     disabled={navSignupMutation.isPending}
                     data-testid="button-nav-signup"
                   >
@@ -721,6 +677,7 @@ export function MarketingTopNav() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                className="text-gray-300 hover:text-white hover:bg-white/10"
                 aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
                 data-testid="button-theme-toggle"
               >
@@ -737,6 +694,7 @@ export function MarketingTopNav() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="text-gray-300 hover:text-white hover:bg-white/10"
                       aria-label="Open menu"
                       data-testid="button-mobile-menu"
                     >
@@ -755,6 +713,7 @@ export function MarketingTopNav() {
                 </Sheet>
               )}
             </div>
+          </div>
           </div>
         </header>
       </AnchorScrollContext.Provider>
