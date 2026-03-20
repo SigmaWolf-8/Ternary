@@ -667,7 +667,7 @@ export function MarketingTopNav() {
                 autoPlay
                 muted
                 playsInline
-                className="h-[5.5rem] w-auto rounded"
+                className="h-[5.5rem] w-auto"
                 data-testid="logo-video"
               />
             </Link>
@@ -750,7 +750,7 @@ export function MarketingTopNav() {
                           autoPlay
                           muted
                           playsInline
-                          className="h-16 w-auto rounded"
+                          className="h-16 w-auto"
                         />
                       </SheetTitle>
                     </SheetHeader>
