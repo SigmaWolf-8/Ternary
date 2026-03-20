@@ -658,11 +658,11 @@ export function MarketingTopNav() {
                 <PopoverTrigger asChild>
                   <Button
                     size="sm"
-                    className="h-6 text-[9px] px-3"
+                    className="h-7 text-xs px-4"
                     style={{
                       background: "linear-gradient(180deg, hsl(20,10%,18%) 0%, hsl(20,12%,10%) 100%)",
                       border: "1px solid hsl(20,10%,22%)",
-                      color: "#8A8578",
+                      color: "#FFFFFF",
                       fontFamily: "'Segoe UI', -apple-system, sans-serif",
                       fontWeight: 600,
                       letterSpacing: "0.04em",
@@ -674,12 +674,13 @@ export function MarketingTopNav() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-80 p-4"
+                  className="w-80 p-4 z-[10000]"
                   style={{
                     background: "hsl(20,12%,7%)",
                     border: "1px solid hsl(20,10%,15%)",
                   }}
                   align="end"
+                  sideOffset={8}
                 >
                   <form
                     onSubmit={(e) => {
