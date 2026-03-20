@@ -255,7 +255,7 @@ function HeroSection() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
-          className="mb-8"
+          className="mb-8 mt-2"
         >
           <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-2xl">
             <video
