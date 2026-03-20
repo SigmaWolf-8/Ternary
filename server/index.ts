@@ -593,18 +593,23 @@ function startPqtiService(): ChildProcess | null {
     await setupVite(httpServer, app);
   }
 
-  const { spawn: spawnCrs } = await import("child_process");
-  const selfDir = path.dirname(new URL(import.meta.url).pathname);
+  console.log("[crs-daemon] searching for binary...");
+  const cwd = process.cwd();
   const daemonCandidates = [
-    path.resolve(selfDir, "inter-cube-daemon"),
+    path.join(cwd, "dist", "inter-cube-daemon"),
+    path.join(cwd, "target", "release", "inter-cube-daemon"),
+    "/home/runner/workspace/dist/inter-cube-daemon",
     "/home/runner/workspace/target/release/inter-cube-daemon",
-    path.resolve("target/release/inter-cube-daemon"),
-    path.resolve("dist/inter-cube-daemon"),
   ];
-  const daemonPath = daemonCandidates.find((p) => existsSync(p)) || "";
+  let daemonPath = "";
+  for (const candidate of daemonCandidates) {
+    const found = existsSync(candidate);
+    console.log(`[crs-daemon]   ${candidate} -> ${found ? "FOUND" : "missing"}`);
+    if (found && !daemonPath) daemonPath = candidate;
+  }
   if (daemonPath) {
     try {
-      const crsProc = spawnCrs(daemonPath, [], {
+      const crsProc = spawn(daemonPath, [], {
         env: {
           ...process.env,
           CUBE_MODE: "crs",
@@ -620,12 +625,12 @@ function startPqtiService(): ChildProcess | null {
       crsProc.stdout?.on("data", (d: Buffer) => console.log(`[crs-daemon] ${d.toString().trim()}`));
       crsProc.stderr?.on("data", (d: Buffer) => console.error(`[crs-daemon] ${d.toString().trim()}`));
       crsProc.on("exit", (code: number | null) => console.log(`[crs-daemon] exited with code ${code}`));
-      console.log(`[crs-daemon] spawned (PID ${crsProc.pid}, port 8181, mode=crs)`);
+      console.log(`[crs-daemon] spawned from ${daemonPath} (PID ${crsProc.pid}, port 8181, mode=crs)`);
     } catch (err: any) {
       console.log(`[crs-daemon] failed to spawn (non-fatal): ${err.message}`);
     }
   } else {
-    console.log("[crs-daemon] binary not found — skipping");
+    console.log("[crs-daemon] binary not found in any candidate path — skipping");
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
