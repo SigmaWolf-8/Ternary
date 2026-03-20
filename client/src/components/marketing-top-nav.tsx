@@ -646,7 +646,7 @@ export function MarketingTopNav() {
           }}
           data-testid="marketing-top-nav"
         >
-          <div className="relative mx-auto flex h-28 max-w-7xl items-center gap-4 px-4 lg:px-6 pb-4">
+          <div className="relative mx-auto flex h-[7rem] max-w-7xl items-center gap-4 px-4 lg:px-6">
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
             <div className="ml-auto flex items-center gap-2">
@@ -757,7 +757,7 @@ export function MarketingTopNav() {
             </div>
           </div>
           <svg
-            className="absolute bottom-0 left-0 right-0 w-full"
+            className="w-full"
             height="16"
             viewBox="0 0 1000 16"
             preserveAspectRatio="none"
