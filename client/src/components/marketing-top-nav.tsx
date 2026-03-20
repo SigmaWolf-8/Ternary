@@ -646,7 +646,7 @@ export function MarketingTopNav() {
           }}
           data-testid="marketing-top-nav"
         >
-          <div className="relative mx-auto flex h-[7rem] max-w-7xl items-center gap-4 px-4 lg:px-6">
+          <div className="relative mx-auto flex h-[12rem] max-w-7xl items-center gap-4 px-4 lg:px-6">
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
             <div className="ml-auto flex items-center gap-2">
