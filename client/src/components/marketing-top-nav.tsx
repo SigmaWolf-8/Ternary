@@ -649,7 +649,7 @@ export function MarketingTopNav() {
           }}
           data-testid="marketing-top-nav"
         >
-          <div className="flex-1 flex w-full items-center gap-4 px-4 lg:px-6">
+          <div className="flex-1 flex w-full items-center gap-4 px-4 lg:px-6 pl-[calc(1in+1rem)]">
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
             <div className="flex-1" />
