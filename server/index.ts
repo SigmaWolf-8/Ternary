@@ -503,6 +503,18 @@ function startPqtiService(): ChildProcess | null {
     res.sendFile(filePath);
   });
 
+  app.get("/rerun-yoda-install.ps1", async (_req, res) => {
+    try {
+      const scriptPath = path.resolve("rerun-yoda-install.ps1");
+      const { readFile } = await import("fs/promises");
+      const script = await readFile(scriptPath, "utf-8");
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.send(script);
+    } catch {
+      res.status(404).send("Script not found");
+    }
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes

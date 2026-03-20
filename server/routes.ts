@@ -79,16 +79,6 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  app.get("/rerun-yoda-install.ps1", async (_req, res) => {
-    try {
-      const scriptPath = path.resolve("rerun-yoda-install.ps1");
-      const script = await readFile(scriptPath, "utf-8");
-      res.type("text/plain").send(script);
-    } catch {
-      res.status(404).send("Script not found");
-    }
-  });
-
   app.get("/api/benchmark-report", async (_req, res) => {
     try {
       const { readdir } = await import("fs/promises");
