@@ -652,7 +652,8 @@ export function MarketingTopNav() {
           <div className="flex-1 mx-auto flex max-w-7xl items-center gap-4 px-4 lg:px-6">
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex-1" />
+            <div className="flex items-center gap-2">
               <Popover open={waitlistOpen} onOpenChange={setWaitlistOpen}>
                 <PopoverTrigger asChild>
                   <Button
