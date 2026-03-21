@@ -338,7 +338,7 @@ Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -F
 Start-Sleep -Milliseconds 800
 $serverOutLog = Join-Path $LOG_DIR "llama-server-$LLM_PORT-out.log"
 $serverErrLog = Join-Path $LOG_DIR "llama-server-$LLM_PORT-err.log"
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model `"$MODEL_PATH`" --port $LLM_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model `"$MODEL_PATH`" --port $LLM_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 0" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
 Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverOutLog" -ForegroundColor Green
 Start-Sleep -Seconds 2
 
