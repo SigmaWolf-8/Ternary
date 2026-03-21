@@ -1,0 +1,292 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\Users\Sigma\PlenumNET
+PS C:\Users\Sigma\PlenumNET> git pull
+remote: Enumerating objects: 537, done.
+remote: Counting objects: 100% (537/537), done.
+remote: Compressing objects: 100% (70/70), done.
+remote: Total 510 (delta 450), reused 499 (delta 439), pack-reused 0 (from 0)
+Receiving objects: 100% (510/510), 1.36 MiB | 3.04 MiB/s, done.
+Resolving deltas: 100% (450/450), completed with 25 local objects.
+From https://github.com/SigmaWolf-8/Ternary
+   f78f18e..695c041  main       -> origin/main
+Updating f78f18e..695c041
+Fast-forward
+ .replit                                            |   12 +
+ Cargo.lock                                         |  137 +-
+ YODA-HANDOFF.md                                    |   57 +-
+ ...optimized-target-s-in-25-14s-_1774033228130.txt |   37 +
+ ...for-YODA-self-hosted-engine-i_1774022886284.txt |  817 ++++++++++
+ ...Model-DeepSeek-R1-Distill-Qwe_1774025421898.txt |  178 ++
+ ...Model-DeepSeek-R1-Distill-Qwe_1774040784460.txt |  260 +++
+ ...Model-DeepSeek-R1-Distill-Qwe_1774041231661.txt |  260 +++
+ ...Model-DeepSeek-R1-Distill-Qwe_1774042634738.txt |  251 +++
+ ...Model-DeepSeek-R1-Distill-Qwe_1774043109288.txt |  283 ++++
+ ...ocal-Temp-yoda-2999018225-ps1_1774023972864.txt |   46 +
+ ...ocal-Temp-yoda-3199531378-ps1_1774024622230.txt |   46 +
+ ...ocal-Temp-yoda-3199531378-ps1_1774024653456.txt |   46 +
+ ...NET-PS-C-PlenumNET-env-CUBE-M_1774034780767.txt |   40 +
+ ...esign-Specification-Use-this-_1774011995099.txt |  164 ++
+ ...ht-C-Microsoft-Corporation-Al_1774022702918.txt |   79 +
+ ...ht-C-Microsoft-Corporation-Al_1774027803676.txt |  109 ++
+ ...ht-C-Microsoft-Corporation-Al_1774028045592.txt |  107 ++
+ ...ht-C-Microsoft-Corporation-Al_1774028186217.txt |  420 +++++
+ ...ht-C-Microsoft-Corporation-Al_1774031871619.txt |   50 +
+ ...ht-C-Microsoft-Corporation-Al_1774031951673.txt |   56 +
+ ...ht-C-Microsoft-Corporation-Al_1774032313199.txt |  208 +++
+ ...ht-C-Microsoft-Corporation-Al_1774032730021.txt |   95 ++
+ ...ht-C-Microsoft-Corporation-Al_1774032868010.txt |  209 +++
+ ...ht-C-Microsoft-Corporation-Al_1774033021551.txt |   98 ++
+ ...ht-C-Microsoft-Corporation-Al_1774033167550.txt |  105 ++
+ ...ht-C-Microsoft-Corporation-Al_1774033314500.txt |   51 +
+ ...ht-C-Microsoft-Corporation-Al_1774033392040.txt |  115 ++
+ ...ht-C-Microsoft-Corporation-Al_1774033437181.txt |  174 ++
+ ...ht-C-Microsoft-Corporation-Al_1774033580342.txt |  291 ++++
+ ...ht-C-Microsoft-Corporation-Al_1774033642858.txt | 1700 ++++++++++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774033681176.txt | 1157 +++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774033774778.txt | 1194 ++++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774036705953.txt |   46 +
+ ...ht-C-Microsoft-Corporation-Al_1774056396816.txt |  190 +++
+ ...ht-C-Microsoft-Corporation-Al_1774059748726.txt |  124 ++
+ ...7-ebe9-4a1d-bbd3-62c2ec9a6762_1774012887299.png |  Bin 0 -> 201302 bytes
+ attached_assets/image_1774013285645.png            |  Bin 0 -> 702883 bytes
+ attached_assets/image_1774056315959.png            |  Bin 0 -> 93647 bytes
+ attached_assets/yoda-setup_(12)_1774036525066.bat  |  300 ++++
+ client/index.html                                  |    2 +-
+ client/src/App.tsx                                 |    2 +-
+ client/src/components/marketing-top-nav.tsx        |  247 +--
+ client/src/components/ui/navigation-menu.tsx       |   10 +-
+ client/src/pages/landing.tsx                       |   30 +-
+ consolidate-plenumnet.ps1                          |  101 ++
+ rerun-yoda-install.ps1                             |  393 +++++
+ script/build.ts                                    |   15 +-
+ server/index.ts                                    |  375 ++++-
+ services/inter-cube/Cargo.toml                     |    5 +
+ services/inter-cube/src/lib.rs                     |    1 +
+ services/inter-cube/src/main.rs                    |  130 +-
+ services/inter-cube/src/ws_relay.rs                |  252 +++
+ start-crs.sh                                       |    9 +
+ yoda-installer-fix.ts                              |  372 +++++
+ 55 files changed, 11308 insertions(+), 148 deletions(-)
+ create mode 100644 attached_assets/Pasted--Finished-release-profile-optimized-target-s-in-25-14s-_1774033228130.txt
+ create mode 100644 attached_assets/Pasted--Shared-script-generators-for-YODA-self-hosted-engine-i_1774022886284.txt
+ create mode 100644 attached_assets/Pasted--YODA-Self-Host-Installer-Model-DeepSeek-R1-Distill-Qwe_1774025421898.txt
+ create mode 100644 attached_assets/Pasted--YODA-Self-Host-Installer-Model-DeepSeek-R1-Distill-Qwe_1774040784460.txt
+ create mode 100644 attached_assets/Pasted--YODA-Self-Host-Installer-Model-DeepSeek-R1-Distill-Qwe_1774041231661.txt
+ create mode 100644 attached_assets/Pasted--YODA-Self-Host-Installer-Model-DeepSeek-R1-Distill-Qwe_1774042634738.txt
+ create mode 100644 attached_assets/Pasted--YODA-Self-Host-Installer-Model-DeepSeek-R1-Distill-Qwe_1774043109288.txt
+ create mode 100644 attached_assets/Pasted-At-C-Users-Sigma-AppData-Local-Temp-yoda-2999018225-ps1_1774023972864.txt
+ create mode 100644 attached_assets/Pasted-At-C-Users-Sigma-AppData-Local-Temp-yoda-3199531378-ps1_1774024622230.txt
+ create mode 100644 attached_assets/Pasted-At-C-Users-Sigma-AppData-Local-Temp-yoda-3199531378-ps1_1774024653456.txt
+ create mode 100644 attached_assets/Pasted-PS-C-PlenumNET-cd-C-PlenumNET-PS-C-PlenumNET-env-CUBE-M_1774034780767.txt
+ create mode 100644 attached_assets/Pasted-PlenumLAN-Section-Header-Design-Specification-Use-this-_1774011995099.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774022702918.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774027803676.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774028045592.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774028186217.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774031871619.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774031951673.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774032313199.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774032730021.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774032868010.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033021551.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033167550.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033314500.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033392040.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033437181.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033580342.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033642858.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033681176.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774033774778.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774036705953.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774056396816.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774059748726.txt
+ create mode 100644 attached_assets/grok-image-ebaf13d7-ebe9-4a1d-bbd3-62c2ec9a6762_1774012887299.png
+ create mode 100644 attached_assets/image_1774013285645.png
+ create mode 100644 attached_assets/image_1774056315959.png
+ create mode 100644 attached_assets/yoda-setup_(12)_1774036525066.bat
+ create mode 100644 consolidate-plenumnet.ps1
+ create mode 100644 rerun-yoda-install.ps1
+ create mode 100644 services/inter-cube/src/ws_relay.rs
+ create mode 100755 start-crs.sh
+ create mode 100644 yoda-installer-fix.ts
+PS C:\Users\Sigma\PlenumNET> cargo build --release --manifest-path services/inter-cube/Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+    Updating crates.io index
+  Downloaded sha1 v0.10.6
+  Downloaded futures-macro v0.3.32
+  Downloaded tokio-tungstenite v0.21.0
+  Downloaded tokio-rustls v0.25.0
+  Downloaded webpki-roots v0.26.11
+  Downloaded data-encoding v2.10.0
+  Downloaded tungstenite v0.21.0
+  Downloaded byteorder v1.5.0
+  Downloaded utf-8 v0.7.6
+  Downloaded futures-sink v0.3.32
+  Downloaded rustls-webpki v0.102.8
+  Downloaded rustls v0.22.4
+  Downloaded 12 crates (743.8KiB) in 1.79s
+   Compiling getrandom v0.2.17
+   Compiling ring v0.17.14
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+error: failed to run custom build command for `ring v0.17.14`
+
+Caused by:
+  process didn't exit successfully: `C:\Users\Sigma\PlenumNET\target\release\build\ring-6dd8752c0a836cb1\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=CARGO_MANIFEST_DIR
+  cargo:rerun-if-env-changed=CARGO_PKG_NAME
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_MAJOR
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_MINOR
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_PATCH
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_PRE
+  cargo:rerun-if-env-changed=CARGO_MANIFEST_LINKS
+  cargo:rerun-if-env-changed=RING_PREGENERATE_ASM
+  cargo:rerun-if-env-changed=OUT_DIR
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENV
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENDIAN
+  OPT_LEVEL = Some(3)
+  OUT_DIR = Some(C:\Users\Sigma\PlenumNET\target\release\build\ring-4da57ffce9d7f648\out)
+  TARGET = Some(aarch64-pc-windows-msvc)
+  CARGO_ENCODED_RUSTFLAGS = Some()
+  cargo:rerun-if-env-changed=VCINSTALLDIR
+  VCINSTALLDIR = None
+  cargo:rerun-if-env-changed=VSTEL_MSBuildProjectFullPath
+  VSTEL_MSBuildProjectFullPath = None
+  cargo:rerun-if-env-changed=VCToolsVersion
+  VCToolsVersion = None
+  cargo:rerun-if-env-changed=VSCMD_ARG_VCVARS_SPECTRE
+  VSCMD_ARG_VCVARS_SPECTRE = None
+  cargo:rerun-if-env-changed=WindowsSdkDir
+  WindowsSdkDir = None
+  cargo:rerun-if-env-changed=WindowsSDKVersion
+  WindowsSDKVersion = None
+  cargo:rerun-if-env-changed=LIB
+  LIB = None
+  PATH = Some(C:\Users\Sigma\PlenumNET\target\release;C:\Users\Sigma\PlenumNET\target\release\deps;C:\Users\Sigma\.rustup\toolchains\stable-aarch64-pc-windows-msvc\lib\rustlib\aarch64-pc-windows-msvc\lib;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files\Kraken Desktop\;C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\Git\cmd;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\;C:\Program Files\dotnet\;C:\Users\Sigma\.cargo\bin;C:\Users\Sigma\AppData\Local\Microsoft\WindowsApps;C:\Users\Sigma\AppData\Local\Python\bin;C:\Users\Sigma\.lmstudio\bin;C:\Users\Sigma\AppData\Local\Programs\Ollama;C:\Users\Sigma\.dotnet\tools;C:\Users\Sigma\.rustup\toolchains\stable-aarch64-pc-windows-msvc\bin)
+  cargo:rerun-if-env-changed=INCLUDE
+  INCLUDE = None
+  HOST = Some(aarch64-pc-windows-msvc)
+  cargo:rerun-if-env-changed=CC_aarch64-pc-windows-msvc
+  CC_aarch64-pc-windows-msvc = None
+  cargo:rerun-if-env-changed=CC_aarch64_pc_windows_msvc
+  CC_aarch64_pc_windows_msvc = None
+  cargo:rerun-if-env-changed=HOST_CC
+  HOST_CC = None
+  cargo:rerun-if-env-changed=CC
+  CC = None
+  cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+  CRATE_CC_NO_DEFAULTS = None
+  CARGO_CFG_TARGET_FEATURE = Some(neon)
+  DEBUG = Some(false)
+  cargo:rerun-if-env-changed=CFLAGS
+  CFLAGS = None
+  cargo:rerun-if-env-changed=HOST_CFLAGS
+  HOST_CFLAGS = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64_pc_windows_msvc
+  CFLAGS_aarch64_pc_windows_msvc = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64-pc-windows-msvc
+  CFLAGS_aarch64-pc-windows-msvc = None
+  cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+
+  --- stderr
+
+
+  error occurred in cc-rs: failed to find tool "clang": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+
+
+warning: build failed, waiting for other jobs to finish...
+PS C:\Users\Sigma\PlenumNET> [ws-relay] Establishing relay connection to CRS...
+At line:1 char:3
++ [ws-relay] Establishing relay connection to CRS...
++   ~
+Missing ] at end of attribute or type literal.
+At line:1 char:4
++ [ws-relay] Establishing relay connection to CRS...
++    ~~~~~~
+Unexpected token '-relay' in expression or statement.
+At line:1 char:10
++ [ws-relay] Establishing relay connection to CRS...
++          ~
+Unexpected token ']' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EndSquareBracketExpectedAtEndOfAttribute
+
+PS C:\Users\Sigma\PlenumNET> [ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+At line:1 char:3
++ [ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
++   ~
+Missing ] at end of attribute or type literal.
+At line:1 char:4
++ [ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
++    ~~~~~~
+Unexpected token '-relay' in expression or statement.
+At line:1 char:10
++ [ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
++          ~
+Unexpected token ']' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EndSquareBracketExpectedAtEndOfAttribute
+
+PS C:\Users\Sigma\PlenumNET> [ws-relay] WebSocket connected, authenticating...
+At line:1 char:3
++ [ws-relay] WebSocket connected, authenticating...
++   ~
+Missing ] at end of attribute or type literal.
+At line:1 char:4
++ [ws-relay] WebSocket connected, authenticating...
++    ~~~~~~
+Unexpected token '-relay' in expression or statement.
+At line:1 char:10
++ [ws-relay] WebSocket connected, authenticating...
++          ~
+Unexpected token ']' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EndSquareBracketExpectedAtEndOfAttribute
+
+PS C:\Users\Sigma\PlenumNET> [ws-relay] Authenticated. 0 peer(s) online: []
+At line:1 char:3
++ [ws-relay] Authenticated. 0 peer(s) online: []
++   ~
+Missing ] at end of attribute or type literal.
+At line:1 char:4
++ [ws-relay] Authenticated. 0 peer(s) online: []
++    ~~~~~~
+Unexpected token '-relay' in expression or statement.
+At line:1 char:10
++ [ws-relay] Authenticated. 0 peer(s) online: []
++          ~
+Unexpected token ']' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EndSquareBracketExpectedAtEndOfAttribute
+
+PS C:\Users\Sigma\PlenumNET> [ws-relay] Relay tunnel active — NAT traversal established
+At line:1 char:3
++ [ws-relay] Relay tunnel active — NAT traversal established
++   ~
+Missing ] at end of attribute or type literal.
+At line:1 char:4
++ [ws-relay] Relay tunnel active — NAT traversal established
++    ~~~~~~
+Unexpected token '-relay' in expression or statement.
+At line:1 char:10
++ [ws-relay] Relay tunnel active — NAT traversal established
++          ~
+Unexpected token ']' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EndSquareBracketExpectedAtEndOfAttribute
+
+PS C:\Users\Sigma\PlenumNET>
