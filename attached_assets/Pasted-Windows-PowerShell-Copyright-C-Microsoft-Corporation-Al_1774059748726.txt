@@ -1,0 +1,124 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> === Inter-Cube Stack Active ===
+=== : The term '===' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ === Inter-Cube Stack Active ===
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (===:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   Address:       1111111111111
+Address: : The term 'Address:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Address:       1111111111111
++   ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Address::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   Address space: 1 / 1594323 used
+Address : The term 'Address' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Address space: 1 / 1594323 used
++   ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Address:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   Dimensions:    13
+Dimensions: : The term 'Dimensions:' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Dimensions:    13
++   ~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Dimensions::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   Neighbors:     26
+Neighbors: : The term 'Neighbors:' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Neighbors:     26
++   ~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Neighbors::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+PT26-DSA : The term 'PT26-DSA' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:29
++   Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
++                             ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PT26-DSA:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   CRS -> CON -> FTS -> GLB pipeline operational.
+CRS : The term 'CRS' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   CRS -> CON -> FTS -> GLB pipeline operational.
++   ~~~
+    + CategoryInfo          : ObjectNotFound: (CRS:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> cd c:\plenumNET
+PS C:\plenumNET> === Inter-Cube Stack Active ===
+=== : The term '===' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ === Inter-Cube Stack Active ===
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (===:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\plenumNET>   Address:       1111111111111
+Address: : The term 'Address:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Address:       1111111111111
++   ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Address::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\plenumNET>   Address space: 1 / 1594323 used
+Address : The term 'Address' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Address space: 1 / 1594323 used
++   ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Address:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\plenumNET>   Dimensions:    13
+Dimensions: : The term 'Dimensions:' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Dimensions:    13
++   ~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Dimensions::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\plenumNET>   Neighbors:     26
+Neighbors: : The term 'Neighbors:' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   Neighbors:     26
++   ~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Neighbors::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\plenumNET>   Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+PT26-DSA : The term 'PT26-DSA' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:29
++   Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
++                             ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PT26-DSA:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\plenumNET>   CRS -> CON -> FTS -> GLB pipeline operational.
