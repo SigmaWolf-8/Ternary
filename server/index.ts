@@ -627,7 +627,8 @@ function startPqtiService(): ChildProcess | null {
     const pendingRef = (globalThis as any).__pendingMessages;
     const crsReg = crsRegistry;
     if (relayClientsRef) {
-      const nodes = Array.from(relayClientsRef.entries()).map(([addr, ws]: [string, any]) => ({
+      const entries: [string, any][] = Array.from(relayClientsRef.entries());
+      const nodes = entries.map(([addr, ws]) => ({
         address: addr,
         connected: ws.readyState === 1,
         endpoint: crsReg.get(addr)?.endpoint || null,
