@@ -33,6 +33,7 @@ use inter_cube::api::{
 use inter_cube::daemon_identity::{DaemonIdentity, encryption_passphrase, identity_dir, save_master_secret};
 use inter_cube::address_keys::derive_identity_keypair;
 use inter_cube::key_rotation::RotationOrchestrator;
+use inter_cube::ws_relay::WsRelayClient;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -534,6 +535,78 @@ async fn run_cube_mode() {
         }
     });
 
+    let addr_str_for_relay: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
+    let crs_url_for_relay = crs_url.clone();
+    let key_hex_for_relay = key_hex.clone();
+    tokio::spawn(async move {
+        println!();
+        println!("[ws-relay] Establishing relay connection to CRS...");
+        let mut retry_delay = Duration::from_secs(5);
+        loop {
+            match WsRelayClient::connect(
+                &crs_url_for_relay,
+                &addr_str_for_relay,
+                &key_hex_for_relay,
+            )
+            .await
+            {
+                Ok((client, mut incoming_rx)) => {
+                    println!("[ws-relay] Relay tunnel active — NAT traversal established");
+                    retry_delay = Duration::from_secs(5);
+
+                    let client_ping = client.outgoing_tx.clone();
+                    let connected_ping = client.connected.clone();
+                    tokio::spawn(async move {
+                        loop {
+                            tokio::time::sleep(Duration::from_secs(25)).await;
+                            if !*connected_ping.lock().await {
+                                break;
+                            }
+                            let ping_env = inter_cube::ws_relay::RelayEnvelope {
+                                msg_type: "ping".to_string(),
+                                address: None,
+                                public_key: None,
+                                to: None,
+                                from: None,
+                                relay_msg_type: None,
+                                payload: None,
+                                error: None,
+                                delivered: None,
+                                connected_peers: None,
+                                ts: None,
+                                connected: None,
+                            };
+                            if client_ping.send(ping_env).await.is_err() {
+                                break;
+                            }
+                        }
+                    });
+
+                    while let Some(envelope) = incoming_rx.recv().await {
+                        println!(
+                            "[ws-relay] Received {} from {} — {}",
+                            envelope.relay_msg_type.as_deref().unwrap_or("unknown"),
+                            envelope.from.as_deref().unwrap_or("?"),
+                            envelope.payload.as_deref().unwrap_or("(empty)").chars().take(64).collect::<String>()
+                        );
+                    }
+
+                    println!("[ws-relay] Relay connection lost");
+                }
+                Err(e) => {
+                    println!("[ws-relay] Connection failed: {}", e);
+                }
+            }
+
+            println!(
+                "[ws-relay] Reconnecting in {} seconds...",
+                retry_delay.as_secs()
+            );
+            tokio::time::sleep(retry_delay).await;
+            retry_delay = std::cmp::min(retry_delay * 2, Duration::from_secs(60));
+        }
+    });
+
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
 
@@ -543,6 +616,7 @@ async fn run_cube_mode() {
     println!("=== HTTP Server (Cube) ===");
     println!("  http://{}", listen_addr);
     println!("  {} routes active", CUBE_ROUTE_COUNT);
+    println!("  Relay:     WebSocket to CRS (NAT traversal)");
     println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
     println!();
 

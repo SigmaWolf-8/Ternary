@@ -116,6 +116,7 @@ pub mod sampling;
 pub mod telemetry;
 pub mod pt26_parallel;
 pub mod daemon_identity;
+pub mod ws_relay;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};

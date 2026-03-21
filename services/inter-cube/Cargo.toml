@@ -36,6 +36,11 @@ axum = "0.7"
 # Uses rustls (pure Rust) to avoid OpenSSL dev headers in Docker build
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
+# WebSocket client for CRS relay (NAT traversal)
+tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
+futures-util = "0.3"
+url = "2"
+
 # Hex encoding for address persistence
 hex = "0.4"
 
