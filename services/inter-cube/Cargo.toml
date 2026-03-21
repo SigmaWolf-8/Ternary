@@ -32,12 +32,7 @@ chrono = { version = "0.4", features = ["serde"] }
 # HTTP server for daemon API endpoints
 axum = "0.7"
 
-# HTTP client for cube→CRS registration and heartbeats
-# Uses rustls (pure Rust) to avoid OpenSSL dev headers in Docker build
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-
-# WebSocket client for CRS relay (NAT traversal)
-tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
+# WebSocket relay shared deps
 futures-util = "0.3"
 url = "2"
 
@@ -52,6 +47,15 @@ getrandom = "0.2"
 
 # Logging
 tracing = "0.1"
+
+# Platform-specific TLS: rustls on Linux (no C compiler), native-tls on Windows (SChannel, no C compiler)
+[target.'cfg(not(windows))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
+
+[target.'cfg(windows)'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
 
 [dev-dependencies]
 tokio-test = "0.4"
