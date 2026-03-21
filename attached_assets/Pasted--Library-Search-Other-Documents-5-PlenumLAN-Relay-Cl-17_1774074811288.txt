@@ -1,0 +1,100 @@
+
+Library
+Search
+Other
+Documents
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#5 - PlenumLAN Relay Client (Inference via WS)
+What & Why
+YODA currently tries to route inference through the browser — the browser calls http://localhost:8080 directly, which fails because the browser enforces CORS on cross-origin requests (the page is served from HTTPS, the LLM is HTTP on a different origin). The correct fix is to use the PlenumLAN relay that already exists on plenumnet.replit.app.
+
+The relay is a WebSocket server at wss://plenumnet.replit.app/ws/relay. The Cube node on the user's laptop (address 1111111111112) is already connected to it. YODA needs to register as its own separate node (gets its own assigned address), then send inference requests through the relay to the Cube node. The Cube node calls llama-server locally (no CORS issue — Rust process, not a browser), then relays the result back to YODA.
+
+The current cube_relay.rs was built backwards — it is a WebSocket server that expects Cube nodes to connect inbound to YODA. That is wrong. It must be replaced with a WebSocket client that connects outbound to the CRS relay.
+
+Done looks like
+YODA API starts a background task that registers with the CRS and maintains a persistent authenticated WebSocket to wss://plenumnet.replit.app/ws/relay
+When a query is submitted, YODA sends an inference_request relay message to the target Cube node address and waits up to 30 s for an inference_response
+If the relay is disconnected, or the Cube node doesn't respond within 30 s, YODA falls back to the existing browser relay — nothing regresses
+The relay background task re-registers (HTTP) then re-authenticates (WS) on every reconnect with exponential backoff (2 s → 4 s → … → 60 s cap), including after CRS restarts which clear the in-memory registry
+End-to-end inference through the relay is NOT expected to work yet — the Cube daemon's ws_relay.rs delivers incoming_rx messages but does not yet dispatch inference_request to llama-server (separate task, other repo). YODA's side will be wired correctly and fall back gracefully.
+Out of scope
+Changes to the Cube daemon (other repo)
+End-to-end inference completing successfully (blocked on Cube daemon dispatch)
+A cube_address UI field in engine settings — hardcoded slot→address mapping is sufficient: A → 1111111111112, B → 1111111111113, C → 1111111111121
+TL-DSA-87 proper key generation — a throwaway random key is used for now (noted as a shortcut; CRS stores and matches whatever string is passed)
+Protocol (from PlenumLAN Relay Protocol Reference)
+Registration (HTTP GET — must repeat on every reconnect after CRS restart):
+
+GET https://plenumnet.replit.app/api/salvi/inter-cube/relay/register
+    ?publicKey=<hex-encoded key>
+    &endpoint=yoda-api
+→ { "address": "<assigned-by-CRS>", ... }
+Note: Rep C trit encoding uses values 1, 2, 3 only. The assigned address is whatever the CRS counter assigns (e.g. 1111111111113 or 1111111111121). YODA is a third node distinct from the CRS (1111111111111) and the Cube node (1111111111112).
+
+WebSocket auth (first message after connect, within 10 s):
+
+send:    { "type": "auth", "address": "<assigned-by-CRS>", "publicKey": "<hex>" }
+receive: { "type": "auth_ok", ... }
+         or { "type": "auth_fail", "error": "..." }
+Re-registration must happen before re-auth on every reconnect — CRS clears its in-memory registry on restart (Replit restarts periodically). Do not assume the old address is still valid; always re-register via HTTP first.
+
+Keepalive (every 25 s):
+
+send:    { "type": "ping" }
+receive: { "type": "pong", "ts": ... }
+Inference request (YODA → CRS → Cube node):
+
+{
+  "type": "relay",
+  "to": "1111111111112",
+  "msgType": "inference_request",
+  "payload": "{\"requestId\":\"<uuid>\",\"messages\":[...],\"maxTokens\":512,\"model\":\"...\"}"
+}
+Inference response (Cube node → CRS → YODA):
+
+{
+  "type": "relay",
+  "from": "1111111111112",
+  "msgType": "inference_response",
+  "payload": "{\"requestId\":\"<uuid>\",\"content\":\"...\",\"model\":\"...\",\"tokens\":42}"
+}
+Tasks
+Add tokio-tungstenite dependency — add tokio-tungstenite with the rustls-tls-native-roots feature to yoda-api/Cargo.toml. YODA runs on Replit (Linux only) so this TLS backend is sufficient.
+
+Rewrite cube_relay.rs as a relay CLIENT — replace the current WebSocket server handler entirely with a spawn_relay_task(state) function that runs a background Tokio task. The task loop: (a) generate or load PLENUMLAN_PUBLIC_KEY from env (random 32-byte hex if unset — noted as a shortcut for now); (b) HTTP GET register with CRS to get an assigned address; (c) open WebSocket to wss://plenumnet.replit.app/ws/relay; (d) send auth within 10 s; (e) set state.relay_tx to Some(sender); (f) loop: tokio::select! between the mpsc receiver (outbound inference requests → wrap in relay envelope, send), incoming WS messages (inference_response → resolve pending oneshot; pong → update last-seen; auth_fail → log and break), and a 25 s ping timer. On any disconnect or error: clear state.relay_tx to None, wait with backoff, then restart from step (b). Re-registration (HTTP) must happen on every reconnect, not just the first.
+
+Update state.rs — replace RelaySenders (per-org HashMap) with a single relay_tx: Arc<RwLock<Option<mpsc::Sender<RelayInferRequest>>>> set to None at init. Keep pending_relays: PendingRelays (request_id → oneshot sender) unchanged.
+
+Update routes.rs — remove the /ws/cube-relay server route and the cube_relay import; the module is no longer a WS server endpoint.
+
+Wire relay task into main.rs — after AppState::new(...) and before axum::serve(...), call cube_relay::spawn_relay_task(state.clone()) so the relay connects at startup.
+
+Update query.rs inference routing — after creating the task row, lock state.relay_tx and check if Some. If yes: register a oneshot in pending_relays, send the relay request, then tokio::select! between the oneshot and a 30 s tokio::time::sleep. On success: write result to DB (same inserts as set_task_output) and return the completed task with relay_endpoint: None. On timeout or absent relay: fall through to the existing browser-relay path (return relay_endpoint).
+
+Relevant files
+crates/yoda-api/Cargo.toml
+crates/yoda-api/src/cube_relay.rs
+crates/yoda-api/src/state.rs
+crates/yoda-api/src/main.rs
+crates/yoda-api/src/routes.rs
+crates/yoda-api/src/query.rs
