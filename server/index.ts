@@ -36,6 +36,7 @@ import { corsMiddleware } from "./middleware/cors-config";
 import { globalLimiter } from "./middleware/rate-limiter";
 import { spawn, type ChildProcess } from "child_process";
 import { existsSync } from "fs";
+import { WebSocketServer, WebSocket } from "ws";
 import * as path from "path";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
@@ -620,6 +621,22 @@ function startPqtiService(): ChildProcess | null {
     }
     res.status(503).json({ error: "CRS daemon not available for this endpoint" });
   };
+
+  app.get("/api/salvi/inter-cube/relay/status", (_req, res) => {
+    const relayClientsRef = (globalThis as any).__relayClients;
+    const pendingRef = (globalThis as any).__pendingMessages;
+    const crsReg = crsRegistry;
+    if (relayClientsRef) {
+      const nodes = Array.from(relayClientsRef.entries()).map(([addr, ws]: [string, any]) => ({
+        address: addr,
+        connected: ws.readyState === 1,
+        endpoint: crsReg.get(addr)?.endpoint || null,
+      }));
+      return res.json({ connectedNodes: nodes.length, nodes, pendingQueues: pendingRef?.size || 0 });
+    }
+    res.json({ connectedNodes: 0, nodes: [], pendingQueues: 0 });
+  });
+
   app.all("/api/salvi/inter-cube/:service/:action", interCubeProxy);
   app.all("/api/salvi/inter-cube/:service", interCubeProxy);
 
@@ -662,6 +679,143 @@ function startPqtiService(): ChildProcess | null {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.send(bat);
   });
+
+  const relayClients = new Map<string, WebSocket>();
+  const relayAddressByWs = new Map<WebSocket, string>();
+  const pendingMessages = new Map<string, Array<{ from: string; type: string; payload: string; ts: number }>>();
+  (globalThis as any).__relayClients = relayClients;
+  (globalThis as any).__pendingMessages = pendingMessages;
+
+  const wss = new WebSocketServer({ noServer: true });
+
+  httpServer.on("upgrade", (request, socket, head) => {
+    const url = new URL(request.url || "", `http://${request.headers.host}`);
+    if (url.pathname === "/ws/relay") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+
+  async function verifyNodeRegistration(address: string, publicKey: string): Promise<boolean> {
+    const entry = crsRegistry.get(address);
+    if (entry && entry.publicKey === publicKey) return true;
+    try {
+      const resp = await fetch(`http://127.0.0.1:8181/api/salvi/inter-cube/crs/node/${address}`);
+      if (resp.ok) {
+        const data = await resp.json() as any;
+        if (data.publicKey === publicKey || data.public_key === publicKey) {
+          crsRegistry.set(address, { publicKey, endpoint: data.endpoint || "unknown", lastSeen: Date.now() });
+          return true;
+        }
+      }
+    } catch {}
+    if (!entry) {
+      crsRegistry.set(address, { publicKey, endpoint: "ws-relay", lastSeen: Date.now() });
+      return true;
+    }
+    return false;
+  }
+
+  wss.on("connection", (ws: WebSocket) => {
+    let authenticated = false;
+    let nodeAddress = "";
+
+    ws.on("message", async (data: Buffer) => {
+      let msg: any;
+      try {
+        msg = JSON.parse(data.toString());
+      } catch {
+        ws.send(JSON.stringify({ error: "invalid JSON" }));
+        return;
+      }
+
+      if (!authenticated) {
+        if (msg.type === "auth" && msg.address && msg.publicKey) {
+          const verified = await verifyNodeRegistration(msg.address, msg.publicKey);
+          if (verified) {
+            authenticated = true;
+            nodeAddress = msg.address;
+            const oldWs = relayClients.get(nodeAddress);
+            if (oldWs && oldWs !== ws && oldWs.readyState === WebSocket.OPEN) {
+              oldWs.close(1000, "replaced");
+            }
+            relayClients.set(nodeAddress, ws);
+            relayAddressByWs.set(ws, nodeAddress);
+            console.log(`[ws-relay] Node ${nodeAddress} authenticated and connected`);
+
+            const pending = pendingMessages.get(nodeAddress);
+            if (pending && pending.length > 0) {
+              for (const queued of pending) {
+                ws.send(JSON.stringify({ type: "relay", from: queued.from, msgType: queued.type, payload: queued.payload }));
+              }
+              console.log(`[ws-relay] Delivered ${pending.length} queued messages to ${nodeAddress}`);
+              pendingMessages.delete(nodeAddress);
+            }
+
+            ws.send(JSON.stringify({ type: "auth_ok", address: nodeAddress, connectedPeers: Array.from(relayClients.keys()).filter(a => a !== nodeAddress) }));
+          } else {
+            ws.send(JSON.stringify({ type: "auth_fail", error: "address not registered or publicKey mismatch — register with CRS first" }));
+            ws.close(1008, "auth failed");
+          }
+          return;
+        }
+        ws.send(JSON.stringify({ error: "must authenticate first: {type:'auth', address:'...', publicKey:'...'}" }));
+        return;
+      }
+
+      if (msg.type === "relay" && msg.to && msg.payload) {
+        const targetWs = relayClients.get(msg.to);
+        const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
+        if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+          targetWs.send(envelope);
+        } else {
+          if (!pendingMessages.has(msg.to)) pendingMessages.set(msg.to, []);
+          const queue = pendingMessages.get(msg.to)!;
+          if (queue.length < 100) {
+            queue.push({ from: nodeAddress, type: msg.msgType || "data", payload: msg.payload, ts: Date.now() });
+          }
+        }
+        ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: !!(targetWs && targetWs.readyState === WebSocket.OPEN) }));
+        return;
+      }
+
+      if (msg.type === "ping") {
+        ws.send(JSON.stringify({ type: "pong", ts: Date.now() }));
+        return;
+      }
+
+      if (msg.type === "peers") {
+        ws.send(JSON.stringify({ type: "peers", connected: Array.from(relayClients.keys()) }));
+        return;
+      }
+
+      ws.send(JSON.stringify({ error: "unknown message type", validTypes: ["relay", "ping", "peers"] }));
+    });
+
+    ws.on("close", () => {
+      if (nodeAddress) {
+        relayClients.delete(nodeAddress);
+        relayAddressByWs.delete(ws);
+        console.log(`[ws-relay] Node ${nodeAddress} disconnected`);
+      }
+    });
+
+    ws.on("error", (err: Error) => {
+      console.log(`[ws-relay] Error for ${nodeAddress || "unauthenticated"}: ${err.message}`);
+    });
+
+    setTimeout(() => {
+      if (!authenticated && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ error: "auth timeout" }));
+        ws.close(1008, "auth timeout");
+      }
+    }, 10000);
+  });
+
+  console.log(`[ws-relay] WebSocket relay active at /ws/relay`);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
