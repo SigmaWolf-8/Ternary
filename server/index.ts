@@ -689,13 +689,30 @@ function startPqtiService(): ChildProcess | null {
   }
   if (daemonPath) {
     try {
-      const crsProc = spawn(daemonPath, [], {
-        env: {
-          ...process.env,
-          CUBE_MODE: "crs",
-          CUBE_API_PORT: "8181",
-          CUBE_IDENTITY_PASSPHRASE: "plenumlan-prototype-2026",
-        },
+      const systemLinker = "/lib64/ld-linux-x86-64.so.2";
+      const useLinkerInvoke = existsSync(systemLinker) && !existsSync("/nix/store/g8zyryr9cr6540xsyg4avqkwgxpnwj2a-glibc-2.40-66/lib/ld-linux-x86-64.so.2");
+      
+      let spawnCmd: string;
+      let spawnArgs: string[];
+      const spawnEnv: Record<string, string> = {
+        ...process.env as Record<string, string>,
+        CUBE_MODE: "crs",
+        CUBE_API_PORT: "8181",
+        CUBE_IDENTITY_PASSPHRASE: "plenumlan-prototype-2026",
+      };
+      
+      if (useLinkerInvoke) {
+        spawnCmd = systemLinker;
+        spawnArgs = [daemonPath];
+        spawnEnv.LD_LIBRARY_PATH = "/lib/x86_64-linux-gnu:/lib64:/usr/lib/x86_64-linux-gnu";
+        console.log(`[crs-daemon] NixOS interpreter missing in production — using ${systemLinker} to invoke binary`);
+      } else {
+        spawnCmd = daemonPath;
+        spawnArgs = [];
+      }
+
+      const crsProc = spawn(spawnCmd, spawnArgs, {
+        env: spawnEnv,
         stdio: ["ignore", "pipe", "pipe"],
         detached: false,
       });
@@ -705,7 +722,7 @@ function startPqtiService(): ChildProcess | null {
       crsProc.stdout?.on("data", (d: Buffer) => console.log(`[crs-daemon] ${d.toString().trim()}`));
       crsProc.stderr?.on("data", (d: Buffer) => console.error(`[crs-daemon] ${d.toString().trim()}`));
       crsProc.on("exit", (code: number | null) => console.log(`[crs-daemon] exited with code ${code}`));
-      console.log(`[crs-daemon] spawned from ${daemonPath} (PID ${crsProc.pid}, port 8181, mode=crs)`);
+      console.log(`[crs-daemon] spawned from ${daemonPath} via ${spawnCmd} (PID ${crsProc.pid}, port 8181, mode=crs)`);
     } catch (err: any) {
       console.log(`[crs-daemon] failed to spawn (non-fatal): ${err.message}`);
     }
