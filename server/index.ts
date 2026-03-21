@@ -519,6 +519,15 @@ function startPqtiService(): ChildProcess | null {
     return result;
   }
 
+  function normalizeTernaryAddr(s: string): string {
+    return s.replace(/\./g, "");
+  }
+
+  function toDottedAddr(flat: string): string {
+    if (flat.length !== DIMENSIONS) return flat;
+    return `${flat.slice(0, 3)}.${flat.slice(3, 6)}.${flat.slice(6, 9)}.${flat.slice(9, 12)}.${flat.slice(12, 13)}`;
+  }
+
   function getNeighbors(addr: string): { address: string; endpoint: string | null; registered: boolean }[] {
     const neighbors: { address: string; endpoint: string | null; registered: boolean }[] = [];
     for (let dim = 0; dim < DIMENSIONS; dim++) {
@@ -572,8 +581,8 @@ function startPqtiService(): ChildProcess | null {
     }
     const neighbors = getNeighbors(addr);
     const registeredNeighbors = neighbors.filter((n) => n.registered).length;
-    log(`CRS(TS) registered ${publicKey.substring(0, 16)}... as ${addr} (${registeredNeighbors}/${neighbors.length} neighbors)`, "crs");
-    res.json({ address: addr, endpoint, neighbors, registeredNeighbors, totalNeighbors: neighbors.length });
+    log(`CRS(TS) registered ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)} (${registeredNeighbors}/${neighbors.length} neighbors)`, "crs");
+    res.json({ address: addr, addressDotted: toDottedAddr(addr), endpoint, neighbors, registeredNeighbors, totalNeighbors: neighbors.length });
   });
 
   app.get("/api/salvi/inter-cube/relay/heartbeat", async (req, res) => {
@@ -590,10 +599,11 @@ function startPqtiService(): ChildProcess | null {
       const body = await upstream.text();
       return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
     }
-    const entry = crsRegistry.get(address as string);
+    const normalizedAddr = normalizeTernaryAddr(address as string);
+    const entry = crsRegistry.get(normalizedAddr);
     if (entry) {
       entry.lastSeen = Date.now();
-      res.json({ status: "ok", address });
+      res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr) });
     } else {
       res.status(404).json({ error: "Address not registered" });
     }
@@ -614,7 +624,7 @@ function startPqtiService(): ChildProcess | null {
       if (!publicKey || !ep) return res.status(400).json({ error: "publicKey and endpoint required" });
       const addr = toTernary(crsAddressCounter++, DIMENSIONS);
       crsRegistry.set(addr, { publicKey, endpoint: ep, lastSeen: Date.now() });
-      return res.json({ address: addr, endpoint: ep, neighbors: getNeighbors(addr), registeredNeighbors: 0, totalNeighbors: DIMENSIONS * 2 });
+      return res.json({ address: addr, addressDotted: toDottedAddr(addr), endpoint: ep, neighbors: getNeighbors(addr), registeredNeighbors: 0, totalNeighbors: DIMENSIONS * 2 });
     }
     if (req.params.service === "crs" && req.params.action === "stats") {
       return res.json({ registeredCubes: crsRegistry.size, availableAddresses: TOTAL_ADDRESSES - crsRegistry.size, totalAddressSpace: TOTAL_ADDRESSES, dimensions: DIMENSIONS });
@@ -630,6 +640,7 @@ function startPqtiService(): ChildProcess | null {
       const entries: [string, any][] = Array.from(relayClientsRef.entries());
       const nodes = entries.map(([addr, ws]) => ({
         address: addr,
+        addressDotted: toDottedAddr(addr),
         connected: ws.readyState === 1,
         endpoint: crsReg.get(addr)?.endpoint || null,
       }));
@@ -735,10 +746,11 @@ function startPqtiService(): ChildProcess | null {
 
       if (!authenticated) {
         if (msg.type === "auth" && msg.address && msg.publicKey) {
-          const verified = await verifyNodeRegistration(msg.address, msg.publicKey);
+          const normalAddr = normalizeTernaryAddr(msg.address);
+          const verified = await verifyNodeRegistration(normalAddr, msg.publicKey);
           if (verified) {
             authenticated = true;
-            nodeAddress = msg.address;
+            nodeAddress = normalAddr;
             const oldWs = relayClients.get(nodeAddress);
             if (oldWs && oldWs !== ws && oldWs.readyState === WebSocket.OPEN) {
               oldWs.close(1000, "replaced");
@@ -768,7 +780,7 @@ function startPqtiService(): ChildProcess | null {
       }
 
       if (msg.type === "relay" && msg.to && msg.payload) {
-        const targetWs = relayClients.get(msg.to);
+        const targetWs = relayClients.get(normalizeTernaryAddr(msg.to));
         const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
         if (targetWs && targetWs.readyState === WebSocket.OPEN) {
           targetWs.send(envelope);

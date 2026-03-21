@@ -146,7 +146,7 @@ async fn run_crs_mode() {
 
     println!();
     println!("=== Inter-Cube Stack Active ===");
-    println!("  Address:       {}", local_address);
+    println!("  Address:       {} ({})", local_address.to_dotted(), local_address);
     println!(
         "  Address space: {} / {} used",
         crs.registered_count(),
@@ -294,7 +294,7 @@ async fn run_cube_mode() {
     let total_nbrs = reg_data["totalNeighbors"].as_u64().unwrap_or(26);
 
     println!();
-    println!("[CUBE] Registered! Address: {}", local_address);
+    println!("[CUBE] Registered! Address: {} ({})", local_address.to_dotted(), local_address);
     println!(
         "[CUBE] Neighbors: {} registered, {} total",
         registered_nbrs, total_nbrs
@@ -386,7 +386,7 @@ async fn run_cube_mode() {
 
     println!();
     println!("=== Inter-Cube Stack Active (Cube Mode) ===");
-    println!("  Address:       {}", local_address);
+    println!("  Address:       {} ({})", local_address.to_dotted(), local_address);
     println!("  CRS:           {}", crs_url);
     println!("  Dimensions:    {}", DIMENSIONS);
     println!(

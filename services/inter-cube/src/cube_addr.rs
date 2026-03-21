@@ -385,6 +385,30 @@ impl fmt::Display for CubeAddr {
     }
 }
 
+impl CubeAddr {
+    /// Dotted notation: 111.111.111.111.2 (groups of 3 + final trit)
+    pub fn to_dotted(&self) -> String {
+        let flat: String = self.trits.iter().map(|t| char::from(b'0' + t.value())).collect();
+        format!("{}.{}.{}.{}.{}",
+            &flat[0..3], &flat[3..6], &flat[6..9], &flat[9..12], &flat[12..13])
+    }
+
+    /// Parse from either flat (1111111111112) or dotted (111.111.111.111.2) notation.
+    /// Returns None if length is wrong or any trit is outside {1,2,3}.
+    pub fn parse(s: &str) -> Option<Self> {
+        let flat: String = s.chars().filter(|c| *c != '.').collect();
+        if flat.len() != DIMENSIONS {
+            return None;
+        }
+        let bytes: Vec<u8> = flat
+            .chars()
+            .map(|c| c.to_digit(10).map(|d| d as u8))
+            .collect::<Option<Vec<u8>>>()?;
+        Self::try_from_bytes(&bytes)
+    }
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════
 // MULTI-LEVEL ADDRESSING — Cube of Cubes
 // ═══════════════════════════════════════════════════════════════════════
