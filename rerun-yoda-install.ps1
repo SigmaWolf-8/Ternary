@@ -374,7 +374,64 @@ try {
   Write-Host "  WARN llama-server not responding yet (model may still be loading) -- check logs: $serverErrLog" -ForegroundColor Yellow
 }
 
-# -- 13. Summary ---------------------------------------------------------------
+# -- 13. Create start-yoda launcher --------------------------------------------
+Write-Host ""
+Write-Host "Creating YODA launcher..."
+$startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start YODA.bat"
+$startYodaContent = @"
+@echo off
+title YODA — PlenumNET Node
+echo ========================================
+echo   YODA — Starting PlenumNET Node
+echo ========================================
+echo.
+
+:: Kill any existing instances
+taskkill /f /im llama-server.exe >nul 2>&1
+taskkill /f /im inter-cube-daemon.exe >nul 2>&1
+timeout /t 1 /nobreak >nul
+
+:: Set environment
+set CUBE_MODE=cube
+set CUBE_CRS_URL=$CRS_URL
+set CUBE_ENDPOINT=$CUBE_ENDPOINT
+set CUBE_API_PORT=$CUBE_API_PORT
+set LLM_PORT=$LLM_PORT
+
+:: Start llama-server
+echo Starting Engine (llama-server) on port $LLM_PORT...
+start "" /b "$LLAMA_SERVER" --model "$MODEL_PATH" --port $LLM_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 0
+
+:: Wait for engine to initialize
+timeout /t 3 /nobreak >nul
+
+:: Start cube daemon
+echo Starting Node (inter-cube daemon) on port $CUBE_API_PORT...
+start "" /b "$DAEMON_PATH"
+
+timeout /t 3 /nobreak >nul
+
+echo.
+echo ========================================
+echo   YODA Running
+echo   Engine  : http://localhost:$LLM_PORT
+echo   Node    : http://localhost:$CUBE_API_PORT
+echo   CRS     : $CRS_URL
+echo ========================================
+echo.
+echo Open your browser to http://localhost:$CUBE_API_PORT
+echo Press any key to stop all services...
+pause >nul
+
+taskkill /f /im llama-server.exe >nul 2>&1
+taskkill /f /im inter-cube-daemon.exe >nul 2>&1
+echo Services stopped.
+timeout /t 2 /nobreak >nul
+"@
+Set-Content -Path $startYodaPath -Value $startYodaContent -Encoding ASCII
+Write-Host "  OK Created: $startYodaPath" -ForegroundColor Green
+
+# -- 14. Summary ---------------------------------------------------------------
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  YODA Setup Complete!" -ForegroundColor Green
@@ -385,9 +442,11 @@ Write-Host "  CRS     : $CRS_URL" -ForegroundColor Green
 Write-Host "  Endpoint: $CUBE_ENDPOINT" -ForegroundColor Green
 Write-Host "  PubKey  : $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..." -ForegroundColor Green
 Write-Host "  Logs    : $LOG_DIR" -ForegroundColor Green
+Write-Host "  Start   : $startYodaPath" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Both processes run in the background." -ForegroundColor Yellow
 Write-Host "Logs: $LOG_DIR" -ForegroundColor Yellow
+Write-Host "Next time: Double-click 'Start YODA' on Desktop to launch everything." -ForegroundColor Yellow
 Write-Host "To stop: Stop-Process -Id $($serverProc.Id); Stop-Process -Id $($daemonProc.Id)" -ForegroundColor Yellow
 Read-Host "Press Enter to close (processes keep running)"

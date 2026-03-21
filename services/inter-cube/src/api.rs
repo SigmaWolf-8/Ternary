@@ -229,6 +229,140 @@ pub async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResp
     })
 }
 
+/// GET / — YODA dashboard (cube mode).
+pub async fn yoda_dashboard(State(state): State<Arc<AppState>>) -> axum::response::Html<String> {
+    let addr_flat = format!("{}", state.local_address);
+    let addr_dotted = state.local_address.to_dotted();
+    let llm_port = std::env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
+    let node_port = std::env::var("CUBE_API_PORT")
+        .or_else(|_| std::env::var("API_PORT"))
+        .unwrap_or_else(|_| "8081".to_string());
+    let crs_url = std::env::var("CUBE_CRS_URL").unwrap_or_else(|_| "unknown".to_string());
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YODA — {addr_dotted}</title>
+<style>
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ background: #0a0a0f; color: #c8ccd0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }}
+  .header {{ width: 100%; padding: 24px 32px; border-bottom: 1px solid #1a1a2e; display: flex; align-items: center; gap: 16px; }}
+  .header h1 {{ font-size: 20px; font-weight: 600; color: #e0e0e0; letter-spacing: 2px; }}
+  .header .addr {{ font-size: 14px; color: #5b8def; font-family: 'Cascadia Code', 'Fira Code', monospace; }}
+  .main {{ flex: 1; width: 100%; max-width: 900px; padding: 40px 32px; }}
+  .status-row {{ display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }}
+  .status-card {{ background: #111118; border: 1px solid #1a1a2e; border-radius: 8px; padding: 16px 20px; flex: 1; min-width: 200px; }}
+  .status-card .label {{ font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 6px; }}
+  .status-card .value {{ font-size: 15px; font-family: 'Cascadia Code', 'Fira Code', monospace; }}
+  .status-card .value.blue {{ color: #5b8def; }}
+  .status-card .value.grey {{ color: #666; }}
+  .buttons {{ display: flex; gap: 16px; margin-top: 32px; flex-wrap: wrap; }}
+  .btn {{ display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; border-radius: 8px; border: 1px solid #1a1a2e; background: #111118; color: #c8ccd0; font-size: 15px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.15s; }}
+  .btn:hover {{ background: #1a1a2e; border-color: #5b8def; color: #fff; }}
+  .btn svg {{ width: 20px; height: 20px; }}
+  .btn-engine {{ border-color: #2a3a5e; }}
+  .btn-node {{ border-color: #2a3a5e; }}
+  .section {{ margin-top: 40px; }}
+  .section h2 {{ font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #555; margin-bottom: 16px; }}
+  .endpoint-list {{ list-style: none; }}
+  .endpoint-list li {{ padding: 8px 0; border-bottom: 1px solid #111118; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 13px; color: #888; }}
+  .endpoint-list li span {{ color: #5b8def; }}
+  .dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }}
+  .dot-blue {{ background: #5b8def; box-shadow: 0 0 6px #5b8def55; }}
+  .dot-grey {{ background: #555; }}
+  .dot-black {{ background: #222; }}
+  #engine-status, #node-status {{ transition: color 0.3s; }}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>YODA</h1>
+  <span class="addr">{addr_dotted}</span>
+</div>
+<div class="main">
+  <div class="status-row">
+    <div class="status-card">
+      <div class="label">Address</div>
+      <div class="value blue">{addr_dotted}</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Flat Address</div>
+      <div class="value grey">{addr_flat}</div>
+    </div>
+    <div class="status-card">
+      <div class="label">CRS</div>
+      <div class="value grey">{crs_url}</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Mode</div>
+      <div class="value blue">{mode}</div>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <a href="http://localhost:{llm_port}" target="_blank" class="btn btn-engine" id="btn-engine">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      <div>
+        <div>Engine</div>
+        <div style="font-size:11px;color:#666" id="engine-status">checking...</div>
+      </div>
+    </a>
+    <a href="http://localhost:{node_port}/health" target="_blank" class="btn btn-node" id="btn-node">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <div>
+        <div>Node</div>
+        <div style="font-size:11px;color:#666" id="node-status">checking...</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="section">
+    <h2>API Endpoints</h2>
+    <ul class="endpoint-list">
+      <li><span>GET</span>  /health</li>
+      <li><span>GET</span>  /api/salvi/inter-cube/glb/stats</li>
+      <li><span>POST</span> /api/salvi/inter-cube/glb/forward</li>
+      <li><span>GET</span>  /api/salvi/inter-cube/con/stats</li>
+      <li><span>GET</span>  /api/salvi/inter-cube/fts/status</li>
+      <li><span>GET</span>  /api/salvi/inter-cube/fts/dead</li>
+      <li><span>GET</span>  /api/salvi/inter-cube/topology</li>
+      <li><span>POST</span> /api/salvi/inter-cube/address/validate</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+async function checkService(url, elId) {{
+  const el = document.getElementById(elId);
+  try {{
+    const r = await fetch(url, {{ signal: AbortSignal.timeout(3000) }});
+    if (r.ok) {{
+      el.textContent = 'live';
+      el.style.color = '#5b8def';
+    }} else {{
+      el.textContent = 'error ' + r.status;
+      el.style.color = '#666';
+    }}
+  }} catch {{
+    el.textContent = 'unreachable';
+    el.style.color = '#333';
+  }}
+}}
+checkService('http://localhost:{llm_port}/health', 'engine-status');
+checkService('http://localhost:{node_port}/health', 'node-status');
+setInterval(() => {{
+  checkService('http://localhost:{llm_port}/health', 'engine-status');
+  checkService('http://localhost:{node_port}/health', 'node-status');
+}}, 10000);
+</script>
+</body>
+</html>"#, mode = state.mode);
+
+    axum::response::Html(html)
+}
+
 /// GET /api/salvi/inter-cube/crs/stats (CRS mode only).
 pub async fn crs_stats(
     State(state): State<Arc<AppState>>,
@@ -582,6 +716,7 @@ pub fn crs_router(state: Arc<AppState>) -> Router {
 /// endpoints are omitted. Stats, forwarding, and validation remain.
 pub fn cube_router(state: Arc<AppState>) -> Router {
     Router::new()
+        .route("/", get(yoda_dashboard))
         .route("/health", get(health_check))
         .route("/api/salvi/inter-cube/glb/forward", post(glb_forward))
         .route("/api/salvi/inter-cube/glb/stats", get(glb_stats))
@@ -603,5 +738,5 @@ pub fn cube_router(state: Arc<AppState>) -> Router {
 /// Number of routes in CRS mode.
 pub const CRS_ROUTE_COUNT: usize = 12;
 
-/// Number of routes in cube mode.
-pub const CUBE_ROUTE_COUNT: usize = 8;
+/// Number of routes in cube mode (including YODA dashboard).
+pub const CUBE_ROUTE_COUNT: usize = 9;
