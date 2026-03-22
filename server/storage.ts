@@ -15,6 +15,7 @@
  */
 
 import { encryptToken, decryptToken } from "./crypto-utils";
+import { phaseSplit } from "./salvi-core/phase-encryption";
 import { 
   type User, type UpsertUser,
   type DemoSession, type InsertDemoSession,
@@ -27,12 +28,13 @@ import {
   type DeveloperSignup, type InsertDeveloperSignup,
   type CompressedDocument, type InsertCompressedDocument,
   type DataSubjectRequest, type InsertDataSubjectRequest,
+  type CrsRelayNode, type InsertCrsRelayNode,
   users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
   fileUploads, compressionHistory, whitepapers, developerSignups, compressedDocuments,
-  dataSubjectRequests
+  dataSubjectRequests, crsRelayNodes
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, lt, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -84,6 +86,13 @@ export interface IStorage {
   updateDataSubjectRequest(id: number, status: string, responseData?: unknown): Promise<DataSubjectRequest | undefined>;
   getUserData(userId: string): Promise<Record<string, unknown>>;
   deleteUserData(userId: string): Promise<void>;
+
+  upsertCrsRelayNode(publicKey: string, address: string, endpoint: string): Promise<CrsRelayNode>;
+  getCrsRelayNodeByPublicKey(publicKey: string): Promise<CrsRelayNode | undefined>;
+  getAllCrsRelayNodes(): Promise<CrsRelayNode[]>;
+  deleteStaleCrsRelayNodes(maxAgeMs: number): Promise<number>;
+  deleteCrsRelayNodesByAddresses(addresses: string[]): Promise<number>;
+  deleteCrsRelayNode(publicKey: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -285,6 +294,48 @@ export class DatabaseStorage implements IStorage {
     }
     await db.delete(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
+  }
+
+  async upsertCrsRelayNode(publicKey: string, address: string, endpoint: string): Promise<CrsRelayNode> {
+    const phaseData = phaseSplit(publicKey, 'performance');
+    const encrypted = JSON.stringify(phaseData);
+    const existing = await db.select().from(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
+    if (existing.length > 0) {
+      const [updated] = await db.update(crsRelayNodes)
+        .set({ address, endpoint, publicKeyEncrypted: encrypted, lastSeen: new Date(), updatedAt: new Date() })
+        .where(eq(crsRelayNodes.publicKey, publicKey))
+        .returning();
+      return updated;
+    }
+    const [node] = await db.insert(crsRelayNodes)
+      .values({ publicKey, publicKeyEncrypted: encrypted, address, endpoint, lastSeen: new Date() })
+      .returning();
+    return node;
+  }
+
+  async getCrsRelayNodeByPublicKey(publicKey: string): Promise<CrsRelayNode | undefined> {
+    const [node] = await db.select().from(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
+    return node;
+  }
+
+  async getAllCrsRelayNodes(): Promise<CrsRelayNode[]> {
+    return db.select().from(crsRelayNodes);
+  }
+
+  async deleteStaleCrsRelayNodes(maxAgeMs: number): Promise<number> {
+    const cutoff = new Date(Date.now() - maxAgeMs);
+    const deleted = await db.delete(crsRelayNodes).where(lt(crsRelayNodes.lastSeen, cutoff)).returning();
+    return deleted.length;
+  }
+
+  async deleteCrsRelayNodesByAddresses(addresses: string[]): Promise<number> {
+    if (addresses.length === 0) return 0;
+    const deleted = await db.delete(crsRelayNodes).where(inArray(crsRelayNodes.address, addresses)).returning();
+    return deleted.length;
+  }
+
+  async deleteCrsRelayNode(publicKey: string): Promise<void> {
+    await db.delete(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
   }
 }
 

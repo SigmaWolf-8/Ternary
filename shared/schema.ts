@@ -328,6 +328,21 @@ export const coherenceLogs = pgTable("coherence_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const crsRelayNodes = pgTable("crs_relay_nodes", {
+  id: serial("id").primaryKey(),
+  publicKey: text("public_key").notNull(),
+  publicKeyEncrypted: text("public_key_encrypted").notNull(),
+  address: varchar("address", { length: 13 }).notNull(),
+  endpoint: varchar("endpoint", { length: 255 }).notNull(),
+  lastSeen: timestamp("last_seen").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCrsRelayNodeSchema = createInsertSchema(crsRelayNodes).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCrsRelayNode = z.infer<typeof insertCrsRelayNodeSchema>;
+export type CrsRelayNode = typeof crsRelayNodes.$inferSelect;
+
 export const insertCoherenceLogSchema = createInsertSchema(coherenceLogs).omit({ id: true, createdAt: true });
 export type InsertCoherenceLog = z.infer<typeof insertCoherenceLogSchema>;
 export type CoherenceLog = typeof coherenceLogs.$inferSelect;

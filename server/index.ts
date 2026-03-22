@@ -28,6 +28,7 @@ let _serverListening = false;
 
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
+import { storage } from "./storage";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -505,19 +506,24 @@ function startPqtiService(): ChildProcess | null {
   });
 
   const DIMENSIONS = 13;
-  const TOTAL_ADDRESSES = Math.pow(3, DIMENSIONS);
   const crsRegistry = new Map<string, { publicKey: string; endpoint: string; lastSeen: number }>();
-  let crsAddressCounter = 1;
+  const publicKeyAddressMap = new Map<string, string>();
 
-  function toTernary(n: number, digits: number): string {
-    let result = "";
-    let val = n;
-    for (let i = 0; i < digits; i++) {
-      result = ((val % 3) + 1).toString() + result;
-      val = Math.floor(val / 3);
+  (async () => {
+    try {
+      const persisted = await storage.getAllCrsRelayNodes();
+      for (const node of persisted) {
+        const addr = node.address;
+        crsRegistry.set(addr, { publicKey: node.publicKey, endpoint: node.endpoint, lastSeen: node.lastSeen.getTime() });
+        publicKeyAddressMap.set(node.publicKey, addr);
+      }
+      if (persisted.length > 0) {
+        log(`CRS loaded ${persisted.length} persisted node registrations from database`, "crs");
+      }
+    } catch (err) {
+      log(`CRS failed to load persisted registrations: ${err}`, "crs");
     }
-    return result;
-  }
+  })();
 
   function normalizeTernaryAddr(s: string): string {
     return s.replace(/\./g, "");
@@ -526,25 +532,6 @@ function startPqtiService(): ChildProcess | null {
   function toDottedAddr(flat: string): string {
     if (flat.length !== DIMENSIONS) return flat;
     return `${flat.slice(0, 3)}.${flat.slice(3, 6)}.${flat.slice(6, 9)}.${flat.slice(9, 12)}.${flat.slice(12, 13)}`;
-  }
-
-  function getNeighbors(addr: string): { address: string; endpoint: string | null; registered: boolean }[] {
-    const neighbors: { address: string; endpoint: string | null; registered: boolean }[] = [];
-    for (let dim = 0; dim < DIMENSIONS; dim++) {
-      const pos = DIMENSIONS - 1 - dim;
-      const digit = parseInt(addr[pos]);
-      for (const delta of [1, 2]) {
-        const newDigit = ((digit - 1 + delta) % 3) + 1;
-        const neighborAddr = addr.substring(0, pos) + newDigit.toString() + addr.substring(pos + 1);
-        const entry = crsRegistry.get(neighborAddr);
-        neighbors.push({
-          address: neighborAddr,
-          endpoint: entry?.endpoint || null,
-          registered: !!entry,
-        });
-      }
-    }
-    return neighbors;
   }
 
   async function tryCrsDaemon(url: string, opts: RequestInit): Promise<globalThis.Response | null> {
@@ -566,47 +553,84 @@ function startPqtiService(): ChildProcess | null {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ publicKey, endpoint }),
     });
-    if (upstream) {
+    if (upstream && upstream.ok) {
       const body = await upstream.text();
+      try {
+        const data = JSON.parse(body);
+        if (data.address) {
+          const addr = normalizeTernaryAddr(data.address);
+          crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now() });
+          publicKeyAddressMap.set(publicKey, addr);
+          storage.upsertCrsRelayNode(publicKey, addr, endpoint).catch(() => {});
+          log(`CRS registered ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)}`, "crs");
+        }
+      } catch {}
       return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
     }
-    const existingAddr = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];
-    let addr: string;
-    if (existingAddr) {
-      addr = existingAddr;
-      crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now() });
-    } else {
-      addr = toTernary(crsAddressCounter++, DIMENSIONS);
-      crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now() });
+    if (upstream && !upstream.ok) {
+      const body = await upstream.text();
+      log(`CRS daemon registration returned ${upstream.status}: ${body}`, "crs");
     }
-    const neighbors = getNeighbors(addr);
-    const registeredNeighbors = neighbors.filter((n) => n.registered).length;
-    log(`CRS(TS) registered ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)} (${registeredNeighbors}/${neighbors.length} neighbors)`, "crs");
-    res.json({ address: addr, addressDotted: toDottedAddr(addr), endpoint, neighbors, registeredNeighbors, totalNeighbors: neighbors.length });
+    const priorAddr = publicKeyAddressMap.get(publicKey);
+    const activeAddr = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];
+    if (activeAddr) {
+      crsRegistry.get(activeAddr)!.lastSeen = Date.now();
+      crsRegistry.get(activeAddr)!.endpoint = endpoint;
+      storage.upsertCrsRelayNode(publicKey, activeAddr, endpoint).catch(() => {});
+      return res.json({ address: activeAddr, addressDotted: toDottedAddr(activeAddr), endpoint, source: "persisted" });
+    }
+    if (priorAddr) {
+      crsRegistry.set(priorAddr, { publicKey, endpoint, lastSeen: Date.now() });
+      storage.upsertCrsRelayNode(publicKey, priorAddr, endpoint).catch(() => {});
+      return res.json({ address: priorAddr, addressDotted: toDottedAddr(priorAddr), endpoint, source: "persisted" });
+    }
+    return res.status(503).json({ error: "CRS daemon unavailable and no prior registration found for this node" });
   });
+
+  function addressStringToTritArray(addr: string): number[] {
+    return addr.split("").map((c) => parseInt(c));
+  }
 
   app.get("/api/salvi/inter-cube/relay/heartbeat", async (req, res) => {
     const { address, publicKey } = req.query as { address?: string; publicKey?: string };
     if (!address) {
       return res.status(400).json({ error: "address query param required" });
     }
+    const normalizedAddr = normalizeTernaryAddr(address as string);
+    const entry = crsRegistry.get(normalizedAddr);
+    const endpoint = entry?.endpoint || "0.0.0.0:0";
+    if (entry) {
+      entry.lastSeen = Date.now();
+      storage.upsertCrsRelayNode(entry.publicKey, normalizedAddr, entry.endpoint).catch(() => {});
+    }
     const upstream = await tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/heartbeat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address, publicKey: publicKey || "" }),
+      body: JSON.stringify({ address: addressStringToTritArray(normalizedAddr), endpoint }),
     });
-    if (upstream) {
+    if (!upstream) {
+      if (entry) {
+        return res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr), timestamp: Date.now(), daemonSync: false });
+      }
+      return res.status(404).json({ error: "Address not registered" });
+    }
+    if (upstream.ok) {
       const body = await upstream.text();
-      return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
+      try {
+        const data = JSON.parse(body);
+        data.timestamp = Date.now();
+        data.daemonSync = true;
+        return res.status(upstream.status).setHeader("Content-Type", "application/json").json(data);
+      } catch {
+        return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
+      }
     }
-    const normalizedAddr = normalizeTernaryAddr(address as string);
-    const entry = crsRegistry.get(normalizedAddr);
+    const errBody = await upstream.text();
+    log(`CRS daemon heartbeat returned ${upstream.status}: ${errBody}`, "crs");
     if (entry) {
-      entry.lastSeen = Date.now();
-      res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr) });
-    } else {
-      res.status(404).json({ error: "Address not registered" });
+      return res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr), timestamp: Date.now(), daemonSync: false, daemonStatus: upstream.status });
     }
+    return res.status(404).json({ error: "Address not registered in CRS daemon", daemonStatus: upstream.status });
   });
 
   const interCubeProxy = async (req: any, res: any) => {
@@ -617,19 +641,24 @@ function startPqtiService(): ChildProcess | null {
     });
     if (upstream) {
       const body = await upstream.text();
+      if (upstream.ok && req.params.service === "crs" && req.params.action === "register") {
+        try {
+          const data = JSON.parse(body);
+          if (data.address) {
+            const addr = normalizeTernaryAddr(data.address);
+            const pk = req.body?.publicKey || data.publicKey;
+            const ep = req.body?.endpoint || data.endpoint;
+            if (pk && ep) {
+              crsRegistry.set(addr, { publicKey: pk, endpoint: ep, lastSeen: Date.now() });
+              publicKeyAddressMap.set(pk, addr);
+              storage.upsertCrsRelayNode(pk, addr, ep).catch(() => {});
+            }
+          }
+        } catch {}
+      }
       return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
     }
-    if (req.params.service === "crs" && req.params.action === "register") {
-      const { publicKey, endpoint: ep } = req.body || {};
-      if (!publicKey || !ep) return res.status(400).json({ error: "publicKey and endpoint required" });
-      const addr = toTernary(crsAddressCounter++, DIMENSIONS);
-      crsRegistry.set(addr, { publicKey, endpoint: ep, lastSeen: Date.now() });
-      return res.json({ address: addr, addressDotted: toDottedAddr(addr), endpoint: ep, neighbors: getNeighbors(addr), registeredNeighbors: 0, totalNeighbors: DIMENSIONS * 2 });
-    }
-    if (req.params.service === "crs" && req.params.action === "stats") {
-      return res.json({ registeredCubes: crsRegistry.size, availableAddresses: TOTAL_ADDRESSES - crsRegistry.size, totalAddressSpace: TOTAL_ADDRESSES, dimensions: DIMENSIONS });
-    }
-    res.status(503).json({ error: "CRS daemon not available for this endpoint" });
+    return res.status(503).json({ error: "CRS daemon unavailable" });
   };
 
   app.get("/api/salvi/inter-cube/relay/status", (_req, res) => {
@@ -649,16 +678,58 @@ function startPqtiService(): ChildProcess | null {
     res.json({ connectedNodes: 0, nodes: [], pendingQueues: 0 });
   });
 
+  function purgeStaleRegistrations(maxAgeMs: number): { purged: number; remaining: number; purgedAddresses: string[] } {
+    const now = Date.now();
+    const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
+    const purgedAddrs: string[] = [];
+    for (const [addr, entry] of crsRegistry.entries()) {
+      if (now - entry.lastSeen > maxAgeMs) {
+        const isConnectedViaWs = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
+        if (!isConnectedViaWs) {
+          crsRegistry.delete(addr);
+          for (const [pk, mappedAddr] of publicKeyAddressMap.entries()) {
+            if (mappedAddr === addr) publicKeyAddressMap.delete(pk);
+          }
+          purgedAddrs.push(addr);
+        }
+      }
+    }
+    if (purgedAddrs.length > 0) {
+      log(`CRS purged ${purgedAddrs.length} stale registrations (maxAge=${maxAgeMs}ms)`, "crs");
+      storage.deleteCrsRelayNodesByAddresses(purgedAddrs).catch(() => {});
+    }
+    return { purged: purgedAddrs.length, remaining: crsRegistry.size, purgedAddresses: purgedAddrs };
+  }
+
+  const purgeStaleHandler = (req: any, res: any) => {
+    const adminKey = req.headers["x-admin-key"];
+    if (adminKey !== process.env.SESSION_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const maxAge = parseInt(req.query.maxAge as string) || 300000;
+    const MIN_MAX_AGE = 60_000;
+    const result = purgeStaleRegistrations(Math.max(maxAge, MIN_MAX_AGE));
+    res.json(result);
+  };
+  app.get("/api/salvi/inter-cube/relay/purge-stale", purgeStaleHandler);
+  app.post("/api/salvi/inter-cube/relay/purge-stale", purgeStaleHandler);
+
+  const STALE_CLEANUP_INTERVAL = 60_000;
+  const STALE_MAX_AGE = 300_000;
+  setInterval(() => {
+    purgeStaleRegistrations(STALE_MAX_AGE);
+  }, STALE_CLEANUP_INTERVAL);
+
   app.all("/api/salvi/inter-cube/:service/:action", interCubeProxy);
   app.all("/api/salvi/inter-cube/:service", interCubeProxy);
 
   app.get("/health/crs", async (_req, res) => {
     const upstream = await tryCrsDaemon("http://127.0.0.1:8181/health", { method: "GET" });
-    if (upstream) {
-      const body = await upstream.text();
-      return res.status(upstream.status).setHeader("Content-Type", "application/json").send(body);
+    if (!upstream) {
+      return res.status(503).json({ status: "unavailable", service: "PlenumNET Inter-Cube CRS Daemon", error: "daemon unreachable", trackedNodes: crsRegistry.size });
     }
-    res.json({ status: "ok", service: "PlenumNET Inter-Cube Infrastructure (TS fallback)", version: "0.2.0", mode: "crs", address: toTernary(0, DIMENSIONS), registeredCubes: crsRegistry.size });
+    const body = await upstream.text();
+    return res.status(upstream.status).setHeader("Content-Type", "application/json").send(body);
   });
 
   app.get("/api/yoda-installer", async (_req, res) => {
@@ -724,10 +795,6 @@ function startPqtiService(): ChildProcess | null {
         }
       }
     } catch {}
-    if (!entry) {
-      crsRegistry.set(address, { publicKey, endpoint: "ws-relay", lastSeen: Date.now() });
-      return true;
-    }
     return false;
   }
 
