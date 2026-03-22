@@ -1,0 +1,46 @@
+I need a summary and description of everything that yuo did and how this is now designed to work.
+
+You have 3 YODA AI Agents that need to run in parallel. Each agent needs its own Cube on the network. So:
+
+Cube Role Address Where
+Cube 1 CRS (Registry + Relay) 1111111111111 plenumnet.replit.app
+Cube 2 YODA Agent 1 1111111111112 Your laptop, ports 8080/8081
+Cube 3 YODA Agent 2 1111111111113 Your laptop, ports 8082/8083
+Cube 4 YODA Agent 3 1111111111121 Your laptop, ports 8084/8085
+
+I thought each Agent needed 2Ports?
+Does each Agent need an individual Cube/Tunnnel or not.
+
+Great question — let me clarify the port and tunnel requirements clearly.
+
+Does each agent need its own Cube/tunnel?
+In the current YODA design: yes, each agent has its own Cube identity — but not necessarily for the reason you'd expect.
+
+Here's why:
+
+The CRS routes inference requests to a specific Cube address on the PlenumNET. When YODA's dispatch layer sends a request through the relay, it targets slot_to_cube_address("a") vs "b" vs "c". If all three agents shared one tunnel, the CRS wouldn't know which LLM to forward the request to.
+
+Each Cube also has its own PT26-DSA identity keypair, so it's a distinct identity on the 13-dimension ternary network — not just a port distinction.
+
+The 2-port question — what's actually needed
+You're right that 2 ports appear per Cube in the current config, but here's what they actually are:
+
+Port	Process	Purpose
+8080	llama-server	LLM inference — browser relay calls this directly
+9080	inter-cube daemon	PlenumNET tunnel — connects outbound to the CRS
+The daemon port (9080/9081/9082) is not a listening port you need to open — the daemon connects out to plenumnet.replit.app via WebSocket. It just needs outbound internet access, no inbound port forwarding.
+
+So the real requirement per agent is:
+
+1 inbound port (llama-server) — used by the browser relay
+1 outbound connection (inter-cube daemon) — no local port required
+Corrected picture
+Cube	Role	Needs on your laptop
+Cube 1	CRS (relay + registry)	Runs at plenumnet.replit.app — not on your laptop
+Cube 2	Agent A	llama-server on 8080 + daemon (outbound only)
+Cube 3	Agent B	llama-server on 8081 + daemon (outbound only)
+Cube 4	Agent C	llama-server on 8082 + daemon (outbound only)
+So: 3 agents = 3 llama-server ports + 3 daemon processes (all outbound). No second inbound port per agent. The daemon ports (9080/9081/9082) in the current code are labels used internally — the daemon itself only opens an outbound WebSocket to the CRS, not a local listening socket that YODA talks to directly.
+
+The short answer
+Each agent does need its own Cube (its own daemon + identity) so the CRS can route requests to the right one. But each agent only needs 1 open port (the llama-server port). The daemon is purely outbound — no port forwarding required.

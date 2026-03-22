@@ -1,0 +1,101 @@
+I've been at this for like 36hours spinning wheels what the fuick is the problem.  can you help?
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> & "C:\Users\Sigma\llama.cpp\llama-server.exe" --help 2>&1 | Select-String -Pattern "cors"
+
+                                        experimental: whether to enable MCP CORS proxy - do not enable in
+
+
+PS C:\Users\Sigma> $env:CUBE_MODE     = "cube"
+PS C:\Users\Sigma> $env:CUBE_API_PORT = "8081"
+PS C:\Users\Sigma> $env:CUBE_CRS_URL  = "https://plenumnet.replit.app"
+PS C:\Users\Sigma> $env:CUBE_ROLE     = "inference"
+PS C:\Users\Sigma> $env:CUBE_ENDPOINT = "0.0.0.0:51820"
+PS C:\Users\Sigma> & "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+[CUBE] Role: inference
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from .plenumnet/identity\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0301020302020103...)
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=030102030202010302010102010f104c8daca5271f44d8b95adfa8decd0d0ec98fd805ae7b5973896ed8cf247ba0dd9fd90ee19982875a28455dc2cf0b&endpoint=0.0.0.0%3A51820
+
+[CUBE] Registered! Address: 332.111.111.111.1 (3321111111111)
+[CUBE] Neighbors: 5 registered, 26 total
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: 1705eba95ddf06dd...)
+[IDENTITY] Updated CRS with address-bound public key
+[CON] Resolved neighbor: 1321111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 2321111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 3121111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 3221111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 3311111111111 at 0.0.0.0:3000
+[CON] Overlay: 0 up, 0 resolving, 21 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       332.111.111.111.1 (3321111111111)
+  CRS:           https://plenumnet.replit.app
+  Dimensions:    13
+  Neighbors:     26 (5 registered)
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+
+[ws-relay] Establishing relay connection to CRS...
+[ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+
+=== HTTP Server (Cube) ===
+  http://0.0.0.0:8081
+  9 routes active
+  Relay:     WebSocket to CRS (NAT traversal)
+  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.
+
+
+thread 'main' (107464) panicked at services\inter-cube\src\main.rs:625:10:
+Failed to bind to port 8081: Os { code: 10048, kind: AddrInUse, message: "Only one usage of each socket address (protocol/network address/port) is normally permitted." }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\Users\Sigma>
+
+
+Good news: the daemon registered successfully with address 3321111111111 and the WebSocket relay connected — before crashing on the bind to port 8081, which something else already holds. That's likely a leftover daemon process from a previous run.
+
+Let me update the install scripts to use 8082 for the daemon, then tell you exactly what to run:
+
+The daemon port is set to SERVER_PORT + 1 (8081 when llama-server is at 8080), but something already holds 8081 — likely a stale daemon from a previous run. I'll shift it to SERVER_PORT + 2 (8082) throughout the scripts, and give you the kill + retry commands:
+
+Good. Now rebuild the frontend with the updated scripts:
+
+Port 8081 is occupied by a leftover daemon from a previous run (the new one crashed trying to bind that same port). Here's the fix — run these two commands in order:
+
+Step 1 — Kill the stale daemon (and anything on 8081):
+
+Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess) -Force -ErrorAction SilentlyContinue
+Step 2 — Restart the daemon with port 8082:
+
+$env:CUBE_MODE     = "cube"
+$env:CUBE_API_PORT = "8082"
+$env:CUBE_CRS_URL  = "https://plenumnet.replit.app"
+$env:CUBE_ROLE     = "inference"
+$env:CUBE_ENDPOINT = "0.0.0.0:51820"
+& "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
+I've also updated all the generated install scripts to use port 8082 going forward (was 8081), so any re-downloaded scripts from Settings → AI Engines will be correct automatically.
+
+Once the daemon shows "Inter-Cube Stack Active" and the WebSocket relay connects without crashing, try a query — the relay should reach your llama-server through the tunnel.

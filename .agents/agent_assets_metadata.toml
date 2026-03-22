@@ -42,3 +42,9 @@ id = "1kTYCFcuwYRYQp06vWXsO"
 uri = "file://YODA-HANDOFF.md"
 type = "text"
 title = "YODA App — PlenumNET Inter-Cube Integration Handoff"
+
+[[outputs]]
+id = "QesdqI-zyONBth0Z_bIxI"
+uri = "file://.local/tasks/plenumlan-connection-reference.md"
+type = "text"
+title = "PlenumLAN Active Cubes — Connection Reference (MD)"
