@@ -1,0 +1,87 @@
+The tunnel is fully live. Look at the key line:
+
+[ws-relay] Authenticated. 1 peer(s) online: ["1312111111111"]
+Your daemon can see YODA as an online relay peer, and YODA can see your cube (2312111111111). The NAT traversal is established — messages are flowing in both directions.
+
+Current state:
+
+Relay tunnel: fully connected
+Heartbeats: flowing every 30s, daemon refreshes YODA's crs_registrations on each one
+Queries from the browser: will route to your cube via relay and arrive at the daemon
+What happens at the daemon: it logs/discards inference_request messages — it doesn't yet pass them to llama-server and send back a response
+So if you submit a query in YODA right now using the self-hosted engine, the request will actually reach your laptop. The daemon just won't answer it, so YODA will hit the 6-second timeout.
+
+The last piece is on the PlenumNET daemon side: when it receives a relay message of type inference_request, it needs to POST it to llama-server on port 8081 (or wherever llama-server listens), get the completion back, and return it through the relay. Once that's wired in the daemon, the full stack will be end-to-end operational with no further changes needed on YODA.
+
+
+
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+PS C:\Users\Sigma> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"; $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"; $env:CUBE_ENDPOINT="0.0.0.0:51820"
+PS C:\Users\Sigma> & "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+[CUBE] Role: inference
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from .plenumnet/identity\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0301020302020103...)
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=030102030202010302010102010f104c8daca5271f44d8b95adfa8decd0d0ec98fd805ae7b5973896ed8cf247ba0dd9fd90ee19982875a28455dc2cf0b&endpoint=0.0.0.0%3A51820
+
+[CUBE] Registered! Address: 231.211.111.111.1 (2312111111111)
+[CUBE] Neighbors: 4 registered, 26 total
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: b916a504828fbbbc...)
+[IDENTITY] Updated CRS with address-bound public key
+[CON] Resolved neighbor: 1312111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 2112111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 2212111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 2311111111111 at 0.0.0.0:51820
+[CON] Overlay: 0 up, 0 resolving, 22 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       231.211.111.111.1 (2312111111111)
+  CRS:           https://plenumnet.replit.app
+  Dimensions:    13
+  Neighbors:     26 (4 registered)
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+
+
+[ws-relay] Establishing relay connection to CRS...
+[ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+=== HTTP Server (Cube) ===
+  http://0.0.0.0:8081
+  9 routes active
+  Relay:     WebSocket to CRS (NAT traversal)
+  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.
+
+[ws-relay] WebSocket connected, authenticating...
+[ws-relay] Authenticated. 1 peer(s) online: ["1312111111111"]
+[ws-relay] Relay tunnel active — NAT traversal established
+[HEARTBEAT] CRS returned 422 Unprocessable Entity
+[HEARTBEAT] CRS returned 422 Unprocessable Entity
+[HEARTBEAT] CRS returned 422 Unprocessable Entity
+[HEARTBEAT] CRS returned 422 Unprocessable Entity
+[HEARTBEAT] CRS returned 422 Unprocessable Entity
+[HEARTBEAT] CRS returned 422 Unprocessable Entity
+[HEARTBEAT] CRS returned 422 Unprocessable Entity
+[HEARTBEAT] CRS returned 422 Unprocessable Entity

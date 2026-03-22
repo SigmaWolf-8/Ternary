@@ -538,10 +538,18 @@ async fn run_cube_mode() {
     let addr_str_for_relay: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     let crs_url_for_relay = crs_url.clone();
     let key_hex_for_relay = key_hex.clone();
+    let llm_port = std::env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
+    let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
     tokio::spawn(async move {
         println!();
         println!("[ws-relay] Establishing relay connection to CRS...");
+        println!("[ws-relay] Inference dispatch target: {}/v1/chat/completions", llm_base_url);
         let mut retry_delay = Duration::from_secs(5);
+        let inference_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .user_agent("PlenumNET-InterCube/0.2.0")
+            .build()
+            .expect("Failed to build inference HTTP client");
         loop {
             match WsRelayClient::connect(
                 &crs_url_for_relay,
@@ -583,12 +591,128 @@ async fn run_cube_mode() {
                     });
 
                     while let Some(envelope) = incoming_rx.recv().await {
+                        let msg_type = envelope.relay_msg_type.as_deref().unwrap_or("unknown");
+                        let from = envelope.from.as_deref().unwrap_or("?").to_string();
+                        let payload_str = envelope.payload.as_deref().unwrap_or("{}").to_string();
+
                         println!(
                             "[ws-relay] Received {} from {} — {}",
-                            envelope.relay_msg_type.as_deref().unwrap_or("unknown"),
-                            envelope.from.as_deref().unwrap_or("?"),
-                            envelope.payload.as_deref().unwrap_or("(empty)").chars().take(64).collect::<String>()
+                            msg_type, from,
+                            payload_str.chars().take(80).collect::<String>()
                         );
+
+                        if msg_type == "inference_request" {
+                            let llm_url = format!("{}/v1/chat/completions", llm_base_url);
+                            let http = inference_client.clone();
+                            let reply_tx = client.outgoing_tx.clone();
+                            let from_addr = from.clone();
+
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = match serde_json::from_str(&payload_str) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        println!("[inference] Failed to parse request payload: {}", e);
+                                        send_inference_error(&reply_tx, &from_addr, "unknown", &format!("Invalid payload JSON: {}", e)).await;
+                                        return;
+                                    }
+                                };
+
+                                let request_id = parsed.get("requestId")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown")
+                                    .to_string();
+
+                                let messages = parsed.get("messages").cloned().unwrap_or(serde_json::json!([]));
+                                let max_tokens = parsed.get("maxTokens").and_then(|v| v.as_u64()).unwrap_or(512);
+                                let model = parsed.get("model").and_then(|v| v.as_str()).unwrap_or("local").to_string();
+                                let temperature = parsed.get("temperature").and_then(|v| v.as_f64()).unwrap_or(0.7);
+
+                                println!("[inference] Processing request {} from {} (model={}, maxTokens={})",
+                                    request_id, from_addr, model, max_tokens);
+
+                                let llm_body = serde_json::json!({
+                                    "model": model,
+                                    "messages": messages,
+                                    "max_tokens": max_tokens,
+                                    "temperature": temperature,
+                                    "stream": false,
+                                });
+
+                                let result = http.post(&llm_url)
+                                    .header("Content-Type", "application/json")
+                                    .json(&llm_body)
+                                    .send()
+                                    .await;
+
+                                match result {
+                                    Ok(resp) => {
+                                        let status = resp.status();
+                                        match resp.text().await {
+                                            Ok(body) => {
+                                                if status.is_success() {
+                                                    let llm_resp: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::json!({}));
+                                                    let content = llm_resp
+                                                        .get("choices")
+                                                        .and_then(|c| c.get(0))
+                                                        .and_then(|c| c.get("message"))
+                                                        .and_then(|m| m.get("content"))
+                                                        .and_then(|c| c.as_str())
+                                                        .unwrap_or("");
+                                                    let usage = llm_resp.get("usage").cloned().unwrap_or(serde_json::json!({}));
+                                                    let tokens = usage.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+
+                                                    println!("[inference] Request {} completed — {} tokens", request_id, tokens);
+
+                                                    let response_payload = serde_json::json!({
+                                                        "requestId": request_id,
+                                                        "content": content,
+                                                        "model": model,
+                                                        "tokens": tokens,
+                                                        "usage": usage,
+                                                    });
+
+                                                    let reply_env = inter_cube::ws_relay::RelayEnvelope {
+                                                        msg_type: "relay".to_string(),
+                                                        to: Some(from_addr.clone()),
+                                                        relay_msg_type: Some("inference_response".to_string()),
+                                                        payload: Some(response_payload.to_string()),
+                                                        address: None,
+                                                        public_key: None,
+                                                        from: None,
+                                                        error: None,
+                                                        delivered: None,
+                                                        connected_peers: None,
+                                                        ts: None,
+                                                        connected: None,
+                                                    };
+                                                    if let Err(e) = reply_tx.send(reply_env).await {
+                                                        println!("[inference] Failed to send response via relay: {}", e);
+                                                    }
+                                                } else {
+                                                    println!("[inference] LLM returned {} for request {}", status, request_id);
+                                                    send_inference_error(&reply_tx, &from_addr, &request_id,
+                                                        &format!("LLM server returned {}: {}", status, body.chars().take(200).collect::<String>())).await;
+                                                }
+                                            }
+                                            Err(e) => {
+                                                println!("[inference] Failed to read LLM response body: {}", e);
+                                                send_inference_error(&reply_tx, &from_addr, &request_id, &format!("Read error: {}", e)).await;
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let is_connect = e.is_connect() || e.is_timeout();
+                                        println!("[inference] LLM request failed for {}: {} (connect_issue={})", request_id, e, is_connect);
+                                        let hint = if is_connect {
+                                            format!("LLM server unreachable at {} — is llama-server running? Error: {}", llm_url, e)
+                                        } else {
+                                            format!("LLM request failed: {}", e)
+                                        };
+                                        send_inference_error(&reply_tx, &from_addr, &request_id, &hint).await;
+                                    }
+                                }
+                            });
+                        }
                     }
 
                     println!("[ws-relay] Relay connection lost");
@@ -627,6 +751,33 @@ async fn run_cube_mode() {
     axum::serve(listener, app)
         .await
         .expect("Server error");
+}
+
+async fn send_inference_error(
+    tx: &tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>,
+    to: &str,
+    request_id: &str,
+    error_msg: &str,
+) {
+    let payload = serde_json::json!({
+        "requestId": request_id,
+        "error": error_msg,
+    });
+    let env = inter_cube::ws_relay::RelayEnvelope {
+        msg_type: "relay".to_string(),
+        to: Some(to.to_string()),
+        relay_msg_type: Some("inference_error".to_string()),
+        payload: Some(payload.to_string()),
+        address: None,
+        public_key: None,
+        from: None,
+        error: None,
+        delivered: None,
+        connected_peers: None,
+        ts: None,
+        connected: None,
+    };
+    let _ = tx.send(env).await;
 }
 
 // ═══════════════════════════════════════════════════════════════════════

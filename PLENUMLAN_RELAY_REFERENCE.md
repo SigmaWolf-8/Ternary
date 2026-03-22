@@ -195,29 +195,44 @@ Content-Type: application/json
 
 YODA (on Replit) cannot call localhost:8080 directly. Instead, it sends an inference request through the relay to the cube node. The cube node's daemon receives the relay message, calls llama-server locally, and relays the response back.
 
-**This requires the cube daemon to handle `msgType: "inference_request"` in its relay message handler.** This is the next integration step — the ws_relay.rs `incoming_rx` channel delivers these messages, but the daemon does not yet dispatch them to llama-server.
+The cube daemon dispatches `inference_request` messages to llama-server automatically. Each request is handled in a separate async task so the relay stays responsive during long completions. The LLM endpoint defaults to `http://127.0.0.1:8080/v1/chat/completions` (override with `LLM_PORT` env var). Timeout is 120 seconds.
 
-**Proposed envelope for inference via relay:**
-
-YODA → CRS → Cube:
+**Inference request (YODA → CRS → Cube):**
 ```json
 {
   "type": "relay",
   "to": "1111111111112",
   "msgType": "inference_request",
-  "payload": "{\"requestId\":\"abc-123\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"maxTokens\":512}"
+  "payload": "{\"requestId\":\"abc-123\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"maxTokens\":512,\"model\":\"deepseek-r1\",\"temperature\":0.7}"
 }
 ```
 
-Cube → CRS → YODA:
+**Inference response (Cube → CRS → YODA):**
 ```json
 {
   "type": "relay",
-  "to": "<yoda-address>",
+  "from": "1111111111112",
   "msgType": "inference_response",
-  "payload": "{\"requestId\":\"abc-123\",\"content\":\"Hello! I am running on PlenumLAN...\",\"model\":\"deepseek-r1\",\"tokens\":42}"
+  "payload": "{\"requestId\":\"abc-123\",\"content\":\"Hello! I am running on PlenumLAN...\",\"model\":\"deepseek-r1\",\"tokens\":42,\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":42,\"total_tokens\":52}}"
 }
 ```
+
+**Inference error (Cube → CRS → YODA):**
+```json
+{
+  "type": "relay",
+  "from": "1111111111112",
+  "msgType": "inference_error",
+  "payload": "{\"requestId\":\"abc-123\",\"error\":\"LLM server unreachable at http://127.0.0.1:8080/v1/chat/completions — is llama-server running?\"}"
+}
+```
+
+Payload fields in `inference_request`:
+- `requestId` (string, required) — UUID to match request/response
+- `messages` (array, required) — OpenAI-format message array
+- `maxTokens` (integer, optional, default 512)
+- `model` (string, optional, default "local")
+- `temperature` (float, optional, default 0.7)
 
 ---
 
