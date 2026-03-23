@@ -406,14 +406,16 @@ function ModuleRow({ mod }: { mod: Module }) {
   );
 }
 
-function InstallSuiteCard() {
+type DeployTab = "suite" | "daemon" | "yoda";
+
+function DeployerCard() {
+  const [activeTab, setActiveTab] = useState<DeployTab>("suite");
   const [platform, setPlatform] = useState<Platform>(detectPlatform);
 
   const platformConfig = {
     windows: {
       label: "Windows",
       installerUrl: INSTALLER_WIN,
-      installerName: "Install-PlenumNET.bat",
       installPath: "C:\\PlenumNET",
       instructions: [
         'Click "Download Installer" to save Install-PlenumNET.bat',
@@ -425,7 +427,6 @@ function InstallSuiteCard() {
     mac: {
       label: "macOS",
       installerUrl: INSTALLER_UNIX,
-      installerName: "install.sh",
       oneLineInstall: `curl -fsSL https://plenumnet.replit.app/install/install.sh | bash`,
       installPath: "~/PlenumNET",
       instructions: [
@@ -437,7 +438,6 @@ function InstallSuiteCard() {
     linux: {
       label: "Linux",
       installerUrl: INSTALLER_UNIX,
-      installerName: "install.sh",
       oneLineInstall: `curl -fsSL https://plenumnet.replit.app/install/install.sh | bash`,
       installPath: "~/PlenumNET",
       instructions: [
@@ -450,228 +450,185 @@ function InstallSuiteCard() {
 
   const config = platformConfig[platform];
 
+  const borderColor = activeTab === "daemon" ? "border-blue-500/20" : activeTab === "yoda" ? "border-violet-500/20" : "";
+
   return (
-    <Card className="p-6 mb-8 border-2" data-testid="card-install-suite">
-      <div className="flex items-start gap-4 mb-5">
-        <div className="w-10 h-10 rounded-lg bg-foreground/5 flex items-center justify-center shrink-0">
-          <Zap className="w-5 h-5" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-lg font-semibold mb-1" data-testid="text-install-title">
-            Install Complete Suite
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            One-click installer for the entire framework: {MODULES.length} modules, {PLATFORM.TESTS_PASSING} passing tests,
-            CNSA 2.0 compliant. Downloads, builds the daemon, and generates your first identity automatically. Run again to add more daemons.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex gap-1.5 mb-4" data-testid="platform-selector">
-        {(["windows", "mac", "linux"] as Platform[]).map((p) => (
-          <Button
-            key={p}
-            variant={platform === p ? "default" : "outline"}
-            size="sm"
-            onClick={() => setPlatform(p)}
-            className="text-xs capitalize"
-            data-testid={`button-platform-${p}`}
-          >
-            {platformConfig[p].label}
-          </Button>
-        ))}
-      </div>
-
-      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="install-instructions">
-        <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
-          {config.instructions.map((step, i) => (
-            <li key={i}>{step}</li>
-          ))}
-        </ol>
-      </div>
-
-      {"oneLineInstall" in config && config.oneLineInstall && (
-        <CopyCommand command={config.oneLineInstall} />
-      )}
-
-      <div className="flex flex-wrap gap-3 mt-5">
-        <Button
-          data-testid="button-download-installer"
-          onClick={(e) => { e.preventDefault(); window.open(config.installerUrl, "_blank"); }}
+    <Card className={`p-6 mb-8 border-2 ${borderColor}`} data-testid="card-deployer">
+      <div className="flex items-center gap-1.5 mb-5 border-b pb-3" data-testid="deployer-tabs">
+        <button
+          onClick={() => setActiveTab("suite")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "suite"
+              ? "bg-foreground/5 text-foreground border border-foreground/10"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-suite"
         >
-          <Download className="w-4 h-4 mr-2" />
-          Download Installer ({config.label})
-        </Button>
-        <Button
-          variant="outline"
-          data-testid="button-download-archive"
-          onClick={(e) => { e.preventDefault(); window.open(GITHUB_DOWNLOAD, "_blank"); }}
+          <Zap className="w-3.5 h-3.5" />
+          Full Suite
+        </button>
+        <button
+          onClick={() => setActiveTab("daemon")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "daemon"
+              ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-daemon"
         >
-          <Package className="w-4 h-4 mr-2" />
-          Source Archive (.zip)
-        </Button>
-        <Button
-          variant="outline"
-          data-testid="button-github-releases"
-          onClick={(e) => { e.preventDefault(); window.open(GITHUB_RELEASE, "_blank"); }}
+          <Server className="w-3.5 h-3.5" />
+          Cube Daemon
+        </button>
+        <button
+          onClick={() => setActiveTab("yoda")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === "yoda"
+              ? "bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-500/30"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-yoda"
         >
-          <ExternalLink className="w-4 h-4 mr-2" />
-          GitHub Releases
-        </Button>
+          <Layers className="w-3.5 h-3.5" />
+          YODA 3-Node
+        </button>
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-5 text-xs text-muted-foreground">
-        <span>Installs to: <strong className="text-foreground font-medium">{config.installPath}</strong></span>
-        <span>v{PLATFORM.PLATFORM_VERSION}</span>
-        <span>{PLATFORM.TESTS_PASSING} tests passing</span>
-        <span>{PLATFORM.KERNEL_LOC} lines of Rust</span>
-        <span>CNSA 2.0 Phase 2</span>
-      </div>
-    </Card>
-  );
-}
+      <AnimatePresence mode="wait">
+        {activeTab === "suite" && (
+          <motion.div key="suite" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-suite">
+            <p className="text-sm text-muted-foreground mb-4">
+              One-click installer for the entire framework: {MODULES.length} modules, {PLATFORM.TESTS_PASSING} passing tests,
+              CNSA 2.0 compliant. Downloads, builds the daemon, and generates your first identity automatically.
+            </p>
 
-function DaemonDeployCard() {
-  return (
-    <Card className="p-6 mb-8 border-2 border-blue-500/20" data-testid="card-daemon-deploy">
-      <div className="flex items-start gap-4 mb-5">
-        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-          <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-lg font-semibold" data-testid="text-daemon-deploy-title">
-              Deploy Cube Daemon
-            </h2>
-            <Badge variant="outline" className="text-[10px] border-blue-500/20 bg-blue-500/5 text-blue-700 dark:text-blue-400">
-              v0.3.0
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            One-click deployer for the Inter-Cube daemon. Pulls latest source, builds the daemon,
-            and generates the next PT26-DSA identity automatically. Each run adds one more daemon — ports auto-increment.
-          </p>
-        </div>
-      </div>
+            <div className="flex gap-1.5 mb-3" data-testid="platform-selector">
+              {(["windows", "mac", "linux"] as Platform[]).map((p) => (
+                <Button key={p} variant={platform === p ? "default" : "outline"} size="sm" onClick={() => setPlatform(p)} className="text-xs capitalize" data-testid={`button-platform-${p}`}>
+                  {platformConfig[p].label}
+                </Button>
+              ))}
+            </div>
 
-      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="daemon-deploy-instructions">
-        <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
-          <li>Click the button below to download the installer</li>
-          <li>Double-click the downloaded file to run it</li>
-          <li>If Windows SmartScreen appears, click "More info" then "Run anyway"</li>
-        </ol>
-      </div>
+            <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="install-instructions">
+              <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                {config.instructions.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+            </div>
 
-      <Button
-        data-testid="button-download-daemon-bat"
-        onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}
-      >
-        <Download className="w-4 h-4 mr-2" />
-        Download Daemon Installer
-      </Button>
+            {"oneLineInstall" in config && config.oneLineInstall && (
+              <CopyCommand command={config.oneLineInstall} />
+            )}
 
-      <div className="bg-muted/50 rounded-lg p-4 mt-4 mb-4" data-testid="daemon-deploy-comparison">
-        <p className="text-xs font-medium text-foreground mb-2">How is this different from the full installer above?</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
-          <div>
-            <span className="font-medium text-foreground/70">Full Suite (above)</span>
-            <ul className="mt-1 space-y-0.5 list-disc list-inside">
-              <li>Git clone + build inter-cube daemon</li>
-              <li>Generates first identity automatically</li>
-              <li>First-time setup from scratch</li>
-            </ul>
-          </div>
-          <div>
-            <span className="font-medium text-blue-700 dark:text-blue-400">Daemon Only (this)</span>
-            <ul className="mt-1 space-y-0.5 list-disc list-inside">
-              <li>Git pull (incremental updates)</li>
-              <li>Stops running daemons, rebuilds, generates keys</li>
-              <li>Prints startup commands for A/B/C</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <Button data-testid="button-download-installer" onClick={(e) => { e.preventDefault(); window.open(config.installerUrl, "_blank"); }}>
+                <Download className="w-4 h-4 mr-2" />
+                Download Installer ({config.label})
+              </Button>
+              <Button variant="outline" data-testid="button-download-archive" onClick={(e) => { e.preventDefault(); window.open(GITHUB_DOWNLOAD, "_blank"); }}>
+                <Package className="w-4 h-4 mr-2" />
+                Source Archive (.zip)
+              </Button>
+              <Button variant="outline" data-testid="button-github-releases" onClick={(e) => { e.preventDefault(); window.open(GITHUB_RELEASE, "_blank"); }}>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                GitHub Releases
+              </Button>
+            </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-        <span>Builds to: <strong className="text-foreground font-medium">C:\PlenumNET\target\release\inter-cube-daemon.exe</strong></span>
-        <span>Auto-incrementing instances</span>
-        <span>PT26-DSA identity keys</span>
-      </div>
-    </Card>
-  );
-}
+            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-4 text-xs text-muted-foreground">
+              <span>Installs to: <strong className="text-foreground font-medium">{config.installPath}</strong></span>
+              <span>v{PLATFORM.PLATFORM_VERSION}</span>
+              <span>{PLATFORM.TESTS_PASSING} tests passing</span>
+              <span>{PLATFORM.KERNEL_LOC} lines of Rust</span>
+            </div>
+          </motion.div>
+        )}
 
-function YodaDeployCard() {
-  return (
-    <Card className="p-6 mb-8 border-2 border-violet-500/20" data-testid="card-yoda-deploy">
-      <div className="flex items-start gap-4 mb-5">
-        <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-          <Zap className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-lg font-semibold" data-testid="text-yoda-deploy-title">
-              YODA 3-Node Deployment
-            </h2>
-            <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">
-              v0.3.0
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            One-click 3-daemon deployment. Builds the daemon, generates 3 PT26-DSA identities,
-            starts 3 cube daemons, registers all with PlenumNET CRS, and posts a deployment
-            summary to the API. Creates a desktop launcher for future starts.
-          </p>
-        </div>
-      </div>
+        {activeTab === "daemon" && (
+          <motion.div key="daemon" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-daemon">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-medium" data-testid="text-daemon-deploy-title">Deploy Cube Daemon</p>
+              <Badge variant="outline" className="text-[10px] border-blue-500/20 bg-blue-500/5 text-blue-700 dark:text-blue-400">v0.3.0</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Pulls latest source, builds the daemon, and generates the next PT26-DSA identity automatically.
+              Each run adds one more daemon — ports auto-increment.
+            </p>
 
-      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="yoda-deploy-instructions">
-        <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
-          <li>Click the button below to download the installer</li>
-          <li>Double-click the downloaded file to run it</li>
-          <li>The installer handles everything: Rust, LLVM, daemon build, 3 identity generations, CRS registration, and networking</li>
-          <li>When complete, a "Start YODA Daemons" shortcut appears on your Desktop</li>
-        </ol>
-      </div>
+            <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="daemon-deploy-instructions">
+              <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                <li>Click the button below to download the installer</li>
+                <li>Double-click the downloaded file to run it</li>
+                <li>If Windows SmartScreen appears, click "More info" then "Run anyway"</li>
+              </ol>
+            </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Button
-          data-testid="button-download-yoda-bat"
-          className="bg-violet-600 hover:bg-violet-700 text-white"
-          onClick={(e) => { e.preventDefault(); window.open(YODA_DEPLOYER_BAT, "_blank"); }}
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Download YODA Installer
-        </Button>
-        <CopyCommand
-          command="irm https://plenumnet.replit.app/api/deploy-yoda | iex"
-          testIdPrefix="yoda-oneliner"
-        />
-      </div>
+            <Button data-testid="button-download-daemon-bat" onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}>
+              <Download className="w-4 h-4 mr-2" />
+              Download Daemon Installer
+            </Button>
 
-      <div className="bg-muted/50 rounded-lg p-4 mt-4 mb-4" data-testid="yoda-deploy-layout">
-        <p className="text-xs font-medium text-foreground mb-2">Network layout</p>
-        <div className="grid grid-cols-3 gap-3 text-xs text-muted-foreground">
-          <div className="bg-background rounded p-2 text-center">
-            <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #1</span>
-            <span className="text-[11px]">Port 8081</span>
-          </div>
-          <div className="bg-background rounded p-2 text-center">
-            <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #2</span>
-            <span className="text-[11px]">Port 8083</span>
-          </div>
-          <div className="bg-background rounded p-2 text-center">
-            <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #3</span>
-            <span className="text-[11px]">Port 8085</span>
-          </div>
-        </div>
-      </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-4 text-xs text-muted-foreground">
+              <span>Builds to: <strong className="text-foreground font-medium">C:\PlenumNET\target\release\inter-cube-daemon.exe</strong></span>
+              <span>Auto-incrementing instances</span>
+              <span>PT26-DSA identity keys</span>
+            </div>
+          </motion.div>
+        )}
 
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-        <span>CRS: <strong className="text-foreground font-medium">plenumnet.replit.app</strong></span>
-        <span>3 PT26-DSA identities</span>
-        <span>API: <strong className="text-foreground font-medium">/api/salvi/inter-cube/relay/deployments</strong></span>
-      </div>
+        {activeTab === "yoda" && (
+          <motion.div key="yoda" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-yoda">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-medium" data-testid="text-yoda-deploy-title">YODA 3-Node Deployment</p>
+              <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">v0.3.0</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              One-click 3-daemon deployment. Builds the daemon, generates 3 PT26-DSA identities,
+              starts 3 cube daemons, registers all with PlenumNET CRS, and posts a deployment
+              summary to the API. Creates a desktop launcher for future starts.
+            </p>
+
+            <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="yoda-deploy-instructions">
+              <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                <li>Click the button below to download the installer</li>
+                <li>Double-click the downloaded file to run it</li>
+                <li>The installer handles everything: Rust, LLVM, daemon build, 3 identity generations, CRS registration, and networking</li>
+                <li>When complete, a "Start YODA Daemons" shortcut appears on your Desktop</li>
+              </ol>
+            </div>
+
+            <div className="flex flex-wrap gap-3 mb-4">
+              <Button data-testid="button-download-yoda-bat" className="bg-violet-600 hover:bg-violet-700 text-white" onClick={(e) => { e.preventDefault(); window.open(YODA_DEPLOYER_BAT, "_blank"); }}>
+                <Download className="w-4 h-4 mr-2" />
+                Download YODA Installer
+              </Button>
+              <CopyCommand command="irm https://plenumnet.replit.app/api/deploy-yoda | iex" testIdPrefix="yoda-oneliner" />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mb-4 text-xs text-muted-foreground" data-testid="yoda-deploy-layout">
+              <div className="bg-muted/50 rounded p-2 text-center">
+                <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #1</span>
+                <span className="text-[11px]">Port 8081</span>
+              </div>
+              <div className="bg-muted/50 rounded p-2 text-center">
+                <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #2</span>
+                <span className="text-[11px]">Port 8083</span>
+              </div>
+              <div className="bg-muted/50 rounded p-2 text-center">
+                <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #3</span>
+                <span className="text-[11px]">Port 8085</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+              <span>CRS: <strong className="text-foreground font-medium">plenumnet.replit.app</strong></span>
+              <span>3 PT26-DSA identities</span>
+              <span>API: <strong className="text-foreground font-medium">/api/salvi/inter-cube/relay/deployments</strong></span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   );
 }
@@ -737,23 +694,7 @@ export default function DistributionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <InstallSuiteCard />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          <DaemonDeployCard />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-        >
-          <YodaDeployCard />
+          <DeployerCard />
         </motion.div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
