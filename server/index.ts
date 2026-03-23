@@ -701,6 +701,23 @@ function startPqtiService(): ChildProcess | null {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
 
+  const deploymentRecords: Array<{ hostname: string; ip: string; daemons: any[]; llmPort: number; model: string; crsUrl: string; timestamp: string; receivedAt: number }> = [];
+  app.post("/api/salvi/inter-cube/relay/deployment", (req, res) => {
+    const payload = req.body;
+    if (!payload || !payload.hostname) {
+      return res.status(400).json({ error: "hostname required" });
+    }
+    const record = { ...payload, receivedAt: Date.now() };
+    deploymentRecords.push(record);
+    if (deploymentRecords.length > 100) deploymentRecords.shift();
+    log(`Deployment notification from ${payload.hostname}: ${payload.daemons?.length || 0} daemons`, "crs");
+    res.json({ status: "ok", recorded: true });
+  });
+
+  app.get("/api/salvi/inter-cube/relay/deployments", (_req, res) => {
+    res.json({ deployments: deploymentRecords, count: deploymentRecords.length });
+  });
+
   app.all("/api/salvi/inter-cube/:service/:action", interCubeProxy);
   app.all("/api/salvi/inter-cube/:service", interCubeProxy);
 
@@ -804,23 +821,6 @@ function startPqtiService(): ChildProcess | null {
     res.setHeader("Content-Disposition", 'attachment; filename="deploy-yoda.bat"');
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.send(bat);
-  });
-
-  const deploymentRecords: Array<{ hostname: string; ip: string; daemons: any[]; llmPort: number; model: string; crsUrl: string; timestamp: string; receivedAt: number }> = [];
-  app.post("/api/salvi/inter-cube/relay/deployment", (req, res) => {
-    const payload = req.body;
-    if (!payload || !payload.hostname) {
-      return res.status(400).json({ error: "hostname required" });
-    }
-    const record = { ...payload, receivedAt: Date.now() };
-    deploymentRecords.push(record);
-    if (deploymentRecords.length > 100) deploymentRecords.shift();
-    log(`Deployment notification from ${payload.hostname}: ${payload.daemons?.length || 0} daemons`, "crs");
-    res.json({ status: "ok", recorded: true });
-  });
-
-  app.get("/api/salvi/inter-cube/relay/deployments", (_req, res) => {
-    res.json({ deployments: deploymentRecords, count: deploymentRecords.length });
   });
 
   const relayClients = new Map<string, WebSocket>();
