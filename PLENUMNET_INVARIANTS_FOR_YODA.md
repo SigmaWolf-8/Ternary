@@ -78,17 +78,27 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 | `CUBE_IDENTITY_DIR` | `~/.plenumnet/identity/` | Master key storage |
 | `CUBE_IDENTITY_PASSPHRASE` | (hostname fallback) | Encryption passphrase |
 
-### Building the Daemon
+### Deploying the Daemon
 
-The daemon must be compiled from source. If behavior doesn't match this spec (e.g. ignoring `CUBE_API_PORT`, printing "BLAKE3"), the binary is stale and must be rebuilt:
+Deploy (or update) the daemon with a single command in PowerShell:
 
 ```powershell
-Set-Location C:\PlenumNET
-git pull origin main
-cargo build --release -p inter-cube
+irm https://plenumnet.replit.app/api/deploy-daemon | iex
 ```
 
-The compiled binary will be at `C:\PlenumNET\target\release\inter-cube-daemon.exe`. The current source version is v0.3.0.
+Or download and double-click the `.bat` installer:
+```
+https://plenumnet.replit.app/api/deploy-daemon.bat
+```
+
+The deployer automatically:
+1. Clones or pulls the latest source to `C:\PlenumNET`
+2. Stops any running daemon instances
+3. Builds the release binary (`cargo build --release -p inter-cube`)
+4. Creates identity directories and generates keys for Agents A, B, C (if missing)
+5. Prints the startup commands for all 3 daemons
+
+If the daemon shows wrong behavior (e.g. ignoring `CUBE_API_PORT`, printing "BLAKE3", showing wrong version), re-run the deployer. Current source version is v0.3.0.
 
 ### Daemon Startup (Windows)
 
@@ -672,6 +682,8 @@ Base path: `/api/sfk/`
 | `/api/csp-reports` | POST | CSP violation reports |
 | `/api/pqti-status` | GET | PQTI service status |
 | `/api/install.ps1` | GET | PowerShell installer |
+| `/api/deploy-daemon` | GET | Cube daemon deployer (PowerShell, `irm ... \| iex`) |
+| `/api/deploy-daemon.bat` | GET | Cube daemon deployer (.bat download) |
 | `/api/yoda-installer` | GET | YODA installer (auto-detect) |
 | `/api/yoda-installer.bat` | GET | YODA installer (.bat) |
 

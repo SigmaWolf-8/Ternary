@@ -746,6 +746,37 @@ function startPqtiService(): ChildProcess | null {
     }
   });
 
+  app.get("/api/deploy-daemon", async (_req, res) => {
+    try {
+      const scriptPath = path.resolve("services/inter-cube/deploy-daemon.ps1");
+      const { readFile } = await import("fs/promises");
+      const script = await readFile(scriptPath, "utf-8");
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.send(script);
+    } catch {
+      res.status(404).send("# deploy-daemon.ps1 not found");
+    }
+  });
+
+  app.get("/api/deploy-daemon.bat", async (_req, res) => {
+    const bat = [
+      "@echo off",
+      "title PlenumNET Daemon Deployer",
+      'set "PS_FILE=%TEMP%\\deploy-daemon-%RANDOM%.ps1"',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri \'https://plenumnet.replit.app/api/deploy-daemon\' -OutFile \'%PS_FILE%\' -UseBasicParsing"',
+      'if not exist "%PS_FILE%" ( echo ERROR: Failed to download deployer. & pause & exit /b 1 )',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_FILE%"',
+      'del "%PS_FILE%" 2>nul',
+      "pause",
+    ].join("\r\n") + "\r\n";
+    res.setHeader("Content-Type", "application/x-bat");
+    res.setHeader("Content-Disposition", 'attachment; filename="deploy-daemon.bat"');
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.send(bat);
+  });
+
   app.get("/api/yoda-installer.bat", async (_req, res) => {
     const bat = [
       "@echo off",
