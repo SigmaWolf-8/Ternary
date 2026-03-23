@@ -1,20 +1,23 @@
 <#
 .SYNOPSIS
     YODA 3-Daemon Deployer
-    Builds the daemon, generates 3 PT26-DSA identities, starts 1 shared
-    llama-server + 3 cube daemons, registers all with PlenumNET CRS,
-    and notifies yoda.replit.app about the deployment.
+    Builds the daemon, generates 3 PT26-DSA identities, starts 3 cube
+    daemons, registers all with PlenumNET CRS, and posts a deployment
+    summary to the CRS API so any consumer (YODA, dashboards, etc.)
+    can query the cluster state.
 
 .DESCRIPTION
     Served from https://plenumnet.replit.app/api/deploy-yoda
     Run with:  irm https://plenumnet.replit.app/api/deploy-yoda | iex
     Or download the .bat wrapper from the Distribution page.
 
-    Port layout (shared engine):
-      llama-server  : 8080
+    Port layout:
       Daemon #1     : 8081  (identity-1)
       Daemon #2     : 8083  (identity-2)
       Daemon #3     : 8085  (identity-3)
+
+    LLM engines are NOT installed by this script. LLM selection and
+    setup is handled separately at YODA runtime.
 
 .NOTES
     Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
@@ -23,10 +26,6 @@
 
 $DAEMON_COUNT  = 3
 $CRS_URL       = "https://plenumnet.replit.app"
-$YODA_URL      = "https://yoda.replit.app"
-$GGUF_REPO     = "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF"
-$GGUF_FILE     = "DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf"
-$LLM_PORT      = 8080
 $BASE_DAEMON_PORT = 8081
 $PORT_STEP     = 2
 $RepoDir       = "C:\PlenumNET"
@@ -34,10 +33,7 @@ $BinaryName    = "inter-cube-daemon.exe"
 $BinaryPath    = Join-Path $RepoDir "target\release\$BinaryName"
 $RepoUrl       = "https://github.com/SigmaWolf-8/Ternary.git"
 $IdentityBase  = Join-Path $env:USERPROFILE ".plenumnet"
-$MODELS_DIR    = Join-Path $env:USERPROFILE "yoda-models"
-$MODEL_PATH    = Join-Path $MODELS_DIR $GGUF_FILE
-$LOG_DIR       = Join-Path $MODELS_DIR "logs"
-$LLAMA_DIR     = Join-Path $env:USERPROFILE "llama.cpp"
+$LOG_DIR       = Join-Path $IdentityBase "logs"
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -48,8 +44,7 @@ Write-Host "==========================================================" -Foregro
 Write-Host ""
 Write-Host "  Daemons   : $DAEMON_COUNT instances" -ForegroundColor White
 Write-Host "  CRS       : $CRS_URL" -ForegroundColor White
-Write-Host "  YODA      : $YODA_URL" -ForegroundColor White
-Write-Host "  LLM Port  : $LLM_PORT (shared)" -ForegroundColor White
+Write-Host "  Ports     : $BASE_DAEMON_PORT, $($BASE_DAEMON_PORT + $PORT_STEP), $($BASE_DAEMON_PORT + 2 * $PORT_STEP)" -ForegroundColor White
 Write-Host ""
 
 function Test-Command($cmd) {
@@ -58,7 +53,7 @@ function Test-Command($cmd) {
 }
 
 # ── 1. Prerequisites ──────────────────────────────────────────────────────────
-Write-Host "STEP 1/9: Checking prerequisites" -ForegroundColor Yellow
+Write-Host "STEP 1/7: Checking prerequisites" -ForegroundColor Yellow
 Write-Host "---"
 
 if (-not (Test-Command "git")) {
@@ -87,7 +82,7 @@ Write-Host "  [OK] cargo" -ForegroundColor Green
 
 # ── 2. Build environment (MSVC + clang for ring crate) ─────────────────────
 Write-Host ""
-Write-Host "STEP 2/9: Build environment" -ForegroundColor Yellow
+Write-Host "STEP 2/7: Build environment" -ForegroundColor Yellow
 Write-Host "---"
 
 $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
@@ -166,7 +161,7 @@ if ($hasClang) {
 
 # ── 3. Clone/update and build daemon ──────────────────────────────────────
 Write-Host ""
-Write-Host "STEP 3/9: Source code + build" -ForegroundColor Yellow
+Write-Host "STEP 3/7: Source code + build" -ForegroundColor Yellow
 Write-Host "---"
 
 if (-not (Test-Path $RepoDir)) {
@@ -225,7 +220,7 @@ Write-Host "  [OK] Build successful ($fileSizeMB MB)" -ForegroundColor Green
 
 # ── 4. Detect local IP ────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "STEP 4/9: Network detection" -ForegroundColor Yellow
+Write-Host "STEP 4/7: Network detection" -ForegroundColor Yellow
 Write-Host "---"
 
 $ip = (Get-NetIPAddress -AddressFamily IPv4 |
@@ -237,7 +232,7 @@ Write-Host "  Local IP: $ip" -ForegroundColor White
 
 # ── 5. Generate 3 identities ─────────────────────────────────────────────
 Write-Host ""
-Write-Host "STEP 5/9: Generating $DAEMON_COUNT daemon identities" -ForegroundColor Yellow
+Write-Host "STEP 5/7: Generating $DAEMON_COUNT daemon identities" -ForegroundColor Yellow
 Write-Host "---"
 
 New-Item -ItemType Directory -Force -Path $IdentityBase | Out-Null
@@ -288,71 +283,9 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     }
 }
 
-# ── 6. Install llama.cpp + model ─────────────────────────────────────────
+# ── 6. Register all 3 with CRS ───────────────────────────────────────────
 Write-Host ""
-Write-Host "STEP 6/9: LLM engine (llama.cpp)" -ForegroundColor Yellow
-Write-Host "---"
-
-$llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($llamaServer) {
-    Write-Host "  [OK] llama-server.exe found" -ForegroundColor Green
-} else {
-    New-Item -ItemType Directory -Force -Path $LLAMA_DIR | Out-Null
-    $release = (Invoke-RestMethod "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest").tag_name
-    $zipName = if ($cpuArch -eq "Arm64") { "llama-$release-bin-win-cpu-arm64.zip" } else { "llama-$release-bin-win-cpu-x64.zip" }
-    $zipUrl = "https://github.com/ggerganov/llama.cpp/releases/download/$release/$zipName"
-    Write-Host "  Downloading llama.cpp $release..." -ForegroundColor White
-    $zipPath = Join-Path $env:TEMP "llamacpp.zip"
-    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
-        curl.exe -fL "$zipUrl" -o "$zipPath"
-    } else {
-        Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
-    }
-    Expand-Archive -Path $zipPath -DestinationPath $LLAMA_DIR -Force
-    Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-    $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" | Select-Object -First 1
-    if (-not $llamaServer) {
-        Write-Host "ERROR: llama-server.exe not found after extraction" -ForegroundColor Red
-        Read-Host "Press Enter to close"
-        return
-    }
-    Write-Host "  [OK] llama.cpp installed" -ForegroundColor Green
-}
-$LLAMA_SERVER = $llamaServer.FullName
-
-Write-Host ""
-Write-Host "STEP 6b: Model download" -ForegroundColor Yellow
-Write-Host "---"
-
-New-Item -ItemType Directory -Force -Path $MODELS_DIR | Out-Null
-if ((Test-Path $MODEL_PATH) -and (Get-Item $MODEL_PATH).Length -gt 0) {
-    $sz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
-    Write-Host "  [OK] Model already downloaded ($sz GB)" -ForegroundColor Green
-} else {
-    Write-Host "  Downloading $GGUF_FILE (several GB)..." -ForegroundColor White
-    $modelUrl = "https://huggingface.co/$GGUF_REPO/resolve/main/$GGUF_FILE"
-    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
-        curl.exe -fL -C - --progress-bar "$modelUrl" -o "$MODEL_PATH"
-    } else {
-        try {
-            Start-BitsTransfer -Source $modelUrl -Destination $MODEL_PATH -Priority Normal
-        } catch {
-            $wc = New-Object System.Net.WebClient
-            $wc.DownloadFile($modelUrl, $MODEL_PATH)
-        }
-    }
-}
-if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
-    Write-Host "ERROR: Model file missing or empty" -ForegroundColor Red
-    Read-Host "Press Enter to close"
-    return
-}
-$modelSz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
-Write-Host "  [OK] Model ready ($modelSz GB)" -ForegroundColor Green
-
-# ── 7. Register all 3 with CRS ───────────────────────────────────────────
-Write-Host ""
-Write-Host "STEP 7/9: Registering $DAEMON_COUNT daemons with CRS" -ForegroundColor Yellow
+Write-Host "STEP 6/7: Registering $DAEMON_COUNT daemons with CRS" -ForegroundColor Yellow
 Write-Host "---"
 
 $registeredAddresses = @()
@@ -377,19 +310,10 @@ foreach ($cfg in $daemonConfigs) {
     }
 }
 
-# ── 8. Start services ────────────────────────────────────────────────────
+# ── 7. Start daemons + notify CRS ────────────────────────────────────────
 Write-Host ""
-Write-Host "STEP 8/9: Starting services" -ForegroundColor Yellow
+Write-Host "STEP 7/7: Starting daemons + posting deployment summary" -ForegroundColor Yellow
 Write-Host "---"
-
-Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 500
-
-$serverOutLog = Join-Path $LOG_DIR "llama-server-out.log"
-$serverErrLog = Join-Path $LOG_DIR "llama-server-err.log"
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model `"$MODEL_PATH`" --port $LLM_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 0" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
-Write-Host "  [OK] llama-server started (PID $($serverProc.Id), port $LLM_PORT)" -ForegroundColor Green
-Start-Sleep -Seconds 2
 
 $daemonPids = @()
 foreach ($cfg in $daemonConfigs) {
@@ -397,8 +321,6 @@ foreach ($cfg in $daemonConfigs) {
     $env:CUBE_CRS_URL = $CRS_URL
     $env:CUBE_ENDPOINT = $cfg.Endpoint
     $env:CUBE_API_PORT = "$($cfg.Port)"
-    $env:LLM_PORT = "$LLM_PORT"
-    $env:CUBE_ROLE = "inference"
     $env:CUBE_IDENTITY_DIR = $cfg.IdentityDir
 
     $outLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-out.log"
@@ -413,65 +335,50 @@ Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_CRS_URL -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_ENDPOINT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
-Remove-Item Env:\LLM_PORT -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_ROLE -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
 
 Start-Sleep -Seconds 3
 
-# ── 9. Notify YODA ───────────────────────────────────────────────────────
-Write-Host ""
-Write-Host "STEP 9/9: Notifying YODA" -ForegroundColor Yellow
-Write-Host "---"
-
 $hostname = $env:COMPUTERNAME
-$deploymentPayload = @{
-    hostname = $hostname
-    ip = $ip
-    daemons = @()
-    llmPort = $LLM_PORT
-    model = $GGUF_FILE
-    timestamp = (Get-Date -Format "o")
-} | ConvertTo-Json -Depth 1
 
 $daemonsArray = @()
 foreach ($cfg in $daemonConfigs) {
     $daemonsArray += @{
         id = $cfg.Id
         port = $cfg.Port
-        address = $cfg.Address
-        publicKey = if ($cfg.PublicKey) { $cfg.PublicKey.Substring(0, [Math]::Min(32, $cfg.PublicKey.Length)) + "..." } else { "" }
+        address = if ($cfg.Address) { $cfg.Address } else { "" }
+        publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }
         endpoint = $cfg.Endpoint
+        identityDir = $cfg.IdentityDir
+        pid = $daemonPids[$cfg.Id - 1]
     }
 }
 
 $deploymentPayload = @{
     hostname = $hostname
     ip = $ip
+    architecture = $cpuArch
+    daemonCount = $DAEMON_COUNT
     daemons = $daemonsArray
-    llmPort = $LLM_PORT
-    model = $GGUF_FILE
     crsUrl = $CRS_URL
+    binaryPath = $BinaryPath
+    binarySizeMB = $fileSizeMB
+    logDir = $LOG_DIR
+    identityBase = $IdentityBase
     timestamp = (Get-Date -Format "o")
+    deployer = "deploy-yoda/v0.3.0"
 } | ConvertTo-Json -Depth 3
 
 try {
-    $notifyResult = Invoke-RestMethod -Uri "$YODA_URL/api/deployment/notify" -Method Post -Body $deploymentPayload -ContentType "application/json" -TimeoutSec 15 -ErrorAction Stop
-    Write-Host "  [OK] YODA notified successfully" -ForegroundColor Green
-} catch {
-    Write-Host "  WARN: Could not notify YODA ($YODA_URL) -- $_" -ForegroundColor Yellow
-    Write-Host "  Daemons are running and registered with CRS. YODA will discover them via CRS." -ForegroundColor DarkGray
-}
-
-try {
     $notifyCrs = Invoke-RestMethod -Uri "$CRS_URL/api/salvi/inter-cube/relay/deployment" -Method Post -Body $deploymentPayload -ContentType "application/json" -TimeoutSec 15 -ErrorAction Stop
-    Write-Host "  [OK] CRS deployment record saved" -ForegroundColor Green
+    Write-Host "  [OK] Deployment summary posted to CRS API" -ForegroundColor Green
+    Write-Host "       Query at: $CRS_URL/api/salvi/inter-cube/relay/deployments" -ForegroundColor DarkGray
 } catch {
-    Write-Host "  (CRS deployment notify skipped)" -ForegroundColor DarkGray
+    Write-Host "  WARN: Could not post deployment summary -- $_" -ForegroundColor Yellow
 }
 
 # ── Desktop launcher ─────────────────────────────────────────────────────
-$startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start YODA.bat"
+$startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start YODA Daemons.bat"
 $launchLines = @(
     "@echo off"
     "title YODA -- PlenumNET 3-Node Cluster"
@@ -480,15 +387,9 @@ $launchLines = @(
     "echo ========================================"
     "echo."
     ""
-    ":: Kill existing instances"
-    "taskkill /f /im llama-server.exe >nul 2>&1"
+    ":: Kill existing daemon instances"
     "taskkill /f /im inter-cube-daemon.exe >nul 2>&1"
     "timeout /t 1 /nobreak >nul"
-    ""
-    ":: Start shared LLM engine"
-    "echo Starting Engine (llama-server) on port $LLM_PORT..."
-    "start `"`" /b `"$LLAMA_SERVER`" --model `"$MODEL_PATH`" --port $LLM_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 0"
-    "timeout /t 3 /nobreak >nul"
     ""
 )
 foreach ($cfg in $daemonConfigs) {
@@ -498,8 +399,6 @@ foreach ($cfg in $daemonConfigs) {
         "set CUBE_CRS_URL=$CRS_URL"
         "set CUBE_ENDPOINT=$($cfg.Endpoint)"
         "set CUBE_API_PORT=$($cfg.Port)"
-        "set LLM_PORT=$LLM_PORT"
-        "set CUBE_ROLE=inference"
         "set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)"
         "echo Starting Daemon #$($cfg.Id) on port $($cfg.Port)..."
         "start `"`" /b `"$BinaryPath`""
@@ -510,8 +409,7 @@ foreach ($cfg in $daemonConfigs) {
 $launchLines += @(
     "echo."
     "echo ========================================"
-    "echo   YODA Running -- 3-Node Cluster"
-    "echo   Engine  : http://localhost:$LLM_PORT"
+    "echo   YODA Daemons Running -- 3-Node Cluster"
 )
 foreach ($cfg in $daemonConfigs) {
     $launchLines += "echo   Node #$($cfg.Id) : http://localhost:$($cfg.Port)"
@@ -520,12 +418,11 @@ $launchLines += @(
     "echo   CRS     : $CRS_URL"
     "echo ========================================"
     "echo."
-    "echo Press any key to stop all services..."
+    "echo Press any key to stop all daemons..."
     "pause >nul"
     ""
-    "taskkill /f /im llama-server.exe >nul 2>&1"
     "taskkill /f /im inter-cube-daemon.exe >nul 2>&1"
-    "echo Services stopped."
+    "echo Daemons stopped."
     "timeout /t 2 /nobreak >nul"
 )
 $launchContent = $launchLines -join "`r`n"
@@ -539,20 +436,15 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  YODA 3-Node Deployment Complete" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  LLM Engine : http://localhost:$LLM_PORT (shared)" -ForegroundColor White
-Write-Host "  Model      : $GGUF_FILE ($modelSz GB)" -ForegroundColor White
-Write-Host "  CRS        : $CRS_URL" -ForegroundColor White
-Write-Host "  YODA       : $YODA_URL" -ForegroundColor White
-Write-Host ""
 foreach ($cfg in $daemonConfigs) {
-    $addrDisplay = if ($cfg.Address) { $cfg.Address } else { "(pending)" }
-    Write-Host "  Daemon #$($cfg.Id) : port $($cfg.Port) | address: $addrDisplay" -ForegroundColor White
+    Write-Host "  Daemon #$($cfg.Id): port $($cfg.Port), address $($cfg.Address)" -ForegroundColor White
 }
 Write-Host ""
-Write-Host "  Logs       : $LOG_DIR" -ForegroundColor White
-Write-Host "  Launcher   : $startYodaPath" -ForegroundColor White
+Write-Host "  CRS          : $CRS_URL" -ForegroundColor White
+Write-Host "  Deployment API: $CRS_URL/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
+Write-Host "  Launcher     : $startYodaPath" -ForegroundColor White
+Write-Host "  Logs         : $LOG_DIR" -ForegroundColor White
 Write-Host ""
-Write-Host "  All processes run in the background." -ForegroundColor Yellow
-Write-Host "  Double-click 'Start YODA' on Desktop to restart everything." -ForegroundColor Yellow
+Write-Host "  LLM engines are configured separately at YODA runtime." -ForegroundColor DarkGray
 Write-Host ""
-Read-Host "Press Enter to close (processes keep running)"
+Read-Host "Press Enter to close"

@@ -618,9 +618,9 @@ function YodaDeployCard() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            One-click deployment for YODA. Builds the daemon, generates 3 PT26-DSA identities,
-            starts a shared LLM engine + 3 cube daemons, registers all with PlenumNET CRS,
-            and notifies yoda.replit.app via API. Creates a desktop launcher for future starts.
+            One-click 3-daemon deployment. Builds the daemon, generates 3 PT26-DSA identities,
+            starts 3 cube daemons, registers all with PlenumNET CRS, and posts a deployment
+            summary to the API. Creates a desktop launcher for future starts.
           </p>
         </div>
       </div>
@@ -629,8 +629,8 @@ function YodaDeployCard() {
         <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
           <li>Click the button below to download the installer</li>
           <li>Double-click the downloaded file to run it</li>
-          <li>The installer handles everything: Rust, LLVM, llama.cpp, model download, daemon build, identity generation, and networking</li>
-          <li>When complete, a "Start YODA" shortcut appears on your Desktop</li>
+          <li>The installer handles everything: Rust, LLVM, daemon build, 3 identity generations, CRS registration, and networking</li>
+          <li>When complete, a "Start YODA Daemons" shortcut appears on your Desktop</li>
         </ol>
       </div>
 
@@ -651,11 +651,7 @@ function YodaDeployCard() {
 
       <div className="bg-muted/50 rounded-lg p-4 mt-4 mb-4" data-testid="yoda-deploy-layout">
         <p className="text-xs font-medium text-foreground mb-2">Network layout</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-muted-foreground">
-          <div className="bg-background rounded p-2 text-center">
-            <span className="block font-medium text-foreground/70">LLM Engine</span>
-            <span className="text-[11px]">Port 8080 (shared)</span>
-          </div>
+        <div className="grid grid-cols-3 gap-3 text-xs text-muted-foreground">
           <div className="bg-background rounded p-2 text-center">
             <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #1</span>
             <span className="text-[11px]">Port 8081</span>
@@ -673,9 +669,8 @@ function YodaDeployCard() {
 
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
         <span>CRS: <strong className="text-foreground font-medium">plenumnet.replit.app</strong></span>
-        <span>YODA: <strong className="text-foreground font-medium">yoda.replit.app</strong></span>
         <span>3 PT26-DSA identities</span>
-        <span>DeepSeek-R1 7B (Q4_K_M)</span>
+        <span>API: <strong className="text-foreground font-medium">/api/salvi/inter-cube/relay/deployments</strong></span>
       </div>
     </Card>
   );
