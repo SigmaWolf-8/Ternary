@@ -78,6 +78,18 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 | `CUBE_IDENTITY_DIR` | `~/.plenumnet/identity/` | Master key storage |
 | `CUBE_IDENTITY_PASSPHRASE` | (hostname fallback) | Encryption passphrase |
 
+### Building the Daemon
+
+The daemon must be compiled from source. If behavior doesn't match this spec (e.g. ignoring `CUBE_API_PORT`, printing "BLAKE3"), the binary is stale and must be rebuilt:
+
+```powershell
+Set-Location C:\PlenumNET
+git pull origin main
+cargo build --release -p inter-cube
+```
+
+The compiled binary will be at `C:\PlenumNET\target\release\inter-cube-daemon.exe`. The current source version is v0.3.0.
+
 ### Daemon Startup (Windows)
 
 PlenumNET install path: `C:\PlenumNET`
