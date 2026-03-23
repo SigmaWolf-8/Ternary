@@ -9,6 +9,10 @@
     Run it with:
       irm https://plenumnet.replit.app/api/deploy-daemon | iex
 
+    Each run auto-detects existing daemon identities and creates the next one.
+    First run creates identity-1 (ports 8080/8081), second creates identity-2
+    (ports 8082/8083), and so on.
+
 .NOTES
     Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
     Applied Physics Division
@@ -18,6 +22,9 @@ $RepoDir = "C:\PlenumNET"
 $BinaryName = "inter-cube-daemon.exe"
 $BinaryPath = Join-Path $RepoDir "target\release\$BinaryName"
 $RepoUrl = "https://github.com/SigmaWolf-8/Ternary.git"
+$IdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
+$BaseEnginePort = 8080
+$PortStep = 2
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -137,54 +144,91 @@ try {
     Write-Host "  Commit:    $($commitHash.Trim())" -ForegroundColor White
     Write-Host ""
 
-    $identityBase = Join-Path $env:USERPROFILE ".plenumnet"
-    foreach ($agent in @("a", "b", "c")) {
-        $dir = Join-Path $identityBase "identity-$agent"
-        if (-not (Test-Path $dir)) {
-            Write-Host "IDENTITY: Creating identity directory: $dir" -ForegroundColor Yellow
-            New-Item -ItemType Directory -Path $dir -Force | Out-Null
-        }
-        $keyFile = Join-Path $dir "master.key"
-        if (-not (Test-Path $keyFile)) {
-            $label = $agent.ToUpper()
-            Write-Host "IDENTITY: Generating identity for Agent $label..." -ForegroundColor Yellow
-            $env:CUBE_MODE = "keygen"
-            $env:CUBE_IDENTITY_DIR = $dir
-            $null = & $BinaryPath 2>&1
-            Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-            Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
-            if (Test-Path $keyFile) {
-                Write-Host "IDENTITY: Agent $label identity created." -ForegroundColor Green
-            } else {
-                Write-Host "IDENTITY: WARNING - Agent $label key generation may have failed." -ForegroundColor Yellow
-            }
-        } else {
-            Write-Host "IDENTITY: Agent $($agent.ToUpper()) identity exists." -ForegroundColor Green
-        }
+    if (-not (Test-Path $IdentityBase)) {
+        New-Item -ItemType Directory -Path $IdentityBase -Force | Out-Null
     }
+
+    $existingIds = @()
+    if (Test-Path $IdentityBase) {
+        $existingIds = Get-ChildItem -Path $IdentityBase -Directory -Filter "identity-*" |
+            ForEach-Object {
+                $num = $_.Name -replace 'identity-', ''
+                if ($num -match '^\d+$') { [int]$num }
+                elseif ($num -match '^[a-z]$') {
+                    [int][char]$num - [int][char]'a' + 1
+                }
+            } | Sort-Object
+    }
+
+    if ($existingIds.Count -gt 0) {
+        $nextId = ($existingIds | Measure-Object -Maximum).Maximum + 1
+    } else {
+        $nextId = 1
+    }
+
+    $dir = Join-Path $IdentityBase "identity-$nextId"
+    if (-not (Test-Path $dir)) {
+        Write-Host "IDENTITY: Creating identity directory: $dir" -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+    $keyFile = Join-Path $dir "master.key"
+    if (-not (Test-Path $keyFile)) {
+        Write-Host "IDENTITY: Generating identity #$nextId..." -ForegroundColor Yellow
+        $env:CUBE_MODE = "keygen"
+        $env:CUBE_IDENTITY_DIR = $dir
+        $null = & $BinaryPath 2>&1
+        Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+        if (Test-Path $keyFile) {
+            Write-Host "IDENTITY: Daemon #$nextId identity created." -ForegroundColor Green
+        } else {
+            Write-Host "IDENTITY: WARNING - Identity #$nextId key generation may have failed." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "IDENTITY: Daemon #$nextId identity already exists." -ForegroundColor Green
+    }
+
+    $enginePort = $BaseEnginePort + (($nextId - 1) * $PortStep)
+    $daemonPort = $enginePort + 1
 
     Write-Host ""
     Write-Host "==========================================================" -ForegroundColor Cyan
     Write-Host "  READY TO LAUNCH" -ForegroundColor Cyan
     Write-Host "==========================================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  Start Daemon A:" -ForegroundColor White
-    Write-Host '    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"; $env:LLM_PORT="8080"' -ForegroundColor DarkGray
-    Write-Host '    $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"' -ForegroundColor DarkGray
-    Write-Host '    $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"' -ForegroundColor DarkGray
-    Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host "  Start Daemon B:" -ForegroundColor White
-    Write-Host '    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8083"; $env:LLM_PORT="8082"' -ForegroundColor DarkGray
-    Write-Host '    $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"' -ForegroundColor DarkGray
-    Write-Host '    $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-b"' -ForegroundColor DarkGray
-    Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host "  Start Daemon C:" -ForegroundColor White
-    Write-Host '    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8085"; $env:LLM_PORT="8084"' -ForegroundColor DarkGray
-    Write-Host '    $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"' -ForegroundColor DarkGray
-    Write-Host '    $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-c"' -ForegroundColor DarkGray
-    Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
+
+    $allIds = @()
+    if (Test-Path $IdentityBase) {
+        $allIds = Get-ChildItem -Path $IdentityBase -Directory -Filter "identity-*" |
+            ForEach-Object {
+                $num = $_.Name -replace 'identity-', ''
+                if ($num -match '^\d+$') { [int]$num }
+                elseif ($num -match '^[a-z]$') {
+                    [int][char]$num - [int][char]'a' + 1
+                }
+            } | Sort-Object
+    }
+
+    foreach ($id in $allIds) {
+        $ep = $BaseEnginePort + (($id - 1) * $PortStep)
+        $dp = $ep + 1
+
+        $idDir = Join-Path $IdentityBase "identity-$id"
+        if (-not (Test-Path $idDir)) {
+            $letterDir = Join-Path $IdentityBase ("identity-" + [char]([int][char]'a' + $id - 1))
+            if (Test-Path $letterDir) { $idDir = $letterDir }
+        }
+
+        Write-Host "  Start Daemon #$id (engine=$ep, daemon=$dp):" -ForegroundColor White
+        Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$dp`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_CRS_URL=`"https://plenumnet.replit.app`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray
+        Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
+        Write-Host ""
+    }
+
+    Write-Host "  Total identities: $($allIds.Count)" -ForegroundColor White
+    Write-Host "  Run this script again to add another daemon." -ForegroundColor DarkGray
     Write-Host ""
 } finally {
     Pop-Location

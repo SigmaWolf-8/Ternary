@@ -461,7 +461,7 @@ function InstallSuiteCard() {
           </h2>
           <p className="text-sm text-muted-foreground">
             One-click installer for the entire framework: {MODULES.length} modules, {PLATFORM.TESTS_PASSING} passing tests,
-            CNSA 2.0 compliant. Downloads, extracts, builds everything, and generates daemon identity keys for Agents A/B/C.
+            CNSA 2.0 compliant. Downloads, builds the daemon, and generates your first identity automatically. Run again to add more daemons.
           </p>
         </div>
       </div>
@@ -547,8 +547,8 @@ function DaemonDeployCard() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            One-click deployer for the Inter-Cube daemon. Downloads the installer, pulls source,
-            builds the daemon, generates PT26-DSA identity keys for Agents A/B/C, and prints startup commands.
+            One-click deployer for the Inter-Cube daemon. Pulls latest source, builds the daemon,
+            and generates the next PT26-DSA identity automatically. Each run adds one more daemon — ports auto-increment.
           </p>
         </div>
       </div>
@@ -576,7 +576,7 @@ function DaemonDeployCard() {
             <span className="font-medium text-foreground/70">Full Suite (above)</span>
             <ul className="mt-1 space-y-0.5 list-disc list-inside">
               <li>Git clone + build inter-cube daemon</li>
-              <li>Generates identity keys for A/B/C</li>
+              <li>Generates first identity automatically</li>
               <li>First-time setup from scratch</li>
             </ul>
           </div>
@@ -593,7 +593,7 @@ function DaemonDeployCard() {
 
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
         <span>Builds to: <strong className="text-foreground font-medium">C:\PlenumNET\target\release\inter-cube-daemon.exe</strong></span>
-        <span>3 daemon instances (A/B/C)</span>
+        <span>Auto-incrementing instances</span>
         <span>PT26-DSA identity keys</span>
       </div>
     </Card>

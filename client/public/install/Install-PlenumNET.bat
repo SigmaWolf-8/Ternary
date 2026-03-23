@@ -98,30 +98,39 @@ goto DONE
 :IDENTITY
 set "DAEMON_EXE=%INSTALL_DIR%\target\release\inter-cube-daemon.exe"
 if not exist "%DAEMON_EXE%" goto DONE
-echo   Generating daemon identities for Agents A, B, C...
+echo   Generating first daemon identity...
 echo.
-for %%A in (a b c) do (
-    if not exist "%IDENTITY_BASE%\identity-%%A" (
-        mkdir "%IDENTITY_BASE%\identity-%%A" >nul 2>nul
-    )
-    if not exist "%IDENTITY_BASE%\identity-%%A\master.key" (
-        echo   Generating identity for Agent %%A...
-        set "CUBE_MODE=keygen"
-        set "CUBE_IDENTITY_DIR=%IDENTITY_BASE%\identity-%%A"
-        "%DAEMON_EXE%" >nul 2>nul
-        set "CUBE_MODE="
-        set "CUBE_IDENTITY_DIR="
-        if exist "%IDENTITY_BASE%\identity-%%A\master.key" (
-            echo   Agent %%A identity created.
-        ) else (
-            echo   WARNING: Agent %%A key generation may have failed.
-        )
-    ) else (
-        echo   Agent %%A identity exists.
-    )
+set "NEXT_ID=1"
+:FIND_NEXT_ID
+if exist "%IDENTITY_BASE%\identity-%NEXT_ID%\master.key" (
+    set /a NEXT_ID+=1
+    goto FIND_NEXT_ID
 )
+set "ID_DIR=%IDENTITY_BASE%\identity-%NEXT_ID%"
+if not exist "%ID_DIR%" mkdir "%ID_DIR%" >nul 2>nul
+echo   Generating identity #%NEXT_ID%...
+set "CUBE_MODE=keygen"
+set "CUBE_IDENTITY_DIR=%ID_DIR%"
+"%DAEMON_EXE%" >nul 2>nul
+set "CUBE_MODE="
+set "CUBE_IDENTITY_DIR="
+if exist "%ID_DIR%\master.key" (
+    echo   Daemon #%NEXT_ID% identity created.
+) else (
+    echo   WARNING: Identity #%NEXT_ID% key generation may have failed.
+)
+set /a ENGINE_PORT=8080 + (%NEXT_ID% - 1) * 2
+set /a DAEMON_PORT=%ENGINE_PORT% + 1
 echo.
-echo   To start daemons after install, run:
+echo   To start daemon #%NEXT_ID%:
+echo     set CUBE_MODE=cube
+echo     set CUBE_API_PORT=%DAEMON_PORT%
+echo     set LLM_PORT=%ENGINE_PORT%
+echo     set CUBE_CRS_URL=https://plenumnet.replit.app
+echo     set CUBE_IDENTITY_DIR=%ID_DIR%
+echo     "%DAEMON_EXE%"
+echo.
+echo   Run the deployer again to add another daemon:
 echo     %INSTALL_DIR%\services\inter-cube\deploy-daemon.bat
 echo.
 goto DONE

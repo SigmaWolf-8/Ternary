@@ -114,21 +114,28 @@ main() {
 
     DAEMON_EXE="$INSTALL_DIR/target/release/inter-cube-daemon"
     if [ -x "$DAEMON_EXE" ]; then
-        for agent in a b c; do
-            AGENT_DIR="$IDENTITY_BASE/identity-$agent"
-            mkdir -p "$AGENT_DIR"
-            if [ ! -f "$AGENT_DIR/master.key" ]; then
-                echo "    Generating identity for Agent $agent..."
-                CUBE_MODE=keygen CUBE_IDENTITY_DIR="$AGENT_DIR" "$DAEMON_EXE" 2>/dev/null || true
-                if [ -f "$AGENT_DIR/master.key" ]; then
-                    echo -e "    ${GREEN}Agent $agent identity created.${NC}"
-                else
-                    echo -e "    ${YELLOW}WARNING: Agent $agent key generation may have failed.${NC}"
-                fi
-            else
-                echo -e "    Agent $agent identity exists."
-            fi
+        NEXT_ID=1
+        while [ -f "$IDENTITY_BASE/identity-$NEXT_ID/master.key" ]; do
+            NEXT_ID=$((NEXT_ID + 1))
         done
+        AGENT_DIR="$IDENTITY_BASE/identity-$NEXT_ID"
+        mkdir -p "$AGENT_DIR"
+        echo "    Generating identity #$NEXT_ID..."
+        CUBE_MODE=keygen CUBE_IDENTITY_DIR="$AGENT_DIR" "$DAEMON_EXE" 2>/dev/null || true
+        if [ -f "$AGENT_DIR/master.key" ]; then
+            echo -e "    ${GREEN}Daemon #$NEXT_ID identity created.${NC}"
+        else
+            echo -e "    ${YELLOW}WARNING: Identity #$NEXT_ID key generation may have failed.${NC}"
+        fi
+        ENGINE_PORT=$((8080 + (NEXT_ID - 1) * 2))
+        DAEMON_PORT=$((ENGINE_PORT + 1))
+        echo ""
+        echo -e "    ${DIM}To start daemon #$NEXT_ID:${NC}"
+        echo -e "    ${DIM}CUBE_MODE=cube CUBE_API_PORT=$DAEMON_PORT LLM_PORT=$ENGINE_PORT \\${NC}"
+        echo -e "    ${DIM}CUBE_CRS_URL=https://plenumnet.replit.app \\${NC}"
+        echo -e "    ${DIM}CUBE_IDENTITY_DIR=$AGENT_DIR $DAEMON_EXE${NC}"
+        echo ""
+        echo -e "    Run this installer again to add another daemon."
     else
         echo -e "    ${YELLOW}Daemon binary not found. Skipping identity generation.${NC}"
     fi
@@ -152,8 +159,7 @@ main() {
     echo "  Next steps:"
     echo -e "    ${DIM}cd $INSTALL_DIR${NC}"
     echo -e "    ${DIM}cargo test          # Run tests${NC}"
-    echo -e "    ${DIM}# Start daemon A:${NC}"
-    echo -e "    ${DIM}CUBE_MODE=cube CUBE_IDENTITY_DIR=$IDENTITY_BASE/identity-a $INSTALL_DIR/target/release/inter-cube-daemon${NC}"
+    echo -e "    ${DIM}# Run installer again to add more daemons${NC}"
     echo ""
 }
 
