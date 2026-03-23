@@ -287,7 +287,9 @@ All endpoints below are served from `https://plenumnet.replit.app`. Auth-require
 | `/api/salvi/inter-cube/topology` | GET | — | 13D hypercube topology |
 | `/health` | GET | — | Daemon health |
 
-### 5.2 Cube Daemon Local API (port 8081 on laptop)
+### 5.2 Cube Daemon Local API (on laptop — ports 8081 / 8083 / 8085)
+
+Each daemon exposes the same endpoints on its `CUBE_API_PORT`:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
