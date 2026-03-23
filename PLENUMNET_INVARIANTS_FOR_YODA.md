@@ -87,14 +87,14 @@ Each engine gets its own daemon with its own identity. Separate identities are r
 
 | Agent | Identity Dir | Engine | Daemon |
 |-------|-------------|--------|--------|
-| A | `C:\Users\Sigma\.plenumnet\identity-a\` | 8080 | 8081 |
-| B | `C:\Users\Sigma\.plenumnet\identity-b\` | 8082 | 8083 |
-| C | `C:\Users\Sigma\.plenumnet\identity-c\` | 8084 | 8085 |
+| A | `$env:USERPROFILE\.plenumnet\identity-a\` | 8080 | 8081 |
+| B | `$env:USERPROFILE\.plenumnet\identity-b\` | 8082 | 8083 |
+| C | `$env:USERPROFILE\.plenumnet\identity-c\` | 8084 | 8085 |
 
 Generate each identity once with `CUBE_MODE=keygen`:
 ```powershell
 $env:CUBE_MODE="keygen"
-$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-a"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 # Repeat for identity-b, identity-c
 ```
@@ -108,7 +108,7 @@ $env:CUBE_API_PORT="8081"
 $env:LLM_PORT="8080"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-a"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
@@ -119,7 +119,7 @@ $env:CUBE_API_PORT="8083"
 $env:LLM_PORT="8082"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-b"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-b"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
@@ -130,7 +130,7 @@ $env:CUBE_API_PORT="8085"
 $env:LLM_PORT="8084"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-c"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-c"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
