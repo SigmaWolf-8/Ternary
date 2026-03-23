@@ -579,23 +579,26 @@ function DaemonDeployCard() {
         </div>
       </div>
 
-      <div className="mb-4">
-        <p className="text-xs text-muted-foreground mb-2">Run in PowerShell:</p>
+      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="daemon-deploy-instructions">
+        <p className="text-sm font-medium text-foreground mb-2">Open PowerShell and paste:</p>
         <CopyCommand command={psCommand} testIdPrefix="daemon" />
+        <p className="text-xs text-muted-foreground mt-3">
+          That single command downloads, compiles, and configures everything. No separate download needed.
+        </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          <span className="font-medium text-foreground/70">Prefer double-click?</span>{" "}
+          <button
+            className="underline underline-offset-2 hover:text-foreground transition-colors"
+            onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}
+            data-testid="button-download-daemon-bat"
+          >
+            Download the .bat file
+          </button>{" "}
+          instead — it runs the same deployer automatically.
+        </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Button
-          variant="outline"
-          data-testid="button-download-daemon-bat"
-          onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Download .bat Installer
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-5 text-xs text-muted-foreground">
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
         <span>Builds to: <strong className="text-foreground font-medium">C:\PlenumNET\target\release\inter-cube-daemon.exe</strong></span>
         <span>3 daemon instances (A/B/C)</span>
         <span>PT26-DSA identity keys</span>
