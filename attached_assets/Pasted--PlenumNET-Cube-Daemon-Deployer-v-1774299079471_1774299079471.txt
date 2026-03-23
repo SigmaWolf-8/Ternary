@@ -1,0 +1,40 @@
+
+  ==========================================================
+    PlenumNET Cube Daemon Deployer v0.3.0
+    Applied Physics Division -- Capomastro Holdings Ltd.
+  ==========================================================
+
+  Launching deployer...
+
+At C:\PlenumNET\services\inter-cube\deploy-daemon.ps1:84 char:26
++             Write-Host "[ERROR] git pull failed. Resolve conflicts ma ...
++                          ~
+Array index expression is missing or not valid.
+At C:\PlenumNET\services\inter-cube\deploy-daemon.ps1:164 char:21
++     Write-Host "    & `"$BinaryPath`"" -ForegroundColor DarkGray
++                     ~
+The ampersand (&) character is not allowed. The & operator is reserved for future use; wrap an ampersand in double
+quotation marks ("&") to pass it as part of a string.
+At C:\PlenumNET\services\inter-cube\deploy-daemon.ps1:170 char:21
++     Write-Host "    & `"$BinaryPath`"" -ForegroundColor DarkGray
++                     ~
+The ampersand (&) character is not allowed. The & operator is reserved for future use; wrap an ampersand in double
+quotation marks ("&") to pass it as part of a string.
+At C:\PlenumNET\services\inter-cube\deploy-daemon.ps1:176 char:21
++     Write-Host "    & `"$BinaryPath`"" -ForegroundColor DarkGray
++                     ~
+The ampersand (&) character is not allowed. The & operator is reserved for future use; wrap an ampersand in double
+quotation marks ("&") to pass it as part of a string.
+At C:\PlenumNET\services\inter-cube\deploy-daemon.ps1:176 char:38
++     Write-Host "    & `"$BinaryPath`"" -ForegroundColor DarkGray
++                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The string is missing the terminator: ".
+At C:\PlenumNET\services\inter-cube\deploy-daemon.ps1:44 char:32
++ if (-not (Test-Path $RepoDir)) {
++                                ~
+Missing closing '}' in statement block or type definition.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArrayIndexExpression
+
+
+  Press any key to close...
