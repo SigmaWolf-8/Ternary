@@ -1,0 +1,188 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET; git init; git remote add origin https://github.com/SigmaWolf-8/Ternary.git; git fetch origin main; git reset --hard origin/main
+Reinitialized existing Git repository in C:/PlenumNET/.git/
+error: remote origin already exists.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch            main       -> FETCH_HEAD
+HEAD is now at f0ad92e Add daemon deployer: one-command build & deploy workflow
+PS C:\PlenumNET> #Requires -Version 5.1
+An error occurred while creating the pipeline.
+    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : RuntimeException
+
+PS C:\PlenumNET> <#
+>> .SYNOPSIS
+>>     PlenumNET Cube Daemon Deployer
+>>     Pulls latest source from GitHub, builds the daemon, and verifies the binary.
+>>     Run from any directory — automatically handles C:\PlenumNET.
+>>
+>> .DESCRIPTION
+>>     This script is served from https://plenumnet.replit.app/api/deploy-daemon
+>>     Run it with:
+>>       irm https://plenumnet.replit.app/api/deploy-daemon | iex
+>>
+>> .NOTES
+>>     Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+>>     Applied Physics Division
+>> #>
+PS C:\PlenumNET>
+PS C:\PlenumNET> $ErrorActionPreference = "Stop"
+PS C:\PlenumNET> $RepoDir = "C:\PlenumNET"
+PS C:\PlenumNET> $BinaryName = "inter-cube-daemon.exe"
+PS C:\PlenumNET> $BinaryPath = "$RepoDir\target\release\$BinaryName"
+PS C:\PlenumNET> $RepoUrl = "https://github.com/SigmaWolf-8/Ternary.git"
+PS C:\PlenumNET>
+PS C:\PlenumNET> Write-Host ""
+
+PS C:\PlenumNET> Write-Host "==========================================================" -ForegroundColor Cyan
+==========================================================
+PS C:\PlenumNET> Write-Host "  PlenumNET Cube Daemon Deployer" -ForegroundColor Cyan
+  PlenumNET Cube Daemon Deployer
+PS C:\PlenumNET> Write-Host "  Applied Physics Division -- Capomastro Holdings Ltd." -ForegroundColor Cyan
+  Applied Physics Division -- Capomastro Holdings Ltd.
+PS C:\PlenumNET> Write-Host "==========================================================" -ForegroundColor Cyan
+==========================================================
+PS C:\PlenumNET> Write-Host ""
+
+PS C:\PlenumNET>
+PS C:\PlenumNET> function Test-Command($cmd) {
+>>     try { Get-Command $cmd -ErrorAction Stop | Out-Null; return $true }
+>>     catch { return $false }
+>> }
+PS C:\PlenumNET>
+PS C:\PlenumNET> if (-not (Test-Command "git")) {
+>>     Write-Host "[ERROR] git is not installed or not in PATH." -ForegroundColor Red
+>>     exit 1
+>> }
+PS C:\PlenumNET> if (-not (Test-Command "cargo")) {
+>>     Write-Host "[ERROR] cargo (Rust) is not installed or not in PATH." -ForegroundColor Red
+>>     Write-Host "        Install from https://rustup.rs/" -ForegroundColor Yellow
+>>     exit 1
+>> }
+PS C:\PlenumNET>
+PS C:\PlenumNET> if (-not (Test-Path $RepoDir)) {
+>>     Write-Host "[CLONE] Repository not found at $RepoDir — cloning..." -ForegroundColor Yellow
+>>     git clone $RepoUrl $RepoDir
+>>     if ($LASTEXITCODE -ne 0) {
+>>         Write-Host "[ERROR] git clone failed." -ForegroundColor Red
+>>         exit 1
+>>     }
+>> }
+PS C:\PlenumNET>
+PS C:\PlenumNET> Write-Host "[PULL] Updating source from GitHub..." -ForegroundColor Yellow
+[PULL] Updating source from GitHub...
+PS C:\PlenumNET> Push-Location $RepoDir
+PS C:\PlenumNET> try {
+>>     git fetch origin main 2>&1 | Out-Null
+>>     $localHash = git rev-parse HEAD
+>>     $remoteHash = git rev-parse origin/main
+>>     if ($localHash -eq $remoteHash) {
+>>         Write-Host "[PULL] Already up to date ($($localHash.Substring(0,8)))" -ForegroundColor Green
+>>     } else {
+>>         git pull origin main --ff-only
+>>         if ($LASTEXITCODE -ne 0) {
+>>             Write-Host "[ERROR] git pull failed. Resolve conflicts manually." -ForegroundColor Red
+>>             exit 1
+>>         }
+>>         Write-Host "[PULL] Updated to $(git rev-parse --short HEAD)" -ForegroundColor Green
+>>     }
+>>
+>>     $runningDaemons = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue
+>>     if ($runningDaemons) {
+>>         Write-Host "[STOP] Stopping running daemon(s)..." -ForegroundColor Yellow
+>>         $runningDaemons | Stop-Process -Force
+>>         Start-Sleep -Seconds 2
+>>         Write-Host "[STOP] Daemon(s) stopped." -ForegroundColor Green
+>>     }
+>>
+>>     Write-Host "[BUILD] Compiling inter-cube daemon (release)..." -ForegroundColor Yellow
+>>     Write-Host "        This may take a few minutes on first build." -ForegroundColor DarkGray
+>>     cargo build --release -p inter-cube 2>&1 | ForEach-Object {
+>>         if ($_ -match "Compiling|Finished") { Write-Host "        $_" -ForegroundColor DarkGray }
+>>     }
+>>     if ($LASTEXITCODE -ne 0) {
+>>         Write-Host "[ERROR] Build failed. Check output above." -ForegroundColor Red
+>>         exit 1
+>>     }
+>>
+>>     if (-not (Test-Path $BinaryPath)) {
+>>         Write-Host "[ERROR] Binary not found at $BinaryPath after build." -ForegroundColor Red
+>>         exit 1
+>>     }
+>>
+>>     $versionOutput = & $BinaryPath --version 2>&1 | Out-String
+>>     $fileInfo = Get-Item $BinaryPath
+>>     $buildTime = $fileInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss")
+>>     $fileSizeMB = [math]::Round($fileInfo.Length / 1MB, 1)
+>>
+>>     Write-Host ""
+>>     Write-Host "==========================================================" -ForegroundColor Green
+>>     Write-Host "  BUILD SUCCESSFUL" -ForegroundColor Green
+>>     Write-Host "==========================================================" -ForegroundColor Green
+>>     Write-Host "  Binary:    $BinaryPath" -ForegroundColor White
+>>     Write-Host "  Size:      $fileSizeMB MB" -ForegroundColor White
+>>     Write-Host "  Built:     $buildTime" -ForegroundColor White
+>>     Write-Host "  Commit:    $(git rev-parse --short HEAD)" -ForegroundColor White
+>>     Write-Host ""
+>>
+>>     $identityBase = "$env:USERPROFILE\.plenumnet"
+>>     foreach ($agent in @("a", "b", "c")) {
+>>         $dir = "$identityBase\identity-$agent"
+>>         if (-not (Test-Path $dir)) {
+>>             Write-Host "[IDENTITY] Creating identity directory: $dir" -ForegroundColor Yellow
+>>             New-Item -ItemType Directory -Path $dir -Force | Out-Null
+>>         }
+>>         $keyFile = "$dir\master.key"
+>>         if (-not (Test-Path $keyFile)) {
+>>             Write-Host "[IDENTITY] Generating identity for Agent $($agent.ToUpper())..." -ForegroundColor Yellow
+>>             $env:CUBE_MODE = "keygen"
+>>             $env:CUBE_IDENTITY_DIR = $dir
+>>             & $BinaryPath 2>&1 | Out-Null
+>>             Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+>>             Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+>>             if (Test-Path $keyFile) {
+>>                 Write-Host "[IDENTITY] Agent $($agent.ToUpper()) identity created." -ForegroundColor Green
+>>             } else {
+>>                 Write-Host "[IDENTITY] WARNING: Agent $($agent.ToUpper()) key generation may have failed." -ForegroundColor Yellow
+>>             }
+>>         } else {
+>>             Write-Host "[IDENTITY] Agent $($agent.ToUpper()) identity exists." -ForegroundColor Green
+>>         }
+>>     }
+>>
+>>     Write-Host ""
+>>     Write-Host "==========================================================" -ForegroundColor Cyan
+>>     Write-Host "  READY TO LAUNCH" -ForegroundColor Cyan
+>>     Write-Host "==========================================================" -ForegroundColor Cyan
+>>     Write-Host ""
+>>     Write-Host "  Start Daemon A:" -ForegroundColor White
+>>     Write-Host '    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"; $env:LLM_PORT="8080"' -ForegroundColor DarkGray
+>>     Write-Host '    $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"' -ForegroundColor DarkGray
+>>     Write-Host "    `$env:CUBE_IDENTITY_DIR=`"`$env:USERPROFILE\.plenumnet\identity-a`"" -ForegroundColor DarkGray
+>>     Write-Host "    & `"$BinaryPath`"" -ForegroundColor DarkGray
+>>     Write-Host ""
+>>     Write-Host "  Start Daemon B:" -ForegroundColor White
+>>     Write-Host '    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8083"; $env:LLM_PORT="8082"' -ForegroundColor DarkGray
+>>     Write-Host '    $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"' -ForegroundColor DarkGray
+>>     Write-Host "    `$env:CUBE_IDENTITY_DIR=`"`$env:USERPROFILE\.plenumnet\identity-b`"" -ForegroundColor DarkGray
+>>     Write-Host "    & `"$BinaryPath`"" -ForegroundColor DarkGray
+>>     Write-Host ""
+>>     Write-Host "  Start Daemon C:" -ForegroundColor White
+>>     Write-Host '    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8085"; $env:LLM_PORT="8084"' -ForegroundColor DarkGray
+>>     Write-Host '    $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"' -ForegroundColor DarkGray
+>>     Write-Host "    `$env:CUBE_IDENTITY_DIR=`"`$env:USERPROFILE\.plenumnet\identity-c`"" -ForegroundColor DarkGray
+>>     Write-Host "    & `"$BinaryPath`"" -ForegroundColor DarkGray
+>>     Write-Host ""
+>> } finally {
+>>     Pop-Location
+>> }
+git : From https://github.com/SigmaWolf-8/Ternary
+At line:2 char:5
++     git fetch origin main 2>&1 | Out-Null
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (From https://gi...aWolf-8/Ternary:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError

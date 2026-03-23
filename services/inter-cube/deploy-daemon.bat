@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title PlenumNET Cube Daemon Deployer
 color 0B
 echo.
@@ -7,6 +8,11 @@ echo     PlenumNET Cube Daemon Deployer v0.3.0
 echo     Applied Physics Division -- Capomastro Holdings Ltd.
 echo   ==========================================================
 echo.
+
+REM Ensure cargo is in PATH (rustup default install location)
+if exist "%USERPROFILE%\.cargo\bin\cargo.exe" (
+    set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
+)
 
 REM Check prerequisites
 where git >nul 2>nul
@@ -17,7 +23,7 @@ if errorlevel 1 (
 )
 where cargo >nul 2>nul
 if errorlevel 1 (
-    echo   [ERROR] cargo (Rust) is not installed or not in PATH.
+    echo   [ERROR] cargo [Rust] is not installed or not in PATH.
     echo          Install from https://rustup.rs/
     echo.
     goto END
@@ -40,8 +46,8 @@ if not exist "%REPO_DIR%" (
 )
 
 if not exist "%REPO_DIR%\.git" (
-    echo   [SETUP] %REPO_DIR% exists but is not a git repo (installed via ZIP?).
-    echo          Converting to a git repo so we can pull updates...
+    echo   [SETUP] %REPO_DIR% exists but is not a git repo.
+    echo          Converting to git repo so we can pull updates...
     echo.
     pushd "%REPO_DIR%"
     git init >nul 2>nul
@@ -117,7 +123,7 @@ popd
 echo.
 
 REM Generate identities for A, B, C
-echo   [IDENTITY] Generating daemon identities...
+echo   [IDENTITY] Checking daemon identities...
 echo.
 set "IDENTITY_BASE=%USERPROFILE%\.plenumnet"
 

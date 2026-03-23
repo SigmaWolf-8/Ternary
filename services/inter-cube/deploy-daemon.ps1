@@ -1,4 +1,3 @@
-#Requires -Version 5.1
 <#
 .SYNOPSIS
     PlenumNET Cube Daemon Deployer
@@ -15,7 +14,6 @@
     Applied Physics Division
 #>
 
-$ErrorActionPreference = "Stop"
 $RepoDir = "C:\PlenumNET"
 $BinaryName = "inter-cube-daemon.exe"
 $BinaryPath = "$RepoDir\target\release\$BinaryName"
@@ -45,7 +43,7 @@ if (-not (Test-Command "cargo")) {
 
 if (-not (Test-Path $RepoDir)) {
     Write-Host "[CLONE] Repository not found at $RepoDir — cloning..." -ForegroundColor Yellow
-    git clone $RepoUrl $RepoDir
+    $null = & git clone $RepoUrl $RepoDir 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] git clone failed." -ForegroundColor Red
         exit 1
@@ -54,15 +52,15 @@ if (-not (Test-Path $RepoDir)) {
     Write-Host "[SETUP] $RepoDir exists but is not a git repo (installed via ZIP?)." -ForegroundColor Yellow
     Write-Host "        Converting to a git repo so we can pull updates..." -ForegroundColor Yellow
     Push-Location $RepoDir
-    git init 2>&1 | Out-Null
-    git remote add origin $RepoUrl 2>&1 | Out-Null
-    git fetch origin main
+    $null = & git init 2>&1
+    $null = & git remote add origin $RepoUrl 2>&1
+    $null = & git fetch origin main 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] git fetch failed. Check your internet connection." -ForegroundColor Red
         Pop-Location
         exit 1
     }
-    git reset --hard origin/main
+    $null = & git reset --hard origin/main 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] git reset failed." -ForegroundColor Red
         Pop-Location
@@ -75,18 +73,19 @@ if (-not (Test-Path $RepoDir)) {
 Write-Host "[PULL] Updating source from GitHub..." -ForegroundColor Yellow
 Push-Location $RepoDir
 try {
-    git fetch origin main 2>&1 | Out-Null
-    $localHash = git rev-parse HEAD
-    $remoteHash = git rev-parse origin/main
+    $null = & git fetch origin main 2>&1
+    $localHash = & git rev-parse HEAD 2>&1
+    $remoteHash = & git rev-parse origin/main 2>&1
     if ($localHash -eq $remoteHash) {
         Write-Host "[PULL] Already up to date ($($localHash.Substring(0,8)))" -ForegroundColor Green
     } else {
-        git pull origin main --ff-only
+        $null = & git pull origin main --ff-only 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "[ERROR] git pull failed. Resolve conflicts manually." -ForegroundColor Red
             exit 1
         }
-        Write-Host "[PULL] Updated to $(git rev-parse --short HEAD)" -ForegroundColor Green
+        $shortHash = & git rev-parse --short HEAD 2>&1
+        Write-Host "[PULL] Updated to $shortHash" -ForegroundColor Green
     }
 
     $runningDaemons = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue
@@ -99,8 +98,9 @@ try {
 
     Write-Host "[BUILD] Compiling inter-cube daemon (release)..." -ForegroundColor Yellow
     Write-Host "        This may take a few minutes on first build." -ForegroundColor DarkGray
-    cargo build --release -p inter-cube 2>&1 | ForEach-Object {
-        if ($_ -match "Compiling|Finished") { Write-Host "        $_" -ForegroundColor DarkGray }
+    & cargo build --release -p inter-cube 2>&1 | ForEach-Object {
+        $line = $_.ToString()
+        if ($line -match "Compiling|Finished") { Write-Host "        $line" -ForegroundColor DarkGray }
     }
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Build failed. Check output above." -ForegroundColor Red
@@ -112,7 +112,6 @@ try {
         exit 1
     }
 
-    $versionOutput = & $BinaryPath --version 2>&1 | Out-String
     $fileInfo = Get-Item $BinaryPath
     $buildTime = $fileInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss")
     $fileSizeMB = [math]::Round($fileInfo.Length / 1MB, 1)
@@ -124,7 +123,8 @@ try {
     Write-Host "  Binary:    $BinaryPath" -ForegroundColor White
     Write-Host "  Size:      $fileSizeMB MB" -ForegroundColor White
     Write-Host "  Built:     $buildTime" -ForegroundColor White
-    Write-Host "  Commit:    $(git rev-parse --short HEAD)" -ForegroundColor White
+    $commitHash = & git rev-parse --short HEAD 2>&1
+    Write-Host "  Commit:    $commitHash" -ForegroundColor White
     Write-Host ""
 
     $identityBase = "$env:USERPROFILE\.plenumnet"
@@ -139,7 +139,7 @@ try {
             Write-Host "[IDENTITY] Generating identity for Agent $($agent.ToUpper())..." -ForegroundColor Yellow
             $env:CUBE_MODE = "keygen"
             $env:CUBE_IDENTITY_DIR = $dir
-            & $BinaryPath 2>&1 | Out-Null
+            $null = & $BinaryPath 2>&1
             Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
             Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
             if (Test-Path $keyFile) {
