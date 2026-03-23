@@ -360,3 +360,33 @@ export type ThreatModelEntry = typeof threatModelEntries.$inferSelect;
 export type InsertThreatModelEntry = z.infer<typeof insertThreatModelEntrySchema>;
 export type ImplementationStatusEntry = typeof implementationStatus.$inferSelect;
 export type InsertImplementationStatus = z.infer<typeof insertImplementationStatusSchema>;
+
+export const deploymentRecords = pgTable("deployment_records", {
+  id: serial("id").primaryKey(),
+  hostname: varchar("hostname", { length: 255 }).notNull(),
+  ip: varchar("ip", { length: 45 }).notNull(),
+  architecture: varchar("architecture", { length: 20 }),
+  daemonCount: integer("daemon_count").notNull(),
+  daemons: jsonb("daemons").$type<Array<{
+    id: number;
+    port: number;
+    address: string;
+    publicKey: string;
+    endpoint: string;
+    identityDir: string;
+    pid: number;
+  }>>().notNull(),
+  crsUrl: varchar("crs_url", { length: 512 }).notNull(),
+  crsAddress: varchar("crs_address", { length: 64 }),
+  binaryPath: varchar("binary_path", { length: 1024 }),
+  binarySizeMB: real("binary_size_mb"),
+  logDir: varchar("log_dir", { length: 1024 }),
+  identityBase: varchar("identity_base", { length: 1024 }),
+  deployer: varchar("deployer", { length: 64 }),
+  deployedAt: timestamp("deployed_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDeploymentRecordSchema = createInsertSchema(deploymentRecords).omit({ id: true, createdAt: true });
+export type InsertDeploymentRecord = z.infer<typeof insertDeploymentRecordSchema>;
+export type DeploymentRecord = typeof deploymentRecords.$inferSelect;

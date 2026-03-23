@@ -29,9 +29,10 @@ import {
   type CompressedDocument, type InsertCompressedDocument,
   type DataSubjectRequest, type InsertDataSubjectRequest,
   type CrsRelayNode, type InsertCrsRelayNode,
+  type DeploymentRecord, type InsertDeploymentRecord,
   users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
   fileUploads, compressionHistory, whitepapers, developerSignups, compressedDocuments,
-  dataSubjectRequests, crsRelayNodes
+  dataSubjectRequests, crsRelayNodes, deploymentRecords
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, inArray } from "drizzle-orm";
@@ -93,6 +94,10 @@ export interface IStorage {
   deleteStaleCrsRelayNodes(maxAgeMs: number): Promise<number>;
   deleteCrsRelayNodesByAddresses(addresses: string[]): Promise<number>;
   deleteCrsRelayNode(publicKey: string): Promise<void>;
+
+  createDeploymentRecord(data: InsertDeploymentRecord): Promise<DeploymentRecord>;
+  getAllDeploymentRecords(): Promise<DeploymentRecord[]>;
+  getDeploymentsByHostname(hostname: string): Promise<DeploymentRecord[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -336,6 +341,19 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCrsRelayNode(publicKey: string): Promise<void> {
     await db.delete(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
+  }
+
+  async createDeploymentRecord(data: InsertDeploymentRecord): Promise<DeploymentRecord> {
+    const [record] = await db.insert(deploymentRecords).values(data).returning();
+    return record;
+  }
+
+  async getAllDeploymentRecords(): Promise<DeploymentRecord[]> {
+    return db.select().from(deploymentRecords).orderBy(desc(deploymentRecords.createdAt));
+  }
+
+  async getDeploymentsByHostname(hostname: string): Promise<DeploymentRecord[]> {
+    return db.select().from(deploymentRecords).where(eq(deploymentRecords.hostname, hostname)).orderBy(desc(deploymentRecords.createdAt));
   }
 }
 

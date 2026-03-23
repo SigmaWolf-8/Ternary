@@ -701,21 +701,48 @@ function startPqtiService(): ChildProcess | null {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
 
-  const deploymentRecords: Array<{ hostname: string; ip: string; daemons: any[]; llmPort: number; model: string; crsUrl: string; timestamp: string; receivedAt: number }> = [];
-  app.post("/api/salvi/inter-cube/relay/deployment", (req, res) => {
-    const payload = req.body;
-    if (!payload || !payload.hostname) {
-      return res.status(400).json({ error: "hostname required" });
+  const CRS_ADDRESS = "1111111111111";
+
+  app.post("/api/salvi/inter-cube/relay/deployment", async (req, res) => {
+    try {
+      const payload = req.body;
+      if (!payload || !payload.hostname) {
+        return res.status(400).json({ error: "hostname required" });
+      }
+      const record = await storage.createDeploymentRecord({
+        hostname: payload.hostname,
+        ip: payload.ip || "0.0.0.0",
+        architecture: payload.architecture || null,
+        daemonCount: payload.daemonCount || payload.daemons?.length || 0,
+        daemons: payload.daemons || [],
+        crsUrl: payload.crsUrl || "https://plenumnet.replit.app",
+        crsAddress: CRS_ADDRESS,
+        binaryPath: payload.binaryPath || null,
+        binarySizeMB: payload.binarySizeMB || null,
+        logDir: payload.logDir || null,
+        identityBase: payload.identityBase || null,
+        deployer: payload.deployer || null,
+        deployedAt: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+      });
+      log(`Deployment notification from ${payload.hostname}: ${payload.daemons?.length || 0} daemons (id: ${record.id})`, "crs");
+      res.json({ status: "ok", recorded: true, id: record.id, crsAddress: CRS_ADDRESS });
+    } catch (err: any) {
+      log(`Deployment record error: ${err.message}`, "crs");
+      res.status(500).json({ error: "Failed to record deployment" });
     }
-    const record = { ...payload, receivedAt: Date.now() };
-    deploymentRecords.push(record);
-    if (deploymentRecords.length > 100) deploymentRecords.shift();
-    log(`Deployment notification from ${payload.hostname}: ${payload.daemons?.length || 0} daemons`, "crs");
-    res.json({ status: "ok", recorded: true });
   });
 
-  app.get("/api/salvi/inter-cube/relay/deployments", (_req, res) => {
-    res.json({ deployments: deploymentRecords, count: deploymentRecords.length });
+  app.get("/api/salvi/inter-cube/relay/deployments", async (req, res) => {
+    try {
+      const hostname = req.query.hostname as string | undefined;
+      const records = hostname
+        ? await storage.getDeploymentsByHostname(hostname)
+        : await storage.getAllDeploymentRecords();
+      res.json({ deployments: records, count: records.length, crsAddress: CRS_ADDRESS });
+    } catch (err: any) {
+      log(`Deployment query error: ${err.message}`, "crs");
+      res.status(500).json({ error: "Failed to query deployments" });
+    }
   });
 
   app.all("/api/salvi/inter-cube/:service/:action", interCubeProxy);
