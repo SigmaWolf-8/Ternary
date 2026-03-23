@@ -32,18 +32,15 @@ Ternary trit values are 1, 2, 3. Never 0, 1, 2. There is no trit value 0.
 
 These are the production port assignments. Do not change them. Do not suggest alternatives. Do not override them in code.
 
-| Service | Port | Controlled By |
-|---------|------|---------------|
-| LLM Engine A (llama-server) | 8080 | User starts manually |
-| Cube daemon HTTP API | 8081 | `CUBE_API_PORT` env var |
-| LLM Engine B | 8082 | User starts manually |
-| LLM Engine C | 8084 | User starts manually |
+Each LLM engine is paired with its own cube daemon instance. Agent N = engine port `8080 + 2N`, daemon port `8081 + 2N`.
 
-The cube daemon reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. In the YODA setup, it is always set to 8081.
+| Agent | Engine Port | Daemon Port | `LLM_PORT` | `CUBE_API_PORT` |
+|-------|-------------|-------------|------------|-----------------|
+| A (N=0) | 8080 | 8081 | 8080 | 8081 |
+| B (N=1) | 8082 | 8083 | 8082 | 8083 |
+| C (N=2) | 8084 | 8085 | 8084 | 8085 |
 
-The cube daemon calls llama-server via `LLM_PORT` env var (default 8080). This is correct — Engine A is on 8080.
-
-Multi-agent addressing (future): Agent N = engine port `8080 + 2N`, node port `8081 + 2N`.
+The cube daemon reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. Each daemon's `LLM_PORT` points to its paired engine.
 
 ### I-04: Ternary Address Format
 
@@ -83,12 +80,40 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 
 ### Daemon Startup (Windows)
 
+PlenumNET install path: `C:\PlenumNET`
+Daemon binary: `C:\PlenumNET\target\release\inter-cube-daemon.exe`
+Identity directory: `C:\Users\Sigma\.plenumnet\identity\`
+
+Each engine gets its own daemon. Run each in a separate terminal:
+
+**Daemon A (Engine A on 8080):**
 ```powershell
 $env:CUBE_MODE="cube"
 $env:CUBE_API_PORT="8081"
+$env:LLM_PORT="8080"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
-& "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
+& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+```
+
+**Daemon B (Engine B on 8082):**
+```powershell
+$env:CUBE_MODE="cube"
+$env:CUBE_API_PORT="8083"
+$env:LLM_PORT="8082"
+$env:CUBE_CRS_URL="https://plenumnet.replit.app"
+$env:CUBE_ROLE="inference"
+& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+```
+
+**Daemon C (Engine C on 8084):**
+```powershell
+$env:CUBE_MODE="cube"
+$env:CUBE_API_PORT="8085"
+$env:LLM_PORT="8084"
+$env:CUBE_CRS_URL="https://plenumnet.replit.app"
+$env:CUBE_ROLE="inference"
+& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
 ---
