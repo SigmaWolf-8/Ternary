@@ -194,16 +194,28 @@ Backoff: 2s → 4s → 8s → ... → 60s cap.
 
 ## SECTION 4: INFERENCE VIA RELAY
 
+### Discovering Cube Addresses
+
+Cube addresses are assigned dynamically at registration time — never hardcode them. YODA discovers available inference nodes by:
+
+1. **Relay status endpoint:** `GET /api/salvi/inter-cube/relay/status` returns all connected nodes with their addresses and roles.
+2. **WebSocket peer list:** Send `{ "type": "peers" }` on the relay WebSocket to get currently connected peer addresses.
+3. **Auth response:** The `auth_ok` message includes `connectedPeers` — the list of other nodes online at that moment.
+
+YODA should maintain a live roster of cube addresses and route inference requests to any node with `role: "inference"`.
+
 ### Request (YODA → CRS → Cube)
 
 ```json
 {
   "type": "relay",
-  "to": "1111111111112",
+  "to": "<cube-address>",
   "msgType": "inference_request",
   "payload": "{\"requestId\":\"<uuid>\",\"messages\":[...],\"maxTokens\":512,\"model\":\"local\",\"temperature\":0.7}"
 }
 ```
+
+Where `<cube-address>` is a 13-trit address discovered from the relay status or peer list (e.g. `1111111111112`). With 3 daemons running, there will be 3 distinct addresses — one per agent.
 
 ### Response (Cube → CRS → YODA)
 
@@ -211,7 +223,7 @@ Backoff: 2s → 4s → 8s → ... → 60s cap.
 ```json
 {
   "type": "relay",
-  "from": "1111111111112",
+  "from": "<cube-address>",
   "msgType": "inference_response",
   "payload": "{\"requestId\":\"<uuid>\",\"content\":\"...\",\"model\":\"local\",\"tokens\":42,\"usage\":{...}}"
 }
@@ -221,7 +233,7 @@ Backoff: 2s → 4s → 8s → ... → 60s cap.
 ```json
 {
   "type": "relay",
-  "from": "1111111111112",
+  "from": "<cube-address>",
   "msgType": "inference_error",
   "payload": "{\"requestId\":\"<uuid>\",\"error\":\"LLM server unreachable...\"}"
 }
