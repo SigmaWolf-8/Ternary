@@ -1,0 +1,49 @@
+Save this as a Skill doc and reference for the port configurations, you keep fucking everything up.
+
+Creating the skill now:
+
+Now update the UI daemon command to exactly match the spec — with LLM_PORT and CUBE_IDENTITY_DIR included:
+
+Skill saved. Here's what's now locked in:
+
+.local/skills/plenumnet-invariants/SKILL.md — the authoritative reference I'll read before touching anything PlenumNET-related. Key things now encoded:
+
+Port assignments are fixed and user-controlled — Agent A: engine 8080 / daemon 8081, B: 8082/8083, C: 8084/8085
+LLM_PORT and CUBE_IDENTITY_DIR are required daemon env vars
+connectedPeers is the correct field name in auth_ok
+Engine endpoint URLs in YODA settings are off-limits
+C:\PlenumNET is the install path
+The UI command in YODA now shows the correct Daemon A startup with all required variables. To start Daemon A, run:
+
+$env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"; $env:LLM_PORT="8080"
+$env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
+& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+If you haven't generated the identity yet, run CUBE_MODE=keygen first with CUBE_IDENTITY_DIR set to create it.
+
+now what
+
+The daemon is reading CUBE_API_PORT=8081 but still binding to 8080 — meaning the binary doesn't honor that variable in cube mode. The spec says API_PORT is the alias. Try that instead:
+
+$env:CUBE_MODE="cube"; $env:API_PORT="8081"; $env:LLM_PORT="8080"
+$env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
+& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+The only change is API_PORT instead of CUBE_API_PORT. If the daemon starts and shows http://0.0.0.0:8081 instead of 8080, it worked and won't conflict with llama-server. Let me know what the output shows.
+
+Neither env var moves the daemon off port 8080 — that's a bug in the binary. The daemon's HTTP server always binds to 8080.
+
+Here's what's actually happening: the daemon is supposed to sit at port 8080 and proxy inference requests internally to llama-server via LLM_PORT. llama-server should not be on 8080 — that port belongs to the daemon. Your YODA engine endpoint (localhost:8080) points to the daemon, and the daemon forwards to llama-server.
+
+So the fix is: move llama-server off 8080 to an internal port, and tell the daemon where to find it via LLM_PORT.
+
+Step 1 — close the llama-server window, then restart it on an internal port:
+
+& "C:\Users\Sigma\Downloads\llama-b3447-bin-win-llvm-arm64\llama-server.exe" -m "C:\Users\Sigma\yoda-models\mathstral-7B-v0.1-Q4_K_M.gguf" --port 8090 --host 127.0.0.1 -np 1 -c 2048
+Step 2 — run the daemon with LLM_PORT=8090:
+
+$env:CUBE_MODE="cube"; $env:LLM_PORT="8090"
+$env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
+& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+The daemon binds to 8080, finds llama-server at 8090 via LLM_PORT, and your YODA engine endpoint stays unchanged at localhost:8080. No YODA settings change.
