@@ -46,6 +46,7 @@ const GITHUB_RELEASE = `${GITHUB_REPO}/releases`;
 const INSTALLER_WIN = "https://plenumnet.replit.app/install/Install-PlenumNET.bat";
 const INSTALLER_UNIX = "https://plenumnet.replit.app/install/install.sh";
 const DAEMON_DEPLOYER_BAT = "https://plenumnet.replit.app/api/deploy-daemon.bat";
+const YODA_DEPLOYER_BAT = "https://plenumnet.replit.app/api/deploy-yoda.bat";
 
 type Platform = "windows" | "mac" | "linux";
 
@@ -600,6 +601,86 @@ function DaemonDeployCard() {
   );
 }
 
+function YodaDeployCard() {
+  return (
+    <Card className="p-6 mb-8 border-2 border-violet-500/20" data-testid="card-yoda-deploy">
+      <div className="flex items-start gap-4 mb-5">
+        <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+          <Zap className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-lg font-semibold" data-testid="text-yoda-deploy-title">
+              YODA 3-Node Deployment
+            </h2>
+            <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">
+              v0.3.0
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            One-click deployment for YODA. Builds the daemon, generates 3 PT26-DSA identities,
+            starts a shared LLM engine + 3 cube daemons, registers all with PlenumNET CRS,
+            and notifies yoda.replit.app via API. Creates a desktop launcher for future starts.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="yoda-deploy-instructions">
+        <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+          <li>Click the button below to download the installer</li>
+          <li>Double-click the downloaded file to run it</li>
+          <li>The installer handles everything: Rust, LLVM, llama.cpp, model download, daemon build, identity generation, and networking</li>
+          <li>When complete, a "Start YODA" shortcut appears on your Desktop</li>
+        </ol>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button
+          data-testid="button-download-yoda-bat"
+          className="bg-violet-600 hover:bg-violet-700 text-white"
+          onClick={(e) => { e.preventDefault(); window.open(YODA_DEPLOYER_BAT, "_blank"); }}
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Download YODA Installer
+        </Button>
+        <CopyCommand
+          command="irm https://plenumnet.replit.app/api/deploy-yoda | iex"
+          testIdPrefix="yoda-oneliner"
+        />
+      </div>
+
+      <div className="bg-muted/50 rounded-lg p-4 mt-4 mb-4" data-testid="yoda-deploy-layout">
+        <p className="text-xs font-medium text-foreground mb-2">Network layout</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-muted-foreground">
+          <div className="bg-background rounded p-2 text-center">
+            <span className="block font-medium text-foreground/70">LLM Engine</span>
+            <span className="text-[11px]">Port 8080 (shared)</span>
+          </div>
+          <div className="bg-background rounded p-2 text-center">
+            <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #1</span>
+            <span className="text-[11px]">Port 8081</span>
+          </div>
+          <div className="bg-background rounded p-2 text-center">
+            <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #2</span>
+            <span className="text-[11px]">Port 8083</span>
+          </div>
+          <div className="bg-background rounded p-2 text-center">
+            <span className="block font-medium text-violet-700 dark:text-violet-400">Daemon #3</span>
+            <span className="text-[11px]">Port 8085</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+        <span>CRS: <strong className="text-foreground font-medium">plenumnet.replit.app</strong></span>
+        <span>YODA: <strong className="text-foreground font-medium">yoda.replit.app</strong></span>
+        <span>3 PT26-DSA identities</span>
+        <span>DeepSeek-R1 7B (Q4_K_M)</span>
+      </div>
+    </Card>
+  );
+}
+
 export default function DistributionPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -670,6 +751,14 @@ export default function DistributionPage() {
           transition={{ duration: 0.4, delay: 0.2 }}
         >
           <DaemonDeployCard />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <YodaDeployCard />
         </motion.div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">

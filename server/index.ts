@@ -775,6 +775,54 @@ function startPqtiService(): ChildProcess | null {
     res.send(bat);
   });
 
+  app.get("/api/deploy-yoda", async (_req, res) => {
+    try {
+      const scriptPath = path.resolve("services/inter-cube/deploy-yoda.ps1");
+      const { readFile } = await import("fs/promises");
+      const script = await readFile(scriptPath, "utf-8");
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.send(script);
+    } catch {
+      res.status(404).send("# deploy-yoda.ps1 not found");
+    }
+  });
+
+  app.get("/api/deploy-yoda.bat", async (_req, res) => {
+    const bat = [
+      "@echo off",
+      "title YODA 3-Daemon Deployer",
+      'set "PS_FILE=%TEMP%\\deploy-yoda-%RANDOM%.ps1"',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri \'https://plenumnet.replit.app/api/deploy-yoda\' -OutFile \'%PS_FILE%\' -UseBasicParsing"',
+      'if not exist "%PS_FILE%" ( echo ERROR: Failed to download deployer. & pause & exit /b 1 )',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_FILE%"',
+      'del "%PS_FILE%" 2>nul',
+      "pause",
+    ].join("\r\n") + "\r\n";
+    res.setHeader("Content-Type", "application/x-bat");
+    res.setHeader("Content-Disposition", 'attachment; filename="deploy-yoda.bat"');
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.send(bat);
+  });
+
+  const deploymentRecords: Array<{ hostname: string; ip: string; daemons: any[]; llmPort: number; model: string; crsUrl: string; timestamp: string; receivedAt: number }> = [];
+  app.post("/api/salvi/inter-cube/relay/deployment", (req, res) => {
+    const payload = req.body;
+    if (!payload || !payload.hostname) {
+      return res.status(400).json({ error: "hostname required" });
+    }
+    const record = { ...payload, receivedAt: Date.now() };
+    deploymentRecords.push(record);
+    if (deploymentRecords.length > 100) deploymentRecords.shift();
+    log(`Deployment notification from ${payload.hostname}: ${payload.daemons?.length || 0} daemons`, "crs");
+    res.json({ status: "ok", recorded: true });
+  });
+
+  app.get("/api/salvi/inter-cube/relay/deployments", (_req, res) => {
+    res.json({ deployments: deploymentRecords, count: deploymentRecords.length });
+  });
+
   const relayClients = new Map<string, WebSocket>();
   const relayAddressByWs = new Map<WebSocket, string>();
   const pendingMessages = new Map<string, Array<{ from: string; type: string; payload: string; ts: number }>>();
