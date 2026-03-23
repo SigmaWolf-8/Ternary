@@ -82,9 +82,24 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 
 PlenumNET install path: `C:\PlenumNET`
 Daemon binary: `C:\PlenumNET\target\release\inter-cube-daemon.exe`
-Identity directory: `C:\Users\Sigma\.plenumnet\identity\`
 
-Each engine gets its own daemon. Run each in a separate terminal:
+Each engine gets its own daemon with its own identity. Separate identities are required because each daemon derives a unique ternary address from its master key (via TL-Sponge-385). Shared keys would produce the same address and collide at CRS.
+
+| Agent | Identity Dir | Engine | Daemon |
+|-------|-------------|--------|--------|
+| A | `C:\Users\Sigma\.plenumnet\identity-a\` | 8080 | 8081 |
+| B | `C:\Users\Sigma\.plenumnet\identity-b\` | 8082 | 8083 |
+| C | `C:\Users\Sigma\.plenumnet\identity-c\` | 8084 | 8085 |
+
+Generate each identity once with `CUBE_MODE=keygen`:
+```powershell
+$env:CUBE_MODE="keygen"
+$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-a"
+& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+# Repeat for identity-b, identity-c
+```
+
+Run each daemon in a separate terminal:
 
 **Daemon A (Engine A on 8080):**
 ```powershell
@@ -93,6 +108,7 @@ $env:CUBE_API_PORT="8081"
 $env:LLM_PORT="8080"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
+$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-a"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
@@ -103,6 +119,7 @@ $env:CUBE_API_PORT="8083"
 $env:LLM_PORT="8082"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
+$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-b"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
@@ -113,6 +130,7 @@ $env:CUBE_API_PORT="8085"
 $env:LLM_PORT="8084"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
+$env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-c"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
