@@ -533,8 +533,7 @@ function InstallSuiteCard() {
 }
 
 function DaemonDeployCard() {
-  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://plenumnet.replit.app";
-  const psCommand = `irm ${siteOrigin}/api/deploy-daemon | iex`;
+  const psCommand = "irm https://plenumnet.replit.app/api/deploy-daemon | iex";
 
   return (
     <Card className="p-6 mb-8 border-2 border-blue-500/20" data-testid="card-daemon-deploy">
