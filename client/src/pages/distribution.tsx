@@ -533,8 +533,6 @@ function InstallSuiteCard() {
 }
 
 function DaemonDeployCard() {
-  const psCommand = "irm https://plenumnet.replit.app/api/deploy-daemon | iex";
-
   return (
     <Card className="p-6 mb-8 border-2 border-blue-500/20" data-testid="card-daemon-deploy">
       <div className="flex items-start gap-4 mb-5">
@@ -551,50 +549,48 @@ function DaemonDeployCard() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Targeted deployer for the Inter-Cube daemon only. Pulls source, builds the single daemon crate,
-            generates PT26-DSA identity keys for Agents A/B/C, and prints startup commands.
+            One-click deployer for the Inter-Cube daemon. Downloads the installer, pulls source,
+            builds the daemon, generates PT26-DSA identity keys for Agents A/B/C, and prints startup commands.
           </p>
         </div>
       </div>
 
-      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="daemon-deploy-comparison">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="daemon-deploy-instructions">
+        <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+          <li>Click the button below to download the installer</li>
+          <li>Double-click the downloaded file to run it</li>
+          <li>If Windows SmartScreen appears, click "More info" then "Run anyway"</li>
+        </ol>
+      </div>
+
+      <Button
+        data-testid="button-download-daemon-bat"
+        onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}
+      >
+        <Download className="w-4 h-4 mr-2" />
+        Download Daemon Installer
+      </Button>
+
+      <div className="bg-muted/50 rounded-lg p-4 mt-4 mb-4" data-testid="daemon-deploy-comparison">
+        <p className="text-xs font-medium text-foreground mb-2">How is this different from the full installer above?</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
           <div>
-            <span className="font-medium text-foreground">Full Suite Installer</span>
-            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground list-disc list-inside">
+            <span className="font-medium text-foreground/70">Full Suite (above)</span>
+            <ul className="mt-1 space-y-0.5 list-disc list-inside">
               <li>Downloads entire repo as ZIP</li>
               <li>Builds all crates (full workspace)</li>
               <li>First-time setup / dev environment</li>
             </ul>
           </div>
           <div>
-            <span className="font-medium text-blue-700 dark:text-blue-400">Daemon Deployer</span>
-            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground list-disc list-inside">
+            <span className="font-medium text-blue-700 dark:text-blue-400">Daemon Only (this)</span>
+            <ul className="mt-1 space-y-0.5 list-disc list-inside">
               <li>Git pull (incremental updates)</li>
-              <li>Builds only inter-cube crate</li>
+              <li>Builds only the inter-cube crate</li>
               <li>Stops running daemons, generates keys</li>
             </ul>
           </div>
         </div>
-      </div>
-
-      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="daemon-deploy-instructions">
-        <p className="text-sm font-medium text-foreground mb-2">Open PowerShell and paste:</p>
-        <CopyCommand command={psCommand} testIdPrefix="daemon" />
-        <p className="text-xs text-muted-foreground mt-3">
-          That single command downloads, compiles, and configures everything. No separate download needed.
-        </p>
-        <p className="text-xs text-muted-foreground mt-2">
-          <span className="font-medium text-foreground/70">Prefer double-click?</span>{" "}
-          <button
-            className="underline underline-offset-2 hover:text-foreground transition-colors"
-            onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}
-            data-testid="button-download-daemon-bat"
-          >
-            Download the .bat file
-          </button>{" "}
-          instead — it runs the same deployer automatically.
-        </p>
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
