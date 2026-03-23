@@ -463,7 +463,7 @@ function InstallSuiteCard() {
           </h2>
           <p className="text-sm text-muted-foreground">
             One-click installer for the entire framework: {MODULES.length} modules, {PLATFORM.TESTS_PASSING} passing tests,
-            CNSA 2.0 compliant. Downloads, extracts, and builds everything automatically.
+            CNSA 2.0 compliant. Downloads, extracts, builds everything, and generates daemon identity keys for Agents A/B/C.
           </p>
         </div>
       </div>
