@@ -1,7 +1,8 @@
-# PlenumNET Invariants for YODA Integration
+# PlenumNET Invariants & Complete API Reference for YODA
 
 **Capomastro Holdings Ltd. — Applied Physics Division**
 **Authoritative reference for any agent working on YODA (yoda.replit.app)**
+**CRS Authority: https://plenumnet.replit.app**
 
 ---
 
@@ -90,30 +91,18 @@ $env:CUBE_ROLE="inference"
 & "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
-### Daemon Local API (port 8081)
-
-| Endpoint | Method |
-|----------|--------|
-| `/health` | GET |
-| `/api/salvi/inter-cube/node/info` | GET |
-| `/api/salvi/inter-cube/topology` | GET |
-| `/api/salvi/inter-cube/glb/stats` | GET |
-| `/api/salvi/inter-cube/con/stats` | GET |
-| `/api/salvi/inter-cube/fts/status` | GET |
-| `/api/salvi/inter-cube/fts/dead` | GET |
-| `/api/salvi/inter-cube/address/validate` | POST |
-
 ---
 
 ## SECTION 3: RELAY PROTOCOL
 
-### CRS Endpoints (plenumnet.replit.app)
+### CRS Relay Endpoints (plenumnet.replit.app)
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/api/salvi/inter-cube/relay/register` | GET | Register node (`?publicKey=...&endpoint=...`) |
 | `/api/salvi/inter-cube/relay/heartbeat` | GET | Refresh registration (`?address=...&publicKey=...`) |
 | `/api/salvi/inter-cube/relay/status` | GET | Connected nodes + pending queues |
+| `/api/salvi/inter-cube/relay/purge-stale` | GET/POST | Purge stale registrations (`?maxAge=300000`) |
 | `/health/crs` | GET | CRS daemon health |
 
 ### WebSocket Relay
@@ -211,7 +200,415 @@ The daemon allows 120 seconds per LLM call. YODA should use its own timeout (e.g
 
 ---
 
-## SECTION 5: UI COLOR SCHEME
+## SECTION 5: COMPLETE API REFERENCE — plenumnet.replit.app
+
+All endpoints below are served from `https://plenumnet.replit.app`. Auth-required routes are marked.
+
+### 5.1 Inter-Cube Infrastructure (Rust Daemon via Express Proxy)
+
+**CRS Mode (port 8181 internal, proxied through Express):**
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/salvi/inter-cube/crs/register` | POST | API key optional | Register a cube node |
+| `/api/salvi/inter-cube/crs/update-key` | POST | — | Update node's public key |
+| `/api/salvi/inter-cube/crs/heartbeat` | POST | API key optional | Node heartbeat |
+| `/api/salvi/inter-cube/crs/stats` | GET | — | CRS statistics |
+| `/api/salvi/inter-cube/crs/lookup/:address` | GET | API key optional | Look up a registered node |
+| `/api/salvi/inter-cube/crs/neighbors/:address` | GET | — | Get geometric neighbors |
+| `/api/salvi/inter-cube/crs/deregister` | POST | API key optional | Remove a node |
+| `/api/salvi/inter-cube/glb/forward` | POST | API key optional | Forward via Geometric Load Balancer |
+| `/api/salvi/inter-cube/glb/stats` | GET | — | GLB statistics |
+| `/api/salvi/inter-cube/glb/health` | GET | — | GLB health |
+| `/api/salvi/inter-cube/con/neighbors` | GET | — | Cube Overlay Network neighbors |
+| `/api/salvi/inter-cube/con/stats` | GET | — | CON statistics |
+| `/api/salvi/inter-cube/con/tunnel/refresh` | POST | API key optional | Refresh tunnel keys |
+| `/api/salvi/inter-cube/con/tunnel/upgrade-key` | POST | API key optional | Upgrade tunnel key |
+| `/api/salvi/inter-cube/fts/status` | GET | — | Fault Tolerance Service status |
+| `/api/salvi/inter-cube/fts/dead` | GET | — | Dead neighbors list |
+| `/api/salvi/inter-cube/fts/config` | POST | API key optional | Update FTS config |
+| `/api/salvi/inter-cube/routing/compute` | POST | — | Compute geometric route |
+| `/api/salvi/inter-cube/address/validate` | POST | — | Validate ternary address |
+| `/api/salvi/inter-cube/topology` | GET | — | 13D hypercube topology |
+| `/health` | GET | — | Daemon health |
+
+### 5.2 Cube Daemon Local API (port 8081 on laptop)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Daemon health |
+| `/api/salvi/inter-cube/node/info` | GET | Node address, mode, CRS URL, ports |
+| `/api/salvi/inter-cube/glb/forward` | POST | Forward via GLB |
+| `/api/salvi/inter-cube/glb/stats` | GET | GLB stats |
+| `/api/salvi/inter-cube/con/stats` | GET | CON stats |
+| `/api/salvi/inter-cube/fts/status` | GET | FTS status |
+| `/api/salvi/inter-cube/fts/dead` | GET | Dead neighbors |
+| `/api/salvi/inter-cube/topology` | GET | Topology |
+| `/api/salvi/inter-cube/address/validate` | POST | Validate address |
+
+### 5.3 TL-DSA Cryptography
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/crypto/tl-dsa/spec` | GET | TL-DSA-87 specification |
+| `/api/salvi/crypto/tl-dsa/keygen` | POST | Generate TL-DSA keypair |
+| `/api/salvi/crypto/tl-dsa/sign` | POST | Sign message |
+| `/api/salvi/crypto/tl-dsa/verify` | POST | Verify signature |
+
+### 5.4 PT26-DSA Cryptography
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/crypto/pt26/spec` | GET | PT26-DSA specification |
+| `/api/salvi/crypto/pt26/keygen` | POST | Generate PT26-DSA keypair |
+| `/api/salvi/crypto/pt26/sign` | POST | Sign message |
+| `/api/salvi/crypto/pt26/verify` | POST | Verify signature |
+
+### 5.5 TL-KEM Key Encapsulation
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/crypto/tl-kem/spec` | GET | TL-KEM specification |
+
+### 5.6 Cryptographic Hash (TL-Sponge-385)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/crypto/hash` | POST | TL-Sponge-385 hash |
+| `/api/salvi/crypto/phase-benchmark` | GET | Phase encryption benchmark |
+
+### 5.7 Phase Encryption v3
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/phase/config/:mode` | GET | Phase config for mode |
+| `/api/salvi/phase/split` | POST | Phase-split data |
+| `/api/salvi/phase/recombine` | POST | Phase-recombine data |
+| `/api/salvi/phase/recommend` | GET | Recommended config |
+| `/api/salvi/phase/batch/split` | POST | Batch phase-split |
+| `/api/salvi/phase/batch/recombine` | POST | Batch phase-recombine |
+
+### 5.8 Ternary Arithmetic
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/ternary/convert` | POST | Binary ↔ ternary conversion |
+| `/api/salvi/ternary/add` | POST | Ternary addition |
+| `/api/salvi/ternary/multiply` | POST | Ternary multiplication |
+| `/api/salvi/ternary/rotate` | POST | Trit rotation |
+| `/api/salvi/ternary/not` | POST | Ternary NOT |
+| `/api/salvi/ternary/xor` | POST | Ternary XOR |
+| `/api/salvi/ternary/batch` | POST | Batch operations |
+| `/api/salvi/ternary/density/:tritCount` | GET | Information density for trit count |
+| `/api/salvi/ternary/density-benchmark` | GET | Density benchmark |
+| `/api/salvi/ternary/noether-verify` | POST | Noether symmetry verification |
+
+### 5.9 HPTP Femtosecond Timing
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/timing/self-test` | GET | HPTP self-test |
+| `/api/salvi/timing/error-budget` | GET | Error budget status |
+| `/api/salvi/timing/timestamp` | GET | Current HPTP timestamp |
+| `/api/salvi/timing/metrics` | GET | Timing metrics |
+| `/api/salvi/timing/batch/:count` | GET | Batch timestamps |
+| `/api/salvi/timing/epoch/anchors` | GET | Epoch anchors |
+| `/api/salvi/timing/epoch/calendars` | GET | All calendar systems |
+| `/api/salvi/timing/epoch/calendars/:system` | GET | Specific calendar (mayan, hebrew, chinese, vedic, egyptian, julian-day, islamic, byzantine, thirteen-moon, + 33 more) |
+
+### 5.10 TDNS v2.5.0 (Ternary Domain Name System)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/tdns/resolve` | GET | Resolve a ternary domain |
+| `/api/tdns/records` | GET | List TDNS records |
+
+### 5.11 TSA (RFC 3161 Time-Stamping Authority)
+
+Base path: `/api/tsa/`
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/tsa/timestamp` | POST | App token | Issue RFC 3161 timestamp |
+| `/api/tsa/timestamp/json` | POST | App token | Issue JSON timestamp |
+| `/api/tsa/verify` | POST | — | Verify timestamp |
+| `/api/tsa/certificate` | GET | — | TSA certificate info |
+| `/api/tsa/certificate/download` | GET | — | Download TSA certificate |
+| `/api/tsa/tokens` | GET | Admin | List API tokens |
+| `/api/tsa/policy` | GET | — | TSA policy |
+| `/api/tsa/health` | GET | — | TSA health |
+| `/api/tsa/audit/query` | GET | — | Query audit log |
+| `/api/tsa/export/json` | POST | — | Export audit as JSON |
+| `/api/tsa/export/pdf` | POST | — | Export audit as PDF |
+| `/api/tsa/export/verify` | POST | — | Verify export |
+
+### 5.12 Hedera HCS Witnessing
+
+Base path: `/api/hedera/`
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/hedera/v1/witness` | POST | Submit witness record |
+| `/api/hedera/v1/witness/:txId` | GET | Look up witness by txId |
+| `/api/hedera/v1/verify` | POST | Verify witness |
+| `/api/hedera/v1/topic` | GET | Topic info |
+| `/api/hedera/v1/health` | GET | Hedera health |
+| `/api/hedera/v1/stats` | GET | Witnessing statistics |
+
+### 5.13 SFK Operations Pipeline
+
+Base path: `/api/sfk/`
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sfk/v1/operations` | POST | Submit operation |
+| `/api/sfk/v1/operations/:id` | GET | Get operation by ID |
+| `/api/sfk/v1/operations` | GET | List operations |
+| `/api/sfk/v1/operations/:id` | DELETE | Delete operation |
+| `/api/sfk/v1/stats` | GET | SFK stats |
+
+### 5.14 Capability-Based Security (Phases 1–6)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/capabilities/issue` | POST | Issue capability token |
+| `/api/capabilities/validate` | POST | Validate capability |
+| `/api/capabilities/delegate` | POST | Delegate capability |
+| `/api/capabilities/delegate/chain` | POST | Chain delegation |
+| `/api/capabilities/verify-chain` | POST | Verify delegation chain |
+| `/api/capabilities/audit` | GET | Audit log |
+| `/api/capabilities/hardware/register` | POST | Register hardware token |
+| `/api/capabilities/hardware/challenge` | POST | Hardware challenge |
+| `/api/capabilities/hardware/verify` | POST | Verify hardware response |
+| `/api/capabilities/hardware/issue` | POST | Issue hardware-backed cap |
+| `/api/capabilities/certificate/issue` | POST | Issue certificate |
+| `/api/capabilities/certificate/verify` | POST | Verify certificate |
+| `/api/capabilities/certificate/:certId/rfc3161` | GET | Certificate RFC 3161 proof |
+| `/api/capabilities/certificate/:certId/verify-data` | GET | Certificate verification data |
+| `/api/capabilities/certificate/evidence-chain` | POST | Evidence chain |
+| `/api/capabilities/certificate/stats` | GET | Certificate stats |
+| `/api/capabilities/mesh/register` | POST | Register mesh node |
+| `/api/capabilities/mesh/issue` | POST | Issue mesh capability |
+| `/api/capabilities/mesh/propagate` | POST | Propagate through mesh |
+| `/api/capabilities/mesh/discover` | GET | Discover mesh nodes |
+| `/api/capabilities/mesh/validate` | POST | Validate mesh capability |
+| `/api/capabilities/mesh/topology` | GET | Mesh topology |
+| `/api/capabilities/mesh/health` | GET | Mesh health |
+| `/api/capabilities/status` | GET | Overall capability status |
+| `/api/capabilities/demo/expiration` | GET | Demo: expiration |
+| `/api/capabilities/demo/delegation` | GET | Demo: delegation |
+| `/api/capabilities/demo/confinement` | GET | Demo: confinement |
+| `/api/capabilities/demo/certificates` | GET | Demo: certificates |
+| `/api/capabilities/demo/mesh` | GET | Demo: mesh |
+
+### 5.15 API Key Management
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/keys/generate` | POST | Admin | Generate API key |
+| `/api/keys` | GET | Admin | List API keys |
+| `/api/keys/stats` | GET | Admin | Key statistics |
+| `/api/keys/scopes` | GET | — | Available scopes |
+| `/api/keys/revoke/:id` | POST | Admin | Revoke key |
+| `/api/keys/rotate/:id` | POST | Admin | Rotate key |
+| `/api/keys/:id/logs` | GET | Admin | Key usage logs |
+| `/api/keys/expiring` | GET | Admin | Expiring keys |
+| `/api/keys/:id/rate-limit` | PATCH | Admin | Update rate limit |
+| `/api/keys/rate-limit-tiers` | GET | — | Rate limit tiers |
+| `/api/keys/entity-types` | GET | — | Entity types |
+| `/api/keys/:id/metadata` | PATCH | Admin | Update metadata |
+| `/api/keys/anomalies` | GET | Admin | Usage anomalies |
+| `/api/keys/audit` | GET | Admin | Key audit log |
+| `/api/keys/:id/audit` | GET | Admin | Key-specific audit |
+| `/api/keys/validate-external` | GET | — | Validate external key |
+
+### 5.16 Kong Konnect Gateway
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/kong/status` | GET | — | Kong connection status |
+| `/api/kong/organization` | GET | — | Organization info |
+| `/api/kong/control-planes` | GET | — | List control planes |
+| `/api/kong/control-planes/:cpId/services` | GET | — | List services |
+| `/api/kong/control-planes/:cpId/routes` | GET | — | List routes |
+| `/api/kong/control-planes/:cpId/plugins` | GET | — | List plugins |
+| `/api/kong/config` | GET | Admin | Gateway config |
+| `/api/kong/control-planes/:cpId/services` | POST | Admin | Create service |
+| `/api/kong/control-planes/:cpId/services/:serviceId/routes` | POST | Admin | Create route |
+| `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | POST | Admin | Create plugin |
+| `/api/kong/control-planes/:cpId/sync-plenumnet` | POST | Admin | Sync PlenumNET services |
+| `/api/kong/sync-all-control-planes` | POST | Admin | Sync all CPs |
+| `/api/kong/service-catalog` | GET | — | Service catalog |
+| `/api/kong/save-to-github` | POST | Admin | Save config to GitHub |
+| `/api/kong/control-planes/:cpId/deploy-instructions` | GET | — | Deployment instructions |
+| `/api/kong/control-planes/:cpId/generate-deployment` | POST | Admin | Generate deployment |
+| `/api/kong/control-planes/:cpId/deploy-to-cloud` | POST | Admin | Deploy to cloud |
+
+### 5.17 Security & HPTP Anomaly Detection
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/security/audit` | POST | Admin | Create audit entry |
+| `/api/security/audit` | GET | Admin | List audit entries |
+| `/api/security/audit/unresolved` | GET | Admin | Unresolved entries |
+| `/api/security/audit/summary` | GET | Admin | Audit summary |
+| `/api/security/audit/stats` | GET | Admin | Audit statistics |
+| `/api/security/audit/:id` | GET | Admin | Get audit entry |
+| `/api/security/audit/:id/resolve` | PATCH | Admin | Resolve entry |
+| `/api/security/hptp/anomalies` | POST | Admin | Report anomaly |
+| `/api/security/hptp/anomalies` | GET | Admin | List anomalies |
+| `/api/security/hptp/status` | GET | Admin | HPTP status |
+| `/api/security/hptp/fallback-analysis` | GET | Admin | Fallback analysis |
+| `/api/security/hptp/stats` | GET | Admin | HPTP stats |
+| `/api/security/hptp/thresholds` | GET | Admin | HPTP thresholds |
+| `/api/security/hptp/fallback-modes` | GET | Admin | Fallback modes |
+| `/api/security/hptp/redundancy` | GET | Admin | Redundancy status |
+
+### 5.18 GitHub Integration
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/github/repos` | GET | Admin | List repositories |
+| `/api/github/repos/:owner/:repo/tree` | GET | Admin | Repository tree |
+| `/api/github/file/:owner/:repo` | GET | Admin | Read file |
+| `/api/github/file/:owner/:repo` | PUT | Admin | Write file |
+| `/api/github/file/:owner/:repo` | DELETE | Admin | Delete file |
+| `/api/github/push-workflows/:owner/:repo` | POST | Admin | Push workflows |
+| `/api/github/push-env/:owner/:repo` | POST | Admin | Push env config |
+| `/api/github/push-batch/:owner/:repo` | POST | Admin | Push batch files |
+
+### 5.19 TTC v4.2 Compression
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/demo/run` | POST | Run compression demo |
+| `/api/demo/stats` | GET | Demo statistics |
+| `/api/demo/session/:sessionId` | GET | Session data |
+| `/api/demo/upload` | POST | Upload file for compression |
+| `/api/demo/history` | GET | Compression history |
+| `/api/demo/files` | GET | List compressed files |
+| `/api/demo/data/:sessionId` | GET | Session detail |
+| `/api/compression/file` | POST | Compress file |
+| `/api/compression/decompress` | POST | Decompress file |
+| `/api/compression/file/raw` | POST | Raw compress |
+| `/api/compression/decompress/raw` | POST | Raw decompress |
+| `/api/compression/db/store` | POST | Store in PlenumDB |
+| `/api/compression/db/retrieve/:id` | GET | Retrieve from PlenumDB |
+| `/api/compression/db/documents` | GET | List documents |
+| `/api/compression/db/raw/:id` | GET | Raw document |
+| `/api/compression/db/documents/:id` | DELETE | Delete document (auth) |
+
+### 5.20 Tribonacci & Agent Array
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/tribonacci/hook` | GET | Tribonacci hook point |
+| `/api/tribonacci/permutation` | GET | Tribonacci permutation |
+| `/api/tribonacci/coverage` | GET | Coverage analysis |
+| `/api/tribonacci/hash` | GET | Tribonacci hash |
+| `/api/tribonacci/sequence` | GET | Tribonacci sequence |
+| `/api/tribonacci/generate-id` | POST | Generate Tribonacci ID |
+| `/api/tribonacci/next-worker` | GET | Next worker in rotation |
+| `/api/tribonacci/skip-lookup` | GET | Skip lookup |
+| `/api/tribonacci/hash-distribution` | GET | Hash distribution |
+| `/api/tribonacci/agent-array` | POST | Submit agent array query |
+| `/api/tribonacci/agent-array/stream/:sessionId` | GET | Stream results (SSE) |
+| `/api/tribonacci/agent-array/save` | POST | Save report |
+| `/api/tribonacci/agent-array/reports` | GET | List reports |
+| `/api/tribonacci/agent-array/reports/:id` | GET | Get report |
+| `/api/tribonacci/agent-array/positions` | GET | Agent positions |
+
+### 5.21 Ephemeris (Astronomical Calendar)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/ephemeris/convert` | POST | Calendar conversion |
+| `/api/ephemeris/position` | POST | Celestial position |
+| `/api/ephemeris/batch` | POST | Batch positions |
+| `/api/ephemeris/info` | GET | Ephemeris info |
+
+### 5.22 Tonal Diffusion & Resonance
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/tonal/field` | GET | Tonal field state |
+| `/api/tonal/neighbors` | GET | Tonal neighbors |
+| `/api/tonal/packet` | POST | Send tonal packet |
+| `/api/resonance/status` | GET | Resonance status |
+| `/api/resonance/sweep` | POST | Frequency sweep |
+| `/api/resonance/rtt` | POST | Round-trip time |
+| `/api/metrics/plenum` | GET | Plenum metrics |
+
+### 5.23 PPTPro Integration
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/status` | GET | Plenum key | Integration status |
+| `/api/v1/safety/limits` | GET | Plenum key | Safety limits |
+| `/api/v1/ternary/state` | GET | Plenum key | Ternary state |
+| `/api/v1/entrain/advise` | POST | Plenum key | Entrainment advice |
+| `/api/v1/logs/coherence` | POST | Plenum key | Log coherence data |
+
+### 5.24 GDPR / Data Subject Rights
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/gdpr/data-export` | GET | User | Export user data |
+| `/api/gdpr/delete-account` | DELETE | User | Delete account |
+| `/api/gdpr/requests` | GET | User | List DSR requests |
+| `/api/gdpr/policy` | GET | — | Privacy policy |
+
+### 5.25 Whitepapers
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/whitepapers` | GET | — | List whitepapers |
+| `/api/whitepapers/active` | GET | — | Active whitepapers |
+| `/api/whitepapers/:id` | GET | — | Get whitepaper |
+| `/api/whitepapers` | POST | Admin | Create whitepaper |
+
+### 5.26 Notifications
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/notifications/test` | POST | Send test notification |
+| `/api/notifications/status` | GET | Notification status |
+
+### 5.27 Developer Signups
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/developer-signup` | POST | — | Submit signup |
+| `/api/developer-signup/count` | GET | — | Signup count |
+| `/api/admin/developer-signups` | GET | Admin | List signups |
+| `/api/admin/developer-signups/:id` | DELETE | Admin | Delete signup |
+
+### 5.28 Salvi Framework Docs
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/salvi/docs` | GET | Framework documentation |
+| `/api/salvi/vm/spec` | GET | Ternary VM specification |
+| `/api/salvi/vm/conformance` | GET | VM conformance test results |
+
+### 5.29 System
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | System health |
+| `/api/verify` | GET | API key verification (requires key) |
+| `/api/legal/:type` | GET | Legal documents |
+| `/api/benchmark-report` | GET | Benchmark report |
+| `/api/user/admin-status` | GET | User admin status |
+| `/api/csp-reports` | POST | CSP violation reports |
+| `/api/pqti-status` | GET | PQTI service status |
+| `/api/install.ps1` | GET | PowerShell installer |
+| `/api/yoda-installer` | GET | YODA installer (auto-detect) |
+| `/api/yoda-installer.bat` | GET | YODA installer (.bat) |
+
+---
+
+## SECTION 6: UI COLOR SCHEME
 
 | Color | Meaning |
 |-------|---------|
@@ -223,7 +620,7 @@ No green. No red. These are the only status colors.
 
 ---
 
-## SECTION 6: DO NOT TOUCH
+## SECTION 7: DO NOT TOUCH
 
 These files and systems are off-limits. Do not modify, mock, or rewrite them.
 
@@ -237,7 +634,7 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 
 ---
 
-## SECTION 7: TERMINOLOGY
+## SECTION 8: TERMINOLOGY
 
 | Term | Correct Usage |
 |------|---------------|
@@ -249,10 +646,17 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 | TL-DSA-87 | Address-bound signature scheme (Level 5 PQ) |
 | TL-Sponge-385 | Cryptographic sponge (385-bit PQ security) |
 | TIS-27 | Wire integrity sponge (43-bit) |
+| TL-KEM | Ternary Lattice Key Encapsulation |
 | PlenumLAN | The live 2-node network |
 | YODA | The frontend app at yoda.replit.app |
 | Cube daemon | The Rust binary on the laptop |
 | CRS | The authority at plenumnet.replit.app |
+| HPTP | High-Precision Timing Protocol (femtosecond) |
+| TSA | Time-Stamping Authority (RFC 3161) |
+| HCS | Hedera Consensus Service |
+| SFK | SFK Operations Pipeline |
+| TTC | Ternary Transport Compression v4.2 |
+| TDNS | Ternary Domain Name System v2.5.0 |
 
 ---
 
