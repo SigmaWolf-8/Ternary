@@ -43,9 +43,9 @@ import { PLATFORM } from "@shared/constants";
 const GITHUB_REPO = "https://github.com/SigmaWolf-8/Ternary";
 const GITHUB_DOWNLOAD = `${GITHUB_REPO}/archive/refs/heads/main.zip`;
 const GITHUB_RELEASE = `${GITHUB_REPO}/releases`;
-const INSTALLER_WIN = "/install/Install-PlenumNET.bat";
-const INSTALLER_UNIX = "/install/install.sh";
-const DAEMON_DEPLOYER_BAT = "/api/deploy-daemon.bat";
+const INSTALLER_WIN = "https://plenumnet.replit.app/install/Install-PlenumNET.bat";
+const INSTALLER_UNIX = "https://plenumnet.replit.app/install/install.sh";
+const DAEMON_DEPLOYER_BAT = "https://plenumnet.replit.app/api/deploy-daemon.bat";
 
 type Platform = "windows" | "mac" | "linux";
 
@@ -408,8 +408,6 @@ function ModuleRow({ mod }: { mod: Module }) {
 function InstallSuiteCard() {
   const [platform, setPlatform] = useState<Platform>(detectPlatform);
 
-  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://plenumnet.replit.app";
-
   const platformConfig = {
     windows: {
       label: "Windows",
@@ -427,7 +425,7 @@ function InstallSuiteCard() {
       label: "macOS",
       installerUrl: INSTALLER_UNIX,
       installerName: "install.sh",
-      oneLineInstall: `curl -fsSL ${siteOrigin}/install/install.sh | bash`,
+      oneLineInstall: `curl -fsSL https://plenumnet.replit.app/install/install.sh | bash`,
       installPath: "~/PlenumNET",
       instructions: [
         "Open Terminal (Applications > Utilities > Terminal)",
@@ -439,7 +437,7 @@ function InstallSuiteCard() {
       label: "Linux",
       installerUrl: INSTALLER_UNIX,
       installerName: "install.sh",
-      oneLineInstall: `curl -fsSL ${siteOrigin}/install/install.sh | bash`,
+      oneLineInstall: `curl -fsSL https://plenumnet.replit.app/install/install.sh | bash`,
       installPath: "~/PlenumNET",
       instructions: [
         "Open a terminal",
