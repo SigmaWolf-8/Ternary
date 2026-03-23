@@ -45,6 +45,7 @@ const GITHUB_DOWNLOAD = `${GITHUB_REPO}/archive/refs/heads/main.zip`;
 const GITHUB_RELEASE = `${GITHUB_REPO}/releases`;
 const INSTALLER_WIN = "/install/Install-PlenumNET.bat";
 const INSTALLER_UNIX = "/install/install.sh";
+const DAEMON_DEPLOYER_BAT = "/api/deploy-daemon.bat";
 
 type Platform = "windows" | "mac" | "linux";
 
@@ -233,7 +234,7 @@ const MODULES: Module[] = [
   {
     id: "inter-cube",
     name: "Inter-Cube Services",
-    version: "v0.1.0",
+    version: "v0.3.0",
     desc: `4-service geometric routing: GLB, CON, CRS, FTS. ${PLATFORM.HYPERCUBE_VERTICES} vertices, ${PLATFORM.INTER_CUBE_TUNNELS} PQ encrypted tunnels, ${PLATFORM.HYPERCUBE_NEIGHBORS} neighbors per node.`,
     category: "network",
     size: "120 KB",
@@ -333,7 +334,7 @@ function downloadFile(mod: Module) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function CopyCommand({ command }: { command: string }) {
+function CopyCommand({ command, testIdPrefix = "install" }: { command: string; testIdPrefix?: string }) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
@@ -349,13 +350,13 @@ function CopyCommand({ command }: { command: string }) {
     <div
       className="flex items-center gap-2 bg-zinc-900 dark:bg-zinc-950 rounded-lg px-4 py-3 font-mono text-sm text-zinc-100 cursor-pointer group"
       onClick={handleCopy}
-      data-testid="copy-command-install"
+      data-testid={`copy-command-${testIdPrefix}`}
     >
       <Terminal className="w-4 h-4 text-zinc-500 shrink-0" />
       <code className="flex-1 overflow-x-auto whitespace-nowrap">{command}</code>
       <button
         className="shrink-0 p-1 rounded hover:bg-zinc-700 transition-colors"
-        data-testid="button-copy-command"
+        data-testid={`button-copy-command-${testIdPrefix}`}
       >
         {copied ? (
           <Check className="w-4 h-4 text-green-400" />
@@ -531,6 +532,78 @@ function InstallSuiteCard() {
   );
 }
 
+function DaemonDeployCard() {
+  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://plenumnet.replit.app";
+  const psCommand = `irm ${siteOrigin}/api/deploy-daemon | iex`;
+
+  return (
+    <Card className="p-6 mb-8 border-2 border-blue-500/20" data-testid="card-daemon-deploy">
+      <div className="flex items-start gap-4 mb-5">
+        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+          <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-lg font-semibold" data-testid="text-daemon-deploy-title">
+              Deploy Cube Daemon
+            </h2>
+            <Badge variant="outline" className="text-[10px] border-blue-500/20 bg-blue-500/5 text-blue-700 dark:text-blue-400">
+              v0.3.0
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Targeted deployer for the Inter-Cube daemon only. Pulls source, builds the single daemon crate,
+            generates PT26-DSA identity keys for Agents A/B/C, and prints startup commands.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="daemon-deploy-comparison">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="font-medium text-foreground">Full Suite Installer</span>
+            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground list-disc list-inside">
+              <li>Downloads entire repo as ZIP</li>
+              <li>Builds all crates (full workspace)</li>
+              <li>First-time setup / dev environment</li>
+            </ul>
+          </div>
+          <div>
+            <span className="font-medium text-blue-700 dark:text-blue-400">Daemon Deployer</span>
+            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground list-disc list-inside">
+              <li>Git pull (incremental updates)</li>
+              <li>Builds only inter-cube crate</li>
+              <li>Stops running daemons, generates keys</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-xs text-muted-foreground mb-2">Run in PowerShell:</p>
+        <CopyCommand command={psCommand} testIdPrefix="daemon" />
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button
+          variant="outline"
+          data-testid="button-download-daemon-bat"
+          onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Download .bat Installer
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-5 text-xs text-muted-foreground">
+        <span>Builds to: <strong className="text-foreground font-medium">C:\PlenumNET\target\release\inter-cube-daemon.exe</strong></span>
+        <span>3 daemon instances (A/B/C)</span>
+        <span>PT26-DSA identity keys</span>
+      </div>
+    </Card>
+  );
+}
+
 export default function DistributionPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -593,6 +666,14 @@ export default function DistributionPage() {
           transition={{ duration: 0.4, delay: 0.1 }}
         >
           <InstallSuiteCard />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <DaemonDeployCard />
         </motion.div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">

@@ -64,6 +64,39 @@ echo.
 del "%TEMP%\PlenumNET.zip" >nul 2>nul
 goto END
 :DONE
+echo.
+echo   Generating daemon identities for Agents A, B, C...
+echo.
+set "IDENTITY_BASE=%USERPROFILE%\.plenumnet"
+set "DAEMON_EXE=C:\PlenumNET\target\release\inter-cube-daemon.exe"
+if not exist "%DAEMON_EXE%" goto SKIP_IDENTITY
+for %%A in (a b c) do (
+    if not exist "%IDENTITY_BASE%\identity-%%A" (
+        mkdir "%IDENTITY_BASE%\identity-%%A" >nul 2>nul
+    )
+    if not exist "%IDENTITY_BASE%\identity-%%A\master.key" (
+        echo   Generating identity for Agent %%A...
+        set "CUBE_MODE=keygen"
+        set "CUBE_IDENTITY_DIR=%IDENTITY_BASE%\identity-%%A"
+        "%DAEMON_EXE%" >nul 2>nul
+        set "CUBE_MODE="
+        set "CUBE_IDENTITY_DIR="
+        if exist "%IDENTITY_BASE%\identity-%%A\master.key" (
+            echo   Agent %%A identity created.
+        ) else (
+            echo   WARNING: Agent %%A key generation may have failed.
+        )
+    ) else (
+        echo   Agent %%A identity exists.
+    )
+)
+goto IDENTITY_DONE
+:SKIP_IDENTITY
+echo   Daemon binary not found (Rust not installed?). Skipping identity generation.
+echo   Run the daemon deployer later to generate keys:
+echo     irm https://plenumnet.replit.app/api/deploy-daemon ^| iex
+:IDENTITY_DONE
+echo.
 echo   ========================================================
 echo     Installation Complete
 echo   ========================================================
