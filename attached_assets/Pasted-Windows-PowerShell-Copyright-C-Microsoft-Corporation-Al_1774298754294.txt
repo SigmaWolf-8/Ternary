@@ -1,0 +1,37 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET; git pull origin main --ff-only
+From https://github.com/SigmaWolf-8/Ternary
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+PS C:\PlenumNET> cd C:\PlenumNET; git pull origin main --ff-only
+remote: Enumerating objects: 87, done.
+remote: Counting objects: 100% (87/87), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 73 (delta 65), reused 73 (delta 65), pack-reused 0 (from 0)
+Unpacking objects: 100% (73/73), 17.63 KiB | 134.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch            main       -> FETCH_HEAD
+   f0ad92e..4d99f64  main       -> origin/main
+Updating f0ad92e..4d99f64
+Fast-forward
+ .gitattributes                                     |   2 +
+ PLENUMLAN_RELAY_REFERENCE.md                       |   2 +-
+ PLENUMNET_INVARIANTS_FOR_YODA.md                   |   2 +-
+ ...ht-C-Microsoft-Corporation-Al_1774298358453.txt | 229 +++++++++++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774298508642.txt | 188 +++++++++++++++++
+ client/public/install/Install-PlenumNET.bat        | 189 ++++++++++-------
+ client/public/install/deploy-daemon-test.bat       | 153 ++++++++++++++
+ client/src/pages/distribution.tsx                  |  99 ++++++++-
+ services/inter-cube/deploy-daemon.bat              | 186 +++++++++++++++++
+ services/inter-cube/deploy-daemon.ps1              |  46 +++--
+ 10 files changed, 992 insertions(+), 104 deletions(-)
+ create mode 100644 .gitattributes
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774298358453.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774298508642.txt
+ create mode 100644 client/public/install/deploy-daemon-test.bat
+ create mode 100644 services/inter-cube/deploy-daemon.bat
+PS C:\PlenumNET>
