@@ -7,7 +7,7 @@
 
 ## Network Overview
 
-PlenumLAN is a 2-node network. The CRS runs on Replit and provides both a registration API and a WebSocket relay. Cube nodes (like the YODA laptop) register over HTTPS, then open a persistent WebSocket for message passing. No port forwarding or public IP required.
+PlenumLAN is a local Inter-Cube network — any topology of cube daemons managed through the PlenumNET network management layer. In the current deployment, the network consists of a CRS on Replit and cube nodes on the laptop. The CRS provides both a registration API and a WebSocket relay. Cube nodes register over HTTPS, then open a persistent WebSocket for message passing. No port forwarding or public IP required.
 
 | Node | Role | Address | Endpoint |
 |------|------|---------|----------|

@@ -728,7 +728,7 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 | TL-Sponge-385 | Cryptographic sponge (385-bit PQ security) |
 | TIS-27 | Wire integrity sponge (43-bit) |
 | TL-KEM | Ternary Lattice Key Encapsulation |
-| PlenumLAN | The live 2-node network |
+| PlenumLAN | A local Inter-Cube network (any topology — the network management layer built on Replit/Rust) |
 | YODA | The frontend app at yoda.replit.app |
 | Cube daemon | The Rust binary on the laptop |
 | CRS | The authority at plenumnet.replit.app |
