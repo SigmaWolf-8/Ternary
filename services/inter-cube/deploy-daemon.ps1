@@ -101,6 +101,7 @@ try {
 
     Write-Host 'BUILD: Compiling inter-cube daemon (release)...' -ForegroundColor Yellow
     Write-Host '       This may take a few minutes on first build.' -ForegroundColor DarkGray
+    $env:CARGO_BUILD_JOBS = "1"
     & cargo build --release -p inter-cube 2>&1 | ForEach-Object {
         $line = $_.ToString()
         if ($line -match "error") {
