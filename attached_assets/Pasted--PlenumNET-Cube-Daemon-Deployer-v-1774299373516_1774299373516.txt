@@ -1,0 +1,291 @@
+
+  ==========================================================
+    PlenumNET Cube Daemon Deployer v0.3.0
+    Applied Physics Division -- Capomastro Holdings Ltd.
+  ==========================================================
+
+  Launching deployer...
+
+
+==========================================================
+  PlenumNET Cube Daemon Deployer
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+PULL: Updating source from GitHub...
+PULL: Already up to date (68dc57be)
+BUILD: Compiling inter-cube daemon (release)...
+       This may take a few minutes on first build.
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+          Compiling windows-sys v0.61.2
+          Compiling icu_locid_transform_data v1.5.1
+          Compiling litemap v0.7.4
+          Compiling writeable v0.5.5
+          Compiling icu_properties_data v1.5.1
+          Compiling icu_normalizer_data v1.5.1
+          Compiling futures-sink v0.3.32
+          Compiling zerovec-derive v0.10.3
+          Compiling yoke-derive v0.7.5
+          Compiling icu_provider_macros v1.5.0
+          Compiling zerofrom v0.1.5
+          Compiling futures-macro v0.3.32
+          Compiling slab v0.4.12
+       error[E0786]: found invalid metadata files for crate `core` which `std` depends on
+         = note: failed to mmap file 'C:\Users\Sigma\.rustup\toolchains\stable-aarch64-pc-windows-msvc\lib\rustlib\aarch64-pc-windows-msvc\lib\libcore-6519667abf5f0ecb.rlib': The paging file is too small for this operation to complete. (os error 1455)
+       error: cannot resolve a prelude import
+       error: could not compile `slab` (lib)
+         process didn't exit successfully: `C:\Users\Sigma\.rustup\toolchains\stable-aarch64-pc-windows-msvc\bin\rustc.exe --crate-name slab --edition=2018 C:\Users\Sigma\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\slab-0.4.12\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C opt-level=3 -C linker-plugin-lto -C codegen-units=1 --cfg "feature=\"std\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"default\", \"serde\", \"std\"))" -C metadata=3cc0f0c7a94f6d22 -C extra-filename=-fd2aaefde736c992 --out-dir C:\PlenumNET\target\release\deps -C strip=debuginfo -L dependency=C:\PlenumNET\target\release\deps --cap-lints allow` (exit code: 0xc000012d)
+       warning: build failed, waiting for other jobs to finish...
+       error: only metadata stub found for `rlib` dependency `core`
+       error[E0786]: found invalid metadata files for crate `core`
+         = note: failed to mmap file 'C:\Users\Sigma\.rustup\toolchains\stable-aarch64-pc-windows-msvc\lib\rustlib\aarch64-pc-windows-msvc\lib\libcore-6519667abf5f0ecb.rlib': The paging file is too small for this operation to complete. (os error 1455)
+       error[E0463]: can't find crate for `proc_macro`
+       error[E0463]: can't find crate for `proc_macro`
+       error[E0463]: can't find crate for `syn`
+       error: only metadata stub found for `dylib` dependency `std`
+       error[E0463]: can't find crate for `proc_macro2`
+       error[E0463]: can't find crate for `quote`
+       error[E0463]: can't find crate for `std`
+       error[E0432]: unresolved imports `quote::ToTokens`, `quote::ToTokens`
+       error: cannot find macro `matches` in this scope
+       error: cannot find macro `format` in this scope
+       145 |         return Error::new(input.span(), format!("#[make_ule] must be applied to enums with discriminants \
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `vec` in this scope
+       error[E0463]: can't find crate for `std`
+          = help: consider downloading the target with `rustup target add aarch64-pc-windows-msvc`
+       Some errors have detailed explanations: E0463, E0786.
+       For more information about an error, try `rustc --explain E0463`.
+       For more information about this error, try `rustc --explain E0463`.
+       error: could not compile `icu_provider_macros` (lib) due to 3 previous errors
+       error: could not compile `yoke-derive` (lib) due to 3 previous errors
+       error[E0405]: cannot find trait `Sized` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0405]: cannot find trait `Sized` in this scope
+       error[E0405]: cannot find trait `Sized` in this scope
+       error[E0405]: cannot find trait `Sized` in this scope
+       Some errors have detailed explanations: E0405, E0425, E0786.
+       For more information about an error, try `rustc --explain E0405`.
+       error: could not compile `zerofrom` (lib) due to 9 previous errors
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find attribute `derive` in this scope
+       error: cannot find attribute `derive` in this scope
+       error: cannot find attribute `derive` in this scope
+       error: cannot find macro `assert` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `matches` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find attribute `derive` in this scope
+       error: cannot find macro `unreachable` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find attribute `derive` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find attribute `derive` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `format` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find macro `vec` in this scope
+       error: cannot find attribute `derive` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0433]: failed to resolve: use of undeclared type `Vec`
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+          = note: this error originates in the macro `$crate::quote_bind_next_or_break` which comes from the expansion of the macro `quote` (in Nightly builds, run with -Z macro-backtrace for more info)
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+           = note: this error originates in the macro `$crate::quote_bind_next_or_break` which comes from the expansion of the macro `quote` (in Nightly builds, run with -Z macro-backtrace for more info)
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error[E0425]: cannot find value `complete` in module `kw`
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       41 |                     return Err(input.error("multiple `complete` cases found, only one allowed"));
+       error[E0425]: cannot find type `complete` in module `kw`
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       48 |                     return Err(input.error("multiple `default` cases found, only one allowed"));
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error[E0433]: failed to resolve: use of undeclared type `Vec`
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+           = note: this error originates in the macro `$crate::quote_bind_next_or_break` which comes from the expansion of the macro `quote` (in Nightly builds, run with -Z macro-backtrace for more info)
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+           = note: this error originates in the macro `$crate::quote_bind_next_or_break` which comes from the expansion of the macro `quote` (in Nightly builds, run with -Z macro-backtrace for more info)
+       error[E0425]: cannot find type `Result` in this scope
+       6 | pub(crate) fn stream_select(input: TokenStream) -> Result<TokenStream, syn::Error> {
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+           = note: this error originates in the macro `$crate::quote_bind_next_or_break` which comes from the expansion of the macro `quote` (in Nightly builds, run with -Z macro-backtrace for more info)
+       error[E0531]: cannot find tuple struct or tuple variant `Ok` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Err` in this scope
+       27 |         Err(e) => return e.to_compile_error(),
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Ok` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Err` in this scope
+       30 |         Err(e) => return e.to_compile_error(),
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Ok` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Err` in this scope
+       74 |             Err(e) => return e.to_compile_error(),
+       error[E0531]: cannot find tuple struct or tuple variant `Ok` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Err` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find type `Result` in this scope
+       error[E0425]: cannot find type `String` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find type `Result` in this scope
+       error[E0425]: cannot find type `String` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       677 | ...                   Err(PATH_TYPE_IDENTITY_ERROR.into())
+       error[E0425]: cannot find value `None` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       692 | ...                   _ => return Err(PATH_TYPE_GENERICS_ERROR.into()),
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       701 | ...                   return Err(PATH_TYPE_GENERICS_ERROR.into());
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       711 | ...                   _ => Err(PATH_TYPE_IDENTITY_ERROR.into()),
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       717 | ...                   _ => Err(PATH_TYPE_IDENTITY_ERROR.into()),
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       error[E0425]: cannot find type `Result` in this scope
+       error[E0425]: cannot find type `String` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0405]: cannot find trait `FnMut` in this scope
+       error[E0405]: cannot find trait `Iterator` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find type `String` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       201 |     let mut error = None;
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Ok` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Err` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Some` in this scope
+       211 |                         error = Some(Error::new(
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       226 |     if let Some(error) = error {
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       227 |         return Err(error);
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       253 |         return Err(Error::new(
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       260 |         return Err(Error::new(
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find type `Vec` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       293 |         return Err(Error::new(
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       311 |             return Err(Error::new(
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       326 |             return Err(Error::new(
+       error[E0425]: cannot find function, tuple struct or tuple variant `Err` in this scope
+       334 |         return Err(Error::new(
+       error[E0425]: cannot find function, tuple struct or tuple variant `Ok` in this scope
+       error[E0425]: cannot find type `Option` in this scope
+       error[E0531]: cannot find tuple struct or tuple variant `Some` in this scope
+       error[E0425]: cannot find value `None` in this scope
+       error: no global memory allocator found but one is required; link to std or add `#[global_allocator]` to a static item that implements the GlobalAlloc trait
+       error: `#[panic_handler]` function required, but not found
+       error: unwinding panics are not supported without std
+       error: requires `None` lang_item
+       102 | |             return Error::new(
+       Some errors have detailed explanations: E0405, E0425, E0432, E0463, E0531, E0786.
+       Some errors have detailed explanations: E0425, E0433, E0531.
+       For more information about an error, try `rustc --explain E0425`.
+       error: could not compile `zerovec-derive` (lib) due to 151 previous errors
+       error: could not compile `futures-macro` (lib) due to 75 previous errors
+       error: failed to create encoded metadata from file: The paging file is too small for this operation to complete. (os error 1455)
+       error: could not compile `windows-sys` (lib) due to 1 previous error
+ERROR: Build failed. See error messages above.
+
+  Press any key to close...
