@@ -103,10 +103,16 @@ try {
     Write-Host '       This may take a few minutes on first build.' -ForegroundColor DarkGray
     & cargo build --release -p inter-cube 2>&1 | ForEach-Object {
         $line = $_.ToString()
-        if ($line -match "Compiling|Finished") { Write-Host "       $line" -ForegroundColor DarkGray }
+        if ($line -match "error") {
+            Write-Host "       $line" -ForegroundColor Red
+        } elseif ($line -match "warning") {
+            Write-Host "       $line" -ForegroundColor Yellow
+        } elseif ($line -match "Compiling|Finished|Downloading|Downloaded") {
+            Write-Host "       $line" -ForegroundColor DarkGray
+        }
     }
     if ($LASTEXITCODE -ne 0) {
-        Write-Host 'ERROR: Build failed. Check output above.' -ForegroundColor Red
+        Write-Host 'ERROR: Build failed. See error messages above.' -ForegroundColor Red
         return
     }
 
