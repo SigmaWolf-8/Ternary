@@ -50,6 +50,26 @@ if (-not (Test-Path $RepoDir)) {
         Write-Host "[ERROR] git clone failed." -ForegroundColor Red
         exit 1
     }
+} elseif (-not (Test-Path "$RepoDir\.git")) {
+    Write-Host "[SETUP] $RepoDir exists but is not a git repo (installed via ZIP?)." -ForegroundColor Yellow
+    Write-Host "        Converting to a git repo so we can pull updates..." -ForegroundColor Yellow
+    Push-Location $RepoDir
+    git init 2>&1 | Out-Null
+    git remote add origin $RepoUrl 2>&1 | Out-Null
+    git fetch origin main
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] git fetch failed. Check your internet connection." -ForegroundColor Red
+        Pop-Location
+        exit 1
+    }
+    git reset --hard origin/main
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] git reset failed." -ForegroundColor Red
+        Pop-Location
+        exit 1
+    }
+    Write-Host "[SETUP] Converted to git repo and synced to latest." -ForegroundColor Green
+    Pop-Location
 }
 
 Write-Host "[PULL] Updating source from GitHub..." -ForegroundColor Yellow

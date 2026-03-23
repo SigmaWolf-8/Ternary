@@ -28,14 +28,39 @@ set "REPO_URL=https://github.com/SigmaWolf-8/Ternary.git"
 set "BINARY=inter-cube-daemon.exe"
 set "BINARY_PATH=%REPO_DIR%\target\release\%BINARY%"
 
-REM Clone or pull
+REM Handle three cases: no folder, folder but no git, git repo
 if not exist "%REPO_DIR%" (
-    echo   [CLONE] Repository not found at %REPO_DIR% -- cloning...
+    echo   [CLONE] Repository not found -- cloning to %REPO_DIR%...
     git clone "%REPO_URL%" "%REPO_DIR%"
     if errorlevel 1 (
         echo   [ERROR] git clone failed.
         goto END
     )
+    goto PULL_DONE
+)
+
+if not exist "%REPO_DIR%\.git" (
+    echo   [SETUP] %REPO_DIR% exists but is not a git repo (installed via ZIP?).
+    echo          Converting to a git repo so we can pull updates...
+    echo.
+    pushd "%REPO_DIR%"
+    git init >nul 2>nul
+    git remote add origin "%REPO_URL%" 2>nul
+    git fetch origin main
+    if errorlevel 1 (
+        echo   [ERROR] git fetch failed. Check your internet connection.
+        popd
+        goto END
+    )
+    git reset --hard origin/main
+    if errorlevel 1 (
+        echo   [ERROR] git reset failed.
+        popd
+        goto END
+    )
+    echo   [SETUP] Converted to git repo and synced to latest.
+    popd
+    goto PULL_DONE
 )
 
 echo   [PULL] Updating source from GitHub...
@@ -48,6 +73,9 @@ if errorlevel 1 (
     goto END
 )
 echo   [PULL] Updated to latest.
+popd
+
+:PULL_DONE
 echo.
 
 REM Stop running daemons
@@ -61,6 +89,7 @@ if not errorlevel 1 (
 )
 
 REM Build
+pushd "%REPO_DIR%"
 echo   [BUILD] Compiling inter-cube daemon (release)...
 echo          This may take a few minutes on first build.
 echo.
@@ -83,8 +112,8 @@ echo   ==========================================================
 echo     BUILD SUCCESSFUL
 echo   ==========================================================
 echo   Binary: %BINARY_PATH%
-echo   Commit: 
-git rev-parse --short HEAD
+for /f %%H in ('git rev-parse --short HEAD 2^>nul') do echo   Commit: %%H
+popd
 echo.
 
 REM Generate identities for A, B, C
@@ -112,8 +141,6 @@ for %%A in (a b c) do (
         echo   [IDENTITY] Agent %%A identity exists.
     )
 )
-
-popd
 
 echo.
 echo   ==========================================================
