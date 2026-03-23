@@ -415,10 +415,10 @@ function InstallSuiteCard() {
       installerName: "Install-PlenumNET.bat",
       installPath: "C:\\PlenumNET",
       instructions: [
-        'Click "Download Installer" below to save Install-PlenumNET.bat',
-        "Find the file in your Downloads folder and double-click it to run",
+        'Click "Download Installer" to save Install-PlenumNET.bat',
+        "Double-click the downloaded file — it clones the repo, builds the daemon, and generates identity keys",
         "If Windows SmartScreen appears, click 'More info' then 'Run anyway'",
-        "The installer downloads everything to C:\\PlenumNET automatically",
+        "Everything installs to C:\\PlenumNET — no manual steps required",
       ],
     },
     mac: {
@@ -430,7 +430,7 @@ function InstallSuiteCard() {
       instructions: [
         "Open Terminal (Applications > Utilities > Terminal)",
         "Paste the command below and press Enter",
-        "The installer downloads everything to ~/PlenumNET and builds it automatically",
+        "It clones the repo, builds the daemon, and generates identity keys — no manual steps required",
       ],
     },
     linux: {
@@ -442,7 +442,7 @@ function InstallSuiteCard() {
       instructions: [
         "Open a terminal",
         "Paste the command below and press Enter",
-        "The installer downloads everything to ~/PlenumNET and builds it automatically",
+        "It clones the repo, builds the daemon, and generates identity keys — no manual steps required",
       ],
     },
   };
@@ -575,17 +575,17 @@ function DaemonDeployCard() {
           <div>
             <span className="font-medium text-foreground/70">Full Suite (above)</span>
             <ul className="mt-1 space-y-0.5 list-disc list-inside">
-              <li>Downloads entire repo as ZIP</li>
-              <li>Builds all crates (full workspace)</li>
-              <li>First-time setup / dev environment</li>
+              <li>Git clone + build inter-cube daemon</li>
+              <li>Generates identity keys for A/B/C</li>
+              <li>First-time setup from scratch</li>
             </ul>
           </div>
           <div>
             <span className="font-medium text-blue-700 dark:text-blue-400">Daemon Only (this)</span>
             <ul className="mt-1 space-y-0.5 list-disc list-inside">
               <li>Git pull (incremental updates)</li>
-              <li>Builds only the inter-cube crate</li>
-              <li>Stops running daemons, generates keys</li>
+              <li>Stops running daemons, rebuilds, generates keys</li>
+              <li>Prints startup commands for A/B/C</li>
             </ul>
           </div>
         </div>

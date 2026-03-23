@@ -7,9 +7,11 @@
 
 set -euo pipefail
 
-VERSION="2.3.2"
+VERSION="2.4.0"
 REPO_URL="https://github.com/SigmaWolf-8/Ternary"
 INSTALL_DIR="${HOME}/PlenumNET"
+IDENTITY_BASE="${HOME}/.plenumnet"
+export CARGO_BUILD_JOBS=1
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
@@ -47,7 +49,7 @@ check_cmd() {
 main() {
     banner
 
-    echo "  Step 1 of 3: Checking prerequisites"
+    echo "  Step 1 of 4: Checking prerequisites"
     echo -e "  ${DIM}-----------------------------------${NC}"
 
     local has_git=true has_cargo=true
@@ -61,28 +63,33 @@ main() {
         exit 1
     fi
 
-    echo "  Step 2 of 3: Downloading PlenumNET"
+    echo "  Step 2 of 4: Downloading PlenumNET"
     echo -e "  ${DIM}-----------------------------------${NC}"
 
-    if [ -d "$INSTALL_DIR" ]; then
+    if [ -d "$INSTALL_DIR/.git" ]; then
         echo -e "    ${YELLOW}Found existing installation. Updating...${NC}"
         cd "$INSTALL_DIR"
-        git pull origin main 2>&1 | sed 's/^/    /'
+        git pull --ff-only origin main 2>&1 | sed 's/^/    /'
+    elif [ -d "$INSTALL_DIR" ]; then
+        echo -e "    ${YELLOW}Found non-git installation. Re-cloning...${NC}"
+        rm -rf "$INSTALL_DIR"
+        git clone --depth 1 "$REPO_URL" "$INSTALL_DIR" 2>&1 | sed 's/^/    /'
+        cd "$INSTALL_DIR"
     else
         echo "    Cloning PlenumNET repository..."
-        git clone "$REPO_URL" "$INSTALL_DIR" 2>&1 | sed 's/^/    /'
+        git clone --depth 1 "$REPO_URL" "$INSTALL_DIR" 2>&1 | sed 's/^/    /'
         cd "$INSTALL_DIR"
     fi
 
     echo ""
-    echo "  Step 3 of 3: Building framework"
+    echo "  Step 3 of 4: Building inter-cube daemon"
     echo -e "  ${DIM}-----------------------------------${NC}"
 
     if [ "$has_cargo" = true ]; then
-        echo "    Building all modules (this takes a few minutes)..."
+        echo "    Building inter-cube daemon (CARGO_BUILD_JOBS=1)..."
         echo ""
         set +e
-        cargo build --release 2>&1 | grep -E "Compiling|Finished|Downloaded|error" | sed 's/^/    /'
+        cargo build --release -p inter-cube 2>&1 | grep -E "Compiling|Finished|Downloaded|error" | sed 's/^/    /'
         BUILD_EXIT=$?
         set -e
         echo ""
@@ -90,7 +97,7 @@ main() {
             echo -e "    ${GREEN}Build successful!${NC}"
         else
             echo -e "    ${YELLOW}Build had errors (source code is still available).${NC}"
-            echo "    You can retry: cd $INSTALL_DIR && cargo build --release"
+            echo "    You can retry: cd $INSTALL_DIR && CARGO_BUILD_JOBS=1 cargo build --release -p inter-cube"
         fi
     else
         echo -e "    ${YELLOW}Skipping build (Rust not installed).${NC}"
@@ -98,7 +105,32 @@ main() {
         echo "    To build later:"
         echo -e "      ${DIM}1. Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh${NC}"
         echo -e "      ${DIM}2. Open a new terminal${NC}"
-        echo -e "      ${DIM}3. Run: cd $INSTALL_DIR && cargo build --release${NC}"
+        echo -e "      ${DIM}3. Run: cd $INSTALL_DIR && CARGO_BUILD_JOBS=1 cargo build --release -p inter-cube${NC}"
+    fi
+
+    echo ""
+    echo "  Step 4 of 4: Generating daemon identities"
+    echo -e "  ${DIM}-----------------------------------${NC}"
+
+    DAEMON_EXE="$INSTALL_DIR/target/release/inter-cube-daemon"
+    if [ -x "$DAEMON_EXE" ]; then
+        for agent in a b c; do
+            AGENT_DIR="$IDENTITY_BASE/identity-$agent"
+            mkdir -p "$AGENT_DIR"
+            if [ ! -f "$AGENT_DIR/master.key" ]; then
+                echo "    Generating identity for Agent $agent..."
+                CUBE_MODE=keygen CUBE_IDENTITY_DIR="$AGENT_DIR" "$DAEMON_EXE" 2>/dev/null || true
+                if [ -f "$AGENT_DIR/master.key" ]; then
+                    echo -e "    ${GREEN}Agent $agent identity created.${NC}"
+                else
+                    echo -e "    ${YELLOW}WARNING: Agent $agent key generation may have failed.${NC}"
+                fi
+            else
+                echo -e "    Agent $agent identity exists."
+            fi
+        done
+    else
+        echo -e "    ${YELLOW}Daemon binary not found. Skipping identity generation.${NC}"
     fi
 
     echo ""
@@ -119,8 +151,9 @@ main() {
     echo ""
     echo "  Next steps:"
     echo -e "    ${DIM}cd $INSTALL_DIR${NC}"
-    echo -e "    ${DIM}cargo test          # Run 2,276 tests${NC}"
-    echo -e "    ${DIM}cargo bench         # Run benchmarks${NC}"
+    echo -e "    ${DIM}cargo test          # Run tests${NC}"
+    echo -e "    ${DIM}# Start daemon A:${NC}"
+    echo -e "    ${DIM}CUBE_MODE=cube CUBE_IDENTITY_DIR=$IDENTITY_BASE/identity-a $INSTALL_DIR/target/release/inter-cube-daemon${NC}"
     echo ""
 }
 

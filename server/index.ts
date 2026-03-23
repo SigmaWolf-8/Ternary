@@ -603,34 +603,15 @@ function startPqtiService(): ChildProcess | null {
       entry.lastSeen = Date.now();
       storage.upsertCrsRelayNode(entry.publicKey, normalizedAddr, entry.endpoint).catch(() => {});
     }
-    const upstream = await tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/heartbeat", {
+    tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/heartbeat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: addressStringToTritArray(normalizedAddr), endpoint }),
-    });
-    if (!upstream) {
-      if (entry) {
-        return res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr), timestamp: Date.now(), daemonSync: false });
-      }
-      return res.status(404).json({ error: "Address not registered" });
-    }
-    if (upstream.ok) {
-      const body = await upstream.text();
-      try {
-        const data = JSON.parse(body);
-        data.timestamp = Date.now();
-        data.daemonSync = true;
-        return res.status(upstream.status).setHeader("Content-Type", "application/json").json(data);
-      } catch {
-        return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
-      }
-    }
-    const errBody = await upstream.text();
-    log(`CRS daemon heartbeat returned ${upstream.status}: ${errBody}`, "crs");
+    }).catch(() => {});
     if (entry) {
-      return res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr), timestamp: Date.now(), daemonSync: false, daemonStatus: upstream.status });
+      return res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr), timestamp: Date.now() });
     }
-    return res.status(404).json({ error: "Address not registered in CRS daemon", daemonStatus: upstream.status });
+    return res.status(404).json({ error: "Address not registered" });
   });
 
   const interCubeProxy = async (req: any, res: any) => {

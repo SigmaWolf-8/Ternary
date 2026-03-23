@@ -3,7 +3,7 @@ title PlenumNET Installer
 color 0B
 echo.
 echo   ========================================================
-echo     PlenumNET Installer v2.3.2
+echo     PlenumNET Installer v2.4.0
 echo     Salvi Framework - Post-Quantum Internet Infrastructure
 echo     Capomastro Holdings Ltd.
 echo   ========================================================
@@ -13,63 +13,93 @@ echo.
 echo   Press any key to begin...
 pause >nul
 echo.
-echo   Downloading PlenumNET...
+
+set "INSTALL_DIR=C:\PlenumNET"
+set "IDENTITY_BASE=%USERPROFILE%\.plenumnet"
+set "REPO_URL=https://github.com/SigmaWolf-8/Ternary.git"
+set "CARGO_BUILD_JOBS=1"
+
+git --version >nul 2>nul
+if errorlevel 1 goto NOGIT
+
+if exist "%INSTALL_DIR%\.git" (
+    echo   Existing repo found. Pulling latest...
+    pushd "%INSTALL_DIR%"
+    git pull --ff-only origin main
+    popd
+    echo   Updated to latest.
+    echo.
+    goto BUILD
+)
+
+if exist "%INSTALL_DIR%" (
+    echo   Removing previous non-git installation...
+    rmdir /s /q "%INSTALL_DIR%" >nul 2>nul
+)
+
+echo   Cloning PlenumNET repository...
+echo   (This may take a few minutes)
+echo.
+git clone --depth 1 "%REPO_URL%" "%INSTALL_DIR%"
+if errorlevel 1 goto FAILDOWNLOAD
+echo   Clone complete.
+echo.
+goto BUILD
+
+:NOGIT
+echo   Git not found. Downloading ZIP archive...
 echo   (This may take a minute)
 echo.
-if exist "C:\PlenumNET" (
+if exist "%INSTALL_DIR%" (
     echo   Removing previous installation...
-    rmdir /s /q "C:\PlenumNET" >nul 2>nul
+    rmdir /s /q "%INSTALL_DIR%" >nul 2>nul
 )
-mkdir "C:\PlenumNET" >nul 2>nul
+mkdir "%INSTALL_DIR%" >nul 2>nul
 curl -L -o "%TEMP%\PlenumNET.zip" "https://github.com/SigmaWolf-8/Ternary/archive/refs/heads/main.zip" >nul 2>nul
 if errorlevel 1 goto FAILDOWNLOAD
 echo   Download complete. Extracting...
 echo.
 powershell -Command "Expand-Archive -Path '%TEMP%\PlenumNET.zip' -DestinationPath '%TEMP%\PlenumNET-extract' -Force" >nul 2>nul
 if errorlevel 1 goto FAILEXTRACT
-xcopy "%TEMP%\PlenumNET-extract\Ternary-main\*" "C:\PlenumNET\" /s /e /q /y >nul 2>nul
+xcopy "%TEMP%\PlenumNET-extract\Ternary-main\*" "%INSTALL_DIR%\" /s /e /q /y >nul 2>nul
 rmdir /s /q "%TEMP%\PlenumNET-extract" >nul 2>nul
 del "%TEMP%\PlenumNET.zip" >nul 2>nul
-echo   Files extracted to C:\PlenumNET
+echo   Files extracted to %INSTALL_DIR%
 echo.
+
+:BUILD
 echo   Checking for Rust compiler...
 cargo --version >nul 2>nul
 if errorlevel 1 goto NORUST
-echo   Rust found. Building framework...
-echo   (This may take several minutes)
+echo   Rust found. Building inter-cube daemon...
+echo   (This may take several minutes on first build)
 echo.
-pushd "C:\PlenumNET"
-cargo build --release
+pushd "%INSTALL_DIR%"
+cargo build --release -p inter-cube
 popd
-echo.
-goto DONE
+if errorlevel 1 (
+    echo   WARNING: Build failed. You can retry later with:
+    echo     cd %INSTALL_DIR%
+    echo     set CARGO_BUILD_JOBS=1
+    echo     cargo build --release -p inter-cube
+    echo.
+)
+goto IDENTITY
+
 :NORUST
 echo   Rust is not installed (optional).
 echo   To build later install Rust from https://rustup.rs
-echo   Then run: cd C:\PlenumNET
-echo             cargo build --release
+echo   Then run: cd %INSTALL_DIR%
+echo             set CARGO_BUILD_JOBS=1
+echo             cargo build --release -p inter-cube
 echo.
 goto DONE
-:FAILDOWNLOAD
-echo.
-echo   ERROR: Download failed.
-echo   Check your internet connection and try again.
-echo.
-goto END
-:FAILEXTRACT
-echo.
-echo   ERROR: Could not extract files.
-echo   Try running as Administrator.
-echo.
-del "%TEMP%\PlenumNET.zip" >nul 2>nul
-goto END
-:DONE
-echo.
+
+:IDENTITY
+set "DAEMON_EXE=%INSTALL_DIR%\target\release\inter-cube-daemon.exe"
+if not exist "%DAEMON_EXE%" goto DONE
 echo   Generating daemon identities for Agents A, B, C...
 echo.
-set "IDENTITY_BASE=%USERPROFILE%\.plenumnet"
-set "DAEMON_EXE=C:\PlenumNET\target\release\inter-cube-daemon.exe"
-if not exist "%DAEMON_EXE%" goto SKIP_IDENTITY
 for %%A in (a b c) do (
     if not exist "%IDENTITY_BASE%\identity-%%A" (
         mkdir "%IDENTITY_BASE%\identity-%%A" >nul 2>nul
@@ -90,21 +120,35 @@ for %%A in (a b c) do (
         echo   Agent %%A identity exists.
     )
 )
-goto IDENTITY_DONE
-:SKIP_IDENTITY
-echo   Daemon binary not found (Rust not installed?). Skipping identity generation.
-echo   Run the daemon deployer later to generate keys:
-echo     irm https://plenumnet.replit.app/api/deploy-daemon ^| iex
-:IDENTITY_DONE
+echo.
+echo   To start daemons after install, run:
+echo     %INSTALL_DIR%\services\inter-cube\deploy-daemon.bat
+echo.
+goto DONE
+
+:FAILDOWNLOAD
+echo.
+echo   ERROR: Download failed.
+echo   Check your internet connection and try again.
+echo.
+goto END
+:FAILEXTRACT
+echo.
+echo   ERROR: Could not extract files.
+echo   Try running as Administrator.
+echo.
+del "%TEMP%\PlenumNET.zip" >nul 2>nul
+goto END
+:DONE
 echo.
 echo   ========================================================
 echo     Installation Complete
 echo   ========================================================
 echo.
-echo   PlenumNET is at: C:\PlenumNET
+echo   PlenumNET is at: %INSTALL_DIR%
 echo.
 echo   Opening folder...
-start explorer.exe "C:\PlenumNET"
+start explorer.exe "%INSTALL_DIR%"
 echo.
 :END
 echo   Press any key to close this window...
