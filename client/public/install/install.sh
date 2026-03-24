@@ -129,15 +129,135 @@ main() {
         fi
         ENGINE_PORT=$((8080 + (NEXT_ID - 1) * 2))
         DAEMON_PORT=$((ENGINE_PORT + 1))
+        CRS_URL="https://plenumnet.replit.app"
+        SERVICE_INSTALLED=false
+
+        OS_TYPE="$(uname -s)"
+        if [ "$OS_TYPE" = "Linux" ] && command -v systemctl &>/dev/null; then
+            echo ""
+            echo -e "    ${CYAN}Registering systemd service for daemon #$NEXT_ID...${NC}"
+            sudo mkdir -p /etc/plenumnet /var/lib/plenumnet 2>/dev/null || true
+
+            UNIT_SRC="$INSTALL_DIR/client/public/install/services/plenumnet-cube@.service"
+            if [ -f "$UNIT_SRC" ] && [ ! -f /etc/systemd/system/plenumnet-cube@.service ]; then
+                sudo cp "$UNIT_SRC" /etc/systemd/system/plenumnet-cube@.service 2>/dev/null || true
+            fi
+
+            if [ ! -f /usr/local/bin/inter-cube-daemon ] || [ "$DAEMON_EXE" -nt /usr/local/bin/inter-cube-daemon ]; then
+                sudo cp "$DAEMON_EXE" /usr/local/bin/inter-cube-daemon 2>/dev/null || true
+                sudo chmod 755 /usr/local/bin/inter-cube-daemon 2>/dev/null || true
+            fi
+
+            sudo tee "/etc/plenumnet/cube-${NEXT_ID}.env" > /dev/null 2>&1 <<ENVEOF || true
+CUBE_MODE=cube
+CUBE_API_PORT=$DAEMON_PORT
+LLM_PORT=$ENGINE_PORT
+CUBE_CRS_URL=$CRS_URL
+CUBE_IDENTITY_DIR=$AGENT_DIR
+CUBE_ROLE=inference
+ENVEOF
+
+            if sudo systemctl daemon-reload 2>/dev/null && \
+               sudo systemctl enable "plenumnet-cube@${NEXT_ID}.service" 2>/dev/null && \
+               sudo systemctl start "plenumnet-cube@${NEXT_ID}.service" 2>/dev/null; then
+                SERVICE_INSTALLED=true
+                echo -e "    ${GREEN}Daemon #$NEXT_ID registered as systemd service.${NC}"
+            else
+                echo -e "    ${YELLOW}Could not register systemd service (manual start available below).${NC}"
+            fi
+
+        elif [ "$OS_TYPE" = "Darwin" ]; then
+            echo ""
+            echo -e "    ${CYAN}Registering launchd service for daemon #$NEXT_ID...${NC}"
+            LOG_DIR="$IDENTITY_BASE/logs"
+            mkdir -p "$LOG_DIR" "${HOME}/Library/LaunchAgents" 2>/dev/null || true
+
+            PLIST_PATH="${HOME}/Library/LaunchAgents/com.plenumnet.cube-${NEXT_ID}.plist"
+            TEMPLATE="$INSTALL_DIR/client/public/install/services/com.plenumnet.cube.plist.template"
+
+            if [ -f "$TEMPLATE" ]; then
+                sed -e "s|__IDENTITY_ID__|$NEXT_ID|g" \
+                    -e "s|__DAEMON_EXE__|$DAEMON_EXE|g" \
+                    -e "s|__DAEMON_PORT__|$DAEMON_PORT|g" \
+                    -e "s|__ENGINE_PORT__|$ENGINE_PORT|g" \
+                    -e "s|__CRS_URL__|$CRS_URL|g" \
+                    -e "s|__IDENTITY_DIR__|$AGENT_DIR|g" \
+                    -e "s|__LOG_DIR__|$LOG_DIR|g" \
+                    -e "s|__INSTALL_DIR__|$INSTALL_DIR|g" \
+                    "$TEMPLATE" > "$PLIST_PATH"
+            else
+                cat > "$PLIST_PATH" <<PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.plenumnet.cube-${NEXT_ID}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${DAEMON_EXE}</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CUBE_MODE</key>
+        <string>cube</string>
+        <key>CUBE_API_PORT</key>
+        <string>${DAEMON_PORT}</string>
+        <key>LLM_PORT</key>
+        <string>${ENGINE_PORT}</string>
+        <key>CUBE_CRS_URL</key>
+        <string>${CRS_URL}</string>
+        <key>CUBE_IDENTITY_DIR</key>
+        <string>${AGENT_DIR}</string>
+        <key>CUBE_ROLE</key>
+        <string>inference</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+    <key>StandardOutPath</key>
+    <string>${LOG_DIR}/cube-${NEXT_ID}-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_DIR}/cube-${NEXT_ID}-stderr.log</string>
+    <key>WorkingDirectory</key>
+    <string>${INSTALL_DIR}</string>
+</dict>
+</plist>
+PLISTEOF
+            fi
+
+            launchctl unload "$PLIST_PATH" 2>/dev/null || true
+            if launchctl load "$PLIST_PATH" 2>/dev/null; then
+                SERVICE_INSTALLED=true
+                echo -e "    ${GREEN}Daemon #$NEXT_ID registered as launchd service.${NC}"
+            else
+                echo -e "    ${YELLOW}Could not register launchd service (manual start available below).${NC}"
+            fi
+        fi
+
         echo ""
-        echo -e "    ${DIM}To start daemon #$NEXT_ID:${NC}"
+        if [ "$SERVICE_INSTALLED" = true ]; then
+            echo -e "    ${GREEN}Daemon #$NEXT_ID is running as a system service and will auto-start on boot.${NC}"
+        fi
+        echo -e "    ${DIM}Manual start (fallback):${NC}"
         echo -e "    ${DIM}CUBE_MODE=cube CUBE_API_PORT=$DAEMON_PORT LLM_PORT=$ENGINE_PORT \\${NC}"
-        echo -e "    ${DIM}CUBE_CRS_URL=https://plenumnet.replit.app \\${NC}"
+        echo -e "    ${DIM}CUBE_CRS_URL=$CRS_URL \\${NC}"
         echo -e "    ${DIM}CUBE_IDENTITY_DIR=$AGENT_DIR $DAEMON_EXE${NC}"
         echo ""
         echo -e "    Run this installer again to add another daemon."
     else
         echo -e "    ${YELLOW}Daemon binary not found. Skipping identity generation.${NC}"
+    fi
+
+    SERVICE_MGR="$INSTALL_DIR/client/public/install/plenumnet-service.sh"
+    if [ -f "$SERVICE_MGR" ]; then
+        chmod +x "$SERVICE_MGR" 2>/dev/null || true
     fi
 
     echo ""
@@ -156,10 +276,29 @@ main() {
     echo -e "    ${DIM}$INSTALL_DIR/shared/          - TypeScript shared modules${NC}"
     echo -e "    ${DIM}$INSTALL_DIR/services/        - TDNS, Inter-Cube services${NC}"
     echo ""
-    echo "  Next steps:"
-    echo -e "    ${DIM}cd $INSTALL_DIR${NC}"
-    echo -e "    ${DIM}cargo test          # Run tests${NC}"
-    echo -e "    ${DIM}# Run installer again to add more daemons${NC}"
+    if [ "${SERVICE_INSTALLED:-false}" = true ]; then
+        echo -e "  ${GREEN}Daemon is running as a system service and will auto-start on boot.${NC}"
+        echo ""
+        echo "  Service management:"
+        if [ "$(uname -s)" = "Linux" ]; then
+            echo -e "    ${DIM}systemctl status plenumnet-cube@$NEXT_ID    # Check status${NC}"
+            echo -e "    ${DIM}journalctl -u plenumnet-cube@$NEXT_ID -f    # View logs${NC}"
+            echo -e "    ${DIM}systemctl restart plenumnet-cube@$NEXT_ID   # Restart${NC}"
+        else
+            echo -e "    ${DIM}launchctl list com.plenumnet.cube-$NEXT_ID  # Check status${NC}"
+            echo -e "    ${DIM}tail -f ~/.plenumnet/logs/cube-$NEXT_ID-stdout.log  # View logs${NC}"
+        fi
+        echo ""
+        echo "  Or use the service manager:"
+        echo -e "    ${DIM}bash $SERVICE_MGR status             # All daemon statuses${NC}"
+        echo -e "    ${DIM}bash $SERVICE_MGR logs $NEXT_ID           # View daemon logs${NC}"
+        echo -e "    ${DIM}bash $SERVICE_MGR uninstall $NEXT_ID      # Remove service${NC}"
+    else
+        echo "  Next steps:"
+        echo -e "    ${DIM}cd $INSTALL_DIR${NC}"
+        echo -e "    ${DIM}cargo test          # Run tests${NC}"
+        echo -e "    ${DIM}# Run installer again to add more daemons${NC}"
+    fi
     echo ""
 }
 

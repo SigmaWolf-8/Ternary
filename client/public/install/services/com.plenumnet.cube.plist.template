@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.plenumnet.cube-__IDENTITY_ID__</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__DAEMON_EXE__</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CUBE_MODE</key>
+        <string>cube</string>
+        <key>CUBE_API_PORT</key>
+        <string>__DAEMON_PORT__</string>
+        <key>LLM_PORT</key>
+        <string>__ENGINE_PORT__</string>
+        <key>CUBE_CRS_URL</key>
+        <string>__CRS_URL__</string>
+        <key>CUBE_IDENTITY_DIR</key>
+        <string>__IDENTITY_DIR__</string>
+        <key>CUBE_ROLE</key>
+        <string>inference</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/cube-__IDENTITY_ID__-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/cube-__IDENTITY_ID__-stderr.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__INSTALL_DIR__</string>
+</dict>
+</plist>

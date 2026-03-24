@@ -38,6 +38,49 @@ function Test-Command($cmd) {
     catch { return $false }
 }
 
+function Get-ServiceAccountName {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return $identity.Name
+}
+
+function Grant-LogonAsService {
+    param([string]$AccountName)
+    $tempDir = Join-Path $env:TEMP "plenumnet-secedit"
+    if (-not (Test-Path $tempDir)) { New-Item -ItemType Directory -Path $tempDir -Force | Out-Null }
+    $exportFile = Join-Path $tempDir "secpol-export.inf"
+    $importFile = Join-Path $tempDir "secpol-import.inf"
+    $seceditDb = Join-Path $tempDir "secedit.sdb"
+    try {
+        & secedit /export /cfg $exportFile /areas USER_RIGHTS 2>&1 | Out-Null
+        if (-not (Test-Path $exportFile)) { return $false }
+        $content = Get-Content $exportFile -Raw
+        $sidObj = (New-Object System.Security.Principal.NTAccount($AccountName)).Translate(
+            [System.Security.Principal.SecurityIdentifier])
+        $sid = $sidObj.Value
+        if ($content -match '(?m)^SeServiceLogonRight\s*=\s*(.*)$') {
+            $existing = $Matches[1]
+            if ($existing -notmatch [regex]::Escape($sid)) {
+                $content = $content -replace "(?m)^(SeServiceLogonRight\s*=\s*.*)$", "`$1,*$sid"
+            }
+        } else {
+            $content = $content -replace '(?m)(\[Privilege Rights\])', "`$1`r`nSeServiceLogonRight = *$sid"
+        }
+        Set-Content -Path $importFile -Value $content -Encoding Unicode
+        & secedit /configure /db $seceditDb /cfg $importFile /areas USER_RIGHTS 2>&1 | Out-Null
+        return $true
+    } catch {
+        return $false
+    } finally {
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Set-ServiceLogonAccount {
+    param([string]$ServiceName, [string]$AccountName)
+    Grant-LogonAsService -AccountName $AccountName | Out-Null
+    & sc.exe config $ServiceName obj= $AccountName | Out-Null
+}
+
 if (-not (Test-Command "git")) {
     Write-Host 'ERROR: git is not installed or not in PATH.' -ForegroundColor Red
     return
@@ -256,6 +299,93 @@ try {
     }
 
     Write-Host "  Total identities: $($allIds.Count)" -ForegroundColor White
+    Write-Host ""
+
+    $isAdmin = $false
+    try {
+        $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {}
+
+    if ($isAdmin) {
+        Write-Host "==========================================================" -ForegroundColor Cyan
+        Write-Host "  REGISTERING WINDOWS SERVICES" -ForegroundColor Cyan
+        Write-Host "==========================================================" -ForegroundColor Cyan
+        Write-Host ""
+
+        $LogDir = Join-Path $IdentityBase "logs"
+        if (-not (Test-Path $LogDir)) {
+            New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+        }
+
+        foreach ($id in $allIds) {
+            $ep = $BaseEnginePort + (($id - 1) * $PortStep)
+            $dp = $ep + 1
+            $idDir = Join-Path $IdentityBase "identity-$id"
+            if (-not (Test-Path $idDir)) {
+                $letterDir = Join-Path $IdentityBase ("identity-" + [char]([int][char]'a' + $id - 1))
+                if (Test-Path $letterDir) { $idDir = $letterDir }
+            }
+
+            $svcName = "PlenumNET-Cube-$id"
+            $logFile = Join-Path $LogDir "cube-${id}.log"
+
+            $wrapperDir = Join-Path $RepoDir "services\wrappers"
+            if (-not (Test-Path $wrapperDir)) {
+                New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
+            }
+            $wrapperBat = Join-Path $wrapperDir "cube-${id}-start.bat"
+            @"
+@echo off
+set CUBE_MODE=cube
+set CUBE_API_PORT=$dp
+set LLM_PORT=$ep
+set CUBE_CRS_URL=$CRS_URL
+set CUBE_IDENTITY_DIR=$idDir
+set CUBE_ROLE=inference
+"$BinaryPath" >> "$logFile" 2>&1
+"@ | Set-Content -Path $wrapperBat -Encoding ASCII
+
+            $existingSvc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+            if ($existingSvc) {
+                Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
+                & sc.exe delete $svcName | Out-Null
+                Start-Sleep -Seconds 1
+            }
+
+            try {
+                $svcBinPath = "cmd.exe /c `"$wrapperBat`""
+                New-Service -Name $svcName `
+                    -BinaryPathName $svcBinPath `
+                    -DisplayName "PlenumNET Inter-Cube Daemon (Identity #$id)" `
+                    -Description "PlenumNET Inter-Cube infrastructure daemon for identity #$id" `
+                    -StartupType Automatic | Out-Null
+
+                & sc.exe failure $svcName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
+                & sc.exe config $svcName depend= Tcpip/Afd/Dnscache | Out-Null
+
+                $svcAccount = Get-ServiceAccountName
+                Set-ServiceLogonAccount -ServiceName $svcName -AccountName $svcAccount
+
+                Start-Service -Name $svcName
+                Write-Host "  [OK] Daemon #$id registered as Windows Service: $svcName" -ForegroundColor Green
+            } catch {
+                Write-Host "  [WARN] Could not register daemon #$id as service: $_" -ForegroundColor Yellow
+            }
+        }
+
+        Write-Host ""
+        Write-Host "  Service management:" -ForegroundColor White
+        Write-Host "    Get-Service PlenumNET-Cube-*       # Check all daemon services" -ForegroundColor DarkGray
+        Write-Host "    Restart-Service PlenumNET-Cube-1   # Restart daemon #1" -ForegroundColor DarkGray
+        Write-Host "    powershell -File `"$RepoDir\client\public\install\plenumnet-service.ps1`" status" -ForegroundColor DarkGray
+        Write-Host ""
+    } else {
+        Write-Host "  NOTE: Run as Administrator to register daemons as Windows Services." -ForegroundColor Yellow
+        Write-Host "        Services auto-start on boot and restart on failure." -ForegroundColor DarkGray
+        Write-Host ""
+    }
+
     Write-Host "  Run this script again to add another daemon." -ForegroundColor DarkGray
     Write-Host ""
 

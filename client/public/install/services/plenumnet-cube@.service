@@ -1,0 +1,22 @@
+[Unit]
+Description=PlenumNET Inter-Cube Daemon (Identity %i)
+Documentation=https://plenumnet.replit.app/docs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/plenumnet/cube-%i.env
+ExecStart=/usr/local/bin/inter-cube-daemon
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=plenumnet-cube-%i
+LimitNOFILE=65536
+WorkingDirectory=/var/lib/plenumnet
+
+[Install]
+WantedBy=multi-user.target
