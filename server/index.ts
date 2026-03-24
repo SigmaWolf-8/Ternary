@@ -1092,10 +1092,53 @@ function startPqtiService(): ChildProcess | null {
     return false;
   }
 
+  const RELAY_PING_INTERVAL = 30_000;
+  const RELAY_DEAD_TIMEOUT = 90_000;
+
+  const relayPingInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [addr, clientWs] of relayClients.entries()) {
+      if (clientWs.readyState !== WebSocket.OPEN) {
+        console.log(`[ws-relay] Pruning dead socket for ${toDottedAddr(addr)} (readyState=${clientWs.readyState})`);
+        relayClients.delete(addr);
+        relayAddressByWs.delete(clientWs);
+        continue;
+      }
+      const entry = crsRegistry.get(addr);
+      if (entry && (now - entry.lastSeen) > RELAY_DEAD_TIMEOUT) {
+        console.log(`[ws-relay] Node ${toDottedAddr(addr)} unresponsive for ${Math.round((now - entry.lastSeen) / 1000)}s — closing`);
+        clientWs.close(1000, "ping timeout");
+        relayClients.delete(addr);
+        relayAddressByWs.delete(clientWs);
+        continue;
+      }
+      try {
+        clientWs.ping();
+        clientWs.send(JSON.stringify({ type: "ping", ts: now }));
+      } catch (err: any) {
+        console.log(`[ws-relay] Ping failed for ${toDottedAddr(addr)}: ${err.message}`);
+        relayClients.delete(addr);
+        relayAddressByWs.delete(clientWs);
+      }
+    }
+    const liveCount = relayClients.size;
+    if (liveCount > 0) {
+      console.log(`[ws-relay] Keepalive: ${liveCount} peer(s) alive — [${Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ")}]`);
+    }
+  }, RELAY_PING_INTERVAL);
+  relayPingInterval.unref();
+
   wss.on("connection", (ws: WebSocket) => {
     let authenticated = false;
     let nodeAddress = "";
     const challengeNonce = crypto.randomBytes(32).toString("hex");
+
+    ws.on("pong", () => {
+      if (nodeAddress) {
+        const entry = crsRegistry.get(nodeAddress);
+        if (entry) entry.lastSeen = Date.now();
+      }
+    });
 
     ws.send(JSON.stringify({ type: "challenge", nonce: challengeNonce }));
 
@@ -1170,6 +1213,11 @@ function startPqtiService(): ChildProcess | null {
         return;
       }
 
+      if (nodeAddress) {
+        const entry = crsRegistry.get(nodeAddress);
+        if (entry) entry.lastSeen = Date.now();
+      }
+
       if (msg.type === "relay" && msg.to && msg.payload) {
         const targetWs = relayClients.get(normalizeTernaryAddr(msg.to));
         const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
@@ -1206,16 +1254,17 @@ function startPqtiService(): ChildProcess | null {
       ws.send(JSON.stringify({ error: "unknown message type", validTypes: ["relay", "ping", "peers"] }));
     });
 
-    ws.on("close", () => {
+    ws.on("close", (code: number, reason: Buffer) => {
       if (nodeAddress) {
         relayClients.delete(nodeAddress);
         relayAddressByWs.delete(ws);
-        console.log(`[ws-relay] Node ${nodeAddress} disconnected`);
+        const remaining = Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ");
+        console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} DISCONNECTED (code=${code}, reason=${reason.toString() || "none"}) — ${relayClients.size} peer(s) remain${remaining ? `: [${remaining}]` : ""}`);
       }
     });
 
     ws.on("error", (err: Error) => {
-      console.log(`[ws-relay] Error for ${nodeAddress || "unauthenticated"}: ${err.message}`);
+      console.log(`[ws-relay] ERROR for ${nodeAddress ? toDottedAddr(nodeAddress) : "unauthenticated"}: ${err.message}`);
     });
 
     setTimeout(() => {
