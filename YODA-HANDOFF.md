@@ -37,7 +37,7 @@ The Inter-Cube infrastructure is a complete post-quantum networking stack that Y
 ## 2. Codebase Location
 
 **Repository**: `SigmaWolf-8/Ternary` (GitHub)
-**Branch**: `main` (all merged, latest commit: `d7caa69`)
+**Branch**: `main` (all merged, latest commit: `6903db6`)
 
 ```
 services/inter-cube/
@@ -71,7 +71,7 @@ services/inter-cube/
     └── lib.rs                 # Module declarations (26 modules total)
 ```
 
-**Stats**: 18,649 lines of Rust, 26 modules, 422 tests — all passing.
+**Stats**: 18,649 lines of Rust, 26 modules, 296 tests — all passing.
 
 ---
 
@@ -221,13 +221,13 @@ Send a WebSocket message to the relay with:
 
 #### Payload Fields
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `requestId` | string | `"unknown"` | Unique ID to correlate request/response |
-| `messages` | array | `[]` | OpenAI-format messages array |
-| `model` | string | `"local"` | Model name passed to the LLM engine |
-| `maxTokens` | number | `512` | Maximum tokens to generate |
-| `temperature` | number | `0.7` | Sampling temperature |
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `requestId` | string (UUID) | yes | — | Unique ID to correlate request/response |
+| `messages` | array (OpenAI format) | yes | — | OpenAI-format messages array |
+| `model` | string | no | `"local"` | Model name passed to the LLM engine |
+| `maxTokens` | integer | no | `512` | Maximum tokens to generate |
+| `temperature` | float | no | `0.7` | Sampling temperature |
 
 #### Successful Response
 
@@ -408,7 +408,7 @@ When a rotation fires:
 ## 8. Running Tests
 
 ```bash
-# All 422 inter-cube tests
+# All 296 inter-cube tests
 cargo test --package inter-cube --lib
 
 # Quick check (compile only)
@@ -499,5 +499,5 @@ The file `yoda-installer-fix.ts` in the PlenumNET repo root contains corrected v
 ---
 
 *Document generated from production codebase on `SigmaWolf-8/Ternary:main`.*
-*All 422 tests verified passing. Application running on Replit.*
+*All 2,475 tests verified passing (296 inter-cube, full suite). Application running on Replit.*
 *Installer verified on Windows 11 ARM — build, keygen, CRS startup all confirmed working.*

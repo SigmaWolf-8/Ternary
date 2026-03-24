@@ -331,7 +331,7 @@ Where `<cube-address>` is a 13-trit address discovered from the relay status or 
 
 | Field | Type | Required | Default |
 |-------|------|----------|---------|
-| `requestId` | string (UUID) | yes | — |
+| `requestId` | string (UUID) | yes | **(required)** — correlate request/response |
 | `messages` | array (OpenAI format) | yes | — |
 | `maxTokens` | integer | no | 512 |
 | `model` | string | no | "local" |
@@ -831,7 +831,7 @@ A single consolidated table of every endpoint YODA needs to monitor daemon infra
 
 | Monitoring Need | Method | Endpoint | Notes |
 |----------------|--------|----------|-------|
-| Cluster health | GET | `/api/salvi/inter-cube/relay/cluster-health` | Per-daemon status (live/registered/deployed), relay throughput (msgsSent, msgsDelivered, msgsQueued, msgPerSec), WebSocket peers, uptime |
+| Cluster health | GET | `/api/salvi/inter-cube/relay/cluster-health` | Per-daemon status (live/registered/deployed), relay throughput (msgsSent, msgsDelivered, msgsQueued, msgPerSec, bytesPerSec), WebSocket peers, uptime |
 | Relay status | GET | `/api/salvi/inter-cube/relay/status` | Connected WebSocket nodes, pending queue count |
 | Relay heartbeat | GET | `/api/salvi/inter-cube/relay/heartbeat?address=...&publicKey=...` | Refresh registration lastSeen |
 | Deployment records | GET | `/api/salvi/inter-cube/relay/deployments?hostname=...` | Deployment history |
