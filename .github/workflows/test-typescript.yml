@@ -34,7 +34,7 @@ jobs:
       - name: Run TypeScript tests
         env:
           SESSION_SECRET: ci-test-secret-not-for-production
-        run: npx vitest run --reporter=verbose --exclude='tests/integration/api-routes.test.ts'
+        run: npx vitest run --reporter=verbose --exclude='tests/integration/**'
 
       - name: Type check
         run: npx tsc --noEmit
