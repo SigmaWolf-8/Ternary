@@ -736,16 +736,15 @@ function startPqtiService(): ChildProcess | null {
       if (now - entry.lastSeen > maxAgeMs) {
         const isConnectedViaWs = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
         if (!isConnectedViaWs && !isExpectedNode(addr)) {
+          const isCanonicalAddr = publicKeyAddressMap.get(entry.publicKey) === addr;
+          if (isCanonicalAddr) continue;
           crsRegistry.delete(addr);
-          for (const [pk, mappedAddr] of publicKeyAddressMap.entries()) {
-            if (mappedAddr === addr) publicKeyAddressMap.delete(pk);
-          }
           purgedAddrs.push(addr);
         }
       }
     }
     if (purgedAddrs.length > 0) {
-      log(`CRS purged ${purgedAddrs.length} stale registrations (maxAge=${maxAgeMs}ms)`, "crs");
+      log(`CRS purged ${purgedAddrs.length} stale ghost registrations (maxAge=${maxAgeMs}ms)`, "crs");
       storage.deleteCrsRelayNodesByAddresses(purgedAddrs).catch(() => {});
     }
     return { purged: purgedAddrs.length, remaining: crsRegistry.size, purgedAddresses: purgedAddrs };
@@ -765,7 +764,7 @@ function startPqtiService(): ChildProcess | null {
   app.post("/api/salvi/inter-cube/relay/purge-stale", purgeStaleHandler);
 
   const STALE_CLEANUP_INTERVAL = 60_000;
-  const STALE_MAX_AGE = 120_000;
+  const STALE_MAX_AGE = 600_000;
   const staleCleanupTimer = setInterval(() => {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
