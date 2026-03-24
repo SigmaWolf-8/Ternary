@@ -1,32 +1,32 @@
 <#
 .SYNOPSIS
-    YODA 3-Daemon Deployer
-    Builds the daemon binary, generates 3 PT26-DSA identities, starts a
-    local 3-node Inter-Cube cluster, and posts a deployment summary to
-    the PlenumNET CRS Daemon Registry for monitoring.
+    PlenumNET Array3 Deployer
+    Builds the node binary, generates 3 PT26-DSA identities, starts a
+    3-node PlenumNET Array3 cluster, and posts a deployment summary to
+    the PlenumNET Node Registry for monitoring.
 
 .DESCRIPTION
     Served from https://plenumnet.replit.app/api/deploy-yoda
     Run with:  irm https://plenumnet.replit.app/api/deploy-yoda | iex
     Or download the .bat wrapper from the Distribution page.
 
-    Cluster topology:
-      Daemon #1 (Engine A) : port 8081 / LLM 8080  — LOCAL CRS  (CUBE_MODE=crs)
-      Daemon #2 (Engine B) : port 8083 / LLM 8082  — cube node  (registers with Daemon #1)
-      Daemon #3 (Engine C) : port 8085 / LLM 8084  — cube node  (registers with Daemon #1)
+    Array3 topology:
+      Node #1 (Agent A) : port 8081 / App 8080  -- Coordinator  (CUBE_MODE=crs)
+      Node #2 (Agent B) : port 8083 / App 8082  -- Worker       (registers with Node #1)
+      Node #3 (Agent C) : port 8085 / App 8084  -- Worker       (registers with Node #1)
 
-    Daemon #1 is always the local CRS for the cluster. Daemons #2 and #3
+    Node #1 is always the coordinator for the Array3. Nodes #2 and #3
     register with it at http://localhost:8081. The remote PlenumNET server
     (plenumnet.replit.app) only receives a deployment summary for the
-    dashboard — it is NOT the CRS for local cube operations.
+    dashboard -- it is NOT the CRS for local node operations.
 
-    All 3 daemons connect outbound to plenumnet.replit.app via WebSocket
+    All 3 nodes connect outbound to plenumnet.replit.app via WebSocket
     relay (RELAY_URL). This is the NAT-traversal tunnel through which
-    YODA dispatches inference requests. Each daemon forwards inference
-    to a local llama-server at 127.0.0.1:{LLM_PORT}.
+    applications like YODA dispatch requests. Each node forwards requests
+    to a local application port at 127.0.0.1:{LLM_PORT}.
 
-    LLM engines are NOT installed by this script. LLM selection and
-    setup is handled separately at YODA runtime.
+    Application engines are NOT installed by this script. Application
+    setup is handled separately by the consuming app (e.g. YODA).
 
 .NOTES
     Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
@@ -48,17 +48,17 @@ $LOG_DIR       = Join-Path $IdentityBase "logs"
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  YODA 3-Daemon Deployer" -ForegroundColor Cyan
+Write-Host "  PlenumNET Array3 Deployer" -ForegroundColor Cyan
 Write-Host "  PlenumNET Inter-Cube Infrastructure" -ForegroundColor Cyan
 Write-Host "  Applied Physics Division -- Capomastro Holdings Ltd." -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Daemons   : $DAEMON_COUNT instances" -ForegroundColor White
-Write-Host "  Local CRS : Daemon #1 (port $LOCAL_CRS_PORT)" -ForegroundColor White
-Write-Host "  Ports     : $BASE_DAEMON_PORT, $($BASE_DAEMON_PORT + $PORT_STEP), $($BASE_DAEMON_PORT + 2 * $PORT_STEP)" -ForegroundColor White
-Write-Host "  LLM Ports : 8080, 8082, 8084" -ForegroundColor White
-Write-Host "  Relay     : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
-Write-Host "  Registry  : $REMOTE_CRS (monitoring only)" -ForegroundColor White
+Write-Host "  Nodes        : $DAEMON_COUNT instances" -ForegroundColor White
+Write-Host "  Coordinator  : Node #1 (port $LOCAL_CRS_PORT)" -ForegroundColor White
+Write-Host "  Node Ports   : $BASE_DAEMON_PORT, $($BASE_DAEMON_PORT + $PORT_STEP), $($BASE_DAEMON_PORT + 2 * $PORT_STEP)" -ForegroundColor White
+Write-Host "  App Ports    : 8080, 8082, 8084" -ForegroundColor White
+Write-Host "  Relay        : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
+Write-Host "  Registry     : $REMOTE_CRS (monitoring only)" -ForegroundColor White
 Write-Host ""
 
 function Test-Command($cmd) {
@@ -204,7 +204,7 @@ Write-Host "  [OK] Source ready" -ForegroundColor Green
 
 $runningDaemons = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue
 if ($runningDaemons) {
-    Write-Host "  Stopping running daemon(s)..." -ForegroundColor Yellow
+    Write-Host "  Stopping running node(s)..." -ForegroundColor Yellow
     $runningDaemons | Stop-Process -Force
     Start-Sleep -Seconds 2
 }
@@ -255,7 +255,7 @@ try {
     $remoteVersion = $crsHealth.version
 } catch {}
 
-Write-Host "  Local daemon  : v$localVersion" -ForegroundColor White
+Write-Host "  Local node    : v$localVersion" -ForegroundColor White
 Write-Host "  CRS reference : v$remoteVersion" -ForegroundColor White
 
 if ($localVersion -ne "unknown" -and $remoteVersion -ne "unknown" -and $localVersion -ne $remoteVersion) {
@@ -279,7 +279,7 @@ Write-Host "  Local IP: $ip" -ForegroundColor White
 
 # ── 6. Generate 3 identities ─────────────────────────────────────────────
 Write-Host ""
-Write-Host "STEP 6/8: Generating $DAEMON_COUNT daemon identities" -ForegroundColor Yellow
+Write-Host "STEP 6/8: Generating $DAEMON_COUNT node identities" -ForegroundColor Yellow
 Write-Host "---"
 
 New-Item -ItemType Directory -Force -Path $IdentityBase | Out-Null
@@ -302,12 +302,12 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
         Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
         if (Test-Path $keyFile) {
-            Write-Host "  [OK] Daemon #$i identity created" -ForegroundColor Green
+            Write-Host "  [OK] Node #$i identity created" -ForegroundColor Green
         } else {
-            Write-Host "  WARN: Daemon #$i keygen may have failed" -ForegroundColor Yellow
+            Write-Host "  WARN: Node #$i keygen may have failed" -ForegroundColor Yellow
         }
     } else {
-        Write-Host "  [OK] Daemon #$i identity exists" -ForegroundColor Green
+        Write-Host "  [OK] Node #$i identity exists" -ForegroundColor Green
     }
 
     $pubKey = ""
@@ -335,7 +335,7 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
 
 # ── 7. Start daemons (CRS first, then cubes) + register with local CRS ──
 Write-Host ""
-Write-Host "STEP 7/8: Starting cluster (Daemon #1 = local CRS)" -ForegroundColor Yellow
+Write-Host "STEP 7/8: Starting Array3 (Node #1 = coordinator)" -ForegroundColor Yellow
 Write-Host "---"
 
 $daemonPids = @()
@@ -352,7 +352,7 @@ $outLog = Join-Path $LOG_DIR "daemon-1-out.log"
 $errLog = Join-Path $LOG_DIR "daemon-1-err.log"
 $proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 $daemonPids += $proc.Id
-Write-Host "  [OK] Daemon #1 started as LOCAL CRS (PID $($proc.Id), port $($crsCfg.Port), relay -> $REMOTE_CRS, LLM -> 8080)" -ForegroundColor Green
+Write-Host "  [OK] Node #1 started as coordinator (PID $($proc.Id), port $($crsCfg.Port), relay -> $REMOTE_CRS, app -> 8080)" -ForegroundColor Green
 
 Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
@@ -361,7 +361,7 @@ Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
 Remove-Item Env:\RELAY_URL -ErrorAction SilentlyContinue
 Remove-Item Env:\LLM_PORT -ErrorAction SilentlyContinue
 
-Write-Host "  Waiting for local CRS to be ready..." -ForegroundColor DarkGray
+Write-Host "  Waiting for coordinator to be ready..." -ForegroundColor DarkGray
 $crsReady = $false
 for ($w = 1; $w -le 15; $w++) {
     Start-Sleep -Seconds 2
@@ -371,9 +371,9 @@ for ($w = 1; $w -le 15; $w++) {
     } catch {}
 }
 if ($crsReady) {
-    Write-Host "  [OK] Local CRS ready at $LOCAL_CRS_URL" -ForegroundColor Green
+    Write-Host "  [OK] Coordinator ready at $LOCAL_CRS_URL" -ForegroundColor Green
 } else {
-    Write-Host "  WARN: Local CRS health check did not respond -- continuing anyway" -ForegroundColor Yellow
+    Write-Host "  WARN: Coordinator health check did not respond -- continuing anyway" -ForegroundColor Yellow
 }
 
 $LLM_PORTS = @(8080, 8082, 8084)
@@ -392,7 +392,7 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $errLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-err.log"
     $proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
     $daemonPids += $proc.Id
-    Write-Host "  [OK] Daemon #$($cfg.Id) started (PID $($proc.Id), port $($cfg.Port), relay -> $REMOTE_CRS, LLM -> $llmPort)" -ForegroundColor Green
+    Write-Host "  [OK] Node #$($cfg.Id) started (PID $($proc.Id), port $($cfg.Port), relay -> $REMOTE_CRS, app -> $llmPort)" -ForegroundColor Green
     Start-Sleep -Seconds 1
 }
 
@@ -413,7 +413,7 @@ foreach ($cfg in $daemonConfigs) {
             $crsInfo = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/health" -TimeoutSec 5 -ErrorAction Stop
             $cfg.Address = $crsInfo.address
             $registeredAddresses += $crsInfo.address
-            Write-Host "  [OK] Daemon #1 (CRS) address: $($cfg.Address)" -ForegroundColor Green
+            Write-Host "  [OK] Node #1 (coordinator) address: $($cfg.Address)" -ForegroundColor Green
         } catch {
             Write-Host "  WARN: Could not read CRS address" -ForegroundColor Yellow
         }
@@ -427,15 +427,15 @@ foreach ($cfg in $daemonConfigs) {
             $cfg.Address = $regResult.address
             break
         } catch {
-            Write-Host "  Daemon #$($cfg.Id) registration attempt $attempt failed -- retrying in 3s..."
+            Write-Host "  Node #$($cfg.Id) registration attempt $attempt failed -- retrying in 3s..."
             Start-Sleep -Seconds 3
         }
     }
     if ($regOk) {
-        Write-Host "  [OK] Daemon #$($cfg.Id) registered -> address: $($cfg.Address)" -ForegroundColor Green
+        Write-Host "  [OK] Node #$($cfg.Id) registered -> address: $($cfg.Address)" -ForegroundColor Green
         $registeredAddresses += $cfg.Address
     } else {
-        Write-Host "  WARN: Daemon #$($cfg.Id) local CRS registration failed" -ForegroundColor Yellow
+        Write-Host "  WARN: Node #$($cfg.Id) registration with coordinator failed" -ForegroundColor Yellow
     }
 }
 
@@ -480,35 +480,35 @@ $deploymentPayload = @{
 
 try {
     $notifyCrs = Invoke-RestMethod -Uri "$REMOTE_CRS/api/salvi/inter-cube/relay/deployment" -Method Post -Body $deploymentPayload -ContentType "application/json" -TimeoutSec 15 -ErrorAction Stop
-    Write-Host "  [OK] Deployment summary posted to CRS Daemon Registry" -ForegroundColor Green
+    Write-Host "  [OK] Deployment summary posted to PlenumNET Node Registry" -ForegroundColor Green
     Write-Host "       Query: $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor DarkGray
 } catch {
     Write-Host "  WARN: Could not post deployment summary -- $_" -ForegroundColor Yellow
 }
 
 # ── Desktop launcher ─────────────────────────────────────────────────────
-$startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start YODA Daemons.bat"
+$startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start PlenumNET Array3.bat"
 $launchLines = @(
     "@echo off"
-    "title YODA -- PlenumNET 3-Node Cluster"
+    "title PlenumNET Array3"
     "echo ========================================"
-    "echo   YODA -- Starting PlenumNET 3-Node Cluster"
-    "echo   Daemon #1 = Local CRS"
+    "echo   PlenumNET Array3 -- Starting 3-Node Cluster"
+    "echo   Node #1 = Coordinator"
     "echo ========================================"
     "echo."
     ""
-    ":: Kill existing daemon instances"
+    ":: Kill existing node instances"
     "taskkill /f /im inter-cube-daemon.exe >nul 2>&1"
     "timeout /t 1 /nobreak >nul"
     ""
-    ":: Start Daemon #1 as LOCAL CRS"
+    ":: Start Node #1 as coordinator"
     "set CUBE_MODE=crs"
     "set CUBE_API_PORT=$($crsCfg.Port)"
     "set CUBE_ENDPOINT=$($crsCfg.Endpoint)"
     "set CUBE_IDENTITY_DIR=$($crsCfg.IdentityDir)"
     "set RELAY_URL=$REMOTE_CRS"
     "set LLM_PORT=8080"
-    "echo Starting Daemon #1 as LOCAL CRS on port $($crsCfg.Port)..."
+    "echo Starting Node #1 as coordinator on port $($crsCfg.Port)..."
     "start `"`" /b `"$BinaryPath`""
     "timeout /t 5 /nobreak >nul"
     ""
@@ -518,7 +518,7 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
     $llmPort = $LLM_PORTS[$cfg.Id - 1]
     $launchLines += @(
-        ":: Start Daemon #$($cfg.Id) (registers with local CRS)"
+        ":: Start Node #$($cfg.Id) (worker -- registers with coordinator)"
         "set CUBE_MODE=cube"
         "set CUBE_CRS_URL=$LOCAL_CRS_URL"
         "set CUBE_ENDPOINT=$($cfg.Endpoint)"
@@ -526,7 +526,7 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
         "set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)"
         "set RELAY_URL=$REMOTE_CRS"
         "set LLM_PORT=$llmPort"
-        "echo Starting Daemon #$($cfg.Id) on port $($cfg.Port) (relay -> $REMOTE_CRS, LLM -> $llmPort)..."
+        "echo Starting Node #$($cfg.Id) on port $($cfg.Port) (relay -> $REMOTE_CRS, app -> $llmPort)..."
         "start `"`" /b `"$BinaryPath`""
         "timeout /t 2 /nobreak >nul"
         ""
@@ -535,21 +535,21 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
 $launchLines += @(
     "echo."
     "echo ========================================"
-    "echo   YODA Daemons Running -- 3-Node Cluster"
-    "echo   Daemon #1 (CRS) : http://localhost:$($crsCfg.Port)"
+    "echo   PlenumNET Array3 Running"
+    "echo   Node #1 (coordinator) : http://localhost:$($crsCfg.Port)"
 )
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    $launchLines += "echo   Daemon #$($cfg.Id) (cube): http://localhost:$($cfg.Port)"
+    $launchLines += "echo   Node #$($cfg.Id) (worker)     : http://localhost:$($cfg.Port)"
 }
 $launchLines += @(
     "echo ========================================"
     "echo."
-    "echo Press any key to stop all daemons..."
+    "echo Press any key to stop all nodes..."
     "pause >nul"
     ""
     "taskkill /f /im inter-cube-daemon.exe >nul 2>&1"
-    "echo Daemons stopped."
+    "echo Nodes stopped."
     "timeout /t 2 /nobreak >nul"
 )
 $launchContent = $launchLines -join "`r`n"
@@ -560,22 +560,22 @@ Write-Host "  [OK] Desktop launcher created: $startYodaPath" -ForegroundColor Gr
 # ── Summary ──────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Green
-Write-Host "  YODA 3-Node Deployment Complete" -ForegroundColor Green
+Write-Host "  PlenumNET Array3 Deployment Complete" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Daemon #1 (CRS) : port $($crsCfg.Port), address $($crsCfg.Address)" -ForegroundColor White
+Write-Host "  Node #1 (coordinator): port $($crsCfg.Port), address $($crsCfg.Address)" -ForegroundColor White
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    Write-Host "  Daemon #$($cfg.Id) (cube): port $($cfg.Port), address $($cfg.Address)" -ForegroundColor White
+    Write-Host "  Node #$($cfg.Id) (worker)     : port $($cfg.Port), address $($cfg.Address)" -ForegroundColor White
 }
 Write-Host ""
-Write-Host "  Local CRS     : $LOCAL_CRS_URL (Daemon #1)" -ForegroundColor White
-Write-Host "  Relay         : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
-Write-Host "  Remote Registry: $REMOTE_CRS (monitoring dashboard)" -ForegroundColor White
-Write-Host "  CRS Daemon Registry: $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
-Write-Host "  Launcher      : $startYodaPath" -ForegroundColor White
-Write-Host "  Logs          : $LOG_DIR" -ForegroundColor White
+Write-Host "  Coordinator    : $LOCAL_CRS_URL (Node #1)" -ForegroundColor White
+Write-Host "  Relay          : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
+Write-Host "  Registry       : $REMOTE_CRS (monitoring dashboard)" -ForegroundColor White
+Write-Host "  Node Registry  : $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
+Write-Host "  Launcher       : $startYodaPath" -ForegroundColor White
+Write-Host "  Logs           : $LOG_DIR" -ForegroundColor White
 Write-Host ""
-Write-Host "  LLM engines are configured separately at YODA runtime." -ForegroundColor DarkGray
+Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
 Read-Host "Press Enter to close"

@@ -1,0 +1,85 @@
+
+==========================================================
+  YODA 3-Daemon Deployer
+  PlenumNET Inter-Cube Infrastructure
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+  Daemons   : 3 instances
+  Local CRS : Daemon #1 (port 8081)
+  Ports     : 8081, 8083, 8085
+  LLM Ports : 8080, 8082, 8084
+  Relay     : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Registry  : https://plenumnet.replit.app (monitoring only)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/8: Build environment
+---
+  Architecture: Arm64
+  [OK] clang
+
+STEP 3/8: Source code + build
+---
+  Updating source...
+  [OK] Source ready
+  Stopping running daemon(s)...
+  Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+      Finished `release` profile [optimized] target(s) in 0.58s
+  [OK] Build successful (2.6 MB)
+
+STEP 4/8: Version check
+---
+  Local daemon  : v0.3.0
+  CRS reference : v0.3.0
+  [OK] Version aligned
+
+STEP 5/8: Network detection
+---
+  Local IP: 10.0.0.42
+
+STEP 6/8: Generating 3 daemon identities
+---
+  [OK] Daemon #1 identity exists
+  [OK] Daemon #2 identity exists
+  [OK] Daemon #3 identity exists
+
+STEP 7/8: Starting cluster (Daemon #1 = local CRS)
+---
+  [OK] Daemon #1 started as LOCAL CRS (PID 188032, port 8081, relay -> https://plenumnet.replit.app, LLM -> 8080)
+  Waiting for local CRS to be ready...
+  [OK] Local CRS ready at http://localhost:8081
+  [OK] Daemon #2 started (PID 180004, port 8083, relay -> https://plenumnet.replit.app, LLM -> 8082)
+  [OK] Daemon #3 started (PID 187512, port 8085, relay -> https://plenumnet.replit.app, LLM -> 8084)
+  [OK] Daemon #1 (CRS) address: 1111111111111
+  [OK] Daemon #2 registered -> address: 2111111111111
+  [OK] Daemon #3 registered -> address: 3111111111111
+
+STEP 8/8: Deployment summary + desktop launcher
+---
+  [OK] Deployment summary posted to CRS Daemon Registry
+       Query: https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+
+  [OK] Desktop launcher created: C:\Users\Sigma\OneDrive\Desktop\Start YODA Daemons.bat
+
+==========================================================
+  YODA 3-Node Deployment Complete
+==========================================================
+
+  Daemon #1 (CRS) : port 8081, address 1111111111111
+  Daemon #2 (cube): port 8083, address 2111111111111
+  Daemon #3 (cube): port 8085, address 3111111111111
+
+  Local CRS     : http://localhost:8081 (Daemon #1)
+  Relay         : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Remote Registry: https://plenumnet.replit.app (monitoring dashboard)
+  CRS Daemon Registry: https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+  Launcher      : C:\Users\Sigma\OneDrive\Desktop\Start YODA Daemons.bat
+  Logs          : C:\Users\Sigma\.plenumnet\logs
+
+  LLM engines are configured separately at YODA runtime.
+
+Press Enter to close:
