@@ -1025,10 +1025,8 @@ function startPqtiService(): ChildProcess | null {
         return m ? { host: m[1], port: m[2] } : null;
       }
 
-      const crsLiveAddresses = new Set<string>();
       const crsCoveredHostPorts = new Set<string>();
-      for (const [addr, crsEntry] of crsRegistry.entries()) {
-        crsLiveAddresses.add(addr);
+      for (const [, crsEntry] of crsRegistry.entries()) {
         const parsed = parseHostPort(crsEntry.endpoint || "");
         if (parsed) crsCoveredHostPorts.add(`${parsed.host}:${parsed.port}`);
       }
@@ -1119,7 +1117,7 @@ function startPqtiService(): ChildProcess | null {
         daemons: filteredDaemons,
         expectedNodes: expectedNodesStatus,
         nodeHealth: {
-          expectedCount: expectedNodesList.length,
+          expectedCount: expectedNodesStatus.length,
           upCount: expectedUp,
           suspectCount: expectedSuspect,
           downCount: expectedDown,
