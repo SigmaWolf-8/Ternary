@@ -1255,6 +1255,9 @@ function startPqtiService(): ChildProcess | null {
     }
     try {
       const resp = await fetch(`http://127.0.0.1:8181/api/salvi/inter-cube/crs/node/${address}`);
+      if (resp.status >= 500) {
+        throw new Error(`CRS returned HTTP ${resp.status}`);
+      }
       if (resp.ok) {
         const data = await resp.json() as any;
         if (data.publicKey === publicKey || data.public_key === publicKey) {
@@ -1262,7 +1265,9 @@ function startPqtiService(): ChildProcess | null {
           return true;
         }
       }
-    } catch {}
+    } catch (err) {
+      throw err;
+    }
     return false;
   }
 
@@ -1299,6 +1304,9 @@ function startPqtiService(): ChildProcess | null {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address, pt26PublicKey: publicKeyHex }),
       });
+      if (resp.status >= 500) {
+        throw new Error(`CRS verify-challenge returned HTTP ${resp.status}`);
+      }
       if (resp.ok) {
         const data = await resp.json() as any;
         debugLine(`[ws-relay] Challenge verify CRS daemon result: ${JSON.stringify(data)}`);
@@ -1307,6 +1315,7 @@ function startPqtiService(): ChildProcess | null {
       debugLine(`[ws-relay] Challenge verify CRS daemon returned ${resp.status}`);
     } catch (e2: any) {
       debugLine(`[ws-relay] Challenge verify CRS daemon failed: ${e2.message}`);
+      throw e2;
     }
     return false;
   }
@@ -1492,12 +1501,17 @@ function startPqtiService(): ChildProcess | null {
           if (queue.length < 100) {
             queue.push({ from: nodeAddress, type: msg.msgType || "data", payload: msg.payload, ts: Date.now() });
             outcome = "queued";
+            ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: false, queued: true, ...makeErrorResponse("ERR_RELAY_TARGET_UNKNOWN") }));
           } else {
             outcome = "failed";
+            ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: false, queued: false, ...makeErrorResponse("ERR_RELAY_QUEUE_FULL") }));
+            recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { code: "ERR_RELAY_QUEUE_FULL", target: msg.to } });
           }
         }
         recordRelayMsg(outcome, wasDelivered ? envelopeBytes : 0);
-        ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: wasDelivered }));
+        if (wasDelivered) {
+          ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: true }));
+        }
         return;
       }
 
@@ -1527,6 +1541,11 @@ function startPqtiService(): ChildProcess | null {
 
         recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: reasonStr, code, eventType: "disconnect" });
         recordRelayAuditEvent({ eventType: "relay.disconnect", address: nodeAddress, timestamp: new Date().toISOString(), details: { code, reason: reasonStr } });
+
+        const abnormalCloseCodes = [1006, 1011, 1012, 1013, 1014];
+        if (abnormalCloseCodes.includes(code)) {
+          crsCircuitBreaker.recordFailure();
+        }
 
         const peerOfflineMsg = JSON.stringify({ type: "peer-offline", address: toDottedAddr(nodeAddress), ts: Date.now() });
         let notifiedCount = 0;
