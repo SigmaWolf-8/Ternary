@@ -765,9 +765,8 @@ function startPqtiService(): ChildProcess | null {
   }
 
   app.post("/api/salvi/inter-cube/relay/restart-nodes", (req, res) => {
-    const adminKey = req.headers["x-admin-key"];
-    if (!adminKey || adminKey !== process.env.SESSION_SECRET) {
-      return res.status(403).json({ error: "Forbidden" });
+    if (!(req as any).user) {
+      return res.status(401).json({ error: "Authentication required" });
     }
     res.json(broadcastRelayRestart());
   });

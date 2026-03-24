@@ -819,16 +819,14 @@ function ClusterReport() {
     refetchInterval: 5_000,
   });
   const { toast } = useToast();
-  const [adminKey, setAdminKey] = useState<string | null>(() => sessionStorage.getItem("relay-admin-key"));
   const restartMutation = useMutation({
-    mutationFn: async (key: string) => {
+    mutationFn: async () => {
       const res = await fetch("/api/salvi/inter-cube/relay/restart-nodes", {
         method: "POST",
-        headers: { "x-admin-key": key },
+        credentials: "include",
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "Request failed" }));
-        if (res.status === 403) { setAdminKey(null); sessionStorage.removeItem("relay-admin-key"); }
         throw new Error(body.error || `HTTP ${res.status}`);
       }
       return res.json() as Promise<{ restarted: number; message: string }>;
@@ -838,21 +836,12 @@ function ClusterReport() {
       setTimeout(() => refetch(), 3000);
     },
     onError: (err: Error) => {
-      toast({ title: "Restart Failed", description: err.message === "Forbidden" ? "Invalid admin key" : err.message, variant: "destructive" });
+      toast({ title: "Restart Failed", description: err.message, variant: "destructive" });
     },
   });
 
   const handleRestart = () => {
-    if (adminKey) {
-      restartMutation.mutate(adminKey);
-      return;
-    }
-    const key = prompt("Enter admin key to restart all connected relay nodes:");
-    if (key) {
-      setAdminKey(key);
-      sessionStorage.setItem("relay-admin-key", key);
-      restartMutation.mutate(key);
-    }
+    restartMutation.mutate();
   };
 
   if (isLoading) {
