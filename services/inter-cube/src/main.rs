@@ -138,6 +138,7 @@ fn spawn_peer_listener(
     local_address_dotted: String,
     peers: PeerConnections,
     peer_msg_tx: Option<tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>>,
+    peer_senders: Option<PeerSenders>,
 ) {
     let peers_accept = peers.clone();
     tokio::spawn(async move {
@@ -152,6 +153,7 @@ fn spawn_peer_listener(
                             let addr = local_address_dotted.clone();
                             let peers_conn = peers_accept.clone();
                             let msg_tx = peer_msg_tx.clone();
+                            let senders_for_conn = peer_senders.clone();
                             tokio::spawn(async move {
                                 println!("[PEER] Connection from {} (local address: {})", peer_addr, addr);
                                 let ws_stream = match tokio_tungstenite::accept_async(stream).await {
@@ -161,8 +163,10 @@ fn spawn_peer_listener(
                                         return;
                                     }
                                 };
-                                use futures_util::StreamExt;
-                                let (mut _write, mut read) = ws_stream.split();
+                                use futures_util::{SinkExt, StreamExt};
+                                let (write, mut read) = ws_stream.split();
+                                let write_shared = Arc::new(tokio::sync::Mutex::new(write));
+                                let mut inbound_peer_address: Option<String> = None;
                                 while let Some(msg) = read.next().await {
                                     match msg {
                                         Ok(m) if m.is_text() => {
@@ -184,7 +188,24 @@ fn spawn_peer_listener(
                                                                 last_seen: now,
                                                             });
                                                         }
-                                                        println!("[PEER] Registered LAN peer {} at {}:{}", remote_addr, peer_addr.ip(), remote_peer_port);
+                                                        if let Some(ref senders) = senders_for_conn {
+                                                            let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(64);
+                                                            {
+                                                                let mut sg = senders.lock().unwrap_or_else(|e| e.into_inner());
+                                                                sg.insert(remote_addr.clone(), tx);
+                                                            }
+                                                            let ws_write = write_shared.clone();
+                                                            tokio::spawn(async move {
+                                                                while let Some(data) = rx.recv().await {
+                                                                    let mut w = ws_write.lock().await;
+                                                                    if w.send(tokio_tungstenite::tungstenite::Message::Text(data)).await.is_err() {
+                                                                        break;
+                                                                    }
+                                                                }
+                                                            });
+                                                        }
+                                                        inbound_peer_address = Some(remote_addr.clone());
+                                                        println!("[PEER] Registered inbound LAN peer {} at {}:{} (sender ready)", remote_addr, peer_addr.ip(), remote_peer_port);
                                                     }
                                                 } else if let Some(ref tx) = msg_tx {
                                                     let msg_type = json["type"].as_str().unwrap_or("relay").to_string();
@@ -233,6 +254,18 @@ fn spawn_peer_listener(
                                         }
                                     }
                                 }
+                                if let Some(ref peer_addr_str) = inbound_peer_address {
+                                    if let Some(ref senders) = senders_for_conn {
+                                        let mut sg = senders.lock().unwrap_or_else(|e| e.into_inner());
+                                        sg.remove(peer_addr_str);
+                                    }
+                                    if let Ok(mut pg) = peers_conn.lock() {
+                                        if let Some(info) = pg.get_mut(peer_addr_str) {
+                                            info.connected = false;
+                                        }
+                                    }
+                                    println!("[PEER] Cleaned up inbound peer sender for {}", peer_addr_str);
+                                }
                             });
                         }
                         Err(e) => {
@@ -255,7 +288,13 @@ fn new_peer_senders() -> PeerSenders {
     Arc::new(Mutex::new(HashMap::new()))
 }
 
-fn spawn_peer_discovery(crs_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections, senders: PeerSenders) {
+fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections, senders: PeerSenders) {
+    let discovery_base = relay_url
+        .replace("wss://", "https://")
+        .replace("ws://", "http://")
+        .trim_end_matches('/')
+        .replace("/ws/relay", "")
+        .to_string();
     tokio::spawn(async move {
         let client = reqwest::Client::builder()
             .user_agent("PlenumNET-InterCube/0.4.0")
@@ -268,7 +307,7 @@ fn spawn_peer_discovery(crs_url: String, local_address: String, local_peer_port:
 
             let discover_url = format!(
                 "{}/api/salvi/inter-cube/relay/peer-discovery?address={}&peerPort={}",
-                crs_url, local_address, local_peer_port
+                discovery_base, local_address, local_peer_port
             );
 
             match client.get(&discover_url).send().await {
@@ -437,8 +476,10 @@ async fn send_via_peer_or_relay(
 
     if let Some(tx) = peer_tx {
         let msg = serde_json::json!({
-            "type": msg_type,
+            "type": "relay",
+            "msgType": msg_type,
             "from": from,
+            "to": target,
             "payload": payload,
         });
         if tx.send(msg.to_string()).await.is_ok() {
@@ -596,7 +637,7 @@ async fn run_crs_mode() {
     }
 
     let peers = new_peer_registry();
-    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), None);
+    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), None, None);
 
     println!();
     println!("=== HTTP Server (CRS) ===");
@@ -976,12 +1017,13 @@ async fn run_cube_mode() {
     let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
     let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
     let (peer_msg_tx, peer_msg_rx) = tokio::sync::mpsc::channel::<inter_cube::ws_relay::RelayEnvelope>(64);
+    let relay_target_for_discovery = relay_target.clone();
     spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx));
 
-    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx));
+    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));
 
     let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
-    spawn_peer_discovery(crs_url.clone(), addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone());
+    spawn_peer_discovery(relay_target_for_discovery, addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone());
 
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
