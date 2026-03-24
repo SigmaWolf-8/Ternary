@@ -1044,18 +1044,21 @@ function startPqtiService(): ChildProcess | null {
     const entry = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKeyHex);
     const tlDsaPk = entry?.[1]?.tlDsaPk;
     if (!tlDsaPk) {
-      log(`Challenge verification failed: no TL-DSA-87 public key for ${publicKeyHex.substring(0, 16)}...`, "crs");
+      console.log(`[ws-relay] Challenge verify: no TL-DSA-87 key for pt26=${publicKeyHex.substring(0, 16)}...`);
       return false;
     }
+    const challengePayload = `${nonce}||${address}||${publicKeyHex}`;
+    console.log(`[ws-relay] Challenge verify: pt26=${publicKeyHex.substring(0, 16)}... tlDsa=${tlDsaPk.substring(0, 16)}... addr=${address} sigLen=${signatureHex.length / 2} payloadLen=${challengePayload.length}`);
     try {
-      const challengePayload = `${nonce}||${address}||${publicKeyHex}`;
       const pkBuf = Buffer.from(tlDsaPk, "hex");
       const msgBuf = Buffer.from(challengePayload, "utf8");
       const sigBuf = Buffer.from(signatureHex, "hex");
+      console.log(`[ws-relay] Challenge verify: pkBuf=${pkBuf.length}B msgBuf=${msgBuf.length}B sigBuf=${sigBuf.length}B`);
       const valid = verifyNative(pkBuf, msgBuf, sigBuf, "TL-DSA-87");
+      console.log(`[ws-relay] Challenge verify native result: ${valid}`);
       return valid;
     } catch (e: any) {
-      log(`Challenge verification error (native): ${e.message} — falling back to CRS daemon`, "crs");
+      console.log(`[ws-relay] Challenge verify native THREW: ${e.message}`);
       try {
         const resp = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/verify-challenge", {
           method: "POST",
@@ -1064,9 +1067,13 @@ function startPqtiService(): ChildProcess | null {
         });
         if (resp.ok) {
           const data = await resp.json() as any;
+          console.log(`[ws-relay] Challenge verify CRS daemon result: ${JSON.stringify(data)}`);
           return data.valid === true;
         }
-      } catch {}
+        console.log(`[ws-relay] Challenge verify CRS daemon returned ${resp.status}`);
+      } catch (e2: any) {
+        console.log(`[ws-relay] Challenge verify CRS daemon failed: ${e2.message}`);
+      }
     }
     return false;
   }
