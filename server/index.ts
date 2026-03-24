@@ -1043,37 +1043,42 @@ function startPqtiService(): ChildProcess | null {
   async function verifyChallengeSignature(publicKeyHex: string, address: string, nonce: string, signatureHex: string): Promise<boolean> {
     const entry = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKeyHex);
     const tlDsaPk = entry?.[1]?.tlDsaPk;
+    const debugLine = (s: string) => { console.log(s); try { fs.appendFileSync("/tmp/relay-auth-debug.log", new Date().toISOString() + " " + s + "\n"); } catch {} };
     if (!tlDsaPk) {
-      console.log(`[ws-relay] Challenge verify: no TL-DSA-87 key for pt26=${publicKeyHex.substring(0, 16)}...`);
+      debugLine(`[ws-relay] Challenge verify: no TL-DSA-87 key for pt26=${publicKeyHex.substring(0, 16)}... registry has ${crsRegistry.size} entries`);
+      const allKeys = [...crsRegistry.entries()].map(([a, v]) => `${a}:${v.publicKey.substring(0, 16)}`).join(", ");
+      debugLine(`[ws-relay] Registry keys: ${allKeys}`);
       return false;
     }
     const challengePayload = `${nonce}||${address}||${publicKeyHex}`;
-    console.log(`[ws-relay] Challenge verify: pt26=${publicKeyHex.substring(0, 16)}... tlDsa=${tlDsaPk.substring(0, 16)}... addr=${address} sigLen=${signatureHex.length / 2} payloadLen=${challengePayload.length}`);
+    debugLine(`[ws-relay] Challenge verify: pt26=${publicKeyHex.substring(0, 16)}... tlDsa=${tlDsaPk.substring(0, 16)}... addr=${address} sigLen=${signatureHex.length / 2} payloadLen=${challengePayload.length}`);
+    let nativeResult: boolean | null = null;
     try {
       const pkBuf = Buffer.from(tlDsaPk, "hex");
       const msgBuf = Buffer.from(challengePayload, "utf8");
       const sigBuf = Buffer.from(signatureHex, "hex");
-      console.log(`[ws-relay] Challenge verify: pkBuf=${pkBuf.length}B msgBuf=${msgBuf.length}B sigBuf=${sigBuf.length}B`);
-      const valid = verifyNative(pkBuf, msgBuf, sigBuf, "TL-DSA-87");
-      console.log(`[ws-relay] Challenge verify native result: ${valid}`);
-      return valid;
+      debugLine(`[ws-relay] Challenge verify: pkBuf=${pkBuf.length}B msgBuf=${msgBuf.length}B sigBuf=${sigBuf.length}B`);
+      nativeResult = verifyNative(pkBuf, msgBuf, sigBuf, "TL-DSA-87");
+      debugLine(`[ws-relay] Challenge verify native result: ${nativeResult}`);
+      if (nativeResult) return true;
     } catch (e: any) {
-      console.log(`[ws-relay] Challenge verify native THREW: ${e.message}`);
-      try {
-        const resp = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/verify-challenge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address, pt26PublicKey: publicKeyHex }),
-        });
-        if (resp.ok) {
-          const data = await resp.json() as any;
-          console.log(`[ws-relay] Challenge verify CRS daemon result: ${JSON.stringify(data)}`);
-          return data.valid === true;
-        }
-        console.log(`[ws-relay] Challenge verify CRS daemon returned ${resp.status}`);
-      } catch (e2: any) {
-        console.log(`[ws-relay] Challenge verify CRS daemon failed: ${e2.message}`);
+      debugLine(`[ws-relay] Challenge verify native THREW: ${e.message}`);
+    }
+    debugLine(`[ws-relay] Native verify failed (${nativeResult}), trying CRS daemon fallback...`);
+    try {
+      const resp = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/verify-challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address, pt26PublicKey: publicKeyHex }),
+      });
+      if (resp.ok) {
+        const data = await resp.json() as any;
+        debugLine(`[ws-relay] Challenge verify CRS daemon result: ${JSON.stringify(data)}`);
+        return data.valid === true;
       }
+      debugLine(`[ws-relay] Challenge verify CRS daemon returned ${resp.status}`);
+    } catch (e2: any) {
+      debugLine(`[ws-relay] Challenge verify CRS daemon failed: ${e2.message}`);
     }
     return false;
   }
