@@ -675,6 +675,31 @@ interface DaemonHealth {
   lastSeen: string | null;
   lastSeenAgeMs: number | null;
   status: "live" | "registered" | "deployed";
+  healthState: "up" | "suspect" | "down";
+  isExpected: boolean;
+}
+
+interface ExpectedNodeStatus {
+  address: string;
+  healthState: "up" | "suspect" | "down";
+  lastSeen: string | null;
+  offlineDurationMs: number | null;
+  connectedViaRelay: boolean;
+}
+
+interface NodeHealthSummary {
+  expectedCount: number;
+  upCount: number;
+  suspectCount: number;
+  downCount: number;
+  longestOfflineMs: number;
+}
+
+interface CircuitBreakerState {
+  name: string;
+  state: "closed" | "open" | "half-open";
+  failureCount: number;
+  lastStateChange: number;
 }
 
 interface RelayThroughput {
@@ -706,6 +731,9 @@ interface ClusterHealthData {
   deployed: number;
   clusterHealthy: boolean;
   daemons: DaemonHealth[];
+  expectedNodes?: ExpectedNodeStatus[];
+  nodeHealth?: NodeHealthSummary;
+  circuitBreaker?: CircuitBreakerState;
   relay?: RelayThroughput;
   checkedAt: string;
 }
@@ -750,6 +778,29 @@ function statusBg(s: "live" | "registered" | "deployed") {
   if (s === "live") return "bg-blue-500/10 border-blue-500/20";
   if (s === "registered") return "bg-gray-500/10 border-gray-500/20";
   return "bg-black/5 border-black/20 dark:bg-white/5 dark:border-white/20";
+}
+
+function healthDot(state: "up" | "suspect" | "down") {
+  if (state === "up") return "bg-emerald-500";
+  if (state === "suspect") return "bg-yellow-500";
+  return "bg-red-500";
+}
+
+function healthLabel(state: "up" | "suspect" | "down") {
+  if (state === "up") return "text-emerald-600 dark:text-emerald-400";
+  if (state === "suspect") return "text-yellow-600 dark:text-yellow-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function formatDuration(ms: number): string {
+  if (ms <= 0) return "0s";
+  const secs = Math.floor(ms / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ${secs % 60}s`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+  return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
 }
 
 function ClusterReport() {
@@ -818,8 +869,39 @@ function ClusterReport() {
     );
   }
 
+  const hasDownExpected = data.nodeHealth && data.nodeHealth.downCount > 0;
+  const hasSuspectExpected = data.nodeHealth && data.nodeHealth.suspectCount > 0 && !hasDownExpected;
+  const alertLevel = hasDownExpected ? "red" : hasSuspectExpected ? "yellow" : null;
+
   return (
     <Card className="p-5 mt-6" data-testid="card-cluster-report">
+      {alertLevel && (
+        <div
+          className={`rounded-md border p-3 mb-4 text-xs ${
+            alertLevel === "red"
+              ? "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400"
+              : "bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400"
+          }`}
+          data-testid="alert-node-health"
+        >
+          <div className="flex items-center gap-2 font-medium mb-1">
+            <Shield className="w-3.5 h-3.5" />
+            {alertLevel === "red" ? "Expected Node(s) Down" : "Expected Node(s) Suspect"}
+          </div>
+          <div className="space-y-0.5">
+            {data.expectedNodes?.filter(n => n.healthState !== "up").map(n => (
+              <div key={n.address} className="flex items-center gap-2">
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${healthDot(n.healthState)}`} />
+                <span className="font-mono text-[10px]">{n.address}</span>
+                <span className="text-[10px] opacity-75">
+                  {n.healthState} — {n.offlineDurationMs ? formatDuration(n.offlineDurationMs) : "unknown"} offline
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 mb-4">
         <Server className="w-4 h-4 text-muted-foreground" />
         <p className="text-sm font-medium">Cluster Report</p>
@@ -842,8 +924,39 @@ function ClusterReport() {
             <RotateCcw className={`w-3 h-3 mr-1 ${restartMutation.isPending ? "animate-spin" : ""}`} />
             {restartMutation.isPending ? "Restarting…" : "Restart Nodes"}
           </Button>
+          <a href="/api/deploy-yoda.bat" download data-testid="button-download-installer-cluster">
+            <Button variant="outline" size="sm" className="h-6 px-2 text-[10px]">
+              <Download className="w-3 h-3 mr-1" />
+              Installer
+            </Button>
+          </a>
         </div>
       </div>
+
+      {data.nodeHealth && data.nodeHealth.expectedCount > 0 && (
+        <div className="grid grid-cols-5 gap-2 mb-4 text-center text-xs" data-testid="node-health-summary">
+          <div className="rounded-md border p-2 bg-muted/30">
+            <span className="block text-lg font-bold text-foreground" data-testid="text-expected-count">{data.nodeHealth.expectedCount}</span>
+            <span className="text-muted-foreground">Expected</span>
+          </div>
+          <div className="rounded-md border p-2 bg-emerald-500/10 border-emerald-500/20">
+            <span className="block text-lg font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-nodes-up">{data.nodeHealth.upCount}</span>
+            <span className="text-muted-foreground">Up</span>
+          </div>
+          <div className={`rounded-md border p-2 ${data.nodeHealth.suspectCount > 0 ? "bg-yellow-500/10 border-yellow-500/20" : "bg-muted/30"}`}>
+            <span className={`block text-lg font-bold ${data.nodeHealth.suspectCount > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-foreground"}`} data-testid="text-nodes-suspect">{data.nodeHealth.suspectCount}</span>
+            <span className="text-muted-foreground">Suspect</span>
+          </div>
+          <div className={`rounded-md border p-2 ${data.nodeHealth.downCount > 0 ? "bg-red-500/10 border-red-500/20" : "bg-muted/30"}`}>
+            <span className={`block text-lg font-bold ${data.nodeHealth.downCount > 0 ? "text-red-600 dark:text-red-400" : "text-foreground"}`} data-testid="text-nodes-down">{data.nodeHealth.downCount}</span>
+            <span className="text-muted-foreground">Down</span>
+          </div>
+          <div className="rounded-md border p-2 bg-muted/30">
+            <span className="block text-lg font-bold text-foreground" data-testid="text-longest-offline">{data.nodeHealth.longestOfflineMs > 0 ? formatDuration(data.nodeHealth.longestOfflineMs) : "—"}</span>
+            <span className="text-muted-foreground">Longest Off</span>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2 mb-4 text-center text-xs">
         <div className={`rounded-md border p-2 ${statusBg("live")}`}>
@@ -941,13 +1054,18 @@ function ClusterReport() {
         {data.daemons.map((d, i) => (
           <div key={`${d.address}-${i}`} className={`rounded-md border p-3 text-xs ${statusBg(d.status)}`} data-testid={`daemon-row-${i}`}>
             <div className="flex items-center justify-between mb-1">
-              <span className="font-medium text-foreground">{d.hostname} — Node #{i + 1}</span>
+              <div className="flex items-center gap-2">
+                <span className={`inline-block w-2 h-2 rounded-full ${healthDot(d.healthState)}`} title={`Health: ${d.healthState}`} data-testid={`daemon-health-dot-${i}`} />
+                <span className="font-medium text-foreground">{d.hostname} — Node #{i + 1}</span>
+                {d.isExpected && <Badge variant="outline" className="text-[8px] px-1 py-0">expected</Badge>}
+              </div>
               <div className="flex items-center gap-2">
                 <span className={`text-[10px] ${d.lastSeenAgeMs !== null ? (d.lastSeenAgeMs < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-black dark:text-white"}`} data-testid={`daemon-heartbeat-${i}`}>
                   {formatTimeAgo(d.lastSeen)}
                 </span>
                 <span className={`inline-block w-2 h-2 rounded-full ${d.connectedViaRelay ? "bg-blue-500" : "bg-black dark:bg-white"}`} title={d.connectedViaRelay ? "WebSocket connected" : "WebSocket disconnected"} data-testid={`daemon-ws-indicator-${i}`} />
                 <Badge variant="outline" className={`text-[9px] uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${i}`}>{d.status}</Badge>
+                <Badge variant="outline" className={`text-[9px] uppercase ${healthLabel(d.healthState)}`} data-testid={`daemon-health-badge-${i}`}>{d.healthState}</Badge>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-muted-foreground">
@@ -961,6 +1079,22 @@ function ClusterReport() {
           </div>
         ))}
       </div>
+
+      {data.nodeHealth && data.nodeHealth.downCount > 0 && (
+        <div className="mt-3 rounded-md border border-red-500/20 bg-red-500/5 p-3 text-xs" data-testid="recovery-panel">
+          <p className="font-medium text-red-700 dark:text-red-400 mb-2">Node Recovery</p>
+          <p className="text-muted-foreground mb-2">Nodes are down. Reinstall daemons as Windows Services:</p>
+          <code className="block bg-muted/50 rounded p-2 text-[10px] font-mono mb-2 select-all" data-testid="text-install-command">
+            irm https://plenumnet.replit.app/api/deploy-yoda | iex
+          </code>
+          <a href="/api/deploy-yoda.bat" download>
+            <Button variant="outline" size="sm" className="h-6 px-2 text-[10px] border-red-500/30 text-red-700 dark:text-red-400" data-testid="button-download-recovery-installer">
+              <Download className="w-3 h-3 mr-1" />
+              Download Self-Elevating Installer (.bat)
+            </Button>
+          </a>
+        </div>
+      )}
 
       <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
         <span>CRS: <strong className="text-foreground font-mono">{data.crsAddress}</strong></span>

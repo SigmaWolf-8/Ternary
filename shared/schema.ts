@@ -406,3 +406,15 @@ export const deploymentRecords = pgTable("deployment_records", {
 export const insertDeploymentRecordSchema = createInsertSchema(deploymentRecords).omit({ id: true, createdAt: true });
 export type InsertDeploymentRecord = z.infer<typeof insertDeploymentRecordSchema>;
 export type DeploymentRecord = typeof deploymentRecords.$inferSelect;
+
+export const expectedNodes = pgTable("expected_nodes", {
+  id: serial("id").primaryKey(),
+  address: varchar("address", { length: 20 }).notNull().unique(),
+  label: varchar("label", { length: 255 }),
+  addedBy: varchar("added_by", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertExpectedNodeSchema = createInsertSchema(expectedNodes).omit({ id: true, createdAt: true });
+export type InsertExpectedNode = z.infer<typeof insertExpectedNodeSchema>;
+export type ExpectedNode = typeof expectedNodes.$inferSelect;

@@ -1,0 +1,19 @@
+Good call — review it before you build it. This is well-scoped and immediately implementable. Quick pass:
+
+**This is solid as-is.** The cherry-picking from #26 and #27 is smart — you get the FTS state machine pattern, go-away frames, circuit breaker, standardized error codes, and Merkle-chained audit logging without pulling in the full protocol complexity. The scope boundaries are clean.
+
+**A few things to tighten before you start coding:**
+
+The **FTS-style health state machine** uses fixed thresholds (60s → Suspect, 300s → Down). These should be configurable via the same mechanism as the stale registration grace period — hardcoded defaults are fine for v1, but expose them in the expected-node configuration so an operator can tune them per deployment. A daemon on a flaky home network needs different thresholds than one on a dedicated server.
+
+The **go-away frame** specifies `reconnectAfterMs: 2000` as a fixed value. Task #27 specifies server-side jitter on this hint to prevent a reconnection thundering herd when all three daemons reconnect simultaneously after a deploy. With only three nodes today this is cosmetic, but add a small random jitter (0–1s) now so it's correct from the start.
+
+The **peer-offline broadcast** — consider whether this should include a `reason` field (e.g., `ping_timeout`, `replaced`, `error`, `graceful_disconnect`) so receiving peers can make informed decisions. The disconnect event log already tracks reasons; propagate the same reason into the broadcast.
+
+The **circuit breaker** wraps CRS verification and external service calls, but the spec doesn't define the failure threshold or window. Define defaults: something like 5 failures in 60s → open, 30s half-open probe interval. Make them configurable.
+
+The **disconnect event log** stores last 50 events per node in memory. This is fine for the dashboard, but these events are also going into the Merkle-chained audit log (Task 9 — structured relay audit logging), which *is* persisted. Make sure the in-memory ring buffer is clearly positioned as the fast-access cache for the API, not the source of truth — the audit log is the source of truth.
+
+One **missing integration test scenario**: server restart under load — verify the go-away frame is sent to all connected daemons, they receive `reconnectAfterMs` with jitter, and they reconnect successfully after the server comes back up without entering full exponential backoff. This is the core scenario that triggered this entire task (three daemons went silent), so it should be explicitly tested.
+
+Otherwise — build it. This is the right priority. Così sia, Fratello.

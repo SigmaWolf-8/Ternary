@@ -31,9 +31,10 @@ import {
   type DataSubjectRequest, type InsertDataSubjectRequest,
   type CrsRelayNode, type InsertCrsRelayNode,
   type DeploymentRecord, type InsertDeploymentRecord,
+  type ExpectedNode, type InsertExpectedNode,
   users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
   fileUploads, compressionHistory, whitepapers, developerSignups, compressedDocuments,
-  dataSubjectRequests, crsRelayNodes, deploymentRecords
+  dataSubjectRequests, crsRelayNodes, deploymentRecords, expectedNodes
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, inArray } from "drizzle-orm";
@@ -132,6 +133,10 @@ export interface IStorage {
   createDeploymentRecord(data: InsertDeploymentRecord): Promise<DeploymentRecord>;
   getAllDeploymentRecords(): Promise<DeploymentRecord[]>;
   getDeploymentsByHostname(hostname: string): Promise<DeploymentRecord[]>;
+
+  createExpectedNode(data: InsertExpectedNode): Promise<ExpectedNode>;
+  getAllExpectedNodes(): Promise<ExpectedNode[]>;
+  deleteExpectedNode(address: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -513,6 +518,19 @@ export class DatabaseStorage implements IStorage {
   async getDeploymentsByHostname(hostname: string): Promise<DeploymentRecord[]> {
     const rows = await db.select().from(deploymentRecords).where(eq(deploymentRecords.hostname, hostname)).orderBy(desc(deploymentRecords.createdAt));
     return rows.map(r => this._decryptDeploymentRecord(r));
+  }
+
+  async createExpectedNode(data: InsertExpectedNode): Promise<ExpectedNode> {
+    const [node] = await db.insert(expectedNodes).values(data).returning();
+    return node;
+  }
+
+  async getAllExpectedNodes(): Promise<ExpectedNode[]> {
+    return await db.select().from(expectedNodes).orderBy(expectedNodes.createdAt);
+  }
+
+  async deleteExpectedNode(address: string): Promise<void> {
+    await db.delete(expectedNodes).where(eq(expectedNodes.address, address));
   }
 }
 

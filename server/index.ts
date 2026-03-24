@@ -47,6 +47,14 @@ import { createTsaRoutes } from "./routes/tsa";
 import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
 import { keygen, signHex, verifyHex, verifyNative, publicKeyHash, type TlDsaKeyPair } from "./crypto/tl-dsa-bridge";
 import * as fs from "fs";
+import {
+  computeHealthState, type NodeHealthState,
+  recordDisconnectEvent, getDisconnectHistory, type DisconnectEvent,
+  RELAY_ERROR_CODES, makeErrorResponse, type RelayErrorCode,
+  CircuitBreaker,
+  recordRelayAuditEvent, type RelayAuditEventType,
+  getExpectedNodesCache, addExpectedNode, removeExpectedNode, isExpectedNode, syncExpectedNodesCache,
+} from "./services/node-watchdog";
 import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
 import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
 import { HederaWitnessingService, createHederaConfig } from "./services/hedera-witnessing-service";
@@ -702,7 +710,7 @@ function startPqtiService(): ChildProcess | null {
     for (const [addr, entry] of crsRegistry.entries()) {
       if (now - entry.lastSeen > maxAgeMs) {
         const isConnectedViaWs = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
-        if (!isConnectedViaWs) {
+        if (!isConnectedViaWs && !isExpectedNode(addr)) {
           crsRegistry.delete(addr);
           for (const [pk, mappedAddr] of publicKeyAddressMap.entries()) {
             if (mappedAddr === addr) publicKeyAddressMap.delete(pk);
@@ -732,7 +740,7 @@ function startPqtiService(): ChildProcess | null {
   app.post("/api/salvi/inter-cube/relay/purge-stale", purgeStaleHandler);
 
   const STALE_CLEANUP_INTERVAL = 60_000;
-  const STALE_MAX_AGE = 300_000;
+  const STALE_MAX_AGE = 600_000;
   setInterval(() => {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
@@ -766,6 +774,72 @@ function startPqtiService(): ChildProcess | null {
 
   const CRS_ADDRESS = "111.111.111.111.1";
   const CRS_VERSION = "0.3.0";
+
+  const crsCircuitBreaker = new CircuitBreaker("crs-verification", 5, 30_000, (name, state) => {
+    const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
+    if (state === "open" && relayClientsRef) {
+      const msg = JSON.stringify({ type: "circuit_open", breaker: name, ts: Date.now() });
+      for (const [, ws] of relayClientsRef.entries()) {
+        if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+      }
+    }
+    recordRelayAuditEvent({
+      eventType: "relay.circuit_breaker",
+      address: "server",
+      timestamp: new Date().toISOString(),
+      details: { breaker: name, state },
+    });
+  });
+  (globalThis as any).__crsCircuitBreaker = crsCircuitBreaker;
+
+  storage.getAllExpectedNodes().then(nodes => {
+    syncExpectedNodesCache(nodes.map(n => n.address));
+    if (nodes.length > 0) {
+      console.log(`[watchdog] Loaded ${nodes.length} expected node(s): ${nodes.map(n => n.address).join(", ")}`);
+    }
+  }).catch(() => {});
+
+  app.get("/api/salvi/inter-cube/relay/expected-nodes", async (req, res) => {
+    const adminKey = req.headers["x-admin-key"];
+    if (!adminKey || adminKey !== process.env.SESSION_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const nodes = await storage.getAllExpectedNodes();
+    res.json({ expectedNodes: nodes });
+  });
+
+  app.post("/api/salvi/inter-cube/relay/expected-nodes", async (req, res) => {
+    const adminKey = req.headers["x-admin-key"];
+    if (!adminKey || adminKey !== process.env.SESSION_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const { address, label } = req.body;
+    if (!address) return res.status(400).json({ error: "address required" });
+    const normalAddr = normalizeTernaryAddr(address);
+    try {
+      const node = await storage.createExpectedNode({ address: normalAddr, label: label || null, addedBy: "admin" });
+      addExpectedNode(normalAddr);
+      res.json({ status: "ok", node });
+    } catch (err: any) {
+      if (err.message?.includes("unique")) {
+        return res.status(409).json({ error: "Node already in expected list" });
+      }
+      res.status(500).json({ error: "Failed to add expected node" });
+    }
+  });
+
+  app.delete("/api/salvi/inter-cube/relay/expected-nodes", async (req, res) => {
+    const adminKey = req.headers["x-admin-key"];
+    if (!adminKey || adminKey !== process.env.SESSION_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const { address } = req.body;
+    if (!address) return res.status(400).json({ error: "address required" });
+    const normalAddr = normalizeTernaryAddr(address);
+    await storage.deleteExpectedNode(normalAddr);
+    removeExpectedNode(normalAddr);
+    res.json({ status: "ok", removed: normalAddr });
+  });
 
   app.post("/api/salvi/inter-cube/relay/deployment", async (req, res) => {
     try {
@@ -827,15 +901,20 @@ function startPqtiService(): ChildProcess | null {
         lastSeen: string | null;
         lastSeenAgeMs: number | null;
         status: "live" | "registered" | "deployed";
+        healthState: NodeHealthState;
+        disconnectHistory: DisconnectEvent[];
+        isExpected: boolean;
       }> = [];
 
       const CRS_ORIGIN = normalizeTernaryAddr("1111111111111");
+      const seenAddresses = new Set<string>();
 
       for (const record of records) {
         const daemons = (record.daemons as any[]) || [];
         for (const d of daemons) {
           const addr = d.address || "";
           const normalAddr = normalizeTernaryAddr(addr);
+          seenAddresses.add(normalAddr);
           const crsEntry = crsRegistry.get(normalAddr);
           const isRelayConnected = relayClientsRef?.has(normalAddr) && relayClientsRef.get(normalAddr)!.readyState === 1;
           const isRegistered = !!crsEntry;
@@ -849,6 +928,7 @@ function startPqtiService(): ChildProcess | null {
           }
 
           const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
+          const healthState = isRelayConnected ? "up" as NodeHealthState : computeHealthState(lastSeenTs, now);
           daemonChecks.push({
             address: toDottedAddr(normalAddr),
             endpoint: d.endpoint || "",
@@ -861,9 +941,36 @@ function startPqtiService(): ChildProcess | null {
             lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
             lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
             status,
+            healthState,
+            disconnectHistory: getDisconnectHistory(normalAddr).slice(-10),
+            isExpected: isExpectedNode(normalAddr),
           });
         }
       }
+
+      const expectedNodesList = Array.from(getExpectedNodesCache());
+      const expectedNodesStatus = expectedNodesList.map(addr => {
+        const normalAddr = normalizeTernaryAddr(addr);
+        const crsEntry = crsRegistry.get(normalAddr);
+        const isRelayConnected = relayClientsRef?.has(normalAddr) && relayClientsRef.get(normalAddr)!.readyState === 1;
+        const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
+        const healthState = isRelayConnected ? "up" as NodeHealthState : computeHealthState(lastSeenTs, now);
+        return {
+          address: toDottedAddr(normalAddr),
+          healthState,
+          lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
+          offlineDurationMs: lastSeenTs ? now - lastSeenTs : null,
+          connectedViaRelay: !!isRelayConnected,
+          disconnectHistory: getDisconnectHistory(normalAddr).slice(-5),
+        };
+      });
+
+      const expectedUp = expectedNodesStatus.filter(n => n.healthState === "up").length;
+      const expectedSuspect = expectedNodesStatus.filter(n => n.healthState === "suspect").length;
+      const expectedDown = expectedNodesStatus.filter(n => n.healthState === "down").length;
+      const longestOffline = expectedNodesStatus
+        .filter(n => n.offlineDurationMs !== null && n.healthState !== "up")
+        .reduce((max, n) => Math.max(max, n.offlineDurationMs || 0), 0);
 
       const live = daemonChecks.filter(d => d.status === "live").length;
       const registered = daemonChecks.filter(d => d.status === "registered").length;
@@ -902,6 +1009,15 @@ function startPqtiService(): ChildProcess | null {
         deployed,
         clusterHealthy: live > 0 || registered > 0,
         daemons: daemonChecks,
+        expectedNodes: expectedNodesStatus,
+        nodeHealth: {
+          expectedCount: expectedNodesList.length,
+          upCount: expectedUp,
+          suspectCount: expectedSuspect,
+          downCount: expectedDown,
+          longestOfflineMs: longestOffline,
+        },
+        circuitBreaker: crsCircuitBreaker.getStats(),
         relay: {
           connectedPeers: relayClientsForCount?.size || 0,
           peakPeers: throughputRef?.peakPeers || 0,
@@ -1026,6 +1142,16 @@ function startPqtiService(): ChildProcess | null {
     const bat = [
       "@echo off",
       "title YODA 3-Daemon Deployer",
+      "",
+      ":: Self-elevate to Administrator if not already elevated",
+      'net session >nul 2>&1',
+      'if %errorLevel% neq 0 (',
+      '    echo Requesting Administrator privileges...',
+      '    powershell.exe -NoProfile -Command "Start-Process -FilePath \'%~f0\' -Verb RunAs"',
+      '    exit /b 0',
+      ')',
+      "",
+      "echo Running as Administrator...",
       'set "PS_FILE=%TEMP%\\deploy-yoda-%RANDOM%.ps1"',
       'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri \'https://plenumnet.replit.app/api/deploy-yoda\' -OutFile \'%PS_FILE%\' -UseBasicParsing"',
       'if not exist "%PS_FILE%" ( echo ERROR: Failed to download deployer. & pause & exit /b 1 )',
@@ -1246,26 +1372,43 @@ function startPqtiService(): ChildProcess | null {
       try {
         msg = JSON.parse(data.toString());
       } catch {
-        ws.send(JSON.stringify({ error: "invalid JSON" }));
+        ws.send(JSON.stringify(makeErrorResponse("ERR_FRAME_MALFORMED")));
         return;
       }
 
       if (!authenticated) {
         if (msg.type === "auth" && msg.address && msg.publicKey) {
           const normalAddr = normalizeTernaryAddr(msg.address);
-          const verified = await verifyNodeRegistration(normalAddr, msg.publicKey);
+          let verified = false;
+          try {
+            verified = await crsCircuitBreaker.execute(() => verifyNodeRegistration(normalAddr, msg.publicKey));
+          } catch (cbErr: any) {
+            ws.send(JSON.stringify(makeErrorResponse("ERR_CIRCUIT_OPEN", "auth")));
+            recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "circuit_breaker_open", error: cbErr.message } });
+            return;
+          }
           if (!verified) {
-            ws.send(JSON.stringify({ type: "auth_fail", error: "address not registered or publicKey mismatch — register with CRS first" }));
-            ws.close(1008, "auth failed");
+            ws.send(JSON.stringify({ type: "auth_fail", ...makeErrorResponse("ERR_AUTH_FAILED", "auth") }));
+            ws.close(RELAY_ERROR_CODES.ERR_AUTH_FAILED.wsClose, "auth failed");
+            recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "not_registered" } });
+            recordDisconnectEvent(normalAddr, { timestamp: new Date().toISOString(), reason: "auth_failed", code: 1008, eventType: "auth_fail" });
             return;
           }
 
           if (msg.nonce === challengeNonce && msg.signature) {
-            const sigValid = await verifyChallengeSignature(msg.publicKey, normalAddr, challengeNonce, msg.signature);
+            let sigValid = false;
+            try {
+              sigValid = await crsCircuitBreaker.execute(() => verifyChallengeSignature(msg.publicKey, normalAddr, challengeNonce, msg.signature));
+            } catch {
+              ws.send(JSON.stringify(makeErrorResponse("ERR_CIRCUIT_OPEN", "auth")));
+              return;
+            }
             if (!sigValid) {
               log(`Challenge signature INVALID for ${toDottedAddr(normalAddr)} — possible impersonation`, "crs");
-              ws.send(JSON.stringify({ type: "auth_fail", error: "challenge signature verification failed — private key proof required" }));
-              ws.close(1008, "signature invalid");
+              ws.send(JSON.stringify({ type: "auth_fail", ...makeErrorResponse("ERR_SIGNATURE_INVALID", "auth") }));
+              ws.close(RELAY_ERROR_CODES.ERR_SIGNATURE_INVALID.wsClose, "signature invalid");
+              recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "signature_invalid" } });
+              recordDisconnectEvent(normalAddr, { timestamp: new Date().toISOString(), reason: "signature_invalid", code: 1008, eventType: "auth_fail" });
               return;
             }
             log(`Challenge signature VERIFIED (TL-DSA-87) for ${toDottedAddr(normalAddr)}`, "crs");
@@ -1273,8 +1416,9 @@ function startPqtiService(): ChildProcess | null {
             const entryCheck = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === msg.publicKey && v.tlDsaPk);
             if (entryCheck?.[1]?.tlDsaPk) {
               log(`Node ${toDottedAddr(normalAddr)} has TL-DSA-87 key registered but sent no signature — rejecting`, "crs");
-              ws.send(JSON.stringify({ type: "auth_fail", error: "challenge signature required — upgrade client to v0.3.0+" }));
-              ws.close(1008, "signature required");
+              ws.send(JSON.stringify({ type: "auth_fail", ...makeErrorResponse("ERR_SIGNATURE_REQUIRED", "auth") }));
+              ws.close(RELAY_ERROR_CODES.ERR_SIGNATURE_REQUIRED.wsClose, "signature required");
+              recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "signature_required" } });
               return;
             }
             log(`Node ${toDottedAddr(normalAddr)} connected without signature (no TL-DSA key registered — legacy client)`, "crs");
@@ -1290,6 +1434,8 @@ function startPqtiService(): ChildProcess | null {
           relayAddressByWs.set(ws, nodeAddress);
           if (relayClients.size > relayThroughput.peakPeers) relayThroughput.peakPeers = relayClients.size;
           console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} authenticated and connected`);
+          recordRelayAuditEvent({ eventType: "relay.auth_success", address: nodeAddress, timestamp: new Date().toISOString(), details: { hasTlDsa: !!msg.signature } });
+          recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: "connected", code: 0, eventType: "reconnect" });
 
           const pending = pendingMessages.get(nodeAddress);
           if (pending && pending.length > 0) {
@@ -1312,7 +1458,7 @@ function startPqtiService(): ChildProcess | null {
           ws.send(JSON.stringify({ type: "auth_ok", address: nodeAddress, connectedPeers: Array.from(relayClients.keys()).filter(a => a !== nodeAddress) }));
           return;
         }
-        ws.send(JSON.stringify({ error: "must authenticate first: {type:'auth', address:'...', publicKey:'...'}" }));
+        ws.send(JSON.stringify(makeErrorResponse("ERR_NOT_AUTHENTICATED", msg.type)));
         return;
       }
 
@@ -1360,28 +1506,66 @@ function startPqtiService(): ChildProcess | null {
         return;
       }
 
-      ws.send(JSON.stringify({ error: "unknown message type", validTypes: ["relay", "ping", "peers"] }));
+      ws.send(JSON.stringify(makeErrorResponse("ERR_UNKNOWN_MSG_TYPE", msg.type)));
     });
 
     ws.on("close", (code: number, reason: Buffer) => {
       if (nodeAddress) {
         relayClients.delete(nodeAddress);
         relayAddressByWs.delete(ws);
+        const reasonStr = reason.toString() || "none";
         const remaining = Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ");
-        console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} DISCONNECTED (code=${code}, reason=${reason.toString() || "none"}) — ${relayClients.size} peer(s) remain${remaining ? `: [${remaining}]` : ""}`);
+        console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} DISCONNECTED (code=${code}, reason=${reasonStr}) — ${relayClients.size} peer(s) remain${remaining ? `: [${remaining}]` : ""}`);
+
+        recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: reasonStr, code, eventType: "disconnect" });
+        recordRelayAuditEvent({ eventType: "relay.disconnect", address: nodeAddress, timestamp: new Date().toISOString(), details: { code, reason: reasonStr } });
+
+        const peerOfflineMsg = JSON.stringify({ type: "peer-offline", address: toDottedAddr(nodeAddress), ts: Date.now() });
+        for (const [, peerWs] of relayClients.entries()) {
+          if (peerWs.readyState === WebSocket.OPEN) {
+            peerWs.send(peerOfflineMsg);
+          }
+        }
       }
     });
 
     ws.on("error", (err: Error) => {
       console.log(`[ws-relay] ERROR for ${nodeAddress ? toDottedAddr(nodeAddress) : "unauthenticated"}: ${err.message}`);
+      if (nodeAddress) {
+        recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: err.message, code: 1006, eventType: "error" });
+        recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { error: err.message } });
+      }
     });
 
     setTimeout(() => {
       if (!authenticated && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ error: "auth timeout" }));
-        ws.close(1008, "auth timeout");
+        ws.send(JSON.stringify(makeErrorResponse("ERR_AUTH_TIMEOUT", "auth")));
+        ws.close(RELAY_ERROR_CODES.ERR_AUTH_TIMEOUT.wsClose, "auth timeout");
       }
     }, 10000);
+  });
+
+  function broadcastGoAway(reason: string): void {
+    const goAwayMsg = JSON.stringify({ type: "go-away", reason, reconnectAfterMs: 2000, ts: Date.now() });
+    for (const [addr, clientWs] of relayClients.entries()) {
+      if (clientWs.readyState === WebSocket.OPEN) {
+        try {
+          clientWs.send(goAwayMsg);
+          clientWs.close(1001, reason);
+        } catch {}
+        console.log(`[ws-relay] go-away sent to ${toDottedAddr(addr)} (${reason})`);
+      }
+    }
+    recordRelayAuditEvent({ eventType: "relay.go_away", address: "server", timestamp: new Date().toISOString(), details: { reason, peerCount: relayClients.size } });
+  }
+
+  process.on("SIGTERM", () => {
+    console.log("[ws-relay] SIGTERM received — sending go-away frames");
+    broadcastGoAway("server_shutdown");
+  });
+  process.on("SIGINT", () => {
+    console.log("[ws-relay] SIGINT received — sending go-away frames");
+    broadcastGoAway("server_shutdown");
   });
 
   console.log(`[ws-relay] WebSocket relay active at /ws/relay`);
