@@ -1,0 +1,241 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git stash
+warning: in the working copy of 'Cargo.lock', LF will be replaced by CRLF the next time Git touches it
+Saved working directory and index state WIP on master: b81c1d24 YODA deployer v0.4.0: Daemon #1 = local CRS, version checking, skill doc update
+PS C:\PlenumNET> git pull origin main
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+Updating b81c1d24..e6220de9
+Fast-forward
+ .agents/skills/plenumnet-repo-guide/SKILL.md       |  12 +
+ Cargo.lock                                         |   2 +-
+ PLENUMNET_INVARIANTS_FOR_YODA.md                   | 143 +++++---
+ YODA-HANDOFF.md                                    |  86 +++--
+ ...eployer-PlenumN-1774331067936_1774331067937.txt |  84 +++++
+ ...oyer-PlenumNET--1774322364920_1774322364922.txt |  82 +++++
+ ...oyer-PlenumNET--1774327989531_1774327989531.txt |  85 +++++
+ ...what-s-documented-in-the-YODA_1774324415291.txt |  78 ++++
+ client/public/install/Install-PlenumNET.bat        |   1 +
+ client/public/install/deploy-daemon-test.bat       |   3 +
+ client/public/install/install-windows.ps1          | 205 ++++++++++-
+ client/public/install/install.sh                   | 154 +++++++-
+ client/public/install/plenumnet-service.ps1        | 312 ++++++++++++++++
+ client/public/install/plenumnet-service.sh         | 399 +++++++++++++++++++++
+ .../services/com.plenumnet.cube.plist.template     |  52 +++
+ .../install/services/plenumnet-cube@.service       |  22 ++
+ client/src/pages/distribution.tsx                  | 156 ++++++--
+ replit.md                                          |   2 +-
+ server/index.ts                                    | 192 ++++++++--
+ services/inter-cube/deploy-daemon.ps1              | 131 +++++++
+ services/inter-cube/deploy-yoda.ps1                | 137 ++++---
+ services/inter-cube/src/api.rs                     |  78 +++-
+ services/inter-cube/src/main.rs                    | 120 +++++--
+ services/inter-cube/src/ws_relay.rs                |  69 +++-
+ start-crs.sh                                       |  34 +-
+ 25 files changed, 2381 insertions(+), 258 deletions(-)
+ create mode 100644 attached_assets/Pasted--PlenumNET-Array3-Deployer-PlenumN-1774331067936_1774331067937.txt
+ create mode 100644 attached_assets/Pasted--YODA-3-Daemon-Deployer-PlenumNET--1774322364920_1774322364922.txt
+ create mode 100644 attached_assets/Pasted--YODA-3-Daemon-Deployer-PlenumNET--1774327989531_1774327989531.txt
+ create mode 100644 attached_assets/Pasted-What-I-know-is-limited-to-what-s-documented-in-the-YODA_1774324415291.txt
+ create mode 100644 client/public/install/plenumnet-service.ps1
+ create mode 100755 client/public/install/plenumnet-service.sh
+ create mode 100644 client/public/install/services/com.plenumnet.cube.plist.template
+ create mode 100644 client/public/install/services/plenumnet-cube@.service
+PS C:\PlenumNET> git stash pop
+On branch master
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        .plenumnet/
+        .scriptssetup-mathstral.ps1.txt
+        client/public/videos/
+        scripts/setup-mathstral.ps1
+        scripts/setup-mathstral.psl
+        scripts/setup-mathstral.psl.txt
+        ternary-math/BENCH-2026-03-14-622104BF.md
+        ternary-math/BENCH-2026-03-14-624FAE4B.md
+        ternary-math/BENCH-2026-03-14-62571155.md
+        ternary-math/BENCH-2026-03-14-626DE1EB.md
+        ternary-math/BENCH-2026-03-14-6549C714.md
+        ternary-math/BENCH-2026-03-14-659BBA4F.md
+        ternary-math/BENCH-2026-03-14-65ABC8EB.md
+        ternary-math/BENCH-2026-03-14-65DD00A4.md
+        ternary-math/BENCH-2026-03-14-65E84240.md
+        ternary-math/benches/tis27_bench.rs
+        ternary-math/src/inter_cube.rs
+        ternary-math/src/sponge.rs
+        ternary-math/src/tis_sponge.rs
+
+nothing added to commit but untracked files present (use "git add" to track)
+Dropped refs/stash@{0} (2f9534baf6a3a4f68bf14ae0cbd9f551fcccaf6e)
+PS C:\PlenumNET> cargo build --release -p inter-cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:1994:47
+     |
+1994 |     let independent = aflags & 0x04 != 0; let adaptive_rep = aflags & 0x08 != 0;
+     |                                               ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `mode`
+    --> ternary-math\src\ttc.rs:2048:9
+     |
+2048 |     let mode = CompressionMode::from_u8(compressed[0x05])?;
+     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_mode`
+
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:2055:9
+     |
+2055 |     let adaptive_rep = aflags & 0x08 != 0;
+     |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: constant `TRIBONACCI_SEQ` is never used
+   --> ternary-math\src\ttc.rs:119:7
+    |
+119 | const TRIBONACCI_SEQ: [u64; 30] = [
+    |       ^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> ternary-math\src\ttc.rs:538:8
+    |
+536 | impl TritStreamWriter {
+    | --------------------- associated function in this implementation
+537 |     #[inline]
+538 |     fn new() -> Self { Self { buffer: Vec::new(), pending: [0; 5], count: 0, total_trits: 0 } }
+    |        ^^^
+
+warning: method `is_exhausted` is never used
+   --> ternary-math\src\ttc.rs:619:8
+    |
+593 | impl<'a> TritStreamReader<'a> {
+    | ----------------------------- method in this implementation
+...
+619 |     fn is_exhausted(&self) -> bool {
+    |        ^^^^^^^^^^^^
+
+warning: function `deserialize_ternary_enhanced` is never used
+    --> ternary-math\src\ttc.rs:1601:4
+     |
+1601 | fn deserialize_ternary_enhanced(payload: &[u8], _adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+   Compiling inter-cube v0.3.0 (C:\PlenumNET\services\inter-cube)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:48:34
+   |
+48 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Path`
+  --> services\inter-cube\src\persistence.rs:60:17
+   |
+60 | use std::path::{Path, PathBuf};
+   |                 ^^^^
+
+warning: unused import: `DIMENSIONS`
+  --> services\inter-cube\src\lattice_mixer.rs:49:34
+   |
+49 | use crate::cube_addr::{CubeAddr, DIMENSIONS};
+   |                                  ^^^^^^^^^^
+
+warning: unused import: `TOTAL_VERTICES`
+  --> services\inter-cube\src\sampling.rs:51:46
+   |
+51 | use crate::cube_addr::{CubeAddr, DIMENSIONS, TOTAL_VERTICES};
+   |                                              ^^^^^^^^^^^^^^
+
+warning: unused import: `DimensionDensity`
+  --> services\inter-cube\src\sampling.rs:52:42
+   |
+52 | use crate::placement::{hamming_distance, DimensionDensity};
+   |                                          ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> services\inter-cube\src\pt26_parallel.rs:13:5
+   |
+13 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+  --> services\inter-cube\src\pt26_parallel.rs:18:46
+   |
+18 |     DIMENSIONS, NUM_SIGMAS, STEP_COMMIT_LEN, SIG_COMMIT_LEN,
+   |                                              ^^^^^^^^^^^^^^
+19 |     DOMAIN_MSG, DOMAIN_SIG,
+   |                 ^^^^^^^^^^
+
+error[E0063]: missing fields `nonce` and `signature` in initializer of `RelayEnvelope`
+   --> services\inter-cube\src\ws_relay.rs:261:24
+    |
+261 |         let envelope = RelayEnvelope {
+    |                        ^^^^^^^^^^^^^ missing `nonce` and `signature`
+
+error[E0063]: missing fields `nonce` and `signature` in initializer of `RelayEnvelope`
+   --> services\inter-cube\src\ws_relay.rs:282:24
+    |
+282 |         let envelope = RelayEnvelope {
+    |                        ^^^^^^^^^^^^^ missing `nonce` and `signature`
+
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `min_c`
+   --> services\inter-cube\src\dimension_tracker.rs:224:17
+    |
+224 |             let min_c = *counts.iter().min().unwrap();
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_min_c`
+
+warning: variable does not need to be mutable
+  --> services\inter-cube\src\pt26_parallel.rs:84:17
+   |
+84 |             let mut current_trits = addr_bytes;
+   |                 ----^^^^^^^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0063`.
+warning: `inter-cube` (lib) generated 10 warnings
+error: could not compile `inter-cube` (lib) due to 2 previous errors; 10 warnings emitted
+PS C:\PlenumNET>
