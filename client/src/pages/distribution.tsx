@@ -685,6 +685,7 @@ interface DaemonHealth {
   healthState: "up" | "suspect" | "down";
   isExpected: boolean;
   disconnectHistory: DisconnectEvent[];
+  source?: "deployment" | "crs";
 }
 
 interface ExpectedNodeStatus {
@@ -1065,7 +1066,8 @@ function ClusterReport() {
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <span className={`inline-block w-2 h-2 rounded-full ${healthDot(d.healthState)}`} title={`Health: ${d.healthState}`} data-testid={`daemon-health-dot-${i}`} />
-                <span className="font-medium text-foreground">{d.hostname} — Node #{i + 1}</span>
+                <span className="font-medium text-foreground">{d.hostname || "CRS-Discovered"} — Node #{i + 1}</span>
+                {d.source === "crs" && <Badge variant="outline" className="text-[8px] px-1 py-0 border-blue-500/50 text-blue-600 dark:text-blue-400">CRS</Badge>}
                 {d.isExpected && <Badge variant="outline" className="text-[8px] px-1 py-0">expected</Badge>}
               </div>
               <div className="flex items-center gap-2">

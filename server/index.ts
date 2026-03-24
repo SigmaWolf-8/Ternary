@@ -904,6 +904,7 @@ function startPqtiService(): ChildProcess | null {
         healthState: NodeHealthState;
         disconnectHistory: DisconnectEvent[];
         isExpected: boolean;
+        source: "deployment" | "crs";
       }> = [];
 
       const CRS_ORIGIN = normalizeTernaryAddr("1111111111111");
@@ -944,8 +945,35 @@ function startPqtiService(): ChildProcess | null {
             healthState,
             disconnectHistory: getDisconnectHistory(normalAddr).slice(-50),
             isExpected: isExpectedNode(normalAddr),
+            source: "deployment" as const,
           });
         }
+      }
+
+      for (const [crsAddr, crsEntry] of crsRegistry.entries()) {
+        if (seenAddresses.has(crsAddr)) continue;
+        seenAddresses.add(crsAddr);
+        const isRelayConnected = relayClientsRef?.has(crsAddr) && relayClientsRef.get(crsAddr)!.readyState === 1;
+        const isCrs = crsAddr === CRS_ORIGIN;
+        const lastSeenTs = crsEntry.lastSeen;
+        const healthState = isRelayConnected ? "up" as NodeHealthState : computeHealthState(lastSeenTs, now);
+        daemonChecks.push({
+          address: toDottedAddr(crsAddr),
+          endpoint: crsEntry.endpoint || "",
+          port: 0,
+          hostname: "",
+          deploymentId: 0,
+          role: isCrs ? "crs" : "cube",
+          registeredInCrs: true,
+          connectedViaRelay: !!isRelayConnected,
+          lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
+          lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
+          status: isRelayConnected ? "live" : "registered",
+          healthState,
+          disconnectHistory: getDisconnectHistory(crsAddr).slice(-50),
+          isExpected: isExpectedNode(crsAddr),
+          source: "crs" as const,
+        });
       }
 
       const expectedNodesList = Array.from(getExpectedNodesCache());
@@ -1261,7 +1289,10 @@ function startPqtiService(): ChildProcess | null {
       if (resp.ok) {
         const data = await resp.json() as any;
         if (data.publicKey === publicKey || data.public_key === publicKey) {
-          crsRegistry.set(address, { publicKey, endpoint: data.endpoint || "unknown", lastSeen: Date.now() });
+          const ep = data.endpoint || "unknown";
+          crsRegistry.set(address, { publicKey, endpoint: ep, lastSeen: Date.now() });
+          publicKeyAddressMap.set(publicKey, address);
+          storage.upsertCrsRelayNode(publicKey, address, ep).catch(() => {});
           return true;
         }
       }
@@ -1454,6 +1485,12 @@ function startPqtiService(): ChildProcess | null {
             recordRelayAuditEvent({ eventType: "relay.reconnect", address: nodeAddress, timestamp: new Date().toISOString(), details: { replacedExisting: true } });
           }
           recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: "connected", code: 0, eventType: "reconnect" });
+
+          const crsEntry = crsRegistry.get(nodeAddress);
+          if (crsEntry) {
+            crsEntry.lastSeen = Date.now();
+            storage.upsertCrsRelayNode(crsEntry.publicKey, nodeAddress, crsEntry.endpoint, crsEntry.tlDsaPk).catch(() => {});
+          }
 
           const pending = pendingMessages.get(nodeAddress);
           if (pending && pending.length > 0) {
