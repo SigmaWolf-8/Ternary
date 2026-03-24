@@ -725,17 +725,10 @@ function startPqtiService(): ChildProcess | null {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
 
-  app.post("/api/salvi/inter-cube/relay/restart-nodes", (req, res) => {
-    const adminKey = req.headers["x-admin-key"];
-    const replitUser = req.headers["x-replit-user-name"] as string | undefined;
-    const isAdminKey = adminKey === process.env.SESSION_SECRET;
-    const isOwner = replitUser && replitUser === process.env.REPL_OWNER;
-    if (!isAdminKey && !isOwner) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+  function broadcastRelayRestart(): { restarted: number; message: string } {
     const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
     if (!relayClientsRef || relayClientsRef.size === 0) {
-      return res.json({ restarted: 0, message: "No relay peers connected" });
+      return { restarted: 0, message: "No relay peers connected" };
     }
     const restartMsg = JSON.stringify({ type: "restart", reason: "admin_request", ts: Date.now() });
     let sent = 0;
@@ -748,7 +741,15 @@ function startPqtiService(): ChildProcess | null {
       }
     }
     console.log(`[ws-relay] Restart broadcast complete — ${sent} node(s) notified`);
-    res.json({ restarted: sent, message: `Restart command sent to ${sent} node(s)` });
+    return { restarted: sent, message: `Restart command sent to ${sent} node(s)` };
+  }
+
+  app.post("/api/salvi/inter-cube/relay/restart-nodes", (req, res) => {
+    const adminKey = req.headers["x-admin-key"];
+    if (!adminKey || adminKey !== process.env.SESSION_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    res.json(broadcastRelayRestart());
   });
 
   const CRS_ADDRESS = "111.111.111.111.1";

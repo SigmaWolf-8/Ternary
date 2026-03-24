@@ -40,7 +40,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { PLATFORM } from "@shared/constants";
 
 const GITHUB_REPO = "https://github.com/SigmaWolf-8/Ternary";
@@ -734,16 +733,23 @@ function ClusterReport() {
   });
   const { toast } = useToast();
   const restartMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/salvi/inter-cube/relay/restart-nodes");
+    mutationFn: async (adminKey: string) => {
+      const res = await fetch("/api/salvi/inter-cube/relay/restart-nodes", {
+        method: "POST",
+        headers: { "x-admin-key": adminKey },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Request failed" }));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
       return res.json() as Promise<{ restarted: number; message: string }>;
     },
     onSuccess: (result) => {
       toast({ title: "Restart Broadcast Sent", description: result.message });
       setTimeout(() => refetch(), 3000);
     },
-    onError: () => {
-      toast({ title: "Restart Failed", description: "Could not send restart command", variant: "destructive" });
+    onError: (err: Error) => {
+      toast({ title: "Restart Failed", description: err.message === "Forbidden" ? "Invalid admin key" : err.message, variant: "destructive" });
     },
   });
 
@@ -788,7 +794,10 @@ function ClusterReport() {
             variant="outline"
             size="sm"
             className="h-6 px-2 text-[10px] border-orange-500/30 text-orange-700 dark:text-orange-400 hover:bg-orange-500/10"
-            onClick={() => { if (confirm("Restart all connected relay nodes? They will disconnect and reconnect automatically.")) restartMutation.mutate(); }}
+            onClick={() => {
+              const key = prompt("Enter admin key to restart all connected relay nodes:");
+              if (key) restartMutation.mutate(key);
+            }}
             disabled={restartMutation.isPending || !data?.relay || data.relay.connectedPeers === 0}
             data-testid="button-restart-nodes"
           >
