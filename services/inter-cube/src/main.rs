@@ -582,6 +582,8 @@ async fn run_cube_mode() {
 fn spawn_relay_client(relay_url_str: String, address: String, public_key_hex: String) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
+    let api_port_val = api_port();
+    let endpoint_str = format!("0.0.0.0:{}", api_port_val);
     tokio::spawn(async move {
         println!();
         println!("[ws-relay] Establishing relay connection to {}...", relay_url_str);
@@ -593,6 +595,29 @@ fn spawn_relay_client(relay_url_str: String, address: String, public_key_hex: St
             .build()
             .expect("Failed to build inference HTTP client");
         loop {
+            let http_base = relay_url_str
+                .replace("wss://", "https://")
+                .replace("ws://", "http://")
+                .trim_end_matches('/')
+                .replace("/ws/relay", "")
+                .to_string();
+            let reg_url = format!(
+                "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint={}",
+                http_base,
+                &public_key_hex,
+                &endpoint_str
+            );
+            match reqwest::get(&reg_url).await {
+                Ok(resp) if resp.status().is_success() => {
+                    println!("[ws-relay] Pre-registered with relay (address: {})", address);
+                }
+                Ok(resp) => {
+                    println!("[ws-relay] Relay pre-registration returned {}", resp.status());
+                }
+                Err(e) => {
+                    println!("[ws-relay] Relay pre-registration failed: {} — will retry", e);
+                }
+            }
             match WsRelayClient::connect(
                 &relay_url_str,
                 &address,

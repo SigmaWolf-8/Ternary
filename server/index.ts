@@ -1017,6 +1017,13 @@ function startPqtiService(): ChildProcess | null {
   async function verifyNodeRegistration(address: string, publicKey: string): Promise<boolean> {
     const entry = crsRegistry.get(address);
     if (entry && entry.publicKey === publicKey) return true;
+    const knownByKey = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey);
+    if (knownByKey) {
+      crsRegistry.set(address, { publicKey, endpoint: knownByKey[1].endpoint, lastSeen: Date.now() });
+      publicKeyAddressMap.set(publicKey, address);
+      storage.upsertCrsRelayNode(publicKey, address, knownByKey[1].endpoint).catch(() => {});
+      return true;
+    }
     try {
       const resp = await fetch(`http://127.0.0.1:8181/api/salvi/inter-cube/crs/node/${address}`);
       if (resp.ok) {

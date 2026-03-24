@@ -498,8 +498,11 @@ function DeployerCard() {
         {activeTab === "suite" && (
           <motion.div key="suite" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-suite">
             <p className="text-sm text-muted-foreground mb-4">
-              One-click installer for the entire framework: {MODULES.length} modules, {PLATFORM.TESTS_PASSING} passing tests,
-              CNSA 2.0 compliant. Downloads, builds the daemon, and generates your first identity automatically.
+              One-click installer for the full Salvi Framework: {MODULES.length} modules (ternary-math,
+              TL-Sponge-385, TL-DSA-87, TL-KEM, Phase Encryption v3, TDNS v2.5, Inter-Cube,
+              TVM, Tonal Diffusion, and more), {PLATFORM.TESTS_PASSING} passing tests, CNSA 2.0 compliant.
+              Downloads source, builds the Inter-Cube daemon from Rust, generates your first
+              PT26-DSA identity, and registers the daemon as a system service — all automatically.
             </p>
 
             <div className="flex gap-1.5 mb-3" data-testid="platform-selector">
@@ -553,10 +556,13 @@ function DeployerCard() {
               <Badge variant="outline" className="text-[10px] border-blue-500/20 bg-blue-500/5 text-blue-700 dark:text-blue-400">v0.3.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Deploys a PlenumNET node on your machine. Each node gets a unique cryptographic
-              identity, connects to the PlenumNET network through an encrypted tunnel — even behind
-              firewalls or home routers — and registers as a system service. Applications like YODA
-              use these nodes for local compute. Run it again to add more nodes.
+              Deploys a PlenumNET Node on your machine — a full Inter-Cube daemon that provides
+              cryptographic identity (PT26-DSA), post-quantum encrypted tunneling (TL-KEM + TL-Sponge-385),
+              13D geometric addressing (TDNS v2.5), WebSocket relay connectivity for NAT traversal,
+              and system service registration. Each node receives a unique 13-trit ternary address
+              and connects to the PlenumNET network — even behind firewalls or home routers.
+              Applications like YODA use these nodes for inference dispatch, secure messaging,
+              and distributed compute. Run it again to add more nodes (ports auto-increment).
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="daemon-deploy-instructions">
@@ -587,10 +593,14 @@ function DeployerCard() {
               <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">v0.4.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Deploys a 3-node PlenumNET cluster on your machine. Node #1 coordinates the group;
-              all three connect to the PlenumNET network through encrypted tunnels. Applications
-              like YODA use an Array3 for distributed local compute. Builds from source, generates
-              3 cryptographic identities, and reports to the cluster monitor.
+              Deploys a PlenumNET Array3 — a 3-node cluster on your machine. Each node is a full
+              Inter-Cube daemon with its own PT26-DSA identity, 13-trit ternary address, and
+              post-quantum encrypted relay tunnel (TL-KEM + TL-Sponge-385). Node #1 runs as
+              the coordinator (CRS — address allocator and registration authority); Nodes #2 and #3
+              register with it as workers. All three connect outbound to the PlenumNET relay at
+              plenumnet.replit.app via WebSocket for NAT traversal. Applications like YODA dispatch
+              inference requests through this tunnel to your local compute engines. Builds from
+              source, generates 3 cryptographic identities, and reports to the cluster monitor.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="yoda-deploy-instructions">
@@ -823,7 +833,7 @@ function ClusterReport() {
         {data.daemons.map((d, i) => (
           <div key={`${d.address}-${i}`} className={`rounded-md border p-3 text-xs ${statusBg(d.status)}`} data-testid={`daemon-row-${i}`}>
             <div className="flex items-center justify-between mb-1">
-              <span className="font-medium text-foreground">{d.hostname} — Daemon #{i + 1}</span>
+              <span className="font-medium text-foreground">{d.hostname} — Node #{i + 1}</span>
               <div className="flex items-center gap-2">
                 <span className={`text-[10px] ${d.lastSeenAgeMs !== null ? (d.lastSeenAgeMs < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-black dark:text-white"}`} data-testid={`daemon-heartbeat-${i}`}>
                   {formatTimeAgo(d.lastSeen)}
