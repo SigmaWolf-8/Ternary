@@ -288,7 +288,7 @@ fn new_peer_senders() -> PeerSenders {
     Arc::new(Mutex::new(HashMap::new()))
 }
 
-fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections, senders: PeerSenders) {
+fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections, senders: PeerSenders, peer_msg_tx: Option<tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>>) {
     let discovery_base = relay_url
         .replace("wss://", "https://")
         .replace("ws://", "http://")
@@ -344,6 +344,7 @@ fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_por
                                                 local_peer_port,
                                                 peers.clone(),
                                                 senders.clone(),
+                                                peer_msg_tx.clone(),
                                             );
                                         }
                                     }
@@ -367,6 +368,7 @@ fn connect_to_peer(
     local_peer_port: u16,
     peers: PeerConnections,
     senders: PeerSenders,
+    peer_msg_tx: Option<tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>>,
 ) {
     tokio::spawn(async move {
         let ws_url = format!("ws://{}:{}", ip, port);
@@ -405,10 +407,11 @@ fn connect_to_peer(
 
                 let remote_addr_read = remote_address.clone();
                 let peers_read = peers.clone();
+                let msg_tx_read = peer_msg_tx.clone();
                 let read_task = tokio::spawn(async move {
                     while let Some(msg) = read.next().await {
                         match msg {
-                            Ok(m) if m.is_text() || m.is_binary() => {
+                            Ok(m) if m.is_text() => {
                                 let now = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default().as_secs();
@@ -417,7 +420,45 @@ fn connect_to_peer(
                                         info.last_seen = now;
                                     }
                                 }
-                                println!("[PEER-DIRECT] Received {} bytes from {}", m.len(), remote_addr_read);
+                                let text = m.to_text().unwrap_or("");
+                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(text) {
+                                    if json["type"].as_str() == Some("peer_announce") {
+                                        println!("[PEER-DIRECT] Received peer_announce from {}", remote_addr_read);
+                                    } else if let Some(ref tx) = msg_tx_read {
+                                        let msg_type = json["type"].as_str().unwrap_or("relay").to_string();
+                                        let relay_msg_type = json["msgType"].as_str()
+                                            .or_else(|| json["relay_msg_type"].as_str())
+                                            .map(|s| s.to_string());
+                                        let from = json["from"].as_str().map(|s| s.to_string());
+                                        let payload = json["payload"].as_str().map(|s| s.to_string());
+                                        let envelope = inter_cube::ws_relay::RelayEnvelope {
+                                            msg_type,
+                                            relay_msg_type: relay_msg_type.clone(),
+                                            from,
+                                            payload,
+                                            to: json["to"].as_str().map(|s| s.to_string()),
+                                            address: json["address"].as_str().map(|s| s.to_string()),
+                                            public_key: None,
+                                            nonce: None,
+                                            signature: None,
+                                            error: None,
+                                            delivered: None,
+                                            connected_peers: None,
+                                            ts: None,
+                                            connected: None,
+                                        };
+                                        let rmt = relay_msg_type.as_deref().unwrap_or("unknown");
+                                        println!("[PEER-DIRECT] Routing {} from {} into pipeline", rmt, remote_addr_read);
+                                        let _ = tx.send(envelope).await;
+                                    } else {
+                                        println!("[PEER-DIRECT] Received {} bytes from {} (no pipeline)", m.len(), remote_addr_read);
+                                    }
+                                } else {
+                                    println!("[PEER-DIRECT] Non-JSON from {}: {} bytes", remote_addr_read, m.len());
+                                }
+                            }
+                            Ok(m) if m.is_binary() => {
+                                println!("[PEER-DIRECT] Binary from {}: {} bytes", remote_addr_read, m.len());
                             }
                             Ok(m) if m.is_close() => break,
                             Err(_) => break,
@@ -1020,10 +1061,11 @@ async fn run_cube_mode() {
     let relay_target_for_discovery = relay_target.clone();
     spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx));
 
+    let peer_msg_tx_discovery = peer_msg_tx.clone();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));
 
     let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
-    spawn_peer_discovery(relay_target_for_discovery, addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone());
+    spawn_peer_discovery(relay_target_for_discovery, addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone(), Some(peer_msg_tx_discovery));
 
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
