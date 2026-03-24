@@ -11,14 +11,19 @@
     Or download the .bat wrapper from the Distribution page.
 
     Cluster topology:
-      Daemon #1 (Engine A) : port 8081  — LOCAL CRS  (CUBE_MODE=crs)
-      Daemon #2 (Engine B) : port 8083  — cube node  (registers with Daemon #1)
-      Daemon #3 (Engine C) : port 8085  — cube node  (registers with Daemon #1)
+      Daemon #1 (Engine A) : port 8081 / LLM 8080  — LOCAL CRS  (CUBE_MODE=crs)
+      Daemon #2 (Engine B) : port 8083 / LLM 8082  — cube node  (registers with Daemon #1)
+      Daemon #3 (Engine C) : port 8085 / LLM 8084  — cube node  (registers with Daemon #1)
 
     Daemon #1 is always the local CRS for the cluster. Daemons #2 and #3
     register with it at http://localhost:8081. The remote PlenumNET server
     (plenumnet.replit.app) only receives a deployment summary for the
     dashboard — it is NOT the CRS for local cube operations.
+
+    All 3 daemons connect outbound to plenumnet.replit.app via WebSocket
+    relay (RELAY_URL). This is the NAT-traversal tunnel through which
+    YODA dispatches inference requests. Each daemon forwards inference
+    to a local llama-server at 127.0.0.1:{LLM_PORT}.
 
     LLM engines are NOT installed by this script. LLM selection and
     setup is handled separately at YODA runtime.
@@ -51,6 +56,8 @@ Write-Host ""
 Write-Host "  Daemons   : $DAEMON_COUNT instances" -ForegroundColor White
 Write-Host "  Local CRS : Daemon #1 (port $LOCAL_CRS_PORT)" -ForegroundColor White
 Write-Host "  Ports     : $BASE_DAEMON_PORT, $($BASE_DAEMON_PORT + $PORT_STEP), $($BASE_DAEMON_PORT + 2 * $PORT_STEP)" -ForegroundColor White
+Write-Host "  LLM Ports : 8080, 8082, 8084" -ForegroundColor White
+Write-Host "  Relay     : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
 Write-Host "  Registry  : $REMOTE_CRS (monitoring only)" -ForegroundColor White
 Write-Host ""
 
@@ -338,17 +345,21 @@ $env:CUBE_MODE = "crs"
 $env:CUBE_API_PORT = "$($crsCfg.Port)"
 $env:CUBE_ENDPOINT = $crsCfg.Endpoint
 $env:CUBE_IDENTITY_DIR = $crsCfg.IdentityDir
+$env:RELAY_URL = $REMOTE_CRS
+$env:LLM_PORT = "8080"
 
 $outLog = Join-Path $LOG_DIR "daemon-1-out.log"
 $errLog = Join-Path $LOG_DIR "daemon-1-err.log"
 $proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 $daemonPids += $proc.Id
-Write-Host "  [OK] Daemon #1 started as LOCAL CRS (PID $($proc.Id), port $($crsCfg.Port))" -ForegroundColor Green
+Write-Host "  [OK] Daemon #1 started as LOCAL CRS (PID $($proc.Id), port $($crsCfg.Port), relay -> $REMOTE_CRS, LLM -> 8080)" -ForegroundColor Green
 
 Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_ENDPOINT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+Remove-Item Env:\RELAY_URL -ErrorAction SilentlyContinue
+Remove-Item Env:\LLM_PORT -ErrorAction SilentlyContinue
 
 Write-Host "  Waiting for local CRS to be ready..." -ForegroundColor DarkGray
 $crsReady = $false
@@ -365,19 +376,23 @@ if ($crsReady) {
     Write-Host "  WARN: Local CRS health check did not respond -- continuing anyway" -ForegroundColor Yellow
 }
 
+$LLM_PORTS = @(8080, 8082, 8084)
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
+    $llmPort = $LLM_PORTS[$cfg.Id - 1]
     $env:CUBE_MODE = "cube"
     $env:CUBE_CRS_URL = $LOCAL_CRS_URL
     $env:CUBE_ENDPOINT = $cfg.Endpoint
     $env:CUBE_API_PORT = "$($cfg.Port)"
     $env:CUBE_IDENTITY_DIR = $cfg.IdentityDir
+    $env:RELAY_URL = $REMOTE_CRS
+    $env:LLM_PORT = "$llmPort"
 
     $outLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-out.log"
     $errLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-err.log"
     $proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
     $daemonPids += $proc.Id
-    Write-Host "  [OK] Daemon #$($cfg.Id) started (PID $($proc.Id), port $($cfg.Port), CRS -> localhost:$LOCAL_CRS_PORT)" -ForegroundColor Green
+    Write-Host "  [OK] Daemon #$($cfg.Id) started (PID $($proc.Id), port $($cfg.Port), relay -> $REMOTE_CRS, LLM -> $llmPort)" -ForegroundColor Green
     Start-Sleep -Seconds 1
 }
 
@@ -386,6 +401,8 @@ Remove-Item Env:\CUBE_CRS_URL -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_ENDPOINT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+Remove-Item Env:\RELAY_URL -ErrorAction SilentlyContinue
+Remove-Item Env:\LLM_PORT -ErrorAction SilentlyContinue
 
 Start-Sleep -Seconds 3
 
@@ -489,6 +506,8 @@ $launchLines = @(
     "set CUBE_API_PORT=$($crsCfg.Port)"
     "set CUBE_ENDPOINT=$($crsCfg.Endpoint)"
     "set CUBE_IDENTITY_DIR=$($crsCfg.IdentityDir)"
+    "set RELAY_URL=$REMOTE_CRS"
+    "set LLM_PORT=8080"
     "echo Starting Daemon #1 as LOCAL CRS on port $($crsCfg.Port)..."
     "start `"`" /b `"$BinaryPath`""
     "timeout /t 5 /nobreak >nul"
@@ -497,6 +516,7 @@ $launchLines = @(
 
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
+    $llmPort = $LLM_PORTS[$cfg.Id - 1]
     $launchLines += @(
         ":: Start Daemon #$($cfg.Id) (registers with local CRS)"
         "set CUBE_MODE=cube"
@@ -504,7 +524,9 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
         "set CUBE_ENDPOINT=$($cfg.Endpoint)"
         "set CUBE_API_PORT=$($cfg.Port)"
         "set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)"
-        "echo Starting Daemon #$($cfg.Id) on port $($cfg.Port) (CRS -> localhost:$LOCAL_CRS_PORT)..."
+        "set RELAY_URL=$REMOTE_CRS"
+        "set LLM_PORT=$llmPort"
+        "echo Starting Daemon #$($cfg.Id) on port $($cfg.Port) (relay -> $REMOTE_CRS, LLM -> $llmPort)..."
         "start `"`" /b `"$BinaryPath`""
         "timeout /t 2 /nobreak >nul"
         ""
@@ -548,7 +570,8 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
 }
 Write-Host ""
 Write-Host "  Local CRS     : $LOCAL_CRS_URL (Daemon #1)" -ForegroundColor White
-Write-Host "  Remote Registry: $REMOTE_CRS (monitoring only)" -ForegroundColor White
+Write-Host "  Relay         : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
+Write-Host "  Remote Registry: $REMOTE_CRS (monitoring dashboard)" -ForegroundColor White
 Write-Host "  CRS Daemon Registry: $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
 Write-Host "  Launcher      : $startYodaPath" -ForegroundColor White
 Write-Host "  Logs          : $LOG_DIR" -ForegroundColor White

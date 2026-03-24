@@ -341,6 +341,7 @@ set CUBE_MODE=cube
 set CUBE_API_PORT=$dp
 set LLM_PORT=$ep
 set CUBE_CRS_URL=$CRS_URL
+set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$idDir
 set CUBE_ROLE=inference
 "$BinaryPath" >> "$logFile" 2>&1

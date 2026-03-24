@@ -217,6 +217,7 @@ CUBE_MODE=cube
 CUBE_API_PORT=$daemon_port
 LLM_PORT=$engine_port
 CUBE_CRS_URL=$crs_url
+RELAY_URL=$crs_url
 CUBE_IDENTITY_DIR=$agent_dir
 CUBE_ROLE=inference
 ENVEOF
@@ -304,6 +305,8 @@ UNITEOF
         <key>LLM_PORT</key>
         <string>${engine_port}</string>
         <key>CUBE_CRS_URL</key>
+        <string>${crs_url}</string>
+        <key>RELAY_URL</key>
         <string>${crs_url}</string>
         <key>CUBE_IDENTITY_DIR</key>
         <string>${agent_dir}</string>

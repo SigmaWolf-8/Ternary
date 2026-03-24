@@ -20,6 +20,8 @@
         <string>__ENGINE_PORT__</string>
         <key>CUBE_CRS_URL</key>
         <string>__CRS_URL__</string>
+        <key>RELAY_URL</key>
+        <string>__CRS_URL__</string>
         <key>CUBE_IDENTITY_DIR</key>
         <string>__IDENTITY_DIR__</string>
         <key>CUBE_ROLE</key>

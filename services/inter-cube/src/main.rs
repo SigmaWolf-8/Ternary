@@ -16,6 +16,10 @@
 // ENV VARS:
 //   CUBE_MODE                  — "crs", "cube", "all", or "keygen" (default: "all")
 //   CUBE_CRS_URL               — CRS base URL (required for cube mode)
+//   RELAY_URL                  — WebSocket relay URL (default: CUBE_CRS_URL)
+//                                Set to remote relay (e.g. https://plenumnet.replit.app)
+//                                when CUBE_CRS_URL points to a local CRS
+//   LLM_PORT                   — Local LLM engine port for inference dispatch (default: 8080)
 //   CUBE_ENDPOINT              — Wire protocol endpoint (default: "0.0.0.0:51820")
 //   ADDRESS                    — Alias for CUBE_ENDPOINT
 //   CUBE_ROLE                  — Role annotation (inference, review, kb, infra, relay, standby)
@@ -57,6 +61,10 @@ fn role_label() -> Option<String> {
     env::var("CUBE_ROLE")
         .or_else(|_| env::var("ROLE"))
         .ok()
+}
+
+fn relay_url(crs_fallback: Option<&str>) -> Option<String> {
+    env::var("RELAY_URL").ok().or_else(|| crs_fallback.map(|s| s.to_string()))
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -160,7 +168,7 @@ async fn run_crs_mode() {
     println!("  CRS -> CON -> FTS -> GLB pipeline operational.");
     println!("  The geometry IS the routing protocol.");
 
-    let shared_state = AppState::new_crs(crs, con, fts, glb, local_address);
+    let shared_state = AppState::new_crs(crs, con, fts, glb, local_address.clone());
     let app = crs_router(shared_state);
 
     let port = api_port();
@@ -168,6 +176,15 @@ async fn run_crs_mode() {
     if let Some(role) = role_label() {
         println!("  Role:          {}", role);
     }
+
+    let addr_str: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
+    if let Some(rurl) = relay_url(None) {
+        println!("  Relay:         {} (WebSocket)", rurl);
+        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone());
+    } else {
+        println!("  Relay:         none (set RELAY_URL to enable remote relay)");
+    }
+
     println!();
     println!("=== HTTP Server (CRS) ===");
     println!("  http://{}", listen_addr);
@@ -536,25 +553,50 @@ async fn run_cube_mode() {
     });
 
     let addr_str_for_relay: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
-    let crs_url_for_relay = crs_url.clone();
-    let key_hex_for_relay = key_hex.clone();
-    let llm_port = std::env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
+    let relay_target = relay_url(Some(&crs_url)).unwrap_or_else(|| crs_url.clone());
+    println!("[ws-relay] Relay target: {}", relay_target);
+    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone());
+
+    let shared_state = AppState::new_cube(con, fts, glb, local_address);
+    let app = cube_router(shared_state);
+
+    let port = api_port();
+    let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+    println!();
+    println!("=== HTTP Server (Cube) ===");
+    println!("  http://{}", listen_addr);
+    println!("  {} routes active", CUBE_ROUTE_COUNT);
+    println!("  Relay:     WebSocket (NAT traversal)");
+    println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
+    println!();
+
+    let listener = tokio::net::TcpListener::bind(listen_addr)
+        .await
+        .expect(&format!("Failed to bind to port {}", port));
+
+    axum::serve(listener, app)
+        .await
+        .expect("Server error");
+}
+
+fn spawn_relay_client(relay_url_str: String, address: String, public_key_hex: String) {
+    let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
     tokio::spawn(async move {
         println!();
-        println!("[ws-relay] Establishing relay connection to CRS...");
+        println!("[ws-relay] Establishing relay connection to {}...", relay_url_str);
         println!("[ws-relay] Inference dispatch target: {}/v1/chat/completions", llm_base_url);
         let mut retry_delay = Duration::from_secs(5);
         let inference_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
-            .user_agent("PlenumNET-InterCube/0.2.0")
+            .user_agent("PlenumNET-InterCube/0.3.0")
             .build()
             .expect("Failed to build inference HTTP client");
         loop {
             match WsRelayClient::connect(
-                &crs_url_for_relay,
-                &addr_str_for_relay,
-                &key_hex_for_relay,
+                &relay_url_str,
+                &address,
+                &public_key_hex,
             )
             .await
             {
@@ -730,27 +772,6 @@ async fn run_cube_mode() {
             retry_delay = std::cmp::min(retry_delay * 2, Duration::from_secs(60));
         }
     });
-
-    let shared_state = AppState::new_cube(con, fts, glb, local_address);
-    let app = cube_router(shared_state);
-
-    let port = api_port();
-    let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
-    println!();
-    println!("=== HTTP Server (Cube) ===");
-    println!("  http://{}", listen_addr);
-    println!("  {} routes active", CUBE_ROUTE_COUNT);
-    println!("  Relay:     WebSocket to CRS (NAT traversal)");
-    println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
-    println!();
-
-    let listener = tokio::net::TcpListener::bind(listen_addr)
-        .await
-        .expect(&format!("Failed to bind to port {}", port));
-
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
 }
 
 async fn send_inference_error(

@@ -153,6 +153,7 @@ CUBE_MODE=cube
 CUBE_API_PORT=$DAEMON_PORT
 LLM_PORT=$ENGINE_PORT
 CUBE_CRS_URL=$CRS_URL
+RELAY_URL=$CRS_URL
 CUBE_IDENTITY_DIR=$AGENT_DIR
 CUBE_ROLE=inference
 ENVEOF
@@ -207,6 +208,8 @@ ENVEOF
         <string>${ENGINE_PORT}</string>
         <key>CUBE_CRS_URL</key>
         <string>${CRS_URL}</string>
+        <key>RELAY_URL</key>
+        <string>${CRS_URL}</string>
         <key>CUBE_IDENTITY_DIR</key>
         <string>${AGENT_DIR}</string>
         <key>CUBE_ROLE</key>
@@ -247,7 +250,7 @@ PLISTEOF
         fi
         echo -e "    ${DIM}Manual start (fallback):${NC}"
         echo -e "    ${DIM}CUBE_MODE=cube CUBE_API_PORT=$DAEMON_PORT LLM_PORT=$ENGINE_PORT \\${NC}"
-        echo -e "    ${DIM}CUBE_CRS_URL=$CRS_URL \\${NC}"
+        echo -e "    ${DIM}CUBE_CRS_URL=$CRS_URL RELAY_URL=$CRS_URL \\${NC}"
         echo -e "    ${DIM}CUBE_IDENTITY_DIR=$AGENT_DIR $DAEMON_EXE${NC}"
         echo ""
         echo -e "    Run this installer again to add another daemon."

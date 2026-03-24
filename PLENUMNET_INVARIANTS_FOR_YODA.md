@@ -70,11 +70,12 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 |----------|---------|-------------|
 | `CUBE_MODE` | `all` | `crs`, `cube`, `all`, or `keygen` |
 | `CUBE_CRS_URL` | (required for cube) | CRS base URL — for YODA clusters, this is the LOCAL CRS (Daemon #1), NOT plenumnet.replit.app |
+| `RELAY_URL` | (cube: falls back to CUBE_CRS_URL; crs: no fallback) | WebSocket relay URL for NAT traversal — set to `https://plenumnet.replit.app` when CUBE_CRS_URL is a local address |
 | `CUBE_API_PORT` | `8080` | Daemon HTTP API port |
 | `API_PORT` | (alias) | Alias for CUBE_API_PORT |
 | `CUBE_ENDPOINT` | `0.0.0.0:51820` | Wire protocol endpoint |
 | `CUBE_ROLE` | (optional) | `inference`, `review`, `kb`, `infra`, `relay`, `standby` |
-| `LLM_PORT` | `8080` | Where llama-server listens |
+| `LLM_PORT` | `8080` | Where llama-server listens (each daemon forwards inference here) |
 | `CUBE_IDENTITY_DIR` | `~/.plenumnet/identity/` | Master key storage |
 | `CUBE_IDENTITY_PASSPHRASE` | (hostname fallback) | Encryption passphrase |
 
@@ -86,7 +87,11 @@ For any YODA or LAN deployment, cube setup is independent and self-contained:
 - **Daemon #2 (Engine B, port 8083)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
 - **Daemon #3 (Engine C, port 8085)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
 
-The remote server (`plenumnet.replit.app`) is a monitoring dashboard and global registry. It receives deployment summaries so the dashboard can display cluster health. It is NOT the operational CRS for any local cluster. All cube registration, heartbeat, and relay happens locally through Daemon #1.
+The remote server (`plenumnet.replit.app`) is both:
+1. A **monitoring dashboard** — receives deployment summaries so the dashboard can display cluster health
+2. The **WebSocket relay** — all 3 daemons connect outbound to `plenumnet.replit.app/ws/relay` for NAT traversal; YODA also connects to the same relay; inference requests flow through this tunnel
+
+It is NOT the operational CRS for any local cluster. Cube registration and heartbeat happen locally through Daemon #1. Set `RELAY_URL=https://plenumnet.replit.app` on each daemon so the relay client connects to the remote relay instead of the local CRS (which has no relay server).
 
 Each new deployment is independent. The deployer may or may not find a previous version of the daemon installed. If an existing version is found:
 1. The deployer checks its version against the CRS reference (`GET /health/crs` → `version` field)
@@ -169,6 +174,8 @@ $env:CUBE_MODE="crs"
 $env:CUBE_API_PORT="8081"
 $env:CUBE_ENDPOINT="<local-ip>:8081"
 $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-1"
+$env:RELAY_URL="https://plenumnet.replit.app"
+$env:LLM_PORT="8080"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
@@ -178,6 +185,7 @@ $env:CUBE_MODE="cube"
 $env:CUBE_API_PORT="8083"
 $env:LLM_PORT="8082"
 $env:CUBE_CRS_URL="http://localhost:8081"
+$env:RELAY_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
 $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-2"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
@@ -189,6 +197,7 @@ $env:CUBE_MODE="cube"
 $env:CUBE_API_PORT="8085"
 $env:LLM_PORT="8084"
 $env:CUBE_CRS_URL="http://localhost:8081"
+$env:RELAY_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
 $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-3"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"

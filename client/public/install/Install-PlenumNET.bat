@@ -127,6 +127,7 @@ echo     set CUBE_MODE=cube
 echo     set CUBE_API_PORT=%DAEMON_PORT%
 echo     set LLM_PORT=%ENGINE_PORT%
 echo     set CUBE_CRS_URL=https://plenumnet.replit.app
+echo     set RELAY_URL=https://plenumnet.replit.app
 echo     set CUBE_IDENTITY_DIR=%ID_DIR%
 echo     "%DAEMON_EXE%"
 echo.

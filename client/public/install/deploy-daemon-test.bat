@@ -125,6 +125,7 @@ echo     set CUBE_MODE=cube
 echo     set CUBE_API_PORT=8081
 echo     set LLM_PORT=8080
 echo     set CUBE_CRS_URL=https://plenumnet.replit.app
+echo     set RELAY_URL=https://plenumnet.replit.app
 echo     set CUBE_ROLE=inference
 echo     set CUBE_IDENTITY_DIR=%%USERPROFILE%%\.plenumnet\identity-a
 echo     "%BINARY_PATH%"
@@ -134,6 +135,7 @@ echo     set CUBE_MODE=cube
 echo     set CUBE_API_PORT=8083
 echo     set LLM_PORT=8082
 echo     set CUBE_CRS_URL=https://plenumnet.replit.app
+echo     set RELAY_URL=https://plenumnet.replit.app
 echo     set CUBE_ROLE=inference
 echo     set CUBE_IDENTITY_DIR=%%USERPROFILE%%\.plenumnet\identity-b
 echo     "%BINARY_PATH%"
@@ -143,6 +145,7 @@ echo     set CUBE_MODE=cube
 echo     set CUBE_API_PORT=8085
 echo     set LLM_PORT=8084
 echo     set CUBE_CRS_URL=https://plenumnet.replit.app
+echo     set RELAY_URL=https://plenumnet.replit.app
 echo     set CUBE_ROLE=inference
 echo     set CUBE_IDENTITY_DIR=%%USERPROFILE%%\.plenumnet\identity-c
 echo     "%BINARY_PATH%"
