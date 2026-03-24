@@ -217,7 +217,13 @@ fn spawn_peer_listener(port: u16, local_address_dotted: String, peers: PeerConne
     });
 }
 
-fn spawn_peer_discovery(crs_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections) {
+type PeerSenders = Arc<Mutex<HashMap<String, tokio::sync::mpsc::Sender<String>>>>;
+
+fn new_peer_senders() -> PeerSenders {
+    Arc::new(Mutex::new(HashMap::new()))
+}
+
+fn spawn_peer_discovery(crs_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections, senders: PeerSenders) {
     tokio::spawn(async move {
         let client = reqwest::Client::builder()
             .user_agent("PlenumNET-InterCube/0.4.0")
@@ -246,17 +252,28 @@ fn spawn_peer_discovery(crs_url: String, local_address: String, local_peer_port:
                                 let pp = peer["peerPort"].as_u64().unwrap_or(0) as u16;
                                 if !addr.is_empty() && pp > 0 && addr != local_address {
                                     if let Ok(ip) = ip_str.parse::<std::net::IpAddr>() {
-                                        if let Ok(mut peers) = peers.lock() {
-                                            if !peers.contains_key(&addr) {
-                                                println!("[PEER-DISCOVERY] Found LAN peer {} at {}:{}", addr, ip, pp);
-                                                peers.insert(addr.clone(), PeerInfo {
-                                                    address: addr,
-                                                    ip,
-                                                    peer_port: pp,
-                                                    connected: false,
-                                                    last_seen: now,
-                                                });
-                                            }
+                                        let needs_connect = {
+                                            let mut peers_guard = peers.lock().unwrap_or_else(|e| e.into_inner());
+                                            let entry = peers_guard.entry(addr.clone()).or_insert(PeerInfo {
+                                                address: addr.clone(),
+                                                ip,
+                                                peer_port: pp,
+                                                connected: false,
+                                                last_seen: now,
+                                            });
+                                            entry.last_seen = now;
+                                            !entry.connected
+                                        };
+                                        if needs_connect {
+                                            connect_to_peer(
+                                                addr.clone(),
+                                                ip,
+                                                pp,
+                                                local_address.clone(),
+                                                local_peer_port,
+                                                peers.clone(),
+                                                senders.clone(),
+                                            );
                                         }
                                     }
                                 }
@@ -267,36 +284,162 @@ fn spawn_peer_discovery(crs_url: String, local_address: String, local_peer_port:
                 Ok(_) => {}
                 Err(_) => {}
             }
+        }
+    });
+}
 
-            if let Ok(peers) = peers.lock() {
-                for (addr, info) in peers.iter() {
-                    if !info.connected {
-                        println!("[PEER-DISCOVERY] Attempting direct connection to {} at {}:{}", addr, info.ip, info.peer_port);
+fn connect_to_peer(
+    remote_address: String,
+    ip: std::net::IpAddr,
+    port: u16,
+    local_address: String,
+    local_peer_port: u16,
+    peers: PeerConnections,
+    senders: PeerSenders,
+) {
+    tokio::spawn(async move {
+        let ws_url = format!("ws://{}:{}", ip, port);
+        println!("[PEER] Connecting to LAN peer {} at {}", remote_address, ws_url);
+
+        let connect_result = tokio_tungstenite::connect_async(&ws_url).await;
+        match connect_result {
+            Ok((ws_stream, _)) => {
+                println!("[PEER] Direct connection established to {} ({}:{})", remote_address, ip, port);
+
+                {
+                    let mut peers_guard = peers.lock().unwrap_or_else(|e| e.into_inner());
+                    if let Some(info) = peers_guard.get_mut(&remote_address) {
+                        info.connected = true;
+                        info.last_seen = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default().as_secs();
                     }
                 }
+
+                use futures_util::{SinkExt, StreamExt};
+                let (mut write, mut read) = ws_stream.split();
+
+                let announce = serde_json::json!({
+                    "type": "peer_announce",
+                    "address": local_address,
+                    "peerPort": local_peer_port,
+                });
+                let _ = write.send(tokio_tungstenite::tungstenite::Message::Text(announce.to_string())).await;
+
+                let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(64);
+                {
+                    let mut senders_guard = senders.lock().unwrap_or_else(|e| e.into_inner());
+                    senders_guard.insert(remote_address.clone(), tx);
+                }
+
+                let remote_addr_read = remote_address.clone();
+                let peers_read = peers.clone();
+                let read_task = tokio::spawn(async move {
+                    while let Some(msg) = read.next().await {
+                        match msg {
+                            Ok(m) if m.is_text() || m.is_binary() => {
+                                let now = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default().as_secs();
+                                if let Ok(mut pg) = peers_read.lock() {
+                                    if let Some(info) = pg.get_mut(&remote_addr_read) {
+                                        info.last_seen = now;
+                                    }
+                                }
+                                println!("[PEER-DIRECT] Received {} bytes from {}", m.len(), remote_addr_read);
+                            }
+                            Ok(m) if m.is_close() => break,
+                            Err(_) => break,
+                            _ => {}
+                        }
+                    }
+                });
+
+                let write_task = tokio::spawn(async move {
+                    while let Some(data) = rx.recv().await {
+                        if write.send(tokio_tungstenite::tungstenite::Message::Text(data)).await.is_err() {
+                            break;
+                        }
+                    }
+                });
+
+                let _ = tokio::select! {
+                    r = read_task => r,
+                    r = write_task => r,
+                };
+
+                println!("[PEER] Direct connection to {} lost", remote_address);
+                {
+                    let mut peers_guard = peers.lock().unwrap_or_else(|e| e.into_inner());
+                    if let Some(info) = peers_guard.get_mut(&remote_address) {
+                        info.connected = false;
+                    }
+                }
+                {
+                    let mut senders_guard = senders.lock().unwrap_or_else(|e| e.into_inner());
+                    senders_guard.remove(&remote_address);
+                }
+            }
+            Err(e) => {
+                println!("[PEER] Failed to connect to {} at {}:{} — {}", remote_address, ip, port, e);
             }
         }
     });
 }
 
-fn route_message(target_address: &str, peers: &PeerConnections) -> MessageRoute {
-    if let Ok(peers) = peers.lock() {
-        if let Some(info) = peers.get(target_address) {
-            if info.connected {
-                return MessageRoute::Direct {
-                    ip: info.ip,
-                    port: info.peer_port,
-                };
-            }
+async fn send_via_peer_or_relay(
+    target: &str,
+    payload: &str,
+    peer_senders: &PeerSenders,
+    relay_tx: Option<&tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>>,
+    from: &str,
+    msg_type: &str,
+) -> bool {
+    let peer_tx = {
+        if let Ok(senders) = peer_senders.lock() {
+            senders.get(target).cloned()
+        } else {
+            None
+        }
+    };
+
+    if let Some(tx) = peer_tx {
+        let msg = serde_json::json!({
+            "type": msg_type,
+            "from": from,
+            "payload": payload,
+        });
+        if tx.send(msg.to_string()).await.is_ok() {
+            println!("[ROUTE] Sent {} to {} via DIRECT peer", msg_type, target);
+            return true;
         }
     }
-    MessageRoute::Relay
-}
 
-#[derive(Debug)]
-enum MessageRoute {
-    Direct { ip: std::net::IpAddr, port: u16 },
-    Relay,
+    if let Some(relay) = relay_tx {
+        let env = inter_cube::ws_relay::RelayEnvelope {
+            msg_type: "relay".to_string(),
+            to: Some(target.to_string()),
+            relay_msg_type: Some(msg_type.to_string()),
+            payload: Some(payload.to_string()),
+            address: None,
+            public_key: None,
+            nonce: None,
+            signature: None,
+            from: None,
+            error: None,
+            delivered: None,
+            connected_peers: None,
+            ts: None,
+            connected: None,
+        };
+        if relay.send(env).await.is_ok() {
+            println!("[ROUTE] Sent {} to {} via RELAY (no direct peer)", msg_type, target);
+            return true;
+        }
+    }
+
+    println!("[ROUTE] Failed to send {} to {} — no route available", msg_type, target);
+    false
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -415,7 +558,7 @@ async fn run_crs_mode() {
         println!("  Relay:         {} (WebSocket, TL-DSA-87 challenge-response)", rurl);
         let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
         let tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
-        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex);
+        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None);
     } else {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
     }
@@ -793,17 +936,19 @@ async fn run_cube_mode() {
 
     let addr_str_for_relay: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     let relay_target = relay_url(Some(&crs_url)).unwrap_or_else(|| crs_url.clone());
+    let p_port = peer_port();
+    let peers = new_peer_registry();
+    let peer_senders = new_peer_senders();
+
     println!("[ws-relay] Relay target: {}", relay_target);
     let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
     let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
-    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex);
+    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()));
 
-    let p_port = peer_port();
-    let peers = new_peer_registry();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone());
 
     let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
-    spawn_peer_discovery(crs_url.clone(), addr_str_for_discovery, p_port, peers.clone());
+    spawn_peer_discovery(crs_url.clone(), addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone());
 
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
@@ -834,6 +979,7 @@ fn spawn_relay_client(
     public_key_hex: String,
     tl_dsa_sk: Vec<u8>,
     tl_dsa_pk_hex: String,
+    peer_senders: Option<PeerSenders>,
 ) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
@@ -890,6 +1036,7 @@ fn spawn_relay_client(
                     let connected_ping = client.connected.clone();
                     let peers_ping = client.peers.clone();
                     let addr_for_ping = address.clone();
+                    let peer_senders_ping = peer_senders.clone();
                     tokio::spawn(async move {
                         let mut tick: u64 = 0;
                         loop {
@@ -925,23 +1072,35 @@ fn spawn_relay_client(
                                     .as_millis() as u64;
                                 for peer in &peers {
                                     if peer != &addr_for_ping {
-                                        let hb = inter_cube::ws_relay::RelayEnvelope {
-                                            msg_type: "relay".to_string(),
-                                            to: Some(peer.clone()),
-                                            relay_msg_type: Some("heartbeat".to_string()),
-                                            payload: Some(format!("{{\"from\":\"{}\",\"ts\":{}}}", addr_for_ping, now_ms)),
-                                            address: None,
-                                            public_key: None,
-                                            nonce: None,
-                                            signature: None,
-                                            from: None,
-                                            error: None,
-                                            delivered: None,
-                                            connected_peers: None,
-                                            ts: None,
-                                            connected: None,
-                                        };
-                                        let _ = client_ping.send(hb).await;
+                                        let payload = format!("{{\"from\":\"{}\",\"ts\":{}}}", addr_for_ping, now_ms);
+                                        if let Some(ref ps) = peer_senders_ping {
+                                            send_via_peer_or_relay(
+                                                peer,
+                                                &payload,
+                                                ps,
+                                                Some(&client_ping),
+                                                &addr_for_ping,
+                                                "heartbeat",
+                                            ).await;
+                                        } else {
+                                            let hb = inter_cube::ws_relay::RelayEnvelope {
+                                                msg_type: "relay".to_string(),
+                                                to: Some(peer.clone()),
+                                                relay_msg_type: Some("heartbeat".to_string()),
+                                                payload: Some(payload),
+                                                address: None,
+                                                public_key: None,
+                                                nonce: None,
+                                                signature: None,
+                                                from: None,
+                                                error: None,
+                                                delivered: None,
+                                                connected_peers: None,
+                                                ts: None,
+                                                connected: None,
+                                            };
+                                            let _ = client_ping.send(hb).await;
+                                        }
                                     }
                                 }
                             }
@@ -969,6 +1128,8 @@ fn spawn_relay_client(
                             let http = inference_client.clone();
                             let reply_tx = client.outgoing_tx.clone();
                             let from_addr = from.clone();
+                            let ps_inference = peer_senders.clone();
+                            let addr_inference = address.clone();
 
                             tokio::spawn(async move {
                                 let parsed: serde_json::Value = match serde_json::from_str(&payload_str) {
@@ -1034,24 +1195,35 @@ fn spawn_relay_client(
                                                         "usage": usage,
                                                     });
 
-                                                    let reply_env = inter_cube::ws_relay::RelayEnvelope {
-                                                        msg_type: "relay".to_string(),
-                                                        to: Some(from_addr.clone()),
-                                                        relay_msg_type: Some("inference_response".to_string()),
-                                                        payload: Some(response_payload.to_string()),
-                                                        address: None,
-                                                        public_key: None,
-                                                        nonce: None,
-                                                        signature: None,
-                                                        from: None,
-                                                        error: None,
-                                                        delivered: None,
-                                                        connected_peers: None,
-                                                        ts: None,
-                                                        connected: None,
-                                                    };
-                                                    if let Err(e) = reply_tx.send(reply_env).await {
-                                                        println!("[inference] Failed to send response via relay: {}", e);
+                                                    if let Some(ref ps) = ps_inference {
+                                                        send_via_peer_or_relay(
+                                                            &from_addr,
+                                                            &response_payload.to_string(),
+                                                            ps,
+                                                            Some(&reply_tx),
+                                                            &addr_inference,
+                                                            "inference_response",
+                                                        ).await;
+                                                    } else {
+                                                        let reply_env = inter_cube::ws_relay::RelayEnvelope {
+                                                            msg_type: "relay".to_string(),
+                                                            to: Some(from_addr.clone()),
+                                                            relay_msg_type: Some("inference_response".to_string()),
+                                                            payload: Some(response_payload.to_string()),
+                                                            address: None,
+                                                            public_key: None,
+                                                            nonce: None,
+                                                            signature: None,
+                                                            from: None,
+                                                            error: None,
+                                                            delivered: None,
+                                                            connected_peers: None,
+                                                            ts: None,
+                                                            connected: None,
+                                                        };
+                                                        if let Err(e) = reply_tx.send(reply_env).await {
+                                                            println!("[inference] Failed to send response via relay: {}", e);
+                                                        }
                                                     }
                                                 } else {
                                                     println!("[inference] LLM returned {} for request {}", status, request_id);
