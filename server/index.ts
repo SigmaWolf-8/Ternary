@@ -591,12 +591,15 @@ function startPqtiService(): ChildProcess | null {
         entry.lastSeen = Date.now();
         entry.endpoint = endpoint;
         if (tlDsaPk) entry.tlDsaPk = tlDsaPk;
-        publicKeyAddressMap.set(publicKey, candidateAddr);
-        storage.upsertCrsRelayNode(publicKey, candidateAddr, endpoint, tlDsaPk || entry.tlDsaPk).catch(() => {});
-        log(`CRS re-register ${publicKey.substring(0, 16)}... → same address ${toDottedAddr(candidateAddr)} (stable)`, "crs");
-        return res.json({ address: candidateAddr, addressDotted: toDottedAddr(candidateAddr), endpoint, source: "stable" });
+      } else {
+        crsRegistry.set(candidateAddr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
+        log(`CRS restored purged address ${toDottedAddr(candidateAddr)} for ${publicKey.substring(0, 16)}... (permanent identity)`, "crs");
       }
-      publicKeyAddressMap.delete(publicKey);
+      const finalEntry = crsRegistry.get(candidateAddr)!;
+      publicKeyAddressMap.set(publicKey, candidateAddr);
+      storage.upsertCrsRelayNode(publicKey, candidateAddr, endpoint, tlDsaPk || finalEntry.tlDsaPk).catch(() => {});
+      log(`CRS re-register ${publicKey.substring(0, 16)}... → same address ${toDottedAddr(candidateAddr)} (stable)`, "crs");
+      return res.json({ address: candidateAddr, addressDotted: toDottedAddr(candidateAddr), endpoint, source: "stable" });
     }
 
     const upstream = await tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/register", {
