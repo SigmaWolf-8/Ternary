@@ -1,0 +1,419 @@
+Task #33 — The PlenumNET Service Cube
+3³ Agnostic Application Platform · 9-Factor Authentication Shell · Geometric Self-Healing
+Capomastro Holdings Ltd. — Applied Physics Division
+Author: R. Salvi · RSalvi@Salvigroup.com
+Date: March 2026 · Version 2.0
+Classification: INTERNAL
+
+1. What This Is
+The Service Cube is a 27-slot (3³) agnostic application platform. Every slot is identical. Every slot provides the same capabilities. A service registers into a slot and inherits everything the geometry provides. The service that leaves takes none of it. The slot remains.
+The platform provides 13 capabilities to every registered service — one for each dimension of the 13D hypercube. Each capability operates across the full 27-dimensional TDNS-L classification space. Discovery uses all 27 dimensions. Routing uses all 27. Self-healing uses all 27. The capabilities work through the classification, not beside it.
+Wrapping the cube is the 28th dimension: a 9-factor (3²) authentication and legal compliance shell. It exists physically at the gateway — position (1,1,1), the geometric center — the single point where the cube's interior meets the outside world. Factor 9 is SignHere: the deployed PlenumNET e-signature platform that makes every sensitive access a cryptographically executed, digitally notarized, Hedera-witnessed, legally admissible contract.
+Two geometric identities govern the architecture:
+Spatial: 13 × 28 = 364. Thirteen capabilities spanning 28 dimensions (27 classification + 1 shell). The full ternary circle. The address space closes.
+Temporal: 13 × 14 = 182. Thirteen capabilities times π. The semicircular arc. The key rotation epoch. The security lifecycle closes.
+Both identities share the factor 13 — the hypercube dimensionality. Both close the circle: one in space (the address architecture), one in time (the key lifecycle). They meet at the gateway, offset +13 = T₇ = π − 1, where the spatial shell and the temporal rotation share a common point.
+
+2. Why This Matters
+2.1 Single Node = Complete Server
+One machine. One binary. 27 agnostic slots. Replaces 12 Windows Server roles plus RDP streaming, native database, inference engines, Windows application hosting, and anything else that registers. The slots don't know what's inside them. The geometry connects them.
+2.2 Array3 = Instant HA
+Three nodes. 81 slots = 3⁴. Sub-millisecond peer mesh. TDNS-L routes by Hamming distance. Lose a node and the geometry absorbs.
+2.3 Self-Healing Requires Agnosticism
+The FTS monitors slots, not services. The GLB reroutes around dead slots, not dead services. Agnosticism enables heal-without-cascade: the geometry heals the slot; the service inside is opaque.
+2.4 No Hardcoded Constants
+Every architectural number is a geometric consequence:
+ValueDerivationRole273³Slots per node813⁴Slots per Array3 cluster93²Shell factors (dimension 28)13Hypercube dimensionalityCapabilities; gateway offset (T₇)2827 + 1 shellFull address space14π in ternary circleCircumference constant18213 × π = 20202₃ (palindrome)Cryptographic arc — key rotation650832 − 182 = 220002₃ (directional)Evidentiary arc — legal retention8322⁶ × 13Administrative epoch (sum of both arcs)36413 × 28 = 2 × 182Full circle (spatial and temporal)4ceil(650/182)Key archive depth; redirect chain depth468650 − 182 = 6² × 13Transition gap between arcs36468/13 = 4 × 9Verification checkpoints per transition11111Decimal port; digit string is valid base-3 (=121=11²)Base port
+None are configuration parameters. The platform scales by the mathematics of the space.
+
+3. The Geometry
+3.1 The 3³ Cube
+27 slots. Each addressed by a 3-trit coordinate: (plane, role, instance).
+port = base + (node × 3³) + (plane × 3²) + (role × 3¹) + (instance × 3⁰)
+Where base = 11111 (decimal TCP port). The digit string "11111" is simultaneously a valid base-3 number (11111₃ = 121 = 11²) — a representational resonance, not a numeric conversion.
+DimensionValuesMeaningPlane (trit 2)0 = Data, 1 = Control, 2 = ManagementSecurity domainRole (trit 1)0 = Primary, 1 = Secondary, 2 = TertiaryFunctional classInstance (trit 0)0, 1, 2Service variant
+3.2 The Center: (1,1,1)
+Position (1,1,1) is the geometric center. HD ≤ 2 from every slot. The only point with all trits = 1. In Rep C, zero zeros — maximally hidden. Offset +13 = T₇ = π − 1.
+The center is where the two geometric identities intersect:
+
+Spatially: the 28th dimension (9-factor shell) manifests here — this is the gate
+Temporally: key rotation initiates here — the arc epoch (182 = 13 × π) pivots at the gateway
+
+The node at 1111111111111 in the 13D hypercube. The gateway at (1,1,1) in the 3³ port cube. Centers all the way down.
+3.3 Hamming Distance
+HDCountMeaning01Same slot — loopback16Adjacent — direct call, same domain212Crosses boundaries — requires capability token38Corners — full mutual auth
+3.4 Port Allocation: Single Node
+OffsetTritPortSlot (agnostic)+000011111Data / Primary / 0+100111112Data / Primary / 1+200211113Data / Primary / 2+301011114Data / Secondary / 0+401111115Data / Secondary / 1+501211116Data / Secondary / 2+602011117Data / Tertiary / 0+702111118Data / Tertiary / 1+802211119Data / Tertiary / 2+910011120Control / Primary / 0+1010111121Control / Primary / 1+1110211122Control / Primary / 2+1211011123Control / Secondary / 0+1311111124THE CENTER — Gateway · Shell · Key Rotation Pivot+1411211125Control / Secondary / 2+1512011126Control / Tertiary / 0+1612111127Control / Tertiary / 1+1712211128Control / Tertiary / 2+1820011129Management / Primary / 0+1920111130Management / Primary / 1+2020211131Management / Primary / 2+2121011132Management / Secondary / 0+2221111133Management / Secondary / 1+2321211134Management / Secondary / 2+2422011135Management / Tertiary / 0+2522111136Management / Tertiary / 1+2622211137Management / Tertiary / 2
+No service names. Slots are agnostic. The center is the only named position — it is the gate.
+3.5 Array3
+Node 1: 11111–11137 · Node 2: 11138–11164 · Node 3: 11165–11191. 81 slots = 3⁴.
+3.6 The Dual-Circle Architecture
+The ternary circle (364°, π = 14) governs both the spatial and temporal structure of the cube. (Throughout this document, π refers to the ternary circumference constant πₜ = 14, derived from the 364° ternary circle where C = πd, not the Euclidean 3.14159. See TM-2026-008 Program III and TM-2026-015 for the formal derivation.)
+Spatial closure: The address space has 28 dimensions (27 classification + 1 shell). The 13 capabilities span all 28. 13 × 28 = 364. The spatial circle closes — every addressable property of every service is covered.
+Temporal closure: The key rotation arc is 182° = π(π − 1) = 14 × 13. One arc = one key lifecycle. Two arcs = 364° = full security rotation. Every TL-DSA key traverses one arc before rotation. The gateway at offset 13 = π − 1 is the rotation pivot.
+The intersection: Both identities factor through 13. The gateway (offset 13) is where the spatial shell (dimension 28) and the temporal arc (epoch 182) share a common point.
+Relationship to the dual-circle proof (TM-2026-008): Z₂₇ (algebraic, the classification space) and Z₂₈ (geometric, the full address space). gcd(27,28) = 1. The two circles are coprime — they share no common factor except 1, meaning their combination covers the full space without redundancy.
+3.7 The Two Arcs: Cryptographic and Evidentiary
+The arc equation — arc² − 832·arc + 118,300 = 0 — has two roots. Both are architectural.
+Root 182: the cryptographic arc. When keys rotate. A TL-DSA key lives for one semicircle (182 = 13 × π = 20202₃), then rotates. The key is gone. 20202₃ is a palindrome — key rotation is symmetric: old key out, new key in, same geometry, same slot, same capabilities. The security posture reads the same forward and backward.
+Root 650: the evidentiary arc. When legal evidence transitions. The contracts and audit chains signed by a rotating key must outlive the key itself. After a key rotates at epoch 182, the SignHere contracts (Factor 9), Merkle audit entries (Factor 7), and Hedera witnesses it created enter an evidentiary retention period. They must remain tamper-provable, court-admissible, and independently verifiable for 650 time-units — the complementary root.
+650 = 13 × 50 = 220002₃. Not a palindrome. The evidentiary arc is directional — it points forward in time toward the court date, not backward. Evidence accumulates; it never retracts.
+The quadratic's structure:
+PropertyValueFactorizationMeaningCryptographic arc1822 × 7 × 13Key lifecycleEvidentiary arc6502 × 5² × 13Evidence lifecycleSum8322⁶ × 13Combined administrative epochProduct118,30013² × 700Cross-lifecycle invariantGap4686² × 13Transition bufferShared factor262 × 13Diameter of the ternary circleRatio25/7—Evidence outlives key by 3.57×
+Everything factors through 13. The hypercube dimensionality governs both arcs.
+The retention mapping: At a 2-year key rotation cycle, 650 maps to 7.1 years of evidence retention — aligning with SOX (7 years), HIPAA (6 years), PIPEDA (7 years), and universal tax record requirements (6–7 years). The geometry produces the retention period; the jurisdictional requirements confirm it.
+Architectural consequence for Factor 9: Factors 1–8 of the 9-factor shell operate at authentication time — they gate a single request. Factor 9 (SignHere) creates a legal artifact that must survive long after the authentication moment. The evidentiary arc (650) governs how long that artifact must remain verifiable. This gives the gateway at (1,1,1) a temporal depth: it's not just the point where inside meets outside, it's the point where the cryptographic present (arc 182) generates the legal future (arc 650). The contract signed today at the gate must be provable 650 time-units from now, long after the key that signed it has rotated.
+
+4. The 13 Capabilities
+Every registered service receives 13 platform capabilities — one per hypercube dimension. Each operates across the full 27-trit classification. The service provides only its own logic.
+#CapabilityWhat the geometry provides1IdentityTL-DSA keypair at registration2EncryptionTLSponge-385 on all paths3DiscoveryTDNS-L entry from classification4Access controlCapability tokens from issuance rules5Audit trailMerkle chain, auto-connected6Geometric routingHamming distance across 3³ cube7External accessMultiplexed through (1,1,1) gateway8Legacy bridgingDerived from classification dimensions9Self-healingFTS monitors slot, GLB reroutes10FailoverArray3 peer mesh, same slot another node11WAN direct tunnelRelay-assisted P2P hole punch12Application hostingGuest subsystem in slot, streamed to browser13Inter-service meshClassification query + geometric calls
+These are not 13 named modules. They are 13 classes of service that emerge from occupying 13-dimensional space. The count is the dimensionality — it scales with the geometry.
+Each capability uses the full 27 dimensions: Discovery reads D5, D6, D12 to find services. Routing computes HD across all 27. Self-healing monitors slot addresses derived from all 27. Legacy bridging reads D5, D6, D12, D15 to determine the RFC port. Access control evaluates issuance rules against the slot's cube region prefix. The capabilities are projections of the geometry onto the service — not features bolted onto a platform.
+
+5. Slot Agnosticism: The Registration API
+5.1 How a Service Joins
+Any application — first-party, third-party, future — calls one function:
+rustpub fn register_service(
+    crs: &mut CrsLocal,
+    classification: [Trit; 27],
+) -> Result<ServiceSlot, RegistrationError> {
+    let address = project_to_slot(&classification);
+    let port = crs.allocate_slot(address)?;
+    
+    // The geometry provides everything.
+    Ok(ServiceSlot {
+        address, port,
+        identity:     tl_dsa_keygen(),
+        capabilities: crs.evaluate_rules(address),
+        bridge:       derive_legacy_bridge(&classification),
+        audit:        crs.connect_audit(address),
+        discovery:    crs.register_tdns_l(address, &classification),
+        tunnel:       crs.register_tunnel(address),
+        shell:        crs.configure_shell(address),
+    })
+}
+The service writes zero infrastructure code. The 13 capabilities come from the geometry.
+5.2 What the Service Does NOT Do
+Implement authentication, encryption, discovery, access control, audit, legal compliance, bridging, self-healing, routing, failover, tunneling, or inter-service communication. The cube provides all of it.
+5.3 Inter-Service Communication
+rustlet target = crs.query_by_classification(
+    dim_filter! { D5: Server, D10: StrongAuth, D25: Hardened }
+)?;
+let response = cube.call(target.address, request)?;
+Services discover by WHAT, not WHERE. If a service moves, the query finds it.
+
+6. The Gateway at (1,1,1): Where Space Meets Time
+6.1 Architecture
+The gateway is the geometric center. It multiplexes all 27 slots through one outbound WebSocket on port 443.
+27 internal services (localhost)
+         │
+    ┌────┴────┐
+    │  Shell  │  ← 9-factor auth (Dimension 28)
+    └────┬────┘
+         │
+    Multiplexer at (1,1,1) — offset +13 = T₇ = π − 1
+         │
+    TLSponge-385 + TL-DSA
+         │
+    Outbound WSS :443 ──── FIREWALL ──── Relay
+6.2 Spatial Role
+The 28th dimension manifests here. Every external request passes through the 9-factor shell at this point. The shell is the address space's outermost boundary — the wall around the 27 classification dimensions.
+6.3 Temporal Role
+Key rotation initiates here. The arc epoch (182 = 13 × π) measures the lifecycle of every TL-DSA key in the cube. The gateway monitors all slot key ages via their birth epochs. When a slot's key reaches arc age, the rotation protocol executes:
+
+Gateway generates a new TL-DSA keypair for the slot
+New key is pushed to the slot. The slot acknowledges and begins signing with the new key
+Old key enters grace period. Capability tokens signed by the old key remain valid for a bounded window (derived from the slot's classification — tighter for real-time services, looser for batch). During grace, both keys are accepted by verifiers
+Old public key enters the 4-generation archive. The private key is destroyed
+Grace period ends. Only the new key is accepted. The 36-checkpoint transition verification begins on the archived key's evidence
+If a slot misses rotation (no acknowledgment within the grace window), the gateway marks the slot Suspect — the same health state transition used by the FTS. Self-healing takes over
+
+Two arcs (364°) = full security rotation. The gateway is both the spatial center and the temporal pivot.
+6.4 Firewall Transparency
+One outbound connection. Port 443. Every firewall allows it. The firewall sees HTTPS. Behind it: 27 services, 9-factor shell, PQ encryption. Zero inbound ports. Zero configuration.
+
+7. Dimension 28: The 9-Factor Authentication Shell
+7.1 The Gate
+27 dimensions describe WHAT a service is. The 28th dimension protects WHO may touch it. Nine factors (3²) organized as Identity × Authorization × Accountability (3 × 3). The shell wraps the gateway at (1,1,1) — the only point where inside meets outside.
+13 × 28 = 364. The spatial circle closes.
+7.2 Identity Factors (Who You Are)
+Factor 1 — TL-DSA Key Possession. Challenge-response with the caller's PQ private key. NIST PQC Level 5. Replaces passwords, hashes, tickets, tokens, certificates.
+Factor 2 — Biometric Verification. WebAuthn/FIDO2 for humans. XPlenum capability token or PUF binding for machines. Something inseparable from the physical entity.
+Factor 3 — HPTP Temporal Presence. Femtosecond-precision signed timestamp with nonce from Factor 1. Tolerance derived from target slot classification: ≤1µs real-time, ≤100µs near-time, ≤1s batch. The temporal arc (182) governs key freshness — a key older than one arc is rotated before authentication proceeds.
+7.3 Authorization Factors (What You May Do)
+Factor 4 — Capability Token. HMAC-chained, scoped to slot + action + time. Each delegation narrows. Widening cryptographically impossible.
+Factor 5 — Geometric Proximity. Hamming distance check between caller and target. Cross-plane access requires explicit token authorization. The address IS the access control.
+Factor 6 — Delegation Chain. HMAC chain verified to root. Every link: delegator had authority, scope narrows, no expiration. Even root cannot widen beyond root capability.
+7.4 Accountability Factors (What Happens When We Catch You)
+Factor 7 — Pre-Committed Audit Entry. BEFORE the request processes, an entry is Merkle-chained, HPTP-timestamped, periodically Hedera-anchored. Records who (F1), what (operation), when (F3), where (F5), chain (F6). Cannot be erased. Chain break = tamper-evident.
+Factor 8 — Jurisdictional Compliance. Data location (from classification D17, D2, IPv6 subnet), caller location (node address), applicable regulations (GDPR, PIPEDA, SOX, HIPAA). Violations rejected BEFORE the action. The geometry enforces sovereignty.
+Factor 9 — SignHere: Cryptographic Contract Execution. Before sensitive access, the caller executes a contract via SignHere (signhere.replit.app). Deployed and operational:
+
+RFC 3161 timestamping — legally recognized proof of signing time
+Dual RSA-4096 + TL-DSA co-signatures — admissible today, quantum-proof tomorrow
+Merkle audit log — signature events chained with the cube's audit fabric
+Hedera HCS witnessing — public, decentralized, independently verifiable by courts
+42-calendar epoch system — timestamps across cultural and legal frameworks
+Document Notary — 6 verification checks confirmed passing on real PDFs
+
+The contract specifies what data can be accessed (scoped to slot and classification), purpose limitation (TDNS-L WHY category D17–D20), retention period (from Factor 8 jurisdictional analysis), penalties for misuse, governing jurisdiction, and the full identity chain (Factors 1–6 bound cryptographically). Admissible under eIDAS, ESIGN, UETA, and equivalents.
+An attacker who breaches all eight preceding factors still cryptographically signed the contract. The breach is a contract violation with a complete, tamper-proof, Hedera-verified evidence chain.
+Factor 9 is the only factor with temporal depth beyond the request moment. Factors 1–8 gate a single request — they operate and complete. Factor 9 creates an artifact that must survive the evidentiary arc (650 = 13 × 50 = 220002₃) — the complementary root of the arc equation (Section 3.7). The signed contract, the Merkle chain entry, and the Hedera witness must remain verifiable long after the TL-DSA key that created them rotates at arc 182. The ratio 650/182 = 25/7 ≈ 3.57× — the evidence outlives the key by the geometry's own constant. At a 2-year key rotation, this produces 7.1 years of evidence retention, aligning with SOX, HIPAA, and PIPEDA requirements.
+Key archival for evidentiary verification: When a TL-DSA key rotates, the private key is destroyed. The public key is retained in the 4-generation archive (Section 3.7). Any court or verifier can check a contract's signature against the archived public key without the private key existing. The contract itself stores the signing key's generation index, so the verifier knows which archived public key to use. When the 5th key generation is born, the oldest public key is purged — but only because all evidence it signed has passed the evidentiary arc (650) and is no longer subject to verification.
+7.5 Adaptive Requirements
+Operation classRequired factorsPublic read (D2=3, D9=3)F1, F3, F7Authenticated readF1, F2, F3, F4, F7Authenticated writeF1, F2, F3, F4, F5, F6, F7Cross-jurisdictionF1–F8Regulated / sensitiveAll 9 + freshness ≥ 50%Administrative overrideAll 9 + freshness ≥ 75% + threshold governance
+Required factors are determined by the target slot's classification dimensions (D17, D2, D25, D26). The geometry decides.
+Key freshness is a continuous metric derived from the cryptographic arc: freshness = 1 − (key_age / ARC_EPOCH). Every capability token carries the signing key's birth epoch, so any verifier computes freshness without additional state. A key at age 91/182 has freshness 50% — the midpoint of the arc, the ternary semicircle's equator. Sensitive operations can require minimum freshness thresholds, meaning a stolen key near end-of-life is automatically rejected for high-value access even though it hasn't technically expired. Freshness degrades the attacker's window continuously rather than presenting a binary valid/expired cliff edge.
+
+8. Legacy Protocol Bridges: Derived from Classification
+The TDNS-L classification identifies protocol families. The CRS auto-opens bridge listeners on RFC-mandated ports alongside the native slot.
+rustpub fn derive_legacy_bridge(classification: &[Trit; 27]) -> Option<LegacyBridge> {
+    match (classification[4], classification[5], classification[11], classification[14]) {
+        (Trit(3), Trit(1), Trit(3), Trit(2)) => Some(LegacyBridge::Dns(53)),
+        (Trit(3), Trit(1), Trit(3), Trit(1)) => Some(LegacyBridge::Dhcp(67)),
+        (Trit(2), Trit(1), Trit(1), Trit(2)) => Some(LegacyBridge::Smb(445)),
+        (Trit(2), Trit(2), Trit(1), _)       => Some(LegacyBridge::Ipp(631)),
+        (Trit(3), Trit(1), Trit(3), Trit(3)) => Some(LegacyBridge::Radius(1812)),
+        _                                     => None,
+    }
+}
+Bridges are shims on the surface — not slots within the cube. Legacy auth (NTLM, Kerberos) is translated to TL-DSA through the 9-factor shell internally.
+
+9. TDNS-L Classification → Slot Projection
+9.1 The 27→3 Projection
+27 TDNS-L dimensions partition into three groups of 9 (27 = 3² + 3² + 3²). Each group determines one port trit via project_to_gf3(k, 9) with polarity-adjusted dimensions.
+For each port trit: take 9 dimensions, apply polarity (invert if −), count k = polarity-adjusted dimensions with value 3, apply project_to_gf3(k, 9) = min(floor(k/3), 2) + 1.
+9.2 Groups and Polarities
+The 27 dimensions partition into three groups of 9. Polarity assignments below use the code-level semantics from derive.rs (the TDNS v2.3.3 global schema). Where the LAN schema (TM-2026-019.2 §7) uses different dimension names for the same position — specifically D8 (global: Intelligence, LAN: Operational Domain), D19 (global: PolicyPresence, LAN: Mobility), and D20 (global: CostModel, LAN: Power Source) — the polarity is assigned to the global semantic. The LAN scan template maps its dimensions to the same positions, so the projection produces consistent results at both scopes.
+Plane group (security domain): D1, D2(−), D3, D9(−), D10, D17, D19, D25, D26
+D19 (PolicyPresence: privacy/terms/GDPR depth) belongs in Plane because compliance posture is a security domain property. More policy presence → deeper trust → management plane (+).
+Role group (functional class): D5, D6, D7, D8, D12, D18, D22(−), D23, D24(−)
+D8 (Intelligence: ML/AI detection) fits Role — what kind of processing does this service perform? More intelligence → more complex role class (+). D18 (DataAppetite: data collection intensity) fits Role — heavier data interaction → secondary/tertiary role (+).
+Instance group (temporal/scale): D4, D11, D13, D14, D15, D16, D20, D21, D27
+D20 (CostModel: free/pay-per-use/subscription) stays in Instance with + polarity — subscription implies higher availability commitment → higher instance. D27 (Confidence: passive inference / active probe / verified) moves to Instance — verified entities receive primary instance priority (+).
+Dimensions marked (−) are polarity-inverted before aggregation. Polarity is a structural property of the schema — not a tuning parameter.
+9.3 The Projection Is Agnostic
+The function receives 27 trits and returns 3 trits. It does not know what service it's classifying. A file service, an inference engine, a contract execution platform, an application host, a third-party tool, or a service that doesn't exist yet — all pass through the same projection. If two services have identical classifications, they receive identical slot assignments. The CRS handles collisions via CRD within the slot.
+
+10. Self-Healing Integration
+10.1 FTS Monitors Slots
+The Fault Tolerance Service heartbeats to slots. Health state machine (Up → Suspect → Down → Recovering) operates on 3-trit addresses. The service inside is opaque.
+Suspect: forensic capture begins, HD 1 neighbors (6 slots) notified, GLB routes around. Down: forensic committed to vault, Array3 promotes replica or single-node restarts, gateway updates routing.
+Forensic capture scope: Because the slot is opaque, the cube captures only what it can see from outside the service: slot metadata (classification, registration time, key generation, birth epoch, freshness at failure), system telemetry (CPU, memory, network counters for the slot's port), the slot's Merkle audit trail (every request that passed through the shell), and any cube-mediated persistent state (data the service stored through the cube's storage capability). The service's internal memory is not accessible to the cube — if the service manages its own state outside the cube's storage, that state is lost on failure. This is a feature, not a limitation: the cube's forensic capture is complete for everything the cube provided, and the service is responsible for its own internals.
+10.2 Quarantine Is Geometric
+ZK proof failure or anomaly detection → slot address added to GLB dead set. Traffic rerouted by Hamming distance detour. Works identically for any service.
+10.3 Heal-Without-Cascade
+Isolate by address. Capture by slot state. Replace by re-registration at same classification. Heal by geometric reroute. No other service affected.
+
+11. WAN Peer-to-Peer
+11.1 Relay-Assisted Hole Punching
+Both nodes maintain their relay WebSocket. When direct connection is needed:
+
+Signal via relay (exchange public endpoints — the relay already knows each node's public IP:port from the WebSocket)
+Simultaneous NAT traversal — both nodes send UDP packets to each other's public endpoint at the same moment. The relay includes an HPTP timestamp in the signaling message specifying when both sides should send, ensuring synchronization within the HPTP tolerance window. Most NATs (full-cone, restricted-cone, port-restricted-cone) open a pinhole on the first outbound packet
+TL-DSA mutual auth on direct path (MITM impossible — attacker can't complete the challenge-response without private keys)
+TLSponge-385 encryption (relay sees nothing after auth completes)
+Fallback to relay if symmetric NAT on both sides (~10% of consumer NATs) — transparent to the application layer
+
+No STUN (relay knows endpoints). No TURN (relay IS the fallback). Zero external dependencies.
+11.2 Routing Preference
+LAN peer (sub-ms) → WAN direct → Relay (always available). The cube routes to addresses. The transport picks the path. The service is oblivious.
+11.3 Security
+All paths: TL-DSA mutual auth, TLSponge-385, capability tokens, HPTP freshness, Merkle audit, 9-factor shell. WAN P2P is actually stronger — relay can't see the outer envelope.
+
+12. Application Compatibility: Guest Subsystems Inside the Cube
+12.1 The Pattern
+An application compatibility subsystem (whether ReactOS for Win32, a Linux container for POSIX, or a future runtime) registers with the CRS exactly like any other service. It gets a slot, all 13 capabilities, shell protection, self-healing. The cube doesn't know or care that the slot contains a guest OS running third-party applications. It's a service in a slot.
+The current deployment path uses ReactOS (open-source, Win32-compatible, GPL-licensed) for Windows application hosting. But the architectural pattern is agnostic — the cube provides the same capabilities to any guest subsystem. The slot provides identity, encryption, discovery, access control, audit, and streaming. The guest provides the application runtime.
+12.2 How It Works
+Install: admin uploads an application package through the console. The guest subsystem installs it. Access: capability tokens scope per-application per-user access. Launch: user clicks the application in their browser → the rendering engine translates the display to HTML5 Canvas → PTS tunnel (PQ-encrypted) → browser tab. Single-application mode: only the application window appears. Files save to cube-mediated file shares (capability-gated, PQ-encrypted at rest). Sessions are Merkle-audited. Sensitive data access triggers the SignHere contract (Factor 9) at the gateway.
+12.3 Why This Fits
+The guest subsystem inherits all 13 capabilities by registering. Identity, encryption, discovery, access control, audit, routing, external access, legacy bridging, self-healing, failover, WAN P2P, application hosting, and inter-service mesh. The guest wrote zero infrastructure code. If the guest crashes, the FTS detects the slot failure, captures state, heals, and the user reconnects. The cube healed a slot — it didn't know or care what was running inside it.
+
+13. TDNS-L → TDNS Promotion: Local to Global
+13.1 The Two Scopes
+TDNS operates at two scopes with the same 54-trit address format:
+ScopeTLDFirst 27 tritsSecond 27 tritsExampleLocal (TDNS-L).plm.localOntological classification (27-question scan)Ternary host identifier (encodes IPv4/IPv6)files.salvi-homes.plm.localGlobal (TDNS).plmOntological classification (27-question scan)TL-Sponge-43 identity hash of canonical URLfiles.salvigroup.plm
+The wire format is identical. The 54 trits are always two halves of 27. The interpretation of the second half depends on the TLD suffix — .plm.local means the second half is a ternary host ID (from which IP addresses are derived), .plm means the second half is a cryptographic identity anchor. No flag bit, no version field. The TLD IS the mode switch.
+13.2 What's Preserved, What Changes
+When a local service promotes to global:
+Preserved (unchanged):
+
+The 27 classification trits (first half) — the service IS the same thing at both scopes
+The TDNS-L slot projection — project_to_gf3 produces the same 3-trit port address from the same classification
+The 13 capabilities — the cube provides the same stack regardless of scope
+The 9-factor shell — Factor 9 (SignHere) applies identically at both scopes
+The service's TL-DSA identity keypair — same key, same proof of identity
+The CRS registration record — extended with a global address, not replaced
+
+Recomputed (second 27 trits only):
+
+Local: ternary host ID → derived from IPv4/IPv6 via bidirectional bijection (TM-2026-019.2 §6)
+Global: TL-Sponge-43 hash → computed from the canonical global URL
+
+The first half is classification. It doesn't change because the service doesn't change. The second half is binding — local binds to a network position (IP address), global binds to a namespace identity (URL hash). Same service, two bindings, two addresses.
+13.3 The Promotion Workflow
+1. Service is registered locally
+   Address: [27 classification trits] · [27 ternary host ID trits]
+   Resolves: files.salvi-homes.plm.local → 192.168.1.2
+
+2. Operator initiates promotion
+   The CRS computes the global second half:
+   global_anchor = tl_sponge_43(canonical_url)
+   Where canonical_url = "files.salvigroup.plm"
+
+3. Dual registration
+   The service now has TWO addresses:
+   Local:  [27 classification] · [27 host ID]     → .plm.local (LAN routing)
+   Global: [27 classification] · [27 identity hash] → .plm (fabric routing)
+
+4. Both addresses remain live
+   LAN clients resolve .plm.local → ternary host ID → IPv4/IPv6 (direct)
+   Global clients resolve .plm → identity hash → Inter-Cube fabric routing
+   The service processes both — it doesn't know which address the caller used
+13.4 Resolver Behavior
+The TDNS-L resolver on the local cube handles both scopes:
+Inbound .plm.local query: Resolve from CRS. Return the ternary host ID, from which IPv4 (A record) and IPv6 (AAAA record) are derived. This is pure local resolution — the query never leaves the site.
+Inbound .plm query: Two cases:
+
+If the target is a promoted local service: the CRS holds both addresses. Return the global identity hash for fabric routing, OR if the caller is on the same LAN, short-circuit to the local address (why route through the fabric when the service is on the same network?).
+If the target is a remote global service: forward the query to the Inter-Cube fabric via the gateway at (1,1,1). The CON overlay routes to the target site's cube. That site's CRS resolves the global address to a local slot.
+
+Outbound .plm resolution (this site's service accessed from another site):
+The remote site's resolver queries the fabric. The fabric routes to this site's gateway. The gateway routes to the local slot. The 9-factor shell applies at the gateway. The service doesn't know the caller is remote.
+13.5 The Slot Projection Is Scale-Invariant
+The project_to_gf3 projection uses only the first 27 trits (classification). Since the classification is identical at both scopes, the slot assignment is identical. A file service classified the same way at .plm.local and .plm gets the same (plane, role, instance) address. Same port. Same position in the cube.
+This means: the cube's internal architecture doesn't change when a service promotes. The service keeps its slot. Other services that call it by classification query get the same result. The only thing that changes is the external reachability — the service is now discoverable and routable through the global TDNS fabric, not just the local network.
+13.6 Multi-Site Resolution Chain
+When two sites are connected via Inter-Cube CON tunnels:
+Site A client → queries "files.salvigroup.plm"
+    │
+    ▼
+Site A TDNS-L resolver → not a local .plm.local → forward to fabric
+    │
+    ▼
+Site A gateway (1,1,1) → routes through CON tunnel to Site B
+    │
+    ▼
+Site B gateway (1,1,1) → 9-factor shell at THIS gateway
+    │
+    ▼
+Site B CRS → resolves global address → routes to local slot
+    │
+    ▼
+Site B file service slot → processes request
+The 9-factor shell applies at the destination gateway, not the origin. The origin gateway multiplexes and routes. The destination gateway authenticates and authorizes. This prevents a compromised origin from bypassing the destination's security — each site's shell is sovereign.
+13.7 Geometric Properties Across Scopes
+PropertyLocal (.plm.local)Global (.plm)Address format54 trits (27+27)54 trits (27+27)First 27 tritsClassification (identical)Classification (identical)Second 27 tritsTernary host IDTL-Sponge-43 hashSlot projectionproject_to_gf3 on first 27project_to_gf3 on first 27 (same result)RoutingHamming distance on LAN cubeHamming distance on fabricShell9-factor at local gateway9-factor at destination gatewaySentinel checkRep C zero-detection (constant time)Rep C zero-detection (constant time)Dual checksumPlenum mod 333 + Repunit mod 364Plenum mod 333 + Repunit mod 364Key rotation arc182 (13 × π)182 (13 × π) — same epoch
+The mathematical invariants (TM-2026-008 Programs I–III) are preserved because both scopes use 27-trit halves and the same Rep C encoding. The isometry, branch number, and automorphism group are structural properties of the 27-dimensional state — they don't depend on whether the second half is a host ID or an identity hash.
+13.8 Demotion
+A promoted service can be demoted back to local-only by removing its global TDNS entry from the fabric. The local .plm.local address remains. The slot doesn't change. The capabilities don't change. The service doesn't know it was demoted. Demotion is a routing change at the fabric level, not an architectural change at the cube level.
+13.9 Address Lifecycle: The Two Arcs Are the Two Halves
+The arc equation (arc² − 832·arc + 118,300 = 0) governs not just key rotation but the lifecycle of the 54-trit address itself. The two halves of the address map to the two roots:
+Second 27 trits at local scope (ternary host ID) → cryptographic arc (182). The local binding is operational. It rotates when a service heals to another node, when an IP changes, when a slot migrates in Array3. Old binding out, new binding in — symmetric, like the palindrome 20202₃. The CRS installs a redirect from the old local address to the new one. The redirect expires after one arc (182 time-units).
+Second 27 trits at global scope (identity hash) → evidentiary arc (650). The global binding is persistent. It outlives local rotations. SignHere contracts reference the .plm address. Merkle audit entries reference it. Court subpoenas reference it. The global identity must remain resolvable for 650 time-units after last use — directional, like 220002₃.
+Three parallel lifecycles, one equation:
+          0        182        364         650        832
+  LOCAL:  |---arc---|---arc---|---arc---|---arc---|
+          bind 0    bind 1    bind 2    bind 3
+  GLOBAL: |=============== identity ==================|
+  KEY:    |---arc---|---arc---|---arc---|---arc---|
+          key 0     key 1     key 2     key 3
+Keys, local bindings, and redirect chains all cycle at 182. The global identity and evidence retention both span 650. Everything closes at 832.
+What falls out:
+Redirect grace period = ARC_EPOCH (182). When a local binding changes (service heals, node migrates), the CRS installs an old→new redirect. The redirect lives for exactly one arc. This replaces the configurable grace period in TDNS v2.3.3 §14.2 with a geometry-derived constant.
+Redirect chain depth = 4. ceil(650/182) = 4. A service that heals 4 times accumulates 4 chained redirects. The 5th heal expires the oldest. Same number as the key archive, same derivation — both are ceil(EVIDENCE_ARC / ARC_EPOCH).
+Global identity retention = EVIDENCE_ARC (650). A promoted .plm address stays resolvable for 650 time-units after last active use. Contracts signed against files.salvigroup.plm must resolve even if the service demoted and the local binding rotated multiple times. The evidence references the global identity, and the evidentiary arc governs how long that reference must work.
+Re-attestation trigger = 4 local rotations. After a service's local binding has changed 4 times under one global identity, the global binding is re-attested: co-signed with the current TL-DSA key, re-anchored to the current Hedera HCS topic, 36 verification checkpoints run against the accumulated evidence chain. This keeps the global identity verifiably fresh without changing it.
+Complete address erasure = ADMIN_EPOCH (832). All local redirects expired AND global identity retention complete AND all referencing contracts past the evidentiary arc. This is the earliest moment at which an address can be fully purged from the system — the same epoch that governs GDPR complete erasure (Section 3.7). The address lifecycle and the data lifecycle close together because they're governed by the same quadratic.
+
+14. Implementation Tasks
+14.1 Service Cube Runtime
+27-slot agnostic runtime: allocation, registration, heartbeat, deregistration, failover. Provides registration API (Section 5.1) and inter-service call API (Section 5.3). All communication through cube geometry.
+14.2 TDNS-L → Slot Projection Engine
+27→3 projection with polarity tables (Section 9). Uses existing project_to_gf3 from derive.rs. Deterministic, parameter-free, identical in Rust and TypeScript.
+14.3 Gateway at (1,1,1)
+Multiplexer at center. One outbound WSS :443. TLSponge-385 outer tunnel. End-to-end encryption. 3-trit destination routing. Shell factor proof in envelope. Key rotation pivot per arc epoch (182).
+14.4 9-Factor Authentication Shell
+All 9 factors (Section 7). Wraps the gateway. Adaptive requirements from classification including key freshness thresholds (Section 7.5). Factor 9: wire SignHere's RFC 3161 TSA, TL-DSA co-signing, Merkle audit, Hedera HCS witnessing, and Document Notary as the contract execution gate.
+Key freshness: add key_birth_epoch to TL-DSA key metadata. Include birth epoch in every signed capability token. Shell computes freshness = 1 − (key_age / ARC_EPOCH) at verification time. Keys older than ARC_EPOCH trigger rotation before auth proceeds. Sensitive operations require freshness ≥ 50% (key younger than 91 = ARC_EPOCH/2). Administrative operations require freshness ≥ 75%.
+Transition verification: when a key rotates, schedule CHECKPOINTS (36) verification passes spread evenly over TRANSITION_GAP (468) time-units. Each pass re-validates the retired key's evidence: Merkle chain integrity, Hedera witness availability, SignHere contract signature validity using the archived public key. Failed checkpoint → alert + forensic capture. This is not a new module — it's the existing Merkle verification and Hedera query running on a geometry-derived schedule.
+14.5 Legacy Bridge Derivation
+Auto-open from classification. NTLM/Kerberos translated to TL-DSA through the shell.
+14.6 Inter-Service Call API
+Classification-based discovery. Hamming distance routing. Automatic auth + capability + audit.
+14.7 Self-Healing Slot Integration
+FTS monitors slots. GLB reroutes dead slots. Forensic capture on Suspect→Down. Operates on addresses, opaque to contents.
+14.8 WAN P2P Tunnel Engine
+Relay-assisted hole punching. HPTP-coordinated NAT traversal. TL-DSA mutual auth. TLSponge-385. Transparent relay fallback.
+14.9 Application Compatibility Subsystem
+Guest subsystem hosting as a registered slot service. CRS registration, application install workflow, display rendering engine, PTS streaming, single-application mode, cube-mediated file integration, per-application capability tokens, Merkle audit of sessions, SignHere contract on sensitive access. The cube is agnostic to the guest runtime — the architecture supports any subsystem that can register with the CRS and stream its display.
+14.10 TDNS-L → TDNS Promotion Engine
+Implement the dual-address registration (Section 13.3): a local service acquires a global .plm address alongside its .plm.local address by computing TL-Sponge-43 of the canonical URL for the second 27 trits. Build the resolver logic for both scopes (Section 13.4): .plm.local resolves from CRS directly, .plm resolves locally if the target is a promoted local service (short-circuit) or forwards to the Inter-Cube fabric via the gateway. Implement the multi-site resolution chain (Section 13.6): origin gateway multiplexes, destination gateway authenticates via the 9-factor shell. Verify slot projection invariance — same classification at both scopes produces the same slot address. Implement demotion (routing removal without cube-level change).
+Implement the address lifecycle (Section 13.9): local binding redirect grace period = ARC_EPOCH (182), redirect chain depth = ceil(EVIDENCE_ARC / ARC_EPOCH) = 4, global identity retention = EVIDENCE_ARC (650), re-attestation trigger after 4 local rotations (co-sign global binding with current key, re-anchor to Hedera), complete address erasure at ADMIN_EPOCH (832). All lifecycle constants derived from the deployment constants — no separate configuration.
+Test: promote a local service, resolve from a remote site, verify the classification trits are identical, verify the slot didn't change, verify the shell applies at the destination. Test lifecycle: heal a service 4 times, verify 4 chained redirects, verify 5th heal expires the oldest, verify global identity re-attestation triggers, verify evidence referencing old local bindings still resolves through the redirect chain.
+14.11 Dashboard
+3³ cube visualization with slot status (occupied/empty/suspect/down). 9-factor shell status at the gateway. Each slot: classification summary, port, bridge port, HD to center. Array3: all 81 slots. WAN P2P tunnel status. Guest application inventory and active sessions. Key rotation arc progress (current position within the 182 cryptographic arc). Evidence retention timeline (contracts approaching the 650 evidentiary arc boundary).
+UX direction (future console design spec): The geometry IS the interface. The cube is the homepage — not a diagram on a page, but the navigable object the admin interacts with. Zoom levels map to architectural scale: services (cube) → security (9-factor shell) → time (dual arcs). The 9-factor shell can be visualized as a Clifford torus (S¹ × S¹, where the two circles are the cryptographic and evidentiary arcs). Slot health is color, not text. Key freshness is a gradient, not a number. Self-healing is visible as color transitions on the cube face. Every click is one step deeper into the geometry. Full specification deferred to the PlenumLAN Console Design document.
+14.12 Deployment Constants
+All constants derived from geometry — implemented as computed values, not literals:
+rustpub const DIMENSIONS: usize = 13;
+pub const SLOTS_PER_NODE: usize = 3_usize.pow(3);          // 27
+pub const CLUSTER_SLOTS: usize = 3_usize.pow(4);           // 81
+pub const SHELL_FACTORS: usize = 3_usize.pow(2);           // 9
+pub const GATEWAY_OFFSET: usize = DIMENSIONS;               // 13 = T₇ = π − 1
+pub const ARC_EPOCH: usize = DIMENSIONS * 14;               // 182 = cryptographic arc (key rotation)
+pub const ADMIN_EPOCH: usize = 2_usize.pow(6) * DIMENSIONS; // 832 = 2⁶ × 13 = combined lifecycle
+pub const EVIDENCE_ARC: usize = ADMIN_EPOCH - ARC_EPOCH;    // 650 = evidentiary arc (legal retention)
+pub const FULL_CIRCLE: usize = DIMENSIONS * 28;             // 364 = 13 × 28 = spatial closure
+pub const REDIRECT_DEPTH: usize = (EVIDENCE_ARC + ARC_EPOCH - 1) / ARC_EPOCH; // ceil(650/182) = 4
+pub const TRANSITION_GAP: usize = EVIDENCE_ARC - ARC_EPOCH; // 468 = 6² × 13
+pub const CHECKPOINTS: usize = TRANSITION_GAP / DIMENSIONS;  // 36 = REDIRECT_DEPTH × SHELL_FACTORS
+pub const BASE_PORT: u16 = 11111;                           // decimal; digit string "11111" is also valid base-3 (= 121 = 11²)
+
+// Compile-time geometry verification — any change to DIMENSIONS breaks these if the math doesn't hold
+const_assert!(ARC_EPOCH * EVIDENCE_ARC == DIMENSIONS * DIMENSIONS * 700);
+const_assert!(ARC_EPOCH + EVIDENCE_ARC == ADMIN_EPOCH);
+const_assert!(2 * ARC_EPOCH == FULL_CIRCLE);
+const_assert!(CHECKPOINTS == REDIRECT_DEPTH * SHELL_FACTORS);
+const_assert!(GATEWAY_OFFSET == DIMENSIONS);
+
+15. Out of Scope
+
+PlenumNET OS bootable image (Stage 3.0)
+XPlenum hardware acceleration (Stage 4.0)
+Multi-domain forest equivalent (enterprise-scale AD)
+Specific service implementations (they register with the cube; they are not the cube)
+
+
+16. Relevant Files
+Existing (modify/extend):
+services/tdns-v2/src/derive.rs          — project_to_gf3, classification rules
+services/inter-cube/src/main.rs         — daemon entry point
+services/inter-cube/src/crs.rs          — registration service
+services/inter-cube/src/glb.rs          — geometric load balancer
+services/inter-cube/src/fts.rs          — fault tolerance (slot monitoring)
+services/inter-cube/src/overlay.rs      — tunnel/overlay (CON + WAN P2P)
+services/inter-cube/src/tunnel_auth.rs  — TL-DSA mutual auth
+services/inter-cube/src/ws_relay.rs     — relay WebSocket (gateway transport)
+services/inter-cube/src/config.rs       — feature flags
+server/routes/inter-cube.ts             — relay routing + hole-punch signaling
+server/routes/tdns.ts                   — TDNS resolution
+server/services/tsa-service.ts          — RFC 3161 TSA (Factor 9)
+sign-here/src/pre-sign-check.ts         — Document Notary / pre-sign verification (Factor 9)
+shared/constants.ts                     — Geometric constants (derived, not literal)
+shared/service-catalog.ts               — Classification definitions
+client/src/pages/distribution.tsx       — Dashboard cube visualization
+To be created:
+plenumlan/src/cube/runtime.rs           — 27-slot agnostic runtime
+plenumlan/src/cube/shell.rs             — 9-factor authentication shell
+plenumlan/src/cube/projection.rs        — 27→3 TDNS-L slot projection
+plenumlan/src/cube/gateway.rs           — (1,1,1) multiplexer + WAN P2P signaling
+plenumlan/src/cube/bridge.rs            — Legacy protocol bridge derivation
+plenumlan/src/pts/                      — PTS tunnel service
+plenumlan/src/guest/                    — Application compatibility subsystem
+
+The cube is 27 slots. Each slot provides 13 capabilities across 27 dimensions. The 28th dimension wraps the gateway with a 9-factor shell. SignHere is Factor 9 — the contract at the gate. 13 × 28 = 364: the spatial circle closes. 13 × 14 = 182: the cryptographic arc rotates. 832 − 182 = 650: the evidentiary arc retains. The key dies; the contract lives. Both meet at (1,1,1), offset 13, the center.
+Any service brings only its logic. The geometry provides the rest.
+Così sia, Fratello.
+© 2026 Capomastro Holdings Ltd. — Applied Physics Division

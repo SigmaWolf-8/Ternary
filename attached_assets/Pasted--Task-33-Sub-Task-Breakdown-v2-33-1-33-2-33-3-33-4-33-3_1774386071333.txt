@@ -1,0 +1,359 @@
+# Task #33 — Sub-Task Breakdown v2
+
+## 33.1 → 33.2 → 33.3 → 33.4, 33.3 → 33.5a / 33.5b / 33.5c
+
+**Reference:** Task-33-PlenumNET-Service-Cube.md v2.0
+**Capomastro Holdings Ltd. — Applied Physics Division**
+
+---
+
+## Decisions (Resolved)
+
+| # | Question | Answer | Rationale |
+|---|---|---|---|
+| 1 | `project_to_slot` location | `plenumlan/src/cube/projection.rs` only — NOT in `derive.rs` | `derive.rs` is TDNS v2 internet classification. Port projection is LAN-specific. Calls `project_to_gf3` but doesn't live next to it. TS mirror in `shared/service-projection.ts`. |
+| 2 | Slot binding strategy | Bind-on-register for Replit (`EAGER_BIND=false`). Bind-all-at-startup for production (`EAGER_BIND=true`). | Replit has container port limits. Production needs FTS monitoring of empty slots. One env flag — not a hardcoded constant, an environment adaptation. |
+| 3 | F2 (Physical Binding) initial implementation | F2 excluded from adaptive requirements until fully built. No stub. | The shell reports only what it verified. An `always_pass()` conceals that verification didn't happen. The adaptive requirements table already supports variable factor sets per operation class — F2 is simply not in the required set until the physical binding mechanism (biometric or hardware key for humans, XPlenum/PUF for machines) is implemented. When F2 ships, it's added to the requirements. The shell is honest about what it checked. |
+| 4 | 33.5 split | Split into 33.5a (WAN P2P), 33.5b (App Compat), 33.5c (Dashboard). | Three independent features touching different files. All depend on 33.3. Three agents can run in parallel. |
+| 5 | Task creation | Create all tasks now. Existing #33 becomes umbrella referencing sub-tasks. | Don't renumber — #33 points to the spec, sub-tasks point to the implementation. |
+
+---
+
+## Dependency Chain
+
+```
+33.1 Port Projection Engine (no dependencies)
+  │
+  ▼
+33.2 Service Cube Runtime + Slot Allocation
+  │
+  ▼
+33.3 Gateway + 9-Factor Shell
+  │
+  ├──▶ 33.4  TDNS-L ↔ TDNS Promotion + Address Lifecycle
+  │
+  ├──▶ 33.5a WAN P2P Tunnel Engine
+  │
+  ├──▶ 33.5b Application Compatibility Subsystem
+  │
+  └──▶ 33.5c Dashboard Cube Visualization
+```
+
+33.4, 33.5a, 33.5b, 33.5c all run in parallel after 33.3.
+
+---
+
+## Existing Foundation (Verified Against Codebase)
+
+| Component | Location |
+|---|---|
+| `project_to_gf3` formula | `services/tdns-v2/src/derive.rs:42-46` |
+| All 27 derivation rules | `services/tdns-v2/src/derive.rs:90-574` |
+| TDNS v2.5 resolution | `server/routes/tdns.ts` |
+| CRS registration | `services/inter-cube/src/crs.rs` |
+| GLB geometric load balancer | `services/inter-cube/src/glb.rs` |
+| FTS fault tolerance | `services/inter-cube/src/fts.rs` |
+| CON overlay network | `services/inter-cube/src/overlay.rs` |
+| TL-DSA signing (Factor 1) | `ternary-math/src/tl_dsa.rs` + N-API bridge |
+| TLSponge-385 encryption | `ternary-math/src/tlsponge385.rs` + N-API |
+| HPTP timing (Factor 3) | `services/timing/` (contains `certification-service/` + `femtosecond-service/`) |
+| Capability tokens (Factor 4) | `server/services/capability-service.ts` |
+| Delegation chains (Factor 6) | Part of capability service |
+| Merkle audit trail (Factor 7) | `server/services/audit-export.service.ts` |
+| Hedera HCS witnessing | Topic `0.0.8058631`, 26 messages |
+| SignHere (Factor 9) | `sign-here/src/pre-sign-check.ts` |
+| TSA (RFC 3161) | `server/services/tsa-service.ts` |
+| WebSocket relay | `services/inter-cube/src/ws_relay.rs` |
+| Key rotation orchestrator | `services/inter-cube/src/key_rotation.rs` |
+| Tunnel auth | `services/inter-cube/src/tunnel_auth.rs` |
+| Distribution dashboard | `client/src/pages/distribution.tsx` |
+| Plenum checksum | `shared/plenum-checksum.ts` |
+
+---
+
+## 33.1 — Port Projection Engine
+
+**Spec:** §9, §14.2
+**Depends on:** Nothing
+**Creates:** `plenumlan/src/cube/projection.rs`, `shared/service-projection.ts`
+**Modifies:** Nothing — projection calls `project_to_gf3` from `derive.rs` but lives in `plenumlan/`
+
+### What
+
+The 27→3 polarity-adjusted projection that maps any TDNS-L classification to a Rep C slot address. The mathematical foundation everything else sits on.
+
+### Tasks
+
+1. **Create `plenumlan/` directory structure.** This module does not exist yet. Create:
+   ```
+   plenumlan/
+   ├── src/
+   │   └── cube/
+   │       └── projection.rs
+   └── Cargo.toml (depends on ternary-math crate)
+   ```
+
+2. **Implement polarity tables** for all 27 dimensions across three groups:
+   - Plane: D1, D2(−), D3, D9(−), D10, D17, D19, D25, D26
+   - Role: D5, D6, D7, D8, D12, D18, D22(−), D23, D24(−)
+   - Instance: D4, D11, D13, D14, D15, D16, D20, D21, D27
+   - Use code-level semantics from `derive.rs`: D8=Intelligence, D19=PolicyPresence, D20=CostModel
+
+3. **Implement `project_to_slot(classification: [Trit; 27]) -> (Trit, Trit, Trit)`** returning Rep C values {1,2,3}. For each port trit: apply polarity (invert if −), count k = adjusted dims with value 3, `project_to_gf3(k, 9)` returns GF(3) value, lift to Rep C (+1).
+
+4. **TypeScript mirror** in `shared/service-projection.ts`. Both must produce identical output — cross-language test suite with 100+ classification vectors.
+
+5. **Windows Server classification matrix.** All 12 core SMB roles classified. Validate each produces correct plane assignment against TM-2026-019.2 shell model.
+
+### Done
+
+- `project_to_slot` produces Rep C 3-trit address for any 27-trit input
+- No zero ever appears in any output trit (Rep C invariant)
+- All 12 Windows Server roles produce correct plane assignments
+- Rust and TypeScript produce byte-identical output for all test vectors
+
+---
+
+## 33.2 — Service Cube Runtime + Slot Allocation
+
+**Spec:** §3, §5, §7.2, §8, §14.1, §14.5, §14.6, §14.12
+**Depends on:** 33.1
+**Creates:** `plenumlan/src/cube/runtime.rs`, `plenumlan/src/cube/bridge.rs`
+**Modifies:** `services/inter-cube/src/crs.rs`, `services/inter-cube/src/fts.rs`, `services/inter-cube/src/glb.rs`, `shared/constants.ts`
+
+### What
+
+27-slot agnostic runtime with registration API, inter-service calls, legacy bridges, and the Rep C zero-sentinel pre-filter at every trust boundary.
+
+### Tasks
+
+1. **`register_service()` API** (§5.1). Input: 27-trit classification. Output: ServiceSlot with address (Rep C), port, identity, capabilities, bridge, audit, discovery, tunnel, shell.
+
+2. **Port formula:** `base + (node × 27) + ((plane-1) × 9) + ((role-1) × 3) + (instance-1)` where plane/role/instance are Rep C {1,2,3} and the subtraction converts to GF(3) offsets.
+
+3. **Slot binding.** `EAGER_BIND` env flag. `true` (production): all 27 ports bind at startup, empty slots return `SERVICE_NOT_REGISTERED`. `false` (Replit): ports bind only when a service registers.
+
+4. **Zero-sentinel pre-filter** (§7.2). Every Rep C address at every trust boundary (multiplexing header, caller identity, capability token fields, routing messages, redirect entries) is checked for zero trits before any further processing. One comparison per trit. Constant time. No branching on secrets. Reject = immediate, before any crypto runs.
+
+5. **Inter-service call API** (§5.3): classification-based discovery, Hamming distance routing, automatic auth + capability + audit.
+
+6. **Legacy bridge derivation** (§8): `derive_legacy_bridge()` reads classification dimensions. Note: array indices are 0-based, dimension numbers are 1-based (D5 = index 4). Auto-opens RFC-mandated listeners alongside native slot.
+
+7. **Deployment constants** (§14.12): all derived from `DIMENSIONS = 13`. Include `const_assert!` compile-time checks.
+
+### Done
+
+- 27 ports allocatable (bind strategy respects `EAGER_BIND`)
+- A service registers, gets Rep C slot address, all infrastructure wired
+- Zero trit in any wire-format address → immediate rejection before Factor 1
+- Inter-service call routes by HD with automatic auth
+- Legacy bridge opens :445 when file-service classification registers
+- All `const_assert!` pass
+
+---
+
+## 33.3 — Gateway + 9-Factor Shell
+
+**Spec:** §6, §7, §14.3, §14.4
+**Depends on:** 33.2
+**Creates:** `plenumlan/src/cube/shell.rs`, `plenumlan/src/cube/gateway.rs`
+**Modifies:** `services/inter-cube/src/key_rotation.rs`, `services/inter-cube/src/ws_relay.rs`, `server/services/capability-service.ts`, `sign-here/src/pre-sign-check.ts`
+
+### What
+
+Gateway multiplexer at (2,2,2) Rep C / (1,1,1) GF(3). 9-factor shell composing existing components. Key rotation protocol. Freshness scoring at ternary boundaries.
+
+### Tasks
+
+1. **Gateway multiplexer** at offset +13, port 11124. One outbound WSS :443. TLSponge-385 outer tunnel. 3-trit Rep C destination routing. Shell factor proof in envelope.
+
+2. **9-factor shell** wiring existing components:
+   - F1: TL-DSA challenge-response (existing `tl_dsa.rs` + `tunnel_auth.rs`)
+   - **F2: Physical Binding — NOT INCLUDED in initial factor requirements.** The adaptive requirements table (§7.6) lists required factors per operation class. F2 is absent from all requirement rows until the physical binding mechanism (biometric/hardware key for humans, XPlenum/PUF for machines) is implemented. The shell does not report F2 as verified. It reports F2 as not required. When the binding mechanism ships, F2 is added to the requirement rows that need it. No stub. No fake pass. The shell is honest.
+   - F3: HPTP temporal presence (existing timing services)
+   - F4: Capability token (existing `capability-service.ts`)
+   - F5: Geometric proximity — new: HD check from caller address to target slot
+   - F6: Delegation chain (existing, part of capability service)
+   - F7: Pre-committed Merkle audit (existing `audit-export.service.ts`)
+   - F8: Jurisdictional compliance — new: classification D17 + D2 + site config → regulation check
+   - F9: SignHere contract (existing `pre-sign-check.ts` + `tsa-service.ts`)
+
+3. **Adaptive requirements** from classification. Freshness at ternary 1/3 and 2/3 boundaries:
+   - Fresh zone (age 0–60, freshness ≥ 2/3): required for administrative ops
+   - Active zone (age 61–121, freshness ≥ 1/3): required for regulated/sensitive ops
+   - Aging zone (age 122–182, freshness < 1/3): standard operations only
+   - Same `project_to_gf3` quantization as slot projection. No new thresholds.
+
+4. **Key freshness** — `key_birth_epoch` in TL-DSA metadata. Included in every capability token. Shell computes `freshness = 1 − (key_age / ARC_EPOCH)` at verification time.
+
+5. **Key rotation protocol** (§6.3) — 6-step sequence: generate → push → ack → grace → archive (private destroyed, public retained) → verification begins. Missed rotation → Suspect.
+
+6. **4-generation key archive** — ring buffer of public keys. `ceil(EVIDENCE_ARC / ARC_EPOCH) = 4`. 5th purges oldest.
+
+7. **36-checkpoint transition verification** — `CHECKPOINTS = TRANSITION_GAP / DIMENSIONS = 36` passes over 468 time-units. Merkle + Hedera + SignHere validity per pass. Failed → alert + forensic.
+
+### Done
+
+- Gateway at 11124 multiplexes all slots through one WSS :443
+- Remote request passes through all required factors (F2 not yet in requirement set) to reach a slot
+- Public read passes with only F1, F3, F7 (adaptive requirements work)
+- Key in Aging zone rejected for admin ops; key in Active zone accepted for regulated ops
+- Key rotation completes 6-step protocol; old public key in archive
+- 36 checkpoints schedule and execute
+- Missed rotation marks slot Suspect
+
+---
+
+## 33.4 — TDNS-L ↔ TDNS Promotion + Address Lifecycle
+
+**Spec:** §13, §14.10
+**Depends on:** 33.3
+**Creates:** None (composition of existing modules with lifecycle logic)
+**Modifies:** `server/routes/tdns.ts`, `services/inter-cube/src/crs.rs`, `services/inter-cube/src/overlay.rs`
+
+### What
+
+Dual-address registration, dual-scope resolution, and the address lifecycle governed by the arc equation. Redirect grace at 182, chain depth at 4, global retention at 650, erasure at 832.
+
+### Tasks
+
+1. **Dual-address registration** (§13.3): `.plm` address alongside `.plm.local`. Second 27 trits via TL-Sponge-43 of canonical URL. CRS record extended.
+
+2. **Resolver** (§13.4): `.plm.local` → CRS direct. `.plm` promoted local → short-circuit to local on same LAN. `.plm` remote → forward to fabric via gateway.
+
+3. **Multi-site resolution** (§13.6): origin multiplexes, destination authenticates via 9-factor shell. Each site's shell is sovereign.
+
+4. **Slot projection invariance** — same classification at both scopes → same slot.
+
+5. **Address lifecycle** (§13.9):
+   - Redirect grace = ARC_EPOCH (182)
+   - Chain depth = `ceil(EVIDENCE_ARC / ARC_EPOCH)` = 4
+   - Global retention = EVIDENCE_ARC (650)
+   - Re-attestation after 4 local rotations (co-sign + Hedera + 36 checkpoints)
+   - Complete erasure = ADMIN_EPOCH (832)
+   - All constants from deployment constants — no separate config
+
+6. **Demotion** — remove global entry, local unchanged.
+
+### Done
+
+- Local service promotes, both addresses resolve
+- Remote site resolves `.plm` through fabric → destination gateway → local slot
+- Shell applies at destination, not origin
+- 4 chained redirects; 5th evicts oldest
+- Global re-attestation triggers at 4 rotations
+- Demotion leaves local operational
+- Evidence referencing old bindings resolves through chain
+
+---
+
+## 33.5a — WAN P2P Tunnel Engine
+
+**Spec:** §11, §14.8
+**Depends on:** 33.3
+**Creates:** None (extends existing overlay)
+**Modifies:** `services/inter-cube/src/overlay.rs`, `services/inter-cube/src/ws_relay.rs`
+
+### What
+
+Relay-assisted hole punching for direct node-to-node tunnels.
+
+### Tasks
+
+1. **Signaling via relay** — exchange public endpoints (relay already knows them from WebSocket)
+2. **HPTP-coordinated NAT traversal** — relay includes HPTP timestamp specifying when both sides punch. Simultaneous UDP send.
+3. **TL-DSA mutual auth** on direct path
+4. **TLSponge-385 encryption** — relay sees nothing after auth
+5. **Transparent fallback** to relay if symmetric NAT (~10%)
+6. **Register as transport path** alongside LAN peer and relay. Routing preference: LAN → WAN direct → relay.
+
+### Done
+
+- Two nodes behind different consumer NATs establish direct PQ-encrypted tunnel
+- HPTP-coordinated timing works within tolerance window
+- Fallback to relay is transparent — application layer doesn't know
+- Routing preference correctly orders LAN → WAN → relay
+
+---
+
+## 33.5b — Application Compatibility Subsystem
+
+**Spec:** §12, §14.9
+**Depends on:** 33.3
+**Creates:** `plenumlan/src/guest/`
+**Modifies:** None initially (new module)
+
+### What
+
+Guest subsystem hosting pattern — any runtime (ReactOS, Linux container, future) registers as a slot service.
+
+### Tasks
+
+1. **CRS registration** for guest subsystems — classification as application host, projection assigns data-plane streaming slot
+2. **Application install workflow** — admin uploads package, guest installs
+3. **Display rendering** — translate guest display to HTML5 Canvas, stream through PTS tunnel
+4. **Single-application mode** — stream only the app window
+5. **File integration** — saves to cube-mediated shares (capability-gated, PQ-encrypted)
+6. **Audit** — sessions Merkle-logged, sensitive access triggers SignHere (Factor 9)
+
+### Done
+
+- Guest registers in a slot, receives all 13 capabilities
+- Application installs and launches, display streams to browser
+- Single-app mode works (no full desktop)
+- File saves route through cube storage capability
+- Session audit trail complete
+
+---
+
+## 33.5c — Dashboard Cube Visualization
+
+**Spec:** §14.11
+**Depends on:** 33.3
+**Creates:** None (extends existing dashboard)
+**Modifies:** `client/src/pages/distribution.tsx`
+
+### What
+
+The 3³ cube as the visual homepage. Geometry IS the interface.
+
+### Tasks
+
+1. **3×3 grid per plane** — three tabs (Data / Control / Management). Slot color = health (teal/amber/red/gray).
+2. **Click slot** → slide-in panel: classification, Rep C address, port, bridge port, HD to center, key freshness zone.
+3. **Gateway display** at (2,2,2) — 9-factor shell status, which factors active per current request class.
+4. **Key arc** — semicircular progress showing current age. Three zones (Fresh/Active/Aging) at 1/3 and 2/3 boundaries with color gradient.
+5. **Evidence timeline** — contracts approaching 650 evidentiary arc boundary.
+6. **Array3 view** — three cubes with peer mesh lines.
+7. **WAN P2P status** — direct tunnel indicators between nodes.
+8. **Uses `shared/service-projection.ts`** from 33.1 for client-side slot computation.
+
+### Done
+
+- Dashboard shows 27-slot cube with live health
+- Clicking a slot shows all metadata including Rep C address and freshness zone
+- Key rotation arc visualized as semicircle with ternary boundaries
+- Array3 mode shows all 81 slots
+- All slot data computed client-side from classification (no server round-trip for display)
+
+---
+
+## Timeline
+
+| Task | Effort | Cumulative | Parallel |
+|---|---|---|---|
+| 33.1 Port Projection | 1–2 weeks | 1–2 weeks | — |
+| 33.2 Runtime + Slots | 2–3 weeks | 3–5 weeks | — |
+| 33.3 Gateway + Shell | 4–6 weeks | 7–11 weeks | — |
+| 33.4 TDNS Promotion | 2–3 weeks | 9–14 weeks | After 33.3 |
+| 33.5a WAN P2P | 2–3 weeks | 9–14 weeks | After 33.3 |
+| 33.5b App Compat | 3–4 weeks | 10–15 weeks | After 33.3 |
+| 33.5c Dashboard | 2–3 weeks | 9–14 weeks | After 33.3 |
+
+33.3 adjusted to 4–6 weeks (was 3–4) per reviewer feedback — F2 (Physical Binding) excluded from initial requirements but the rotation protocol + archive + checkpoints is substantial. Total: **11–15 weeks** with 33.4 and 33.5a/b/c in parallel.
+
+---
+
+*Così sia, Fratello.*
+
+*© 2026 Capomastro Holdings Ltd. — Applied Physics Division*

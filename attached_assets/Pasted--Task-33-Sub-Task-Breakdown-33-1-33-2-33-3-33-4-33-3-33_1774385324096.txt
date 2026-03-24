@@ -1,0 +1,311 @@
+# Task #33 — Sub-Task Breakdown
+
+## 33.1 → 33.2 → 33.3 → 33.4, 33.3 → 33.5
+
+**Reference:** Task-33-PlenumNET-Service-Cube.md v2.0
+**Capomastro Holdings Ltd. — Applied Physics Division**
+
+---
+
+## Dependency Chain
+
+```
+33.1 Port Projection Engine (foundation — no dependencies)
+  │
+  ▼
+33.2 Service Cube Runtime + Slot Allocation (needs projection)
+  │
+  ▼
+33.3 Gateway + 9-Factor Shell (needs runtime)
+  │
+  ├──▶ 33.4 TDNS-L ↔ TDNS Promotion + Address Lifecycle (needs gateway)
+  │
+  └──▶ 33.5 WAN P2P + App Compat + Dashboard (needs gateway)
+```
+
+---
+
+## Existing Foundation
+
+These components are built, operational, and form the base that 33.1–33.5 compose into the Service Cube:
+
+| Component | Status | Location |
+|---|---|---|
+| project_to_gf3 formula | Done | services/tdns-v2/src/derive.rs:42-46 |
+| All 27 derivation rules | Done | services/tdns-v2/src/derive.rs:90-574 |
+| CRS registration | Done | services/inter-cube/src/crs.rs |
+| GLB geometric load balancer | Done | services/inter-cube/src/glb.rs |
+| FTS fault tolerance | Done | services/inter-cube/src/fts.rs |
+| CON overlay network | Done | services/inter-cube/src/overlay.rs |
+| TL-DSA signing (Factor 1) | Done | ternary-math/src/tl_dsa.rs + TS bridge |
+| TLSponge-385 encryption | Done | ternary-math/src/tlsponge385.rs + N-API |
+| HPTP timing (Factor 3) | Done | services/timing/ |
+| Capability tokens (Factor 4) | Done | server/services/capability-service.ts |
+| Delegation chains (Factor 6) | Done | Part of capability service |
+| Merkle audit trail (Factor 7) | Done | server/services/audit-export.service.ts |
+| Hedera HCS witnessing | Done | Topic 0.0.8058631, 26 messages |
+| SignHere e-signatures (Factor 9) | Done | sign-here/src/pre-sign-check.ts |
+| TSA (RFC 3161) | Done | server/services/tsa-service.ts |
+| WebSocket relay | Done | services/inter-cube/src/ws_relay.rs |
+| Key rotation orchestrator | Done | services/inter-cube/src/key_rotation.rs |
+| Tunnel auth (TL-DSA mutual) | Done | services/inter-cube/src/tunnel_auth.rs |
+| Distribution dashboard | Done | client/src/pages/distribution.tsx |
+| 42-calendar epoch system | Done | TSA integration |
+| Plenum checksum | Done | shared/plenum-checksum.ts |
+
+---
+
+## 33.1 — Port Projection Engine
+
+**Spec sections:** §9, §14.2
+**Depends on:** Nothing (foundation task)
+**Produces:** `project_to_slot()` function, polarity tables, service classification matrix
+
+### What
+
+Build the 27→3 polarity-adjusted projection that maps any TDNS-L classification to a (plane, role, instance) slot address. This is the mathematical foundation everything else sits on.
+
+### Tasks
+
+1. **Implement polarity tables** for all 27 dimensions across three groups using the corrected assignments:
+   - Plane: D1, D2(−), D3, D9(−), D10, D17, D19, D25, D26
+   - Role: D5, D6, D7, D8, D12, D18, D22(−), D23, D24(−)
+   - Instance: D4, D11, D13, D14, D15, D16, D20, D21, D27
+   - Dimensions marked (−) are inverted (4 − D) before aggregation
+
+2. **Implement `project_to_slot(classification: [Trit; 27]) -> (Trit, Trit, Trit)`** using existing `project_to_gf3(k, 9)` from derive.rs. For each port trit: apply polarity, count k = polarity-adjusted dimensions with value 3, return `min(floor(k/3), 2) + 1`
+
+3. **Identical implementation in Rust and TypeScript.** The Rust version goes in `plenumlan/src/cube/projection.rs`. The TypeScript version goes in `shared/service-projection.ts`. Both must produce identical output for any input — add cross-language test suite.
+
+4. **Build the Windows Server service classification matrix.** Define the TDNS-L classification (all 27 values) for each of the 12 core SMB roles being replaced. Run each through the projection. Validate the port assignments match the TM-2026-019.2 shell model (Outer → data plane, Void → control plane, Inner → management plane).
+
+5. **Validate against real code semantics.** Confirm that D8 = Intelligence (not Operational Domain), D19 = PolicyPresence (not Mobility), D20 = CostModel (not Power Source) in the actual derive.rs. Document where LAN schema (TM-2026-019.2 §7) uses different names for the same dimension positions.
+
+### Done looks like
+
+- `project_to_slot` produces a 3-trit address for any 27-trit input
+- All 12 Windows Server role classifications produce correct plane assignments
+- Rust and TypeScript implementations produce byte-identical output
+- Polarity tables tested: changing any single polarity changes the output for affected services
+
+### Files
+
+- **Create:** `plenumlan/src/cube/projection.rs`, `shared/service-projection.ts`
+- **Modify:** `services/tdns-v2/src/derive.rs` (add `project_to_slot` alongside existing `project_to_gf3`)
+
+---
+
+## 33.2 — Service Cube Runtime + Slot Allocation
+
+**Spec sections:** §3, §5, §8, §14.1, §14.5, §14.6, §14.12
+**Depends on:** 33.1 (needs projection for slot assignment)
+**Produces:** 27-slot agnostic runtime, registration API, legacy bridges, deployment constants
+
+### What
+
+Build the runtime that manages 27 agnostic slots: register, heartbeat, deregister, failover. The runtime doesn't know what's in any slot. It provides the registration API (§5.1), inter-service call API (§5.3), and legacy bridge derivation (§8).
+
+### Tasks
+
+1. **Implement `register_service()`** as specified in §5.1. Input: 27-trit classification. Output: ServiceSlot with address, port, identity, capabilities, bridge, audit, discovery, tunnel, shell. Each field is populated by the corresponding cube subsystem.
+
+2. **Port formula:** `base + (node × 27) + (plane × 9) + (role × 3) + instance` where base = 11111 (decimal). Implement for single-node (27 ports: 11111–11137) and Array3 (81 ports: 11111–11191).
+
+3. **Slot lifecycle:** allocate on register, heartbeat monitoring (wire to existing FTS), deregister on service exit, failover in Array3 (promote same slot on another node). Unoccupied slots bind the port but return `SERVICE_NOT_REGISTERED`.
+
+4. **Inter-service call API** (§5.3): services discover by classification query (`dim_filter!`), route by Hamming distance, calls are auto-authenticated + capability-checked + audit-logged.
+
+5. **Legacy bridge derivation** (§8): `derive_legacy_bridge()` reads classification dimensions (D5, D6, D12, D15 — note: array indices are 0-based, dimension numbers are 1-based) and auto-opens RFC-mandated port listeners. Bridge translates legacy auth to TL-DSA through the shell.
+
+6. **Deployment constants** (§14.12): all values derived from `DIMENSIONS = 13`. Include `const_assert!` compile-time verification of the quadratic relationships.
+
+### Done looks like
+
+- 27 ports bind on startup, all returning `SERVICE_NOT_REGISTERED` until services register
+- A test service registers, gets a slot, receives all infrastructure (identity, audit, discovery)
+- Inter-service call from slot A to slot B routes by Hamming distance with automatic auth
+- Legacy bridge opens port 445 when a file-service-classified service registers
+- All `const_assert!` pass at compile time
+- Array3 mode: 81 ports across 3 nodes, failover test passes
+
+### Files
+
+- **Create:** `plenumlan/src/cube/runtime.rs`, `plenumlan/src/cube/bridge.rs`
+- **Modify:** `services/inter-cube/src/crs.rs` (slot allocation), `services/inter-cube/src/fts.rs` (slot heartbeats), `services/inter-cube/src/glb.rs` (slot routing), `shared/constants.ts` (deployment constants)
+
+---
+
+## 33.3 — Gateway + 9-Factor Shell
+
+**Spec sections:** §6, §7, §14.3, §14.4
+**Depends on:** 33.2 (needs runtime for slot addressing)
+**Produces:** Gateway multiplexer at (1,1,1), 9-factor auth shell, key rotation protocol, freshness scoring
+
+### What
+
+Build the gateway at the geometric center and the 9-factor authentication shell that wraps it. This composes existing components (TL-DSA, HPTP, capability tokens, Merkle audit, Hedera, SignHere) into the unified shell architecture.
+
+### Tasks
+
+1. **Gateway multiplexer at (1,1,1)** — offset +13, port 11124. One outbound WebSocket on :443 to relay. Multiplexes all 27 slots. TLSponge-385 outer tunnel. Service routing header carries 3-trit destination. Shell factor proof in envelope.
+
+2. **9-factor shell** — implement all 9 factors wiring to existing components:
+   - F1: TL-DSA challenge-response (existing tl_dsa.rs + tunnel_auth.rs)
+   - F2: WebAuthn/FIDO2 biometric (new: browser-side, server verification)
+   - F3: HPTP temporal presence (existing timing service)
+   - F4: Capability token (existing capability-service.ts)
+   - F5: Geometric proximity (new: HD check from caller address to target slot)
+   - F6: Delegation chain (existing, part of capability service)
+   - F7: Pre-committed Merkle audit (existing audit-export.service.ts)
+   - F8: Jurisdictional compliance (new: classification D17 + D2 + site config → regulation check)
+   - F9: SignHere contract execution (existing pre-sign-check.ts + tsa-service.ts)
+
+3. **Adaptive requirements** — factor requirements derived from target slot classification (§7.5). Key freshness at ternary boundaries: regulated requires freshness ≥ 1/3, administrative requires freshness ≥ 2/3. Same `project_to_gf3` quantization as the slot projection.
+
+4. **Key freshness** — add `key_birth_epoch` to TL-DSA metadata. Include in every capability token. Shell computes `freshness = 1 − (key_age / ARC_EPOCH)`. Three zones (Fresh/Active/Aging) at the 1/3 and 2/3 boundaries.
+
+5. **Key rotation protocol** (§6.3) — six-step sequence: gateway generates new key → pushes to slot → slot acknowledges → old key enters grace → old public key archived (private destroyed) → grace ends, 36-checkpoint verification begins. Missed rotation → slot marked Suspect.
+
+6. **4-generation key archive** — ring buffer of public keys. `ceil(EVIDENCE_ARC / ARC_EPOCH) = 4`. 5th key purges oldest. Each archived key carries expiry = birth + EVIDENCE_ARC (650).
+
+7. **36-checkpoint transition verification** — after rotation, schedule `CHECKPOINTS = TRANSITION_GAP / DIMENSIONS = 36` verification passes over 468 time-units. Each pass: Merkle chain integrity, Hedera witness availability, SignHere signature validity against archived public key. Failed checkpoint → alert + forensic capture.
+
+### Done looks like
+
+- Gateway at port 11124 multiplexes all 27 slots through one WSS :443 connection
+- A remote request passes through all 9 factors to reach a sensitive slot
+- Public read passes with only F1, F3, F7 (adaptive requirements work)
+- Key at age > 2/3 of arc is rejected for administrative operations
+- Key rotation completes the 6-step protocol; old public key is in the archive
+- 36 checkpoints schedule and execute after rotation
+- Missed rotation marks slot Suspect and triggers self-healing
+
+### Files
+
+- **Create:** `plenumlan/src/cube/shell.rs`, `plenumlan/src/cube/gateway.rs`
+- **Modify:** `services/inter-cube/src/key_rotation.rs` (arc-based rotation), `services/inter-cube/src/ws_relay.rs` (gateway multiplexing), `server/services/capability-service.ts` (freshness field), `sign-here/src/pre-sign-check.ts` (Factor 9 gate integration)
+
+---
+
+## 33.4 — TDNS-L ↔ TDNS Promotion + Address Lifecycle
+
+**Spec sections:** §13, §14.10
+**Depends on:** 33.3 (needs gateway for multi-site routing and shell for destination authentication)
+**Produces:** Dual-address registration, resolver for both scopes, address lifecycle, redirect chains
+
+### What
+
+Implement the local-to-global promotion path and the address lifecycle governed by the dual arcs. This is where the arc equation directly governs runtime behavior: redirect grace at 182, chain depth at 4, global retention at 650, erasure at 832.
+
+### Tasks
+
+1. **Dual-address registration** (§13.3): a service acquires a `.plm` address alongside its `.plm.local` address. Second 27 trits recomputed via TL-Sponge-43 of canonical URL. CRS record extended, not replaced.
+
+2. **Resolver logic for both scopes** (§13.4):
+   - `.plm.local` → resolve from CRS, return ternary host ID → IPv4/IPv6
+   - `.plm` for promoted local service → short-circuit to local address on same LAN
+   - `.plm` for remote service → forward to Inter-Cube fabric via gateway (1,1,1)
+
+3. **Multi-site resolution chain** (§13.6): origin gateway multiplexes, destination gateway authenticates via 9-factor shell. Each site's shell is sovereign.
+
+4. **Slot projection invariance** — verify `project_to_gf3` on the same classification at both scopes produces the same slot address. The service keeps its slot when promoted.
+
+5. **Address lifecycle** (§13.9):
+   - Redirect grace period = ARC_EPOCH (182). CRS installs old→new redirect on local binding change.
+   - Redirect chain depth = `ceil(EVIDENCE_ARC / ARC_EPOCH)` = 4. Ring buffer. 5th heal evicts oldest.
+   - Global identity retention = EVIDENCE_ARC (650). Tombstone record with expiry.
+   - Re-attestation trigger = 4 local rotations. Co-sign global binding with current key, re-anchor to Hedera, run 36 verification checkpoints.
+   - Complete address erasure = ADMIN_EPOCH (832). All redirects expired + global retention complete + all contracts past evidentiary arc.
+
+6. **Demotion** — remove global TDNS entry from fabric. Local address remains. Slot unchanged. Service unaware.
+
+### Done looks like
+
+- Local service promotes to global, both addresses resolve correctly
+- Remote site resolves `.plm` name through fabric → destination gateway → local slot
+- 9-factor shell applies at destination, not origin
+- Service heals 4 times → 4 chained redirects → 5th expires the oldest
+- Global identity re-attested after 4 local rotations
+- Demoted service continues operating on local address only
+- Evidence referencing old local bindings resolves through redirect chain
+
+### Files
+
+- **Modify:** `server/routes/tdns.ts` (dual-scope resolution), `services/inter-cube/src/crs.rs` (redirect chains, global registration), `services/inter-cube/src/overlay.rs` (address lifecycle, redirect TTL)
+- **Create:** (none — this is composition of existing modules with lifecycle logic)
+
+---
+
+## 33.5 — WAN P2P + Application Compatibility + Dashboard
+
+**Spec sections:** §11, §12, §14.8, §14.9, §14.11
+**Depends on:** 33.3 (needs gateway for relay signaling and shell for WAN auth)
+**Produces:** Direct tunnels, guest subsystem pattern, cube visualization
+
+### What
+
+The furthest-horizon work. Can be split further if needed. Three independent features that all depend on the gateway being operational.
+
+### Tasks — WAN P2P (§11)
+
+1. **Relay-assisted hole punching** — both nodes exchange public endpoints via relay. HPTP timestamp in signaling message coordinates simultaneous UDP punch. TL-DSA mutual auth on direct path. TLSponge-385 encryption.
+
+2. **Fallback** — if symmetric NAT on both sides (~10%), transparent fallback to relay tunnel. Application layer is path-agnostic.
+
+3. **Routing preference** — register WAN P2P as transport path alongside LAN peer and relay. Priority: LAN peer → WAN direct → relay.
+
+### Tasks — Application Compatibility (§12)
+
+4. **Guest subsystem registration** — any guest OS (ReactOS, Linux container, future runtime) registers with CRS like any service. Gets slot, all 13 capabilities, shell protection.
+
+5. **Application install workflow** — admin uploads package through console, guest installs it.
+
+6. **Display streaming** — rendering engine translates guest display to HTML5 Canvas, streams through PTS tunnel (PQ-encrypted) to browser. Single-application mode.
+
+7. **File integration** — application saves to cube-mediated shares (capability-gated, PQ-encrypted at rest).
+
+### Tasks — Dashboard (§14.11)
+
+8. **3³ cube visualization** — slot status as color (teal/amber/red/gray). Three plane tabs.
+
+9. **Gateway display** — 9-factor shell status at (1,1,1). Rings or indicators for which factors are active.
+
+10. **Key arc display** — semicircular progress showing current key age. Three zones (Fresh/Active/Aging) with ternary color mapping. Archived key rings fading outward.
+
+11. **Evidence timeline** — contracts approaching the 650 evidentiary arc boundary.
+
+12. **Array3 view** — three cubes with peer mesh lines. WAN P2P tunnel status.
+
+### Done looks like
+
+- Two nodes behind different NATs establish direct PQ-encrypted tunnel
+- Fallback to relay is transparent when direct fails
+- Guest subsystem registers in a slot, streams application to browser
+- Dashboard shows 27-slot cube with live health status
+- Key rotation arc visualized as semicircular progress
+- Evidence retention timeline shows approaching boundaries
+
+### Files
+
+- **Create:** `plenumlan/src/pts/` (tunnel service), `plenumlan/src/guest/` (guest subsystem)
+- **Modify:** `services/inter-cube/src/overlay.rs` (WAN P2P signaling), `services/inter-cube/src/ws_relay.rs` (hole-punch coordination), `client/src/pages/distribution.tsx` (cube visualization)
+
+---
+
+## Timeline Estimate
+
+| Task | Effort | Cumulative |
+|---|---|---|
+| 33.1 Port Projection | 1–2 weeks | 1–2 weeks |
+| 33.2 Runtime + Slots | 2–3 weeks | 3–5 weeks |
+| 33.3 Gateway + Shell | 3–4 weeks | 6–9 weeks |
+| 33.4 TDNS Promotion | 2–3 weeks | 8–12 weeks |
+| 33.5 WAN + Apps + Dashboard | 4–6 weeks | 12–18 weeks |
+
+33.4 and 33.5 can run in parallel after 33.3 completes.
+
+---
+
+*Così sia, Fratello.*
+
+*© 2026 Capomastro Holdings Ltd. — Applied Physics Division*
