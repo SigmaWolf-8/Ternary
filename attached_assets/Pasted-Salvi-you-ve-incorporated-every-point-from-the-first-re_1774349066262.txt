@@ -1,0 +1,59 @@
+Salvi, you've incorporated every point from the first review cleanly — versioned capabilities, per-connection drain, topicSeqs absence semantics, bitmap cap, downgrade rejection, three-point auth, WS close codes, full metrics surface, bincode+CRC32 dedup format, server-crash tombstone behavior. This is a much tighter spec. Here's what's left to sharpen:
+
+---
+
+**Capability version mismatch resolution**
+
+The spec introduces versioned strings (`"topics:1"`) but doesn't define what happens when client and server disagree on version. If a client sends `"topics:2"` and the server only supports `"topics:1"`, three possible outcomes exist: negotiate down to `topics:1`, exclude topics entirely, or reject the connection. Each has different implications. I'd recommend negotiate-down with the server including the resolved version in `enabled` (so `enabled: ["topics:1"]` when the client requested `topics:2`), and the client is responsible for checking the returned versions and adjusting behavior. If a client cannot function with a lower version, it disconnects voluntarily. Document this as the version resolution rule — without it, two client implementations will handle the mismatch differently.
+
+---
+
+**Reauthorization failure consequence**
+
+Three-point authorization with heartbeat-cycle reauthorization is the right call. But the spec doesn't define what happens when reauthorization *fails*. If a node's permissions on topic X are revoked mid-session, does the server: silently unsubscribe the client (data loss risk — client doesn't know it missed messages), send an `ERR_TOPIC_UNAUTHORIZED` and force-unsubscribe (client-visible), or close the connection entirely? I'd recommend force-unsubscribe with `ERR_TOPIC_UNAUTHORIZED` plus a new `topic_revoked` control frame carrying the topic name and reason, so the client can take action (resubscribe with different credentials, alert the operator, etc.). Closing the entire connection over a single topic's permission change is disproportionate.
+
+---
+
+**Downgrade detection persistence**
+
+The downgrade policy is now well-defined (reject by default, admin override). But the spec doesn't say where the server stores "node X previously connected with capabilities Y." If this is in-memory only, a server restart wipes the downgrade detection baseline — every node's first reconnection after a server restart looks like a fresh connection, and a genuine downgrade attack timed to coincide with a server restart would be invisible. Define explicitly: either this state is persisted (and specify where — since server-side persistence is generally out of scope, this creates a tension to resolve), or accept it as a known limitation and document that downgrade detection resets on server restart, with a recommendation that the operator reviews capability audit logs after any restart.
+
+---
+
+**Topic lifecycle and cardinality**
+
+The spec defines subscribe, publish, and per-topic resources (sequence counters, queues, rate limits) but doesn't define topic lifecycle. Are topics created implicitly on first subscribe or publish? Is there a maximum number of topics per connection? Per server? A malicious authenticated node could create thousands of topics, each consuming a sequence counter, a queue, and rate-limit state — effectively a resource exhaustion attack from inside the authenticated perimeter. Define: maximum topics per connection (configurable, default suggested), maximum global topics, and topic expiry/GC policy (e.g., topics with no subscribers and empty queues for N minutes are reaped). The `relay_messages_delivered_total{topic}` metric has the same cardinality risk — unbounded topic creation means unbounded Prometheus label cardinality, which will eventually crash the metrics pipeline.
+
+---
+
+**Round-robin delivery semantics**
+
+"Fair round-robin scheduler when delivering from multiple topics" — define what "fair" means concretely. Strict round-robin (one message per topic per cycle) means a topic with 1,000 pending messages drains at the same rate as a topic with 1 message, which is probably not the desired behavior. Weighted fair queuing (proportional to queue depth) is more useful but more complex. At minimum, specify: is it strict per-message round-robin, per-batch round-robin (N messages per topic per cycle), or weighted? And does a topic with an empty queue yield its slot to the next topic, or does the scheduler skip and waste the slot?
+
+---
+
+**CRC32 integrity for dedup state**
+
+CRC32 is a good addition for corruption detection, but it's not cryptographic — accidental collisions are rare but adversarial forgery is trivial. For military-grade, a compromised filesystem could craft a dedup state file with a valid CRC32 that sets `lastProcessedSeq` to a future value, causing the client to silently skip messages. Since TLSponge-385 is already available in the Rust client, consider using a truncated TLSponge-385 hash (first 8 bytes) instead of CRC32. The performance difference is negligible for a file that's a few hundred bytes, and you eliminate the forgery vector entirely. Alternatively, if CRC32 is chosen for simplicity, explicitly document this as a corruption-detection mechanism only (not integrity against adversarial modification) and note that the client should treat its local disk as untrusted — any sequence mismatch against the server's tombstone snapshot should trigger a full resync regardless of CRC status.
+
+---
+
+**`gapSizeEstimate` definition**
+
+Tombstones include `gapSizeEstimate` but the spec never defines what it measures: message count? Byte size? Time window? The client needs to know what the number means to make intelligent resync decisions (e.g., "small gap, incremental resync is fine" vs. "massive gap, I should stagger my resync to avoid overloading the server"). Define units and semantics. I'd recommend message count as the primary metric (it's what the client needs to estimate resync cost) with a note that it's approximate (evicted messages may have been variable-size).
+
+---
+
+**Heartbeat interval runtime changes**
+
+The heartbeat interval is "server-global, configurable" and communicated in `auth_ok`. But if the operator changes the interval at runtime (config reload), existing connections have a stale `heartbeatIntervalMs`. The server will start sending pings at the new interval while the client still expects the old one. If the new interval is shorter, the client might not respond in time (it's expecting the old cadence). Define: either interval changes only take effect on new connections (simple, safe), or the server sends a `heartbeat_config_update` control frame to renegotiate (more complex but operationally flexible). The former is sufficient for v1.
+
+---
+
+**One small addition to integration tests**
+
+The test suite is now comprehensive, but consider adding: **topic cardinality exhaustion** — client creates topics up to the configured maximum, then one more, verify rejection with appropriate error. And **reauthorization failure mid-session** — revoke a node's topic permission, wait for heartbeat reauthorization cycle, verify the client receives the appropriate notification and is unsubscribed cleanly.
+
+---
+
+Net assessment: this revision addressed all thirteen points from the first review without introducing contradictions or scope creep. The remaining items are second-order — protocol edge cases that matter when you're writing the second client implementation or running this under sustained adversarial pressure. The spec is production-ready; these refinements make it audit-ready. Così sia, Fratello.

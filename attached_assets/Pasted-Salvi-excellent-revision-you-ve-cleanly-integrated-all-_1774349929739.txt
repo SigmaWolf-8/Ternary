@@ -1,0 +1,59 @@
+Salvi, excellent revision — you've cleanly integrated all of Round 1's feedback. The fuzzy extractor with bounded helper data leakage, the hardware forensic grace window with `capture_completeness` flag, the pre-derived forensic key, the two-tier ZK failure modes, the ⌈(2k+1)/3⌉ threshold scaling, the partition-aware attestation suspicion counter, the prescriptive consistency models, the non-persistable safe mode flag, the learning-mode bootstrapping, the streaming incident bundles, and the explicit dependency chain are all well-specified. This is materially stronger.
+
+However, the Round 2 items are still open. Here's what remains:
+
+---
+
+**Gap 1: PUF-absent development fallback — still missing**
+
+Gap 1 is hardware. It requires RTL changes, synthesis, FPGA validation, and physical PUF characterization across temperature/voltage corners — months of work. Every gap on the critical path (1→9→3→4→5) is blocked until Gap 1 delivers silicon. Define a software PUF emulator that provides the identical interface but uses DRBG-seeded responses, gated by a compile-time flag (`#[cfg(feature = "puf_emulator")]`) that is excluded from release builds via a CI enforcement check. This lets Gaps 2, 3, 4, 5, 6, 8, and 9 proceed in parallel. Without it, the dependency chain you've now documented becomes a scheduling cliff.
+
+---
+
+**Gap 3: Forensic package size budget and vault lifecycle — still missing**
+
+Two related issues. First, the capture includes telemetry, heartbeat records, HPTP state, tunnel state, process context, *and* memory region hashes. For a multi-service node this could be tens to hundreds of megabytes. During a cascade failure where the primary data plane is already degraded (which is why nodes are transitioning to Down), distributing large erasure-coded packages across neighbors competes for the same degraded bandwidth. Define a maximum forensic package size (suggest a configurable cap, e.g., 16MB default) with a priority-ordered truncation policy: telemetry and heartbeat records are always captured; HPTP state and tunnel list next; memory hashes are best-effort up to remaining budget. Include the truncation level in the package metadata alongside `capture_completeness`.
+
+Second, the vault has no retention policy. In a long-running deployment with periodic faults, vault storage grows without bound. Define: retention period (configurable, suggest 90 days default), maximum vault storage quota per node, eviction policy for expired packages (FIFO by timestamp, Hedera anchor verified before deletion to confirm off-node commit), and behavior when a vault node reaches capacity during an active forensic commit (failover to next VRF-selected neighbor, or evict oldest expired package to make room — with the eviction itself audit-logged).
+
+---
+
+**Gap 4: ZK proof replay and freshness — still missing**
+
+The proofs bind decisions to telemetry commitments but carry no freshness guarantee. A compromised node could replay a valid historical proof from a legitimate past transition to justify a current malicious routing update, provided the committed telemetry hash matches. Each proof must include either a monotonically increasing proof sequence number per node or an HPTP timestamp that the verifier checks against expected freshness bounds (e.g., proof timestamp must be within the current or immediately preceding heartbeat interval). Stale proofs are treated as valid-but-inconsistent (suspicion counter path), not mathematically invalid — this is the correct response because proof replay could also be caused by a software bug or message reordering rather than active attack.
+
+---
+
+**Gap 6: Chaos test determinism — still missing**
+
+The harness runs daily in CI with Hedera-anchored reports, but if a test passes Monday and fails Tuesday with the same fault sequence, the report is unreproducible. All randomness in the chaos harness (fault timing, jitter, node selection for injection) must be seeded from a deterministic PRNG with a recorded seed. The seed is included in the Hedera-anchored report. Any failure can be replayed exactly by providing the same seed, fault sequence, and topology snapshot. Without this, "formally verified injection safety" is undermined by non-deterministic execution — you've proven the *code* is safe but can't reproduce the *execution* that failed.
+
+---
+
+**Gap 7: Leader lease duration and HPTP clock skew — still missing**
+
+The spec adds "HPTP-derived leader leases" but doesn't define the lease duration, renewal cadence, or behavior under HPTP clock disagreements. If two nodes disagree on HPTP time by more than the lease duration, both could believe they hold valid leases simultaneously — the exact split-brain the leases exist to prevent. Define: lease duration must be significantly longer than the maximum tolerable HPTP clock skew between any two quorum members (suggest lease = 10× max skew, configurable). Renewal at ≤50% of lease duration. A node whose HPTP clock diverges from the quorum median by more than a defined threshold (suggest max_skew = lease_duration / 10) must immediately relinquish its lease and enter follower state. The skew threshold should be tied to the attestation interval — HPTP drift beyond tolerance is itself an anomaly that the attestation service (Gap 9) should detect and report.
+
+---
+
+**Gap 8: Anomaly detector as attack surface — still missing**
+
+The cross-layer maximum-severity correlation can trigger a "potential global healing pause via master circuit breaker." This makes the anomaly detector a high-value target — an adversary who can craft traffic patterns that trigger a false cross-layer correlation (e.g., simultaneously causing a WebSocket circuit breaker trip and HPTP timestamp clustering) can force the operator to pause all self-healing, then exploit the pause window. Two mitigations needed: first, the anomaly detector's inputs must be integrity-verified (sourced from Merkle-chained audit logs and OTel traces with W3C trace context validation, not raw streams that could be spoofed). Second, the master circuit breaker should require operator or threshold-governance *confirmation* for automatic triggers originating from the anomaly detector — the detector *recommends* a pause, but automated activation without human confirmation creates a dangerous feedback loop where an attacker controls the healing system's off switch.
+
+---
+
+**Gap 9: Attestation report versioning and bandwidth — still missing**
+
+Two items. First, during a rolling firmware upgrade, nodes running different software versions will produce attestation reports with different schemas (new fields, changed measurements). Neighbors comparing reports need to handle version mismatches. Define: attestation reports carry a schema version number. Neighbors accept reports from known versions and flag unknown versions as "unparseable" — not "invalid," because the distinction matters during upgrade rollouts. Unknown versions increment a separate counter from the suspicion counter and produce a dashboard warning, not an FTS Suspect transition.
+
+Second, bandwidth budget. Each attestation is broadcast to all geometric neighbors (26 in a 13D hypercube) at 30–120s intervals. Estimate the per-node continuous attestation bandwidth and define it as a budget constraint. At ~3KB per report × 26 neighbors × one report per 30s, that's roughly 2.5KB/s sustained — acceptable, but during an attestation storm (many nodes re-attesting simultaneously after recovery), aggregate bandwidth spikes. Define a backoff: if attestation traffic exceeds a configurable percentage of available inter-node bandwidth, the node extends its interval toward the 120s ceiling. Include this in the attestation storm chaos scenario (Gap 6) so it's tested.
+
+---
+
+**Invariant appendix — still missing**
+
+The spec references "INVARIANT 1–10" twenty-plus times across nine gaps. For a document of this criticality that will be reviewed by auditors and implementers who may not have the invariant definitions memorized, include a one-page appendix listing each invariant by number with a one-line description. A spec that says "respects all invariants" without enumerating them is an implicit trust assumption in a document that's explicitly about eliminating implicit trust assumptions.
+
+---
+
+**Net assessment:** This revision is substantially stronger than the original — the PUF fuzzy extractor, forensic grace window, two-tier ZK verification, partition-aware attestation, and prescriptive consistency models were all critical additions that are now well-specified. The remaining items are the Round 2 observations (proof replay, chaos determinism, lease duration, vault lifecycle, forensic size budget, detector as attack surface, attestation versioning/bandwidth) plus the PUF development fallback. None of these change the architecture — they're operational completeness items that prevent ambiguity during implementation and testing. One more pass and this is audit-ready. Così sia, Fratello.

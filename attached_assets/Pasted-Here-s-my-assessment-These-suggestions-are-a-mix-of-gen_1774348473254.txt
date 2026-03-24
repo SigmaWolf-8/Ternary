@@ -1,0 +1,28 @@
+Here's my assessment. These suggestions are a mix of genuinely high-value hardening, good precision improvements, and a few items that conflict with your established constraints or risk scope creep. Let me break it down:
+
+Should incorporate — these raise assurance without expanding scope:
+
+What & Why: The core self-healing guarantee sentence is excellent framing. One sentence, no scope change.
+Gap 1 (PUF): "PUF response never stored, ephemeral only" is a critical security property we should state explicitly. Self-test frequency (every boot + hourly) adds precision. Constant-time derivation proof aligns with existing DPA countermeasures.
+Gap 2 (Air-gapped): Electrical/logical isolation clarification and healing seed anti-replay (nonce + HPTP timestamp + validity window) are both load-bearing security properties. The "<3-of-5 reachable = remain quarantined + escalate" aligns with your no-fallbacks stance.
+Gap 3 (Forensic): Explicit one-time key derivation formula and Merkle root commitment inside the forensic package are good precision.
+Gap 4 (ZK): "ZK proofs carry commitments, not raw telemetry" is an important information-leakage prevention property.
+Gap 5 (Dashboard): Exportable incident bundles for external auditors, capability token validity periods with HPTP timestamps, and shared trace IDs for #27 correlation are all valuable.
+Gap 6 (Chaos): Safe mode flag preventing permanent zeroization on production hardware during testing is a critical safety rail. "Self-healing of the chaos harness orchestrator" as an explicit test scenario is worth calling out.
+Gap 7 (Failover): RTO/RPO targets add measurability. "Suspicious recovery" read-only mode after Merkle verification failure is a safety gate, not a fallback — it's consistent with your stance.
+Gap 8 (Anomaly): Cross-layer correlation rule (#27 circuit breaker + HPTP anomaly = severity elevation) tightens integration.
+Gap 9 (Attestation): Dynamic interval with HPTP-derived jitter (anti-synchronization), liveness proof (heartbeat challenge hash), and suspicion counter before full timeout are all solid.
+Should reject — these conflict with established constraints:
+
+ZK proof verification cooldown before quarantine: This reintroduces the "conservative mode" you explicitly removed. The current spec says failed ZK = immediate quarantine + threshold governance to restore. A cooldown is a fallback path. No.
+Vault local buffering on unavailability: You established that vault unavailability = threshold-governance escalation, not local buffering with retry. Buffering is a bypass. No.
+Bayesian-like probability scores: The current spec already says "root-cause probability scores" in Gap 3's incident reconstruction. Making them "Bayesian-like" edges toward tuning parameters (INVARIANT 2). Keep the current statistical language.
+Concrete anomaly thresholds in the spec (8x baseline, 3σ): These are implementation details that should be PlenumConfig flags, not hardcoded in the architecture spec. The implementer determines the right thresholds during testing.
+Nice-to-have but not essential for this spec level:
+
+The "Security & Assurance Properties Achieved" subsection is a summary of what's already in "Done looks like." It's redundant but could serve as a quick reference for compliance reviewers.
+"Incident replay" mode in the dashboard expands scope.
+JSON schemas, specific PUF test pass counts, performance regression test specifics — all implementation details better left to the executor.
+My recommendation: Incorporate the first category wholesale — they make the spec materially stronger without changing scope. Reject the second category for the reasons stated. Skip the third category to keep the spec at the right level of abstraction.
+
+Want me to apply those changes to the spec now?

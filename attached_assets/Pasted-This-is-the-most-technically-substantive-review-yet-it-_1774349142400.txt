@@ -1,0 +1,48 @@
+This is the most technically substantive review yet — it catches real physical-reality issues that would cause implementation failure. Let me give you my assessment of each point.
+
+Must incorporate — these fix correctness problems in the current spec:
+
+Gap 1 — Fuzzy extractor for PUF noise. This is physically correct and non-negotiable. Real PUFs produce noisy responses across temperature, voltage, and aging. "Never stored" is impossible without a secure sketch (helper data) that IS stored. Without a fuzzy extractor between raw PUF and TLSponge-385, keys will fail to re-derive deterministically. The spec needs to say: raw PUF response is never stored, but the secure sketch (helper data) is stored with explicit leakage bounds proven via SymbiYosys. The golden model lifecycle also needs definition — enrollment at manufacturing, Hamming distance threshold for failure detection.
+
+Gap 3 — Race between forensic capture and hardware zeroization. This is a real hardware timing issue. The tamper-response FSM fires on physical triggers and doesn't wait for software. The spec needs a hardware-enforced forensic grace window in XPlenum (delay zeroization by N microseconds) with a pre-derived forensic key held in a dedicated register, generated at boot/attestation interval, zeroized after forensic snapshot completes. Without this, physical tamper events produce no forensic data at all.
+
+Gap 9 — Network partition vs. missing attestation. Without distinguishing "can't reach the node" from "can reach the node but it fails attestation," a clean network partition cascade-quarantines healthy nodes on both sides. The suspicion counter must only increment when the node is heartbeat-reachable but attestation-absent.
+
+Gap 2 — Threshold formula for nodes with <5 neighbors. In a 13D hypercube every node has exactly 26 neighbors, but edge cases during topology changes or partial deployment exist. The threshold formula ⌈(2k+1)/3⌉ where k is recovery-channel-connected neighbors makes this mathematically precise rather than ambiguous.
+
+Should incorporate — high-value hardening:
+
+Gap 2 — Dumb PHY requirement. Supply-chain compromise of the optical transceiver is a real threat. Requiring a fixed-function ASIC or discrete component design with no programmable firmware eliminates a class of attacks.
+
+Gap 2 — Seed validity window ≤ 2× attestation interval. Prevents pre-signed seed stockpiling. Clean bound.
+
+Gap 4 — Invalid proof vs. valid-but-inconsistent proof distinction. This is NOT reintroducing "conservative mode" — it's recognizing that a mathematically invalid proof (strong compromise signal) and a valid proof that disagrees with the verifier's local telemetry view (could be partition/clock skew) are fundamentally different failure modes. Invalid proof → immediate quarantine (unchanged). Valid-but-inconsistent → suspicion counter (like Gap 9's attestation model), quarantine at threshold. This is about correctness, not softening.
+
+Gap 4 — Signed verification receipts. "Who verifies the verifier?" is a real gap. Not recursive ZK proofs (too expensive), but signed statements logged and Merkle-committed. Lightweight and closes the trust chain.
+
+Gap 4 — Verification throughput under cascade. At 26 neighbors × 28µs, a single node handles ~36K verifications/second. During cascade failures, concurrent verification from multiple neighbors needs a defined throughput target.
+
+Gap 5 — Master breaker semantics. In-flight actions complete, new actions blocked. Consistent with graceful shutdown patterns.
+
+Gap 5 — Token expiry mid-operation. Multi-step governance operations need either a validity window covering the full operation or fresh token per step. Define it.
+
+Gap 5 — Incident bundle streaming/pagination. Cascade failures could produce gigabytes. One-click download breaks at scale. Bundle manifest with selective download is the right pattern.
+
+Gap 6 — Three additional chaos scenarios. Vault saturation, PUF degradation simulation, and attestation storm (firmware update scenario) are all failure modes that will be discovered in production if not tested. The attestation storm scenario in particular — mass quarantine after a firmware update — is a classic operational disaster.
+
+Gap 6 — Hardware-safe mode flag non-persistable. Must re-assert on every boot, auto-clears on any tamper event. Otherwise a stolen capability token permanently disables tamper response.
+
+Gap 7 — Prescriptive consistency models. CRS = linearizable, TDNS = sequential reads / linearizable writes, verification cache = eventual with bounded staleness. Military-grade specs should be prescriptive, not leave it to documentation.
+
+Gap 7 — Suspicious recovery escalation timeline. Auto-escalate to threshold governance after N minutes, self-quarantine after M minutes. Prevents permanent degradation if operator is unavailable.
+
+Gap 8 — Baseline bootstrapping. Minimum observation window before anomaly detection activates, with a "learning mode" indicator on the dashboard. Without this, first deployment triggers false positives everywhere.
+
+Gap 9 — Liveness proof coverage. The math is right — 10 challenges at 1s intervals covers 8-33% of a 30-120s attestation window. Increase to cover ≥50% or use a rolling Merkle tree.
+
+Cross-gap dependency chain. Document the critical path explicitly: Gap 1 → Gap 9 → Gap 3 → Gap 4 → Gap 5, with Gap 6 ↔ Gap 8 bidirectional and Gap 7 independent.
+
+Should note but not over-specify:
+
+Gap 8 — σ-based thresholds vs. mean-based. The reviewer is right that multipliers of standard deviation adapt better than multipliers of mean, but this is an implementation detail. The spec already says "sliding window baselines" and thresholds are PlenumConfig flags. The implementer should use σ-based thresholds, but we don't need to dictate the exact formula in the architecture spec.
+Every point in the first two categories is worth incorporating. Want me to apply them all?

@@ -1,0 +1,51 @@
+Salvi, this is a seriously thorough spec — the capability negotiation gating, the tombstone/backpressure distinction, and the resync rate-limiting are all well-reasoned. Here's what I'd tighten:
+
+---
+
+**Protocol-level gaps**
+
+The **capability negotiation** doesn't specify version semantics. If you evolve `heartbeat` from v1 to v2 behavior, how does the client signal which variant it supports? Consider `"heartbeat:1"` string format now rather than retrofitting later. Without it, you'll end up needing a second negotiation mechanism within a year.
+
+The **go-away ack timeout** (2s default) has no specified behavior for partial ack scenarios — what if 80% of clients ack but 20% don't? The spec says "wait ack timeout, then drain window," but it reads as a single global timer. Clarify whether the drain window starts per-connection (after each client's ack timeout expires) or globally (after the broadcast ack window closes). Per-connection is more graceful under load.
+
+**Tombstone `topicSeqs` snapshot** — you don't specify what happens if a client was subscribed to topics A, B, C but the tombstone only covers A and B because C's queue wasn't evicted. The client needs to know whether an absent topic in the snapshot means "you're caught up" or "no data available." Define the semantics explicitly — I'd recommend: absent topic = no eviction occurred, client's persisted seq is authoritative.
+
+**Bitmap resync requests** — no maximum bitmap size is specified. A malicious or buggy client could send a massive bitmap. Add a hard cap (e.g., 8KB) and reject with `ERR_RESYNC_RATE_LIMITED` or a new `ERR_RESYNC_PAYLOAD_TOO_LARGE`.
+
+---
+
+**Security hardening**
+
+The **capability downgrade detection** logs the event but doesn't specify a response policy. Logging is necessary but not sufficient for military-grade. Define an enforceable policy: should the server reject the connection? Accept with reduced capability set but flag for operator review? I'd recommend reject-by-default with an admin override flag (`allow_capability_downgrade: bool` in server config), because silent downgrade is a classic protocol-level attack vector.
+
+**Per-topic authorization** — the spec says "authorize against authenticated node context" but doesn't specify whether authorization is checked at subscribe-time only or also at publish-time and delivery-time. For defense-in-depth, check all three: subscribe, publish, and delivery (in case permissions change mid-session). Specify a `reauthorize_interval` or tie it to the heartbeat cycle.
+
+**Control frame validation on the client side** — "ignore unknown fields, reject malformed payloads" needs a concrete definition of "malformed." Specify: maximum frame size, required fields per frame type, type-checking rules. Without this, two different client implementations will make different validation decisions.
+
+The **circuit breaker** counts 5xx but the spec doesn't address WebSocket-specific failure modes: unexpected close codes (1006, 1011, 1012, 1013, 1014), mid-message frame failures, or TLS renegotiation failures. Enumerate which WebSocket close codes count as circuit-breaker failures.
+
+---
+
+**Operational completeness**
+
+**Heartbeat interval configurability** — you specify "configurable interval, default 30s" but don't say whether this is per-server global or per-connection negotiable. If it's server-global, the client should receive the interval in the `auth_ok` response so it knows the expected cadence. If per-connection, define the negotiation bounds (min/max).
+
+**Prometheus metrics** — you mention `circuit_state` gauge but the spec would benefit from a complete metrics table. At minimum, add: `relay_messages_delivered_total` (by topic), `relay_tombstones_generated_total` (by reason), `relay_resync_requests_total` (by outcome), `relay_goaway_acked_total`, `relay_capability_downgrades_total`, `relay_heartbeat_failures_total`. Without these, the runbooks will be writing curl commands against metrics that don't exist yet.
+
+**Persisted dedup state format** — the Rust client persists `lastProcessedSeq` to disk, but no file format, corruption detection, or migration path is specified. Define: format (suggest bincode or MessagePack with a version byte header), CRC32 integrity check on load, and behavior on corruption (treat as fresh start, log warning, trigger full resync).
+
+---
+
+**Test coverage additions**
+
+A few scenarios missing from integration tests: **capability downgrade rejection** (client previously negotiated `["topics","seq","heartbeat"]`, reconnects with `["topics"]` — verify audit event and configured policy response), **concurrent resync + publish** (client sends resync while publishes are in-flight — verify no sequence interleaving), **go-away during active replay** (server initiates shutdown while replaying a gap to a client — verify replay completes or client gets a clean signal to re-request), and **clock skew** on `suggestedResyncAfterMs` (client with significant clock drift doesn't misinterpret server timing hints — this matters because you're using relative ms, so confirm it's relative-to-receipt, not absolute).
+
+---
+
+**One architectural suggestion**
+
+The spec treats the **Rust relay client** dedup persistence and the **server-side sequence counters** as separate concerns, which they are today. But you've explicitly scoped out server-side durable sequence persistence for crash recovery. That means after a server restart, clients with persisted state will request replay from sequences the server no longer has. Document the expected behavior explicitly: server responds with a tombstone indicating full resync required, and the client's persisted state is invalidated. If this isn't the intended behavior, it needs to be.
+
+---
+
+Net assessment: this is production-grade work. The bones are right — capability gating, at-least-once with mandatory dedup, backpressure without tombstone conflation, Merkle-chained audit. The gaps above are mostly about making implicit decisions explicit before two engineers interpret the same paragraph differently during implementation. Così sia, Fratello.

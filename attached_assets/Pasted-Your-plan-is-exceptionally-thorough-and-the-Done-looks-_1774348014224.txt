@@ -1,0 +1,74 @@
+Your plan is exceptionally thorough, and the “Done looks like” section captures all the hardening we discussed. The explicit rejection of mock behavior and fallback endpoints is a good choice—real enforcement is the right way to achieve military‑grade predictability. The tasks are well‑structured, and the backward‑compatible capability negotiation elegantly gates all new features.
+
+Before you start implementing, here are a few final considerations to ensure the system is not just feature‑complete but also robust in production.
+
+---
+
+### 1. **Client‑Side Deduplication: Persistence Across Disconnects**
+You’ve added mandatory deduplication per connection *and* per topic, which is excellent. However, if the client reconnects after a restart (not just a transient network issue), it may lose its `last-processed seq` state.  
+- **Persist the last processed seq per topic to disk** (or a secure local store) so that after a client restart, it can resume without reprocessing messages.  
+- **Combine with the tombstone’s `resyncCount`** – if the client’s persisted state is older than the tombstone’s snapshot, it knows a full resync is needed.
+
+---
+
+### 2. **Per‑Topic Queue Limits vs. Global 100‑Message Queue**
+Your per‑topic queue limits are separate from the global per‑client 100‑message limit. This can lead to ambiguity when a client subscribes to many topics.  
+- **Define precedence**: The global queue is the final buffer; per‑topic limits control how many messages from that topic can be enqueued before backpressure is applied upstream.  
+- **Ensure tombstones are generated only when messages are evicted from the *global* queue** – otherwise a topic‑level limit eviction might cause a tombstone even though the client’s total backlog is still within limits.
+
+---
+
+### 3. **Round‑Robin Delivery: Impact on Ordering Guarantees**
+You’re using a fair round‑robin scheduler when delivering messages from multiple topics to the same client. This is great for fairness, but it can interleave messages from different topics.  
+- **If per‑topic ordering is strict (monotonic `topicSeq`), interleaving is fine** – the client can re‑order based on `topicSeq`.  
+- **Document that messages across topics are not globally ordered** – the client should not assume that a message published after another on a different topic will be delivered later.
+
+---
+
+### 4. **Tombstone with `resyncCount` and Backoff**
+You’ve added `resyncCount` to the tombstone so the client can back off repeated resyncs.  
+- **Make the backoff exponential and tied to the client’s reconnect backoff state** – a resync loop is essentially a disconnect/reconnect cycle.  
+- **Consider including a `suggested_resync_after_ms` in the tombstone** to give the server control over the retry timing.
+
+---
+
+### 5. **Control Frame Acknowledgements: `go_away_ack`**
+Clients send `go_away_ack` in response to a `go_away` frame.  
+- **Make the server wait for acks up to a short timeout (e.g., 1‑2 seconds)** before forcefully closing. This ensures clients have time to react, especially on high‑latency links.  
+- **Add a `force_close` flag** to the go‑away frame for scenarios where the server must exit immediately (e.g., SIGKILL imminent).
+
+---
+
+### 6. **Testing Strategy (Even Without Chaos Tooling)**
+With many new stateful features, automated testing is critical.  
+- **Write integration tests** that simulate:
+  - Slow subscriber causing per‑topic queue limit eviction → verify tombstone and backoff.
+  - Circuit breaker trip → verify probe request, gradual ramp, and `circuit_open` frame.
+  - Graceful shutdown → verify staggered go‑away, acks, and health endpoint draining.
+- **Use protocol test harnesses** to verify that old clients (without capabilities) receive no new frames and are unaffected.
+
+---
+
+### 7. **Operational Runbooks – Make Them Actionable**
+You’ve included runbooks, which is excellent. Ensure they contain:
+- **Exact curl commands** to check circuit state metrics.
+- **How to manually reset a breaker** (e.g., via an admin endpoint or Kubernetes pod restart).
+- **Step‑by‑step for a maintenance drain** (flipping health endpoint, verifying go‑away, waiting for acks).
+- **Examples of what the new audit log entries look like** for each event type, so operators can search them.
+
+---
+
+### 8. **Performance Considerations**
+All these new features add CPU and memory overhead.  
+- **Benchmark with realistic loads** (e.g., thousands of topics, many subscribers) to ensure the per‑topic sequence counters, fair scheduler, and circuit breakers don’t become bottlenecks.  
+- **Use heap profiling** to confirm that per‑topic maps and pending queues scale as expected.
+
+---
+
+### 9. **Final Backward‑Compatibility Check**
+- Ensure that the new `supported` array is ignored by old servers, and old clients don’t see any of the new frames.  
+- Double‑check that the TLS upgrade and TL‑DSA authentication remain untouched—these are the foundation of the PQ security.
+
+---
+
+Your plan is already world‑class. These last points are about hardening the implementation details, ensuring observability, and preparing for operations. With this approach, you’ll deliver a WebSocket relay that truly meets the “best‑in‑class / post‑quantum military‑grade” bar.

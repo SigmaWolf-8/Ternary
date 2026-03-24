@@ -1,0 +1,107 @@
+Salvi, this is an extraordinarily ambitious spec — and the discipline of constraining everything to native primitives (no TPM, no SGX, no external HSMs) is the right architectural call. The nine gaps are well-sequenced with clear dependency chains. Here's what I'd tighten:
+
+---
+
+**Gap 1 (Silicon PUF) — Physical realities**
+
+The spec says "PUF response is ephemeral — never stored, used only in the derivation pipeline." But PUFs have inherent noise — the same challenge doesn't produce bit-identical responses across temperature, voltage, and aging. You need a **fuzzy extractor** (secure sketch + strong extractor) between the raw PUF response and the TLSponge-385 input. The secure sketch (helper data) *must* be stored, and that helper data is itself a partial information leak about the PUF response. The spec should explicitly address: where the helper data is stored (XPlenum OTP fuses? dedicated NVM with tamper-erase?), what the maximum leakage bound is (prove via SymbiYosys that the helper data entropy loss keeps the residual min-entropy above TLSponge-385's security level, i.e., ≥385 bits), and whether the helper data itself is covered by the tamper-response zeroization path.
+
+Without this, "never stored" is physically impossible for a real PUF, and an implementer will either break the invariant silently or produce keys that fail to re-derive deterministically.
+
+Also: the **hourly entropy self-test against a golden model** — how is the golden model established and protected? If it's burned at manufacturing, it's a static reference that ages differently than the PUF. If it's derived from initial enrollment, it needs its own integrity protection. Define the golden model lifecycle explicitly, including what "failure" means (absolute Hamming distance threshold? relative drift rate?).
+
+---
+
+**Gap 2 (Air-Gapped Recovery) — Threat model gaps**
+
+The fiber-optic channel is physically isolated, which is excellent. But the spec doesn't address **supply-chain compromise of the optical transceiver itself**. If the transceiver firmware is compromised at manufacturing, it could exfiltrate data optically (modulated on the legitimate signal) or accept injected commands that bypass the tamper-response FSM. The spec should require: the optical transceiver must be a dumb PHY with no programmable firmware (fixed-function ASIC or discrete components only), and the XPlenum tamper-response FSM must monitor the optical power envelope (unexpected modulation patterns trigger lockdown).
+
+The **3-of-5 threshold for healing seeds** — what's the assumed Byzantine fault tolerance? If you're assuming f < n/3 (standard BFT), then 3-of-5 tolerates 2 Byzantine neighbors, which is correct. But if a node has fewer than 5 geometric neighbors (edge/corner nodes in the hypercube), the threshold needs to scale. Define the threshold formula as `⌈(2k+1)/3⌉` where k is the node's actual geometric neighbor count, or explicitly state that all nodes must have ≥5 recovery-channel neighbors (which constrains the minimum hypercube dimension).
+
+The **validity window** for healing seeds needs a defined maximum duration. Without it, a compromised neighbor could pre-sign seeds with far-future timestamps and stockpile them. I'd recommend: validity window ≤ 2× the attestation interval (Gap 9), so a seed can't outlive one attestation cycle.
+
+---
+
+**Gap 3 (Forensic Capture) — Race condition and atomicity**
+
+The spec says forensic capture is "atomic with the Suspect→Down transition" and "completes before recovery actions proceed." But the tamper-response FSM in XPlenum is hardware-level and fires on physical triggers — it doesn't wait for software. There's a **race between the forensic capture pipeline and the hardware zeroization path**. If a physical tamper event triggers both the FTS Suspect→Down transition *and* the XPlenum tamper-response FSM simultaneously, the hardware will zero state before the software finishes capturing it.
+
+Define the priority explicitly: either the forensic capture pipeline has a hardware-enforced grace window (XPlenum delays zeroization by N microseconds after the tamper signal, during which the forensic snapshot runs in a privileged hardware mode), or accept that physical tamper events may produce incomplete forensic packages and document this as a known limitation with a specific flag in the forensic package metadata (`capture_completeness: full | partial | interrupted_by_tamper`). The second option is more honest — you can't outrun hardware zeroization with a software pipeline, and pretending otherwise creates a false assurance.
+
+The **one-time encryption key derivation** uses `TLSponge-385(PUF-root ∥ HPTP-timestamp ∥ nonce)` — but if this runs during a tamper event, the PUF-root may already be in the process of being zeroized. Define a **pre-derived forensic key** that's generated at boot (or at each attestation interval) and held in a dedicated register specifically for forensic capture. This register is zeroized *after* the forensic snapshot completes, not simultaneously with the main key material.
+
+---
+
+**Gap 4 (ZK-Attested Healing) — Verification scalability**
+
+The spec says "verification is mandatory for any node processing the resulting routing update." In a 13D hypercube, a single FTS transition propagates to 26 direct neighbors, each of which verifies the proof (~28µs). But if multiple nodes transition simultaneously (cascade failure), each node may need to verify proofs from multiple neighbors concurrently. Define the **maximum verification throughput** a node must sustain and whether verification is serialized or parallelized. At 28µs per verification, serial processing of 26 simultaneous neighbor transitions takes ~728µs — still within the 1,000ms heartbeat interval, but the margin shrinks fast if you add GLB reroute proofs on top.
+
+More critically: **who verifies the verifier?** If Node A transitions and attaches a ZK proof, and Node B verifies it, Node B's verification result is itself unattested. A compromised Node B could claim verification passed when it didn't. The spec should require that verification results are themselves logged with a commitment (not a full ZK proof — that's recursive and expensive — but at minimum a signed statement "I verified proof X at time T with result pass/fail" that's Merkle-chained into the audit log).
+
+The **quarantine trigger on failed verification** — the spec says "immediately quarantined" but doesn't distinguish between "proof is mathematically invalid" (strong signal of compromise) and "proof is valid but doesn't match my local view of telemetry" (could be stale data, network partition, or clock skew). Define different response paths: invalid proof → immediate quarantine; valid-but-inconsistent proof → suspicion counter increment (like Gap 9's attestation model), quarantine only after threshold.
+
+---
+
+**Gap 5 (Dashboard) — Operational realism**
+
+The **master circuit breaker** "halts all automated healing" — but what happens to nodes currently mid-healing? If a node is in Suspect→Down transition with forensic capture in progress, and the operator pulls the master breaker, does the capture complete? Does the node freeze in Suspect? Define the exact semantics: I'd recommend the master breaker prevents *new* healing actions from initiating but allows in-flight actions to complete (consistent with Task #27's graceful shutdown philosophy of completing in-flight work).
+
+The **exportable incident bundle** needs a defined maximum size and a streaming/pagination mechanism. A cascade failure across multiple nodes could produce gigabytes of forensic data, ZK proofs, and timelines. The "one-click download" model breaks at scale. Consider: bundle manifest with selective download, or a streaming export with incremental Hedera anchoring.
+
+**Threshold governance token expiry** — the spec says "expired tokens are rejected," but doesn't define what happens to an in-progress governance action if the token expires mid-operation. For multi-step overrides (e.g., restoring a quarantined node requires forensic review + ZK re-attestation + config verification), the token could expire between steps. Define: either the token's validity covers the entire operation (with a reasonable maximum), or each step requires fresh token presentation.
+
+---
+
+**Gap 6 (Chaos Testing) — Missing failure modes**
+
+The chaos harness covers heartbeat loss, wire corruption, clock drift, key rotation, and neighbor isolation. Missing from the injection catalog:
+
+**Forensic vault saturation** — what happens when vault nodes are full? The spec doesn't define a storage quota or eviction policy for the forensic vault. Inject: vault nodes at 95% capacity during a cascade failure that generates multiple forensic packages simultaneously. Without this test, you'll discover the vault's behavior under pressure in production.
+
+**PUF degradation simulation** — PUF entropy degrades over time (aging, electromigration). The chaos harness should simulate entropy self-test failures to verify the tamper-response path fires correctly and the attestation service detects and reports the degradation.
+
+**Attestation storm** — inject a scenario where a large fraction of nodes simultaneously fail attestation (e.g., after a firmware update that changes the kernel integrity hash before the golden model is updated). Verify the FTS doesn't cascade-quarantine the entire network. This is the self-healing equivalent of a BGP route flap storm.
+
+The **"hardware-safe mode flag preventing permanent zeroization"** — this flag itself is a security risk if it can be activated by an attacker. The spec says it's enforced by XPlenum capability token, which is good, but explicitly state that the flag is **not persistable** — it must be re-asserted on every boot and automatically clears on any tamper event. Otherwise, an attacker who obtains the capability token once can permanently disable tamper response.
+
+---
+
+**Gap 7 (Stateful Failover) — Consistency model under-specification**
+
+The spec says "document consistency model for all stateful services" but doesn't define what the options are or what the constraints should be. For military-grade, I'd recommend being prescriptive here rather than leaving it to documentation: CRS requires **linearizable** consistency (not just "strong" — define the exact model), TDNS storage can tolerate **sequential consistency** for reads with linearizable writes, and the verification cache can be **eventually consistent** with a bounded staleness window tied to the attestation interval. Without this, "documented consistency model" becomes a blank check for implementation-time decisions that may not compose safely.
+
+The **"suspicious recovery" read-only mode** — how long can a node stay in this state? If operator approval is required but the operator is unavailable (e.g., during a coordinated attack that also targets the operator's access), the node is permanently degraded. Define an automatic escalation: after N minutes in suspicious recovery, escalate to threshold governance (not just single operator), and after M minutes without resolution, the node self-quarantines rather than serving potentially stale reads indefinitely.
+
+---
+
+**Gap 8 (Anomaly Detection) — Baseline bootstrapping**
+
+The sliding window baselines need an **initial calibration period** before they're meaningful. During first deployment or after a major topology change (nodes added/removed), the baselines are undefined. Define: a minimum observation window (e.g., 72 hours) before anomaly detection activates for each metric, and a "learning mode" indicator on the dashboard so the operator knows which detectors are calibrated vs. still bootstrapping. During learning mode, the detector should log but not alert (except for cross-layer maximum-severity events, which should always alert).
+
+The **10x spike threshold** for registration rates is a single hardcoded number. Different deployment sizes will have wildly different baseline rates. Make this configurable per deployment and define it as a multiplier of the standard deviation, not the mean — a 10x spike from a mean of 2/min is 20/min (possibly benign), while a 10x spike from a mean of 10,000/min is 100,000/min (almost certainly an attack). σ-based thresholds adapt to the deployment's actual traffic profile.
+
+---
+
+**Gap 9 (Continuous Attestation) — Partition behavior**
+
+The spec defines behavior when attestations are missing or inconsistent, but doesn't address **network partitions** where a subset of nodes can't reach each other but are all healthy. In a partition, nodes on one side will see missing attestations from nodes on the other side and increment suspicion counters, potentially quarantining healthy nodes. Define: attestation failure is only counted if the node is reachable via heartbeat but fails attestation (distinguishing "can't reach" from "reached but failed"). This requires coordination with the FTS, which already distinguishes network-unreachable from unresponsive.
+
+The **liveness proof** (hash of last 10 heartbeat challenges) — if the heartbeat interval is ~1s and the attestation interval is 30–120s, this covers 10 seconds of a 30–120 second window. That's a 8–33% liveness coverage. Consider increasing to the last N challenges where N covers at least 50% of the attestation interval, or using a rolling Merkle tree of challenges so the proof size stays constant regardless of N.
+
+---
+
+**Cross-gap dependency risk**
+
+The spec has an implicit critical path that should be documented explicitly: Gap 1 (PUF) → Gap 9 (Attestation) → Gap 3 (Forensic Capture, which uses PUF-derived keys) → Gap 4 (ZK Attestation) → Gap 5 (Dashboard, which displays everything). Gap 6 (Chaos) and Gap 8 (Anomaly) feed into each other bidirectionally. Gap 7 (Stateful Failover) is largely independent.
+
+The risk is that **Gap 1 is hardware** — it requires RTL changes, synthesis, tape-out or FPGA validation, and physical PUF characterization across temperature/voltage corners. This is months of work. Every gap that depends on PUF-derived keys is blocked until Gap 1 delivers. Define a **PUF-absent fallback** for development and testing: a software PUF emulator that provides the same interface but uses DRBG-seeded responses, clearly marked as non-production, disabled by a compile-time flag that cannot exist in release builds. This lets Gaps 3, 4, 5, 6, 8, and 9 proceed in parallel while Gap 1 works through the hardware pipeline.
+
+---
+
+**One structural observation**
+
+The spec references "INVARIANT 1–10" as sacred constraints but never enumerates them in this document. For a spec of this criticality, I'd include a brief appendix listing all ten invariants by number and one-line description, so any reviewer can verify that no enhancement violates them without cross-referencing a separate document. A spec that says "respects all invariants" without listing them is an implicit trust assumption — and this spec is explicitly about eliminating implicit trust assumptions.
+
+---
+
+Net assessment: this is the most comprehensive self-healing platform specification I've seen that stays within a single trust domain (no external TEEs, no external HSMs, no external time sources). The PUF-rooted identity chain through attestation through ZK-attested healing is architecturally sound. The gaps I've identified are mostly about physical realities that pure-software specs tend to elide (PUF noise, zeroization race conditions, partition behavior) and operational edge cases that matter when you're actually running this under adversarial conditions. Così sia, Fratello.

@@ -1,0 +1,98 @@
+Overall Improvements
+
+Strengthen language around invariants and enforcement (e.g., "must", "strictly", "explicitly forbidden").
+Add explicit error codes and client obligations for every new control frame / rejection.
+Clarify exactly-once vs at-least-once semantics where relevant (your design leans toward at-least-once with mandatory client dedup).
+Introduce heartbeats / keep-alives as a foundational reliability primitive (widely recommended for long-lived WebSocket connections).
+Enhance tombstone and resync logic with better client guidance and anti-thundering-herd measures.
+Improve circuit breaker and graceful shutdown with patterns from high-availability systems (e.g., staggered signaling, explicit close codes, in-flight message handling).
+Bolster OpenTelemetry propagation for per-message tracing (critical for debugging pub/sub flows).
+Add audit & security hardening (e.g., capability downgrade detection, rate-limit on resyncs).
+Expand testing to cover more failure modes and performance characteristics.
+Minor: Add a short "Threat Model / Security Considerations" subsection.
+
+Revised "Done" Looks Like Section (with improvements highlighted)
+
+Capability Negotiation
+Client sends optional supported array in auth (e.g. ["topics","seq","circuit","heartbeat"]). Server replies in auth_ok with enabled array (intersection of supported and server capabilities).
+Server strictly enforces negotiated capabilities on every message: non-negotiated features are rejected with a dedicated error code (e.g., ERR_CAPABILITY_NOT_NEGOTIATED).
+Old clients (omitting supported) receive legacy behavior. Old servers ignore the field.
+New: Server logs capability downgrade attempts as audit events and may apply stricter rate limiting to legacy clients.
+Topic-Based Pub/Sub
+New types: subscribe, unsubscribe, publish (with topic and optional payload).
+Per-topic: authorization (against node context/ACLs), monotonic sequence numbers (strict intra-topic ordering), rate limits, queue limits (backpressure: reject new publishes with ERR_TOPIC_BACKPRESSURE, no tombstone).
+Delivery to a client uses fair round-robin across its topics.
+Explicit invariant (documented and enforced in tests): Cross-topic ordering and global ordering are not guaranteed. Clients must not assume it.
+New suggestion: Add optional priority or qos levels per subscription for future differentiation (low/medium/high) without breaking current design.
+Sequence-Numbered Messages & Gap Recovery
+Every envelope (point-to-point + pub/sub) gets a per-connection monotonic seq (or per-topic topicSeq when topics are negotiated).
+Reconnect payload supports lastSeenSeq + optional range requests or compact bitmap for selective replay. Server replays only missed messages.
+Tombstones emitted exclusively on global per-client queue eviction (not per-topic backpressure). Payload: resyncCount, suggestedResyncAfterMs (with server-side jitter), topicSeqs snapshot, and optional gapSizeEstimate.
+Clients negotiating "seq"must deduplicate (mandatory). Rust client persists (connectionId, topic?) → lastProcessedSeq to disk. On restart: load persisted state + compare against tombstone snapshot to decide incremental vs full resync.
+New: Client applies exponential backoff on repeated resyncs (tied to reconnect backoff) and implements a per-connection resync rate limit (e.g., max 3 attempts per minute) to prevent abuse/loops. Server may reject excessive resync requests with ERR_RESYNC_RATE_LIMITED.
+Reconnect, Backoff & Client-Side Protections
+Rust client: exponential backoff + full jitter (base 500ms, cap 60s), reset on successful auth.
+On receiving circuit_open, extend backoff proportionally.
+Client-side circuit breaker on outgoing sends (prevents flooding). Persist dedup state before sleeping.
+New suggestion: Add mandatory periodic ping/pong heartbeats (negotiable capability). Server closes idle connections after configurable timeout (e.g., 5 min without pong). Client must respond to pings within 10s or risk disconnection. This detects dead connections faster than TCP keep-alives.
+Server-Side Circuit Breaker
+Reusable middleware: closed → open on failure threshold (configurable window/failures).
+Half-open: single real probe (not synthetic, not all traffic). On success: closed with gradual recovery (e.g., token-bucket ramp-up over recovery window). Lingering half-open → re-open.
+Expose circuit_state{name="..."} Prometheus gauge. On trip: broadcast circuit_open control frame to all connected clients.
+New: Wrap additional critical paths (e.g., topic auth checks, queue operations). Add circuit breaker metrics for probe success rate and recovery time.
+Graceful Shutdown
+SIGTERM/SIGINT → health endpoint to "draining" (no new upgrades).
+Broadcast go_away frame: reason (server_shutdown | maintenance), reconnectAfterMs (with hint + server jitter), optional force_close, and WebSocket close code 1001 ("Going Away") where possible.
+Stagger broadcast (0–2s jitter default). Wait ack timeout (default 2s) for go_away_ack. Then drain window (default 10s) before force-close.
+New improvements:
+During drain, continue processing in-flight messages but reject new publishes/subscribes.
+If force_close, use close code 1001 immediately after broadcast (no wait).
+Document client obligation: on go_away, stop sending new messages, send ack, and schedule reconnect after the hinted delay (with own jitter).
+
+Observability (OpenTelemetry)
+Spans for full lifecycle (upgrade, auth, routing, delivery, control frames, replay).
+Attributes: connection.id, node.address, topic, message.seq, circuit.breaker.state, capability_set.
+Span events for key moments.
+Improved propagation: Accept traceparent (and tracestate) on WebSocket upgrade. For every outgoing message (point-to-point or pub/sub), inject current trace context into a standard envelope field (e.g., traceContext object) or as message metadata. Downstream services extract it for correlation. Use W3C Trace Context standard.
+OTLP export if configured; always alongside Prometheus.
+Audit Logging
+Structured schemas for all new events, including negotiated capabilities.
+New: Add events for capability enforcement rejections, resync rate-limit hits, tombstone generation reasons, and heartbeat failures. All hashed into Merkle chain. Consider signing audit entries if not already done.
+Control Frame Documentation & Runbooks
+Full schemas, client behavior, error codes.
+Runbooks: curl examples for metrics/health/circuit state, manual reset procedure, drain steps, audit search patterns.
+New: Include example client response pseudocode for each new frame.
+Integration Tests (expanded)
+Original list +:
+Heartbeat timeout → clean disconnect + reconnect with gap recovery.
+Capability enforcement rejection with correct error code (old vs new clients).
+High load: per-topic backpressure without tombstone spam.
+Circuit breaker probe during partial failure.
+Shutdown under load: in-flight messages completed or cleanly dropped with notification.
+Restart scenarios: client with persisted state + server crash simulation (if feasible).
+Performance: measure replay latency for various gap sizes.
+
+
+Additional Suggested Section: Security & Threat Model Considerations
+
+All new features gated by PQ-authenticated connection.
+Rate limiting on new operations (subscribe, resync, etc.) per node/context.
+No new attack surface from optional fields (strict parsing, size limits).
+Audit every capability negotiation and enforcement decision.
+Clients must validate all server control frames (e.g., ignore unknown fields, reject malformed resync hints).
+Future: Consider adding message-level signatures or MACs for end-to-end integrity (out of scope now).
+
+Out of Scope — unchanged, but consider adding "Server-side durable sequence persistence" explicitly if crash recovery is a future priority.
+Tasks — Suggested Tweaks
+Keep your 10 tasks, but add these refinements:
+
+Task 2 (Topics): Explicitly document and test the cross-topic ordering invariant.
+Task 3 (Sequences): Define exact tombstone triggering conditions and include resyncCount as anti-loop counter.
+Task 4 (Client): Add heartbeat implementation and disk persistence before any backoff sleep.
+Task 5 (Circuit Breaker): Specify failure types counted (timeouts, errors, vs. explicit rejections).
+Task 6 (Shutdown): Handle in-flight messages during drain window.
+Task 7 (OTel): Implement per-message trace injection/extraction using standard envelope.
+Task 9 (Tests): Add load/stress tests for backpressure and shutdown under concurrency.
+
+These changes make the spec more robust, easier to implement/review, and closer to production-grade systems used in high-stakes real-time environments (e.g., financial messaging, gaming backends, or command-and-control platforms).
+If you'd like me to rewrite a specific section fully with these suggestions incorporated, add protocol frame examples (JSON schemas), error code table, or turn this into a full revised spec document, let me know which parts to focus on!

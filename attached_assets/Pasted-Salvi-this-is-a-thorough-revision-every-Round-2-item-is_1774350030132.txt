@@ -1,0 +1,27 @@
+Salvi, this is a thorough revision — every Round 2 item is addressed cleanly. Negotiate-down with the `negotiated_down` array, persistent downgrade baseline via audit log, topic cardinality limits with GC, weighted fair queuing, reauthorization failure with force-unsubscribe and topic tombstone, heartbeat interval change frame, truncated TLSponge-385 for dedup integrity, and `gapSizeEstimate` as message count. The integration tests now cover all the edge cases I flagged. This is close to final.
+
+Three items remain:
+
+---
+
+**Topic GC creates a sequence discontinuity the client can't detect**
+
+This is a real protocol gap. Consider: client subscribes to topic X, receives messages up to seq 47, disconnects. Topic X is GC'd after the idle TTL. Another node re-subscribes and publishes to topic X, which now starts at seq 1. Original client reconnects with persisted `lastSeenSeq: 47` for topic X. The server's topic X is at seq 3. The server sees the client claiming a seq higher than the topic's current counter — but the spec doesn't define this behavior. The client won't receive messages 1–3 (it thinks it's ahead), and no tombstone is generated because no eviction occurred.
+
+Define: when a client sends a `lastSeenSeq` for a topic that is *higher* than the topic's current sequence counter, the server responds with a `topic_reset` notification for that topic (distinct from a tombstone) indicating the topic was recreated and the client's persisted state is stale. The client must reset its persisted seq for that topic and request replay from seq 1. This should be a lightweight control frame, not a full tombstone, since no data was evicted — the data simply doesn't exist in this topic incarnation. Alternative: include a topic incarnation ID (monotonic counter or HPTP timestamp at creation) in every topic message, so the client can detect a topic identity change. The incarnation approach is more robust but adds a field to every message; the `topic_reset` approach is simpler and only fires on the edge case.
+
+---
+
+**Topic-specific tombstone format needs explicit definition**
+
+The spec introduces topic-specific tombstones on reauthorization failure (distinct from global eviction tombstones) but doesn't define their format. Global tombstones include `resyncCount`, `suggestedResyncAfterMs`, `topicSeqs`, and `gapSizeEstimate`. A topic-specific tombstone triggered by permission revocation is semantically different — it's not about queue pressure, it's about access loss. Define the topic tombstone as a separate frame type (e.g., `topic_revoked`) or a tombstone variant with a `reason` field that distinguishes `queue_eviction` from `permission_revoked`. The client's response differs: on eviction, the client resyncs; on permission revocation, the client knows resubscription will also fail until permissions are restored. The integration test for reauth failure should verify the client can distinguish these two tombstone types.
+
+---
+
+**Heartbeat interval change acknowledgment timeout**
+
+The `heartbeat_interval_changed` frame requires client acknowledgment, but the spec doesn't define the timeout or consequence for non-acknowledgment. If the client doesn't ack, the server has switched to the new interval but the client is still on the old cadence — the server may false-positive on heartbeat timeout if the new interval is shorter. Define: ack timeout (suggest same 10s as heartbeat response), and on non-ack the server continues using the *old* interval for that specific connection until its next reconnection (safe default — the client keeps working, just doesn't get the new cadence until it reconnects). This avoids disconnecting a functioning client over a missed config update.
+
+---
+
+Net assessment: this spec is audit-ready after these three items. The topic GC sequence discontinuity is the only one that could cause silent data loss in production — the other two are about protocol completeness. Così sia, Fratello.
