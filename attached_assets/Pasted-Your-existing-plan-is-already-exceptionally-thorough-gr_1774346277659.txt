@@ -1,0 +1,103 @@
+Your existing plan is already exceptionally thorough—grounded in PlenumNET’s native primitives, respectful of architectural invariants, and clearly mapped to actionable tasks. The following suggestions aim to **elevate it further** by tightening integration, hardening against advanced threats, and ensuring operational readiness at the same “beyond military grade” standard you’ve set.
+
+---
+
+### 1. **Strengthen the Silicon PUF Integration (Gap 1)**
+- **Add side‑channel & fault‑injection resistance.**  
+  The PUF circuit should be designed with differential power analysis (DPA) countermeasures and include a built‑in self‑test that periodically verifies its entropy against a golden model. Formal verification (SymbiYosys) should extend to the analog PUF block—if not possible, at least the digital key‑derivation logic must be proven to avoid leaking PUF response bits.
+- **Bind PUF identity to the XPlenum capability unit.**  
+  Use the PUF‑derived root key as the ultimate source for generating all XPlenum capability tokens. This ensures that even if firmware is replaced, the token hierarchy remains rooted in silicon, not software.
+
+---
+
+### 2. **Harden the Air‑Gapped Recovery Network (Gap 2)**
+- **Specify physical tamper‑response for the recovery channel.**  
+  The fiber‑optic interface should be integrated with the XPlenum tamper‑response finite state machine (FSM). Any attempt to cut, tap, or optically inject signals triggers immediate lockdown and zeroization of the node’s master secret, exactly as the main data plane would.
+- **Define a recovery quorum.**  
+  Healing seeds should only be accepted if signed by a threshold (e.g., 3‑of‑5) of geometric neighbors, not a single neighbor. This prevents a compromised neighbor from injecting a malicious seed.
+
+---
+
+### 3. **Enhance Forensic Capture & Vault (Gap 3)**
+- **Include a full‑memory hash in the forensic package.**  
+  In addition to the telemetry snapshot, capture a **cryptographic hash of the entire memory region** (or the heap/stack areas relevant to the failing service) under the same one‑time key. This allows post‑mortem verification that no memory corruption went unnoticed—critical for non‑repudiation.
+- **Add proof of storage integrity for the distributed vault.**  
+  Beyond proofs of retrievability, require that each vault node periodically publishes a **signed commitment** (e.g., a Merkle root of all packages it holds) to a distributed ledger (Hedera). A compromised vault node that deletes data would be immediately detectable by the mismatch.
+- **Automatic incident replay with cryptographic attestation.**  
+  The incident timeline generated after recovery should itself be signed by the recovering node’s TL‑DSA key and anchored to Hedera. This turns forensic reports into admissible, auditable artifacts.
+
+---
+
+### 4. **Extend ZK‑Attested Healing Decisions (Gap 4)**
+- **Attach proofs not only to FTS transitions, but also to GLB reroutes and Wire‑ECC corrections.**  
+  Any healing action that could affect traffic should be accompanied by a TL‑ZK proof. This allows operators to verify that the platform’s response to, say, a wire‑trit corruption was policy‑correct—not just that the FTS changed state.
+- **Include the proof in the healing decision log (Gap 5).**  
+  The operator dashboard should display the proof verification status directly, and if a proof fails (e.g., due to software bug), the system should automatically enter a “conservative mode” where further healing is suspended until an operator reviews it.
+
+---
+
+### 5. **Unify the Operator Dashboard with Formal Verification Insights (Gap 5)**
+- **Incorporate invariant violation warnings.**  
+  The dashboard should show not only healing actions but also any detected deviations from the formal invariants (INVARIANT 1–10). For example, if a node’s behavior momentarily violated the hypercube neighbor invariant, that would be flagged—even if the FTS later corrected it.
+- **Add a “dry‑run” mode for configuration changes.**  
+  Extend “Simulate Before Apply” to any configuration update (PlenumConfig flags, FTS thresholds, etc.), using ModeZero to run the new configuration against historical telemetry and verify that it doesn’t cause instability.
+
+---
+
+### 6. **Elevate the Chaos Testing Framework (Gap 6)**
+- **Formally prove the chaos harness itself.**  
+  The fault injector should be subject to the same Kani proofs as the target components—prove that the injection code cannot corrupt its own memory or introduce faults outside the allowed scope.
+- **Include “healing of the healer” scenarios.**  
+  Add fault sequences that temporarily disable the FTS or GLB on a subset of nodes and verify that the remaining nodes detect the absence and reroute around them—i.e., the self‑healing logic is itself self‑healing.
+- **Automate adversarial fault generation.**  
+  Use the HPTP anomaly detection layer (Gap 8) to identify patterns of real‑world anomalies and automatically generate corresponding test cases for the chaos harness.
+
+---
+
+### 7. **Strengthen Byzantine‑Tolerant Stateful Failover (Gap 7)**
+- **Extend fencing tokens to cover all stateful services.**  
+  CRS is mentioned, but TDNS storage and verification cache also require consistency. Use a unified fencing mechanism based on capability‑enforced leases for **any** service that holds mutable state.
+- **Formally verify the write‑ahead log (WAL) replay.**  
+  Add Coq proofs that the WAL replay is idempotent and that recovery after a crash never skips or duplicates entries, even under arbitrary power loss. The existing formal pipeline can be extended to cover this.
+- **Add a consistency check for Hedera anchors.**  
+  After recovery, the node should verify that the last anchored log entry matches the state it reconstructed—any mismatch indicates a potential Byzantine failure and should trigger a full state sync from quorum.
+
+---
+
+### 8. **Expand Semantic Anomaly Detection (Gap 8)**
+- **Add correlation with formal invariant violations.**  
+  The anomaly detector should not only flag outliers but also cross‑reference them with the formal invariants. For example, a spike in registration rates that also causes a temporary violation of the neighbor‑set invariant should produce a higher‑severity alert.
+- **Include timing attacks on the ZK proof pipeline.**  
+  Monitor proof generation and verification times; unusual latency could indicate an attempt to extract information through timing side channels. This fits well with the HPTP timestamp clustering analysis.
+- **Unify anomaly and healing logs.**  
+  The dashboard should show anomalies alongside healing actions, with clear causal links (e.g., “anomaly detected → FTS transition → healing action”).
+
+---
+
+### 9. **Add a Dedicated “Continuous Attestation” Task**
+While mentioned as a future enhancement, the plan could incorporate **continuous attestation** as a formal component from the start, especially given the PUF integration.  
+- **Task:** Implement a background service that periodically broadcasts a signed attestation report (boot measurements, kernel integrity, currently active healing state) to neighbor nodes. Neighbors compare attestations and report mismatches to the operator dashboard. This makes any compromise immediately visible.
+
+---
+
+### 10. **Define Clear Success Metrics & Operational Runbooks**
+For each gap, add a **“Success Looks Like”** subsection in the task descriptions. Examples:
+- **Gap 3 (Forensic):** “100% of Suspect→Down transitions produce a verifiable forensic package; incident timelines are generated and anchored within 5 seconds of recovery.”
+- **Gap 5 (Dashboard):** “Operators can disable all automated healing with a single click; the dashboard loads full healing history for any node in <200ms.”
+- **Gap 6 (Chaos):** “The chaos harness runs daily in CI with 100% of fault injections formally verified safe; production chaos requires physical presence of two XPlenum governor tokens.”
+
+Also include **rollback procedures** for each new feature—e.g., if the forensic vault becomes unavailable, the FTS must fall back to traditional recovery without delaying node restart.
+
+---
+
+### 11. **Consolidate Formal Verification Across All New Components**
+The plan mentions Coq/Lean 4 for consistency proofs and Kani for chaos injection safety. Ensure that every new component—forensic vault, ZK proof attachment, anomaly detector—has a corresponding formal verification task in the roadmap. Unify under a single **formal verification methodology** document (the existing one can be extended) to avoid fragmentation.
+
+---
+
+### 12. **Review External Dependency Assumptions**
+While the plan says “no external dependencies,” it relies on Hedera anchoring. If Hedera is considered part of the PlenumNET ecosystem, it’s fine. But to be explicit, add a note: “Hedera is a native service of PlenumNET and is assumed to be running on the same hypercube topology with the same security guarantees.”
+
+---
+
+These improvements do not introduce new external dependencies, violate invariants, or require rewriting core logic. Instead, they weave the eight gaps into a more tightly integrated, formally verifiable, and operationally robust whole—truly “beyond military grade.”
