@@ -334,6 +334,7 @@ export const crsRelayNodes = pgTable("crs_relay_nodes", {
   publicKeyEncrypted: text("public_key_encrypted").notNull(),
   address: varchar("address", { length: 13 }).notNull(),
   endpoint: varchar("endpoint", { length: 255 }).notNull(),
+  tlDsaPk: text("tl_dsa_pk"),
   lastSeen: timestamp("last_seen").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

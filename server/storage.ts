@@ -88,7 +88,7 @@ export interface IStorage {
   getUserData(userId: string): Promise<Record<string, unknown>>;
   deleteUserData(userId: string): Promise<void>;
 
-  upsertCrsRelayNode(publicKey: string, address: string, endpoint: string): Promise<CrsRelayNode>;
+  upsertCrsRelayNode(publicKey: string, address: string, endpoint: string, tlDsaPk?: string): Promise<CrsRelayNode>;
   getCrsRelayNodeByPublicKey(publicKey: string): Promise<CrsRelayNode | undefined>;
   getAllCrsRelayNodes(): Promise<CrsRelayNode[]>;
   deleteStaleCrsRelayNodes(maxAgeMs: number): Promise<number>;
@@ -301,19 +301,21 @@ export class DatabaseStorage implements IStorage {
     await db.delete(users).where(eq(users.id, userId));
   }
 
-  async upsertCrsRelayNode(publicKey: string, address: string, endpoint: string): Promise<CrsRelayNode> {
+  async upsertCrsRelayNode(publicKey: string, address: string, endpoint: string, tlDsaPk?: string): Promise<CrsRelayNode> {
     const phaseData = phaseSplit(publicKey, 'performance');
     const encrypted = JSON.stringify(phaseData);
     const existing = await db.select().from(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
     if (existing.length > 0) {
+      const setFields: any = { address, endpoint, publicKeyEncrypted: encrypted, lastSeen: new Date(), updatedAt: new Date() };
+      if (tlDsaPk) setFields.tlDsaPk = tlDsaPk;
       const [updated] = await db.update(crsRelayNodes)
-        .set({ address, endpoint, publicKeyEncrypted: encrypted, lastSeen: new Date(), updatedAt: new Date() })
+        .set(setFields)
         .where(eq(crsRelayNodes.publicKey, publicKey))
         .returning();
       return updated;
     }
     const [node] = await db.insert(crsRelayNodes)
-      .values({ publicKey, publicKeyEncrypted: encrypted, address, endpoint, lastSeen: new Date() })
+      .values({ publicKey, publicKeyEncrypted: encrypted, address, endpoint, lastSeen: new Date(), tlDsaPk: tlDsaPk || null })
       .returning();
     return node;
   }

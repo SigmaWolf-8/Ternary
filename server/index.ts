@@ -517,7 +517,7 @@ function startPqtiService(): ChildProcess | null {
       const persisted = await storage.getAllCrsRelayNodes();
       for (const node of persisted) {
         const addr = node.address;
-        crsRegistry.set(addr, { publicKey: node.publicKey, endpoint: node.endpoint, lastSeen: node.lastSeen.getTime() });
+        crsRegistry.set(addr, { publicKey: node.publicKey, endpoint: node.endpoint, lastSeen: node.lastSeen.getTime(), tlDsaPk: node.tlDsaPk || undefined });
         publicKeyAddressMap.set(node.publicKey, addr);
       }
       if (persisted.length > 0) {
@@ -575,7 +575,7 @@ function startPqtiService(): ChildProcess | null {
           const addr = normalizeTernaryAddr(data.address);
           crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
           publicKeyAddressMap.set(publicKey, addr);
-          storage.upsertCrsRelayNode(publicKey, addr, endpoint).catch(() => {});
+          storage.upsertCrsRelayNode(publicKey, addr, endpoint, tlDsaPk || undefined).catch(() => {});
           log(`CRS registered ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)}${tlDsaPk ? ' (TL-DSA-87 key attached)' : ''}`, "crs");
         }
       } catch {}
@@ -591,7 +591,7 @@ function startPqtiService(): ChildProcess | null {
       crsRegistry.get(activeAddr)!.lastSeen = Date.now();
       crsRegistry.get(activeAddr)!.endpoint = endpoint;
       if (tlDsaPk) crsRegistry.get(activeAddr)!.tlDsaPk = tlDsaPk;
-      storage.upsertCrsRelayNode(publicKey, activeAddr, endpoint).catch(() => {});
+      storage.upsertCrsRelayNode(publicKey, activeAddr, endpoint, tlDsaPk || crsRegistry.get(activeAddr)!.tlDsaPk).catch(() => {});
       return res.json({ address: activeAddr, addressDotted: toDottedAddr(activeAddr), endpoint, source: "persisted" });
     }
     if (priorAddr) {
@@ -653,7 +653,8 @@ function startPqtiService(): ChildProcess | null {
             const pk = req.body?.publicKey || data.publicKey;
             const ep = req.body?.endpoint || data.endpoint;
             if (pk && ep) {
-              crsRegistry.set(addr, { publicKey: pk, endpoint: ep, lastSeen: Date.now() });
+              const existingEntry = crsRegistry.get(addr);
+              crsRegistry.set(addr, { publicKey: pk, endpoint: ep, lastSeen: Date.now(), tlDsaPk: existingEntry?.tlDsaPk });
               publicKeyAddressMap.set(pk, addr);
               storage.upsertCrsRelayNode(pk, addr, ep).catch(() => {});
             }
@@ -1022,9 +1023,9 @@ function startPqtiService(): ChildProcess | null {
     if (entry && entry.publicKey === publicKey) return true;
     const knownByKey = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey);
     if (knownByKey) {
-      crsRegistry.set(address, { publicKey, endpoint: knownByKey[1].endpoint, lastSeen: Date.now() });
+      crsRegistry.set(address, { publicKey, endpoint: knownByKey[1].endpoint, lastSeen: Date.now(), tlDsaPk: knownByKey[1].tlDsaPk });
       publicKeyAddressMap.set(publicKey, address);
-      storage.upsertCrsRelayNode(publicKey, address, knownByKey[1].endpoint).catch(() => {});
+      storage.upsertCrsRelayNode(publicKey, address, knownByKey[1].endpoint, knownByKey[1].tlDsaPk).catch(() => {});
       return true;
     }
     try {
@@ -1041,7 +1042,9 @@ function startPqtiService(): ChildProcess | null {
   }
 
   async function verifyChallengeSignature(publicKeyHex: string, address: string, nonce: string, signatureHex: string): Promise<boolean> {
-    const entry = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKeyHex);
+    const entryWithKey = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKeyHex && v.tlDsaPk);
+    const entryAny = entryWithKey || [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKeyHex);
+    const entry = entryWithKey || entryAny;
     const tlDsaPk = entry?.[1]?.tlDsaPk;
     const debugLine = (s: string) => { console.log(s); try { fs.appendFileSync("/tmp/relay-auth-debug.log", new Date().toISOString() + " " + s + "\n"); } catch {} };
     if (!tlDsaPk) {
@@ -1119,8 +1122,8 @@ function startPqtiService(): ChildProcess | null {
             }
             log(`Challenge signature VERIFIED (TL-DSA-87) for ${toDottedAddr(normalAddr)}`, "crs");
           } else if (!msg.signature) {
-            const entry = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === msg.publicKey);
-            if (entry?.[1]?.tlDsaPk) {
+            const entryCheck = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === msg.publicKey && v.tlDsaPk);
+            if (entryCheck?.[1]?.tlDsaPk) {
               log(`Node ${toDottedAddr(normalAddr)} has TL-DSA-87 key registered but sent no signature — rejecting`, "crs");
               ws.send(JSON.stringify({ type: "auth_fail", error: "challenge signature required — upgrade client to v0.3.0+" }));
               ws.close(1008, "signature required");
