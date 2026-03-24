@@ -1044,12 +1044,6 @@ function startPqtiService(): ChildProcess | null {
         if (d.registeredInCrs || d.connectedViaRelay) return false;
         const depParsed = parseHostPort(d.endpoint || "");
         if (depParsed && crsCoveredHostPorts.has(`${depParsed.host}:${depParsed.port}`)) return true;
-        if (d.port && d.hostname) {
-          for (const hp of crsCoveredHostPorts) {
-            const [, p] = hp.split(":");
-            if (p === String(d.port)) return true;
-          }
-        }
         return false;
       }
 
@@ -1061,9 +1055,7 @@ function startPqtiService(): ChildProcess | null {
           const normalAddr = normalizeTernaryAddr(addr);
           const inCrs = crsRegistry.has(normalAddr);
           const inRelay = relayClientsRef?.has(normalAddr) && relayClientsRef.get(normalAddr)!.readyState === 1;
-          const inDeployments = seenAddresses.has(normalAddr);
-          if (!inCrs && !inRelay && !inDeployments) return false;
-          return true;
+          return inCrs || inRelay;
         })
         .map(addr => {
           const normalAddr = normalizeTernaryAddr(addr);
