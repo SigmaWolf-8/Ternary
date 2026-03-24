@@ -1,9 +1,9 @@
 # YODA App — PlenumNET Inter-Cube Integration Handoff
 
-**Date**: March 20, 2026
+**Date**: March 24, 2026
 **From**: PlenumNET Engineering (RSalvi@Salvigroup.com)
 **To**: YODA App Development Team
-**Status**: Production — All code merged to `main`, pushed to GitHub, 422 tests passing
+**Status**: Production — All code merged to `main`, pushed to GitHub, 2,475 tests passing
 
 ---
 
@@ -37,7 +37,7 @@ The Inter-Cube infrastructure is a complete post-quantum networking stack that Y
 ## 2. Codebase Location
 
 **Repository**: `SigmaWolf-8/Ternary` (GitHub)
-**Branch**: `main` (all merged, latest commit: `fba0770`)
+**Branch**: `main` (all merged, latest commit: `d7caa69`)
 
 ```
 services/inter-cube/
@@ -298,7 +298,9 @@ The cluster health endpoint at `GET /api/salvi/inter-cube/relay/cluster-health` 
 | Metric | Description |
 |--------|-------------|
 | `relay.deliveryRate` | Percentage of messages successfully delivered (target: 100%) |
-| `relay.bytesRelayed` | Total bytes forwarded through the relay |
+| `relay.msgPerSec` | Messages per second averaged over last 60 seconds (live data rate) |
+| `relay.bytesPerSec` | Bytes per second averaged over last 60 seconds (live data rate) |
+| `relay.bytesRelayed` | Total bytes forwarded through the relay (all-time) |
 | `relay.avgMsgSizeBytes` | Average message size in bytes |
 | `relay.inferenceRequests` | Total LLM inference requests dispatched |
 | `relay.inferenceResponses` | Total LLM responses returned |
