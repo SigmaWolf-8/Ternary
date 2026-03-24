@@ -1,0 +1,166 @@
+3
+Live
+7
+Registered
+2
+Deployed
+96.1%
+Delivery Rate
+27 B/s
+Data Rate
+0.23
+Msg/s
+~8 ms
+Relay Hop
+6
+LLM Requests
+121 KB
+Total Volume
+Data Rate and Msg/s are averaged over the last 60 seconds. Relay Hop is per-message transit time (~8ms/hop).
+
+1157
+Total Msgs
+1112
+Delivered
+1130
+Mesh HBs
+2
+LLM Resp
+112 B
+Avg Size
+3
+/
+4
+peers (now/peak)
+3 queues
+30 pending msgs
+Uptime: 1h 20m
+SSLAPTOPPMHU6JD — Node #1
+3s ago
+live
+up
+Address: 111.111.111.111.1
+Endpoint: 10.0.0.42:8081
+Port: 8081
+Role: CRS
+Registered: yes
+Relay: yes
+SSLAPTOPPMHU6JD — Node #2
+—
+deployed
+down
+Address: 211.111.111.111.1
+Endpoint: 10.0.0.42:8083
+Port: 8083
+Role: Cube
+Registered: no
+Relay: no
+SSLAPTOPPMHU6JD — Node #3
+—
+deployed
+down
+Address: 311.111.111.111.1
+Endpoint: 10.0.0.42:8085
+Port: 8085
+Role: Cube
+Registered: no
+Relay: no
+CRS-Discovered — Node #4
+CRS
+1s ago
+live
+up
+Address: 121.111.111.111.1
+Endpoint: 0.0.0.0:8083
+Port: 0
+Role: Cube
+Registered: yes
+Relay: yes
+CRS-Discovered — Node #5
+CRS
+3s ago
+live
+up
+Address: 221.111.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: yes
+CRS-Discovered — Node #6
+CRS
+8m ago
+registered
+down
+Address: 213.211.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #7
+CRS
+8m ago
+registered
+down
+Address: 313.211.111.111.1
+Endpoint: 0.0.0.0:8083
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #8
+CRS
+7m ago
+registered
+down
+Address: 123.211.111.111.1
+Endpoint: 0.0.0.0:8081
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #9
+CRS
+3m ago
+registered
+suspect
+Address: 223.211.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #10
+CRS
+3m ago
+registered
+suspect
+Address: 323.211.111.111.1
+Endpoint: 0.0.0.0:8083
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #11
+CRS
+2m ago
+registered
+suspect
+Address: 133.211.111.111.1
+Endpoint: 0.0.0.0:8081
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #12
+CRS
+5s ago
+registered
+up
+Address: 233.211.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
