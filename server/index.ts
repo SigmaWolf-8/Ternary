@@ -844,6 +844,7 @@ function startPqtiService(): ChildProcess | null {
           msgsSent: throughputRef?.sent || 0,
           msgsDelivered: throughputRef?.delivered || 0,
           msgsQueued: throughputRef?.queued || 0,
+          msgsFailed: throughputRef?.failed || 0,
           msgPerSec,
           uptimeMs: now - (throughputRef?.startedAt || now),
         },
@@ -981,12 +982,14 @@ function startPqtiService(): ChildProcess | null {
   };
   (globalThis as any).__relayThroughput = relayThroughput;
 
-  function recordRelayMsg(delivered: boolean) {
+  function recordRelayMsg(outcome: "delivered" | "queued" | "failed") {
     relayThroughput.sent++;
-    if (delivered) {
+    if (outcome === "delivered") {
       relayThroughput.delivered++;
-    } else {
+    } else if (outcome === "queued") {
       relayThroughput.queued++;
+    } else {
+      relayThroughput.failed++;
     }
     const now = Date.now();
     relayThroughput.recentTimestamps.push(now);
@@ -1083,6 +1086,7 @@ function startPqtiService(): ChildProcess | null {
         const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
         const normalizedTo = normalizeTernaryAddr(msg.to);
         const wasDelivered = !!(targetWs && targetWs.readyState === WebSocket.OPEN);
+        let outcome: "delivered" | "queued" | "failed" = "delivered";
         if (wasDelivered) {
           targetWs!.send(envelope);
         } else {
@@ -1090,11 +1094,12 @@ function startPqtiService(): ChildProcess | null {
           const queue = pendingMessages.get(normalizedTo)!;
           if (queue.length < 100) {
             queue.push({ from: nodeAddress, type: msg.msgType || "data", payload: msg.payload, ts: Date.now() });
+            outcome = "queued";
           } else {
-            relayThroughput.failed++;
+            outcome = "failed";
           }
         }
-        recordRelayMsg(wasDelivered);
+        recordRelayMsg(outcome);
         ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: wasDelivered }));
         return;
       }

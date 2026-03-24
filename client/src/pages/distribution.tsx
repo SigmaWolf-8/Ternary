@@ -655,6 +655,7 @@ interface RelayThroughput {
   msgsSent: number;
   msgsDelivered: number;
   msgsQueued: number;
+  msgsFailed: number;
   msgPerSec: number;
   uptimeMs: number;
 }
@@ -789,14 +790,22 @@ function ClusterReport() {
       )}
 
       {data.relay && (
-        <div className="flex items-center gap-4 mb-4 px-1 text-xs text-muted-foreground" data-testid="relay-status-row">
+        <div className="flex items-center gap-4 mb-4 px-1 text-xs text-muted-foreground flex-wrap" data-testid="relay-status-row">
           <span className="flex items-center gap-1">
             <span className={`inline-block w-2 h-2 rounded-full ${data.relay.connectedPeers > 0 ? "bg-blue-500" : "bg-black dark:bg-white"}`} />
             <strong className="text-foreground">{data.relay.connectedPeers}</strong> WebSocket peer{data.relay.connectedPeers !== 1 ? "s" : ""}
           </span>
           <span>
+            <strong className={data.relay.pendingQueues > 0 ? "text-gray-500 dark:text-gray-400" : "text-foreground"}>{data.relay.pendingQueues}</strong> queue{data.relay.pendingQueues !== 1 ? "s" : ""}
+          </span>
+          <span>
             <strong className={data.relay.pendingMessages > 0 ? "text-gray-500 dark:text-gray-400" : "text-foreground"}>{data.relay.pendingMessages}</strong> pending msg{data.relay.pendingMessages !== 1 ? "s" : ""}
           </span>
+          {data.relay.msgsFailed > 0 && (
+            <span>
+              <strong className="text-black dark:text-white">{data.relay.msgsFailed}</strong> failed
+            </span>
+          )}
           <span className="ml-auto">
             Uptime: <strong className="text-foreground">{formatUptime(data.relay.uptimeMs)}</strong>
           </span>
