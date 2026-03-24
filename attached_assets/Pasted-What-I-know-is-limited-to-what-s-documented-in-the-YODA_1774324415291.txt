@@ -1,0 +1,78 @@
+What I know is limited to what's documented in the YODA skill file here, and I may be making incorrect assumptions about how YODA's local components work.
+
+I'd recommend presenting the updated YODA skill before asking questions, so YODA has the latest context about the relay, the deployer changes, and the monitoring architecture we've built here. That way the answers will be grounded in the current state of both projects.
+
+Here are the key questions to ask YODA to clear up the confusion:
+
+"Do you have a local Rust backend component that runs on the user's machine alongside the daemons? If so, what does it do and how does it communicate with plenumnet.replit.app?"
+
+"How do you currently monitor LLM engine health (ports 8080/8082/8084)? Do you poll them directly from your Replit environment, or do you have a local agent that does the polling?"
+
+"When a user asks you about their cluster status, where do you get that information from — your own local polling, the plenumnet.replit.app API, or something else?"
+
+"The WebSocket relay at plenumnet.replit.app can tell you which daemons are connected in real-time. Are you using this, and should the daemons also push LLM status through the relay so you can see it remotely?"
+
+"What is your understanding of the deployment architecture? Specifically: what runs locally on the user's machine, what runs on your Replit instance, and what runs on plenumnet.replit.app?"
+
+"The deploy-yoda.ps1 installer builds and starts 3 daemons locally and posts a deployment summary to plenumnet.replit.app. Is there anything else you expect to be running locally that the installer should set up?"
+
+These questions should give a clear picture of what YODA actually has running locally versus what it expects from this project, so we can close any gaps properly.
+
+
+
+Q1: Does YODA have a local Rust backend component running on the user's machine?
+
+No. YODA's entire Rust/Axum backend runs on Replit at yoda.replit.app. Nothing runs locally on the user's machine on YODA's behalf. The only local components are the PlenumNET daemon binaries and llama-server, both of which belong to the PlenumNET side.
+
+Q2: How does YODA currently monitor LLM engine health (8080/8082/8084)?
+
+It doesn't — not effectively. The engine health check in settings.rs has no polling code at all. Engine status is stored in the database and whatever the user last saved. When YODA's Replit backend tries to reach localhost:8080, it's calling its own Replit container's localhost, not the user's machine. Engines therefore always appear offline in the settings UI.
+
+Q3: Where does YODA get cluster status from when asked?
+
+Currently from the database (saved config) and from the WebSocket relay at plenumnet.replit.app. It can query GET /api/salvi/inter-cube/relay/status to see which daemons are connected. It does NOT have live LLM health data — only whether a daemon is connected to the relay.
+
+Q4: Is YODA using the WebSocket relay, and should daemons push LLM status through it?
+
+Yes — YODA is connected to wss://plenumnet.replit.app/ws/relay (cube_relay.rs hardcodes this). It uses the relay for inference routing and discovers peers from connectedPeers in auth_ok. It does NOT currently receive LLM health status through the relay. Pushing LLM status (llama-server up/down, load, etc.) through the relay would be the correct way for YODA to know engine health remotely.
+
+Q5: What is YODA's understanding of the deployment architecture?
+
+Based on the code: YODA (Replit) connects to plenumnet.replit.app as its relay/CRS. It was not aware that Daemon A is supposed to be the local CRS and that plenumnet.replit.app is monitoring-only. This is a gap — YODA's cube_relay.rs hardcodes CRS_BASE = "https://plenumnet.replit.app" and treats it as the operational CRS, not just a monitor. The updated skill doc now clarifies this correctly.
+
+Q6: What else should the deployer set up beyond the 3 daemons?
+
+From YODA's perspective: nothing additional is expected to run locally. The browser relay fallback handles the case where inference goes directly from the browser to llama-server. The deployer starting 3 daemons and posting a deployment summary covers everything YODA needs. One gap: the deployer should also verify that llama-server instances are running on 8080/8082/8084 and report their status in the deployment summary, since YODA can't poll them itself.
+
+
+What about the LLM's they are installed locally here on my ciomputer, you din't touch on this at all. how the hell is the logic working what are the cubes used for there are massive gaps in your logic.
+
+Fair point — let me lay out the complete picture clearly.
+
+What the LLMs do
+
+llama-server runs locally on your machine on ports 8080, 8082, 8084. It's a standard OpenAI-compatible HTTP server that accepts inference requests and returns completions. It only listens on localhost — it has no public internet access and YODA on Replit cannot reach it directly.
+
+What the cube daemons do
+
+The daemons solve exactly that problem. Each daemon (ports 8081, 8083, 8085) sits alongside its paired llama-server and acts as a relay bridge:
+
+The daemon registers with the relay at plenumnet.replit.app and holds a persistent WebSocket connection open
+YODA (on Replit) sends an inference request through that relay WebSocket to the daemon's ternary address
+The daemon receives it, calls its paired llama-server at LLM_PORT (8080, 8082, or 8084) over localhost — which it CAN reach
+The daemon sends the response back through the relay to YODA
+So the flow is: YODA → plenumnet.replit.app relay → daemon → llama-server → daemon → relay → YODA
+
+The daemon is the secure tunnel that makes a local LLM reachable from a cloud app without exposing any ports.
+
+What Daemon A specifically does differently
+
+Daemon A runs as CUBE_MODE=crs — it's the local Cube Registration Service. Daemons B and C register with it on startup, so the three daemons form a local ternary mesh. Daemon A also connects to plenumnet.replit.app so the remote relay knows the whole cluster exists.
+
+The browser relay fallback
+
+When no daemon is connected, YODA tells the browser to call localhost:8080 directly. This works because the browser itself is running on your machine. It's a fallback only — no encryption, no relay, no post-quantum routing. The "Daemon required" screen you've been seeing appears when YODA can't route through the proper relay path.
+
+The gaps right now
+
+The daemon binary (v0.2.0) ignores CUBE_API_PORT so Daemon A can't start on 8081 — it crashes trying to take 8080 from llama-server. The fix is the v0.4.0 deployer: irm https://plenumnet.replit.app/api/deploy-yoda | iex — it builds a fresh binary, sets everything up correctly, and starts all three daemons in the right order.
