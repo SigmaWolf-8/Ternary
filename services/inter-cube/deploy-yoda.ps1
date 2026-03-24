@@ -354,7 +354,7 @@ $daemonPids = @()
 
 $crsCfg = $daemonConfigs[0]
 $env:CUBE_MODE = "crs"
-$env:CUBE_API_PORT = "$($crsCfg.AppPort)"
+$env:CUBE_API_PORT = "$($crsCfg.Port)"
 $env:CUBE_PEER_PORT = "$($crsCfg.PeerPort)"
 $env:CUBE_ENDPOINT = $crsCfg.Endpoint
 $env:CUBE_IDENTITY_DIR = $crsCfg.IdentityDir
@@ -395,7 +395,7 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $env:CUBE_MODE = "cube"
     $env:CUBE_CRS_URL = $LOCAL_CRS_URL
     $env:CUBE_ENDPOINT = $cfg.Endpoint
-    $env:CUBE_API_PORT = "$($cfg.AppPort)"
+    $env:CUBE_API_PORT = "$($cfg.Port)"
     $env:CUBE_PEER_PORT = "$($cfg.PeerPort)"
     $env:CUBE_IDENTITY_DIR = $cfg.IdentityDir
     $env:RELAY_URL = $REMOTE_CRS
@@ -517,7 +517,7 @@ $launchLines = @(
     ""
     ":: Start Node #1 as coordinator"
     "set CUBE_MODE=crs"
-    "set CUBE_API_PORT=$($crsCfg.AppPort)"
+    "set CUBE_API_PORT=$($crsCfg.Port)"
     "set CUBE_PEER_PORT=$($crsCfg.PeerPort)"
     "set CUBE_ENDPOINT=$($crsCfg.Endpoint)"
     "set CUBE_IDENTITY_DIR=$($crsCfg.IdentityDir)"
@@ -536,7 +536,7 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
         "set CUBE_MODE=cube"
         "set CUBE_CRS_URL=$LOCAL_CRS_URL"
         "set CUBE_ENDPOINT=$($cfg.Endpoint)"
-        "set CUBE_API_PORT=$($cfg.AppPort)"
+        "set CUBE_API_PORT=$($cfg.Port)"
         "set CUBE_PEER_PORT=$($cfg.PeerPort)"
         "set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)"
         "set RELAY_URL=$REMOTE_CRS"

@@ -1163,7 +1163,11 @@ fn spawn_relay_client(
                                             e.relay_msg_type.as_deref().unwrap_or("unknown"));
                                         e
                                     }
-                                    None => continue,
+                                    None => {
+                                        println!("[PEER->RELAY] Peer channel closed — disabling peer input");
+                                        peer_msg_rx = None;
+                                        continue;
+                                    }
                                 }
                             }
                         };
