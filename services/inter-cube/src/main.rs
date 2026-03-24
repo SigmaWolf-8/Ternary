@@ -133,7 +133,12 @@ fn new_peer_registry() -> PeerConnections {
     Arc::new(Mutex::new(HashMap::new()))
 }
 
-fn spawn_peer_listener(port: u16, local_address_dotted: String, peers: PeerConnections) {
+fn spawn_peer_listener(
+    port: u16,
+    local_address_dotted: String,
+    peers: PeerConnections,
+    peer_msg_tx: Option<tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>>,
+) {
     let peers_accept = peers.clone();
     tokio::spawn(async move {
         let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
@@ -146,6 +151,7 @@ fn spawn_peer_listener(port: u16, local_address_dotted: String, peers: PeerConne
                         Ok((stream, peer_addr)) => {
                             let addr = local_address_dotted.clone();
                             let peers_conn = peers_accept.clone();
+                            let msg_tx = peer_msg_tx.clone();
                             tokio::spawn(async move {
                                 println!("[PEER] Connection from {} (local address: {})", peer_addr, addr);
                                 let ws_stream = match tokio_tungstenite::accept_async(stream).await {
@@ -180,11 +186,37 @@ fn spawn_peer_listener(port: u16, local_address_dotted: String, peers: PeerConne
                                                         }
                                                         println!("[PEER] Registered LAN peer {} at {}:{}", remote_addr, peer_addr.ip(), remote_peer_port);
                                                     }
+                                                } else if let Some(ref tx) = msg_tx {
+                                                    let msg_type = json["type"].as_str().unwrap_or("relay").to_string();
+                                                    let relay_msg_type = json["msgType"].as_str()
+                                                        .or_else(|| json["relay_msg_type"].as_str())
+                                                        .map(|s| s.to_string());
+                                                    let from = json["from"].as_str().map(|s| s.to_string());
+                                                    let payload = json["payload"].as_str().map(|s| s.to_string());
+                                                    let envelope = inter_cube::ws_relay::RelayEnvelope {
+                                                        msg_type,
+                                                        relay_msg_type,
+                                                        from,
+                                                        payload,
+                                                        to: json["to"].as_str().map(|s| s.to_string()),
+                                                        address: json["address"].as_str().map(|s| s.to_string()),
+                                                        public_key: None,
+                                                        nonce: None,
+                                                        signature: None,
+                                                        error: None,
+                                                        delivered: None,
+                                                        connected_peers: None,
+                                                        ts: None,
+                                                        connected: None,
+                                                    };
+                                                    let rmt = envelope.relay_msg_type.as_deref().unwrap_or("unknown");
+                                                    println!("[PEER] Routing {} from {} into processing pipeline", rmt, peer_addr);
+                                                    let _ = tx.send(envelope).await;
                                                 } else {
-                                                    println!("[PEER] Message from {}: {} bytes", peer_addr, m.len());
+                                                    println!("[PEER] Message from {}: {} bytes (no pipeline)", peer_addr, m.len());
                                                 }
                                             } else {
-                                                println!("[PEER] Message from {}: {} bytes", peer_addr, m.len());
+                                                println!("[PEER] Non-JSON from {}: {} bytes", peer_addr, m.len());
                                             }
                                         }
                                         Ok(m) if m.is_binary() => {
@@ -558,13 +590,13 @@ async fn run_crs_mode() {
         println!("  Relay:         {} (WebSocket, TL-DSA-87 challenge-response)", rurl);
         let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
         let tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
-        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None);
+        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None, None);
     } else {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
     }
 
     let peers = new_peer_registry();
-    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone());
+    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), None);
 
     println!();
     println!("=== HTTP Server (CRS) ===");
@@ -943,9 +975,10 @@ async fn run_cube_mode() {
     println!("[ws-relay] Relay target: {}", relay_target);
     let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
     let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
-    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()));
+    let (peer_msg_tx, peer_msg_rx) = tokio::sync::mpsc::channel::<inter_cube::ws_relay::RelayEnvelope>(64);
+    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx));
 
-    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone());
+    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx));
 
     let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     spawn_peer_discovery(crs_url.clone(), addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone());
@@ -980,12 +1013,14 @@ fn spawn_relay_client(
     tl_dsa_sk: Vec<u8>,
     tl_dsa_pk_hex: String,
     peer_senders: Option<PeerSenders>,
+    peer_msg_rx: Option<tokio::sync::mpsc::Receiver<inter_cube::ws_relay::RelayEnvelope>>,
 ) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
     let api_port_val = api_port();
     let endpoint_str = format!("0.0.0.0:{}", api_port_val);
     tokio::spawn(async move {
+        let mut peer_msg_rx = peer_msg_rx;
         println!();
         println!("[ws-relay] Establishing relay connection to {}...", relay_url_str);
         println!("[ws-relay] Inference dispatch target: {}/v1/chat/completions", llm_base_url);
@@ -1107,7 +1142,32 @@ fn spawn_relay_client(
                         }
                     });
 
-                    while let Some(envelope) = incoming_rx.recv().await {
+                    loop {
+                        let envelope = tokio::select! {
+                            msg = incoming_rx.recv() => {
+                                match msg {
+                                    Some(e) => e,
+                                    None => break,
+                                }
+                            }
+                            peer_msg = async {
+                                if let Some(ref mut rx) = peer_msg_rx {
+                                    rx.recv().await
+                                } else {
+                                    std::future::pending::<Option<inter_cube::ws_relay::RelayEnvelope>>().await
+                                }
+                            } => {
+                                match peer_msg {
+                                    Some(e) => {
+                                        println!("[PEER->RELAY] Peer message injected into pipeline: {:?}",
+                                            e.relay_msg_type.as_deref().unwrap_or("unknown"));
+                                        e
+                                    }
+                                    None => continue,
+                                }
+                            }
+                        };
+
                         let msg_type = envelope.relay_msg_type.as_deref().unwrap_or("unknown");
                         let from = envelope.from.as_deref().unwrap_or("?").to_string();
                         let payload_str = envelope.payload.as_deref().unwrap_or("{}").to_string();

@@ -10,10 +10,13 @@
     Run with:  irm https://plenumnet.replit.app/api/deploy-yoda | iex
     Or download the .bat wrapper from the Distribution page.
 
-    Array3 topology:
-      Node #1 (Agent A) : port 8081 / App 8080  -- Coordinator  (CUBE_MODE=crs)
-      Node #2 (Agent B) : port 8083 / App 8082  -- Worker       (registers with Node #1)
-      Node #3 (Agent C) : port 8085 / App 8084  -- Worker       (registers with Node #1)
+    Array3 tri-port topology (port step = 3):
+      Node #1 (Agent A) : peer 8079, app 8080, node 8081  -- Coordinator  (CUBE_MODE=crs)
+      Node #2 (Agent B) : peer 8082, app 8083, node 8084  -- Worker       (registers with Node #1)
+      Node #3 (Agent C) : peer 8085, app 8086, node 8087  -- Worker       (registers with Node #1)
+
+    Each daemon uses 3 ports: peer (WebSocket LAN mesh), app (application
+    forwarding), and node (CRS/cube HTTP API). Port step is 3.
 
     Node #1 is always the coordinator for the Array3. Nodes #2 and #3
     register with it at http://localhost:8081. The remote PlenumNET server
@@ -25,6 +28,9 @@
     applications like YODA dispatch requests. Each node forwards requests
     to a local application port at 127.0.0.1:{LLM_PORT}.
 
+    LAN peers connect directly via the peer port for low-latency
+    intra-cluster communication, bypassing the relay when possible.
+
     Application engines are NOT installed by this script. Application
     setup is handled separately by the consuming app (e.g. YODA).
 
@@ -35,8 +41,9 @@
 
 $DAEMON_COUNT  = 3
 $REMOTE_CRS    = "https://plenumnet.replit.app"
-$BASE_DAEMON_PORT = 8081
-$PORT_STEP     = 2
+$BASE_PEER_PORT = 8079
+$PORT_STEP     = 3
+$BASE_DAEMON_PORT = $BASE_PEER_PORT + 2
 $LOCAL_CRS_PORT = $BASE_DAEMON_PORT
 $LOCAL_CRS_URL = "http://localhost:$LOCAL_CRS_PORT"
 $RepoDir       = "C:\PlenumNET"
@@ -56,7 +63,8 @@ Write-Host ""
 Write-Host "  Nodes        : $DAEMON_COUNT instances" -ForegroundColor White
 Write-Host "  Coordinator  : Node #1 (port $LOCAL_CRS_PORT)" -ForegroundColor White
 Write-Host "  Node Ports   : $BASE_DAEMON_PORT, $($BASE_DAEMON_PORT + $PORT_STEP), $($BASE_DAEMON_PORT + 2 * $PORT_STEP)" -ForegroundColor White
-Write-Host "  App Ports    : 8080, 8082, 8084" -ForegroundColor White
+Write-Host "  App Ports    : $($BASE_PEER_PORT + 1), $($BASE_PEER_PORT + $PORT_STEP + 1), $($BASE_PEER_PORT + 2 * $PORT_STEP + 1)" -ForegroundColor White
+Write-Host "  Peer Ports   : $BASE_PEER_PORT, $($BASE_PEER_PORT + $PORT_STEP), $($BASE_PEER_PORT + 2 * $PORT_STEP)" -ForegroundColor White
 Write-Host "  Relay        : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
 Write-Host "  Registry     : $REMOTE_CRS (monitoring only)" -ForegroundColor White
 Write-Host ""
@@ -289,7 +297,9 @@ $daemonConfigs = @()
 for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     $dir = Join-Path $IdentityBase "identity-$i"
     $keyFile = Join-Path $dir "master.key"
-    $daemonPort = $BASE_DAEMON_PORT + (($i - 1) * $PORT_STEP)
+    $peerPort = $BASE_PEER_PORT + (($i - 1) * $PORT_STEP)
+    $appPort = $peerPort + 1
+    $daemonPort = $peerPort + 2
     $endpoint = "${ip}:${daemonPort}"
 
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -326,6 +336,8 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     $daemonConfigs += @{
         Id = $i
         Port = $daemonPort
+        AppPort = $appPort
+        PeerPort = $peerPort
         IdentityDir = $dir
         Endpoint = $endpoint
         PublicKey = $pubKey
@@ -342,20 +354,22 @@ $daemonPids = @()
 
 $crsCfg = $daemonConfigs[0]
 $env:CUBE_MODE = "crs"
-$env:CUBE_API_PORT = "$($crsCfg.Port)"
+$env:CUBE_API_PORT = "$($crsCfg.AppPort)"
+$env:CUBE_PEER_PORT = "$($crsCfg.PeerPort)"
 $env:CUBE_ENDPOINT = $crsCfg.Endpoint
 $env:CUBE_IDENTITY_DIR = $crsCfg.IdentityDir
 $env:RELAY_URL = $REMOTE_CRS
-$env:LLM_PORT = "8080"
+$env:LLM_PORT = "$($crsCfg.AppPort)"
 
 $outLog = Join-Path $LOG_DIR "daemon-1-out.log"
 $errLog = Join-Path $LOG_DIR "daemon-1-err.log"
 $proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 $daemonPids += $proc.Id
-Write-Host "  [OK] Node #1 started as coordinator (PID $($proc.Id), port $($crsCfg.Port), relay -> $REMOTE_CRS, app -> 8080)" -ForegroundColor Green
+Write-Host "  [OK] Node #1 started as coordinator (PID $($proc.Id), node $($crsCfg.Port), app $($crsCfg.AppPort), peer $($crsCfg.PeerPort), relay -> $REMOTE_CRS)" -ForegroundColor Green
 
 Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
+Remove-Item Env:\CUBE_PEER_PORT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_ENDPOINT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
 Remove-Item Env:\RELAY_URL -ErrorAction SilentlyContinue
@@ -376,23 +390,22 @@ if ($crsReady) {
     Write-Host "  WARN: Coordinator health check did not respond -- continuing anyway" -ForegroundColor Yellow
 }
 
-$LLM_PORTS = @(8080, 8082, 8084)
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    $llmPort = $LLM_PORTS[$cfg.Id - 1]
     $env:CUBE_MODE = "cube"
     $env:CUBE_CRS_URL = $LOCAL_CRS_URL
     $env:CUBE_ENDPOINT = $cfg.Endpoint
-    $env:CUBE_API_PORT = "$($cfg.Port)"
+    $env:CUBE_API_PORT = "$($cfg.AppPort)"
+    $env:CUBE_PEER_PORT = "$($cfg.PeerPort)"
     $env:CUBE_IDENTITY_DIR = $cfg.IdentityDir
     $env:RELAY_URL = $REMOTE_CRS
-    $env:LLM_PORT = "$llmPort"
+    $env:LLM_PORT = "$($cfg.AppPort)"
 
     $outLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-out.log"
     $errLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-err.log"
     $proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
     $daemonPids += $proc.Id
-    Write-Host "  [OK] Node #$($cfg.Id) started (PID $($proc.Id), port $($cfg.Port), relay -> $REMOTE_CRS, app -> $llmPort)" -ForegroundColor Green
+    Write-Host "  [OK] Node #$($cfg.Id) started (PID $($proc.Id), node $($cfg.Port), app $($cfg.AppPort), peer $($cfg.PeerPort), relay -> $REMOTE_CRS)" -ForegroundColor Green
     Start-Sleep -Seconds 1
 }
 
@@ -400,6 +413,7 @@ Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_CRS_URL -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_ENDPOINT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
+Remove-Item Env:\CUBE_PEER_PORT -ErrorAction SilentlyContinue
 Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
 Remove-Item Env:\RELAY_URL -ErrorAction SilentlyContinue
 Remove-Item Env:\LLM_PORT -ErrorAction SilentlyContinue
@@ -503,12 +517,13 @@ $launchLines = @(
     ""
     ":: Start Node #1 as coordinator"
     "set CUBE_MODE=crs"
-    "set CUBE_API_PORT=$($crsCfg.Port)"
+    "set CUBE_API_PORT=$($crsCfg.AppPort)"
+    "set CUBE_PEER_PORT=$($crsCfg.PeerPort)"
     "set CUBE_ENDPOINT=$($crsCfg.Endpoint)"
     "set CUBE_IDENTITY_DIR=$($crsCfg.IdentityDir)"
     "set RELAY_URL=$REMOTE_CRS"
-    "set LLM_PORT=8080"
-    "echo Starting Node #1 as coordinator on port $($crsCfg.Port)..."
+    "set LLM_PORT=$($crsCfg.AppPort)"
+    "echo Starting Node #1 as coordinator (node $($crsCfg.Port), app $($crsCfg.AppPort), peer $($crsCfg.PeerPort))..."
     "start `"`" /b `"$BinaryPath`""
     "timeout /t 5 /nobreak >nul"
     ""
@@ -516,17 +531,17 @@ $launchLines = @(
 
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    $llmPort = $LLM_PORTS[$cfg.Id - 1]
     $launchLines += @(
         ":: Start Node #$($cfg.Id) (worker -- registers with coordinator)"
         "set CUBE_MODE=cube"
         "set CUBE_CRS_URL=$LOCAL_CRS_URL"
         "set CUBE_ENDPOINT=$($cfg.Endpoint)"
-        "set CUBE_API_PORT=$($cfg.Port)"
+        "set CUBE_API_PORT=$($cfg.AppPort)"
+        "set CUBE_PEER_PORT=$($cfg.PeerPort)"
         "set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)"
         "set RELAY_URL=$REMOTE_CRS"
-        "set LLM_PORT=$llmPort"
-        "echo Starting Node #$($cfg.Id) on port $($cfg.Port) (relay -> $REMOTE_CRS, app -> $llmPort)..."
+        "set LLM_PORT=$($cfg.AppPort)"
+        "echo Starting Node #$($cfg.Id) (node $($cfg.Port), app $($cfg.AppPort), peer $($cfg.PeerPort), relay -> $REMOTE_CRS)..."
         "start `"`" /b `"$BinaryPath`""
         "timeout /t 2 /nobreak >nul"
         ""
