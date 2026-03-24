@@ -478,7 +478,7 @@ function DeployerCard() {
           data-testid="tab-daemon"
         >
           <Server className="w-3.5 h-3.5" />
-          AI Engine
+          PlenumNET Node
         </button>
         <button
           onClick={() => setActiveTab("yoda")}
@@ -490,7 +490,7 @@ function DeployerCard() {
           data-testid="tab-yoda"
         >
           <Layers className="w-3.5 h-3.5" />
-          YODA Cluster
+          Array3
         </button>
       </div>
 
@@ -549,14 +549,14 @@ function DeployerCard() {
         {activeTab === "daemon" && (
           <motion.div key="daemon" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-daemon">
             <div className="flex items-center gap-2 mb-2">
-              <p className="text-sm font-medium" data-testid="text-daemon-deploy-title">Deploy AI Engine</p>
+              <p className="text-sm font-medium" data-testid="text-daemon-deploy-title">Deploy PlenumNET Node</p>
               <Badge variant="outline" className="text-[10px] border-blue-500/20 bg-blue-500/5 text-blue-700 dark:text-blue-400">v0.3.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Sets up a local AI engine on your machine. Connects securely to PlenumNET so
-              YODA can send questions to your local AI model and get answers back — even behind
-              firewalls or home routers. Builds from source, generates a cryptographic identity,
-              and registers as a system service. Run it again to add more engines.
+              Deploys a PlenumNET node on your machine. Each node gets a unique cryptographic
+              identity, connects to the PlenumNET network through an encrypted tunnel — even behind
+              firewalls or home routers — and registers as a system service. Applications like YODA
+              use these nodes for local compute. Run it again to add more nodes.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="daemon-deploy-instructions">
@@ -569,7 +569,7 @@ function DeployerCard() {
 
             <Button data-testid="button-download-daemon-bat" onClick={(e) => { e.preventDefault(); window.open(DAEMON_DEPLOYER_BAT, "_blank"); }}>
               <Download className="w-4 h-4 mr-2" />
-              Download Node Deployer
+              Download PlenumNET Node
             </Button>
 
             <div className="flex flex-wrap gap-x-6 gap-y-1 mt-4 text-xs text-muted-foreground">
@@ -583,14 +583,14 @@ function DeployerCard() {
         {activeTab === "yoda" && (
           <motion.div key="yoda" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-yoda">
             <div className="flex items-center gap-2 mb-2">
-              <p className="text-sm font-medium" data-testid="text-yoda-deploy-title">YODA Inference Cluster</p>
+              <p className="text-sm font-medium" data-testid="text-yoda-deploy-title">Deploy PlenumNET Array3</p>
               <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">v0.4.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Sets up 3 AI engines on your machine for YODA. Each engine runs a local AI model
-              and connects securely to PlenumNET — YODA sends questions through the tunnel and your
-              engines answer them locally. Engine #1 also coordinates the other two. Builds from source,
-              generates 3 cryptographic identities, and reports to the cluster monitor.
+              Deploys a 3-node PlenumNET cluster on your machine. Node #1 coordinates the group;
+              all three connect to the PlenumNET network through encrypted tunnels. Applications
+              like YODA use an Array3 for distributed local compute. Builds from source, generates
+              3 cryptographic identities, and reports to the cluster monitor.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="yoda-deploy-instructions">
@@ -607,26 +607,26 @@ function DeployerCard() {
             <div className="flex flex-wrap gap-3 mb-4">
               <Button data-testid="button-download-yoda-bat" className="bg-violet-600 hover:bg-violet-700 text-white" onClick={(e) => { e.preventDefault(); window.open(YODA_DEPLOYER_BAT, "_blank"); }}>
                 <Download className="w-4 h-4 mr-2" />
-                Download Cluster Deployer
+                Download Array3 Deployer
               </Button>
               <CopyCommand command="irm https://plenumnet.replit.app/api/deploy-yoda | iex" testIdPrefix="yoda-oneliner" />
             </div>
 
             <div className="grid grid-cols-3 gap-2 mb-4 text-xs text-muted-foreground" data-testid="yoda-deploy-layout">
               <div className="bg-muted/50 rounded p-2 text-center">
-                <span className="block font-medium text-violet-700 dark:text-violet-400">Node #1 (CRS)</span>
-                <span className="text-[11px] block">Port 8081 / LLM 8080</span>
-                <span className="text-[10px] opacity-70">Address allocator</span>
+                <span className="block font-medium text-violet-700 dark:text-violet-400">Node #1</span>
+                <span className="text-[11px] block">Port 8081 / App 8080</span>
+                <span className="text-[10px] opacity-70">Coordinator</span>
               </div>
               <div className="bg-muted/50 rounded p-2 text-center">
                 <span className="block font-medium text-violet-700 dark:text-violet-400">Node #2</span>
-                <span className="text-[11px] block">Port 8083 / LLM 8082</span>
-                <span className="text-[10px] opacity-70">Inference worker</span>
+                <span className="text-[11px] block">Port 8083 / App 8082</span>
+                <span className="text-[10px] opacity-70">Worker</span>
               </div>
               <div className="bg-muted/50 rounded p-2 text-center">
                 <span className="block font-medium text-violet-700 dark:text-violet-400">Node #3</span>
-                <span className="text-[11px] block">Port 8085 / LLM 8084</span>
-                <span className="text-[10px] opacity-70">Inference worker</span>
+                <span className="text-[11px] block">Port 8085 / App 8084</span>
+                <span className="text-[10px] opacity-70">Worker</span>
               </div>
             </div>
 
