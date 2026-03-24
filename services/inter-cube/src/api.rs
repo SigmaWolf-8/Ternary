@@ -583,6 +583,8 @@ struct VerifyChallengePayload {
     nonce: String,
     signature: String,
     address: Option<String>,
+    #[serde(rename = "pt26PublicKey")]
+    pt26_public_key: Option<String>,
 }
 
 async fn verify_challenge(
@@ -624,7 +626,8 @@ async fn verify_challenge(
     }
 
     let addr_str = payload.address.as_deref().unwrap_or("");
-    let challenge_payload = format!("{}||{}||{}", payload.nonce, addr_str, payload.public_key);
+    let identity_key = payload.pt26_public_key.as_deref().unwrap_or(&payload.public_key);
+    let challenge_payload = format!("{}||{}||{}", payload.nonce, addr_str, identity_key);
 
     let valid = ternary_math::tl_dsa::verify(
         &pk_bytes,

@@ -1051,7 +1051,7 @@ function startPqtiService(): ChildProcess | null {
       const resp = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/verify-challenge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address }),
+        body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address, pt26PublicKey: publicKeyHex }),
       });
       if (resp.ok) {
         const data = await resp.json() as any;
