@@ -584,16 +584,16 @@ function DeployerCard() {
               <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">v0.3.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              One-click 3-daemon deployment. Builds the daemon, generates 3 PT26-DSA identities,
-              starts 3 cube daemons, registers all with PlenumNET CRS, and posts a deployment
-              summary to the API. Creates a desktop launcher for future starts.
+              Deploys a 3-daemon cluster for YODA. Builds from source, generates 3 PT26-DSA
+              identities, registers all with PlenumNET CRS, and posts a deployment summary
+              to the API. Creates a desktop launcher to start/stop the cluster.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="yoda-deploy-instructions">
               <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                 <li>Click the button below to download the installer</li>
                 <li>Double-click the downloaded file to run it</li>
-                <li>The installer handles everything: Rust, LLVM, daemon build, 3 identity generations, CRS registration, and networking</li>
+                <li>The installer handles prerequisites, daemon build, 3 identity generations, CRS registration, and networking</li>
                 <li>When complete, a "Start YODA Daemons" shortcut appears on your Desktop</li>
               </ol>
             </div>
