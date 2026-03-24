@@ -787,7 +787,13 @@ function startPqtiService(): ChildProcess | null {
     return { restarted: sent, message: `Restart command sent to ${sent} node(s)` };
   }
 
-  app.post("/api/salvi/inter-cube/relay/restart-nodes", (_req, res) => {
+  app.post("/api/salvi/inter-cube/relay/restart-nodes", (req, res) => {
+    if (!(req as any).user) {
+      const token = req.headers["x-relay-token"];
+      if (!token || token !== process.env.SESSION_SECRET) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+    }
     res.json(broadcastRelayRestart());
   });
 
