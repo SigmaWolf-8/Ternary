@@ -25,8 +25,8 @@ $InstallDir = "C:\PlenumNET"
 $IdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
 $LogDir = Join-Path $IdentityBase "logs"
 $BinaryPath = Join-Path $InstallDir "target\release\inter-cube-daemon.exe"
-$BaseEnginePort = 8080
-$PortStep = 2
+$BasePeerPort = 8079
+$PortStep = 3
 $CRS_URL = "https://plenumnet.replit.app"
 
 function Get-ServiceName {
@@ -195,8 +195,9 @@ function Invoke-Install {
         return
     }
 
-    $enginePort = $BaseEnginePort + (($Id - 1) * $PortStep)
-    $daemonPort = $enginePort + 1
+    $peerPort = $BasePeerPort + (($Id - 1) * $PortStep)
+    $enginePort = $peerPort + 1
+    $daemonPort = $peerPort + 2
     $svcName = Get-ServiceName -Id $Id
     $displayName = Get-ServiceDisplayName -Id $Id
 
@@ -213,8 +214,9 @@ function Invoke-Install {
     @"
 @echo off
 set CUBE_MODE=cube
-set CUBE_API_PORT=$daemonPort
+set CUBE_API_PORT=$enginePort
 set LLM_PORT=$enginePort
+set CUBE_PEER_PORT=$peerPort
 set CUBE_CRS_URL=$CRS_URL
 set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$agentDir

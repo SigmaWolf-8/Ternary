@@ -23,8 +23,8 @@ $BinaryName = "inter-cube-daemon.exe"
 $BinaryPath = Join-Path $RepoDir "target\release\$BinaryName"
 $RepoUrl = "https://github.com/SigmaWolf-8/Ternary.git"
 $IdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
-$BaseEnginePort = 8080
-$PortStep = 2
+$BasePeerPort = 8079
+$PortStep = 3
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -243,8 +243,9 @@ try {
         Write-Host "IDENTITY: Daemon #$nextId identity already exists." -ForegroundColor Green
     }
 
-    $enginePort = $BaseEnginePort + (($nextId - 1) * $PortStep)
-    $daemonPort = $enginePort + 1
+    $peerPort = $BasePeerPort + (($nextId - 1) * $PortStep)
+    $enginePort = $peerPort + 1
+    $daemonPort = $peerPort + 2
 
     Write-Host ""
     Write-Host "==========================================================" -ForegroundColor Cyan
@@ -268,8 +269,9 @@ try {
     $daemonsArray = @()
 
     foreach ($id in $allIds) {
-        $ep = $BaseEnginePort + (($id - 1) * $PortStep)
-        $dp = $ep + 1
+        $pp = $BasePeerPort + (($id - 1) * $PortStep)
+        $ep = $pp + 1
+        $dp = $pp + 2
 
         $idDir = Join-Path $IdentityBase "identity-$id"
         if (-not (Test-Path $idDir)) {
@@ -283,6 +285,7 @@ try {
         $daemonsArray += @{
             id = $id
             port = $dp
+            peerPort = $pp
             address = ""
             publicKey = $pubKey
             endpoint = "${ip}:${dp}"
@@ -290,9 +293,9 @@ try {
             pid = 0
         }
 
-        Write-Host "  Start Daemon #$id (engine=$ep, daemon=$dp):" -ForegroundColor White
-        Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$dp`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
-        Write-Host "    `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
+        Write-Host "  Start Daemon #$id (peer=$pp, app=$ep, node=$dp):" -ForegroundColor White
+        Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$ep`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_PEER_PORT=`"$pp`"; `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray
         Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
         Write-Host ""
@@ -319,8 +322,9 @@ try {
         }
 
         foreach ($id in $allIds) {
-            $ep = $BaseEnginePort + (($id - 1) * $PortStep)
-            $dp = $ep + 1
+            $pp = $BasePeerPort + (($id - 1) * $PortStep)
+            $ep = $pp + 1
+            $dp = $pp + 2
             $idDir = Join-Path $IdentityBase "identity-$id"
             if (-not (Test-Path $idDir)) {
                 $letterDir = Join-Path $IdentityBase ("identity-" + [char]([int][char]'a' + $id - 1))
@@ -338,8 +342,9 @@ try {
             @"
 @echo off
 set CUBE_MODE=cube
-set CUBE_API_PORT=$dp
+set CUBE_API_PORT=$ep
 set LLM_PORT=$ep
+set CUBE_PEER_PORT=$pp
 set CUBE_CRS_URL=$CRS_URL
 set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$idDir
@@ -426,7 +431,7 @@ foreach (`$svc in `$stopped) {
         logDir = ""
         identityBase = $IdentityBase
         timestamp = (Get-Date -Format "o")
-        deployer = "deploy-daemon/v0.3.0"
+        deployer = "deploy-daemon/v0.4.0"
     } | ConvertTo-Json -Depth 3
 
     try {

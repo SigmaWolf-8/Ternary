@@ -2,7 +2,7 @@
 // Patent(s) Pending — All Rights Reserved
 // Applied Physics Division
 //
-// PlenumNET Inter-Cube Infrastructure Daemon v0.3.0
+// PlenumNET Inter-Cube Infrastructure Daemon v0.4.0
 //
 // MODES (controlled by CUBE_MODE env var):
 //   "crs"    — Central Registration Service. Allocates addresses,
@@ -12,6 +12,11 @@
 //              serves local stats API.
 //   "all"    — Same as "crs" (backward compat).
 //   "keygen" — Generate PT26-DSA identity keypair and exit.
+//
+// TRI-PORT ARCHITECTURE (3 ports per node, spacing = 3):
+//   Daemon #1: 8079 (peer), 8080 (app API), 8081 (node/relay)
+//   Daemon #2: 8082 (peer), 8083 (app API), 8084 (node/relay)
+//   Daemon #3: 8085 (peer), 8086 (app API), 8087 (node/relay)
 //
 // ENV VARS:
 //   CUBE_MODE                  — "crs", "cube", "all", or "keygen" (default: "all")
@@ -26,6 +31,8 @@
 //   ROLE                       — Alias for CUBE_ROLE
 //   CUBE_API_PORT              — HTTP API bind port (default: 8080)
 //   API_PORT                   — Alias for CUBE_API_PORT
+//   CUBE_PEER_PORT             — Direct peer-to-peer port (default: API_PORT - 1)
+//   PEER_PORT                  — Alias for CUBE_PEER_PORT
 //   CUBE_IDENTITY_DIR          — Directory for master.key (default: ~/.plenumnet/identity/)
 //   CUBE_IDENTITY_PASSPHRASE   — Passphrase for master.key encryption
 
@@ -57,6 +64,14 @@ fn api_port() -> u16 {
         .unwrap_or(8080)
 }
 
+fn peer_port() -> u16 {
+    env::var("CUBE_PEER_PORT")
+        .or_else(|_| env::var("PEER_PORT"))
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(|| api_port().saturating_sub(1))
+}
+
 fn role_label() -> Option<String> {
     env::var("CUBE_ROLE")
         .or_else(|_| env::var("ROLE"))
@@ -65,6 +80,60 @@ fn role_label() -> Option<String> {
 
 fn relay_url(crs_fallback: Option<&str>) -> Option<String> {
     env::var("RELAY_URL").ok().or_else(|| crs_fallback.map(|s| s.to_string()))
+}
+
+fn spawn_peer_listener(port: u16, local_address_dotted: String) {
+    tokio::spawn(async move {
+        let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+        match tokio::net::TcpListener::bind(listen_addr).await {
+            Ok(listener) => {
+                println!("[PEER] Direct peer listener active on port {}", port);
+                println!("[PEER] LAN nodes can connect directly for sub-ms latency");
+                loop {
+                    match listener.accept().await {
+                        Ok((stream, peer_addr)) => {
+                            let addr = local_address_dotted.clone();
+                            tokio::spawn(async move {
+                                println!("[PEER] Connection from {} (local address: {})", peer_addr, addr);
+                                let ws_stream = match tokio_tungstenite::accept_async(stream).await {
+                                    Ok(ws) => ws,
+                                    Err(e) => {
+                                        println!("[PEER] WebSocket handshake failed from {}: {}", peer_addr, e);
+                                        return;
+                                    }
+                                };
+                                use futures_util::StreamExt;
+                                let (mut _write, mut read) = ws_stream.split();
+                                while let Some(msg) = read.next().await {
+                                    match msg {
+                                        Ok(m) if m.is_text() || m.is_binary() => {
+                                            println!("[PEER] Message from {}: {} bytes", peer_addr, m.len());
+                                        }
+                                        Ok(m) if m.is_close() => {
+                                            println!("[PEER] Peer {} disconnected", peer_addr);
+                                            break;
+                                        }
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            println!("[PEER] Error from {}: {}", peer_addr, e);
+                                            break;
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            println!("[PEER] Accept error: {}", e);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                println!("[PEER] Failed to bind peer port {}: {}", port, e);
+                println!("[PEER] Direct peering disabled — relay-only mode");
+            }
+        }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -172,6 +241,7 @@ async fn run_crs_mode() {
     let app = crs_router(shared_state);
 
     let port = api_port();
+    let p_port = peer_port();
     let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     if let Some(role) = role_label() {
         println!("  Role:          {}", role);
@@ -187,9 +257,12 @@ async fn run_crs_mode() {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
     }
 
+    spawn_peer_listener(p_port, local_address.to_dotted());
+
     println!();
     println!("=== HTTP Server (CRS) ===");
     println!("  http://{}", listen_addr);
+    println!("  Peer port: {}", p_port);
     println!("  {} routes active", CRS_ROUTE_COUNT);
     println!("  Ready for cube registrations. Ctrl+C to stop.");
     println!();
@@ -561,6 +634,9 @@ async fn run_cube_mode() {
     let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
     spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex);
 
+    let p_port = peer_port();
+    spawn_peer_listener(p_port, local_address.to_dotted());
+
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
 
@@ -569,8 +645,9 @@ async fn run_cube_mode() {
     println!();
     println!("=== HTTP Server (Cube) ===");
     println!("  http://{}", listen_addr);
+    println!("  Peer port: {}", p_port);
     println!("  {} routes active", CUBE_ROUTE_COUNT);
-    println!("  Relay:     WebSocket (NAT traversal)");
+    println!("  Relay:     WebSocket (NAT traversal + direct peering)");
     println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
     println!();
 

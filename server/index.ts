@@ -817,7 +817,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   const CRS_ADDRESS = "111.111.111.111.1";
-  const CRS_VERSION = "0.3.0";
+  const CRS_VERSION = "0.4.0";
 
   const crsCircuitBreaker = new CircuitBreaker("crs-verification", 5, 30_000, (name, state) => {
     const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
@@ -937,6 +937,7 @@ function startPqtiService(): ChildProcess | null {
         address: string;
         endpoint: string;
         port: number;
+        peerPort: number;
         hostname: string;
         deploymentId: number;
         role: "crs" | "cube";
@@ -978,6 +979,7 @@ function startPqtiService(): ChildProcess | null {
             address: toDottedAddr(normalAddr),
             endpoint: d.endpoint || "",
             port: d.port || 0,
+            peerPort: d.peerPort || 0,
             hostname: record.hostname || "",
             deploymentId: record.id,
             role: isCrs ? "crs" : "cube",
@@ -1005,6 +1007,7 @@ function startPqtiService(): ChildProcess | null {
           address: toDottedAddr(crsAddr),
           endpoint: crsEntry.endpoint || "",
           port: 0,
+          peerPort: 0,
           hostname: "",
           deploymentId: 0,
           role: isCrs ? "crs" : "cube",
