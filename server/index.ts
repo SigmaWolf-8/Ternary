@@ -1381,7 +1381,7 @@ function startPqtiService(): ChildProcess | null {
       try {
         msg = JSON.parse(data.toString());
       } catch {
-        ws.send(JSON.stringify(makeErrorResponse("ERR_FRAME_MALFORMED")));
+        ws.send(JSON.stringify(makeErrorResponse("ERR_FRAME_MALFORMED", "unknown")));
         recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress || "unauthenticated", timestamp: new Date().toISOString(), details: { code: "ERR_FRAME_MALFORMED" } });
         return;
       }
@@ -1555,9 +1555,10 @@ function startPqtiService(): ChildProcess | null {
 
         const peerOfflineMsg = JSON.stringify({ type: "peer-offline", address: toDottedAddr(nodeAddress), ts: Date.now() });
         let notifiedCount = 0;
-        for (const [, peerWs] of relayClients.entries()) {
+        for (const [peerAddr, peerWs] of relayClients.entries()) {
           if (peerWs.readyState === WebSocket.OPEN) {
             peerWs.send(peerOfflineMsg);
+            recordDisconnectEvent(peerAddr, { timestamp: new Date().toISOString(), reason: `peer ${toDottedAddr(nodeAddress)} went offline`, code: 0, eventType: "peer_offline" });
             notifiedCount++;
           }
         }
@@ -1590,6 +1591,7 @@ function startPqtiService(): ChildProcess | null {
           clientWs.send(goAwayMsg);
           clientWs.close(1001, reason);
         } catch {}
+        recordDisconnectEvent(addr, { timestamp: new Date().toISOString(), reason, code: 1001, eventType: "go_away" });
         console.log(`[ws-relay] go-away sent to ${toDottedAddr(addr)} (${reason})`);
       }
     }
