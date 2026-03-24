@@ -523,23 +523,16 @@ function startPqtiService(): ChildProcess | null {
   (async () => {
     try {
       const persisted = await storage.getAllCrsRelayNodes();
-      const seenKeys = new Map<string, { addr: string; lastSeen: number }>();
-      const dupeAddrs: string[] = [];
+      const bestByKey = new Map<string, { addr: string; lastSeen: number; node: typeof persisted[0] }>();
       for (const node of persisted) {
-        const existing = seenKeys.get(node.publicKey);
-        if (existing) {
-          if (node.lastSeen.getTime() > existing.lastSeen) {
-            dupeAddrs.push(existing.addr);
-            seenKeys.set(node.publicKey, { addr: node.address, lastSeen: node.lastSeen.getTime() });
-          } else {
-            dupeAddrs.push(node.address);
-          }
-        } else {
-          seenKeys.set(node.publicKey, { addr: node.address, lastSeen: node.lastSeen.getTime() });
+        const existing = bestByKey.get(node.publicKey);
+        if (!existing || node.lastSeen.getTime() > existing.lastSeen) {
+          bestByKey.set(node.publicKey, { addr: node.address, lastSeen: node.lastSeen.getTime(), node });
         }
       }
-      for (const node of persisted) {
-        if (dupeAddrs.includes(node.address)) continue;
+      const winnerAddrs = new Set([...bestByKey.values()].map(v => v.addr));
+      const dupeAddrs = persisted.filter(n => !winnerAddrs.has(n.address)).map(n => n.address);
+      for (const { node } of bestByKey.values()) {
         crsRegistry.set(node.address, { publicKey: node.publicKey, endpoint: node.endpoint, lastSeen: node.lastSeen.getTime(), tlDsaPk: node.tlDsaPk || undefined });
         publicKeyAddressMap.set(node.publicKey, node.address);
       }
@@ -547,8 +540,8 @@ function startPqtiService(): ChildProcess | null {
         storage.deleteCrsRelayNodesByAddresses(dupeAddrs).catch(() => {});
         log(`CRS startup: purged ${dupeAddrs.length} duplicate/stale entries from DB`, "crs");
       }
-      if (persisted.length > 0) {
-        log(`CRS loaded ${persisted.length - dupeAddrs.length} persisted node registrations from database`, "crs");
+      if (bestByKey.size > 0) {
+        log(`CRS loaded ${bestByKey.size} persisted node registrations from database`, "crs");
       }
     } catch (err) {
       log(`CRS failed to load persisted registrations: ${err}`, "crs");
@@ -590,17 +583,20 @@ function startPqtiService(): ChildProcess | null {
       return res.status(400).json({ error: "publicKey and endpoint query params required" });
     }
 
-    const existingAddr = publicKeyAddressMap.get(publicKey) ||
+    const candidateAddr = publicKeyAddressMap.get(publicKey) ||
       [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];
-    if (existingAddr) {
-      const entry = crsRegistry.get(existingAddr)!;
-      entry.lastSeen = Date.now();
-      entry.endpoint = endpoint;
-      if (tlDsaPk) entry.tlDsaPk = tlDsaPk;
-      publicKeyAddressMap.set(publicKey, existingAddr);
-      storage.upsertCrsRelayNode(publicKey, existingAddr, endpoint, tlDsaPk || entry.tlDsaPk).catch(() => {});
-      log(`CRS re-register ${publicKey.substring(0, 16)}... → same address ${toDottedAddr(existingAddr)} (stable)`, "crs");
-      return res.json({ address: existingAddr, addressDotted: toDottedAddr(existingAddr), endpoint, source: "stable" });
+    if (candidateAddr) {
+      const entry = crsRegistry.get(candidateAddr);
+      if (entry) {
+        entry.lastSeen = Date.now();
+        entry.endpoint = endpoint;
+        if (tlDsaPk) entry.tlDsaPk = tlDsaPk;
+        publicKeyAddressMap.set(publicKey, candidateAddr);
+        storage.upsertCrsRelayNode(publicKey, candidateAddr, endpoint, tlDsaPk || entry.tlDsaPk).catch(() => {});
+        log(`CRS re-register ${publicKey.substring(0, 16)}... → same address ${toDottedAddr(candidateAddr)} (stable)`, "crs");
+        return res.json({ address: candidateAddr, addressDotted: toDottedAddr(candidateAddr), endpoint, source: "stable" });
+      }
+      publicKeyAddressMap.delete(publicKey);
     }
 
     const upstream = await tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/register", {
@@ -1303,11 +1299,6 @@ function startPqtiService(): ChildProcess | null {
     const knownByKey = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey);
     if (knownByKey) {
       const [oldAddr, oldEntry] = knownByKey;
-      if (oldAddr !== address) {
-        crsRegistry.delete(oldAddr);
-        storage.deleteCrsRelayNodesByAddresses([oldAddr]).catch(() => {});
-        log(`CRS cleaned up stale address ${toDottedAddr(oldAddr)} for key ${publicKey.substring(0, 16)}... (now ${toDottedAddr(address)})`, "crs");
-      }
       crsRegistry.set(address, { publicKey, endpoint: oldEntry.endpoint, lastSeen: Date.now(), tlDsaPk: oldEntry.tlDsaPk });
       publicKeyAddressMap.set(publicKey, address);
       storage.upsertCrsRelayNode(publicKey, address, oldEntry.endpoint, oldEntry.tlDsaPk).catch(() => {});
@@ -1522,6 +1513,24 @@ function startPqtiService(): ChildProcess | null {
           if (crsEntry) {
             crsEntry.lastSeen = Date.now();
             storage.upsertCrsRelayNode(crsEntry.publicKey, nodeAddress, crsEntry.endpoint, crsEntry.tlDsaPk).catch(() => {});
+            const staleAddrs: string[] = [];
+            for (const [addr, entry] of crsRegistry.entries()) {
+              if (addr !== nodeAddress && entry.publicKey === msg.publicKey) {
+                staleAddrs.push(addr);
+              }
+            }
+            for (const addr of staleAddrs) {
+              crsRegistry.delete(addr);
+              const oldWsForStale = relayClients.get(addr);
+              if (oldWsForStale && oldWsForStale !== ws) {
+                relayClients.delete(addr);
+                relayAddressByWs.delete(oldWsForStale);
+              }
+            }
+            if (staleAddrs.length > 0) {
+              storage.deleteCrsRelayNodesByAddresses(staleAddrs).catch(() => {});
+              log(`CRS post-auth cleanup: removed ${staleAddrs.length} stale address(es) for ${msg.publicKey.substring(0, 16)}... [${staleAddrs.map(a => toDottedAddr(a)).join(", ")}]`, "crs");
+            }
           }
 
           const pending = pendingMessages.get(nodeAddress);
