@@ -1,0 +1,44 @@
+
+Library
+Search
+Other
+Documents
+
+#27 - WebSocket Military-Grade Gap Closure
+What & Why
+The relay WebSocket system has strong PQ-authenticated transport, message routing, and offline queuing already working. Six remaining gaps prevent it from meeting the full "best-in-class / post-quantum military-grade" standard described in the WebSocket hardening blueprint. All six are backward-compatible additions — no existing protocol changes, no breaking the relay envelope format, no touching the TL-DSA challenge-response flow.
+
+Done looks like
+Relay server supports topic-based pub/sub — nodes can subscribe to topics, and a publish fans out to all subscribers (alongside the existing point-to-point to routing which stays unchanged)
+Sequence-numbered messages with lastSeenSeq on reconnect — server replays only missed messages instead of dumping the entire pending queue blindly
+Rust relay client reconnects with exponential backoff + jitter (capped at 60s) instead of immediate retry
+Circuit breaker wrapper around external dependency calls (CRS lookups, Hedera HCS, database) with open/half-open/closed states and configurable thresholds
+Graceful shutdown on the relay server — on SIGTERM, stop accepting new WebSocket upgrades, send a go-away control frame to all connected peers, allow 10s drain window before closing
+OpenTelemetry spans wrapping the relay message lifecycle (upgrade → auth → relay → ack) exported alongside the existing custom Prometheus metrics, without replacing them
+All existing relay clients (Rust and legacy) continue to work without modification — new fields (topic, seq, lastSeenSeq, go-away) are optional and ignored by old clients
+Out of scope
+Multi-instance shared session store (Redis-backed relayClients) — that's a separate infrastructure task
+Active-active multi-region deployment — depends on shared session store
+Kubernetes HPA / elastic scaling configuration — deployment-level, not code
+Edge deployment (Cloudflare Workers, Fastly) — deployment-level
+WAF configuration — infrastructure, not application code
+Tasks
+Topic pub/sub on the relay server — Add subscribe and publish message types to the relay protocol. Server maintains a topicSubscribers map. A publish fans out to all subscribers on that topic. Existing relay (point-to-point) routing is untouched.
+
+Sequence-numbered message delivery — Assign a monotonically increasing seq to every relay envelope. Store pending messages with their seq. On reconnect, accept an optional lastSeenSeq in the auth message and only replay messages after that sequence number.
+
+Exponential backoff with jitter on the Rust client — After a disconnect, retry with delay = min(2^attempt * 500ms + random(0..500ms), 60s). Reset attempt counter on successful auth.
+
+Circuit breaker middleware — Create a reusable CircuitBreaker class (closed → open after N failures in window, half-open after cooldown, close on success). Wrap CRS verification calls and any external service calls in the relay auth path.
+
+Graceful shutdown with connection draining — On SIGTERM/SIGINT, stop the HTTP upgrade listener, broadcast a go-away frame to all relay clients, wait up to 10 seconds for connections to close, then force-close remaining sockets.
+
+OpenTelemetry integration — Add the OTel Node.js SDK, create spans for WebSocket upgrade, auth challenge-response, relay routing, and message delivery. Export to the existing /metrics endpoint format (Prometheus) and optionally OTLP if an endpoint is configured.
+
+Relevant files
+server/index.ts:1020-1335
+services/inter-cube/src/ws_relay.rs:1-319
+services/inter-cube/src/telemetry.rs:1-50
+server/middleware/rate-limiter.ts
+services/inter-cube/src/tunnel_auth.rs
+services/payment-listener/src/api/health-api.ts

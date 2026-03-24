@@ -159,6 +159,172 @@ cargo run --package inter-cube
 
 ---
 
+## 3b. LLM Inference Integration (3-Engine Architecture)
+
+### Engine Layout
+
+Each daemon in the Array3 forwards inference requests to its own local OpenAI-compatible LLM endpoint. The engines are fully independent — any mix of local models and cloud API proxies works.
+
+| Node | Address | LLM Port | Env Var | Engine Options |
+|------|---------|----------|---------|----------------|
+| CRS (Coordinator) | `111.111.111.111.1` | `8080` | `LLM_PORT=8080` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
+| Cube 2 (Worker) | `211.111.111.111.1` | `8082` | `LLM_PORT=8082` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
+| Cube 3 (Worker) | `311.111.111.111.1` | `8084` | `LLM_PORT=8084` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
+
+### Inference Relay Protocol
+
+YODA sends an `inference_request` relay message through the WebSocket tunnel. The daemon forwards it to the local LLM and returns the response through the relay.
+
+#### Request Flow
+
+```
+YODA App
+  │
+  ▼ WebSocket (wss://plenumnet.replit.app/ws/relay)
+PlenumNET Relay Server
+  │
+  ▼ WebSocket relay forward (type: "relay", msgType: "inference_request")
+Target Daemon (e.g., Node #2 at 211.111.111.111.1)
+  │
+  ▼ HTTP POST http://127.0.0.1:{LLM_PORT}/v1/chat/completions
+Local LLM Engine (llama.cpp / Ollama / Cloud Proxy)
+  │
+  ▼ Response
+Target Daemon
+  │
+  ▼ WebSocket relay (type: "relay", msgType: "inference_response")
+PlenumNET Relay Server
+  │
+  ▼ WebSocket
+YODA App
+```
+
+#### Sending an Inference Request
+
+Send a WebSocket message to the relay with:
+
+```json
+{
+  "type": "relay",
+  "to": "2111111111111",
+  "msgType": "inference_request",
+  "payload": "{\"requestId\":\"req-001\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"model\":\"deepseek-r1\",\"maxTokens\":512,\"temperature\":0.7}"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Always `"relay"` |
+| `to` | string | Target node address (13-trit, no dots) — e.g., `"2111111111111"` |
+| `msgType` | string | `"inference_request"` |
+| `payload` | string (JSON) | Inference parameters (see below) |
+
+#### Payload Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `requestId` | string | `"unknown"` | Unique ID to correlate request/response |
+| `messages` | array | `[]` | OpenAI-format messages array |
+| `model` | string | `"local"` | Model name passed to the LLM engine |
+| `maxTokens` | number | `512` | Maximum tokens to generate |
+| `temperature` | number | `0.7` | Sampling temperature |
+
+#### Successful Response
+
+The daemon sends back:
+
+```json
+{
+  "type": "relay",
+  "from": "2111111111111",
+  "msgType": "inference_response",
+  "payload": "{\"requestId\":\"req-001\",\"content\":\"Hello! How can I help?\",\"model\":\"deepseek-r1\",\"tokens\":8,\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":8,\"total_tokens\":13}}"
+}
+```
+
+#### Error Response
+
+```json
+{
+  "type": "relay",
+  "from": "2111111111111",
+  "msgType": "inference_error",
+  "payload": "{\"requestId\":\"req-001\",\"error\":\"LLM server returned 503: Service Unavailable\"}"
+}
+```
+
+### LLM Engine Setup Options
+
+#### Option A: Local llama.cpp (Default via YODA Installer)
+
+The `rerun-yoda-install.ps1` installer downloads llama.cpp and the DeepSeek-R1-Distill-Qwen-7B model automatically. To run manually:
+
+```bash
+llama-server --model deepseek-r1-distill-qwen-7b.Q4_K_M.gguf --port 8080 --host 127.0.0.1
+```
+
+#### Option B: Ollama
+
+```bash
+ollama serve  # Default port 11434
+# Set LLM_PORT=11434 in the daemon, OR use a proxy:
+# Ollama uses /api/chat not /v1/chat/completions — needs an adapter
+```
+
+#### Option C: Free-Tier Cloud API Proxy
+
+Run a lightweight proxy on the LLM port that forwards to a free-tier cloud API:
+
+| Provider | Free Tier | OpenAI-Compatible? |
+|----------|-----------|-------------------|
+| Groq | 30 req/min, 14,400/day | Yes (`/v1/chat/completions`) |
+| Together.ai | $5 free credit | Yes |
+| Mistral (La Plateforme) | Free tier available | Yes |
+| Google Gemini | 15 RPM free | Needs adapter |
+
+Example: Point `LLM_PORT` to a Groq-compatible proxy:
+
+```bash
+# Any OpenAI-compatible endpoint works — set the base URL in LLM_PORT
+export LLM_PORT=8080
+# Run a proxy that adds the API key header and forwards to Groq:
+# POST http://127.0.0.1:8080/v1/chat/completions → https://api.groq.com/openai/v1/chat/completions
+```
+
+### Monitoring & Metrics
+
+The cluster health endpoint at `GET /api/salvi/inter-cube/relay/cluster-health` returns real-time relay metrics:
+
+| Metric | Description |
+|--------|-------------|
+| `relay.deliveryRate` | Percentage of messages successfully delivered (target: 100%) |
+| `relay.bytesRelayed` | Total bytes forwarded through the relay |
+| `relay.avgMsgSizeBytes` | Average message size in bytes |
+| `relay.inferenceRequests` | Total LLM inference requests dispatched |
+| `relay.inferenceResponses` | Total LLM responses returned |
+| `relay.meshHeartbeats` | Inter-node mesh health-check messages |
+| `relay.connectedPeers` | Currently connected WebSocket peers |
+| `relay.peakPeers` | Peak concurrent peers since relay start |
+| `relay.msgsSent` | Total messages sent (all types) |
+| `relay.msgsDelivered` | Messages delivered to online peers |
+| `relay.msgsQueued` | Messages queued for offline peers (max 100/peer) |
+| `relay.msgsFailed` | Messages dropped (queue overflow) |
+| `relay.uptimeMs` | Relay uptime in milliseconds |
+
+### Pre-Flight Checklist for YODA
+
+1. **Verify 3 nodes are LIVE**: `GET https://plenumnet.replit.app/api/salvi/inter-cube/relay/cluster-health` — all 3 daemons should show `status: "live"`
+2. **Verify LLM engine responds on each node**: From the Windows machine, test each port:
+   ```bash
+   curl http://127.0.0.1:8080/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
+   curl http://127.0.0.1:8082/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
+   curl http://127.0.0.1:8084/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
+   ```
+3. **Send a test inference through the relay**: Connect to `wss://plenumnet.replit.app/ws/relay`, authenticate, then send an `inference_request` to any node address
+4. **Check metrics**: After a successful inference, `relay.inferenceRequests` and `relay.inferenceResponses` should increment
+
+---
+
 ## 4. Key Rotation — How It Works
 
 | Parameter | Value |

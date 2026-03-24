@@ -669,6 +669,7 @@ interface DaemonHealth {
 
 interface RelayThroughput {
   connectedPeers: number;
+  peakPeers: number;
   pendingQueues: number;
   pendingMessages: number;
   msgsSent: number;
@@ -676,6 +677,12 @@ interface RelayThroughput {
   msgsQueued: number;
   msgsFailed: number;
   msgPerSec: number;
+  bytesRelayed: number;
+  avgMsgSizeBytes: number;
+  deliveryRate: number;
+  inferenceRequests: number;
+  inferenceResponses: number;
+  meshHeartbeats: number;
   uptimeMs: number;
 }
 
@@ -703,6 +710,14 @@ function formatTimeAgo(isoStr: string | null): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const val = bytes / Math.pow(1024, i);
+  return `${val < 10 ? val.toFixed(1) : Math.round(val)} ${units[i]}`;
 }
 
 function formatUptime(ms: number): string {
@@ -835,31 +850,55 @@ function ClusterReport() {
       </div>
 
       {data.relay && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center text-xs" data-testid="relay-throughput-row">
-          <div className={`rounded-md border p-2 ${data.relay.msgsSent > 0 ? "bg-blue-500/10 border-blue-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
-            <span className={`block text-lg font-bold ${data.relay.msgsSent > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-sent">{data.relay.msgsSent}</span>
-            <span className="text-muted-foreground">Msgs Sent</span>
+        <>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center text-xs" data-testid="relay-throughput-row">
+            <div className={`rounded-md border p-2 ${data.relay.deliveryRate >= 99 ? "bg-emerald-500/10 border-emerald-500/20" : data.relay.deliveryRate >= 90 ? "bg-yellow-500/10 border-yellow-500/20" : "bg-red-500/10 border-red-500/20"}`}>
+              <span className={`block text-lg font-bold ${data.relay.deliveryRate >= 99 ? "text-emerald-600 dark:text-emerald-400" : data.relay.deliveryRate >= 90 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid="text-relay-delivery-rate">{data.relay.deliveryRate}%</span>
+              <span className="text-muted-foreground">Delivery Rate</span>
+            </div>
+            <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
+              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-throughput">{formatBytes(data.relay.bytesRelayed)}</span>
+              <span className="text-muted-foreground">Throughput</span>
+            </div>
+            <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
+              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-sent">{data.relay.msgsSent}</span>
+              <span className="text-muted-foreground">Total Msgs</span>
+            </div>
+            <div className={`rounded-md border p-2 ${data.relay.inferenceRequests > 0 ? "bg-violet-500/10 border-violet-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
+              <span className={`block text-lg font-bold ${data.relay.inferenceRequests > 0 ? "text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-inference">{data.relay.inferenceRequests}</span>
+              <span className="text-muted-foreground">LLM Requests</span>
+            </div>
+            <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
+              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-avg-size">{formatBytes(data.relay.avgMsgSizeBytes)}</span>
+              <span className="text-muted-foreground">Avg Msg Size</span>
+            </div>
           </div>
-          <div className={`rounded-md border p-2 ${data.relay.msgsDelivered > 0 ? "bg-blue-500/10 border-blue-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
-            <span className={`block text-lg font-bold ${data.relay.msgsDelivered > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-delivered">{data.relay.msgsDelivered}</span>
-            <span className="text-muted-foreground">Delivered</span>
+          <div className="grid grid-cols-4 gap-2 mb-4 text-center text-xs" data-testid="relay-detail-row">
+            <div className="rounded-md border p-1.5 bg-muted/30">
+              <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-delivered">{data.relay.msgsDelivered}</span>
+              <span className="text-muted-foreground text-[10px]">Delivered</span>
+            </div>
+            <div className="rounded-md border p-1.5 bg-muted/30">
+              <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-queued">{data.relay.msgsQueued}</span>
+              <span className="text-muted-foreground text-[10px]">Queued</span>
+            </div>
+            <div className="rounded-md border p-1.5 bg-muted/30">
+              <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-mesh-hb">{data.relay.meshHeartbeats}</span>
+              <span className="text-muted-foreground text-[10px]">Mesh HBs</span>
+            </div>
+            <div className="rounded-md border p-1.5 bg-muted/30">
+              <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-inference-resp">{data.relay.inferenceResponses}</span>
+              <span className="text-muted-foreground text-[10px]">LLM Responses</span>
+            </div>
           </div>
-          <div className={`rounded-md border p-2 ${data.relay.msgsQueued > 0 ? "bg-gray-500/10 border-gray-500/20" : "bg-blue-500/10 border-blue-500/20"}`}>
-            <span className={`block text-lg font-bold ${data.relay.msgsQueued > 0 ? "text-gray-500 dark:text-gray-400" : "text-blue-600 dark:text-blue-400"}`} data-testid="text-relay-queued">{data.relay.msgsQueued}</span>
-            <span className="text-muted-foreground">Queued</span>
-          </div>
-          <div className={`rounded-md border p-2 ${data.relay.msgPerSec > 0 ? "bg-blue-500/10 border-blue-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
-            <span className={`block text-lg font-bold ${data.relay.msgPerSec > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-msgps">{data.relay.msgPerSec}</span>
-            <span className="text-muted-foreground">Msg/s</span>
-          </div>
-        </div>
+        </>
       )}
 
       {data.relay && (
         <div className="flex items-center gap-4 mb-4 px-1 text-xs text-muted-foreground flex-wrap" data-testid="relay-status-row">
           <span className="flex items-center gap-1">
             <span className={`inline-block w-2 h-2 rounded-full ${data.relay.connectedPeers > 0 ? "bg-blue-500" : "bg-black dark:bg-white"}`} />
-            <strong className="text-foreground">{data.relay.connectedPeers}</strong> WebSocket peer{data.relay.connectedPeers !== 1 ? "s" : ""}
+            <strong className="text-foreground">{data.relay.connectedPeers}</strong>/<strong className="text-muted-foreground">{data.relay.peakPeers || data.relay.connectedPeers}</strong> peers (now/peak)
           </span>
           <span>
             <strong className={data.relay.pendingQueues > 0 ? "text-gray-500 dark:text-gray-400" : "text-foreground"}>{data.relay.pendingQueues}</strong> queue{data.relay.pendingQueues !== 1 ? "s" : ""}

@@ -880,6 +880,14 @@ function startPqtiService(): ChildProcess | null {
         for (const q of pendingRef.values()) totalPendingMsgs += q.length;
       }
 
+      const uptimeMs = now - (throughputRef?.startedAt || now);
+      const deliveryRate = (throughputRef?.sent || 0) > 0
+        ? +((throughputRef!.delivered / throughputRef!.sent) * 100).toFixed(1)
+        : 100;
+      const avgMsgSize = (throughputRef?.delivered || 0) > 0
+        ? Math.round((throughputRef!.bytesRelayed || 0) / throughputRef!.delivered)
+        : 0;
+
       res.json({
         crsAddress: CRS_ADDRESS,
         crsVersion: CRS_VERSION,
@@ -891,6 +899,7 @@ function startPqtiService(): ChildProcess | null {
         daemons: daemonChecks,
         relay: {
           connectedPeers: relayClientsForCount?.size || 0,
+          peakPeers: throughputRef?.peakPeers || 0,
           pendingQueues: pendingRef?.size || 0,
           pendingMessages: totalPendingMsgs,
           msgsSent: throughputRef?.sent || 0,
@@ -898,7 +907,13 @@ function startPqtiService(): ChildProcess | null {
           msgsQueued: throughputRef?.queued || 0,
           msgsFailed: throughputRef?.failed || 0,
           msgPerSec,
-          uptimeMs: now - (throughputRef?.startedAt || now),
+          bytesRelayed: throughputRef?.bytesRelayed || 0,
+          avgMsgSizeBytes: avgMsgSize,
+          deliveryRate,
+          inferenceRequests: throughputRef?.inferenceRequests || 0,
+          inferenceResponses: throughputRef?.inferenceResponses || 0,
+          meshHeartbeats: throughputRef?.meshHeartbeats || 0,
+          uptimeMs,
         },
         checkedAt: new Date().toISOString(),
       });
@@ -1031,6 +1046,12 @@ function startPqtiService(): ChildProcess | null {
     queued: 0,
     startedAt: Date.now(),
     recentTimestamps: [] as number[],
+    bytesRelayed: 0,
+    inferenceRequests: 0,
+    inferenceResponses: 0,
+    meshHeartbeats: 0,
+    peakPeers: 0,
+    latencySamples: [] as number[],
   };
   (globalThis as any).__relayThroughput = relayThroughput;
 
@@ -1060,7 +1081,10 @@ function startPqtiService(): ChildProcess | null {
         const [fromAddr] = peers[i];
         const [toAddr, toWs] = peers[j];
         if (toWs.readyState === WebSocket.OPEN) {
-          toWs.send(JSON.stringify({ type: "relay", from: fromAddr, msgType: "mesh-heartbeat", payload: JSON.stringify({ ts: now }) }));
+          const envelope = JSON.stringify({ type: "relay", from: fromAddr, msgType: "mesh-heartbeat", payload: JSON.stringify({ ts: now }) });
+          toWs.send(envelope);
+          relayThroughput.bytesRelayed += Buffer.byteLength(envelope, "utf-8");
+          relayThroughput.meshHeartbeats++;
           recordRelayMsg("delivered");
         }
       }
@@ -1251,6 +1275,7 @@ function startPqtiService(): ChildProcess | null {
           }
           relayClients.set(nodeAddress, ws);
           relayAddressByWs.set(ws, nodeAddress);
+          if (relayClients.size > relayThroughput.peakPeers) relayThroughput.peakPeers = relayClients.size;
           console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} authenticated and connected`);
 
           const pending = pendingMessages.get(nodeAddress);
@@ -1285,9 +1310,15 @@ function startPqtiService(): ChildProcess | null {
         const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
         const normalizedTo = normalizeTernaryAddr(msg.to);
         const wasDelivered = !!(targetWs && targetWs.readyState === WebSocket.OPEN);
+        const envelopeBytes = Buffer.byteLength(envelope, "utf-8");
+        const relayMsgType = msg.msgType || "data";
+        if (relayMsgType === "inference_request") relayThroughput.inferenceRequests++;
+        else if (relayMsgType === "inference_response" || relayMsgType === "inference_error") relayThroughput.inferenceResponses++;
+        else if (relayMsgType === "heartbeat" || relayMsgType === "mesh-heartbeat") relayThroughput.meshHeartbeats++;
         let outcome: "delivered" | "queued" | "failed" = "delivered";
         if (wasDelivered) {
           targetWs!.send(envelope);
+          relayThroughput.bytesRelayed += envelopeBytes;
         } else {
           if (!pendingMessages.has(normalizedTo)) pendingMessages.set(normalizedTo, []);
           const queue = pendingMessages.get(normalizedTo)!;

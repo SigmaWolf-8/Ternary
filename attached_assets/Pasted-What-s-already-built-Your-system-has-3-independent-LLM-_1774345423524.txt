@@ -1,0 +1,34 @@
+What's already built:
+
+Your system has 3 independent LLM engines across the Array3 cluster:
+
+Node	Address	LLM Port	Engine
+CRS (Coordinator)	111.111.111.111.1	8080	Local LLM or Cloud API
+Cube 2	211.111.111.111.1	8082	Local LLM or Cloud API
+Cube 3	311.111.111.111.1	8084	Local LLM or Cloud API
+The deploy-yoda.ps1 already configures these ports. Each daemon forwards inference_request relay messages to its own local http://127.0.0.1:{LLM_PORT}/v1/chat/completions. The daemon code handles the full round-trip — request in, OpenAI-compatible call out, response relayed back.
+
+You also already have:
+
+Agent Array (server/routes/agent-array.ts) — a 28-specialist deliberation pipeline using the Replit AI integration (OpenAI-compatible via AI_INTEGRATIONS_OPENAI_API_KEY)
+Chat routes (server/replit_integrations/chat/routes.ts) — streaming SSE chat
+YODA installer (rerun-yoda-install.ps1) — downloads llama.cpp + DeepSeek-R1-Distill-Qwen-7B model
+Tests to run before going live with YODA:
+
+Post-publish verification (should be working now):
+
+All 3 daemons reconnect without 404s
+Msgs Sent counter starts incrementing from the mesh heartbeats
+Restart your bat file and watch the daemon console for [ws-relay] Relay tunnel active
+Per-node LLM engine connectivity — each node needs either:
+
+A local engine (llama.cpp, LM Studio, Ollama) running on its assigned port, or
+A proxy/adapter on that port that forwards to a free-tier cloud API (e.g., Groq, Together.ai, Mistral free tier)
+Test: curl http://127.0.0.1:8080/v1/chat/completions -d '{"model":"test","messages":[{"role":"user","content":"hello"}]}' from your Windows machine
+End-to-end inference relay — send an inference_request through the WebSocket relay to one of the 3 nodes and verify the response comes back. This tests the full chain: frontend → server relay → daemon → local LLM → daemon → relay → frontend.
+
+Replit AI integration — the Agent Array already uses AI_INTEGRATIONS_OPENAI_API_KEY. Verify it's set and the chat routes return responses.
+
+What's the main gap? There's no frontend UI yet that sends inference_request messages through the relay to a specific node. The Agent Array page exists but uses the server-side Replit AI integration directly — it doesn't dispatch through the Inter-Cube relay to your Windows daemons.
+
+Do you want me to plan a task that builds the inference dispatch UI — where a user picks which node to query (or load-balances across all 3), sends the request through the relay, and displays the response? That would be the piece connecting your YODA engines to the frontend.
