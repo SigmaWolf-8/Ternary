@@ -30,7 +30,7 @@ The Inter-Cube infrastructure is a complete post-quantum networking stack that Y
 | **OS CSPRNG Generation** | Uses `getrandom` crate (kernel entropy) — not pseudo-random |
 | **Address-Bound Keys** | After CRS assigns a ternary address, a TL-DSA-87 keypair is derived bound to that address |
 | **Automatic Key Rotation** | Every 14 days (1 radian epoch), keys rotate automatically with CRS re-registration |
-| **CUBE_MODE Daemon** | Three operational modes: `crs`, `cube`, `keygen` |
+| **CUBE_MODE Node** | Three operational modes: `crs` (coordinator), `cube` (worker), `keygen` (identity only) |
 
 ---
 
@@ -75,65 +75,77 @@ services/inter-cube/
 
 ---
 
-## 3. How YODA Connects
+## 3. How YODA Connects (via PlenumNET Nodes)
 
 ### Architecture
 
 ```
-┌─────────────────┐         PQ Tunnel          ┌──────────────────┐
-│   YODA Replit    │◄══════════════════════════►│  Laptop / Server │
-│  CUBE_MODE=crs   │    (TL-KEM handshake)      │  CUBE_MODE=cube  │
-│  Runs CRS node   │                            │  Connects to CRS │
-│  Zero inbound    │                            │  Heartbeat: 30s  │
-│  ports needed    │                            │  Key rotation: 14d│
-└─────────────────┘                            └──────────────────┘
+┌─────────────────────┐       PQ Tunnel        ┌──────────────────────┐
+│  PlenumNET Relay     │◄════════════════════►│  PlenumNET Array3     │
+│  plenumnet.replit.app│   (TL-KEM handshake)  │  (your laptop)       │
+│  WebSocket relay     │                       │  Node #1: coordinator │
+│  Monitoring dashboard│                       │  Node #2: worker     │
+│  Zero inbound ports  │                       │  Node #3: worker     │
+└─────────────────────┘                       └──────────────────────┘
+         ▲                                              ▲
+         │         WebSocket relay tunnel               │
+         └──────────── YODA connects here ──────────────┘
 ```
 
-- **YODA Replit** runs `CUBE_MODE=crs` — it acts as the registration authority
-- **Your laptop/server** runs `CUBE_MODE=cube` — it registers with the CRS and gets a ternary address
-- **Zero inbound ports needed** on either side — tunnels are outbound-initiated
+- **PlenumNET Nodes** run on your laptop — Node #1 as coordinator (`CUBE_MODE=crs`), Nodes #2–3 as workers (`CUBE_MODE=cube`)
+- **YODA** connects to the PlenumNET relay at `plenumnet.replit.app` and dispatches inference requests to your nodes through the tunnel
+- **Zero inbound ports needed** — all tunnels are outbound-initiated
 - **All traffic is PQ-encrypted** via TL-KEM + TL-Sponge-385 derived tunnel keys
 
 ### Step-by-Step Setup
 
-#### On YODA Replit (CRS Node)
+#### Deploy PlenumNET Array3 (Recommended)
+
+The easiest way to set up all 3 nodes:
+
+```powershell
+irm https://plenumnet.replit.app/api/deploy-yoda | iex
+```
+
+This deploys a full PlenumNET Array3 — Node #1 as coordinator, Nodes #2–3 as workers. All three connect to the PlenumNET relay for YODA to reach them.
+
+#### Manual Setup — Coordinator (Node #1)
 
 ```bash
-# Set environment variables
 export CUBE_MODE=crs
-export CUBE_IDENTITY_PASSPHRASE="<strong-passphrase>"   # REQUIRED for production
-
-# Run the daemon
+export CUBE_API_PORT=8081
+export RELAY_URL="https://plenumnet.replit.app"
+export CUBE_IDENTITY_PASSPHRASE="<strong-passphrase>"
 cargo run --package inter-cube
 ```
 
-The CRS node will:
+The coordinator will:
 1. Generate (or load) a persistent MasterSecret at `~/.plenumnet/identity/master.key`
 2. Derive a PT26-DSA keypair from the secret
 3. Self-register with its own public key
 4. Derive an address-bound TL-DSA-87 key after address assignment
-5. Start listening for cube registrations on HTTP
+5. Connect to the PlenumNET relay (if `RELAY_URL` is set)
+6. Start listening for node registrations on HTTP
 
-#### On Laptop (Cube Node)
+#### Manual Setup — Worker (Nodes #2, #3)
 
 ```bash
-# Set environment variables
 export CUBE_MODE=cube
-export CUBE_CRS_URL="https://<yoda-replit-domain>"
-export CUBE_ENDPOINT="<your-ip-or-hostname>:port"
-export CUBE_IDENTITY_PASSPHRASE="<strong-passphrase>"   # REQUIRED for production
-
-# Run the daemon
+export CUBE_CRS_URL="http://localhost:8081"
+export CUBE_API_PORT=8083   # 8085 for Node #3
+export LLM_PORT=8082        # 8084 for Node #3
+export RELAY_URL="https://plenumnet.replit.app"
+export CUBE_IDENTITY_PASSPHRASE="<strong-passphrase>"
 cargo run --package inter-cube
 ```
 
-The cube node will:
+Each worker node will:
 1. Generate (or load) its own persistent MasterSecret
 2. Derive a PT26-DSA keypair
-3. Register with the CRS using its real public key
-4. Receive a 13-trit ternary address from the CRS
+3. Register with the coordinator using its real public key
+4. Receive a 13-trit ternary address from the coordinator
 5. Derive an address-bound TL-DSA-87 keypair (bound to assigned address)
-6. Update the CRS with the address-bound key via `POST /crs/update-key`
+6. Connect to the PlenumNET relay for YODA access
 7. Start a 30-second heartbeat loop with automatic key rotation checks
 
 #### Generate Identity Only (No Network)
@@ -213,6 +225,16 @@ When a rotation fires:
 | Compression pipeline | TTC v4.2 engine — separate concern |
 | Any constant in `shared/constants.ts` | Single source of truth — invariants are load-bearing |
 
+## Terminology
+
+| Term | Meaning |
+|------|---------|
+| **PlenumNET Node** | A single Inter-Cube daemon instance running on a machine |
+| **PlenumNET Array3** | A 3-node cluster (1 coordinator + 2 workers) |
+| **Coordinator** | Node #1 — runs `CUBE_MODE=crs`, manages registration for the cluster |
+| **Worker** | Nodes #2, #3 — run `CUBE_MODE=cube`, register with the coordinator |
+| **Relay** | The WebSocket tunnel at `plenumnet.replit.app/ws/relay` — all nodes connect outbound |
+
 ---
 
 ## 8. Running Tests
@@ -238,7 +260,7 @@ npm run build
 node dist/index.mjs
 ```
 
-The PlenumNET marketing site is already deployed and running. The Inter-Cube daemon is a separate binary (`cargo run --package inter-cube`) that runs alongside the web application.
+The PlenumNET marketing site is already deployed and running. The PlenumNET Node is a separate binary (`cargo run --package inter-cube`) that runs alongside the web application.
 
 ---
 
@@ -304,7 +326,7 @@ The file `yoda-installer-fix.ts` in the PlenumNET repo root contains corrected v
 - **Rust**: cargo 1.94.0
 - **C compiler**: LLVM/Clang (via `winget install LLVM.LLVM`)
 - **Build time**: 47 seconds (release, first build after clean)
-- **Result**: Daemon running, health check responding, all 12 HTTP routes active
+- **Result**: PlenumNET Node running, health check responding, all 12 HTTP routes active
 
 ---
 

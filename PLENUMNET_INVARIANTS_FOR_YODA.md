@@ -32,15 +32,15 @@ Ternary trit values are 1, 2, 3. Never 0, 1, 2. There is no trit value 0.
 
 These are the production port assignments. Do not change them. Do not suggest alternatives. Do not override them in code.
 
-Each LLM engine is paired with its own cube daemon instance. Agent N = engine port `8080 + 2N`, daemon port `8081 + 2N`.
+Each application port is paired with its own PlenumNET Node instance. Agent N = app port `8080 + 2N`, node port `8081 + 2N`.
 
-| Agent | Engine Port | Daemon Port | `LLM_PORT` | `CUBE_API_PORT` |
-|-------|-------------|-------------|------------|-----------------|
+| Agent | App Port | Node Port | `LLM_PORT` | `CUBE_API_PORT` |
+|-------|----------|-----------|------------|-----------------|
 | A (N=0) | 8080 | 8081 | 8080 | 8081 |
 | B (N=1) | 8082 | 8083 | 8082 | 8083 |
 | C (N=2) | 8084 | 8085 | 8084 | 8085 |
 
-The cube daemon reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. Each daemon's `LLM_PORT` points to its paired engine.
+The PlenumNET Node reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. Each node's `LLM_PORT` points to its paired application port.
 
 ### I-04: Ternary Address Format
 
@@ -79,28 +79,28 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 | `CUBE_IDENTITY_DIR` | `~/.plenumnet/identity/` | Master key storage |
 | `CUBE_IDENTITY_PASSPHRASE` | (hostname fallback) | Encryption passphrase |
 
-### Cluster Architecture — Local CRS Model
+### Array3 Cluster Architecture — Local CRS Model
 
-For any YODA or LAN deployment, cube setup is independent and self-contained:
+For any YODA or LAN deployment, an Array3 (3-node PlenumNET cluster) is independent and self-contained:
 
-- **Daemon #1 (Engine A, port 8081)** starts in `CUBE_MODE=crs` — it IS the local CRS for the cluster
-- **Daemon #2 (Engine B, port 8083)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
-- **Daemon #3 (Engine C, port 8085)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
+- **Node #1 (Agent A, port 8081)** starts in `CUBE_MODE=crs` — it IS the local CRS (coordinator) for the Array3
+- **Node #2 (Agent B, port 8083)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
+- **Node #3 (Agent C, port 8085)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
 
 The remote server (`plenumnet.replit.app`) is both:
 1. A **monitoring dashboard** — receives deployment summaries so the dashboard can display cluster health
-2. The **WebSocket relay** — all 3 daemons connect outbound to `plenumnet.replit.app/ws/relay` for NAT traversal; YODA also connects to the same relay; inference requests flow through this tunnel
+2. The **WebSocket relay** — all 3 nodes connect outbound to `plenumnet.replit.app/ws/relay` for NAT traversal; applications like YODA also connect to the same relay; requests flow through this tunnel
 
-It is NOT the operational CRS for any local cluster. Cube registration and heartbeat happen locally through Daemon #1. Set `RELAY_URL=https://plenumnet.replit.app` on each daemon so the relay client connects to the remote relay instead of the local CRS (which has no relay server).
+It is NOT the operational CRS for any local Array3. Node registration and heartbeat happen locally through Node #1. Set `RELAY_URL=https://plenumnet.replit.app` on each node so the relay client connects to the remote relay instead of the local CRS (which has no relay server).
 
-Each new deployment is independent. The deployer may or may not find a previous version of the daemon installed. If an existing version is found:
+Each new deployment is independent. The deployer may or may not find a previous version of the node installed. If an existing version is found:
 1. The deployer checks its version against the CRS reference (`GET /health/crs` → `version` field)
 2. If versions differ, the deployer logs a `NOTE: Version mismatch` warning
 3. The YODA frontend should poll `GET /health/crs` at `plenumnet.replit.app` and compare against the local daemon's `/health` response to detect when a newer version is available — display a blue indicator when an update is ready
 
-### Deploying — Single Daemon
+### Deploying — Single PlenumNET Node
 
-Deploy (or update) a single daemon with a single command in PowerShell:
+Deploy (or update) a single PlenumNET Node with a single command in PowerShell:
 
 ```powershell
 irm https://plenumnet.replit.app/api/deploy-daemon | iex
@@ -111,9 +111,9 @@ Or download and double-click the `.bat` installer:
 https://plenumnet.replit.app/api/deploy-daemon.bat
 ```
 
-### Deploying — YODA 3-Node Cluster (v0.4.0)
+### Deploying — PlenumNET Array3 (v0.4.0)
 
-Deploy the full 3-daemon YODA cluster:
+Deploy a full 3-node PlenumNET Array3:
 
 ```powershell
 irm https://plenumnet.replit.app/api/deploy-yoda | iex
@@ -124,18 +124,18 @@ Or download and double-click the `.bat` installer:
 https://plenumnet.replit.app/api/deploy-yoda.bat
 ```
 
-The YODA deployer automatically:
+The Array3 deployer automatically:
 1. Clones or pulls the latest source to `C:\PlenumNET`
-2. Stops any running daemon instances
+2. Stops any running node instances
 3. Builds the release binary (`cargo build --release -p inter-cube`)
 4. Checks the built version against the CRS reference version
 5. Generates 3 PT26-DSA identities (if missing)
-6. Starts Daemon #1 as the LOCAL CRS (`CUBE_MODE=crs`, port 8081)
-7. Waits for the local CRS to be ready, then starts Daemons #2 and #3 as cube nodes registering with it
+6. Starts Node #1 as the LOCAL CRS / coordinator (`CUBE_MODE=crs`, port 8081)
+7. Waits for the coordinator to be ready, then starts Nodes #2 and #3 as workers registering with it
 8. Posts a deployment summary to `plenumnet.replit.app` for monitoring
-9. Creates a "Start YODA Daemons" desktop shortcut
+9. Creates a "Start PlenumNET Array3" desktop shortcut
 
-If the daemon shows wrong behavior (e.g. ignoring `CUBE_API_PORT`, printing "BLAKE3", showing wrong version), re-run the deployer. Current deployer version is v0.4.0.
+If a node shows wrong behavior (e.g. ignoring `CUBE_API_PORT`, printing "BLAKE3", showing wrong version), re-run the deployer. Current deployer version is v0.4.0.
 
 ### Version Checking
 
@@ -145,18 +145,18 @@ The deployer performs a version check at step 4:
 - If they differ, a warning is printed but deployment continues
 - The YODA frontend should periodically check `GET /health/crs` at plenumnet.replit.app and compare with the local daemon's version. When a newer version is available, show a blue indicator to prompt the user to re-run the deployer.
 
-### Daemon Startup (Windows)
+### Node Startup (Windows)
 
 PlenumNET install path: `C:\PlenumNET`
-Daemon binary: `C:\PlenumNET\target\release\inter-cube-daemon.exe`
+Node binary: `C:\PlenumNET\target\release\inter-cube-daemon.exe`
 
-Each engine gets its own daemon with its own identity. Separate identities are required because each daemon derives a unique ternary address from its master key (via TL-Sponge-385). Shared keys would produce the same address and collide at CRS.
+Each agent gets its own PlenumNET Node with its own identity. Separate identities are required because each node derives a unique ternary address from its master key (via TL-Sponge-385). Shared keys would produce the same address and collide at CRS.
 
-| Agent | Identity Dir | Engine Port | Daemon Port | CUBE_MODE |
-|-------|-------------|-------------|-------------|-----------|
-| A | `$env:USERPROFILE\.plenumnet\identity-1\` | 8080 | 8081 | `crs` (local CRS) |
-| B | `$env:USERPROFILE\.plenumnet\identity-2\` | 8082 | 8083 | `cube` |
-| C | `$env:USERPROFILE\.plenumnet\identity-3\` | 8084 | 8085 | `cube` |
+| Agent | Identity Dir | App Port | Node Port | CUBE_MODE |
+|-------|-------------|----------|-----------|-----------|
+| A | `$env:USERPROFILE\.plenumnet\identity-1\` | 8080 | 8081 | `crs` (coordinator) |
+| B | `$env:USERPROFILE\.plenumnet\identity-2\` | 8082 | 8083 | `cube` (worker) |
+| C | `$env:USERPROFILE\.plenumnet\identity-3\` | 8084 | 8085 | `cube` (worker) |
 
 Generate each identity once with `CUBE_MODE=keygen`:
 ```powershell
@@ -166,9 +166,9 @@ $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-1"
 # Repeat for identity-2, identity-3
 ```
 
-Run each daemon in a separate terminal:
+Run each node in a separate terminal:
 
-**Daemon A (Engine A — LOCAL CRS):**
+**Node A (Coordinator):**
 ```powershell
 $env:CUBE_MODE="crs"
 $env:CUBE_API_PORT="8081"
@@ -179,7 +179,7 @@ $env:LLM_PORT="8080"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
-**Daemon B (Engine B — registers with local CRS):**
+**Node B (Worker — registers with coordinator):**
 ```powershell
 $env:CUBE_MODE="cube"
 $env:CUBE_API_PORT="8083"
@@ -191,7 +191,7 @@ $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-2"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
-**Daemon C (Engine C — registers with local CRS):**
+**Node C (Worker — registers with coordinator):**
 ```powershell
 $env:CUBE_MODE="cube"
 $env:CUBE_API_PORT="8085"
@@ -207,9 +207,9 @@ $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-3"
 
 ## SECTION 3: RELAY PROTOCOL
 
-### Local CRS Endpoints (Daemon #1, localhost:8081)
+### Local CRS Endpoints (Node #1 / Coordinator, localhost:8081)
 
-These are the endpoints served by Daemon #1 when running as the local CRS. All cube registration and routing happens here — NOT at plenumnet.replit.app.
+These are the endpoints served by Node #1 when running as the coordinator. All node registration and routing happens here — NOT at plenumnet.replit.app.
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -282,15 +282,15 @@ Backoff: 2s → 4s → 8s → ... → 60s cap.
 
 ## SECTION 4: INFERENCE VIA RELAY
 
-### Discovering Cube Addresses
+### Discovering Node Addresses
 
-Cube addresses are assigned dynamically at registration time — never hardcode them. YODA discovers available inference nodes by:
+Node addresses are assigned dynamically at registration time — never hardcode them. YODA discovers available PlenumNET Nodes by:
 
 1. **Relay status endpoint:** `GET /api/salvi/inter-cube/relay/status` returns all connected nodes with their addresses and roles.
 2. **WebSocket peer list:** Send `{ "type": "peers" }` on the relay WebSocket to get currently connected peer addresses.
 3. **Auth response:** The `auth_ok` message includes `connectedPeers` — the list of other nodes online at that moment.
 
-YODA should maintain a live roster of cube addresses and route inference requests to any node with `role: "inference"`.
+YODA should maintain a live roster of node addresses and route inference requests to any node with `role: "inference"`.
 
 ### Request (YODA → CRS → Cube)
 
@@ -375,9 +375,9 @@ All endpoints below are served from `https://plenumnet.replit.app`. Auth-require
 | `/api/salvi/inter-cube/topology` | GET | — | 13D hypercube topology |
 | `/health` | GET | — | Daemon health |
 
-### 5.2 Cube Daemon Local API (on laptop — ports 8081 / 8083 / 8085)
+### 5.2 PlenumNET Node Local API (on laptop — ports 8081 / 8083 / 8085)
 
-Each daemon exposes the same endpoints on its `CUBE_API_PORT`:
+Each PlenumNET Node exposes the same endpoints on its `CUBE_API_PORT`:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
