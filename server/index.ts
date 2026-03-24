@@ -771,6 +771,7 @@ function startPqtiService(): ChildProcess | null {
       const records = await storage.getAllDeploymentRecords();
       const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
 
+      const now = Date.now();
       const daemonChecks: Array<{
         address: string;
         endpoint: string;
@@ -780,6 +781,7 @@ function startPqtiService(): ChildProcess | null {
         registeredInCrs: boolean;
         connectedViaRelay: boolean;
         lastSeen: string | null;
+        lastSeenAgeMs: number | null;
         status: "live" | "registered" | "deployed";
       }> = [];
 
@@ -821,7 +823,6 @@ function startPqtiService(): ChildProcess | null {
       const throughputRef = (globalThis as any).__relayThroughput as typeof relayThroughput | undefined;
       const relayClientsForCount = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
       const pendingRef = (globalThis as any).__pendingMessages as Map<string, any[]> | undefined;
-      const now = Date.now();
       const msgPerSec = throughputRef
         ? +(throughputRef.recentTimestamps.filter(t => t > now - 60_000).length / 60).toFixed(2)
         : 0;
