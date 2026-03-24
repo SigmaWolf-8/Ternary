@@ -683,10 +683,8 @@ fn spawn_relay_client(
                         );
 
                         if msg_type == "restart" || envelope.msg_type == "restart" {
-                            println!("[ws-relay] Restart command received — daemon will exit for service manager restart");
-                            println!("[ws-relay] Shutting down gracefully...");
-                            tokio::time::sleep(Duration::from_millis(500)).await;
-                            std::process::exit(0);
+                            println!("[ws-relay] Restart command received — closing relay for reconnect");
+                            break;
                         }
 
                         if msg_type == "inference_request" {
