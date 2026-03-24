@@ -1020,22 +1020,66 @@ function startPqtiService(): ChildProcess | null {
         });
       }
 
+      function parseHostPort(endpoint: string): { host: string; port: string } | null {
+        const m = endpoint.match(/^([^:]+):(\d+)$/);
+        return m ? { host: m[1], port: m[2] } : null;
+      }
+
+      const crsLiveAddresses = new Set<string>();
+      const crsCoveredHostPorts = new Set<string>();
+      for (const [addr, crsEntry] of crsRegistry.entries()) {
+        crsLiveAddresses.add(addr);
+        const parsed = parseHostPort(crsEntry.endpoint || "");
+        if (parsed) crsCoveredHostPorts.add(`${parsed.host}:${parsed.port}`);
+      }
+      for (const d of daemonChecks) {
+        if (d.source === "crs" && d.registeredInCrs) {
+          const parsed = parseHostPort(d.endpoint || "");
+          if (parsed) crsCoveredHostPorts.add(`${parsed.host}:${parsed.port}`);
+        }
+      }
+
+      function isStaleDeploymentEntry(d: typeof daemonChecks[0]): boolean {
+        if (d.source !== "deployment" || d.status !== "deployed") return false;
+        if (d.registeredInCrs || d.connectedViaRelay) return false;
+        const depParsed = parseHostPort(d.endpoint || "");
+        if (depParsed && crsCoveredHostPorts.has(`${depParsed.host}:${depParsed.port}`)) return true;
+        if (d.port && d.hostname) {
+          for (const hp of crsCoveredHostPorts) {
+            const [, p] = hp.split(":");
+            if (p === String(d.port)) return true;
+          }
+        }
+        return false;
+      }
+
+      const filteredDaemons = daemonChecks.filter(d => !isStaleDeploymentEntry(d));
+
       const expectedNodesList = Array.from(getExpectedNodesCache());
-      const expectedNodesStatus = expectedNodesList.map(addr => {
-        const normalAddr = normalizeTernaryAddr(addr);
-        const crsEntry = crsRegistry.get(normalAddr);
-        const isRelayConnected = relayClientsRef?.has(normalAddr) && relayClientsRef.get(normalAddr)!.readyState === 1;
-        const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
-        const healthState = isRelayConnected ? "up" as NodeHealthState : computeHealthState(lastSeenTs, now);
-        return {
-          address: toDottedAddr(normalAddr),
-          healthState,
-          lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
-          offlineDurationMs: lastSeenTs ? now - lastSeenTs : null,
-          connectedViaRelay: !!isRelayConnected,
-          disconnectHistory: getDisconnectHistory(normalAddr).slice(-5),
-        };
-      });
+      const expectedNodesStatus = expectedNodesList
+        .filter(addr => {
+          const normalAddr = normalizeTernaryAddr(addr);
+          const inCrs = crsRegistry.has(normalAddr);
+          const inRelay = relayClientsRef?.has(normalAddr) && relayClientsRef.get(normalAddr)!.readyState === 1;
+          const inDeployments = seenAddresses.has(normalAddr);
+          if (!inCrs && !inRelay && !inDeployments) return false;
+          return true;
+        })
+        .map(addr => {
+          const normalAddr = normalizeTernaryAddr(addr);
+          const crsEntry = crsRegistry.get(normalAddr);
+          const isRelayConnected = relayClientsRef?.has(normalAddr) && relayClientsRef.get(normalAddr)!.readyState === 1;
+          const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
+          const healthState = isRelayConnected ? "up" as NodeHealthState : computeHealthState(lastSeenTs, now);
+          return {
+            address: toDottedAddr(normalAddr),
+            healthState,
+            lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
+            offlineDurationMs: lastSeenTs ? now - lastSeenTs : null,
+            connectedViaRelay: !!isRelayConnected,
+            disconnectHistory: getDisconnectHistory(normalAddr).slice(-5),
+          };
+        });
 
       const expectedUp = expectedNodesStatus.filter(n => n.healthState === "up").length;
       const expectedSuspect = expectedNodesStatus.filter(n => n.healthState === "suspect").length;
@@ -1043,32 +1087,6 @@ function startPqtiService(): ChildProcess | null {
       const longestOffline = expectedNodesStatus
         .filter(n => n.offlineDurationMs !== null && n.healthState !== "up")
         .reduce((max, n) => Math.max(max, n.offlineDurationMs || 0), 0);
-
-      const crsCoveredHostPorts = new Set<string>();
-      for (const d of daemonChecks) {
-        if (d.source === "crs" && d.registeredInCrs) {
-          const ep = d.endpoint || "";
-          const portMatch = ep.match(/:(\d+)$/);
-          if (portMatch) crsCoveredHostPorts.add(portMatch[1]);
-        }
-      }
-      for (const [, crsEntry] of crsRegistry.entries()) {
-        const ep = crsEntry.endpoint || "";
-        const portMatch = ep.match(/:(\d+)$/);
-        if (portMatch) crsCoveredHostPorts.add(portMatch[1]);
-      }
-      const filteredDaemons = daemonChecks.filter(d => {
-        if (d.source === "deployment" && d.status === "deployed" && !d.registeredInCrs && !d.connectedViaRelay) {
-          const dPort = d.port ? String(d.port) : "";
-          if (!dPort) {
-            const epMatch = (d.endpoint || "").match(/:(\d+)$/);
-            if (epMatch && crsCoveredHostPorts.has(epMatch[1])) return false;
-          } else if (crsCoveredHostPorts.has(dPort)) {
-            return false;
-          }
-        }
-        return true;
-      });
 
       const live = filteredDaemons.filter(d => d.status === "live").length;
       const registered = filteredDaemons.filter(d => d.status === "registered").length;
