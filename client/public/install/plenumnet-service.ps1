@@ -141,6 +141,18 @@ function Invoke-Status {
             Write-Host "  No daemon identities found." -ForegroundColor DarkGray
         }
     }
+
+    $array3Svcs = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue
+    if ($array3Svcs) {
+        Write-Host ""
+        Write-Host "  Array3 Cluster Services" -ForegroundColor Cyan
+        Write-Host ""
+        foreach ($svc in $array3Svcs) {
+            $nodeNum = $svc.Name -replace 'PlenumNET-Array3-', ''
+            $modeLabel = if ($nodeNum -eq '1') { 'coordinator' } else { 'worker' }
+            Write-Host "  Array3 Node #$nodeNum ($modeLabel) : $($svc.Status)" -ForegroundColor $(if ($svc.Status -eq 'Running') { 'Green' } else { 'Yellow' })
+        }
+    }
     Write-Host ""
 }
 
@@ -291,7 +303,9 @@ function Invoke-Watchdog {
     $watchdogDir = Split-Path $watchdogScript -Parent
     if (-not (Test-Path $watchdogDir)) { New-Item -Path $watchdogDir -ItemType Directory -Force | Out-Null }
     @"
-`$stopped = Get-Service PlenumNET-Cube-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
+`$stopped = @()
+`$stopped += Get-Service PlenumNET-Cube-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
+`$stopped += Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
 foreach (`$svc in `$stopped) {
     try { Start-Service -Name `$svc.Name -ErrorAction Stop } catch {}
 }

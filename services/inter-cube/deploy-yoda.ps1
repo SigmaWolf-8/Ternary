@@ -53,6 +53,54 @@ $RepoUrl       = "https://github.com/SigmaWolf-8/Ternary.git"
 $IdentityBase  = Join-Path $env:USERPROFILE ".plenumnet"
 $LOG_DIR       = Join-Path $IdentityBase "logs"
 
+function Test-Admin {
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Get-ServiceAccountName {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return $identity.Name
+}
+
+function Grant-LogonAsService {
+    param([string]$AccountName)
+    $tempDir = Join-Path $env:TEMP "plenumnet-secedit"
+    if (-not (Test-Path $tempDir)) { New-Item -ItemType Directory -Path $tempDir -Force | Out-Null }
+    $exportFile = Join-Path $tempDir "secpol-export.inf"
+    $importFile = Join-Path $tempDir "secpol-import.inf"
+    $seceditDb = Join-Path $tempDir "secedit.sdb"
+    try {
+        & secedit /export /cfg $exportFile /areas USER_RIGHTS 2>&1 | Out-Null
+        if (-not (Test-Path $exportFile)) { return $false }
+        $content = Get-Content $exportFile -Raw
+        $sidObj = (New-Object System.Security.Principal.NTAccount($AccountName)).Translate(
+            [System.Security.Principal.SecurityIdentifier])
+        $sid = $sidObj.Value
+        if ($content -match '(?m)^SeServiceLogonRight\s*=\s*(.*)$') {
+            $existing = $Matches[1]
+            if ($existing -notmatch [regex]::Escape($sid)) {
+                $content = $content -replace "(?m)^(SeServiceLogonRight\s*=\s*.*)$", "`$1,*$sid"
+            }
+        } else {
+            $content = $content -replace '(?m)(\[Privilege Rights\])', "`$1`r`nSeServiceLogonRight = *$sid"
+        }
+        Set-Content -Path $importFile -Value $content -Encoding Unicode
+        & secedit /configure /db $seceditDb /cfg $importFile /areas USER_RIGHTS 2>&1 | Out-Null
+        return $true
+    } catch {
+        return $false
+    } finally {
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Set-ServiceLogonAccount {
+    param([string]$ServiceName, [string]$AccountName)
+    Grant-LogonAsService -AccountName $AccountName | Out-Null
+    & sc.exe config $ServiceName obj= $AccountName | Out-Null
+}
+
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "  PlenumNET Array3 Deployer" -ForegroundColor Cyan
@@ -345,35 +393,101 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     }
 }
 
-# ── 7. Start daemons (CRS first, then cubes) + register with local CRS ──
+# ── 7. Register and start daemons as Windows Services ──
 Write-Host ""
-Write-Host "STEP 7/8: Starting Array3 (Node #1 = coordinator)" -ForegroundColor Yellow
+Write-Host "STEP 7/8: Registering Array3 as Windows Services" -ForegroundColor Yellow
 Write-Host "---"
 
-$daemonPids = @()
+if (-not (Test-Admin)) {
+    Write-Host "  Administrator privileges required to register Windows Services." -ForegroundColor Yellow
+    Write-Host "  Elevating..." -ForegroundColor DarkGray
+    $scriptPath = $MyInvocation.MyCommand.Definition
+    if ($scriptPath) {
+        Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+        Write-Host "  Re-launched as Administrator. This window can be closed." -ForegroundColor Green
+        exit 0
+    } else {
+        Write-Host "  ERROR: Cannot auto-elevate from piped input. Please run PowerShell as Administrator and re-run." -ForegroundColor Red
+        Read-Host "Press Enter to close"
+        exit 1
+    }
+}
 
-$crsCfg = $daemonConfigs[0]
-$env:CUBE_MODE = "crs"
-$env:CUBE_API_PORT = "$($crsCfg.Port)"
-$env:CUBE_PEER_PORT = "$($crsCfg.PeerPort)"
-$env:CUBE_ENDPOINT = $crsCfg.Endpoint
-$env:CUBE_IDENTITY_DIR = $crsCfg.IdentityDir
-$env:RELAY_URL = $REMOTE_CRS
-$env:LLM_PORT = "$($crsCfg.AppPort)"
+$wrapperDir = Join-Path $RepoDir "services\wrappers"
+if (-not (Test-Path $wrapperDir)) {
+    New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
+}
+if (-not (Test-Path $LOG_DIR)) {
+    New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null
+}
 
-$outLog = Join-Path $LOG_DIR "daemon-1-out.log"
-$errLog = Join-Path $LOG_DIR "daemon-1-err.log"
-$proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
-$daemonPids += $proc.Id
-Write-Host "  [OK] Node #1 started as coordinator (PID $($proc.Id), node $($crsCfg.Port), app $($crsCfg.AppPort), peer $($crsCfg.PeerPort), relay -> $REMOTE_CRS)" -ForegroundColor Green
+$svcAccount = Get-ServiceAccountName
 
-Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_PEER_PORT -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_ENDPOINT -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
-Remove-Item Env:\RELAY_URL -ErrorAction SilentlyContinue
-Remove-Item Env:\LLM_PORT -ErrorAction SilentlyContinue
+foreach ($cfg in $daemonConfigs) {
+    $svcName = "PlenumNET-Array3-$($cfg.Id)"
+    $logFile = Join-Path $LOG_DIR "array3-node-$($cfg.Id).log"
+    $wrapperBat = Join-Path $wrapperDir "array3-node-$($cfg.Id)-start.bat"
+
+    if ($cfg.Mode -eq "crs") {
+        @"
+@echo off
+set CUBE_MODE=crs
+set CUBE_API_PORT=$($cfg.Port)
+set CUBE_PEER_PORT=$($cfg.PeerPort)
+set CUBE_ENDPOINT=$($cfg.Endpoint)
+set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
+set RELAY_URL=$REMOTE_CRS
+set LLM_PORT=$($cfg.AppPort)
+"$BinaryPath" >> "$logFile" 2>&1
+"@ | Set-Content -Path $wrapperBat -Encoding ASCII
+    } else {
+        @"
+@echo off
+set CUBE_MODE=cube
+set CUBE_API_PORT=$($cfg.Port)
+set CUBE_PEER_PORT=$($cfg.PeerPort)
+set CUBE_CRS_URL=$LOCAL_CRS_URL
+set CUBE_ENDPOINT=$($cfg.Endpoint)
+set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
+set RELAY_URL=$REMOTE_CRS
+set LLM_PORT=$($cfg.AppPort)
+"$BinaryPath" >> "$logFile" 2>&1
+"@ | Set-Content -Path $wrapperBat -Encoding ASCII
+    }
+
+    $existingSvc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+    if ($existingSvc) {
+        Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
+        & sc.exe delete $svcName | Out-Null
+        Start-Sleep -Seconds 2
+    }
+
+    $modeLabel = if ($cfg.Mode -eq "crs") { "coordinator" } else { "worker" }
+    $displayName = "PlenumNET Array3 Node #$($cfg.Id) ($modeLabel)"
+
+    try {
+        $svcBinPath = "cmd.exe /c `"$wrapperBat`""
+        New-Service -Name $svcName `
+            -BinaryPathName $svcBinPath `
+            -DisplayName $displayName `
+            -Description "PlenumNET Array3 daemon node #$($cfg.Id) ($modeLabel) — survives reboots and terminal close" `
+            -StartupType Automatic | Out-Null
+
+        & sc.exe failure $svcName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
+        & sc.exe config $svcName depend= Tcpip/Afd/Dnscache | Out-Null
+
+        Set-ServiceLogonAccount -ServiceName $svcName -AccountName $svcAccount
+
+        Write-Host "  [OK] Node #$($cfg.Id) registered as service '$svcName'" -ForegroundColor Green
+    } catch {
+        Write-Host "  [WARN] Could not register node #$($cfg.Id) as service: $_" -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+Write-Host "  Starting Node #1 (coordinator) first..." -ForegroundColor DarkGray
+$crsSvcName = "PlenumNET-Array3-1"
+Start-Service -Name $crsSvcName -ErrorAction SilentlyContinue
 
 Write-Host "  Waiting for coordinator to be ready..." -ForegroundColor DarkGray
 $crsReady = $false
@@ -390,33 +504,36 @@ if ($crsReady) {
     Write-Host "  WARN: Coordinator health check did not respond -- continuing anyway" -ForegroundColor Yellow
 }
 
-for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
-    $cfg = $daemonConfigs[$i]
-    $env:CUBE_MODE = "cube"
-    $env:CUBE_CRS_URL = $LOCAL_CRS_URL
-    $env:CUBE_ENDPOINT = $cfg.Endpoint
-    $env:CUBE_API_PORT = "$($cfg.Port)"
-    $env:CUBE_PEER_PORT = "$($cfg.PeerPort)"
-    $env:CUBE_IDENTITY_DIR = $cfg.IdentityDir
-    $env:RELAY_URL = $REMOTE_CRS
-    $env:LLM_PORT = "$($cfg.AppPort)"
-
-    $outLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-out.log"
-    $errLog = Join-Path $LOG_DIR "daemon-$($cfg.Id)-err.log"
-    $proc = Start-Process -FilePath $BinaryPath -NoNewWindow -PassThru -RedirectStandardOutput $outLog -RedirectStandardError $errLog
-    $daemonPids += $proc.Id
-    Write-Host "  [OK] Node #$($cfg.Id) started (PID $($proc.Id), node $($cfg.Port), app $($cfg.AppPort), peer $($cfg.PeerPort), relay -> $REMOTE_CRS)" -ForegroundColor Green
+for ($i = 2; $i -le $DAEMON_COUNT; $i++) {
+    $workerSvcName = "PlenumNET-Array3-$i"
+    Start-Service -Name $workerSvcName -ErrorAction SilentlyContinue
+    Write-Host "  [OK] Node #$i service started" -ForegroundColor Green
     Start-Sleep -Seconds 1
 }
 
-Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_CRS_URL -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_ENDPOINT -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_API_PORT -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_PEER_PORT -ErrorAction SilentlyContinue
-Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
-Remove-Item Env:\RELAY_URL -ErrorAction SilentlyContinue
-Remove-Item Env:\LLM_PORT -ErrorAction SilentlyContinue
+$watchdogScript = Join-Path $wrapperDir "array3-watchdog.ps1"
+@"
+`$stopped = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
+foreach (`$svc in `$stopped) {
+    try { Start-Service -Name `$svc.Name -ErrorAction Stop } catch {}
+}
+"@ | Set-Content -Path $watchdogScript -Encoding ASCII
+
+$taskName = "PlenumNET-Array3-Watchdog"
+$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($existingTask) {
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+}
+
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$watchdogScript`""
+$triggerBoot = New-ScheduledTaskTrigger -AtStartup
+$triggerRepeat = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET Array3 watchdog — restarts stopped services every 5 minutes and on boot" | Out-Null
+Write-Host "  [OK] Watchdog scheduled task registered: $taskName" -ForegroundColor Green
+Write-Host "       Checks every 5 minutes + on boot — restarts any stopped nodes" -ForegroundColor DarkGray
 
 Start-Sleep -Seconds 3
 
@@ -470,7 +587,7 @@ foreach ($cfg in $daemonConfigs) {
         endpoint = $cfg.Endpoint
         identityDir = $cfg.IdentityDir
         mode = $cfg.Mode
-        pid = $daemonPids[$cfg.Id - 1]
+        pid = 0
     }
 }
 
@@ -500,57 +617,46 @@ try {
     Write-Host "  WARN: Could not post deployment summary -- $_" -ForegroundColor Yellow
 }
 
-# ── Desktop launcher ─────────────────────────────────────────────────────
+# ── Desktop launcher (service-based) ─────────────────────────────────────
 $startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start PlenumNET Array3.bat"
+$crsCfg = $daemonConfigs[0]
 $launchLines = @(
     "@echo off"
-    "title PlenumNET Array3"
+    "title PlenumNET Array3 Service Manager"
     "echo ========================================"
-    "echo   PlenumNET Array3 -- Starting 3-Node Cluster"
-    "echo   Node #1 = Coordinator"
+    "echo   PlenumNET Array3 -- Service Manager"
+    "echo   Nodes run as Windows Services"
     "echo ========================================"
     "echo."
     ""
-    ":: Kill existing node instances"
-    "taskkill /f /im inter-cube-daemon.exe >nul 2>&1"
-    "timeout /t 1 /nobreak >nul"
+    "net session >nul 2>&1"
+    "if %errorlevel% neq 0 ("
+    "    echo ERROR: Administrator privileges required."
+    "    echo Right-click this file and select 'Run as administrator'."
+    "    pause"
+    "    exit /b 1"
+    ")"
     ""
-    ":: Start Node #1 as coordinator"
-    "set CUBE_MODE=crs"
-    "set CUBE_API_PORT=$($crsCfg.Port)"
-    "set CUBE_PEER_PORT=$($crsCfg.PeerPort)"
-    "set CUBE_ENDPOINT=$($crsCfg.Endpoint)"
-    "set CUBE_IDENTITY_DIR=$($crsCfg.IdentityDir)"
-    "set RELAY_URL=$REMOTE_CRS"
-    "set LLM_PORT=$($crsCfg.AppPort)"
-    "echo Starting Node #1 as coordinator (node $($crsCfg.Port), app $($crsCfg.AppPort), peer $($crsCfg.PeerPort))..."
-    "start `"`" /b `"$BinaryPath`""
+    "echo Starting PlenumNET Array3 services..."
+    "echo."
+    ""
+    "echo Starting Node #1 (coordinator)..."
+    "net start PlenumNET-Array3-1 2>nul"
+    "if %errorlevel% equ 0 (echo   [OK] Node #1 started) else (echo   Node #1 already running or failed to start)"
     "timeout /t 5 /nobreak >nul"
     ""
-)
-
-for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
-    $cfg = $daemonConfigs[$i]
-    $launchLines += @(
-        ":: Start Node #$($cfg.Id) (worker -- registers with coordinator)"
-        "set CUBE_MODE=cube"
-        "set CUBE_CRS_URL=$LOCAL_CRS_URL"
-        "set CUBE_ENDPOINT=$($cfg.Endpoint)"
-        "set CUBE_API_PORT=$($cfg.Port)"
-        "set CUBE_PEER_PORT=$($cfg.PeerPort)"
-        "set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)"
-        "set RELAY_URL=$REMOTE_CRS"
-        "set LLM_PORT=$($cfg.AppPort)"
-        "echo Starting Node #$($cfg.Id) (node $($cfg.Port), app $($cfg.AppPort), peer $($cfg.PeerPort), relay -> $REMOTE_CRS)..."
-        "start `"`" /b `"$BinaryPath`""
-        "timeout /t 2 /nobreak >nul"
-        ""
-    )
-}
-$launchLines += @(
+    "echo Starting Node #2 (worker)..."
+    "net start PlenumNET-Array3-2 2>nul"
+    "if %errorlevel% equ 0 (echo   [OK] Node #2 started) else (echo   Node #2 already running or failed to start)"
+    "timeout /t 1 /nobreak >nul"
+    ""
+    "echo Starting Node #3 (worker)..."
+    "net start PlenumNET-Array3-3 2>nul"
+    "if %errorlevel% equ 0 (echo   [OK] Node #3 started) else (echo   Node #3 already running or failed to start)"
+    ""
     "echo."
     "echo ========================================"
-    "echo   PlenumNET Array3 Running"
+    "echo   PlenumNET Array3 Services Active"
     "echo   Node #1 (coordinator) : http://localhost:$($crsCfg.Port)"
 )
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
@@ -560,17 +666,42 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
 $launchLines += @(
     "echo ========================================"
     "echo."
-    "echo Press any key to stop all nodes..."
-    "pause >nul"
-    ""
-    "taskkill /f /im inter-cube-daemon.exe >nul 2>&1"
-    "echo Nodes stopped."
-    "timeout /t 2 /nobreak >nul"
+    "echo Services will continue running after this window closes."
+    "echo To stop: net stop PlenumNET-Array3-1 /y"
+    "echo          net stop PlenumNET-Array3-2 /y"
+    "echo          net stop PlenumNET-Array3-3 /y"
+    "echo Or use: plenumnet-service.ps1 -Action stop"
+    "echo."
+    "pause"
 )
 $launchContent = $launchLines -join "`r`n"
 Set-Content -Path $startYodaPath -Value $launchContent -Encoding ASCII
 Write-Host ""
 Write-Host "  [OK] Desktop launcher created: $startYodaPath" -ForegroundColor Green
+
+$stopYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Stop PlenumNET Array3.bat"
+$stopLines = @(
+    "@echo off"
+    "title PlenumNET Array3 -- Stop Services"
+    "net session >nul 2>&1"
+    "if %errorlevel% neq 0 ("
+    "    echo ERROR: Administrator privileges required."
+    "    echo Right-click this file and select 'Run as administrator'."
+    "    pause"
+    "    exit /b 1"
+    ")"
+    ""
+    "echo Stopping PlenumNET Array3 services..."
+    "net stop PlenumNET-Array3-3 2>nul"
+    "net stop PlenumNET-Array3-2 2>nul"
+    "net stop PlenumNET-Array3-1 2>nul"
+    "echo."
+    "echo All Array3 services stopped."
+    "pause"
+)
+$stopContent = $stopLines -join "`r`n"
+Set-Content -Path $stopYodaPath -Value $stopContent -Encoding ASCII
+Write-Host "  [OK] Stop launcher created: $stopYodaPath" -ForegroundColor Green
 
 # ── Summary ──────────────────────────────────────────────────────────────
 Write-Host ""
@@ -584,13 +715,18 @@ for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     Write-Host "  Node #$($cfg.Id) (worker)     : port $($cfg.Port), address $($cfg.Address)" -ForegroundColor White
 }
 Write-Host ""
+Write-Host "  Services       : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3" -ForegroundColor White
+Write-Host "  Startup        : Automatic (survives reboots + terminal close)" -ForegroundColor White
+Write-Host "  Watchdog       : PlenumNET-Array3-Watchdog (every 5 min + on boot)" -ForegroundColor White
 Write-Host "  Coordinator    : $LOCAL_CRS_URL (Node #1)" -ForegroundColor White
 Write-Host "  Relay          : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
 Write-Host "  Registry       : $REMOTE_CRS (monitoring dashboard)" -ForegroundColor White
 Write-Host "  Node Registry  : $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
-Write-Host "  Launcher       : $startYodaPath" -ForegroundColor White
+Write-Host "  Start Launcher : $startYodaPath" -ForegroundColor White
+Write-Host "  Stop Launcher  : $stopYodaPath" -ForegroundColor White
 Write-Host "  Logs           : $LOG_DIR" -ForegroundColor White
 Write-Host ""
+Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
 Read-Host "Press Enter to close"
