@@ -740,7 +740,7 @@ function startPqtiService(): ChildProcess | null {
   app.post("/api/salvi/inter-cube/relay/purge-stale", purgeStaleHandler);
 
   const STALE_CLEANUP_INTERVAL = 60_000;
-  const STALE_MAX_AGE = 600_000;
+  const STALE_MAX_AGE = parseInt(process.env.RELAY_STALE_MAX_AGE_MS || "600000", 10);
   setInterval(() => {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
@@ -1397,7 +1397,7 @@ function startPqtiService(): ChildProcess | null {
             return;
           }
           if (!verified) {
-            ws.send(JSON.stringify({ type: "auth_fail", ...makeErrorResponse("ERR_AUTH_FAILED", "auth") }));
+            ws.send(JSON.stringify({ ...makeErrorResponse("ERR_AUTH_FAILED", "auth"), type: "auth_fail" }));
             ws.close(RELAY_ERROR_CODES.ERR_AUTH_FAILED.wsClose, "auth failed");
             recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "not_registered" } });
             recordDisconnectEvent(normalAddr, { timestamp: new Date().toISOString(), reason: "auth_failed", code: 1008, eventType: "auth_fail" });
@@ -1414,7 +1414,7 @@ function startPqtiService(): ChildProcess | null {
             }
             if (!sigValid) {
               log(`Challenge signature INVALID for ${toDottedAddr(normalAddr)} — possible impersonation`, "crs");
-              ws.send(JSON.stringify({ type: "auth_fail", ...makeErrorResponse("ERR_SIGNATURE_INVALID", "auth") }));
+              ws.send(JSON.stringify({ ...makeErrorResponse("ERR_SIGNATURE_INVALID", "auth"), type: "auth_fail" }));
               ws.close(RELAY_ERROR_CODES.ERR_SIGNATURE_INVALID.wsClose, "signature invalid");
               recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "signature_invalid" } });
               recordDisconnectEvent(normalAddr, { timestamp: new Date().toISOString(), reason: "signature_invalid", code: 1008, eventType: "auth_fail" });
@@ -1425,7 +1425,7 @@ function startPqtiService(): ChildProcess | null {
             const entryCheck = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === msg.publicKey && v.tlDsaPk);
             if (entryCheck?.[1]?.tlDsaPk) {
               log(`Node ${toDottedAddr(normalAddr)} has TL-DSA-87 key registered but sent no signature — rejecting`, "crs");
-              ws.send(JSON.stringify({ type: "auth_fail", ...makeErrorResponse("ERR_SIGNATURE_REQUIRED", "auth") }));
+              ws.send(JSON.stringify({ ...makeErrorResponse("ERR_SIGNATURE_REQUIRED", "auth"), type: "auth_fail" }));
               ws.close(RELAY_ERROR_CODES.ERR_SIGNATURE_REQUIRED.wsClose, "signature required");
               recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "signature_required" } });
               return;
@@ -1501,10 +1501,11 @@ function startPqtiService(): ChildProcess | null {
           if (queue.length < 100) {
             queue.push({ from: nodeAddress, type: msg.msgType || "data", payload: msg.payload, ts: Date.now() });
             outcome = "queued";
-            ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: false, queued: true, ...makeErrorResponse("ERR_RELAY_TARGET_UNKNOWN") }));
+            ws.send(JSON.stringify({ ...makeErrorResponse("ERR_RELAY_TARGET_UNKNOWN", "relay"), type: "relay_ack", to: msg.to, delivered: false, queued: true }));
+            recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { code: "ERR_RELAY_TARGET_UNKNOWN", target: msg.to, queued: true } });
           } else {
             outcome = "failed";
-            ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: false, queued: false, ...makeErrorResponse("ERR_RELAY_QUEUE_FULL") }));
+            ws.send(JSON.stringify({ ...makeErrorResponse("ERR_RELAY_QUEUE_FULL", "relay"), type: "relay_ack", to: msg.to, delivered: false, queued: false }));
             recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { code: "ERR_RELAY_QUEUE_FULL", target: msg.to } });
           }
         }
