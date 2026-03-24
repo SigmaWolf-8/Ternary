@@ -942,7 +942,7 @@ function startPqtiService(): ChildProcess | null {
             lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
             status,
             healthState,
-            disconnectHistory: getDisconnectHistory(normalAddr).slice(-10),
+            disconnectHistory: getDisconnectHistory(normalAddr).slice(-50),
             isExpected: isExpectedNode(normalAddr),
           });
         }
@@ -1382,6 +1382,7 @@ function startPqtiService(): ChildProcess | null {
         msg = JSON.parse(data.toString());
       } catch {
         ws.send(JSON.stringify(makeErrorResponse("ERR_FRAME_MALFORMED")));
+        recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress || "unauthenticated", timestamp: new Date().toISOString(), details: { code: "ERR_FRAME_MALFORMED" } });
         return;
       }
 
@@ -1392,8 +1393,10 @@ function startPqtiService(): ChildProcess | null {
           try {
             verified = await crsCircuitBreaker.execute(() => verifyNodeRegistration(normalAddr, msg.publicKey));
           } catch (cbErr: any) {
-            ws.send(JSON.stringify(makeErrorResponse("ERR_CIRCUIT_OPEN", "auth")));
-            recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: "circuit_breaker_open", error: cbErr.message } });
+            const isBreakerOpen = crsCircuitBreaker.getState() === "open";
+            const errorCode = isBreakerOpen ? "ERR_CIRCUIT_OPEN" : "ERR_AUTH_FAILED";
+            ws.send(JSON.stringify(makeErrorResponse(errorCode, "auth")));
+            recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: isBreakerOpen ? "circuit_breaker_open" : "crs_verification_error", error: cbErr.message } });
             return;
           }
           if (!verified) {
@@ -1408,8 +1411,10 @@ function startPqtiService(): ChildProcess | null {
             let sigValid = false;
             try {
               sigValid = await crsCircuitBreaker.execute(() => verifyChallengeSignature(msg.publicKey, normalAddr, challengeNonce, msg.signature));
-            } catch {
-              ws.send(JSON.stringify(makeErrorResponse("ERR_CIRCUIT_OPEN", "auth")));
+            } catch (sigErr: any) {
+              const isBreakerOpen = crsCircuitBreaker.getState() === "open";
+              ws.send(JSON.stringify(makeErrorResponse(isBreakerOpen ? "ERR_CIRCUIT_OPEN" : "ERR_SIGNATURE_INVALID", "auth")));
+              recordRelayAuditEvent({ eventType: "relay.auth_failure", address: normalAddr, timestamp: new Date().toISOString(), details: { reason: isBreakerOpen ? "circuit_breaker_open" : "signature_verify_error", error: sigErr.message } });
               return;
             }
             if (!sigValid) {
@@ -1571,6 +1576,7 @@ function startPqtiService(): ChildProcess | null {
     setTimeout(() => {
       if (!authenticated && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(makeErrorResponse("ERR_AUTH_TIMEOUT", "auth")));
+        recordRelayAuditEvent({ eventType: "relay.auth_failure", address: "unauthenticated", timestamp: new Date().toISOString(), details: { code: "ERR_AUTH_TIMEOUT" } });
         ws.close(RELAY_ERROR_CODES.ERR_AUTH_TIMEOUT.wsClose, "auth timeout");
       }
     }, 10000);
