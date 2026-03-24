@@ -1044,17 +1044,28 @@ function startPqtiService(): ChildProcess | null {
         .filter(n => n.offlineDurationMs !== null && n.healthState !== "up")
         .reduce((max, n) => Math.max(max, n.offlineDurationMs || 0), 0);
 
-      const crsCoveredPorts = new Set<string>();
+      const crsCoveredHostPorts = new Set<string>();
       for (const d of daemonChecks) {
         if (d.source === "crs" && d.registeredInCrs) {
           const ep = d.endpoint || "";
           const portMatch = ep.match(/:(\d+)$/);
-          if (portMatch) crsCoveredPorts.add(portMatch[1]);
+          if (portMatch) crsCoveredHostPorts.add(portMatch[1]);
         }
+      }
+      for (const [, crsEntry] of crsRegistry.entries()) {
+        const ep = crsEntry.endpoint || "";
+        const portMatch = ep.match(/:(\d+)$/);
+        if (portMatch) crsCoveredHostPorts.add(portMatch[1]);
       }
       const filteredDaemons = daemonChecks.filter(d => {
         if (d.source === "deployment" && d.status === "deployed" && !d.registeredInCrs && !d.connectedViaRelay) {
-          if (crsCoveredPorts.has(String(d.port))) return false;
+          const dPort = d.port ? String(d.port) : "";
+          if (!dPort) {
+            const epMatch = (d.endpoint || "").match(/:(\d+)$/);
+            if (epMatch && crsCoveredHostPorts.has(epMatch[1])) return false;
+          } else if (crsCoveredHostPorts.has(dPort)) {
+            return false;
+          }
         }
         return true;
       });
