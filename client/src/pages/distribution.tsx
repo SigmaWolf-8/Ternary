@@ -15,7 +15,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -33,12 +33,14 @@ import {
   Wrench,
   Server,
   Zap,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { PLATFORM } from "@shared/constants";
 
 const GITHUB_REPO = "https://github.com/SigmaWolf-8/Ternary";
@@ -730,6 +732,20 @@ function ClusterReport() {
     queryKey: ["/api/salvi/inter-cube/relay/cluster-health"],
     refetchInterval: 5_000,
   });
+  const { toast } = useToast();
+  const restartMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/salvi/inter-cube/relay/restart-nodes");
+      return res.json() as Promise<{ restarted: number; message: string }>;
+    },
+    onSuccess: (result) => {
+      toast({ title: "Restart Broadcast Sent", description: result.message });
+      setTimeout(() => refetch(), 3000);
+    },
+    onError: () => {
+      toast({ title: "Restart Failed", description: "Could not send restart command", variant: "destructive" });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -767,6 +783,17 @@ function ClusterReport() {
           </span>
           <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => refetch()} data-testid="button-refresh-cluster">
             Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 px-2 text-[10px] border-orange-500/30 text-orange-700 dark:text-orange-400 hover:bg-orange-500/10"
+            onClick={() => { if (confirm("Restart all connected relay nodes? They will disconnect and reconnect automatically.")) restartMutation.mutate(); }}
+            disabled={restartMutation.isPending || !data?.relay || data.relay.connectedPeers === 0}
+            data-testid="button-restart-nodes"
+          >
+            <RotateCcw className={`w-3 h-3 mr-1 ${restartMutation.isPending ? "animate-spin" : ""}`} />
+            {restartMutation.isPending ? "Restarting…" : "Restart Nodes"}
           </Button>
         </div>
       </div>

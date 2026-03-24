@@ -1,0 +1,207 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> & "C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.bat"
+========================================
+  PlenumNET Array3 -- Starting 3-Node Cluster
+  Node #1 = Coordinator
+========================================
+
+Starting Node #1 as coordinator on port 8081...
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.3.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from C:\Users\Sigma\.plenumnet\identity-1\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0102010102020101...)
+[CRS] Registered with address: 1111111111111
+[CRS] PT26-DSA identity: 0102010102020101...
+[CRS] 26 neighbors: 0 registered, 26 awaiting
+[CON] Overlay: 0 up, 26 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: c82a1fb691c85ee1...)
+[IDENTITY] CRS registry updated with address-bound key
+
+=== Inter-Cube Stack Active ===
+  Address:       111.111.111.111.1 (1111111111111)
+  Address space: 1 / 1594323 used
+  Dimensions:    13
+  Neighbors:     26
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CRS -> CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+  Relay:         https://plenumnet.replit.app (WebSocket, TL-DSA-87 challenge-response)
+
+=== HTTP Server (CRS) ===
+  http://0.0.0.0:8081
+  13 routes active
+  Ready for cube registrations. Ctrl+C to stop.
+
+
+[ws-relay] Establishing relay connection to https://plenumnet.replit.app...
+[ws-relay] Inference dispatch target: http://127.0.0.1:8080/v1/chat/completions
+[ws-relay] Pre-registered with relay (address: 1111111111111)
+[ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+[ws-relay] WebSocket connected, authenticating (challenge-response)...
+[ws-relay] Received challenge nonce (df40b91c4470492a...)
+[ws-relay] Challenge signed with TL-DSA-87 (3168 bytes)
+[ws-relay] Authenticated. 0 peer(s) online: []
+[ws-relay] Relay tunnel active — NAT traversal established
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.3.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: http://localhost:8081
+[CUBE] Endpoint: 10.0.0.42:8083
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from C:\Users\Sigma\.plenumnet\identity-2\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0201010201010101...)
+[CUBE] Resolved 10.0.0.42:8083 -> 10.0.0.42:8083
+[CUBE] Registration attempt 1/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=0201010201010101010103010146d6d401359b55b29ddfce2f85196d8df12d055f7dc6389e28306fe3b28085bf783840ccd28e7f7abda558a502915b00&endpoint=10.0.0.42%3A8083
+[CUBE] CRS returned 404 Not Found, retrying...
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.3.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: http://localhost:8081
+[CUBE] Endpoint: 10.0.0.42:8085
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from C:\Users\Sigma\.plenumnet\identity-3\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0303020203010101...)
+[CUBE] Resolved 10.0.0.42:8085 -> 10.0.0.42:8085
+[CUBE] Registration attempt 1/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=030302020301010102020302016329590024d9a7c4d1d7835a7a8a048a0f65849a6f176bb2387c258158c4873532148b485570efb1514ed9d83fb76f62&endpoint=10.0.0.42%3A8085
+[CUBE] Registration attempt 2/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=0201010201010101010103010146d6d401359b55b29ddfce2f85196d8df12d055f7dc6389e28306fe3b28085bf783840ccd28e7f7abda558a502915b00&endpoint=10.0.0.42%3A8083
+[CUBE] CRS returned 404 Not Found, retrying...
+[CUBE] CRS returned 404 Not Found, retrying...
+
+========================================
+  PlenumNET Array3 Running
+  Node #1 (coordinator) : http://localhost:8081
+  Node #2 (worker)     : http://localhost:8083
+  Node #3 (worker)     : http://localhost:8085
+========================================
+
+Press any key to stop all nodes...
+[CUBE] Registration attempt 3/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=0201010201010101010103010146d6d401359b55b29ddfce2f85196d8df12d055f7dc6389e28306fe3b28085bf783840ccd28e7f7abda558a502915b00&endpoint=10.0.0.42%3A8083
+[CUBE] CRS returned 404 Not Found, retrying...
+[CUBE] Registration attempt 2/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=030302020301010102020302016329590024d9a7c4d1d7835a7a8a048a0f65849a6f176bb2387c258158c4873532148b485570efb1514ed9d83fb76f62&endpoint=10.0.0.42%3A8085
+[CUBE] CRS returned 404 Not Found, retrying...
+[CUBE] Registration attempt 4/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=0201010201010101010103010146d6d401359b55b29ddfce2f85196d8df12d055f7dc6389e28306fe3b28085bf783840ccd28e7f7abda558a502915b00&endpoint=10.0.0.42%3A8083
+[CUBE] CRS returned 404 Not Found, retrying...
+[CUBE] Registration attempt 3/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=030302020301010102020302016329590024d9a7c4d1d7835a7a8a048a0f65849a6f176bb2387c258158c4873532148b485570efb1514ed9d83fb76f62&endpoint=10.0.0.42%3A8085
+[CUBE] CRS returned 404 Not Found, retrying...
+[CUBE] Registration attempt 5/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=0201010201010101010103010146d6d401359b55b29ddfce2f85196d8df12d055f7dc6389e28306fe3b28085bf783840ccd28e7f7abda558a502915b00&endpoint=10.0.0.42%3A8083
+[CUBE] CRS returned 404 Not Found, retrying...
+[CUBE] Registration attempt 4/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=030302020301010102020302016329590024d9a7c4d1d7835a7a8a048a0f65849a6f176bb2387c258158c4873532148b485570efb1514ed9d83fb76f62&endpoint=10.0.0.42%3A8085
+[CUBE] CRS returned 404 Not Found, retrying...
+[CUBE] Registration attempt 6/10 -> http://localhost:8081/api/salvi/inter-cube/crs/register
+[CRS] New cube registered: 2111111111111 at 10.0.0.42:8083
+[CRS] Address space: 2 / 1594323 used
+
+[CUBE] Registered! Address: 211.111.111.111.1 (2111111111111)
+[CUBE] Neighbors: 1 registered, 26 total
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: cda51c4f06d1b633...)
+[CRS] Public key updated for 2111111111111
+[IDENTITY] Updated CRS with address-bound public key
+[CON] Resolved neighbor: 1111111111111 at 0.0.0.0:51820
+[CON] Overlay: 0 up, 0 resolving, 25 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       211.111.111.111.1 (2111111111111)
+  CRS:           http://localhost:8081
+  Dimensions:    13
+  Neighbors:     26 (1 registered)
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[ws-relay] Relay target: https://plenumnet.replit.app
+
+[ws-relay] Establishing relay connection to https://plenumnet.replit.app...
+[ws-relay] Inference dispatch target: http://127.0.0.1:8082/v1/chat/completions
+
+=== HTTP Server (Cube) ===
+  http://0.0.0.0:8083
+  9 routes active
+  Relay:     WebSocket (NAT traversal)
+  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.
+
+[CUBE] Registration attempt 5/10 -> http://localhost:8081/api/salvi/inter-cube/relay/register?publicKey=030302020301010102020302016329590024d9a7c4d1d7835a7a8a048a0f65849a6f176bb2387c258158c4873532148b485570efb1514ed9d83fb76f62&endpoint=10.0.0.42%3A8085
+[CUBE] CRS returned 404 Not Found, retrying...
+[ws-relay] Pre-registered with relay (address: 2111111111111)
+[ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+[ws-relay] WebSocket connected, authenticating (challenge-response)...
+[ws-relay] Received challenge nonce (8e262afabd5992f8...)
+[ws-relay] Challenge signed with TL-DSA-87 (3168 bytes)
+[ws-relay] Authenticated. 1 peer(s) online: ["1111111111111"]
+[ws-relay] Relay tunnel active — NAT traversal established
+[CUBE] Registration attempt 6/10 -> http://localhost:8081/api/salvi/inter-cube/crs/register
+[CRS] New cube registered: 3111111111111 at 10.0.0.42:8085
+[CRS] Address space: 3 / 1594323 used
+
+[CUBE] Registered! Address: 311.111.111.111.1 (3111111111111)
+[CUBE] Neighbors: 2 registered, 26 total
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: 2deaa2e48e4e25ef...)
+[CRS] Public key updated for 3111111111111
+[IDENTITY] Updated CRS with address-bound public key
+[CON] Resolved neighbor: 1111111111111 at 0.0.0.0:51820
+[CON] Resolved neighbor: 2111111111111 at 10.0.0.42:8083
+[CON] Overlay: 0 up, 0 resolving, 24 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       311.111.111.111.1 (3111111111111)
+  CRS:           http://localhost:8081
+  Dimensions:    13
+  Neighbors:     26 (2 registered)
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[ws-relay] Relay target: https://plenumnet.replit.app
+
+=== HTTP Server (Cube) ===
+  http://0.0.0.0:8085
+  9 routes active
+  Relay:     WebSocket (NAT traversal)
+  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.
+
+
+[ws-relay] Establishing relay connection to https://plenumnet.replit.app...
+[ws-relay] Inference dispatch target: http://127.0.0.1:8084/v1/chat/completions
+[ws-relay] Pre-registered with relay (address: 3111111111111)
+[ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+[ws-relay] WebSocket connected, authenticating (challenge-response)...
+[ws-relay] Received challenge nonce (ba6e54a8f182d3d4...)
+[ws-relay] Challenge signed with TL-DSA-87 (3168 bytes)
+[ws-relay] Authenticated. 2 peer(s) online: ["1111111111111", "2111111111111"]
+[ws-relay] Relay tunnel active — NAT traversal established
+[HEARTBEAT] CRS returned 404 Not Found
+[HEARTBEAT] CRS returned 404 Not Found
+[HEARTBEAT] CRS returned 404 Not Found
+[HEARTBEAT] CRS returned 404 Not Found
+[HEARTBEAT] CRS returned 404 Not Found
+[HEARTBEAT] CRS returned 404 Not Found
