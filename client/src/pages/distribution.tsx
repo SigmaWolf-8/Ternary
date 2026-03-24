@@ -658,6 +658,7 @@ interface DaemonHealth {
   port: number;
   hostname: string;
   deploymentId: number;
+  role: "crs" | "cube";
   registeredInCrs: boolean;
   connectedViaRelay: boolean;
   lastSeen: string | null;
@@ -846,7 +847,8 @@ function ClusterReport() {
               <span>Address: <strong className="text-foreground font-mono text-[10px]">{d.address}</strong></span>
               <span>Endpoint: <strong className="text-foreground font-mono text-[10px]">{d.endpoint}</strong></span>
               <span>Port: <strong className="text-foreground">{d.port}</strong></span>
-              <span>CRS: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
+              <span>Role: <strong className="text-foreground">{d.role === "crs" ? "CRS" : "Cube"}</strong></span>
+              <span>Registered: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
               <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
             </div>
           </div>

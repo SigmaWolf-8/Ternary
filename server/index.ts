@@ -782,6 +782,7 @@ function startPqtiService(): ChildProcess | null {
         port: number;
         hostname: string;
         deploymentId: number;
+        role: "crs" | "cube";
         registeredInCrs: boolean;
         connectedViaRelay: boolean;
         lastSeen: string | null;
@@ -789,13 +790,17 @@ function startPqtiService(): ChildProcess | null {
         status: "live" | "registered" | "deployed";
       }> = [];
 
+      const CRS_ORIGIN = normalizeTernaryAddr("1111111111111");
+
       for (const record of records) {
         const daemons = (record.daemons as any[]) || [];
         for (const d of daemons) {
           const addr = d.address || "";
-          const crsEntry = crsRegistry.get(addr);
-          const isRelayConnected = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
+          const normalAddr = normalizeTernaryAddr(addr);
+          const crsEntry = crsRegistry.get(normalAddr);
+          const isRelayConnected = relayClientsRef?.has(normalAddr) && relayClientsRef.get(normalAddr)!.readyState === 1;
           const isRegistered = !!crsEntry;
+          const isCrs = normalAddr === CRS_ORIGIN || d.id === 1;
 
           let status: "live" | "registered" | "deployed" = "deployed";
           if (isRelayConnected) {
@@ -806,11 +811,12 @@ function startPqtiService(): ChildProcess | null {
 
           const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
           daemonChecks.push({
-            address: toDottedAddr(addr),
+            address: toDottedAddr(normalAddr),
             endpoint: d.endpoint || "",
             port: d.port || 0,
             hostname: record.hostname || "",
             deploymentId: record.id,
+            role: isCrs ? "crs" : "cube",
             registeredInCrs: isRegistered,
             connectedViaRelay: !!isRelayConnected,
             lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
