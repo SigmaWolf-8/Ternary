@@ -502,7 +502,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   app.get("/install/:filename", (req, res) => {
-    const allowed = new Set(["Install-PlenumNET.bat", "install-windows.ps1", "install.sh"]);
+    const allowed = new Set(["Install-PlenumNET.bat", "install-windows.ps1", "install.sh", "deploy-yoda.ps1", "deploy-daemon.ps1", "plenumnet-service.ps1"]);
     const { filename } = req.params;
     if (!allowed.has(filename)) {
       return res.status(404).json({ error: "Not found" });
@@ -511,8 +511,13 @@ function startPqtiService(): ChildProcess | null {
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: "File not found" });
     }
-    res.setHeader("Content-Type", "application/octet-stream");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    if (filename.endsWith(".ps1") || filename.endsWith(".sh")) {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    } else {
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    }
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.sendFile(filePath);
   });
 
