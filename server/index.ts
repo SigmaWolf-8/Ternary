@@ -1033,6 +1033,23 @@ function startPqtiService(): ChildProcess | null {
         }
       }
 
+      const deploymentDaemonsByPort = new Map<string, { hostname: string; port: number; peerPort: number; endpoint: string; deploymentId: number }>();
+      for (const record of records) {
+        const daemons = (record.daemons as any[]) || [];
+        for (const d of daemons) {
+          const depParsed = parseHostPort(d.endpoint || "");
+          if (depParsed) {
+            deploymentDaemonsByPort.set(depParsed.port, {
+              hostname: record.hostname || "",
+              port: d.port || 0,
+              peerPort: d.peerPort || 0,
+              endpoint: d.endpoint || "",
+              deploymentId: record.id,
+            });
+          }
+        }
+      }
+
       for (const [crsAddr, crsEntry] of crsRegistry.entries()) {
         if (seenAddresses.has(crsAddr)) continue;
         seenAddresses.add(crsAddr);
@@ -1049,13 +1066,15 @@ function startPqtiService(): ChildProcess | null {
             }
           }
         }
+        const crsParsed = parseHostPort(crsEntry.endpoint || "");
+        const depMatch = crsParsed ? deploymentDaemonsByPort.get(crsParsed.port) : undefined;
         daemonChecks.push({
           address: toDottedAddr(crsAddr),
-          endpoint: crsEntry.endpoint || "",
-          port: 0,
-          peerPort: 0,
-          hostname: "",
-          deploymentId: 0,
+          endpoint: depMatch ? depMatch.endpoint : (crsEntry.endpoint || ""),
+          port: depMatch ? depMatch.port : (crsParsed ? parseInt(crsParsed.port) : 0),
+          peerPort: depMatch ? depMatch.peerPort : 0,
+          hostname: depMatch ? depMatch.hostname : "",
+          deploymentId: depMatch ? depMatch.deploymentId : 0,
           role: isCrs ? "crs" : "cube",
           registeredInCrs: true,
           connectedViaRelay: !!isRelayConnected,
@@ -1075,15 +1094,29 @@ function startPqtiService(): ChildProcess | null {
         return m ? { host: m[1], port: m[2] } : null;
       }
 
+      const crsCoveredPorts = new Set<string>();
       const crsCoveredHostPorts = new Set<string>();
       for (const [, crsEntry] of crsRegistry.entries()) {
         const parsed = parseHostPort(crsEntry.endpoint || "");
-        if (parsed) crsCoveredHostPorts.add(`${parsed.host}:${parsed.port}`);
+        if (parsed) {
+          crsCoveredHostPorts.add(`${parsed.host}:${parsed.port}`);
+          crsCoveredPorts.add(parsed.port);
+        }
       }
       for (const d of daemonChecks) {
         if (d.source === "crs" && d.registeredInCrs) {
           const parsed = parseHostPort(d.endpoint || "");
-          if (parsed) crsCoveredHostPorts.add(`${parsed.host}:${parsed.port}`);
+          if (parsed) {
+            crsCoveredHostPorts.add(`${parsed.host}:${parsed.port}`);
+            crsCoveredPorts.add(parsed.port);
+          }
+        }
+      }
+
+      const crsLiveAddresses = new Set<string>();
+      for (const d of daemonChecks) {
+        if (d.source === "crs" && (d.status === "live" || d.status === "registered")) {
+          crsLiveAddresses.add(d.address);
         }
       }
 
@@ -1092,6 +1125,7 @@ function startPqtiService(): ChildProcess | null {
         if (d.registeredInCrs || d.connectedViaRelay) return false;
         const depParsed = parseHostPort(d.endpoint || "");
         if (depParsed && crsCoveredHostPorts.has(`${depParsed.host}:${depParsed.port}`)) return true;
+        if (depParsed && crsCoveredPorts.has(depParsed.port)) return true;
         return false;
       }
 

@@ -596,6 +596,8 @@ foreach ($cfg in $daemonConfigs) {
     $daemonsArray += @{
         id = $cfg.Id
         port = $cfg.Port
+        peerPort = $cfg.PeerPort
+        appPort = $cfg.AppPort
         address = if ($cfg.Address) { $cfg.Address } else { "" }
         publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }
         endpoint = $cfg.Endpoint
