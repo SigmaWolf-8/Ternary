@@ -50,7 +50,7 @@ $RepoDir       = "C:\PlenumNET"
 $BinaryName    = "inter-cube-daemon.exe"
 $BinaryPath    = Join-Path $RepoDir "target\release\$BinaryName"
 $RepoUrl       = "https://github.com/SigmaWolf-8/Ternary.git"
-$IdentityBase  = Join-Path $env:USERPROFILE ".plenumnet"
+$IdentityBase  = Join-Path $RepoDir "plenumnet-data"
 $LOG_DIR       = Join-Path $IdentityBase "logs"
 
 function Test-Admin {
@@ -341,6 +341,19 @@ Write-Host "---"
 New-Item -ItemType Directory -Force -Path $IdentityBase | Out-Null
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
 
+$oldIdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
+if ((Test-Path $oldIdentityBase) -and ($oldIdentityBase -ne $IdentityBase)) {
+    Write-Host "  Migrating identities from $oldIdentityBase to $IdentityBase..." -ForegroundColor DarkGray
+    for ($m = 1; $m -le $DAEMON_COUNT; $m++) {
+        $oldDir = Join-Path $oldIdentityBase "identity-$m"
+        $newDir = Join-Path $IdentityBase "identity-$m"
+        if ((Test-Path $oldDir) -and -not (Test-Path (Join-Path $newDir "master.key"))) {
+            Copy-Item -Path $oldDir -Destination $newDir -Recurse -Force
+            Write-Host "  [OK] Migrated identity-$m" -ForegroundColor Green
+        }
+    }
+}
+
 $daemonConfigs = @()
 for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     $dir = Join-Path $IdentityBase "identity-$i"
@@ -421,8 +434,6 @@ if (-not (Test-Path $LOG_DIR)) {
     New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null
 }
 
-$svcAccount = Get-ServiceAccountName
-
 foreach ($cfg in $daemonConfigs) {
     $svcName = "PlenumNET-Array3-$($cfg.Id)"
     $logFile = Join-Path $LOG_DIR "array3-node-$($cfg.Id).log"
@@ -431,6 +442,7 @@ foreach ($cfg in $daemonConfigs) {
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) >> "$logFile"
 set CUBE_MODE=crs
 set CUBE_API_PORT=$($cfg.Port)
 set CUBE_PEER_PORT=$($cfg.PeerPort)
@@ -438,11 +450,14 @@ set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
 set LLM_PORT=$($cfg.AppPort)
+cd /d "$RepoDir"
 "$BinaryPath" >> "$logFile" 2>&1
+echo [%date% %time%] Node #$($cfg.Id) exited with code %ERRORLEVEL% >> "$logFile"
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     } else {
         @"
 @echo off
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) >> "$logFile"
 set CUBE_MODE=cube
 set CUBE_API_PORT=$($cfg.Port)
 set CUBE_PEER_PORT=$($cfg.PeerPort)
@@ -451,7 +466,9 @@ set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
 set LLM_PORT=$($cfg.AppPort)
+cd /d "$RepoDir"
 "$BinaryPath" >> "$logFile" 2>&1
+echo [%date% %time%] Node #$($cfg.Id) exited with code %ERRORLEVEL% >> "$logFile"
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     }
 
@@ -474,9 +491,6 @@ set LLM_PORT=$($cfg.AppPort)
             -StartupType Automatic | Out-Null
 
         & sc.exe failure $svcName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
-        & sc.exe config $svcName depend= Tcpip/Afd/Dnscache | Out-Null
-
-        Set-ServiceLogonAccount -ServiceName $svcName -AccountName $svcAccount
 
         Write-Host "  [OK] Node #$($cfg.Id) registered as service '$svcName'" -ForegroundColor Green
     } catch {
