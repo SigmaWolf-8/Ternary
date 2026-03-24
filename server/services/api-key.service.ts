@@ -542,9 +542,10 @@ export const apiKeyService = {
     return rows.map(row => {
       const dec = phaseDecryptFields(row.encryptedFields);
       if (dec) {
-        if (dec.actorId) row.actorId = dec.actorId as string;
-        if (dec.actorEmail) row.actorEmail = dec.actorEmail as string;
-        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
+        if (dec.actorId !== undefined) row.actorId = dec.actorId as string;
+        if (dec.actorEmail !== undefined) row.actorEmail = dec.actorEmail as string;
+        if (dec.details !== undefined) row.details = dec.details as Record<string, unknown> | null;
+        if (dec.ipAddress !== undefined) row.ipAddress = dec.ipAddress as string;
       }
       return row;
     });
@@ -559,9 +560,10 @@ export const apiKeyService = {
     return rows.map(row => {
       const dec = phaseDecryptFields(row.encryptedFields);
       if (dec) {
-        if (dec.actorId) row.actorId = dec.actorId as string;
-        if (dec.actorEmail) row.actorEmail = dec.actorEmail as string;
-        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
+        if (dec.actorId !== undefined) row.actorId = dec.actorId as string;
+        if (dec.actorEmail !== undefined) row.actorEmail = dec.actorEmail as string;
+        if (dec.details !== undefined) row.details = dec.details as Record<string, unknown> | null;
+        if (dec.ipAddress !== undefined) row.ipAddress = dec.ipAddress as string;
       }
       return row;
     });
