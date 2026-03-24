@@ -663,6 +663,13 @@ function DeployerCard() {
   );
 }
 
+interface DisconnectEvent {
+  timestamp: string;
+  reason: string;
+  code: number;
+  eventType: "disconnect" | "reconnect" | "auth_fail" | "error" | "go_away" | "peer_offline";
+}
+
 interface DaemonHealth {
   address: string;
   endpoint: string;
@@ -677,6 +684,7 @@ interface DaemonHealth {
   status: "live" | "registered" | "deployed";
   healthState: "up" | "suspect" | "down";
   isExpected: boolean;
+  disconnectHistory: DisconnectEvent[];
 }
 
 interface ExpectedNodeStatus {
@@ -685,6 +693,7 @@ interface ExpectedNodeStatus {
   lastSeen: string | null;
   offlineDurationMs: number | null;
   connectedViaRelay: boolean;
+  disconnectHistory: DisconnectEvent[];
 }
 
 interface NodeHealthSummary {
@@ -918,7 +927,7 @@ function ClusterReport() {
             size="sm"
             className="h-6 px-2 text-[10px] border-orange-500/30 text-orange-700 dark:text-orange-400 hover:bg-orange-500/10"
             onClick={handleRestart}
-            disabled={restartMutation.isPending || !data?.relay || data.relay.connectedPeers === 0}
+            disabled={restartMutation.isPending || !data?.relay}
             data-testid="button-restart-nodes"
           >
             <RotateCcw className={`w-3 h-3 mr-1 ${restartMutation.isPending ? "animate-spin" : ""}`} />
@@ -1095,6 +1104,55 @@ function ClusterReport() {
           </a>
         </div>
       )}
+
+      {(() => {
+        const allEvents: Array<DisconnectEvent & { address: string }> = [];
+        for (const d of data.daemons) {
+          if (d.disconnectHistory) {
+            for (const evt of d.disconnectHistory) {
+              allEvents.push({ ...evt, address: d.address });
+            }
+          }
+        }
+        allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        const recentEvents = allEvents.slice(0, 20);
+        if (recentEvents.length === 0) return null;
+        const eventTypeColor: Record<string, string> = {
+          disconnect: "text-red-600 dark:text-red-400",
+          reconnect: "text-emerald-600 dark:text-emerald-400",
+          auth_fail: "text-yellow-600 dark:text-yellow-400",
+          error: "text-red-600 dark:text-red-400",
+          go_away: "text-orange-600 dark:text-orange-400",
+          peer_offline: "text-gray-500 dark:text-gray-400",
+        };
+        return (
+          <div className="mt-3" data-testid="disconnect-event-history">
+            <p className="text-xs font-medium mb-2">Event History</p>
+            <div className="rounded-md border bg-muted/20 max-h-40 overflow-y-auto">
+              <table className="w-full text-[10px]">
+                <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                  <tr className="text-muted-foreground">
+                    <th className="text-left px-2 py-1 font-medium">Time</th>
+                    <th className="text-left px-2 py-1 font-medium">Node</th>
+                    <th className="text-left px-2 py-1 font-medium">Event</th>
+                    <th className="text-left px-2 py-1 font-medium">Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentEvents.map((evt, idx) => (
+                    <tr key={`${evt.timestamp}-${idx}`} className="border-t border-muted/30" data-testid={`event-row-${idx}`}>
+                      <td className="px-2 py-1 font-mono text-muted-foreground">{new Date(evt.timestamp).toLocaleTimeString()}</td>
+                      <td className="px-2 py-1 font-mono text-foreground">{evt.address}</td>
+                      <td className={`px-2 py-1 font-medium ${eventTypeColor[evt.eventType] || "text-foreground"}`}>{evt.eventType}</td>
+                      <td className="px-2 py-1 text-muted-foreground truncate max-w-[200px]">{evt.reason || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
         <span>CRS: <strong className="text-foreground font-mono">{data.crsAddress}</strong></span>

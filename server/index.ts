@@ -1427,14 +1427,18 @@ function startPqtiService(): ChildProcess | null {
           authenticated = true;
           nodeAddress = normalAddr;
           const oldWs = relayClients.get(nodeAddress);
+          const isReconnect = !!oldWs;
           if (oldWs && oldWs !== ws && oldWs.readyState === WebSocket.OPEN) {
             oldWs.close(1000, "replaced");
           }
           relayClients.set(nodeAddress, ws);
           relayAddressByWs.set(ws, nodeAddress);
           if (relayClients.size > relayThroughput.peakPeers) relayThroughput.peakPeers = relayClients.size;
-          console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} authenticated and connected`);
-          recordRelayAuditEvent({ eventType: "relay.auth_success", address: nodeAddress, timestamp: new Date().toISOString(), details: { hasTlDsa: !!msg.signature } });
+          console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} ${isReconnect ? "re" : ""}authenticated and connected`);
+          recordRelayAuditEvent({ eventType: "relay.auth_success", address: nodeAddress, timestamp: new Date().toISOString(), details: { hasTlDsa: !!msg.signature, reconnect: isReconnect } });
+          if (isReconnect) {
+            recordRelayAuditEvent({ eventType: "relay.reconnect", address: nodeAddress, timestamp: new Date().toISOString(), details: { replacedExisting: true } });
+          }
           recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: "connected", code: 0, eventType: "reconnect" });
 
           const pending = pendingMessages.get(nodeAddress);
@@ -1459,6 +1463,7 @@ function startPqtiService(): ChildProcess | null {
           return;
         }
         ws.send(JSON.stringify(makeErrorResponse("ERR_NOT_AUTHENTICATED", msg.type)));
+        recordRelayAuditEvent({ eventType: "relay.error", address: "unauthenticated", timestamp: new Date().toISOString(), details: { code: "ERR_NOT_AUTHENTICATED", msgType: msg.type } });
         return;
       }
 
@@ -1507,6 +1512,9 @@ function startPqtiService(): ChildProcess | null {
       }
 
       ws.send(JSON.stringify(makeErrorResponse("ERR_UNKNOWN_MSG_TYPE", msg.type)));
+      if (nodeAddress) {
+        recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { code: "ERR_UNKNOWN_MSG_TYPE", msgType: msg.type } });
+      }
     });
 
     ws.on("close", (code: number, reason: Buffer) => {
@@ -1521,11 +1529,14 @@ function startPqtiService(): ChildProcess | null {
         recordRelayAuditEvent({ eventType: "relay.disconnect", address: nodeAddress, timestamp: new Date().toISOString(), details: { code, reason: reasonStr } });
 
         const peerOfflineMsg = JSON.stringify({ type: "peer-offline", address: toDottedAddr(nodeAddress), ts: Date.now() });
+        let notifiedCount = 0;
         for (const [, peerWs] of relayClients.entries()) {
           if (peerWs.readyState === WebSocket.OPEN) {
             peerWs.send(peerOfflineMsg);
+            notifiedCount++;
           }
         }
+        recordRelayAuditEvent({ eventType: "relay.peer_offline", address: nodeAddress, timestamp: new Date().toISOString(), details: { notifiedPeers: notifiedCount } });
       }
     });
 
