@@ -620,7 +620,19 @@ function startPqtiService(): ChildProcess | null {
       return res.status(400).json({ error: "address query param required" });
     }
     const normalizedAddr = normalizeTernaryAddr(address as string);
-    const entry = crsRegistry.get(normalizedAddr);
+    let entry = crsRegistry.get(normalizedAddr);
+    if (!entry && publicKey) {
+      const existingAddr = publicKeyAddressMap.get(publicKey);
+      if (existingAddr) {
+        entry = crsRegistry.get(existingAddr);
+      }
+      if (!entry) {
+        entry = { publicKey, endpoint: "0.0.0.0:0", lastSeen: Date.now() };
+        crsRegistry.set(normalizedAddr, entry);
+        publicKeyAddressMap.set(publicKey, normalizedAddr);
+        log(`Heartbeat auto-registered ${toDottedAddr(normalizedAddr)} (server restart recovery)`, "crs");
+      }
+    }
     const endpoint = entry?.endpoint || "0.0.0.0:0";
     if (entry) {
       entry.lastSeen = Date.now();
@@ -634,7 +646,7 @@ function startPqtiService(): ChildProcess | null {
     if (entry) {
       return res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr), timestamp: Date.now() });
     }
-    return res.status(404).json({ error: "Address not registered" });
+    return res.status(404).json({ error: "Address not registered — include publicKey param" });
   });
 
   const interCubeProxy = async (req: any, res: any) => {
@@ -1037,6 +1049,23 @@ function startPqtiService(): ChildProcess | null {
       relayThroughput.recentTimestamps.shift();
     }
   }
+
+  setInterval(() => {
+    const peers = Array.from(relayClients.entries());
+    if (peers.length < 2) return;
+    const now = Date.now();
+    for (let i = 0; i < peers.length; i++) {
+      for (let j = 0; j < peers.length; j++) {
+        if (i === j) continue;
+        const [fromAddr] = peers[i];
+        const [toAddr, toWs] = peers[j];
+        if (toWs.readyState === WebSocket.OPEN) {
+          toWs.send(JSON.stringify({ type: "relay", from: fromAddr, msgType: "mesh-heartbeat", payload: JSON.stringify({ ts: now }) }));
+          recordRelayMsg("delivered");
+        }
+      }
+    }
+  }, 45_000);
 
   const wss = new WebSocketServer({ noServer: true });
 

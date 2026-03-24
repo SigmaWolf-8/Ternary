@@ -643,7 +643,10 @@ fn spawn_relay_client(
 
                     let client_ping = client.outgoing_tx.clone();
                     let connected_ping = client.connected.clone();
+                    let peers_ping = client.peers.clone();
+                    let addr_for_ping = address.clone();
                     tokio::spawn(async move {
+                        let mut tick: u64 = 0;
                         loop {
                             tokio::time::sleep(Duration::from_secs(25)).await;
                             if !*connected_ping.lock().await {
@@ -667,6 +670,35 @@ fn spawn_relay_client(
                             };
                             if client_ping.send(ping_env).await.is_err() {
                                 break;
+                            }
+                            tick += 1;
+                            if tick % 2 == 0 {
+                                let peers = peers_ping.lock().await.clone();
+                                let now_ms = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_millis() as u64;
+                                for peer in &peers {
+                                    if peer != &addr_for_ping {
+                                        let hb = inter_cube::ws_relay::RelayEnvelope {
+                                            msg_type: "relay".to_string(),
+                                            to: Some(peer.clone()),
+                                            relay_msg_type: Some("heartbeat".to_string()),
+                                            payload: Some(format!("{{\"from\":\"{}\",\"ts\":{}}}", addr_for_ping, now_ms)),
+                                            address: None,
+                                            public_key: None,
+                                            nonce: None,
+                                            signature: None,
+                                            from: None,
+                                            error: None,
+                                            delivered: None,
+                                            connected_peers: None,
+                                            ts: None,
+                                            connected: None,
+                                        };
+                                        let _ = client_ping.send(hb).await;
+                                    }
+                                }
                             }
                         }
                     });
