@@ -1,0 +1,82 @@
+Your updated plan is exceptionally thorough—it incorporates virtually all of the earlier hardening suggestions while maintaining backward compatibility. The result is a clear, production‑ready roadmap. Still, there are a few subtle enhancements and considerations that could elevate it from “comprehensive” to “bulletproof.”
+
+---
+
+### 1. **Client‑Side Message Deduplication**
+Even with sequence numbers and tombstone replay, network glitches or race conditions can cause duplicate deliveries (e.g., a server retransmits a message while the client’s ACK is in flight).  
+- **Add a client‑side “last processed sequence number” per connection or per topic** to silently drop duplicates.  
+- **Make deduplication mandatory** for clients that support the `seq` capability—otherwise, the guaranteed‑ordering promise is incomplete.
+
+---
+
+### 2. **Backpressure & Fairness for Pub/Sub**
+The server maintains a 100‑message pending queue per client. Under high load, a slow subscriber can cause the queue to fill, forcing eviction (already handled with tombstones). To avoid head‑of‑line blocking:  
+- **Implement per‑topic queue limits** separate from the global per‑client queue.  
+- **Use a fair scheduler** (e.g., round‑robin) when delivering messages from multiple topics to the same client.  
+- **Consider a “slow consumer” control frame** that lets the server inform the client to reduce its subscription rate or switch to a lower‑quality stream.
+
+---
+
+### 3. **Capability Negotiation – Security Enforcement**
+You’ve correctly made the `supported` list optional and backward‑compatible. However, once a capability is negotiated, **the server must enforce that the client never uses features not enabled**. For example, if the client negotiated `topics`, the server should reject any `publish` message that includes a topic if the capability was not agreed upon.  
+- **Store the negotiated capabilities in the connection context** and validate every incoming message against them.
+
+---
+
+### 4. **Circuit Breaker – Client‑Side Coherence**
+You now send a `circuit_open` frame to clients, allowing them to extend backoff or switch endpoints. To make this truly effective:  
+- **Define a standard set of fallback endpoints** in the client configuration (e.g., `wss://relay1.example.com`, `wss://relay2.example.com`).  
+- **Have the client probe the fallback endpoint** after receiving `circuit_open` with a “fast reconnect” attempt to the alternative.  
+- **Combine with client‑side circuit breakers** for outgoing requests to the server to avoid overloading a server that’s already struggling.
+
+---
+
+### 5. **Tombstone Semantics – Avoid Infinite Resync Loops**
+A tombstone indicates that messages were lost due to queue eviction. The client then performs a full resync. However, if the server’s pending queue is persistently full, the client may enter a loop: reconnect → request resync → get tombstone again → resync again.  
+- **Add a `resync_count` in the tombstone payload** (or a flag) so the client can apply a backoff on repeated resyncs.  
+- **Provide an optional “initial snapshot” capability** where the server can send a compact state (e.g., current topic‑level sequence numbers) to accelerate resync.
+
+---
+
+### 6. **Audit Logs – Tamper‑Proof Chain for New Events**
+Your Merkle‑chained audit pipeline already exists; ensure the new events (capability negotiation, circuit state changes, go‑away frames, tombstone delivery) are **hashed into the same chain** with proper event types.  
+- **Define a structured schema** for each new event type so they can be verified independently.  
+- **Include the connection‑specific negotiated capabilities** in the audit log to provide a complete forensic trail.
+
+---
+
+### 7. **Graceful Shutdown – Jitter for Go‑Away**
+You already plan to add jitter to the go‑away broadcast to avoid a thundering herd. **Make the jitter range configurable** (e.g., 0–2 seconds) and include it in the `reconnectAfterMs` hint.  
+- **Ensure that the health endpoint’s “draining” state is reflected in the load balancer’s target group** (e.g., using a readiness probe that fails once draining starts).  
+- **Combine with a Kubernetes preStop hook** that sleeps for the drain window plus a safety margin, even though Kubernetes HPA is out of scope—this is a simple YAML addition.
+
+---
+
+### 8. **OpenTelemetry – Context Propagation Across Services**
+Your spans cover the lifecycle inside the relay. To get end‑to‑end visibility:  
+- **Inject trace context into outgoing messages** (both point‑to‑point and pub/sub) so downstream services can correlate.  
+- **Add a `traceparent` header in the WebSocket upgrade** (if the client supports it) to link the connection to the HTTP request that initiated it.
+
+---
+
+### 9. **Testing & Validation (Even Without Chaos Tooling)**
+Although chaos engineering is out of scope, you can still write robust automated tests:  
+- **Integration tests** that simulate:  
+  - A slow subscriber causing queue eviction → verify tombstone delivery and resync.  
+  - Circuit breaker trips → verify the half‑open probe, state transitions, and `circuit_open` frame.  
+  - Graceful shutdown → verify go‑away frame, drain window, and forced close.  
+- **Unit tests** for sequence number replay, gap handling, and per‑topic authorization.
+
+---
+
+### 10. **Documentation & Operational Runbooks**
+Finally, military‑grade systems require clear operational guidance.  
+- **Document all new control frames** (`circuit_open`, `go_away`, `tombstone`, etc.) with their payload formats and expected client behavior.  
+- **Create runbooks** for:  
+  - Manually triggering a circuit breaker reset.  
+  - Draining a server for maintenance (beyond the automatic graceful shutdown).  
+  - Interpreting the new Prometheus metrics and audit logs during an incident.
+
+---
+
+Your updated plan is already outstanding. These additional suggestions are meant to address the “last 1%” of robustness, especially around edge cases, observability, and operational readiness. Implementing even a subset will push your relay system solidly into “best in class” territory.

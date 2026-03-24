@@ -872,9 +872,6 @@ function startPqtiService(): ChildProcess | null {
       const throughputRef = (globalThis as any).__relayThroughput as typeof relayThroughput | undefined;
       const relayClientsForCount = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
       const pendingRef = (globalThis as any).__pendingMessages as Map<string, any[]> | undefined;
-      const msgPerSec = throughputRef
-        ? +(throughputRef.recentTimestamps.filter(t => t > now - 60_000).length / 60).toFixed(2)
-        : 0;
       let totalPendingMsgs = 0;
       if (pendingRef) {
         for (const q of pendingRef.values()) totalPendingMsgs += q.length;
@@ -887,6 +884,14 @@ function startPqtiService(): ChildProcess | null {
       const avgMsgSize = (throughputRef?.delivered || 0) > 0
         ? Math.round((throughputRef!.bytesRelayed || 0) / throughputRef!.delivered)
         : 0;
+      const recentMsgs = throughputRef
+        ? throughputRef.recentTimestamps.filter(t => t > now - 60_000).length
+        : 0;
+      const recentBytesTotal = throughputRef
+        ? throughputRef.recentBytes.filter(b => b.ts > now - 60_000).reduce((sum, b) => sum + b.bytes, 0)
+        : 0;
+      const msgPerSec60 = +(recentMsgs / 60).toFixed(2);
+      const bytesPerSec60 = +(recentBytesTotal / 60).toFixed(1);
 
       res.json({
         crsAddress: CRS_ADDRESS,
@@ -906,7 +911,8 @@ function startPqtiService(): ChildProcess | null {
           msgsDelivered: throughputRef?.delivered || 0,
           msgsQueued: throughputRef?.queued || 0,
           msgsFailed: throughputRef?.failed || 0,
-          msgPerSec,
+          msgPerSec: msgPerSec60,
+          bytesPerSec: bytesPerSec60,
           bytesRelayed: throughputRef?.bytesRelayed || 0,
           avgMsgSizeBytes: avgMsgSize,
           deliveryRate,
@@ -1046,16 +1052,16 @@ function startPqtiService(): ChildProcess | null {
     queued: 0,
     startedAt: Date.now(),
     recentTimestamps: [] as number[],
+    recentBytes: [] as { ts: number; bytes: number }[],
     bytesRelayed: 0,
     inferenceRequests: 0,
     inferenceResponses: 0,
     meshHeartbeats: 0,
     peakPeers: 0,
-    latencySamples: [] as number[],
   };
   (globalThis as any).__relayThroughput = relayThroughput;
 
-  function recordRelayMsg(outcome: "delivered" | "queued" | "failed") {
+  function recordRelayMsg(outcome: "delivered" | "queued" | "failed", bytes?: number) {
     relayThroughput.sent++;
     if (outcome === "delivered") {
       relayThroughput.delivered++;
@@ -1066,8 +1072,14 @@ function startPqtiService(): ChildProcess | null {
     }
     const now = Date.now();
     relayThroughput.recentTimestamps.push(now);
+    if (bytes && bytes > 0) {
+      relayThroughput.recentBytes.push({ ts: now, bytes });
+    }
     while (relayThroughput.recentTimestamps.length > 0 && relayThroughput.recentTimestamps[0] < now - 60_000) {
       relayThroughput.recentTimestamps.shift();
+    }
+    while (relayThroughput.recentBytes.length > 0 && relayThroughput.recentBytes[0].ts < now - 60_000) {
+      relayThroughput.recentBytes.shift();
     }
   }
 
@@ -1082,10 +1094,11 @@ function startPqtiService(): ChildProcess | null {
         const [toAddr, toWs] = peers[j];
         if (toWs.readyState === WebSocket.OPEN) {
           const envelope = JSON.stringify({ type: "relay", from: fromAddr, msgType: "mesh-heartbeat", payload: JSON.stringify({ ts: now }) });
+          const envBytes = Buffer.byteLength(envelope, "utf-8");
           toWs.send(envelope);
-          relayThroughput.bytesRelayed += Buffer.byteLength(envelope, "utf-8");
+          relayThroughput.bytesRelayed += envBytes;
           relayThroughput.meshHeartbeats++;
-          recordRelayMsg("delivered");
+          recordRelayMsg("delivered", envBytes);
         }
       }
     }
@@ -1281,9 +1294,12 @@ function startPqtiService(): ChildProcess | null {
           const pending = pendingMessages.get(nodeAddress);
           if (pending && pending.length > 0) {
             for (const queued of pending) {
-              ws.send(JSON.stringify({ type: "relay", from: queued.from, msgType: queued.type, payload: queued.payload }));
+              const envelope = JSON.stringify({ type: "relay", from: queued.from, msgType: queued.type, payload: queued.payload });
+              const envBytes = Buffer.byteLength(envelope, "utf-8");
+              ws.send(envelope);
+              relayThroughput.bytesRelayed += envBytes;
+              recordRelayMsg("delivered", envBytes);
             }
-            relayThroughput.delivered += pending.length;
             if (relayThroughput.queued >= pending.length) {
               relayThroughput.queued -= pending.length;
             } else {
@@ -1329,7 +1345,7 @@ function startPqtiService(): ChildProcess | null {
             outcome = "failed";
           }
         }
-        recordRelayMsg(outcome);
+        recordRelayMsg(outcome, wasDelivered ? envelopeBytes : 0);
         ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: wasDelivered }));
         return;
       }

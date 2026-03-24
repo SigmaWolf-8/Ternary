@@ -677,6 +677,7 @@ interface RelayThroughput {
   msgsQueued: number;
   msgsFailed: number;
   msgPerSec: number;
+  bytesPerSec: number;
   bytesRelayed: number;
   avgMsgSizeBytes: number;
   deliveryRate: number;
@@ -857,30 +858,30 @@ function ClusterReport() {
               <span className="text-muted-foreground">Delivery Rate</span>
             </div>
             <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
-              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-throughput">{formatBytes(data.relay.bytesRelayed)}</span>
-              <span className="text-muted-foreground">Throughput</span>
+              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-speed">{formatBytes(data.relay.bytesPerSec)}/s</span>
+              <span className="text-muted-foreground">Live Speed</span>
             </div>
             <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
-              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-sent">{data.relay.msgsSent}</span>
-              <span className="text-muted-foreground">Total Msgs</span>
+              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-msgps">{data.relay.msgPerSec}</span>
+              <span className="text-muted-foreground">Msg/s</span>
             </div>
             <div className={`rounded-md border p-2 ${data.relay.inferenceRequests > 0 ? "bg-violet-500/10 border-violet-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
               <span className={`block text-lg font-bold ${data.relay.inferenceRequests > 0 ? "text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-inference">{data.relay.inferenceRequests}</span>
               <span className="text-muted-foreground">LLM Requests</span>
             </div>
             <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
-              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-avg-size">{formatBytes(data.relay.avgMsgSizeBytes)}</span>
-              <span className="text-muted-foreground">Avg Msg Size</span>
+              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-throughput">{formatBytes(data.relay.bytesRelayed)}</span>
+              <span className="text-muted-foreground">Total Volume</span>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-2 mb-4 text-center text-xs" data-testid="relay-detail-row">
+          <div className="grid grid-cols-5 gap-2 mb-4 text-center text-xs" data-testid="relay-detail-row">
+            <div className="rounded-md border p-1.5 bg-muted/30">
+              <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-sent">{data.relay.msgsSent}</span>
+              <span className="text-muted-foreground text-[10px]">Total Msgs</span>
+            </div>
             <div className="rounded-md border p-1.5 bg-muted/30">
               <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-delivered">{data.relay.msgsDelivered}</span>
               <span className="text-muted-foreground text-[10px]">Delivered</span>
-            </div>
-            <div className="rounded-md border p-1.5 bg-muted/30">
-              <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-queued">{data.relay.msgsQueued}</span>
-              <span className="text-muted-foreground text-[10px]">Queued</span>
             </div>
             <div className="rounded-md border p-1.5 bg-muted/30">
               <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-mesh-hb">{data.relay.meshHeartbeats}</span>
@@ -888,7 +889,11 @@ function ClusterReport() {
             </div>
             <div className="rounded-md border p-1.5 bg-muted/30">
               <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-inference-resp">{data.relay.inferenceResponses}</span>
-              <span className="text-muted-foreground text-[10px]">LLM Responses</span>
+              <span className="text-muted-foreground text-[10px]">LLM Resp</span>
+            </div>
+            <div className="rounded-md border p-1.5 bg-muted/30">
+              <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-avg-size">{formatBytes(data.relay.avgMsgSizeBytes)}</span>
+              <span className="text-muted-foreground text-[10px]">Avg Size</span>
             </div>
           </div>
         </>
