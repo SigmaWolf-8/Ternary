@@ -69,7 +69,7 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CUBE_MODE` | `all` | `crs`, `cube`, `all`, or `keygen` |
-| `CUBE_CRS_URL` | (required for cube) | CRS base URL |
+| `CUBE_CRS_URL` | (required for cube) | CRS base URL — for YODA clusters, this is the LOCAL CRS (Daemon #1), NOT plenumnet.replit.app |
 | `CUBE_API_PORT` | `8080` | Daemon HTTP API port |
 | `API_PORT` | (alias) | Alias for CUBE_API_PORT |
 | `CUBE_ENDPOINT` | `0.0.0.0:51820` | Wire protocol endpoint |
@@ -78,9 +78,24 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 | `CUBE_IDENTITY_DIR` | `~/.plenumnet/identity/` | Master key storage |
 | `CUBE_IDENTITY_PASSPHRASE` | (hostname fallback) | Encryption passphrase |
 
-### Deploying the Daemon
+### Cluster Architecture — Local CRS Model
 
-Deploy (or update) the daemon with a single command in PowerShell:
+For any YODA or LAN deployment, cube setup is independent and self-contained:
+
+- **Daemon #1 (Engine A, port 8081)** starts in `CUBE_MODE=crs` — it IS the local CRS for the cluster
+- **Daemon #2 (Engine B, port 8083)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
+- **Daemon #3 (Engine C, port 8085)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
+
+The remote server (`plenumnet.replit.app`) is a monitoring dashboard and global registry. It receives deployment summaries so the dashboard can display cluster health. It is NOT the operational CRS for any local cluster. All cube registration, heartbeat, and relay happens locally through Daemon #1.
+
+Each new deployment is independent. The deployer may or may not find a previous version of the daemon installed. If an existing version is found:
+1. The deployer checks its version against the CRS reference (`GET /health/crs` → `version` field)
+2. If versions differ, the deployer logs a `NOTE: Version mismatch` warning
+3. The YODA frontend should poll `GET /health/crs` at `plenumnet.replit.app` and compare against the local daemon's `/health` response to detect when a newer version is available — display a blue indicator when an update is ready
+
+### Deploying — Single Daemon
+
+Deploy (or update) a single daemon with a single command in PowerShell:
 
 ```powershell
 irm https://plenumnet.replit.app/api/deploy-daemon | iex
@@ -91,14 +106,39 @@ Or download and double-click the `.bat` installer:
 https://plenumnet.replit.app/api/deploy-daemon.bat
 ```
 
-The deployer automatically:
+### Deploying — YODA 3-Node Cluster (v0.4.0)
+
+Deploy the full 3-daemon YODA cluster:
+
+```powershell
+irm https://plenumnet.replit.app/api/deploy-yoda | iex
+```
+
+Or download and double-click the `.bat` installer:
+```
+https://plenumnet.replit.app/api/deploy-yoda.bat
+```
+
+The YODA deployer automatically:
 1. Clones or pulls the latest source to `C:\PlenumNET`
 2. Stops any running daemon instances
 3. Builds the release binary (`cargo build --release -p inter-cube`)
-4. Creates identity directories and generates keys for Agents A, B, C (if missing)
-5. Prints the startup commands for all 3 daemons
+4. Checks the built version against the CRS reference version
+5. Generates 3 PT26-DSA identities (if missing)
+6. Starts Daemon #1 as the LOCAL CRS (`CUBE_MODE=crs`, port 8081)
+7. Waits for the local CRS to be ready, then starts Daemons #2 and #3 as cube nodes registering with it
+8. Posts a deployment summary to `plenumnet.replit.app` for monitoring
+9. Creates a "Start YODA Daemons" desktop shortcut
 
-If the daemon shows wrong behavior (e.g. ignoring `CUBE_API_PORT`, printing "BLAKE3", showing wrong version), re-run the deployer. Current source version is v0.3.0.
+If the daemon shows wrong behavior (e.g. ignoring `CUBE_API_PORT`, printing "BLAKE3", showing wrong version), re-run the deployer. Current deployer version is v0.4.0.
+
+### Version Checking
+
+The deployer performs a version check at step 4:
+- **Local version**: read from the daemon binary output
+- **CRS reference version**: queried from `GET https://plenumnet.replit.app/health/crs` → `version` field
+- If they differ, a warning is printed but deployment continues
+- The YODA frontend should periodically check `GET /health/crs` at plenumnet.replit.app and compare with the local daemon's version. When a newer version is available, show a blue indicator to prompt the user to re-run the deployer.
 
 ### Daemon Startup (Windows)
 
@@ -107,52 +147,50 @@ Daemon binary: `C:\PlenumNET\target\release\inter-cube-daemon.exe`
 
 Each engine gets its own daemon with its own identity. Separate identities are required because each daemon derives a unique ternary address from its master key (via TL-Sponge-385). Shared keys would produce the same address and collide at CRS.
 
-| Agent | Identity Dir | Engine | Daemon |
-|-------|-------------|--------|--------|
-| A | `$env:USERPROFILE\.plenumnet\identity-a\` | 8080 | 8081 |
-| B | `$env:USERPROFILE\.plenumnet\identity-b\` | 8082 | 8083 |
-| C | `$env:USERPROFILE\.plenumnet\identity-c\` | 8084 | 8085 |
+| Agent | Identity Dir | Engine Port | Daemon Port | CUBE_MODE |
+|-------|-------------|-------------|-------------|-----------|
+| A | `$env:USERPROFILE\.plenumnet\identity-1\` | 8080 | 8081 | `crs` (local CRS) |
+| B | `$env:USERPROFILE\.plenumnet\identity-2\` | 8082 | 8083 | `cube` |
+| C | `$env:USERPROFILE\.plenumnet\identity-3\` | 8084 | 8085 | `cube` |
 
 Generate each identity once with `CUBE_MODE=keygen`:
 ```powershell
 $env:CUBE_MODE="keygen"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-1"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
-# Repeat for identity-b, identity-c
+# Repeat for identity-2, identity-3
 ```
 
 Run each daemon in a separate terminal:
 
-**Daemon A (Engine A on 8080):**
+**Daemon A (Engine A — LOCAL CRS):**
 ```powershell
-$env:CUBE_MODE="cube"
+$env:CUBE_MODE="crs"
 $env:CUBE_API_PORT="8081"
-$env:LLM_PORT="8080"
-$env:CUBE_CRS_URL="https://plenumnet.replit.app"
-$env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
+$env:CUBE_ENDPOINT="<local-ip>:8081"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-1"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
-**Daemon B (Engine B on 8082):**
+**Daemon B (Engine B — registers with local CRS):**
 ```powershell
 $env:CUBE_MODE="cube"
 $env:CUBE_API_PORT="8083"
 $env:LLM_PORT="8082"
-$env:CUBE_CRS_URL="https://plenumnet.replit.app"
+$env:CUBE_CRS_URL="http://localhost:8081"
 $env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-b"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-2"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
-**Daemon C (Engine C on 8084):**
+**Daemon C (Engine C — registers with local CRS):**
 ```powershell
 $env:CUBE_MODE="cube"
 $env:CUBE_API_PORT="8085"
 $env:LLM_PORT="8084"
-$env:CUBE_CRS_URL="https://plenumnet.replit.app"
+$env:CUBE_CRS_URL="http://localhost:8081"
 $env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-c"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-3"
 & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
 ```
 
@@ -160,17 +198,36 @@ $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-c"
 
 ## SECTION 3: RELAY PROTOCOL
 
-### CRS Relay Endpoints (plenumnet.replit.app)
+### Local CRS Endpoints (Daemon #1, localhost:8081)
+
+These are the endpoints served by Daemon #1 when running as the local CRS. All cube registration and routing happens here — NOT at plenumnet.replit.app.
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/salvi/inter-cube/relay/register` | GET | Register node (`?publicKey=...&endpoint=...`) |
+| `/api/salvi/inter-cube/crs/register` | POST | Register a cube node (body: `{publicKey, endpoint}`) |
+| `/api/salvi/inter-cube/crs/heartbeat` | POST | Node heartbeat |
+| `/api/salvi/inter-cube/crs/stats` | GET | CRS statistics |
+| `/api/salvi/inter-cube/crs/lookup/:address` | GET | Look up a registered node |
+| `/api/salvi/inter-cube/crs/neighbors/:address` | GET | Geometric neighbors |
+| `/api/salvi/inter-cube/crs/deregister` | POST | Remove a node |
+| `/health` | GET | CRS daemon health (includes `version` and `address` fields) |
+
+### Remote CRS Daemon Registry (plenumnet.replit.app — monitoring only)
+
+These endpoints are for the remote dashboard. They are NOT used for local cube operations.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/salvi/inter-cube/relay/register` | GET | Register node via relay (`?publicKey=...&endpoint=...`) — uses TL-Sponge address derivation when native CRS is offline |
 | `/api/salvi/inter-cube/relay/heartbeat` | GET | Refresh registration (`?address=...&publicKey=...`) |
 | `/api/salvi/inter-cube/relay/status` | GET | Connected nodes + pending queues |
+| `/api/salvi/inter-cube/relay/deployment` | POST | Post deployment summary (used by deployer at step 8) |
+| `/api/salvi/inter-cube/relay/deployments` | GET | Query deployment records (`?hostname=...` optional) |
+| `/api/salvi/inter-cube/relay/cluster-health` | GET | Cluster health with per-daemon status (live/registered/deployed) |
 | `/api/salvi/inter-cube/relay/purge-stale` | GET/POST | Purge stale registrations (`?maxAge=300000`) |
-| `/health/crs` | GET | CRS daemon health |
+| `/health/crs` | GET | CRS reference health — includes `version` field for version checking |
 
-### WebSocket Relay
+### WebSocket Relay (remote — for cross-cluster communication)
 
 **Endpoint:** `wss://plenumnet.replit.app/ws/relay`
 
@@ -206,8 +263,8 @@ Offline queue: up to 100 messages per destination, delivered on reconnect.
 ### Reconnection Protocol
 
 On every reconnect (including after CRS restart):
-1. Re-register via HTTP GET (CRS clears in-memory registry on restart)
-2. Open new WebSocket
+1. Re-register via HTTP (local CRS clears in-memory registry on restart)
+2. Open new WebSocket (if using remote relay for cross-cluster)
 3. Re-authenticate with the address returned by registration
 
 Backoff: 2s → 4s → 8s → ... → 60s cap.
@@ -731,7 +788,9 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 | PlenumLAN | A local Inter-Cube network (any topology — the network management layer built on Replit/Rust) |
 | YODA | The frontend app at yoda.replit.app |
 | Cube daemon | The Rust binary on the laptop |
-| CRS | The authority at plenumnet.replit.app |
+| Local CRS | Daemon #1 in any YODA/LAN cluster — the operational CRS for cube registration and routing |
+| Remote CRS | The monitoring dashboard at plenumnet.replit.app — receives deployment summaries, NOT the operational CRS |
+| CRS Daemon Registry | The deployment tracking API at plenumnet.replit.app (`/api/salvi/inter-cube/relay/deployments`) |
 | HPTP | High-Precision Timing Protocol (femtosecond) |
 | TSA | Time-Stamping Authority (RFC 3161) |
 | HCS | Hedera Consensus Service |

@@ -582,19 +582,21 @@ function DeployerCard() {
           <motion.div key="yoda" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-yoda">
             <div className="flex items-center gap-2 mb-2">
               <p className="text-sm font-medium" data-testid="text-yoda-deploy-title">YODA 3-Node Deployment</p>
-              <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">v0.3.0</Badge>
+              <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">v0.4.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Deploys a 3-daemon cluster for YODA. Builds from source, generates 3 PT26-DSA
-              identities, registers all with PlenumNET CRS, and posts a deployment summary
-              to the API. Creates a desktop launcher to start/stop the cluster.
+              Deploys a local 3-daemon cluster for YODA. Daemon #1 (Engine A) starts as the
+              local CRS; Daemons #2 and #3 register with it on the LAN. Builds from source,
+              generates 3 PT26-DSA identities, checks version alignment with the CRS reference,
+              and posts a deployment summary to the remote registry for monitoring.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="yoda-deploy-instructions">
               <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                 <li>Click the button below to download the installer</li>
                 <li>Double-click the downloaded file to run it</li>
-                <li>The installer handles prerequisites, daemon build, 3 identity generations, CRS registration, and networking</li>
+                <li>Daemon #1 starts as the local CRS — Daemons #2 and #3 register with it automatically</li>
+                <li>Version is checked against the CRS reference — mismatches are flagged</li>
                 <li>When complete, a "Start YODA Daemons" shortcut appears on your Desktop</li>
               </ol>
             </div>
