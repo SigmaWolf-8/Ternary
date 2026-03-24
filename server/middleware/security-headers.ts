@@ -34,7 +34,7 @@ export const securityHeaders = helmet({
       upgradeInsecureRequests: [],
     },
   },
-  crossOriginEmbedderPolicy: isDev ? false : { policy: "credentialless" as any },
+  crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: isDev ? false : { policy: "same-origin" },
   crossOriginResourcePolicy: { policy: "cross-origin" },
   xContentTypeOptions: true,
