@@ -39,6 +39,7 @@ import { spawn, type ChildProcess } from "child_process";
 import { existsSync } from "fs";
 import { WebSocketServer, WebSocket } from "ws";
 import * as path from "path";
+import { spongeHashTrits } from "./crypto/sponge-hash";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
 import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
@@ -534,6 +535,17 @@ function startPqtiService(): ChildProcess | null {
     return `${flat.slice(0, 3)}.${flat.slice(3, 6)}.${flat.slice(6, 9)}.${flat.slice(9, 12)}.${flat.slice(12, 13)}`;
   }
 
+  function deriveAddressFromPublicKey(publicKeyHex: string): string {
+    const pkBytes = Buffer.from(publicKeyHex, "hex");
+    const hashTrits = spongeHashTrits(pkBytes);
+    const addrTrits: string[] = [];
+    for (let i = 0; i < DIMENSIONS; i++) {
+      const t = hashTrits[i];
+      addrTrits.push(t === -1 ? "2" : t === 0 ? "0" : "1");
+    }
+    return addrTrits.join("");
+  }
+
   async function tryCrsDaemon(url: string, opts: RequestInit): Promise<globalThis.Response | null> {
     try {
       const resp = await fetch(url, opts);
@@ -583,6 +595,14 @@ function startPqtiService(): ChildProcess | null {
       crsRegistry.set(priorAddr, { publicKey, endpoint, lastSeen: Date.now() });
       storage.upsertCrsRelayNode(publicKey, priorAddr, endpoint).catch(() => {});
       return res.json({ address: priorAddr, addressDotted: toDottedAddr(priorAddr), endpoint, source: "persisted" });
+    }
+    if (publicKey.length >= 16) {
+      const derivedAddr = deriveAddressFromPublicKey(publicKey);
+      crsRegistry.set(derivedAddr, { publicKey, endpoint, lastSeen: Date.now() });
+      publicKeyAddressMap.set(publicKey, derivedAddr);
+      storage.upsertCrsRelayNode(publicKey, derivedAddr, endpoint).catch(() => {});
+      log(`CRS relay-derived address for ${publicKey.substring(0, 16)}... → ${toDottedAddr(derivedAddr)}`, "crs");
+      return res.json({ address: derivedAddr, addressDotted: toDottedAddr(derivedAddr), endpoint, source: "relay-derived" });
     }
     return res.status(503).json({ error: "CRS daemon unavailable and no prior registration found for this node" });
   });

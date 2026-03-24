@@ -276,7 +276,7 @@ try {
 
     try {
         $null = Invoke-RestMethod -Uri "$CRS_URL/api/salvi/inter-cube/relay/deployment" -Method Post -Body $deploymentPayload -ContentType "application/json" -TimeoutSec 15 -ErrorAction Stop
-        Write-Host "  [OK] Deployment recorded with CRS" -ForegroundColor Green
+        Write-Host "  [OK] Deployment recorded with CRS Daemon Registry" -ForegroundColor Green
         Write-Host "       Query: $CRS_URL/api/salvi/inter-cube/relay/deployments?hostname=$hostname" -ForegroundColor DarkGray
     } catch {
         Write-Host "  WARN: Could not post deployment record -- $_" -ForegroundColor Yellow

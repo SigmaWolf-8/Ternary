@@ -625,7 +625,7 @@ function DeployerCard() {
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
               <span>CRS: <strong className="text-foreground font-medium">plenumnet.replit.app</strong></span>
               <span>3 PT26-DSA identities</span>
-              <span>API: <strong className="text-foreground font-medium">/api/salvi/inter-cube/relay/deployments</strong></span>
+              <span>CRS Daemon Registry: <strong className="text-foreground font-medium">/api/salvi/inter-cube/relay/deployments</strong></span>
             </div>
           </motion.div>
         )}

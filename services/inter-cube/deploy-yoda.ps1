@@ -371,8 +371,8 @@ $deploymentPayload = @{
 
 try {
     $notifyCrs = Invoke-RestMethod -Uri "$CRS_URL/api/salvi/inter-cube/relay/deployment" -Method Post -Body $deploymentPayload -ContentType "application/json" -TimeoutSec 15 -ErrorAction Stop
-    Write-Host "  [OK] Deployment summary posted to CRS API" -ForegroundColor Green
-    Write-Host "       Query at: $CRS_URL/api/salvi/inter-cube/relay/deployments" -ForegroundColor DarkGray
+    Write-Host "  [OK] Deployment summary posted to CRS Daemon Registry" -ForegroundColor Green
+    Write-Host "       Query: $CRS_URL/api/salvi/inter-cube/relay/deployments" -ForegroundColor DarkGray
 } catch {
     Write-Host "  WARN: Could not post deployment summary -- $_" -ForegroundColor Yellow
 }
@@ -441,7 +441,7 @@ foreach ($cfg in $daemonConfigs) {
 }
 Write-Host ""
 Write-Host "  CRS          : $CRS_URL" -ForegroundColor White
-Write-Host "  Deployment API: $CRS_URL/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
+Write-Host "  CRS Daemon Registry: $CRS_URL/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
 Write-Host "  Launcher     : $startYodaPath" -ForegroundColor White
 Write-Host "  Logs         : $LOG_DIR" -ForegroundColor White
 Write-Host ""
