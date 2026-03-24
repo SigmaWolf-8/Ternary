@@ -179,8 +179,10 @@ async fn run_crs_mode() {
 
     let addr_str: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     if let Some(rurl) = relay_url(None) {
-        println!("  Relay:         {} (WebSocket)", rurl);
-        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone());
+        println!("  Relay:         {} (WebSocket, TL-DSA-87 challenge-response)", rurl);
+        let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
+        let tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
+        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex);
     } else {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
     }
@@ -579,7 +581,13 @@ async fn run_cube_mode() {
         .expect("Server error");
 }
 
-fn spawn_relay_client(relay_url_str: String, address: String, public_key_hex: String) {
+fn spawn_relay_client(
+    relay_url_str: String,
+    address: String,
+    public_key_hex: String,
+    tl_dsa_sk: Vec<u8>,
+    tl_dsa_pk_hex: String,
+) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
     let api_port_val = api_port();
@@ -602,10 +610,11 @@ fn spawn_relay_client(relay_url_str: String, address: String, public_key_hex: St
                 .replace("/ws/relay", "")
                 .to_string();
             let reg_url = format!(
-                "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint={}",
+                "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint={}&tlDsaPk={}",
                 http_base,
                 &public_key_hex,
-                &endpoint_str
+                &endpoint_str,
+                &tl_dsa_pk_hex,
             );
             match reqwest::get(&reg_url).await {
                 Ok(resp) if resp.status().is_success() => {
@@ -618,10 +627,11 @@ fn spawn_relay_client(relay_url_str: String, address: String, public_key_hex: St
                     println!("[ws-relay] Relay pre-registration failed: {} — will retry", e);
                 }
             }
-            match WsRelayClient::connect(
+            match WsRelayClient::connect_signed(
                 &relay_url_str,
                 &address,
                 &public_key_hex,
+                Some(&tl_dsa_sk),
             )
             .await
             {

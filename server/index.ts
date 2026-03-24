@@ -14,6 +14,8 @@
  * See LICENSE in the repository root for full terms.
  */
 
+import crypto from "crypto";
+
 process.on("SIGHUP", () => {});
 
 const _originalProcessExit = process.exit.bind(process);
@@ -507,7 +509,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   const DIMENSIONS = 13;
-  const crsRegistry = new Map<string, { publicKey: string; endpoint: string; lastSeen: number }>();
+  const crsRegistry = new Map<string, { publicKey: string; endpoint: string; lastSeen: number; tlDsaPk?: string }>();
   const publicKeyAddressMap = new Map<string, string>();
 
   (async () => {
@@ -556,7 +558,7 @@ function startPqtiService(): ChildProcess | null {
   }
 
   app.get("/api/salvi/inter-cube/relay/register", async (req, res) => {
-    const { publicKey, endpoint } = req.query as { publicKey?: string; endpoint?: string };
+    const { publicKey, endpoint, tlDsaPk } = req.query as { publicKey?: string; endpoint?: string; tlDsaPk?: string };
     if (!publicKey || !endpoint) {
       return res.status(400).json({ error: "publicKey and endpoint query params required" });
     }
@@ -571,10 +573,10 @@ function startPqtiService(): ChildProcess | null {
         const data = JSON.parse(body);
         if (data.address) {
           const addr = normalizeTernaryAddr(data.address);
-          crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now() });
+          crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
           publicKeyAddressMap.set(publicKey, addr);
           storage.upsertCrsRelayNode(publicKey, addr, endpoint).catch(() => {});
-          log(`CRS registered ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)}`, "crs");
+          log(`CRS registered ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)}${tlDsaPk ? ' (TL-DSA-87 key attached)' : ''}`, "crs");
         }
       } catch {}
       return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
@@ -588,17 +590,18 @@ function startPqtiService(): ChildProcess | null {
     if (activeAddr) {
       crsRegistry.get(activeAddr)!.lastSeen = Date.now();
       crsRegistry.get(activeAddr)!.endpoint = endpoint;
+      if (tlDsaPk) crsRegistry.get(activeAddr)!.tlDsaPk = tlDsaPk;
       storage.upsertCrsRelayNode(publicKey, activeAddr, endpoint).catch(() => {});
       return res.json({ address: activeAddr, addressDotted: toDottedAddr(activeAddr), endpoint, source: "persisted" });
     }
     if (priorAddr) {
-      crsRegistry.set(priorAddr, { publicKey, endpoint, lastSeen: Date.now() });
+      crsRegistry.set(priorAddr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
       storage.upsertCrsRelayNode(publicKey, priorAddr, endpoint).catch(() => {});
       return res.json({ address: priorAddr, addressDotted: toDottedAddr(priorAddr), endpoint, source: "persisted" });
     }
     if (publicKey.length >= 16) {
       const derivedAddr = deriveAddressFromPublicKey(publicKey);
-      crsRegistry.set(derivedAddr, { publicKey, endpoint, lastSeen: Date.now() });
+      crsRegistry.set(derivedAddr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
       publicKeyAddressMap.set(publicKey, derivedAddr);
       storage.upsertCrsRelayNode(publicKey, derivedAddr, endpoint).catch(() => {});
       log(`CRS relay-derived address for ${publicKey.substring(0, 16)}... → ${toDottedAddr(derivedAddr)}`, "crs");
@@ -669,7 +672,7 @@ function startPqtiService(): ChildProcess | null {
     if (relayClientsRef) {
       const entries: [string, any][] = Array.from(relayClientsRef.entries());
       const nodes = entries.map(([addr, ws]) => ({
-        address: addr,
+        address: toDottedAddr(addr),
         addressDotted: toDottedAddr(addr),
         connected: ws.readyState === 1,
         endpoint: crsReg.get(addr)?.endpoint || null,
@@ -721,7 +724,7 @@ function startPqtiService(): ChildProcess | null {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
 
-  const CRS_ADDRESS = "1111111111111";
+  const CRS_ADDRESS = "111.111.111.111.1";
   const CRS_VERSION = "0.3.0";
 
   app.post("/api/salvi/inter-cube/relay/deployment", async (req, res) => {
@@ -802,7 +805,7 @@ function startPqtiService(): ChildProcess | null {
 
           const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
           daemonChecks.push({
-            address: addr,
+            address: toDottedAddr(addr),
             endpoint: d.endpoint || "",
             port: d.port || 0,
             hostname: record.hostname || "",
@@ -1037,9 +1040,33 @@ function startPqtiService(): ChildProcess | null {
     return false;
   }
 
+  async function verifyChallengeSignature(publicKeyHex: string, address: string, nonce: string, signatureHex: string): Promise<boolean> {
+    const entry = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKeyHex);
+    const tlDsaPk = entry?.[1]?.tlDsaPk;
+    if (!tlDsaPk) {
+      log(`Challenge verification failed: no TL-DSA-87 public key for ${publicKeyHex.substring(0, 16)}...`, "crs");
+      return false;
+    }
+    try {
+      const resp = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/verify-challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address }),
+      });
+      if (resp.ok) {
+        const data = await resp.json() as any;
+        return data.valid === true;
+      }
+    } catch {}
+    return false;
+  }
+
   wss.on("connection", (ws: WebSocket) => {
     let authenticated = false;
     let nodeAddress = "";
+    const challengeNonce = crypto.randomBytes(32).toString("hex");
+
+    ws.send(JSON.stringify({ type: "challenge", nonce: challengeNonce }));
 
     ws.on("message", async (data: Buffer) => {
       let msg: any;
@@ -1054,37 +1081,58 @@ function startPqtiService(): ChildProcess | null {
         if (msg.type === "auth" && msg.address && msg.publicKey) {
           const normalAddr = normalizeTernaryAddr(msg.address);
           const verified = await verifyNodeRegistration(normalAddr, msg.publicKey);
-          if (verified) {
-            authenticated = true;
-            nodeAddress = normalAddr;
-            const oldWs = relayClients.get(nodeAddress);
-            if (oldWs && oldWs !== ws && oldWs.readyState === WebSocket.OPEN) {
-              oldWs.close(1000, "replaced");
-            }
-            relayClients.set(nodeAddress, ws);
-            relayAddressByWs.set(ws, nodeAddress);
-            console.log(`[ws-relay] Node ${nodeAddress} authenticated and connected`);
-
-            const pending = pendingMessages.get(nodeAddress);
-            if (pending && pending.length > 0) {
-              for (const queued of pending) {
-                ws.send(JSON.stringify({ type: "relay", from: queued.from, msgType: queued.type, payload: queued.payload }));
-              }
-              relayThroughput.delivered += pending.length;
-              if (relayThroughput.queued >= pending.length) {
-                relayThroughput.queued -= pending.length;
-              } else {
-                relayThroughput.queued = 0;
-              }
-              console.log(`[ws-relay] Delivered ${pending.length} queued messages to ${nodeAddress}`);
-              pendingMessages.delete(nodeAddress);
-            }
-
-            ws.send(JSON.stringify({ type: "auth_ok", address: nodeAddress, connectedPeers: Array.from(relayClients.keys()).filter(a => a !== nodeAddress) }));
-          } else {
+          if (!verified) {
             ws.send(JSON.stringify({ type: "auth_fail", error: "address not registered or publicKey mismatch — register with CRS first" }));
             ws.close(1008, "auth failed");
+            return;
           }
+
+          if (msg.nonce === challengeNonce && msg.signature) {
+            const sigValid = await verifyChallengeSignature(msg.publicKey, normalAddr, challengeNonce, msg.signature);
+            if (!sigValid) {
+              log(`Challenge signature INVALID for ${toDottedAddr(normalAddr)} — possible impersonation`, "crs");
+              ws.send(JSON.stringify({ type: "auth_fail", error: "challenge signature verification failed — private key proof required" }));
+              ws.close(1008, "signature invalid");
+              return;
+            }
+            log(`Challenge signature VERIFIED (TL-DSA-87) for ${toDottedAddr(normalAddr)}`, "crs");
+          } else if (!msg.signature) {
+            const entry = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === msg.publicKey);
+            if (entry?.[1]?.tlDsaPk) {
+              log(`Node ${toDottedAddr(normalAddr)} has TL-DSA-87 key registered but sent no signature — rejecting`, "crs");
+              ws.send(JSON.stringify({ type: "auth_fail", error: "challenge signature required — upgrade client to v0.3.0+" }));
+              ws.close(1008, "signature required");
+              return;
+            }
+            log(`Node ${toDottedAddr(normalAddr)} connected without signature (no TL-DSA key registered — legacy client)`, "crs");
+          }
+
+          authenticated = true;
+          nodeAddress = normalAddr;
+          const oldWs = relayClients.get(nodeAddress);
+          if (oldWs && oldWs !== ws && oldWs.readyState === WebSocket.OPEN) {
+            oldWs.close(1000, "replaced");
+          }
+          relayClients.set(nodeAddress, ws);
+          relayAddressByWs.set(ws, nodeAddress);
+          console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} authenticated and connected`);
+
+          const pending = pendingMessages.get(nodeAddress);
+          if (pending && pending.length > 0) {
+            for (const queued of pending) {
+              ws.send(JSON.stringify({ type: "relay", from: queued.from, msgType: queued.type, payload: queued.payload }));
+            }
+            relayThroughput.delivered += pending.length;
+            if (relayThroughput.queued >= pending.length) {
+              relayThroughput.queued -= pending.length;
+            } else {
+              relayThroughput.queued = 0;
+            }
+            console.log(`[ws-relay] Delivered ${pending.length} queued messages to ${toDottedAddr(nodeAddress)}`);
+            pendingMessages.delete(nodeAddress);
+          }
+
+          ws.send(JSON.stringify({ type: "auth_ok", address: nodeAddress, connectedPeers: Array.from(relayClients.keys()).filter(a => a !== nodeAddress) }));
           return;
         }
         ws.send(JSON.stringify({ error: "must authenticate first: {type:'auth', address:'...', publicKey:'...'}" }));

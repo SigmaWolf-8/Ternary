@@ -571,13 +571,80 @@ pub async fn address_validate(
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// PT26-DSA CHALLENGE VERIFICATION
+// ═══════════════════════════════════════════════════════════════════════
+
+#[derive(Deserialize)]
+struct VerifyChallengePayload {
+    #[serde(rename = "publicKey")]
+    public_key: String,
+    nonce: String,
+    signature: String,
+    address: Option<String>,
+}
+
+async fn verify_challenge(
+    Json(payload): Json<VerifyChallengePayload>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pk_bytes: Vec<u8> = match (0..payload.public_key.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&payload.public_key[i..i + 2], 16))
+        .collect::<Result<Vec<u8>, _>>()
+    {
+        Ok(b) => b,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "valid": false, "error": "invalid publicKey hex" })),
+            );
+        }
+    };
+
+    let sig_bytes: Vec<u8> = match (0..payload.signature.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&payload.signature[i..i + 2], 16))
+        .collect::<Result<Vec<u8>, _>>()
+    {
+        Ok(b) => b,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "valid": false, "error": "invalid signature hex" })),
+            );
+        }
+    };
+
+    if pk_bytes.len() != 64 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "valid": false, "error": "TL-DSA-87 public key must be 64 bytes" })),
+        );
+    }
+
+    let addr_str = payload.address.as_deref().unwrap_or("");
+    let challenge_payload = format!("{}||{}||{}", payload.nonce, addr_str, payload.public_key);
+
+    let valid = ternary_math::tl_dsa::verify(
+        &pk_bytes,
+        challenge_payload.as_bytes(),
+        &sig_bytes,
+        ternary_math::tl_dsa::TlDsaVariant::TlDsa87,
+    );
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "valid": valid })),
+    )
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // ROUTER BUILDERS
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Build the full CRS-mode router (11 routes).
+/// Build the full CRS-mode router (13 routes).
 ///
 /// Includes all CRS registration/heartbeat endpoints plus
-/// GLB, CON, FTS, topology, and address validation.
+/// GLB, CON, FTS, topology, address validation, and challenge verification.
 pub fn crs_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(health_check))
@@ -585,6 +652,7 @@ pub fn crs_router(state: Arc<AppState>) -> Router {
         .route("/api/salvi/inter-cube/crs/register", post(crs_register))
         .route("/api/salvi/inter-cube/crs/update-key", post(crs_update_key))
         .route("/api/salvi/inter-cube/crs/heartbeat", post(crs_heartbeat))
+        .route("/api/salvi/inter-cube/crs/verify-challenge", post(verify_challenge))
         .route("/api/salvi/inter-cube/glb/forward", post(glb_forward))
         .route("/api/salvi/inter-cube/glb/stats", get(glb_stats))
         .route("/api/salvi/inter-cube/con/stats", get(con_stats))
@@ -624,7 +692,7 @@ pub fn cube_router(state: Arc<AppState>) -> Router {
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Number of routes in CRS mode.
-pub const CRS_ROUTE_COUNT: usize = 12;
+pub const CRS_ROUTE_COUNT: usize = 13;
 
 /// Number of routes in cube mode.
 pub const CUBE_ROUTE_COUNT: usize = 9;

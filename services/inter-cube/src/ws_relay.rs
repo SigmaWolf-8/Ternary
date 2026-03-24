@@ -21,6 +21,10 @@ pub struct RelayEnvelope {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
@@ -57,6 +61,15 @@ impl WsRelayClient {
         address: &str,
         public_key: &str,
     ) -> Result<(Self, IncomingRx), String> {
+        Self::connect_signed(crs_url, address, public_key, None).await
+    }
+
+    pub async fn connect_signed(
+        crs_url: &str,
+        address: &str,
+        public_key: &str,
+        tl_dsa_secret_key: Option<&[u8]>,
+    ) -> Result<(Self, IncomingRx), String> {
         let ws_url = crs_url
             .replace("https://", "wss://")
             .replace("http://", "ws://");
@@ -70,15 +83,59 @@ impl WsRelayClient {
             .await
             .map_err(|e| format!("WebSocket connect failed: {}", e))?;
 
-        println!("[ws-relay] WebSocket connected, authenticating...");
+        println!("[ws-relay] WebSocket connected, authenticating (challenge-response)...");
 
         let (mut write, mut read) = ws_stream.split();
 
-        let auth_msg = serde_json::json!({
-            "type": "auth",
-            "address": address,
-            "publicKey": public_key,
-        });
+        let challenge_response = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            read.next(),
+        )
+        .await
+        .map_err(|_| "Challenge timeout — server did not send nonce".to_string())?
+        .ok_or("Connection closed before challenge")?
+        .map_err(|e| format!("Read error: {}", e))?;
+
+        let challenge_text = challenge_response
+            .to_text()
+            .map_err(|e| format!("Non-text challenge: {}", e))?;
+        let challenge_env: RelayEnvelope =
+            serde_json::from_str(challenge_text).map_err(|e| format!("Parse error: {}", e))?;
+
+        if challenge_env.msg_type != "challenge" {
+            return Err(format!("Expected challenge, got: {}", challenge_env.msg_type));
+        }
+
+        let nonce = challenge_env.nonce.ok_or("Challenge missing nonce field")?;
+        println!("[ws-relay] Received challenge nonce ({}...)", &nonce[..std::cmp::min(16, nonce.len())]);
+
+        let challenge_payload = format!("{}||{}||{}", nonce, address, public_key);
+
+        let auth_msg = if let Some(sk) = tl_dsa_secret_key {
+            let sig_bytes = ternary_math::tl_dsa::sign(
+                sk,
+                challenge_payload.as_bytes(),
+                ternary_math::tl_dsa::TlDsaVariant::TlDsa87,
+            );
+            let sig_hex: String = sig_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+            println!("[ws-relay] Challenge signed with TL-DSA-87 ({} bytes)", sig_bytes.len());
+            serde_json::json!({
+                "type": "auth",
+                "address": address,
+                "publicKey": public_key,
+                "nonce": nonce,
+                "signature": sig_hex,
+            })
+        } else {
+            println!("[ws-relay] WARNING: No secret key — sending unsigned auth (legacy mode)");
+            serde_json::json!({
+                "type": "auth",
+                "address": address,
+                "publicKey": public_key,
+                "nonce": nonce,
+            })
+        };
+
         write
             .send(Message::Text(auth_msg.to_string()))
             .await
