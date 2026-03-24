@@ -736,15 +736,13 @@ function startPqtiService(): ChildProcess | null {
       if (now - entry.lastSeen > maxAgeMs) {
         const isConnectedViaWs = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
         if (!isConnectedViaWs && !isExpectedNode(addr)) {
-          const isCanonicalAddr = publicKeyAddressMap.get(entry.publicKey) === addr;
-          if (isCanonicalAddr) continue;
           crsRegistry.delete(addr);
           purgedAddrs.push(addr);
         }
       }
     }
     if (purgedAddrs.length > 0) {
-      log(`CRS purged ${purgedAddrs.length} stale ghost registrations (maxAge=${maxAgeMs}ms)`, "crs");
+      log(`CRS purged ${purgedAddrs.length} stale registrations (maxAge=${maxAgeMs}ms)`, "crs");
       storage.deleteCrsRelayNodesByAddresses(purgedAddrs).catch(() => {});
     }
     return { purged: purgedAddrs.length, remaining: crsRegistry.size, purgedAddresses: purgedAddrs };
