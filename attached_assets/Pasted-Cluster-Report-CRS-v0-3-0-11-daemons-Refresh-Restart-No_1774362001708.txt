@@ -1,0 +1,187 @@
+Cluster Report
+
+CRS v0.3.0
+11 daemons
+Refresh
+Restart Nodes
+Installer
+3
+Live
+6
+Registered
+2
+Deployed
+90.8%
+Delivery Rate
+37 B/s
+Data Rate
+0.33
+Msg/s
+~8 ms
+Relay Hop
+6
+LLM Requests
+36 KB
+Total Volume
+Data Rate and Msg/s are averaged over the last 60 seconds. Relay Hop is per-message transit time (~8ms/hop).
+
+359
+Total Msgs
+326
+Delivered
+344
+Mesh HBs
+2
+LLM Resp
+112 B
+Avg Size
+3
+/
+4
+peers (now/peak)
+3 queues
+30 pending msgs
+Uptime: 24m
+SSLAPTOPPMHU6JD — Node #1
+2s ago
+live
+up
+Address: 111.111.111.111.1
+Endpoint: 10.0.0.42:8081
+Port: 8081
+Role: CRS
+Registered: yes
+Relay: yes
+SSLAPTOPPMHU6JD — Node #2
+—
+deployed
+down
+Address: 211.111.111.111.1
+Endpoint: 10.0.0.42:8083
+Port: 8083
+Role: Cube
+Registered: no
+Relay: no
+SSLAPTOPPMHU6JD — Node #3
+—
+deployed
+down
+Address: 311.111.111.111.1
+Endpoint: 10.0.0.42:8085
+Port: 8085
+Role: Cube
+Registered: no
+Relay: no
+CRS-Discovered — Node #4
+CRS
+8s ago
+live
+up
+Address: 121.111.111.111.1
+Endpoint: 0.0.0.0:8083
+Port: 0
+Role: Cube
+Registered: yes
+Relay: yes
+CRS-Discovered — Node #5
+CRS
+15s ago
+live
+up
+Address: 221.111.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: yes
+CRS-Discovered — Node #6
+CRS
+9m ago
+registered
+down
+Address: 312.111.111.111.1
+Endpoint: 0.0.0.0:8081
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #7
+CRS
+9m ago
+registered
+down
+Address: 122.111.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #8
+CRS
+9m ago
+registered
+down
+Address: 222.111.111.111.1
+Endpoint: 0.0.0.0:8083
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #9
+CRS
+4m ago
+registered
+suspect
+Address: 322.111.111.111.1
+Endpoint: 0.0.0.0:8081
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #10
+CRS
+4m ago
+registered
+suspect
+Address: 132.111.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+CRS-Discovered — Node #11
+CRS
+3m ago
+registered
+suspect
+Address: 232.111.111.111.1
+Endpoint: 0.0.0.0:8083
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+Event History
+
+Time	Node	Event	Detail
+8:15:55 a.m.	121.111.111.111.1	reconnect	connected
+8:15:49 a.m.	111.111.111.111.1	peer_offline	peer 121.111.111.111.1 went offline
+8:15:49 a.m.	121.111.111.111.1	disconnect	none
+8:15:49 a.m.	221.111.111.111.1	peer_offline	peer 121.111.111.111.1 went offline
+8:15:46 a.m.	221.111.111.111.1	reconnect	connected
+8:15:40 a.m.	111.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+8:15:40 a.m.	121.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+8:15:40 a.m.	221.111.111.111.1	disconnect	none
+8:15:36 a.m.	111.111.111.111.1	reconnect	connected
+8:15:30 a.m.	121.111.111.111.1	peer_offline	peer 111.111.111.111.1 went offline
+8:15:30 a.m.	221.111.111.111.1	peer_offline	peer 111.111.111.111.1 went offline
+8:15:30 a.m.	111.111.111.111.1	disconnect	none
+8:10:48 a.m.	121.111.111.111.1	reconnect	connected
+8:10:43 a.m.	111.111.111.111.1	peer_offline	peer 121.111.111.111.1 went offline
+8:10:43 a.m.	121.111.111.111.1	disconnect	none
+8:10:43 a.m.	221.111.111.111.1	peer_offline	peer 121.111.111.111.1 went offline
+8:10:39 a.m.	221.111.111.111.1	reconnect	connected
+8:10:33 a.m.	111.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+8:10:33 a.m.	121.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+8:10:33 a.m.	221.111.111.111.1	disconnect	none
+CRS: 111.111.111.111.1
+Checked: 
