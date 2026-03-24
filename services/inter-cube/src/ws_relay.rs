@@ -209,9 +209,10 @@ impl WsRelayClient {
                                 } else if env.msg_type == "pong" {
                                     // keepalive ack
                                 } else if env.msg_type == "restart" {
-                                    println!("[ws-relay] Restart command received from CRS — exiting for service restart");
+                                    println!("[ws-relay] Restart command received from CRS");
+                                    let _ = incoming_tx.send(env).await;
                                     *connected_read.lock().await = false;
-                                    std::process::exit(0);
+                                    break;
                                 } else if env.msg_type == "relay" {
                                     if incoming_tx.send(env).await.is_err() {
                                         println!("[ws-relay] Incoming channel closed");
