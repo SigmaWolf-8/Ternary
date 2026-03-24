@@ -788,9 +788,16 @@ function startPqtiService(): ChildProcess | null {
   }
 
   const RESTART_TOKEN_TTL = 30_000;
+  const RESTART_COOLDOWN = 10_000;
   const activeRestartTokens = new Set<string>();
+  let lastRestartTokenTime = 0;
 
   app.get("/api/salvi/inter-cube/relay/restart-token", (_req, res) => {
+    const now = Date.now();
+    if (now - lastRestartTokenTime < RESTART_COOLDOWN) {
+      return res.status(429).json({ error: "Too many restart requests — wait 10 seconds" });
+    }
+    lastRestartTokenTime = now;
     const token = crypto.randomBytes(24).toString("hex");
     activeRestartTokens.add(token);
     setTimeout(() => activeRestartTokens.delete(token), RESTART_TOKEN_TTL);
