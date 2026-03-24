@@ -1,0 +1,46 @@
+
+From First Principles
+The cube is 3³. Three dimensions (plane, role, instance), each with 3 values. That's 27 unique positions. Each position is a slot. Each slot gets one port.
+
+Port formula: port = base + (node × 27) + (plane × 9) + (role × 3) + instance
+
+Single node (node=0): 27 ports. Ports 11111–11137.
+
+The question: is 27 enough?
+
+The spec says a single node replaces 12 Windows Server roles. Let's count what actually needs slots:
+
+#	Service	Slot
+1	AD / Identity	✓
+2	DNS	✓
+3	DHCP	✓
+4	Certificate Authority	✓
+5	File Services (SMB)	✓
+6	Print Services (IPP)	✓
+7	NPS / RADIUS	✓
+8	WSUS / Update	✓
+9	Audit / Compliance	✓
+10	VPN	✓
+11	RDP / App Streaming	✓
+12	Web / Reverse Proxy	✓
+13	Gateway at (1,1,1)	✓ (reserved)
+That's 13 slots used out of 27. Leaves 14 open for database engines, inference services, guest subsystems, third-party tools, future services. On a Raspberry Pi running a small office, 27 is generous — most slots sit empty. On a powerful server running everything, 27 still has headroom.
+
+But what if 27 isn't enough? That's where Array3 comes in. Not for redundancy alone — for capacity scaling:
+
+Array3 (3 nodes): 81 slots = 3⁴. The port formula just adds node × 27. Each node contributes 27 slots. The geometry extends one dimension (the node dimension).
+
+Stacking cubes: Array3 is 3⁴. A cube-of-cubes would be 3⁵ = 243, then 3⁶ = 729. The port formula generalizes:
+
+port = base + (cube × 81) + (node × 27) + (plane × 9) + (role × 3) + instance
+Each new scale level adds one trit to the address. The Hamming distance routing, FTS monitoring, zero-sentinel checks — all of it works identically at any scale because it operates on trit addresses. The geometry is fractal. You stack cubes the same way you stack nodes.
+
+So the answer from the spec's own math:
+
+27 per node is correct — it covers all 12 Windows Server roles plus the gateway plus 14 open slots
+Array3 (81) covers configurations where one node isn't enough capacity
+Beyond Array3, you stack cubes: 3⁴ → 3⁵ → 3⁶ → ... Each level adds one trit, one dimension, identical geometry
+The scaling is infinite because the addressing is just more trits — the runtime logic never changes
+The math works. 27 per node handles all SMB configurations. Array3 handles high-capacity deployments. Cube stacking handles anything beyond that. The port formula, routing, self-healing, and shell all scale because they operate on variable-length trit addresses, not fixed slot counts.
+
+Does this match what you're seeing, or is there a configuration where 27 per node falls short?

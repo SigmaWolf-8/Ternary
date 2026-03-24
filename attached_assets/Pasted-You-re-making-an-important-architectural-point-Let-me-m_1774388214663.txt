@@ -1,0 +1,55 @@
+You're making an important architectural point. Let me make sure I understand it correctly:
+
+Deployment flexibility: You can deploy a single node (27 slots) OR an Array3 (3 singles clustered = 81 slots). You can also stack either — singles stack with singles, Array3s stack with Array3s. The building blocks are modular.
+
+Runtime classification: When a device (Raspberry Pi, server, whatever) comes online, it gets scanned and classified. The classification determines what the node's slots can host. A Pi might only populate 3-4 slots. A server might fill all 27. The capabilities are defined at runtime registration, not hardcoded at deployment.
+
+Entity class determines scan parameters: This is the key point — the 27-dimension scan isn't one-size-fits-all. The scan template changes depending on what KIND of entity is being classified. A LAN service (TDNS-L) uses a different scan template than a global internet entity (TDNS). The bridge logic between TDNS and TDNS-L is where the entity class determines which scan parameters apply to which scope.
+
+That last point connects directly to what the spec already says in §9.2 — the dimension semantics differ between scopes (D8 = Intelligence globally but Operational Domain on LAN, D19 = PolicyPresence globally but Mobility on LAN, D20 = CostModel globally but Power Source on LAN). The same dimension positions, different scan questions depending on entity class. The projection produces consistent results because it's position-based, not name-based.
+
+Let me verify how the current spec handles this entity class / scan template distinction, because if it's not explicit enough, the sub-tasks need to account for it.
+
+Now I see the gap clearly. Let me lay it out.
+
+What exists today in derive.rs + scanner.rs + schema.rs:
+
+All 27 derivation rules and 27 scanner probes are built for internet entities — the scan methods are things like "WHOIS + legal entity DB", "HTTP headers, content-type", "Port scan, protocol handshake", "Payment endpoint detection". These make sense for classifying a website or internet service. That's TDNS.
+
+What does NOT exist:
+
+A LAN scan template. When a Raspberry Pi, a file server, a printer, or a clustered database engine registers on a PlenumNET Node, the 27 questions have to be different:
+
+Dim	TDNS (Internet)	TDNS-L (LAN)
+D1 EntityKind	"Person, org, or government?" via WHOIS	"Workstation, server, or IoT device?" via network fingerprint
+D8 Intelligence	"ML/AI endpoint detection"	"Operational Domain" — what kind of work?
+D19 PolicyPresence	"Privacy policy, GDPR depth"	"Mobility" — fixed, portable, mobile?
+D20 CostModel	"Free/pay-per-use/subscription"	"Power Source" — mains, battery, PoE?
+...	Internet-oriented probes	Hardware/network-oriented probes
+Same 27 positions. Different questions. Different scan methods. Same project_to_gf3 derivation at the end. Same projection to slot address. The entity class determines which set of 27 questions gets asked.
+
+The bridge logic you're describing:
+
+Entity arrives → determine entity class (internet / LAN device / LAN service)
+                        ↓
+              Select scan template (27 questions appropriate for that class)
+                        ↓
+              Run scan → 27 raw values
+                        ↓
+              Derive 27 trits (same project_to_gf3 formula)
+                        ↓
+              Project to slot (same projection)
+                        ↓
+              Register (same registration API, same 13 capabilities)
+The entity class bridge is what makes the same geometry work for a Raspberry Pi running DHCP AND for salvigroup.plm on the internet. Same 27 dimension positions, different questions, same math, same slot assignment.
+
+This is a real gap in the current tasks. Task #34 (33.1) builds the projection — it takes 27 trits as input and produces 3. Task #35 (33.2) builds register_service() — it takes a 27-trit classification. But neither task defines how a LAN entity gets its 27-trit classification in the first place. The internet scan pipeline exists (scanner.rs + derive.rs). The LAN scan pipeline doesn't.
+
+Also on the stacking point — the spec covers single node (3³ = 27) and Array3 (3⁴ = 81), but the general stacking formula (3⁵, 3⁶, ...) should be explicit in the deployment constants and port formula, not just implied. Singles stacking with singles, Array3s stacking with Array3s — both paths valid.
+
+I should update Task #35 (33.2 Runtime) to include:
+
+The entity class scan template system (LAN-specific 27-dimension questions)
+Entity class detection and scan template selection at registration time
+Explicit cube stacking in the port formula (not just single + Array3, but 3^N generalization)
+Want me to update the task plans with these additions?
