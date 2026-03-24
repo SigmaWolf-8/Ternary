@@ -1044,9 +1044,24 @@ function startPqtiService(): ChildProcess | null {
         .filter(n => n.offlineDurationMs !== null && n.healthState !== "up")
         .reduce((max, n) => Math.max(max, n.offlineDurationMs || 0), 0);
 
-      const live = daemonChecks.filter(d => d.status === "live").length;
-      const registered = daemonChecks.filter(d => d.status === "registered").length;
-      const deployed = daemonChecks.filter(d => d.status === "deployed").length;
+      const crsCoveredPorts = new Set<string>();
+      for (const d of daemonChecks) {
+        if (d.source === "crs" && d.registeredInCrs) {
+          const ep = d.endpoint || "";
+          const portMatch = ep.match(/:(\d+)$/);
+          if (portMatch) crsCoveredPorts.add(portMatch[1]);
+        }
+      }
+      const filteredDaemons = daemonChecks.filter(d => {
+        if (d.source === "deployment" && d.status === "deployed" && !d.registeredInCrs && !d.connectedViaRelay) {
+          if (crsCoveredPorts.has(String(d.port))) return false;
+        }
+        return true;
+      });
+
+      const live = filteredDaemons.filter(d => d.status === "live").length;
+      const registered = filteredDaemons.filter(d => d.status === "registered").length;
+      const deployed = filteredDaemons.filter(d => d.status === "deployed").length;
 
       const throughputRef = (globalThis as any).__relayThroughput as typeof relayThroughput | undefined;
       const relayClientsForCount = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
@@ -1075,12 +1090,12 @@ function startPqtiService(): ChildProcess | null {
       res.json({
         crsAddress: CRS_ADDRESS,
         crsVersion: CRS_VERSION,
-        totalDaemons: daemonChecks.length,
+        totalDaemons: filteredDaemons.length,
         live,
         registered,
         deployed,
         clusterHealthy: live > 0 || registered > 0,
-        daemons: daemonChecks,
+        daemons: filteredDaemons,
         expectedNodes: expectedNodesStatus,
         nodeHealth: {
           expectedCount: expectedNodesList.length,
