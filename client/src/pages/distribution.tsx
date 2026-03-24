@@ -821,9 +821,12 @@ function ClusterReport() {
   const { toast } = useToast();
   const restartMutation = useMutation({
     mutationFn: async () => {
+      const tokenRes = await fetch("/api/salvi/inter-cube/relay/restart-token");
+      if (!tokenRes.ok) throw new Error("Failed to get restart token");
+      const { token } = await tokenRes.json();
       const res = await fetch("/api/salvi/inter-cube/relay/restart-nodes", {
         method: "POST",
-        credentials: "include",
+        headers: { "x-relay-token": token },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "Request failed" }));

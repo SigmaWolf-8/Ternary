@@ -787,13 +787,22 @@ function startPqtiService(): ChildProcess | null {
     return { restarted: sent, message: `Restart command sent to ${sent} node(s)` };
   }
 
+  const RESTART_TOKEN_TTL = 30_000;
+  const activeRestartTokens = new Set<string>();
+
+  app.get("/api/salvi/inter-cube/relay/restart-token", (_req, res) => {
+    const token = crypto.randomBytes(24).toString("hex");
+    activeRestartTokens.add(token);
+    setTimeout(() => activeRestartTokens.delete(token), RESTART_TOKEN_TTL);
+    res.json({ token });
+  });
+
   app.post("/api/salvi/inter-cube/relay/restart-nodes", (req, res) => {
-    if (!(req as any).user) {
-      const token = req.headers["x-relay-token"];
-      if (!token || token !== process.env.SESSION_SECRET) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
+    const token = req.headers["x-relay-token"] as string | undefined;
+    if (!token || !activeRestartTokens.has(token)) {
+      return res.status(403).json({ error: "Forbidden — get a token from /restart-token first" });
     }
+    activeRestartTokens.delete(token);
     res.json(broadcastRelayRestart());
   });
 
