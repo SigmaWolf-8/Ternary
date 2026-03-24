@@ -100,7 +100,7 @@ async function main() {
     (r) => ({ actorId: r.actorId, actorEmail: r.actorEmail, details: r.details, ipAddress: r.ipAddress }));
 
   total += await backfillTable("developer_signups", developerSignups, developerSignups.id,
-    (r) => ({ name: r.name, company: r.company, interest: r.interest }));
+    (r) => ({ email: r.email, name: r.name, company: r.company, interest: r.interest }));
 
   total += await backfillTable("compressed_documents", compressedDocuments, compressedDocuments.id,
     (r) => ({ content: r.content }));
@@ -112,7 +112,7 @@ async function main() {
     (r) => ({ responseData: r.responseData }));
 
   total += await backfillTable("security_audit_log", securityAuditLog, securityAuditLog.id,
-    (r) => ({ actor: r.actor, description: r.description, evidence: r.evidence, ipAddress: r.ipAddress, userId: r.userId }));
+    (r) => ({ actor: r.actor, description: r.description, evidence: r.evidence || null, ipAddress: r.ipAddress, userId: r.userId }));
 
   total += await backfillTable("threat_model_entries", threatModelEntries, threatModelEntries.id,
     (r) => ({ description: r.description, controls: r.controls, notes: r.notes, attackVector: r.attackVector }));
@@ -124,7 +124,7 @@ async function main() {
     (r) => ({ endpoint: r.endpoint, tlDsaPk: r.tlDsaPk }));
 
   total += await backfillTable("deployment_records", deploymentRecords, deploymentRecords.id,
-    (r) => ({ ip: r.ip, daemons: r.daemons, binaryPath: r.binaryPath, logDir: r.logDir, identityBase: r.identityBase, deployer: r.deployer }));
+    (r) => ({ hostname: r.hostname, ip: r.ip, daemons: r.daemons, binaryPath: r.binaryPath, logDir: r.logDir, identityBase: r.identityBase, deployer: r.deployer }));
 
   console.log(`\nDone — ${total} total rows encrypted.`);
   process.exit(0);

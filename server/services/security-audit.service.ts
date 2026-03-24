@@ -99,10 +99,11 @@ export const securityAuditService = {
     return rows.map(row => {
       const dec = phaseDecryptFields(row.encryptedFields);
       if (dec) {
-        if (dec.actor) row.actor = dec.actor as string;
-        if (dec.description) row.description = dec.description as string;
-        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
-        if (dec.userId) row.userId = dec.userId as string;
+        if (dec.actor !== undefined) row.actor = dec.actor as string;
+        if (dec.description !== undefined) row.description = dec.description as string;
+        if (dec.evidence !== undefined) row.evidence = dec.evidence as Record<string, unknown> | null;
+        if (dec.ipAddress !== undefined) row.ipAddress = dec.ipAddress as string;
+        if (dec.userId !== undefined) row.userId = dec.userId as string;
       }
       return row;
     });
@@ -116,10 +117,11 @@ export const securityAuditService = {
     if (event) {
       const dec = phaseDecryptFields(event.encryptedFields);
       if (dec) {
-        if (dec.actor) event.actor = dec.actor as string;
-        if (dec.description) event.description = dec.description as string;
-        if (dec.ipAddress) event.ipAddress = dec.ipAddress as string;
-        if (dec.userId) event.userId = dec.userId as string;
+        if (dec.actor !== undefined) event.actor = dec.actor as string;
+        if (dec.description !== undefined) event.description = dec.description as string;
+        if (dec.evidence !== undefined) event.evidence = dec.evidence as Record<string, unknown> | null;
+        if (dec.ipAddress !== undefined) event.ipAddress = dec.ipAddress as string;
+        if (dec.userId !== undefined) event.userId = dec.userId as string;
       }
     }
     return event;
@@ -201,10 +203,11 @@ export const securityAuditService = {
     return rows.map(row => {
       const dec = phaseDecryptFields(row.encryptedFields);
       if (dec) {
-        if (dec.actor) row.actor = dec.actor as string;
-        if (dec.description) row.description = dec.description as string;
-        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
-        if (dec.userId) row.userId = dec.userId as string;
+        if (dec.actor !== undefined) row.actor = dec.actor as string;
+        if (dec.description !== undefined) row.description = dec.description as string;
+        if (dec.evidence !== undefined) row.evidence = dec.evidence as Record<string, unknown> | null;
+        if (dec.ipAddress !== undefined) row.ipAddress = dec.ipAddress as string;
+        if (dec.userId !== undefined) row.userId = dec.userId as string;
       }
       return row;
     });

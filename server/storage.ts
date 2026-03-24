@@ -65,7 +65,7 @@ export function phaseDecryptFields(encryptedStr: string | null): Record<string, 
     const parsed = bigIntSafeParse(encryptedStr) as EncryptedPhaseData;
     const result = phaseRecombine(parsed);
     if (!result.success || !result.data) return null;
-    return JSON.parse(result.data);
+    return bigIntSafeParse(result.data) as Record<string, unknown>;
   } catch {
     return null;
   }
@@ -293,6 +293,7 @@ export class DatabaseStorage implements IStorage {
   private _decryptDeveloperSignup(row: DeveloperSignup): DeveloperSignup {
     const dec = phaseDecryptFields(row.encryptedFields);
     if (dec) {
+      if (dec.email !== undefined) row.email = dec.email as string;
       if (dec.name !== undefined) row.name = dec.name as string | null;
       if (dec.company !== undefined) row.company = dec.company as string | null;
       if (dec.interest !== undefined) row.interest = dec.interest as string | null;
@@ -301,7 +302,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDeveloperSignup(data: InsertDeveloperSignup): Promise<DeveloperSignup> {
-    const encryptedFields = phaseEncryptFields({ name: data.name, company: data.company, interest: data.interest });
+    const encryptedFields = phaseEncryptFields({ email: data.email, name: data.name, company: data.company, interest: data.interest });
     const [result] = await db.insert(developerSignups).values({ ...data, encryptedFields }).returning();
     return result;
   }
@@ -382,12 +383,14 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return {};
     const { githubToken, ...safeUser } = user;
-    const signups = await db.select().from(developerSignups).where(eq(developerSignups.email, user.email || ""));
-    const dsrHistory = await db.select().from(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId));
+    const signupRows = await db.select().from(developerSignups).where(eq(developerSignups.email, user.email || ""));
+    const decryptedSignups = signupRows.map(r => this._decryptDeveloperSignup(r));
+    const dsrRows = await db.select().from(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId));
+    const decryptedDsr = dsrRows.map(r => this._decryptDataSubjectRequest(r));
     return {
       account: safeUser,
-      developerSignups: signups,
-      dataSubjectRequests: dsrHistory,
+      developerSignups: decryptedSignups,
+      dataSubjectRequests: decryptedDsr,
       exportDate: new Date().toISOString(),
     };
   }
@@ -413,9 +416,11 @@ export class DatabaseStorage implements IStorage {
   async upsertCrsRelayNode(publicKey: string, address: string, endpoint: string, tlDsaPk?: string): Promise<CrsRelayNode> {
     const phaseData = phaseSplit(publicKey, 'performance');
     const publicKeyEncrypted = JSON.stringify(phaseData);
-    const encryptedFields = phaseEncryptFields({ endpoint, tlDsaPk: tlDsaPk || null });
     const existing = await db.select().from(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
     if (existing.length > 0) {
+      const existingNode = existing[0];
+      const mergedTlDsaPk = tlDsaPk || existingNode.tlDsaPk || null;
+      const encryptedFields = phaseEncryptFields({ endpoint, tlDsaPk: mergedTlDsaPk });
       const setFields: any = { address, endpoint, publicKeyEncrypted, encryptedFields, lastSeen: new Date(), updatedAt: new Date() };
       if (tlDsaPk) setFields.tlDsaPk = tlDsaPk;
       const [updated] = await db.update(crsRelayNodes)
@@ -424,6 +429,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     }
+    const encryptedFields = phaseEncryptFields({ endpoint, tlDsaPk: tlDsaPk || null });
     const [node] = await db.insert(crsRelayNodes)
       .values({ publicKey, publicKeyEncrypted, address, endpoint, lastSeen: new Date(), tlDsaPk: tlDsaPk || null, encryptedFields })
       .returning();
@@ -459,6 +465,7 @@ export class DatabaseStorage implements IStorage {
   private _decryptDeploymentRecord(row: DeploymentRecord): DeploymentRecord {
     const dec = phaseDecryptFields(row.encryptedFields);
     if (dec) {
+      if (dec.hostname !== undefined) row.hostname = dec.hostname as string;
       if (dec.ip !== undefined) row.ip = dec.ip as string;
       if (dec.daemons !== undefined) row.daemons = dec.daemons as any;
       if (dec.binaryPath !== undefined) row.binaryPath = dec.binaryPath as string | null;
@@ -471,7 +478,7 @@ export class DatabaseStorage implements IStorage {
 
   async createDeploymentRecord(data: InsertDeploymentRecord): Promise<DeploymentRecord> {
     const encryptedFields = phaseEncryptFields({
-      ip: data.ip, daemons: data.daemons, binaryPath: data.binaryPath,
+      hostname: data.hostname, ip: data.ip, daemons: data.daemons, binaryPath: data.binaryPath,
       logDir: data.logDir, identityBase: data.identityBase, deployer: data.deployer,
     });
     const [record] = await db.insert(deploymentRecords)

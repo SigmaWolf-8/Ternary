@@ -130,9 +130,14 @@ export const apiKeyService = {
 
     const decrypted = phaseDecryptFields(keyRecord.encryptedFields);
     if (decrypted) {
-      if (decrypted.name) keyRecord.name = decrypted.name as string;
-      if (decrypted.owner) keyRecord.owner = decrypted.owner as string;
-      if (decrypted.scopes) keyRecord.scopes = decrypted.scopes as string[];
+      if (decrypted.name !== undefined) keyRecord.name = decrypted.name as string;
+      if (decrypted.owner !== undefined) keyRecord.owner = decrypted.owner as string;
+      if (decrypted.scopes !== undefined) keyRecord.scopes = decrypted.scopes as string[];
+      if (decrypted.entityName !== undefined) keyRecord.entityName = decrypted.entityName as string | null;
+      if (decrypted.project !== undefined) keyRecord.project = decrypted.project as string | null;
+      if (decrypted.department !== undefined) keyRecord.department = decrypted.department as string | null;
+      if (decrypted.tags !== undefined) keyRecord.tags = decrypted.tags as string[];
+      if (decrypted.notes !== undefined) keyRecord.notes = decrypted.notes as string | null;
     }
 
     if (!constantTimeCompare(inputHash, keyRecord.keyHash)) return null;
@@ -209,9 +214,14 @@ export const apiKeyService = {
     return rows.map(({ encryptedFields: ef, ...row }) => {
       const dec = phaseDecryptFields(ef);
       if (dec) {
-        if (dec.name) row.name = dec.name as string;
-        if (dec.owner) row.owner = dec.owner as string;
-        if (dec.notes) row.notes = dec.notes as string;
+        if (dec.name !== undefined) row.name = dec.name as string;
+        if (dec.owner !== undefined) row.owner = dec.owner as string;
+        if (dec.scopes !== undefined) row.scopes = dec.scopes as string[];
+        if (dec.entityName !== undefined) row.entityName = dec.entityName as string | null;
+        if (dec.project !== undefined) row.project = dec.project as string | null;
+        if (dec.department !== undefined) row.department = dec.department as string | null;
+        if (dec.tags !== undefined) row.tags = dec.tags as string[];
+        if (dec.notes !== undefined) row.notes = dec.notes as string | null;
       }
       return row;
     });
@@ -248,9 +258,14 @@ export const apiKeyService = {
     return rows.map(({ encryptedFields: ef, ...row }) => {
       const dec = phaseDecryptFields(ef);
       if (dec) {
-        if (dec.name) row.name = dec.name as string;
-        if (dec.owner) row.owner = dec.owner as string;
-        if (dec.notes) row.notes = dec.notes as string;
+        if (dec.name !== undefined) row.name = dec.name as string;
+        if (dec.owner !== undefined) row.owner = dec.owner as string;
+        if (dec.scopes !== undefined) row.scopes = dec.scopes as string[];
+        if (dec.entityName !== undefined) row.entityName = dec.entityName as string | null;
+        if (dec.project !== undefined) row.project = dec.project as string | null;
+        if (dec.department !== undefined) row.department = dec.department as string | null;
+        if (dec.tags !== undefined) row.tags = dec.tags as string[];
+        if (dec.notes !== undefined) row.notes = dec.notes as string | null;
       }
       return row;
     });
@@ -368,7 +383,7 @@ export const apiKeyService = {
 
   async getExpiringKeys(withinDays: number = 14) {
     const cutoff = new Date(Date.now() + withinDays * 86400000);
-    return db
+    const rows = await db
       .select({
         id: apiKeys.id,
         keyPrefix: apiKeys.keyPrefix,
@@ -378,6 +393,7 @@ export const apiKeyService = {
         rotationScheduledAt: apiKeys.rotationScheduledAt,
         rateLimitTier: apiKeys.rateLimitTier,
         rateLimitRpm: apiKeys.rateLimitRpm,
+        encryptedFields: apiKeys.encryptedFields,
       })
       .from(apiKeys)
       .where(
@@ -388,6 +404,14 @@ export const apiKeyService = {
         )
       )
       .orderBy(apiKeys.expiresAt);
+    return rows.map(({ encryptedFields: ef, ...row }) => {
+      const dec = phaseDecryptFields(ef);
+      if (dec) {
+        if (dec.name !== undefined) row.name = dec.name as string;
+        if (dec.owner !== undefined) row.owner = dec.owner as string;
+      }
+      return row;
+    });
   },
 
   async updateKeyMetadata(
