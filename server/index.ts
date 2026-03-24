@@ -702,6 +702,7 @@ function startPqtiService(): ChildProcess | null {
   }, STALE_CLEANUP_INTERVAL);
 
   const CRS_ADDRESS = "1111111111111";
+  const CRS_VERSION = "0.3.0";
 
   app.post("/api/salvi/inter-cube/relay/deployment", async (req, res) => {
     try {
@@ -725,7 +726,7 @@ function startPqtiService(): ChildProcess | null {
         deployedAt: payload.timestamp ? new Date(payload.timestamp) : new Date(),
       });
       log(`Deployment notification from ${payload.hostname}: ${payload.daemons?.length || 0} daemons (id: ${record.id})`, "crs");
-      res.json({ status: "ok", recorded: true, id: record.id, crsAddress: CRS_ADDRESS });
+      res.json({ status: "ok", recorded: true, id: record.id, crsAddress: CRS_ADDRESS, crsVersion: CRS_VERSION });
     } catch (err: any) {
       log(`Deployment record error: ${err.message}`, "crs");
       res.status(500).json({ error: "Failed to record deployment" });
@@ -738,10 +739,102 @@ function startPqtiService(): ChildProcess | null {
       const records = hostname
         ? await storage.getDeploymentsByHostname(hostname)
         : await storage.getAllDeploymentRecords();
-      res.json({ deployments: records, count: records.length, crsAddress: CRS_ADDRESS });
+      res.json({ deployments: records, count: records.length, crsAddress: CRS_ADDRESS, crsVersion: CRS_VERSION });
     } catch (err: any) {
       log(`Deployment query error: ${err.message}`, "crs");
       res.status(500).json({ error: "Failed to query deployments" });
+    }
+  });
+
+  app.get("/api/salvi/inter-cube/relay/cluster-health", async (_req, res) => {
+    try {
+      const records = await storage.getAllDeploymentRecords();
+      const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
+
+      const daemonChecks: Array<{
+        address: string;
+        endpoint: string;
+        port: number;
+        hostname: string;
+        deploymentId: number;
+        registeredInCrs: boolean;
+        connectedViaRelay: boolean;
+        lastSeen: string | null;
+        latencyMs: number | null;
+        status: "live" | "registered" | "unreachable";
+      }> = [];
+
+      const latestByAddr = new Map<string, { daemon: any; record: typeof records[0] }>();
+      for (const record of records) {
+        const daemons = (record.daemons as any[]) || [];
+        for (const d of daemons) {
+          const addr = d.address || `${d.endpoint}:${d.port}`;
+          const existing = latestByAddr.get(addr);
+          if (!existing || new Date(record.deployedAt || record.createdAt).getTime() > new Date(existing.record.deployedAt || existing.record.createdAt).getTime()) {
+            latestByAddr.set(addr, { daemon: d, record });
+          }
+        }
+      }
+
+      for (const [, { daemon: d, record }] of latestByAddr) {
+          const addr = d.address || "";
+          const crsEntry = crsRegistry.get(addr);
+          const isRelayConnected = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
+          const isRegistered = !!crsEntry;
+
+          let latencyMs: number | null = null;
+          let status: "live" | "registered" | "unreachable" = "unreachable";
+
+          if (isRelayConnected) {
+            status = "live";
+            latencyMs = 0;
+          } else if (isRegistered) {
+            const pingStart = Date.now();
+            try {
+              const pingRes = await fetch(`http://${d.endpoint}/health`, {
+                method: "GET",
+                signal: AbortSignal.timeout(3000),
+              });
+              latencyMs = Date.now() - pingStart;
+              status = pingRes.ok ? "live" : "registered";
+            } catch {
+              latencyMs = null;
+              status = "registered";
+            }
+          }
+
+          daemonChecks.push({
+            address: addr,
+            endpoint: d.endpoint || "",
+            port: d.port || 0,
+            hostname: record.hostname || "",
+            deploymentId: record.id,
+            registeredInCrs: isRegistered,
+            connectedViaRelay: !!isRelayConnected,
+            lastSeen: crsEntry ? new Date(crsEntry.lastSeen).toISOString() : null,
+            latencyMs,
+            status,
+          });
+      }
+
+      const live = daemonChecks.filter(d => d.status === "live").length;
+      const registered = daemonChecks.filter(d => d.status === "registered").length;
+      const unreachable = daemonChecks.filter(d => d.status === "unreachable").length;
+
+      res.json({
+        crsAddress: CRS_ADDRESS,
+        crsVersion: CRS_VERSION,
+        totalDaemons: daemonChecks.length,
+        live,
+        registered,
+        unreachable,
+        clusterHealthy: unreachable === 0 && daemonChecks.length > 0,
+        daemons: daemonChecks,
+        checkedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      log(`Cluster health check error: ${err.message}`, "crs");
+      res.status(500).json({ error: "Cluster health check failed" });
     }
   });
 
@@ -751,10 +844,15 @@ function startPqtiService(): ChildProcess | null {
   app.get("/health/crs", async (_req, res) => {
     const upstream = await tryCrsDaemon("http://127.0.0.1:8181/health", { method: "GET" });
     if (!upstream) {
-      return res.status(503).json({ status: "unavailable", service: "PlenumNET Inter-Cube CRS Daemon", error: "daemon unreachable", trackedNodes: crsRegistry.size });
+      return res.status(503).json({ status: "unavailable", service: "PlenumNET Inter-Cube Infrastructure", version: CRS_VERSION, mode: "crs", address: CRS_ADDRESS, error: "native daemon unreachable — CRS relay is active", trackedNodes: crsRegistry.size });
     }
-    const body = await upstream.text();
-    return res.status(upstream.status).setHeader("Content-Type", "application/json").send(body);
+    try {
+      const body = JSON.parse(await upstream.text());
+      body.version = CRS_VERSION;
+      return res.status(upstream.status).json(body);
+    } catch {
+      return res.status(upstream.status).json({ status: "ok", service: "PlenumNET Inter-Cube Infrastructure", version: CRS_VERSION, mode: "crs", address: CRS_ADDRESS });
+    }
   });
 
   app.get("/api/yoda-installer", async (_req, res) => {

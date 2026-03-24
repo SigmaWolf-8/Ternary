@@ -15,6 +15,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -633,6 +634,131 @@ function DeployerCard() {
   );
 }
 
+interface DaemonHealth {
+  address: string;
+  endpoint: string;
+  port: number;
+  hostname: string;
+  deploymentId: number;
+  registeredInCrs: boolean;
+  connectedViaRelay: boolean;
+  lastSeen: string | null;
+  latencyMs: number | null;
+  status: "live" | "registered" | "unreachable";
+}
+
+interface ClusterHealthData {
+  crsAddress: string;
+  crsVersion: string;
+  totalDaemons: number;
+  live: number;
+  registered: number;
+  unreachable: number;
+  clusterHealthy: boolean;
+  daemons: DaemonHealth[];
+  checkedAt: string;
+}
+
+function statusColor(s: "live" | "registered" | "unreachable") {
+  if (s === "live") return "text-blue-600 dark:text-blue-400";
+  if (s === "registered") return "text-gray-500 dark:text-gray-400";
+  return "text-black dark:text-white";
+}
+function statusBg(s: "live" | "registered" | "unreachable") {
+  if (s === "live") return "bg-blue-500/10 border-blue-500/20";
+  if (s === "registered") return "bg-gray-500/10 border-gray-500/20";
+  return "bg-black/5 border-black/20 dark:bg-white/5 dark:border-white/20";
+}
+
+function ClusterReport() {
+  const { data, isLoading, refetch } = useQuery<ClusterHealthData>({
+    queryKey: ["/api/salvi/inter-cube/relay/cluster-health"],
+    refetchInterval: 30_000,
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="p-5 mt-6" data-testid="card-cluster-report">
+        <div className="animate-pulse space-y-3">
+          <div className="h-4 bg-muted rounded w-48" />
+          <div className="h-20 bg-muted rounded" />
+        </div>
+      </Card>
+    );
+  }
+
+  if (!data || data.totalDaemons === 0) {
+    return (
+      <Card className="p-5 mt-6" data-testid="card-cluster-report">
+        <div className="flex items-center gap-2 mb-2">
+          <Server className="w-4 h-4 text-muted-foreground" />
+          <p className="text-sm font-medium">Cluster Report</p>
+          <Badge variant="outline" className="text-[10px] ml-auto">{data?.crsVersion || "—"}</Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">No daemon deployments recorded. Deploy daemons above to see cluster status.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-5 mt-6" data-testid="card-cluster-report">
+      <div className="flex items-center gap-2 mb-4">
+        <Server className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-medium">Cluster Report</p>
+        <Badge variant="outline" className="text-[10px] ml-1">CRS v{data.crsVersion}</Badge>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {data.totalDaemons} daemon{data.totalDaemons !== 1 ? "s" : ""}
+          </span>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => refetch()} data-testid="button-refresh-cluster">
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mb-4 text-center text-xs">
+        <div className={`rounded-md border p-2 ${statusBg("live")}`}>
+          <span className={`block text-lg font-bold ${statusColor("live")}`} data-testid="text-cluster-live">{data.live}</span>
+          <span className="text-muted-foreground">Live</span>
+        </div>
+        <div className={`rounded-md border p-2 ${statusBg("registered")}`}>
+          <span className={`block text-lg font-bold ${statusColor("registered")}`} data-testid="text-cluster-registered">{data.registered}</span>
+          <span className="text-muted-foreground">Registered</span>
+        </div>
+        <div className={`rounded-md border p-2 ${statusBg("unreachable")}`}>
+          <span className={`block text-lg font-bold ${statusColor("unreachable")}`} data-testid="text-cluster-unreachable">{data.unreachable}</span>
+          <span className="text-muted-foreground">Unreachable</span>
+        </div>
+      </div>
+
+      <div className="space-y-2" data-testid="cluster-daemon-list">
+        {data.daemons.map((d, i) => (
+          <div key={`${d.address}-${i}`} className={`rounded-md border p-3 text-xs ${statusBg(d.status)}`} data-testid={`daemon-row-${i}`}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium text-foreground">{d.hostname} — Daemon #{i + 1}</span>
+              <Badge variant="outline" className={`text-[9px] uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${i}`}>{d.status}</Badge>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-muted-foreground">
+              <span>Address: <strong className="text-foreground font-mono text-[10px]">{d.address}</strong></span>
+              <span>Endpoint: <strong className="text-foreground font-mono text-[10px]">{d.endpoint}</strong></span>
+              <span>Port: <strong className="text-foreground">{d.port}</strong></span>
+              <span>CRS: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
+              <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
+              {d.latencyMs !== null && <span>Latency: <strong className="text-foreground">{d.latencyMs}ms</strong></span>}
+              {d.lastSeen && <span>Last seen: <strong className="text-foreground">{new Date(d.lastSeen).toLocaleString()}</strong></span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>CRS: <strong className="text-foreground font-mono">{data.crsAddress}</strong></span>
+        <span>Checked: {new Date(data.checkedAt).toLocaleTimeString()}</span>
+      </div>
+    </Card>
+  );
+}
+
 export default function DistributionPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -695,6 +821,7 @@ export default function DistributionPage() {
           transition={{ duration: 0.4, delay: 0.1 }}
         >
           <DeployerCard />
+          <ClusterReport />
         </motion.div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
