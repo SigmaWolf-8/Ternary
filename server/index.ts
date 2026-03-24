@@ -760,47 +760,22 @@ function startPqtiService(): ChildProcess | null {
         registeredInCrs: boolean;
         connectedViaRelay: boolean;
         lastSeen: string | null;
-        latencyMs: number | null;
-        status: "live" | "registered" | "unreachable";
+        status: "live" | "registered" | "deployed";
       }> = [];
 
-      const latestByAddr = new Map<string, { daemon: any; record: typeof records[0] }>();
       for (const record of records) {
         const daemons = (record.daemons as any[]) || [];
         for (const d of daemons) {
-          const addr = d.address || `${d.endpoint}:${d.port}`;
-          const existing = latestByAddr.get(addr);
-          if (!existing || new Date(record.deployedAt || record.createdAt).getTime() > new Date(existing.record.deployedAt || existing.record.createdAt).getTime()) {
-            latestByAddr.set(addr, { daemon: d, record });
-          }
-        }
-      }
-
-      for (const [, { daemon: d, record }] of latestByAddr) {
           const addr = d.address || "";
           const crsEntry = crsRegistry.get(addr);
           const isRelayConnected = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
           const isRegistered = !!crsEntry;
 
-          let latencyMs: number | null = null;
-          let status: "live" | "registered" | "unreachable" = "unreachable";
-
+          let status: "live" | "registered" | "deployed" = "deployed";
           if (isRelayConnected) {
             status = "live";
-            latencyMs = 0;
           } else if (isRegistered) {
-            const pingStart = Date.now();
-            try {
-              const pingRes = await fetch(`http://${d.endpoint}/health`, {
-                method: "GET",
-                signal: AbortSignal.timeout(3000),
-              });
-              latencyMs = Date.now() - pingStart;
-              status = pingRes.ok ? "live" : "registered";
-            } catch {
-              latencyMs = null;
-              status = "registered";
-            }
+            status = "registered";
           }
 
           daemonChecks.push({
@@ -812,14 +787,14 @@ function startPqtiService(): ChildProcess | null {
             registeredInCrs: isRegistered,
             connectedViaRelay: !!isRelayConnected,
             lastSeen: crsEntry ? new Date(crsEntry.lastSeen).toISOString() : null,
-            latencyMs,
             status,
           });
+        }
       }
 
       const live = daemonChecks.filter(d => d.status === "live").length;
       const registered = daemonChecks.filter(d => d.status === "registered").length;
-      const unreachable = daemonChecks.filter(d => d.status === "unreachable").length;
+      const deployed = daemonChecks.filter(d => d.status === "deployed").length;
 
       res.json({
         crsAddress: CRS_ADDRESS,
@@ -827,8 +802,8 @@ function startPqtiService(): ChildProcess | null {
         totalDaemons: daemonChecks.length,
         live,
         registered,
-        unreachable,
-        clusterHealthy: unreachable === 0 && daemonChecks.length > 0,
+        deployed,
+        clusterHealthy: live > 0 || registered > 0,
         daemons: daemonChecks,
         checkedAt: new Date().toISOString(),
       });

@@ -643,8 +643,7 @@ interface DaemonHealth {
   registeredInCrs: boolean;
   connectedViaRelay: boolean;
   lastSeen: string | null;
-  latencyMs: number | null;
-  status: "live" | "registered" | "unreachable";
+  status: "live" | "registered" | "deployed";
 }
 
 interface ClusterHealthData {
@@ -653,18 +652,18 @@ interface ClusterHealthData {
   totalDaemons: number;
   live: number;
   registered: number;
-  unreachable: number;
+  deployed: number;
   clusterHealthy: boolean;
   daemons: DaemonHealth[];
   checkedAt: string;
 }
 
-function statusColor(s: "live" | "registered" | "unreachable") {
+function statusColor(s: "live" | "registered" | "deployed") {
   if (s === "live") return "text-blue-600 dark:text-blue-400";
   if (s === "registered") return "text-gray-500 dark:text-gray-400";
   return "text-black dark:text-white";
 }
-function statusBg(s: "live" | "registered" | "unreachable") {
+function statusBg(s: "live" | "registered" | "deployed") {
   if (s === "live") return "bg-blue-500/10 border-blue-500/20";
   if (s === "registered") return "bg-gray-500/10 border-gray-500/20";
   return "bg-black/5 border-black/20 dark:bg-white/5 dark:border-white/20";
@@ -725,9 +724,9 @@ function ClusterReport() {
           <span className={`block text-lg font-bold ${statusColor("registered")}`} data-testid="text-cluster-registered">{data.registered}</span>
           <span className="text-muted-foreground">Registered</span>
         </div>
-        <div className={`rounded-md border p-2 ${statusBg("unreachable")}`}>
-          <span className={`block text-lg font-bold ${statusColor("unreachable")}`} data-testid="text-cluster-unreachable">{data.unreachable}</span>
-          <span className="text-muted-foreground">Unreachable</span>
+        <div className={`rounded-md border p-2 ${statusBg("deployed")}`}>
+          <span className={`block text-lg font-bold ${statusColor("deployed")}`} data-testid="text-cluster-deployed">{data.deployed}</span>
+          <span className="text-muted-foreground">Deployed</span>
         </div>
       </div>
 
@@ -744,7 +743,6 @@ function ClusterReport() {
               <span>Port: <strong className="text-foreground">{d.port}</strong></span>
               <span>CRS: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
               <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
-              {d.latencyMs !== null && <span>Latency: <strong className="text-foreground">{d.latencyMs}ms</strong></span>}
               {d.lastSeen && <span>Last seen: <strong className="text-foreground">{new Date(d.lastSeen).toLocaleString()}</strong></span>}
             </div>
           </div>

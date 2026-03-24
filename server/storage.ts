@@ -344,7 +344,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDeploymentRecord(data: InsertDeploymentRecord): Promise<DeploymentRecord> {
-    const [record] = await db.insert(deploymentRecords).values(data).returning();
+    const [record] = await db.insert(deploymentRecords)
+      .values(data)
+      .onConflictDoUpdate({
+        target: deploymentRecords.hostname,
+        set: {
+          ip: data.ip,
+          architecture: data.architecture,
+          daemonCount: data.daemonCount,
+          daemons: data.daemons,
+          crsUrl: data.crsUrl,
+          crsAddress: data.crsAddress,
+          binaryPath: data.binaryPath,
+          binarySizeMB: data.binarySizeMB,
+          logDir: data.logDir,
+          identityBase: data.identityBase,
+          deployer: data.deployer,
+          deployedAt: data.deployedAt,
+        },
+      })
+      .returning();
     return record;
   }
 

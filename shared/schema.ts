@@ -363,7 +363,7 @@ export type InsertImplementationStatus = z.infer<typeof insertImplementationStat
 
 export const deploymentRecords = pgTable("deployment_records", {
   id: serial("id").primaryKey(),
-  hostname: varchar("hostname", { length: 255 }).notNull(),
+  hostname: varchar("hostname", { length: 255 }).notNull().unique(),
   ip: varchar("ip", { length: 45 }).notNull(),
   architecture: varchar("architecture", { length: 20 }),
   daemonCount: integer("daemon_count").notNull(),
