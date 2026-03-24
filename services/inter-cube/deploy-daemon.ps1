@@ -144,6 +144,18 @@ try {
     Write-Host "  Commit:    $($commitHash.Trim())" -ForegroundColor White
     Write-Host ""
 
+    $hostname = $env:COMPUTERNAME
+    $cpuArch = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64') { "Arm64" } else { "x64" }
+    $ip = (Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254' -and $_.PrefixOrigin -ne 'WellKnown' } |
+        Sort-Object @{ Expression = { switch -Wildcard ($_.InterfaceAlias) { 'Wi-Fi*' { 0 } 'Ethernet*' { 1 } default { 2 } } } } |
+        Select-Object -First 1).IPAddress
+    if (-not $ip) { $ip = "0.0.0.0" }
+    Write-Host "  Hostname:  $hostname" -ForegroundColor White
+    Write-Host "  IP:        $ip" -ForegroundColor White
+    Write-Host "  Arch:      $cpuArch" -ForegroundColor White
+    Write-Host ""
+
     if (-not (Test-Path $IdentityBase)) {
         New-Item -ItemType Directory -Path $IdentityBase -Force | Out-Null
     }
@@ -209,6 +221,9 @@ try {
             } | Sort-Object
     }
 
+    $CRS_URL = "https://plenumnet.replit.app"
+    $daemonsArray = @()
+
     foreach ($id in $allIds) {
         $ep = $BaseEnginePort + (($id - 1) * $PortStep)
         $dp = $ep + 1
@@ -219,9 +234,22 @@ try {
             if (Test-Path $letterDir) { $idDir = $letterDir }
         }
 
+        $pubKeyFile = Join-Path $idDir "public.key"
+        $pubKey = if (Test-Path $pubKeyFile) { (Get-Content $pubKeyFile -Raw).Trim() } else { "" }
+
+        $daemonsArray += @{
+            id = $id
+            port = $dp
+            address = ""
+            publicKey = $pubKey
+            endpoint = "${ip}:${dp}"
+            identityDir = $idDir
+            pid = 0
+        }
+
         Write-Host "  Start Daemon #$id (engine=$ep, daemon=$dp):" -ForegroundColor White
         Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$dp`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
-        Write-Host "    `$env:CUBE_CRS_URL=`"https://plenumnet.replit.app`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray
         Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
         Write-Host ""
@@ -229,6 +257,30 @@ try {
 
     Write-Host "  Total identities: $($allIds.Count)" -ForegroundColor White
     Write-Host "  Run this script again to add another daemon." -ForegroundColor DarkGray
+    Write-Host ""
+
+    $deploymentPayload = @{
+        hostname = $hostname
+        ip = $ip
+        architecture = $cpuArch
+        daemonCount = $allIds.Count
+        daemons = $daemonsArray
+        crsUrl = $CRS_URL
+        binaryPath = $BinaryPath
+        binarySizeMB = $fileSizeMB
+        logDir = ""
+        identityBase = $IdentityBase
+        timestamp = (Get-Date -Format "o")
+        deployer = "deploy-daemon/v0.3.0"
+    } | ConvertTo-Json -Depth 3
+
+    try {
+        $null = Invoke-RestMethod -Uri "$CRS_URL/api/salvi/inter-cube/relay/deployment" -Method Post -Body $deploymentPayload -ContentType "application/json" -TimeoutSec 15 -ErrorAction Stop
+        Write-Host "  [OK] Deployment recorded with CRS" -ForegroundColor Green
+        Write-Host "       Query: $CRS_URL/api/salvi/inter-cube/relay/deployments?hostname=$hostname" -ForegroundColor DarkGray
+    } catch {
+        Write-Host "  WARN: Could not post deployment record -- $_" -ForegroundColor Yellow
+    }
     Write-Host ""
 } finally {
     Pop-Location
