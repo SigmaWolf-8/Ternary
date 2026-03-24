@@ -45,7 +45,7 @@ import { spongeHashTrits } from "./crypto/sponge-hash";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
 import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
-import { keygen, signHex, verifyHex, publicKeyHash, type TlDsaKeyPair } from "./crypto/tl-dsa-bridge";
+import { keygen, signHex, verifyHex, verifyNative, publicKeyHash, type TlDsaKeyPair } from "./crypto/tl-dsa-bridge";
 import * as fs from "fs";
 import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
 import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
@@ -1048,16 +1048,26 @@ function startPqtiService(): ChildProcess | null {
       return false;
     }
     try {
-      const resp = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/verify-challenge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address, pt26PublicKey: publicKeyHex }),
-      });
-      if (resp.ok) {
-        const data = await resp.json() as any;
-        return data.valid === true;
-      }
-    } catch {}
+      const challengePayload = `${nonce}||${address}||${publicKeyHex}`;
+      const pkBuf = Buffer.from(tlDsaPk, "hex");
+      const msgBuf = Buffer.from(challengePayload, "utf8");
+      const sigBuf = Buffer.from(signatureHex, "hex");
+      const valid = verifyNative(pkBuf, msgBuf, sigBuf, "TL-DSA-87");
+      return valid;
+    } catch (e: any) {
+      log(`Challenge verification error (native): ${e.message} — falling back to CRS daemon`, "crs");
+      try {
+        const resp = await fetch("http://127.0.0.1:8181/api/salvi/inter-cube/crs/verify-challenge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicKey: tlDsaPk, nonce, signature: signatureHex, address, pt26PublicKey: publicKeyHex }),
+        });
+        if (resp.ok) {
+          const data = await resp.json() as any;
+          return data.valid === true;
+        }
+      } catch {}
+    }
     return false;
   }
 
