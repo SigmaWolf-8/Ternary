@@ -214,7 +214,7 @@ function Invoke-Install {
     @"
 @echo off
 set CUBE_MODE=cube
-set CUBE_API_PORT=$enginePort
+set CUBE_API_PORT=$daemonPort
 set LLM_PORT=$enginePort
 set CUBE_PEER_PORT=$peerPort
 set CUBE_CRS_URL=$CRS_URL

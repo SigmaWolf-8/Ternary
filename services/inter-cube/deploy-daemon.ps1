@@ -294,7 +294,7 @@ try {
         }
 
         Write-Host "  Start Daemon #$id (peer=$pp, app=$ep, node=$dp):" -ForegroundColor White
-        Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$ep`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$dp`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_PEER_PORT=`"$pp`"; `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray
         Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
@@ -342,7 +342,7 @@ try {
             @"
 @echo off
 set CUBE_MODE=cube
-set CUBE_API_PORT=$ep
+set CUBE_API_PORT=$dp
 set LLM_PORT=$ep
 set CUBE_PEER_PORT=$pp
 set CUBE_CRS_URL=$CRS_URL
