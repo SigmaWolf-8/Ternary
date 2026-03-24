@@ -45,10 +45,41 @@ use inter_cube::daemon_identity::{DaemonIdentity, encryption_passphrase, identit
 use inter_cube::address_keys::derive_identity_keypair;
 use inter_cube::key_rotation::RotationOrchestrator;
 use inter_cube::ws_relay::WsRelayClient;
+use std::collections::HashMap;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+static mut CLI_PEER_PORT: Option<u16> = None;
+
+fn parse_cli_args() {
+    let args: Vec<String> = env::args().collect();
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--peer-port" => {
+                if i + 1 < args.len() {
+                    if let Ok(p) = args[i + 1].parse::<u16>() {
+                        unsafe { CLI_PEER_PORT = Some(p); }
+                        println!("[CLI] --peer-port {}", p);
+                    }
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            s if s.starts_with("--peer-port=") => {
+                if let Ok(p) = s[12..].parse::<u16>() {
+                    unsafe { CLI_PEER_PORT = Some(p); }
+                    println!("[CLI] --peer-port {}", p);
+                }
+                i += 1;
+            }
+            _ => { i += 1; }
+        }
+    }
+}
 
 fn env_or(primary: &str, alias: &str, default: &str) -> String {
     env::var(primary)
@@ -65,6 +96,11 @@ fn api_port() -> u16 {
 }
 
 fn peer_port() -> u16 {
+    unsafe {
+        if let Some(p) = CLI_PEER_PORT {
+            return p;
+        }
+    }
     env::var("CUBE_PEER_PORT")
         .or_else(|_| env::var("PEER_PORT"))
         .ok()
@@ -82,7 +118,23 @@ fn relay_url(crs_fallback: Option<&str>) -> Option<String> {
     env::var("RELAY_URL").ok().or_else(|| crs_fallback.map(|s| s.to_string()))
 }
 
-fn spawn_peer_listener(port: u16, local_address_dotted: String) {
+type PeerConnections = Arc<Mutex<HashMap<String, PeerInfo>>>;
+
+#[derive(Clone, Debug)]
+struct PeerInfo {
+    address: String,
+    ip: std::net::IpAddr,
+    peer_port: u16,
+    connected: bool,
+    last_seen: u64,
+}
+
+fn new_peer_registry() -> PeerConnections {
+    Arc::new(Mutex::new(HashMap::new()))
+}
+
+fn spawn_peer_listener(port: u16, local_address_dotted: String, peers: PeerConnections) {
+    let peers_accept = peers.clone();
     tokio::spawn(async move {
         let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
         match tokio::net::TcpListener::bind(listen_addr).await {
@@ -93,6 +145,7 @@ fn spawn_peer_listener(port: u16, local_address_dotted: String) {
                     match listener.accept().await {
                         Ok((stream, peer_addr)) => {
                             let addr = local_address_dotted.clone();
+                            let peers_conn = peers_accept.clone();
                             tokio::spawn(async move {
                                 println!("[PEER] Connection from {} (local address: {})", peer_addr, addr);
                                 let ws_stream = match tokio_tungstenite::accept_async(stream).await {
@@ -106,8 +159,36 @@ fn spawn_peer_listener(port: u16, local_address_dotted: String) {
                                 let (mut _write, mut read) = ws_stream.split();
                                 while let Some(msg) = read.next().await {
                                     match msg {
-                                        Ok(m) if m.is_text() || m.is_binary() => {
-                                            println!("[PEER] Message from {}: {} bytes", peer_addr, m.len());
+                                        Ok(m) if m.is_text() => {
+                                            let text = m.to_text().unwrap_or("");
+                                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(text) {
+                                                if json["type"].as_str() == Some("peer_announce") {
+                                                    let remote_addr = json["address"].as_str().unwrap_or("").to_string();
+                                                    let remote_peer_port = json["peerPort"].as_u64().unwrap_or(0) as u16;
+                                                    if !remote_addr.is_empty() && remote_peer_port > 0 {
+                                                        let now = std::time::SystemTime::now()
+                                                            .duration_since(std::time::UNIX_EPOCH)
+                                                            .unwrap_or_default().as_secs();
+                                                        if let Ok(mut peers) = peers_conn.lock() {
+                                                            peers.insert(remote_addr.clone(), PeerInfo {
+                                                                address: remote_addr.clone(),
+                                                                ip: peer_addr.ip(),
+                                                                peer_port: remote_peer_port,
+                                                                connected: true,
+                                                                last_seen: now,
+                                                            });
+                                                        }
+                                                        println!("[PEER] Registered LAN peer {} at {}:{}", remote_addr, peer_addr.ip(), remote_peer_port);
+                                                    }
+                                                } else {
+                                                    println!("[PEER] Message from {}: {} bytes", peer_addr, m.len());
+                                                }
+                                            } else {
+                                                println!("[PEER] Message from {}: {} bytes", peer_addr, m.len());
+                                            }
+                                        }
+                                        Ok(m) if m.is_binary() => {
+                                            println!("[PEER] Binary from {}: {} bytes", peer_addr, m.len());
                                         }
                                         Ok(m) if m.is_close() => {
                                             println!("[PEER] Peer {} disconnected", peer_addr);
@@ -134,6 +215,88 @@ fn spawn_peer_listener(port: u16, local_address_dotted: String) {
             }
         }
     });
+}
+
+fn spawn_peer_discovery(crs_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections) {
+    tokio::spawn(async move {
+        let client = reqwest::Client::builder()
+            .user_agent("PlenumNET-InterCube/0.4.0")
+            .timeout(Duration::from_secs(10))
+            .build()
+            .unwrap();
+
+        loop {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+
+            let discover_url = format!(
+                "{}/api/salvi/inter-cube/relay/peer-discovery?address={}&peerPort={}",
+                crs_url, local_address, local_peer_port
+            );
+
+            match client.get(&discover_url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    if let Ok(body) = resp.json::<serde_json::Value>().await {
+                        if let Some(lan_peers) = body["peers"].as_array() {
+                            let now = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default().as_secs();
+                            for peer in lan_peers {
+                                let addr = peer["address"].as_str().unwrap_or("").to_string();
+                                let ip_str = peer["ip"].as_str().unwrap_or("");
+                                let pp = peer["peerPort"].as_u64().unwrap_or(0) as u16;
+                                if !addr.is_empty() && pp > 0 && addr != local_address {
+                                    if let Ok(ip) = ip_str.parse::<std::net::IpAddr>() {
+                                        if let Ok(mut peers) = peers.lock() {
+                                            if !peers.contains_key(&addr) {
+                                                println!("[PEER-DISCOVERY] Found LAN peer {} at {}:{}", addr, ip, pp);
+                                                peers.insert(addr.clone(), PeerInfo {
+                                                    address: addr,
+                                                    ip,
+                                                    peer_port: pp,
+                                                    connected: false,
+                                                    last_seen: now,
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(_) => {}
+                Err(_) => {}
+            }
+
+            if let Ok(peers) = peers.lock() {
+                for (addr, info) in peers.iter() {
+                    if !info.connected {
+                        println!("[PEER-DISCOVERY] Attempting direct connection to {} at {}:{}", addr, info.ip, info.peer_port);
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn route_message(target_address: &str, peers: &PeerConnections) -> MessageRoute {
+    if let Ok(peers) = peers.lock() {
+        if let Some(info) = peers.get(target_address) {
+            if info.connected {
+                return MessageRoute::Direct {
+                    ip: info.ip,
+                    port: info.peer_port,
+                };
+            }
+        }
+    }
+    MessageRoute::Relay
+}
+
+#[derive(Debug)]
+enum MessageRoute {
+    Direct { ip: std::net::IpAddr, port: u16 },
+    Relay,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -257,7 +420,8 @@ async fn run_crs_mode() {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
     }
 
-    spawn_peer_listener(p_port, local_address.to_dotted());
+    let peers = new_peer_registry();
+    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone());
 
     println!();
     println!("=== HTTP Server (CRS) ===");
@@ -635,7 +799,11 @@ async fn run_cube_mode() {
     spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex);
 
     let p_port = peer_port();
-    spawn_peer_listener(p_port, local_address.to_dotted());
+    let peers = new_peer_registry();
+    spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone());
+
+    let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
+    spawn_peer_discovery(crs_url.clone(), addr_str_for_discovery, p_port, peers.clone());
 
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);
@@ -647,7 +815,7 @@ async fn run_cube_mode() {
     println!("  http://{}", listen_addr);
     println!("  Peer port: {}", p_port);
     println!("  {} routes active", CUBE_ROUTE_COUNT);
-    println!("  Relay:     WebSocket (NAT traversal + direct peering)");
+    println!("  Routing:   Direct peer (LAN) -> Relay (WAN) fallback");
     println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
     println!();
 
@@ -964,6 +1132,8 @@ async fn send_inference_error(
 
 #[tokio::main]
 async fn main() {
+    parse_cli_args();
+
     println!("===========================================================");
     println!(
         "  PlenumNET Inter-Cube Infrastructure Services v{}",

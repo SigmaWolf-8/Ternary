@@ -680,6 +680,7 @@ interface DaemonHealth {
   role: "crs" | "cube";
   registeredInCrs: boolean;
   connectedViaRelay: boolean;
+  directPeerCount: number;
   lastSeen: string | null;
   lastSeenAgeMs: number | null;
   status: "live" | "registered" | "deployed";
@@ -1079,6 +1080,7 @@ function ClusterReport() {
               <span>Role: <strong className="text-foreground">{d.role === "crs" ? "CRS" : "Cube"}</strong></span>
               <span>Registered: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
               <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
+              <span data-testid={`daemon-connection-mode-${i}`}>Connection: <strong className={d.directPeerCount > 0 ? "text-green-600 dark:text-green-400" : "text-foreground"}>{d.directPeerCount > 0 ? `direct (${d.directPeerCount} peer${d.directPeerCount > 1 ? "s" : ""})` : "relay"}</strong></span>
             </div>
           </div>
         ))}

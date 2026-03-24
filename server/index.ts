@@ -675,6 +675,27 @@ function startPqtiService(): ChildProcess | null {
     return res.status(404).json({ error: "Address not registered — include publicKey param" });
   });
 
+  const peerRegistry = new Map<string, { address: string; ip: string; peerPort: number; lastSeen: number }>();
+
+  app.get("/api/salvi/inter-cube/relay/peer-discovery", async (req, res) => {
+    const { address, peerPort } = req.query as { address?: string; peerPort?: string };
+    if (!address || !peerPort) {
+      return res.status(400).json({ error: "address and peerPort query params required" });
+    }
+    const callerIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "").split(",")[0].trim();
+    const pp = parseInt(peerPort, 10);
+    if (pp > 0 && callerIp) {
+      peerRegistry.set(address, { address, ip: callerIp, peerPort: pp, lastSeen: Date.now() });
+    }
+    const lanPeers: Array<{ address: string; ip: string; peerPort: number }> = [];
+    for (const [addr, info] of peerRegistry.entries()) {
+      if (addr !== address && info.ip === callerIp && Date.now() - info.lastSeen < 120000) {
+        lanPeers.push({ address: info.address, ip: info.ip, peerPort: info.peerPort });
+      }
+    }
+    return res.json({ peers: lanPeers, callerIp });
+  });
+
   const interCubeProxy = async (req: any, res: any) => {
     const upstream = await tryCrsDaemon(`http://127.0.0.1:8181${req.originalUrl}`, {
       method: req.method,
@@ -943,6 +964,7 @@ function startPqtiService(): ChildProcess | null {
         role: "crs" | "cube";
         registeredInCrs: boolean;
         connectedViaRelay: boolean;
+        directPeerCount: number;
         lastSeen: string | null;
         lastSeenAgeMs: number | null;
         status: "live" | "registered" | "deployed";
@@ -975,6 +997,15 @@ function startPqtiService(): ChildProcess | null {
 
           const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
           const healthState = isRelayConnected ? "up" as NodeHealthState : computeHealthState(lastSeenTs, now);
+          const peerInfo = peerRegistry.get(normalAddr);
+          let directPeerCount = 0;
+          if (peerInfo) {
+            for (const [, pi] of peerRegistry.entries()) {
+              if (pi.address !== normalAddr && pi.ip === peerInfo.ip && now - pi.lastSeen < 120000) {
+                directPeerCount++;
+              }
+            }
+          }
           daemonChecks.push({
             address: toDottedAddr(normalAddr),
             endpoint: d.endpoint || "",
@@ -985,6 +1016,7 @@ function startPqtiService(): ChildProcess | null {
             role: isCrs ? "crs" : "cube",
             registeredInCrs: isRegistered,
             connectedViaRelay: !!isRelayConnected,
+            directPeerCount,
             lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
             lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
             status,
@@ -1003,6 +1035,15 @@ function startPqtiService(): ChildProcess | null {
         const isCrs = crsAddr === CRS_ORIGIN;
         const lastSeenTs = crsEntry.lastSeen;
         const healthState = isRelayConnected ? "up" as NodeHealthState : computeHealthState(lastSeenTs, now);
+        const crsPeerInfo = peerRegistry.get(crsAddr);
+        let crsDirectPeerCount = 0;
+        if (crsPeerInfo) {
+          for (const [, pi] of peerRegistry.entries()) {
+            if (pi.address !== crsAddr && pi.ip === crsPeerInfo.ip && now - pi.lastSeen < 120000) {
+              crsDirectPeerCount++;
+            }
+          }
+        }
         daemonChecks.push({
           address: toDottedAddr(crsAddr),
           endpoint: crsEntry.endpoint || "",
@@ -1013,6 +1054,7 @@ function startPqtiService(): ChildProcess | null {
           role: isCrs ? "crs" : "cube",
           registeredInCrs: true,
           connectedViaRelay: !!isRelayConnected,
+          directPeerCount: crsDirectPeerCount,
           lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
           lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
           status: isRelayConnected ? "live" : "registered",
