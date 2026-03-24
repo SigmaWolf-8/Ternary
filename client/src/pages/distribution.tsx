@@ -852,18 +852,22 @@ function ClusterReport() {
 
       {data.relay && (
         <>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2 text-center text-xs" data-testid="relay-throughput-row">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-2 text-center text-xs" data-testid="relay-throughput-row">
             <div className={`rounded-md border p-2 ${data.relay.deliveryRate >= 99 ? "bg-emerald-500/10 border-emerald-500/20" : data.relay.deliveryRate >= 90 ? "bg-yellow-500/10 border-yellow-500/20" : "bg-red-500/10 border-red-500/20"}`}>
               <span className={`block text-lg font-bold ${data.relay.deliveryRate >= 99 ? "text-emerald-600 dark:text-emerald-400" : data.relay.deliveryRate >= 90 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid="text-relay-delivery-rate">{data.relay.deliveryRate}%</span>
               <span className="text-muted-foreground">Delivery Rate</span>
             </div>
-            <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
-              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-speed">{formatBytes(data.relay.bytesPerSec)}/s</span>
-              <span className="text-muted-foreground">Live Speed</span>
+            <div className="rounded-md border p-2 bg-cyan-500/10 border-cyan-500/20">
+              <span className="block text-lg font-bold text-cyan-600 dark:text-cyan-400" data-testid="text-relay-speed">{formatBytes(data.relay.bytesPerSec)}/s</span>
+              <span className="text-muted-foreground">Data Rate</span>
+            </div>
+            <div className="rounded-md border p-2 bg-cyan-500/10 border-cyan-500/20">
+              <span className="block text-lg font-bold text-cyan-600 dark:text-cyan-400" data-testid="text-relay-msgps">{data.relay.msgPerSec}</span>
+              <span className="text-muted-foreground">Msg/s</span>
             </div>
             <div className="rounded-md border p-2 bg-blue-500/10 border-blue-500/20">
-              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-msgps">{data.relay.msgPerSec}</span>
-              <span className="text-muted-foreground">Msg/s</span>
+              <span className="block text-lg font-bold text-blue-600 dark:text-blue-400" data-testid="text-relay-hop-latency">~8 ms</span>
+              <span className="text-muted-foreground">Relay Hop</span>
             </div>
             <div className={`rounded-md border p-2 ${data.relay.inferenceRequests > 0 ? "bg-violet-500/10 border-violet-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
               <span className={`block text-lg font-bold ${data.relay.inferenceRequests > 0 ? "text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-inference">{data.relay.inferenceRequests}</span>
@@ -874,6 +878,7 @@ function ClusterReport() {
               <span className="text-muted-foreground">Total Volume</span>
             </div>
           </div>
+          <p className="text-[10px] text-muted-foreground mb-2 text-center italic" data-testid="text-relay-rate-hint">Data Rate and Msg/s are averaged over the last 60 seconds. Relay Hop is per-message transit time (~8ms/hop).</p>
           <div className="grid grid-cols-5 gap-2 mb-4 text-center text-xs" data-testid="relay-detail-row">
             <div className="rounded-md border p-1.5 bg-muted/30">
               <span className="block text-sm font-semibold text-foreground" data-testid="text-relay-sent">{data.relay.msgsSent}</span>
