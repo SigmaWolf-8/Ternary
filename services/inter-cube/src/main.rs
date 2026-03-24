@@ -557,7 +557,9 @@ async fn run_cube_mode() {
     let addr_str_for_relay: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     let relay_target = relay_url(Some(&crs_url)).unwrap_or_else(|| crs_url.clone());
     println!("[ws-relay] Relay target: {}", relay_target);
-    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone());
+    let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
+    let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
+    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex);
 
     let shared_state = AppState::new_cube(con, fts, glb, local_address);
     let app = cube_router(shared_state);

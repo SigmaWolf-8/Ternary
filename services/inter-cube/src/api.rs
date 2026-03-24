@@ -14,13 +14,15 @@
 //!
 //! ## Routes
 //!
-//! ### CRS Mode (11 routes — full API)
+//! ### CRS Mode (13 routes — full API)
 //! | Method | Path | Handler |
 //! |--------|------|---------|
 //! | GET | `/health` | [`health_check`] |
 //! | GET | `/api/salvi/inter-cube/crs/stats` | [`crs_stats`] |
 //! | POST | `/api/salvi/inter-cube/crs/register` | [`crs_register`] |
+//! | POST | `/api/salvi/inter-cube/crs/update-key` | [`crs_update_key`] |
 //! | POST | `/api/salvi/inter-cube/crs/heartbeat` | [`crs_heartbeat`] |
+//! | POST | `/api/salvi/inter-cube/crs/verify-challenge` | [`verify_challenge`] |
 //! | POST | `/api/salvi/inter-cube/glb/forward` | [`glb_forward`] |
 //! | GET | `/api/salvi/inter-cube/glb/stats` | [`glb_stats`] |
 //! | GET | `/api/salvi/inter-cube/con/stats` | [`con_stats`] |
