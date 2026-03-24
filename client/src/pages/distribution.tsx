@@ -645,6 +645,7 @@ interface DaemonHealth {
   registeredInCrs: boolean;
   connectedViaRelay: boolean;
   lastSeen: string | null;
+  lastSeenAgeMs: number | null;
   status: "live" | "registered" | "deployed";
 }
 
@@ -818,7 +819,7 @@ function ClusterReport() {
             <div className="flex items-center justify-between mb-1">
               <span className="font-medium text-foreground">{d.hostname} — Daemon #{i + 1}</span>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] ${d.lastSeen ? (Date.now() - new Date(d.lastSeen).getTime() < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-black dark:text-white"}`} data-testid={`daemon-heartbeat-${i}`}>
+                <span className={`text-[10px] ${d.lastSeenAgeMs !== null ? (d.lastSeenAgeMs < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-black dark:text-white"}`} data-testid={`daemon-heartbeat-${i}`}>
                   {formatTimeAgo(d.lastSeen)}
                 </span>
                 <span className={`inline-block w-2 h-2 rounded-full ${d.connectedViaRelay ? "bg-blue-500" : "bg-black dark:bg-white"}`} title={d.connectedViaRelay ? "WebSocket connected" : "WebSocket disconnected"} data-testid={`daemon-ws-indicator-${i}`} />

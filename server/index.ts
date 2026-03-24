@@ -798,6 +798,7 @@ function startPqtiService(): ChildProcess | null {
             status = "registered";
           }
 
+          const lastSeenTs = crsEntry ? crsEntry.lastSeen : null;
           daemonChecks.push({
             address: addr,
             endpoint: d.endpoint || "",
@@ -806,7 +807,8 @@ function startPqtiService(): ChildProcess | null {
             deploymentId: record.id,
             registeredInCrs: isRegistered,
             connectedViaRelay: !!isRelayConnected,
-            lastSeen: crsEntry ? new Date(crsEntry.lastSeen).toISOString() : null,
+            lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
+            lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
             status,
           });
         }
