@@ -1095,13 +1095,16 @@ function startPqtiService(): ChildProcess | null {
   const RELAY_PING_INTERVAL = 30_000;
   const RELAY_DEAD_TIMEOUT = 90_000;
 
+  let lastPeerCount = 0;
   const relayPingInterval = setInterval(() => {
     const now = Date.now();
+    let pruned = 0;
     for (const [addr, clientWs] of relayClients.entries()) {
       if (clientWs.readyState !== WebSocket.OPEN) {
         console.log(`[ws-relay] Pruning dead socket for ${toDottedAddr(addr)} (readyState=${clientWs.readyState})`);
         relayClients.delete(addr);
         relayAddressByWs.delete(clientWs);
+        pruned++;
         continue;
       }
       const entry = crsRegistry.get(addr);
@@ -1110,20 +1113,23 @@ function startPqtiService(): ChildProcess | null {
         clientWs.close(1000, "ping timeout");
         relayClients.delete(addr);
         relayAddressByWs.delete(clientWs);
+        pruned++;
         continue;
       }
       try {
         clientWs.ping();
-        clientWs.send(JSON.stringify({ type: "ping", ts: now }));
       } catch (err: any) {
         console.log(`[ws-relay] Ping failed for ${toDottedAddr(addr)}: ${err.message}`);
         relayClients.delete(addr);
         relayAddressByWs.delete(clientWs);
+        pruned++;
       }
     }
     const liveCount = relayClients.size;
-    if (liveCount > 0) {
-      console.log(`[ws-relay] Keepalive: ${liveCount} peer(s) alive — [${Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ")}]`);
+    if (liveCount !== lastPeerCount || pruned > 0) {
+      const peers = Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ");
+      console.log(`[ws-relay] Peers: ${liveCount} alive${peers ? ` [${peers}]` : ""}${pruned ? ` (${pruned} pruned)` : ""}`);
+      lastPeerCount = liveCount;
     }
   }, RELAY_PING_INTERVAL);
   relayPingInterval.unref();

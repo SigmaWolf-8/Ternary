@@ -728,7 +728,7 @@ function statusBg(s: "live" | "registered" | "deployed") {
 function ClusterReport() {
   const { data, isLoading, refetch } = useQuery<ClusterHealthData>({
     queryKey: ["/api/salvi/inter-cube/relay/cluster-health"],
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
   });
 
   if (isLoading) {
