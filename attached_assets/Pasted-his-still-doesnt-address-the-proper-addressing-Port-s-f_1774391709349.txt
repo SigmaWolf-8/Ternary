@@ -1,0 +1,39 @@
+his still doesnt address the proper addressing Port#s for and Array3 does it? Wer should fix that ASAP so the logc is right for first Yoda connection this way any node has scalability built in. does that make sense?
+
+Makes total sense — if the port logic isn't nailed down before the first node-to-node handshake, you're debugging address collisions instead of building features. Let me verify exactly what the spec says versus what the task currently defines.
+
+Let me get the exact port tables from the spec for single node and Array3:
+
+Now I see the issue. Let me check what Task #34 (33.1 Port Projection) covers for Array3:
+
+You're right, and this is a real gap. Let me lay out what's missing:
+
+The spec formula (line 78) is clear:
+
+port = base + (node × 27) + (plane × 9) + (role × 3) + instance
+Array3: Node 0 = 11111–11137, Node 1 = 11138–11164, Node 2 = 11165–11191. 81 ports = 3⁴.
+
+But neither task currently answers the hard questions:
+
+How does a node know it's node 0 vs node 1 vs node 2?
+When node 1 boots, how does it find node 0?
+How do they negotiate which 27-port range each owns?
+What does the CRS handshake look like when the Array3 forms?
+That's exactly what needs to be nailed down before the first inter-node connection. If the port identity is wrong, the whole mesh is wrong. Let me also fix my formula — I introduced a cube dimension that isn't in the spec. The spec formula already handles Array3 via the node trit. Stacking beyond Array3 extends the formula with more trits, but that's future scope.
+
+Let me check the existing inter-cube code for any node identity mechanism:
+
+Confirmed — the existing inter-cube daemon has peer-to-peer connection code (CUBE_PEER_PORT, peer announce, direct WebSocket connections) but zero Array3 awareness:
+
+No NODE_ID concept
+No port range ownership based on node position
+No Array3 formation protocol
+No slot-to-node mapping
+The peering is flat — any node connects to any other with no structured identity. So when the first Yoda connection happens, neither node knows "I own slots 0–26, you own slots 27–53." That's broken from the start.
+
+I also need to fix the formula in the plan — I introduced a cube × 81 dimension that isn't in the spec. The spec formula is:
+
+port = base + (node × 27) + (plane × 9) + (role × 3) + instance
+Array3 IS the 4th trit dimension. Future stacking adds more trit dimensions, but that's the generalization, not the Array3 base case.
+
+Let me restructure 33.2 to front-load Array3 port identity as the first items — before scan templates and versioning:

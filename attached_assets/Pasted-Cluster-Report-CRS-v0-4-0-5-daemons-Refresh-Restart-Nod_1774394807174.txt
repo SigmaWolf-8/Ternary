@@ -1,0 +1,126 @@
+Cluster Report
+
+CRS v0.4.0
+5 daemons
+Refresh
+Restart Nodes
+Installer
+2
+Live
+1
+Registered
+2
+Deployed
+100%
+Delivery Rate
+27 B/s
+Data Rate
+0.23
+Msg/s
+~8 ms
+Relay Hop
+0
+LLM Requests
+112 KB
+Total Volume
+Data Rate and Msg/s are averaged over the last 60 seconds. Relay Hop is per-message transit time (~8ms/hop).
+
+1030
+Total Msgs
+1030
+Delivered
+1030
+Mesh HBs
+0
+LLM Resp
+111 B
+Avg Size
+2
+/
+3
+peers (now/peak)
+0 queues
+0 pending msgs
+Uptime: 1h 13m
+SSLAPTOPPMHU6JD — Node #1
+21s ago
+live
+up
+Address: 111.111.111.111.1
+Endpoint: 10.0.0.42:8081
+Port: 8081
+Role: CRS
+Registered: yes
+Relay: yes
+Connection: relay
+SSLAPTOPPMHU6JD — Node #2
+—
+deployed
+down
+Address: 121.111.111.111.1
+Endpoint: 10.0.0.42:8084
+Port: 8084
+Role: Cube
+Registered: no
+Relay: no
+Connection: relay
+SSLAPTOPPMHU6JD — Node #3
+—
+deployed
+down
+Address: 221.111.111.111.1
+Endpoint: 10.0.0.42:8087
+Port: 8087
+Role: Cube
+Registered: no
+Relay: no
+Connection: relay
+CRS-Discovered — Node #4
+CRS
+5s ago
+live
+up
+Address: 211.111.111.111.1
+Endpoint: 0.0.0.0:8084
+Port: 0
+Role: Cube
+Registered: yes
+Relay: yes
+Connection: direct (1 peer)
+CRS-Discovered — Node #5
+CRS
+1s ago
+registered
+up
+Address: 311.111.111.111.1
+Endpoint: 0.0.0.0:8087
+Port: 0
+Role: Cube
+Registered: yes
+Relay: no
+Connection: direct (1 peer)
+Event History
+
+Time	Node	Event	Detail
+5:26:32 p.m.	111.111.111.111.1	peer_offline	peer 311.111.111.111.1 went offline
+5:26:32 p.m.	211.111.111.111.1	peer_offline	peer 311.111.111.111.1 went offline
+5:26:32 p.m.	311.111.111.111.1	disconnect	none
+5:26:08 p.m.	211.111.111.111.1	reconnect	connected
+5:26:02 p.m.	111.111.111.111.1	peer_offline	peer 211.111.111.111.1 went offline
+5:26:02 p.m.	311.111.111.111.1	peer_offline	peer 211.111.111.111.1 went offline
+5:26:02 p.m.	211.111.111.111.1	disconnect	none
+5:25:27 p.m.	111.111.111.111.1	reconnect	connected
+5:25:21 p.m.	111.111.111.111.1	disconnect	none
+5:25:21 p.m.	211.111.111.111.1	peer_offline	peer 111.111.111.111.1 went offline
+5:25:21 p.m.	311.111.111.111.1	peer_offline	peer 111.111.111.111.1 went offline
+5:21:31 p.m.	311.111.111.111.1	reconnect	connected
+5:21:26 p.m.	111.111.111.111.1	peer_offline	peer 311.111.111.111.1 went offline
+5:21:26 p.m.	211.111.111.111.1	peer_offline	peer 311.111.111.111.1 went offline
+5:21:26 p.m.	311.111.111.111.1	disconnect	none
+5:21:01 p.m.	211.111.111.111.1	reconnect	connected
+5:20:55 p.m.	111.111.111.111.1	peer_offline	peer 211.111.111.111.1 went offline
+5:20:55 p.m.	211.111.111.111.1	disconnect	none
+5:20:55 p.m.	311.111.111.111.1	peer_offline	peer 211.111.111.111.1 went offline
+5:20:20 p.m.	111.111.111.111.1	reconnect	connected
+CRS: 111.111.111.111.1
+Checked: 
