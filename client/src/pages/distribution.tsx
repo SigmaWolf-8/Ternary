@@ -255,6 +255,16 @@ const MODULES: Module[] = [
     path: "src/kernel/src/crypto/metatronic_cube.rs",
   },
   {
+    id: "tvm",
+    name: "Ternary Virtual Machine",
+    version: PLATFORM.VM_ISA_VERSION,
+    desc: `${PLATFORM.VM_OPCODES}-opcode ISA, ternary addressing, three-ring privilege levels, quantum-ternary simulation, ternary-aware garbage collector.`,
+    category: "core",
+    size: "210 KB",
+    format: ".rs",
+    path: "src/kernel/src/vm",
+  },
+  {
     id: "hptp",
     name: "HPTP Timing Tool",
     version: "v0.9.0",
