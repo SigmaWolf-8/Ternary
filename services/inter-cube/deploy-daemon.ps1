@@ -375,6 +375,30 @@ set CUBE_ROLE=inference
             }
         }
 
+        $watchdogScript = Join-Path $RepoDir "services\wrappers\plenumnet-watchdog.ps1"
+        @"
+`$stopped = Get-Service PlenumNET-Cube-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
+foreach (`$svc in `$stopped) {
+    try { Start-Service -Name `$svc.Name -ErrorAction Stop } catch {}
+}
+"@ | Set-Content -Path $watchdogScript -Encoding ASCII
+
+        $taskName = "PlenumNET-Daemon-Watchdog"
+        $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if ($existingTask) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+
+        $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$watchdogScript`\""
+        $triggerBoot = New-ScheduledTaskTrigger -AtStartup
+        $triggerRepeat = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+        $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET daemon watchdog -- restarts stopped services every 5 minutes and on boot" | Out-Null
+        Write-Host "  [OK] Watchdog scheduled task registered: $taskName" -ForegroundColor Green
+        Write-Host "       Checks every 5 minutes + on boot -- restarts any stopped daemons" -ForegroundColor DarkGray
+
         Write-Host ""
         Write-Host "  Service management:" -ForegroundColor White
         Write-Host "    Get-Service PlenumNET-Cube-*       # Check all daemon services" -ForegroundColor DarkGray

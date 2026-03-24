@@ -14,7 +14,7 @@
 
 param(
     [Parameter(Position=0, Mandatory=$true)]
-    [ValidateSet("status", "start", "stop", "restart", "install", "uninstall", "logs")]
+    [ValidateSet("status", "start", "stop", "restart", "install", "uninstall", "logs", "watchdog")]
     [string]$Command,
 
     [Parameter(Position=1)]
@@ -283,6 +283,37 @@ function Invoke-Logs {
     }
 }
 
+function Invoke-Watchdog {
+    Require-Admin
+    $watchdogScript = Join-Path $InstallDir "services\wrappers\plenumnet-watchdog.ps1"
+    $watchdogDir = Split-Path $watchdogScript -Parent
+    if (-not (Test-Path $watchdogDir)) { New-Item -Path $watchdogDir -ItemType Directory -Force | Out-Null }
+    @"
+`$stopped = Get-Service PlenumNET-Cube-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
+foreach (`$svc in `$stopped) {
+    try { Start-Service -Name `$svc.Name -ErrorAction Stop } catch {}
+}
+"@ | Set-Content -Path $watchdogScript -Encoding ASCII
+
+    $taskName = "PlenumNET-Daemon-Watchdog"
+    $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($existingTask) {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$watchdogScript`\""
+    $triggerBoot = New-ScheduledTaskTrigger -AtStartup
+    $triggerRepeat = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET daemon watchdog -- restarts stopped services every 5 minutes and on boot" | Out-Null
+    Write-Host "  [OK] Watchdog scheduled task registered: $taskName" -ForegroundColor Green
+    Write-Host "       Checks every 5 minutes + on boot -- restarts any stopped daemons" -ForegroundColor DarkGray
+    Write-Host "       Script: $watchdogScript" -ForegroundColor DarkGray
+    Write-Host "       Check:  Get-ScheduledTask -TaskName $taskName" -ForegroundColor DarkGray
+}
+
 switch ($Command) {
     "status"    { Invoke-Status -Id $IdentityId }
     "start"     {
@@ -309,4 +340,5 @@ switch ($Command) {
         if ($IdentityId -le 0) { Write-Host "  ERROR: Identity ID required." -ForegroundColor Red; exit 1 }
         Invoke-Logs -Id $IdentityId
     }
+    "watchdog"  { Invoke-Watchdog }
 }
