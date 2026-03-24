@@ -1,0 +1,112 @@
+3
+Live
+0
+Registered
+2
+Deployed
+100%
+Delivery Rate
+12 B/s
+Data Rate
+0.12
+Msg/s
+~8 ms
+Relay Hop
+0
+LLM Requests
+31 KB
+Total Volume
+Data Rate and Msg/s are averaged over the last 60 seconds. Relay Hop is per-message transit time (~8ms/hop).
+
+283
+Total Msgs
+283
+Delivered
+283
+Mesh HBs
+0
+LLM Resp
+111 B
+Avg Size
+3
+/
+3
+peers (now/peak)
+0 queues
+0 pending msgs
+Uptime: 26m
+SSLAPTOPPMHU6JD — Node #1
+18s ago
+live
+up
+Address: 111.111.111.111.1
+Endpoint: 10.0.0.42:8081
+Port: 8081
+Role: CRS
+Registered: yes
+Relay: yes
+SSLAPTOPPMHU6JD — Node #2
+—
+deployed
+down
+Address: 211.111.111.111.1
+Endpoint: 10.0.0.42:8083
+Port: 8083
+Role: Cube
+Registered: no
+Relay: no
+SSLAPTOPPMHU6JD — Node #3
+—
+deployed
+down
+Address: 311.111.111.111.1
+Endpoint: 10.0.0.42:8085
+Port: 8085
+Role: Cube
+Registered: no
+Relay: no
+CRS-Discovered — Node #4
+CRS
+10s ago
+live
+up
+Address: 221.111.111.111.1
+Endpoint: 0.0.0.0:8085
+Port: 0
+Role: Cube
+Registered: yes
+Relay: yes
+CRS-Discovered — Node #5
+CRS
+3s ago
+live
+up
+Address: 121.111.111.111.1
+Endpoint: 0.0.0.0:8083
+Port: 0
+Role: Cube
+Registered: yes
+Relay: yes
+Event History
+
+Time	Node	Event	Detail
+9:46:05 AM	221.111.111.111.1	reconnect	connected
+9:46:00 AM	111.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+9:46:00 AM	121.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+9:46:00 AM	221.111.111.111.1	disconnect	none
+9:43:43 AM	221.111.111.111.1	reconnect	connected
+9:43:42 AM	121.111.111.111.1	reconnect	connected
+9:43:27 AM	111.111.111.111.1	reconnect	connected
+9:43:19 AM	121.111.111.111.1	disconnect	none
+9:43:19 AM	121.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+9:43:19 AM	221.111.111.111.1	disconnect	none
+9:43:19 AM	221.111.111.111.1	peer_offline	peer 111.111.111.111.1 went offline
+9:43:19 AM	121.111.111.111.1	peer_offline	peer 111.111.111.111.1 went offline
+9:43:19 AM	111.111.111.111.1	disconnect	none
+9:42:56 AM	121.111.111.111.1	reconnect	connected
+9:42:50 AM	111.111.111.111.1	peer_offline	peer 121.111.111.111.1 went offline
+9:42:50 AM	221.111.111.111.1	peer_offline	peer 121.111.111.111.1 went offline
+9:42:50 AM	121.111.111.111.1	disconnect	none
+9:41:04 AM	221.111.111.111.1	reconnect	connected
+9:40:59 AM	111.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
+9:40:59 AM	121.111.111.111.1	peer_offline	peer 221.111.111.111.1 went offline
