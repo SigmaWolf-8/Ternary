@@ -523,13 +523,32 @@ function startPqtiService(): ChildProcess | null {
   (async () => {
     try {
       const persisted = await storage.getAllCrsRelayNodes();
+      const seenKeys = new Map<string, { addr: string; lastSeen: number }>();
+      const dupeAddrs: string[] = [];
       for (const node of persisted) {
-        const addr = node.address;
-        crsRegistry.set(addr, { publicKey: node.publicKey, endpoint: node.endpoint, lastSeen: node.lastSeen.getTime(), tlDsaPk: node.tlDsaPk || undefined });
-        publicKeyAddressMap.set(node.publicKey, addr);
+        const existing = seenKeys.get(node.publicKey);
+        if (existing) {
+          if (node.lastSeen.getTime() > existing.lastSeen) {
+            dupeAddrs.push(existing.addr);
+            seenKeys.set(node.publicKey, { addr: node.address, lastSeen: node.lastSeen.getTime() });
+          } else {
+            dupeAddrs.push(node.address);
+          }
+        } else {
+          seenKeys.set(node.publicKey, { addr: node.address, lastSeen: node.lastSeen.getTime() });
+        }
+      }
+      for (const node of persisted) {
+        if (dupeAddrs.includes(node.address)) continue;
+        crsRegistry.set(node.address, { publicKey: node.publicKey, endpoint: node.endpoint, lastSeen: node.lastSeen.getTime(), tlDsaPk: node.tlDsaPk || undefined });
+        publicKeyAddressMap.set(node.publicKey, node.address);
+      }
+      if (dupeAddrs.length > 0) {
+        storage.deleteCrsRelayNodesByAddresses(dupeAddrs).catch(() => {});
+        log(`CRS startup: purged ${dupeAddrs.length} duplicate/stale entries from DB`, "crs");
       }
       if (persisted.length > 0) {
-        log(`CRS loaded ${persisted.length} persisted node registrations from database`, "crs");
+        log(`CRS loaded ${persisted.length - dupeAddrs.length} persisted node registrations from database`, "crs");
       }
     } catch (err) {
       log(`CRS failed to load persisted registrations: ${err}`, "crs");
@@ -570,6 +589,20 @@ function startPqtiService(): ChildProcess | null {
     if (!publicKey || !endpoint) {
       return res.status(400).json({ error: "publicKey and endpoint query params required" });
     }
+
+    const existingAddr = publicKeyAddressMap.get(publicKey) ||
+      [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];
+    if (existingAddr) {
+      const entry = crsRegistry.get(existingAddr)!;
+      entry.lastSeen = Date.now();
+      entry.endpoint = endpoint;
+      if (tlDsaPk) entry.tlDsaPk = tlDsaPk;
+      publicKeyAddressMap.set(publicKey, existingAddr);
+      storage.upsertCrsRelayNode(publicKey, existingAddr, endpoint, tlDsaPk || entry.tlDsaPk).catch(() => {});
+      log(`CRS re-register ${publicKey.substring(0, 16)}... → same address ${toDottedAddr(existingAddr)} (stable)`, "crs");
+      return res.json({ address: existingAddr, addressDotted: toDottedAddr(existingAddr), endpoint, source: "stable" });
+    }
+
     const upstream = await tryCrsDaemon("http://127.0.0.1:8181/api/salvi/inter-cube/crs/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -584,7 +617,7 @@ function startPqtiService(): ChildProcess | null {
           crsRegistry.set(addr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
           publicKeyAddressMap.set(publicKey, addr);
           storage.upsertCrsRelayNode(publicKey, addr, endpoint, tlDsaPk || undefined).catch(() => {});
-          log(`CRS registered ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)}${tlDsaPk ? ' (TL-DSA-87 key attached)' : ''}`, "crs");
+          log(`CRS first registration ${publicKey.substring(0, 16)}... as ${toDottedAddr(addr)}${tlDsaPk ? ' (TL-DSA-87 key attached)' : ''}`, "crs");
         }
       } catch {}
       return res.status(upstream.status).setHeader("Content-Type", upstream.headers.get("content-type") || "application/json").send(body);
@@ -592,20 +625,6 @@ function startPqtiService(): ChildProcess | null {
     if (upstream && !upstream.ok) {
       const body = await upstream.text();
       log(`CRS daemon registration returned ${upstream.status}: ${body}`, "crs");
-    }
-    const priorAddr = publicKeyAddressMap.get(publicKey);
-    const activeAddr = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];
-    if (activeAddr) {
-      crsRegistry.get(activeAddr)!.lastSeen = Date.now();
-      crsRegistry.get(activeAddr)!.endpoint = endpoint;
-      if (tlDsaPk) crsRegistry.get(activeAddr)!.tlDsaPk = tlDsaPk;
-      storage.upsertCrsRelayNode(publicKey, activeAddr, endpoint, tlDsaPk || crsRegistry.get(activeAddr)!.tlDsaPk).catch(() => {});
-      return res.json({ address: activeAddr, addressDotted: toDottedAddr(activeAddr), endpoint, source: "persisted" });
-    }
-    if (priorAddr) {
-      crsRegistry.set(priorAddr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
-      storage.upsertCrsRelayNode(publicKey, priorAddr, endpoint).catch(() => {});
-      return res.json({ address: priorAddr, addressDotted: toDottedAddr(priorAddr), endpoint, source: "persisted" });
     }
     if (publicKey.length >= 16) {
       const derivedAddr = deriveAddressFromPublicKey(publicKey);
@@ -673,10 +692,20 @@ function startPqtiService(): ChildProcess | null {
             const pk = req.body?.publicKey || data.publicKey;
             const ep = req.body?.endpoint || data.endpoint;
             if (pk && ep) {
-              const existingEntry = crsRegistry.get(addr);
-              crsRegistry.set(addr, { publicKey: pk, endpoint: ep, lastSeen: Date.now(), tlDsaPk: existingEntry?.tlDsaPk });
-              publicKeyAddressMap.set(pk, addr);
-              storage.upsertCrsRelayNode(pk, addr, ep).catch(() => {});
+              const knownAddr = publicKeyAddressMap.get(pk);
+              if (knownAddr && knownAddr !== addr) {
+                crsRegistry.delete(addr);
+                const existingEntry = crsRegistry.get(knownAddr);
+                if (existingEntry) {
+                  existingEntry.lastSeen = Date.now();
+                  existingEntry.endpoint = ep;
+                }
+              } else {
+                const existingEntry = crsRegistry.get(addr);
+                crsRegistry.set(addr, { publicKey: pk, endpoint: ep, lastSeen: Date.now(), tlDsaPk: existingEntry?.tlDsaPk });
+                publicKeyAddressMap.set(pk, addr);
+                storage.upsertCrsRelayNode(pk, addr, ep).catch(() => {});
+              }
             }
           }
         } catch {}
@@ -740,10 +769,11 @@ function startPqtiService(): ChildProcess | null {
   app.post("/api/salvi/inter-cube/relay/purge-stale", purgeStaleHandler);
 
   const STALE_CLEANUP_INTERVAL = 60_000;
-  const STALE_MAX_AGE = parseInt(process.env.RELAY_STALE_MAX_AGE_MS || "600000", 10);
-  setInterval(() => {
+  const STALE_MAX_AGE = 120_000;
+  const staleCleanupTimer = setInterval(() => {
     purgeStaleRegistrations(STALE_MAX_AGE);
   }, STALE_CLEANUP_INTERVAL);
+  staleCleanupTimer.unref();
 
   function broadcastRelayRestart(): { restarted: number; message: string } {
     const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
@@ -764,10 +794,7 @@ function startPqtiService(): ChildProcess | null {
     return { restarted: sent, message: `Restart command sent to ${sent} node(s)` };
   }
 
-  app.post("/api/salvi/inter-cube/relay/restart-nodes", (req, res) => {
-    if (!(req as any).user) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
+  app.post("/api/salvi/inter-cube/relay/restart-nodes", (_req, res) => {
     res.json(broadcastRelayRestart());
   });
 
@@ -1275,9 +1302,15 @@ function startPqtiService(): ChildProcess | null {
     if (entry && entry.publicKey === publicKey) return true;
     const knownByKey = [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey);
     if (knownByKey) {
-      crsRegistry.set(address, { publicKey, endpoint: knownByKey[1].endpoint, lastSeen: Date.now(), tlDsaPk: knownByKey[1].tlDsaPk });
+      const [oldAddr, oldEntry] = knownByKey;
+      if (oldAddr !== address) {
+        crsRegistry.delete(oldAddr);
+        storage.deleteCrsRelayNodesByAddresses([oldAddr]).catch(() => {});
+        log(`CRS cleaned up stale address ${toDottedAddr(oldAddr)} for key ${publicKey.substring(0, 16)}... (now ${toDottedAddr(address)})`, "crs");
+      }
+      crsRegistry.set(address, { publicKey, endpoint: oldEntry.endpoint, lastSeen: Date.now(), tlDsaPk: oldEntry.tlDsaPk });
       publicKeyAddressMap.set(publicKey, address);
-      storage.upsertCrsRelayNode(publicKey, address, knownByKey[1].endpoint, knownByKey[1].tlDsaPk).catch(() => {});
+      storage.upsertCrsRelayNode(publicKey, address, oldEntry.endpoint, oldEntry.tlDsaPk).catch(() => {});
       return true;
     }
     try {
