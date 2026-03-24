@@ -478,7 +478,7 @@ function DeployerCard() {
           data-testid="tab-daemon"
         >
           <Server className="w-3.5 h-3.5" />
-          Inference Node
+          AI Engine
         </button>
         <button
           onClick={() => setActiveTab("yoda")}
@@ -549,15 +549,14 @@ function DeployerCard() {
         {activeTab === "daemon" && (
           <motion.div key="daemon" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} data-testid="panel-daemon">
             <div className="flex items-center gap-2 mb-2">
-              <p className="text-sm font-medium" data-testid="text-daemon-deploy-title">Deploy Inference Node</p>
+              <p className="text-sm font-medium" data-testid="text-daemon-deploy-title">Deploy AI Engine</p>
               <Badge variant="outline" className="text-[10px] border-blue-500/20 bg-blue-500/5 text-blue-700 dark:text-blue-400">v0.3.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Deploys a single Inter-Cube inference node on your machine. Each node connects
-              to the PlenumNET relay via WebSocket for NAT traversal, receives inference requests
-              from YODA, and forwards them to a local LLM engine (llama-server). Builds from source,
-              generates a PT26-DSA identity, and registers as a Windows service. Each run adds one
-              more node — ports auto-increment.
+              Sets up a local AI engine on your machine. Connects securely to PlenumNET so
+              YODA can send questions to your local AI model and get answers back — even behind
+              firewalls or home routers. Builds from source, generates a cryptographic identity,
+              and registers as a system service. Run it again to add more engines.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="daemon-deploy-instructions">
@@ -588,12 +587,10 @@ function DeployerCard() {
               <Badge variant="outline" className="text-[10px] border-violet-500/20 bg-violet-500/5 text-violet-700 dark:text-violet-400">v0.4.0</Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Deploys a 3-node inference cluster for YODA on your local machine. Each node runs
-              a local LLM engine and connects to the PlenumNET relay at plenumnet.replit.app via
-              WebSocket tunnel (NAT traversal). YODA dispatches inference requests through the relay
-              to your local engines. Node #1 runs as the local CRS (address allocator); Nodes #2
-              and #3 register with it on your LAN. Builds from source, generates 3 PT26-DSA identities,
-              and posts a deployment summary to the cluster monitor.
+              Sets up 3 AI engines on your machine for YODA. Each engine runs a local AI model
+              and connects securely to PlenumNET — YODA sends questions through the tunnel and your
+              engines answer them locally. Engine #1 also coordinates the other two. Builds from source,
+              generates 3 cryptographic identities, and reports to the cluster monitor.
             </p>
 
             <div className="bg-muted/50 rounded-lg p-3 mb-3" data-testid="yoda-deploy-instructions">
