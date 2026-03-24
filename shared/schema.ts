@@ -35,6 +35,7 @@ export const binaryStorage = pgTable("binary_storage", {
   rawData: jsonb("raw_data").notNull(),
   sizeBytes: integer("size_bytes").notNull(),
   rowCount: integer("row_count").notNull(),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -47,6 +48,7 @@ export const ternaryStorage = pgTable("ternary_storage", {
   compressedSizeBytes: integer("compressed_size_bytes").notNull(),
   compressionRatio: real("compression_ratio").notNull(),
   rowCount: integer("row_count").notNull(),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -94,6 +96,7 @@ export const whitepapers = pgTable("whitepapers", {
   summary: text("summary"),
   author: varchar("author"),
   isActive: integer("is_active").default(1).notNull(),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -120,6 +123,7 @@ export const apiKeys = pgTable("api_keys", {
   department: varchar("department", { length: 255 }),
   tags: jsonb("tags").$type<string[]>().default([]),
   notes: text("notes"),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -130,6 +134,7 @@ export const apiKeyLogs = pgTable("api_key_logs", {
   method: varchar("method", { length: 10 }).notNull(),
   statusCode: integer("status_code"),
   ipAddress: varchar("ip_address", { length: 45 }),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -141,6 +146,7 @@ export const apiKeyAuditEvents = pgTable("api_key_audit_events", {
   actorEmail: varchar("actor_email", { length: 255 }),
   details: jsonb("details").$type<Record<string, unknown>>(),
   ipAddress: varchar("ip_address", { length: 45 }),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -165,6 +171,7 @@ export const developerSignups = pgTable("developer_signups", {
   name: varchar("name"),
   company: varchar("company"),
   interest: varchar("interest"),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -181,6 +188,7 @@ export const compressedDocuments = pgTable("compressed_documents", {
   originalSizeBytes: integer("original_size_bytes"),
   storedSizeBytes: integer("stored_size_bytes"),
   compressionRatio: real("compression_ratio"),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -197,6 +205,7 @@ export const agentArrayReports = pgTable("agent_array_reports", {
   agentCount: integer("agent_count").notNull(),
   successCount: integer("success_count").notNull(),
   totalDurationMs: integer("total_duration_ms").notNull(),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -210,6 +219,7 @@ export const dataSubjectRequests = pgTable("data_subject_requests", {
   requestedAt: timestamp("requested_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
   responseData: jsonb("response_data"),
+  encryptedFields: text("encrypted_fields"),
 });
 
 export const insertDataSubjectRequestSchema = createInsertSchema(dataSubjectRequests).omit({ id: true, requestedAt: true, completedAt: true });
@@ -253,6 +263,7 @@ export const securityAuditLog = pgTable("security_audit_log", {
   resolvedAt: timestamp("resolved_at"),
   ipAddress: varchar("ip_address", { length: 45 }),
   userId: varchar("user_id", { length: 255 }),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -289,6 +300,7 @@ export const threatModelEntries = pgTable("threat_model_entries", {
   notes: text("notes"),
   createdBy: varchar("created_by", { length: 255 }),
   updatedBy: varchar("updated_by", { length: 255 }),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -325,6 +337,7 @@ export const coherenceLogs = pgTable("coherence_logs", {
   phaseAdvance: jsonb("phase_advance").$type<Record<string, unknown>>(),
   governorStatus: varchar("governor_status", { length: 50 }),
   sourceTimestamp: timestamp("source_timestamp"),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -335,6 +348,7 @@ export const crsRelayNodes = pgTable("crs_relay_nodes", {
   address: varchar("address", { length: 13 }).notNull(),
   endpoint: varchar("endpoint", { length: 255 }).notNull(),
   tlDsaPk: text("tl_dsa_pk"),
+  encryptedFields: text("encrypted_fields"),
   lastSeen: timestamp("last_seen").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -385,6 +399,7 @@ export const deploymentRecords = pgTable("deployment_records", {
   identityBase: varchar("identity_base", { length: 1024 }),
   deployer: varchar("deployer", { length: 64 }),
   deployedAt: timestamp("deployed_at").notNull(),
+  encryptedFields: text("encrypted_fields"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

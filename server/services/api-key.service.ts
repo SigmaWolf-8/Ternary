@@ -9,6 +9,7 @@ import { db } from "../db";
 import { apiKeys, apiKeyLogs, apiKeyAuditEvents } from "@shared/schema";
 import { eq, desc, and, lt, isNull, sql, gte } from "drizzle-orm";
 import { createLogger } from "../logger";
+import { phaseEncryptFields, phaseDecryptFields } from "../storage";
 
 const log = createLogger("api-key-service");
 
@@ -64,6 +65,14 @@ export const apiKeyService = {
     const keyHash = hashKey(rawKey);
     const keyPrefix = fullKey.substring(0, 8);
 
+    const encryptedFields = phaseEncryptFields({
+      name, owner, scopes,
+      entityName: wbs?.entityName || null,
+      project: wbs?.project || null,
+      department: wbs?.department || null,
+      tags: wbs?.tags || [],
+      notes: wbs?.notes || null,
+    });
     const [record] = await db
       .insert(apiKeys)
       .values({
@@ -81,6 +90,7 @@ export const apiKeyService = {
         department: wbs?.department || null,
         tags: wbs?.tags || [],
         notes: wbs?.notes || null,
+        encryptedFields,
       })
       .returning();
 
@@ -118,6 +128,13 @@ export const apiKeyService = {
 
     if (!keyRecord) return null;
 
+    const decrypted = phaseDecryptFields(keyRecord.encryptedFields);
+    if (decrypted) {
+      if (decrypted.name) keyRecord.name = decrypted.name as string;
+      if (decrypted.owner) keyRecord.owner = decrypted.owner as string;
+      if (decrypted.scopes) keyRecord.scopes = decrypted.scopes as string[];
+    }
+
     if (!constantTimeCompare(inputHash, keyRecord.keyHash)) return null;
 
     if (!keyRecord.isActive) return null;
@@ -149,17 +166,19 @@ export const apiKeyService = {
     statusCode: number | null,
     ipAddress: string | null
   ) {
+    const encryptedFields = phaseEncryptFields({ ipAddress, endpoint });
     await db.insert(apiKeyLogs).values({
       keyId,
       endpoint,
       method,
       statusCode,
       ipAddress,
+      encryptedFields,
     });
   },
 
   async listByOwner(owner: string) {
-    return db
+    const rows = await db
       .select({
         id: apiKeys.id,
         keyPrefix: apiKeys.keyPrefix,
@@ -182,14 +201,24 @@ export const apiKeyService = {
         tags: apiKeys.tags,
         notes: apiKeys.notes,
         createdAt: apiKeys.createdAt,
+        encryptedFields: apiKeys.encryptedFields,
       })
       .from(apiKeys)
       .where(eq(apiKeys.owner, owner))
       .orderBy(desc(apiKeys.createdAt));
+    return rows.map(({ encryptedFields: ef, ...row }) => {
+      const dec = phaseDecryptFields(ef);
+      if (dec) {
+        if (dec.name) row.name = dec.name as string;
+        if (dec.owner) row.owner = dec.owner as string;
+        if (dec.notes) row.notes = dec.notes as string;
+      }
+      return row;
+    });
   },
 
   async listAll() {
-    return db
+    const rows = await db
       .select({
         id: apiKeys.id,
         keyPrefix: apiKeys.keyPrefix,
@@ -212,9 +241,19 @@ export const apiKeyService = {
         tags: apiKeys.tags,
         notes: apiKeys.notes,
         createdAt: apiKeys.createdAt,
+        encryptedFields: apiKeys.encryptedFields,
       })
       .from(apiKeys)
       .orderBy(desc(apiKeys.createdAt));
+    return rows.map(({ encryptedFields: ef, ...row }) => {
+      const dec = phaseDecryptFields(ef);
+      if (dec) {
+        if (dec.name) row.name = dec.name as string;
+        if (dec.owner) row.owner = dec.owner as string;
+        if (dec.notes) row.notes = dec.notes as string;
+      }
+      return row;
+    });
   },
 
   async revoke(keyId: string) {
@@ -227,12 +266,20 @@ export const apiKeyService = {
   },
 
   async getUsageLogs(keyId: string, limit: number = 50) {
-    return db
+    const rows = await db
       .select()
       .from(apiKeyLogs)
       .where(eq(apiKeyLogs.keyId, keyId))
       .orderBy(desc(apiKeyLogs.createdAt))
       .limit(limit);
+    return rows.map(row => {
+      const dec = phaseDecryptFields(row.encryptedFields);
+      if (dec) {
+        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
+        if (dec.endpoint) row.endpoint = dec.endpoint as string;
+      }
+      return row;
+    });
   },
 
   async getStats() {
@@ -366,6 +413,21 @@ export const apiKeyService = {
 
     if (Object.keys(setValues).length === 0) return null;
 
+    const [current] = await db.select().from(apiKeys).where(eq(apiKeys.id, keyId));
+    if (current) {
+      const merged = {
+        name: (updates.name ?? current.name) as string,
+        owner: current.owner,
+        scopes: current.scopes,
+        entityName: (updates.entityName ?? current.entityName) as string | null,
+        project: (updates.project ?? current.project) as string | null,
+        department: (updates.department ?? current.department) as string | null,
+        tags: (updates.tags ?? current.tags) as string[],
+        notes: (updates.notes ?? current.notes) as string | null,
+      };
+      setValues.encryptedFields = phaseEncryptFields(merged);
+    }
+
     const [result] = await db
       .update(apiKeys)
       .set(setValues)
@@ -434,6 +496,7 @@ export const apiKeyService = {
     details: Record<string, unknown> | null,
     ipAddress: string | null
   ) {
+    const encryptedFields = phaseEncryptFields({ actorId, actorEmail, details, ipAddress });
     await db.insert(apiKeyAuditEvents).values({
       keyId,
       eventType,
@@ -441,24 +504,43 @@ export const apiKeyService = {
       actorEmail,
       details,
       ipAddress,
+      encryptedFields,
     });
   },
 
   async getAuditEvents(keyId: string, limit: number = 50) {
-    return db
+    const rows = await db
       .select()
       .from(apiKeyAuditEvents)
       .where(eq(apiKeyAuditEvents.keyId, keyId))
       .orderBy(desc(apiKeyAuditEvents.createdAt))
       .limit(limit);
+    return rows.map(row => {
+      const dec = phaseDecryptFields(row.encryptedFields);
+      if (dec) {
+        if (dec.actorId) row.actorId = dec.actorId as string;
+        if (dec.actorEmail) row.actorEmail = dec.actorEmail as string;
+        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
+      }
+      return row;
+    });
   },
 
   async getRecentAuditEvents(limit: number = 100) {
-    return db
+    const rows = await db
       .select()
       .from(apiKeyAuditEvents)
       .orderBy(desc(apiKeyAuditEvents.createdAt))
       .limit(limit);
+    return rows.map(row => {
+      const dec = phaseDecryptFields(row.encryptedFields);
+      if (dec) {
+        if (dec.actorId) row.actorId = dec.actorId as string;
+        if (dec.actorEmail) row.actorEmail = dec.actorEmail as string;
+        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
+      }
+      return row;
+    });
   },
 
   async detectAnomalies(withinDays: number = 7) {

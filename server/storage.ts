@@ -15,7 +15,8 @@
  */
 
 import { encryptToken, decryptToken } from "./crypto-utils";
-import { phaseSplit } from "./salvi-core/phase-encryption";
+import { phaseSplit, phaseRecombine } from "./salvi-core/phase-encryption";
+import type { EncryptedPhaseData } from "./salvi-core/phase-encryption";
 import { 
   type User, type UpsertUser,
   type DemoSession, type InsertDemoSession,
@@ -36,6 +37,39 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, inArray } from "drizzle-orm";
+
+function bigIntSafeStringify(obj: unknown): string {
+  return JSON.stringify(obj, (_key, value) =>
+    typeof value === 'bigint' ? value.toString() + 'n' : value
+  );
+}
+
+function bigIntSafeParse(str: string): unknown {
+  return JSON.parse(str, (_key, value) => {
+    if (typeof value === 'string' && /^\d+n$/.test(value)) {
+      return BigInt(value.slice(0, -1));
+    }
+    return value;
+  });
+}
+
+export function phaseEncryptFields(fields: Record<string, unknown>): string {
+  const json = bigIntSafeStringify(fields);
+  const encrypted = phaseSplit(json, 'performance');
+  return bigIntSafeStringify(encrypted);
+}
+
+export function phaseDecryptFields(encryptedStr: string | null): Record<string, unknown> | null {
+  if (!encryptedStr) return null;
+  try {
+    const parsed = bigIntSafeParse(encryptedStr) as EncryptedPhaseData;
+    const result = phaseRecombine(parsed);
+    if (!result.success || !result.data) return null;
+    return JSON.parse(result.data);
+  } catch {
+    return null;
+  }
+}
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -144,21 +178,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBinaryStorage(data: InsertBinaryStorage): Promise<BinaryStorage> {
-    const [result] = await db.insert(binaryStorage).values(data).returning();
+    const encryptedFields = phaseEncryptFields({ rawData: data.rawData });
+    const [result] = await db.insert(binaryStorage).values({ ...data, encryptedFields }).returning();
     return result;
   }
 
   async getBinaryStorage(sessionId: string): Promise<BinaryStorage[]> {
-    return await db.select().from(binaryStorage).where(eq(binaryStorage.sessionId, sessionId));
+    const rows = await db.select().from(binaryStorage).where(eq(binaryStorage.sessionId, sessionId));
+    return rows.map(r => {
+      const dec = phaseDecryptFields(r.encryptedFields);
+      if (dec?.rawData !== undefined) r.rawData = dec.rawData;
+      return r;
+    });
   }
 
   async createTernaryStorage(data: InsertTernaryStorage): Promise<TernaryStorage> {
-    const [result] = await db.insert(ternaryStorage).values(data).returning();
+    const encryptedFields = phaseEncryptFields({ compressedData: data.compressedData });
+    const [result] = await db.insert(ternaryStorage).values({ ...data, encryptedFields }).returning();
     return result;
   }
 
   async getTernaryStorage(sessionId: string): Promise<TernaryStorage[]> {
-    return await db.select().from(ternaryStorage).where(eq(ternaryStorage.sessionId, sessionId));
+    const rows = await db.select().from(ternaryStorage).where(eq(ternaryStorage.sessionId, sessionId));
+    return rows.map(r => {
+      const dec = phaseDecryptFields(r.encryptedFields);
+      if (dec?.compressedData !== undefined) r.compressedData = dec.compressedData as string;
+      return r;
+    });
   }
 
   async createCompressionBenchmark(data: InsertCompressionBenchmark): Promise<CompressionBenchmark> {
@@ -197,38 +243,72 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(compressionHistory).orderBy(desc(compressionHistory.createdAt)).limit(limit);
   }
 
+  private _decryptWhitepaper(wp: Whitepaper): Whitepaper {
+    const dec = phaseDecryptFields(wp.encryptedFields);
+    if (dec) {
+      if (dec.content !== undefined) wp.content = dec.content as string;
+      if (dec.summary !== undefined) wp.summary = dec.summary as string | null;
+      if (dec.author !== undefined) wp.author = dec.author as string | null;
+    }
+    return wp;
+  }
+
   async createWhitepaper(data: InsertWhitepaper): Promise<Whitepaper> {
-    const [result] = await db.insert(whitepapers).values(data).returning();
+    const encryptedFields = phaseEncryptFields({ content: data.content, summary: data.summary, author: data.author });
+    const [result] = await db.insert(whitepapers).values({ ...data, encryptedFields }).returning();
     return result;
   }
 
   async getWhitepaper(id: number): Promise<Whitepaper | undefined> {
     const [wp] = await db.select().from(whitepapers).where(eq(whitepapers.id, id));
-    return wp;
+    return wp ? this._decryptWhitepaper(wp) : undefined;
   }
 
   async getActiveWhitepaper(): Promise<Whitepaper | undefined> {
     const [wp] = await db.select().from(whitepapers).where(eq(whitepapers.isActive, 1)).orderBy(desc(whitepapers.createdAt)).limit(1);
-    return wp;
+    return wp ? this._decryptWhitepaper(wp) : undefined;
   }
 
   async getAllWhitepapers(): Promise<Whitepaper[]> {
-    return await db.select().from(whitepapers).orderBy(desc(whitepapers.createdAt));
+    const rows = await db.select().from(whitepapers).orderBy(desc(whitepapers.createdAt));
+    return rows.map(r => this._decryptWhitepaper(r));
   }
 
   async updateWhitepaper(id: number, data: Partial<InsertWhitepaper>): Promise<Whitepaper | undefined> {
-    const [result] = await db.update(whitepapers).set(data).where(eq(whitepapers.id, id)).returning();
-    return result;
+    const setData: Record<string, unknown> = { ...data };
+    if (data.content !== undefined || data.summary !== undefined || data.author !== undefined) {
+      const existing = await this.getWhitepaper(id);
+      if (existing) {
+        setData.encryptedFields = phaseEncryptFields({
+          content: data.content ?? existing.content,
+          summary: data.summary ?? existing.summary,
+          author: data.author ?? existing.author,
+        });
+      }
+    }
+    const [result] = await db.update(whitepapers).set(setData).where(eq(whitepapers.id, id)).returning();
+    return result ? this._decryptWhitepaper(result) : undefined;
+  }
+
+  private _decryptDeveloperSignup(row: DeveloperSignup): DeveloperSignup {
+    const dec = phaseDecryptFields(row.encryptedFields);
+    if (dec) {
+      if (dec.name !== undefined) row.name = dec.name as string | null;
+      if (dec.company !== undefined) row.company = dec.company as string | null;
+      if (dec.interest !== undefined) row.interest = dec.interest as string | null;
+    }
+    return row;
   }
 
   async createDeveloperSignup(data: InsertDeveloperSignup): Promise<DeveloperSignup> {
-    const [result] = await db.insert(developerSignups).values(data).returning();
+    const encryptedFields = phaseEncryptFields({ name: data.name, company: data.company, interest: data.interest });
+    const [result] = await db.insert(developerSignups).values({ ...data, encryptedFields }).returning();
     return result;
   }
 
   async getDeveloperSignupByEmail(email: string): Promise<DeveloperSignup | undefined> {
     const [signup] = await db.select().from(developerSignups).where(eq(developerSignups.email, email));
-    return signup;
+    return signup ? this._decryptDeveloperSignup(signup) : undefined;
   }
 
   async getDeveloperSignupCount(): Promise<number> {
@@ -237,45 +317,65 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllDeveloperSignups(): Promise<DeveloperSignup[]> {
-    return await db.select().from(developerSignups).orderBy(developerSignups.createdAt);
+    const rows = await db.select().from(developerSignups).orderBy(developerSignups.createdAt);
+    return rows.map(r => this._decryptDeveloperSignup(r));
   }
 
   async deleteDeveloperSignup(id: number): Promise<void> {
     await db.delete(developerSignups).where(eq(developerSignups.id, id));
   }
 
+  private _decryptCompressedDocument(row: CompressedDocument): CompressedDocument {
+    const dec = phaseDecryptFields(row.encryptedFields);
+    if (dec?.content !== undefined) row.content = dec.content as string;
+    return row;
+  }
+
   async createCompressedDocument(data: InsertCompressedDocument): Promise<CompressedDocument> {
-    const [result] = await db.insert(compressedDocuments).values(data).returning();
+    const encryptedFields = phaseEncryptFields({ content: data.content });
+    const [result] = await db.insert(compressedDocuments).values({ ...data, encryptedFields }).returning();
     return result;
   }
 
   async getCompressedDocument(id: number): Promise<CompressedDocument | undefined> {
     const [doc] = await db.select().from(compressedDocuments).where(eq(compressedDocuments.id, id));
-    return doc;
+    return doc ? this._decryptCompressedDocument(doc) : undefined;
   }
 
   async getAllCompressedDocuments(): Promise<CompressedDocument[]> {
-    return await db.select().from(compressedDocuments).orderBy(desc(compressedDocuments.createdAt));
+    const rows = await db.select().from(compressedDocuments).orderBy(desc(compressedDocuments.createdAt));
+    return rows.map(r => this._decryptCompressedDocument(r));
   }
 
   async deleteCompressedDocument(id: number): Promise<void> {
     await db.delete(compressedDocuments).where(eq(compressedDocuments.id, id));
   }
 
+  private _decryptDataSubjectRequest(row: DataSubjectRequest): DataSubjectRequest {
+    const dec = phaseDecryptFields(row.encryptedFields);
+    if (dec?.responseData !== undefined) row.responseData = dec.responseData;
+    return row;
+  }
+
   async createDataSubjectRequest(data: InsertDataSubjectRequest): Promise<DataSubjectRequest> {
-    const [result] = await db.insert(dataSubjectRequests).values(data).returning();
+    const encryptedFields = phaseEncryptFields({ responseData: data.responseData });
+    const [result] = await db.insert(dataSubjectRequests).values({ ...data, encryptedFields }).returning();
     return result;
   }
 
   async getDataSubjectRequests(userId: string): Promise<DataSubjectRequest[]> {
-    return await db.select().from(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId)).orderBy(desc(dataSubjectRequests.requestedAt));
+    const rows = await db.select().from(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId)).orderBy(desc(dataSubjectRequests.requestedAt));
+    return rows.map(r => this._decryptDataSubjectRequest(r));
   }
 
   async updateDataSubjectRequest(id: number, status: string, responseData?: unknown): Promise<DataSubjectRequest | undefined> {
     const updateData: Record<string, unknown> = { status, completedAt: new Date() };
-    if (responseData !== undefined) updateData.responseData = responseData;
+    if (responseData !== undefined) {
+      updateData.responseData = responseData;
+      updateData.encryptedFields = phaseEncryptFields({ responseData });
+    }
     const [result] = await db.update(dataSubjectRequests).set(updateData).where(eq(dataSubjectRequests.id, id)).returning();
-    return result;
+    return result ? this._decryptDataSubjectRequest(result) : undefined;
   }
 
   async getUserData(userId: string): Promise<Record<string, unknown>> {
@@ -301,12 +401,22 @@ export class DatabaseStorage implements IStorage {
     await db.delete(users).where(eq(users.id, userId));
   }
 
+  private _decryptCrsRelayNode(row: CrsRelayNode): CrsRelayNode {
+    const dec = phaseDecryptFields(row.encryptedFields);
+    if (dec) {
+      if (dec.endpoint !== undefined) row.endpoint = dec.endpoint as string;
+      if (dec.tlDsaPk !== undefined) row.tlDsaPk = dec.tlDsaPk as string | null;
+    }
+    return row;
+  }
+
   async upsertCrsRelayNode(publicKey: string, address: string, endpoint: string, tlDsaPk?: string): Promise<CrsRelayNode> {
     const phaseData = phaseSplit(publicKey, 'performance');
-    const encrypted = JSON.stringify(phaseData);
+    const publicKeyEncrypted = JSON.stringify(phaseData);
+    const encryptedFields = phaseEncryptFields({ endpoint, tlDsaPk: tlDsaPk || null });
     const existing = await db.select().from(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
     if (existing.length > 0) {
-      const setFields: any = { address, endpoint, publicKeyEncrypted: encrypted, lastSeen: new Date(), updatedAt: new Date() };
+      const setFields: any = { address, endpoint, publicKeyEncrypted, encryptedFields, lastSeen: new Date(), updatedAt: new Date() };
       if (tlDsaPk) setFields.tlDsaPk = tlDsaPk;
       const [updated] = await db.update(crsRelayNodes)
         .set(setFields)
@@ -315,18 +425,19 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
     const [node] = await db.insert(crsRelayNodes)
-      .values({ publicKey, publicKeyEncrypted: encrypted, address, endpoint, lastSeen: new Date(), tlDsaPk: tlDsaPk || null })
+      .values({ publicKey, publicKeyEncrypted, address, endpoint, lastSeen: new Date(), tlDsaPk: tlDsaPk || null, encryptedFields })
       .returning();
     return node;
   }
 
   async getCrsRelayNodeByPublicKey(publicKey: string): Promise<CrsRelayNode | undefined> {
     const [node] = await db.select().from(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
-    return node;
+    return node ? this._decryptCrsRelayNode(node) : undefined;
   }
 
   async getAllCrsRelayNodes(): Promise<CrsRelayNode[]> {
-    return db.select().from(crsRelayNodes);
+    const rows = await db.select().from(crsRelayNodes);
+    return rows.map(r => this._decryptCrsRelayNode(r));
   }
 
   async deleteStaleCrsRelayNodes(maxAgeMs: number): Promise<number> {
@@ -345,9 +456,26 @@ export class DatabaseStorage implements IStorage {
     await db.delete(crsRelayNodes).where(eq(crsRelayNodes.publicKey, publicKey));
   }
 
+  private _decryptDeploymentRecord(row: DeploymentRecord): DeploymentRecord {
+    const dec = phaseDecryptFields(row.encryptedFields);
+    if (dec) {
+      if (dec.ip !== undefined) row.ip = dec.ip as string;
+      if (dec.daemons !== undefined) row.daemons = dec.daemons as any;
+      if (dec.binaryPath !== undefined) row.binaryPath = dec.binaryPath as string | null;
+      if (dec.logDir !== undefined) row.logDir = dec.logDir as string | null;
+      if (dec.identityBase !== undefined) row.identityBase = dec.identityBase as string | null;
+      if (dec.deployer !== undefined) row.deployer = dec.deployer as string | null;
+    }
+    return row;
+  }
+
   async createDeploymentRecord(data: InsertDeploymentRecord): Promise<DeploymentRecord> {
+    const encryptedFields = phaseEncryptFields({
+      ip: data.ip, daemons: data.daemons, binaryPath: data.binaryPath,
+      logDir: data.logDir, identityBase: data.identityBase, deployer: data.deployer,
+    });
     const [record] = await db.insert(deploymentRecords)
-      .values(data)
+      .values({ ...data, encryptedFields })
       .onConflictDoUpdate({
         target: deploymentRecords.hostname,
         set: {
@@ -363,6 +491,7 @@ export class DatabaseStorage implements IStorage {
           identityBase: data.identityBase,
           deployer: data.deployer,
           deployedAt: data.deployedAt,
+          encryptedFields,
         },
       })
       .returning();
@@ -370,11 +499,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllDeploymentRecords(): Promise<DeploymentRecord[]> {
-    return db.select().from(deploymentRecords).orderBy(desc(deploymentRecords.createdAt));
+    const rows = await db.select().from(deploymentRecords).orderBy(desc(deploymentRecords.createdAt));
+    return rows.map(r => this._decryptDeploymentRecord(r));
   }
 
   async getDeploymentsByHostname(hostname: string): Promise<DeploymentRecord[]> {
-    return db.select().from(deploymentRecords).where(eq(deploymentRecords.hostname, hostname)).orderBy(desc(deploymentRecords.createdAt));
+    const rows = await db.select().from(deploymentRecords).where(eq(deploymentRecords.hostname, hostname)).orderBy(desc(deploymentRecords.createdAt));
+    return rows.map(r => this._decryptDeploymentRecord(r));
   }
 }
 

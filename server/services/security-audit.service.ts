@@ -8,6 +8,7 @@ import { db } from "../db";
 import { securityAuditLog } from "@shared/schema";
 import { eq, desc, and, gte, ne, sql, count } from "drizzle-orm";
 import { createLogger } from "../logger";
+import { phaseEncryptFields, phaseDecryptFields } from "../storage";
 
 const log = createLogger("security-audit");
 
@@ -42,6 +43,13 @@ export const securityAuditService = {
     userId?: string;
   }) {
     try {
+      const encryptedFields = phaseEncryptFields({
+        actor: params.actor || null,
+        description: params.description,
+        evidence: params.evidence || null,
+        ipAddress: params.ipAddress || null,
+        userId: params.userId || null,
+      });
       const [entry] = await db
         .insert(securityAuditLog)
         .values({
@@ -55,6 +63,7 @@ export const securityAuditService = {
           ipAddress: params.ipAddress || null,
           userId: params.userId || null,
           resolutionStatus: "unresolved",
+          encryptedFields,
         })
         .returning();
       log.info("Security event logged", { id: entry.id, type: params.eventType, severity: params.severity, category: params.category });
@@ -83,10 +92,20 @@ export const securityAuditService = {
       ? db.select().from(securityAuditLog).where(and(...conditions))
       : db.select().from(securityAuditLog);
 
-    return query
+    const rows = await query
       .orderBy(desc(securityAuditLog.createdAt))
       .limit(filters?.limit || 100)
       .offset(filters?.offset || 0);
+    return rows.map(row => {
+      const dec = phaseDecryptFields(row.encryptedFields);
+      if (dec) {
+        if (dec.actor) row.actor = dec.actor as string;
+        if (dec.description) row.description = dec.description as string;
+        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
+        if (dec.userId) row.userId = dec.userId as string;
+      }
+      return row;
+    });
   },
 
   async getEventById(id: number) {
@@ -94,6 +113,15 @@ export const securityAuditService = {
       .select()
       .from(securityAuditLog)
       .where(eq(securityAuditLog.id, id));
+    if (event) {
+      const dec = phaseDecryptFields(event.encryptedFields);
+      if (dec) {
+        if (dec.actor) event.actor = dec.actor as string;
+        if (dec.description) event.description = dec.description as string;
+        if (dec.ipAddress) event.ipAddress = dec.ipAddress as string;
+        if (dec.userId) event.userId = dec.userId as string;
+      }
+    }
     return event;
   },
 
@@ -165,10 +193,20 @@ export const securityAuditService = {
       conditions.push(eq(securityAuditLog.severity, severity));
     }
 
-    return db
+    const rows = await db
       .select()
       .from(securityAuditLog)
       .where(and(...conditions))
       .orderBy(desc(securityAuditLog.createdAt));
+    return rows.map(row => {
+      const dec = phaseDecryptFields(row.encryptedFields);
+      if (dec) {
+        if (dec.actor) row.actor = dec.actor as string;
+        if (dec.description) row.description = dec.description as string;
+        if (dec.ipAddress) row.ipAddress = dec.ipAddress as string;
+        if (dec.userId) row.userId = dec.userId as string;
+      }
+      return row;
+    });
   },
 };

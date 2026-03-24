@@ -13,6 +13,7 @@ import { db } from "../db";
 import { coherenceLogs } from "@shared/schema";
 import { desc, count } from "drizzle-orm";
 import { createLogger } from "../logger";
+import { phaseEncryptFields } from "../storage";
 import { apiKeyService } from "../services/api-key.service";
 
 const log = createLogger("pptpro-integration");
@@ -247,12 +248,17 @@ export function registerPPTProIntegrationRoutes(app: Express) {
         }
       }
 
+      const encryptedFields = phaseEncryptFields({
+        subIndices: normalizedSubIndices,
+        moduleOutputs: data.report.module_outputs ?? null,
+      });
       await db.insert(coherenceLogs).values({
         logId,
         cvp: data.report.cvp,
         subIndices: normalizedSubIndices,
         moduleOutputs: data.report.module_outputs ?? null,
         sourceTimestamp: data.timestamp ? new Date(data.timestamp) : now,
+        encryptedFields,
       });
 
       const [sessionResult] = await db.select({ total: count() }).from(coherenceLogs);

@@ -25,6 +25,7 @@ import { createLogger } from "../logger";
 import { db } from "../db";
 import { agentArrayReports } from "@shared/schema";
 import { desc, eq } from "drizzle-orm";
+import { phaseEncryptFields, phaseDecryptFields } from "../storage";
 import {
   AGENT_COUNT,
   AGENT_STEP_NAMES,
@@ -1027,6 +1028,11 @@ export function registerAgentArrayRoutes(app: Express) {
         return res.status(400).json({ error: "Each translation must have languageCode and text" });
       }
 
+      const encryptedFields = phaseEncryptFields({
+        prompt, unifiedReport, translations,
+        executiveSummary: executiveSummary || null,
+        layer2Sections: layer2Sections || null,
+      });
       const [inserted] = await db.insert(agentArrayReports).values({
         prompt,
         tribonacciHash: tribonacciHash || "",
@@ -1037,6 +1043,7 @@ export function registerAgentArrayRoutes(app: Express) {
         agentCount: agentCount || AGENT_COUNT,
         successCount: successCount || 0,
         totalDurationMs: totalDurationMs || 0,
+        encryptedFields,
       }).returning();
 
       res.json({ id: inserted.id, createdAt: inserted.createdAt });
@@ -1073,6 +1080,15 @@ export function registerAgentArrayRoutes(app: Express) {
       const [report] = await db.select().from(agentArrayReports).where(eq(agentArrayReports.id, id)).limit(1);
 
       if (!report) return res.status(404).json({ error: "Report not found" });
+
+      const dec = phaseDecryptFields(report.encryptedFields);
+      if (dec) {
+        if (dec.prompt) report.prompt = dec.prompt as string;
+        if (dec.unifiedReport) report.unifiedReport = dec.unifiedReport as string;
+        if (dec.translations) report.translations = dec.translations as any;
+        if (dec.executiveSummary) report.executiveSummary = dec.executiveSummary as string;
+        if (dec.layer2Sections) report.layer2Sections = dec.layer2Sections as any;
+      }
 
       res.json({ report });
     } catch (err) {

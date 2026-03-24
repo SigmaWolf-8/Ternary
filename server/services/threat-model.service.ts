@@ -8,6 +8,7 @@ import { db } from "../db";
 import { threatModelEntries } from "@shared/schema";
 import { eq, desc, and, count, gte } from "drizzle-orm";
 import { createLogger } from "../logger";
+import { phaseEncryptFields, phaseDecryptFields } from "../storage";
 
 const log = createLogger("threat-model");
 
@@ -53,6 +54,12 @@ export const threatModelService = {
   }) {
     const riskScore = calculateRiskScore(params.likelihood, params.impact);
 
+    const encryptedFields = phaseEncryptFields({
+      description: params.description || null,
+      controls: params.controls || null,
+      notes: params.notes || null,
+      attackVector: params.attackVector || null,
+    });
     const [entry] = await db
       .insert(threatModelEntries)
       .values({
@@ -69,6 +76,7 @@ export const threatModelService = {
         residualRisk: params.residualRisk ?? null,
         notes: params.notes || null,
         createdBy: params.createdBy || null,
+        encryptedFields,
       })
       .returning();
 
@@ -90,14 +98,21 @@ export const threatModelService = {
     updatedBy: string;
   }>) {
     const updateData: Record<string, unknown> = { ...params, updatedAt: new Date() };
+    const current = await this.getById(id);
 
-    if (params.likelihood || params.impact) {
-      const current = await this.getById(id);
-      if (current) {
-        const likelihood = params.likelihood || current.likelihood;
-        const impact = params.impact || current.impact;
-        updateData.riskScore = calculateRiskScore(likelihood, impact);
-      }
+    if (current && (params.likelihood || params.impact)) {
+      const likelihood = params.likelihood || current.likelihood;
+      const impact = params.impact || current.impact;
+      updateData.riskScore = calculateRiskScore(likelihood, impact);
+    }
+
+    if (current) {
+      updateData.encryptedFields = phaseEncryptFields({
+        description: params.description ?? current.description,
+        controls: params.controls ?? current.controls,
+        notes: params.notes ?? current.notes,
+        attackVector: params.attackVector ?? current.attackVector,
+      });
     }
 
     const [updated] = await db
@@ -124,7 +139,17 @@ export const threatModelService = {
       ? db.select().from(threatModelEntries).where(and(...conditions))
       : db.select().from(threatModelEntries);
 
-    return query.orderBy(desc(threatModelEntries.createdAt));
+    const rows = await query.orderBy(desc(threatModelEntries.createdAt));
+    return rows.map(row => {
+      const dec = phaseDecryptFields(row.encryptedFields);
+      if (dec) {
+        if (dec.description) row.description = dec.description as string;
+        if (dec.controls) row.controls = dec.controls as any;
+        if (dec.notes) row.notes = dec.notes as string;
+        if (dec.attackVector) row.attackVector = dec.attackVector as string;
+      }
+      return row;
+    });
   },
 
   async getById(id: number) {
@@ -132,6 +157,15 @@ export const threatModelService = {
       .select()
       .from(threatModelEntries)
       .where(eq(threatModelEntries.id, id));
+    if (entry) {
+      const dec = phaseDecryptFields(entry.encryptedFields);
+      if (dec) {
+        if (dec.description) entry.description = dec.description as string;
+        if (dec.controls) entry.controls = dec.controls as any;
+        if (dec.notes) entry.notes = dec.notes as string;
+        if (dec.attackVector) entry.attackVector = dec.attackVector as string;
+      }
+    }
     return entry;
   },
 
@@ -140,6 +174,15 @@ export const threatModelService = {
       .select()
       .from(threatModelEntries)
       .where(eq(threatModelEntries.threatId, threatId));
+    if (entry) {
+      const dec = phaseDecryptFields(entry.encryptedFields);
+      if (dec) {
+        if (dec.description) entry.description = dec.description as string;
+        if (dec.controls) entry.controls = dec.controls as any;
+        if (dec.notes) entry.notes = dec.notes as string;
+        if (dec.attackVector) entry.attackVector = dec.attackVector as string;
+      }
+    }
     return entry;
   },
 
