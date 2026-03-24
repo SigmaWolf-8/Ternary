@@ -191,6 +191,7 @@ export function recordRelayAuditEvent(entry: RelayAuditEntry): string {
       resource: `relay:${entry.eventType}`,
       result: "granted" as const,
       subject: entry.address,
+      ...entry.details,
     },
   };
 
