@@ -752,6 +752,18 @@ Same geometry, same routing math, same four services. No architectural change. M
 | **WireGuard** | Kernel routing table + allowed IPs | Pre-exchanged public keys | Config files per peer |
 | **PlenumNET CON** | Hamming distance on coordinates — d! paths, zero tables | Topology-derived keys from geometric position | Nothing — 26 neighbors computed from address |
 
+#### 3.2.8 WebSocket Relay Architecture
+
+For cross-cluster and satellite/remote access, PlenumNET provides a WebSocket relay at `wss://plenumnet.replit.app/ws/relay`. This bridges nodes that cannot reach each other on a LAN.
+
+- **Authentication**: Nodes send `{"type":"auth","address":"...","publicKey":"..."}` within 10s of connecting; the relay verifies registration against the CRS registry
+- **Message routing**: `{"type":"relay","to":"<address>","msgType":"...","payload":"..."}` — relay forwards to the target WebSocket if connected, otherwise queues (up to 100 msgs per destination)
+- **Keepalive**: `{"type":"ping"}` every 25s
+- **Peer discovery**: `{"type":"peers"}` returns all connected node addresses
+- **Monitoring**: `GET /api/salvi/inter-cube/relay/status` returns connected peers and pending queues; `GET /api/salvi/inter-cube/relay/cluster-health` returns full cluster status with relay throughput metrics
+
+For local YODA clusters, all registration and heartbeat happens through the local CRS (Daemon #1, port 8081). The remote relay is used only for cross-cluster communication and remote monitoring. Full WebSocket protocol details are in `PLENUMNET_INVARIANTS_FOR_YODA.md` Section 3 and the monitoring quick reference in Section 9.
+
 ### 3.3 Metatronic Cube
 
 The 13D cube viewed through Saturnian geometry:

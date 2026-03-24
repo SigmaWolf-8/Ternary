@@ -800,4 +800,56 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 
 ---
 
+## SECTION 9: YODA MONITORING QUICK REFERENCE
+
+A single consolidated table of every endpoint YODA needs to monitor daemon infrastructure, WebSocket relay, and cluster health. All local endpoints assume the standard port layout: Daemon #1 = 8081 (CRS), Daemon #2 = 8083 (cube), Daemon #3 = 8085 (cube).
+
+### 9.1 Local Daemon Monitoring (localhost)
+
+| Monitoring Need | Method | Endpoint | Ports | Notes |
+|----------------|--------|----------|-------|-------|
+| Daemon health | GET | `http://localhost:{port}/health` | 8081, 8083, 8085 | Returns version, address, mode |
+| Node info | GET | `http://localhost:{port}/api/salvi/inter-cube/node/info` | 8081, 8083, 8085 | Address, mode, CRS URL, ports |
+| CRS stats | GET | `http://localhost:8081/api/salvi/inter-cube/crs/stats` | 8081 only | Registered node count, addresses |
+| Registered node lookup | GET | `http://localhost:8081/api/salvi/inter-cube/crs/lookup/:address` | 8081 only | Look up any registered node |
+| Geometric neighbors | GET | `http://localhost:8081/api/salvi/inter-cube/crs/neighbors/:address` | 8081 only | 26 potential neighbors in 13D hypercube |
+| FTS dead nodes | GET | `http://localhost:{port}/api/salvi/inter-cube/fts/dead` | 8081, 8083, 8085 | Dead neighbor list |
+| FTS status | GET | `http://localhost:{port}/api/salvi/inter-cube/fts/status` | 8081, 8083, 8085 | Fault tolerance health |
+| GLB stats | GET | `http://localhost:{port}/api/salvi/inter-cube/glb/stats` | 8081, 8083, 8085 | Geometric load balancer stats |
+| Topology | GET | `http://localhost:{port}/api/salvi/inter-cube/topology` | 8081, 8083, 8085 | 13D hypercube topology view |
+
+### 9.2 Remote Monitoring (plenumnet.replit.app)
+
+| Monitoring Need | Method | Endpoint | Notes |
+|----------------|--------|----------|-------|
+| Cluster health | GET | `/api/salvi/inter-cube/relay/cluster-health` | Per-daemon status (live/registered/deployed), relay throughput (msgsSent, msgsDelivered, msgsQueued, msgPerSec), WebSocket peers, uptime |
+| Relay status | GET | `/api/salvi/inter-cube/relay/status` | Connected WebSocket nodes, pending queue count |
+| Relay heartbeat | GET | `/api/salvi/inter-cube/relay/heartbeat?address=...&publicKey=...` | Refresh registration lastSeen |
+| Deployment records | GET | `/api/salvi/inter-cube/relay/deployments?hostname=...` | Deployment history |
+| Version check | GET | `/health/crs` | CRS reference version — compare with local `/health` version field |
+| Purge stale | GET/POST | `/api/salvi/inter-cube/relay/purge-stale?maxAge=300000` | Clean up stale registrations |
+
+### 9.3 WebSocket Relay (wss://plenumnet.replit.app/ws/relay)
+
+| Action | Message | Response |
+|--------|---------|----------|
+| Authenticate | `{"type":"auth","address":"...","publicKey":"..."}` | `{"type":"auth_ok","address":"...","connectedPeers":[...]}` |
+| Keepalive (25s) | `{"type":"ping"}` | `{"type":"pong","ts":...}` |
+| List peers | `{"type":"peers"}` | `{"type":"peers","connected":[...]}` |
+| Send message | `{"type":"relay","to":"...","msgType":"...","payload":"..."}` | `{"type":"relay_ack","to":"...","delivered":true/false}` |
+
+### 9.4 LLM Engine Monitoring — YODA's Responsibility
+
+LLM engine monitoring is NOT provided by the daemon infrastructure. YODA launches and manages the LLM engines (llama-server, etc.) and knows which ports they run on:
+
+| Agent | LLM Engine Port | Example Health Check |
+|-------|----------------|---------------------|
+| A | 8080 | `GET http://localhost:8080/health` |
+| B | 8082 | `GET http://localhost:8082/health` |
+| C | 8084 | `GET http://localhost:8084/health` |
+
+YODA should poll these directly. The daemon deployer does not start or manage LLM engines — only the cube daemons.
+
+---
+
 *Violations of these invariants will be rejected. This document is the source of truth for any agent integrating with PlenumNET.*

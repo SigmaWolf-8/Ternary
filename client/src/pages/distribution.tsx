@@ -648,6 +648,17 @@ interface DaemonHealth {
   status: "live" | "registered" | "deployed";
 }
 
+interface RelayThroughput {
+  connectedPeers: number;
+  pendingQueues: number;
+  pendingMessages: number;
+  msgsSent: number;
+  msgsDelivered: number;
+  msgsQueued: number;
+  msgPerSec: number;
+  uptimeMs: number;
+}
+
 interface ClusterHealthData {
   crsAddress: string;
   crsVersion: string;
@@ -657,7 +668,31 @@ interface ClusterHealthData {
   deployed: number;
   clusterHealthy: boolean;
   daemons: DaemonHealth[];
+  relay?: RelayThroughput;
   checkedAt: string;
+}
+
+function formatTimeAgo(isoStr: string | null): string {
+  if (!isoStr) return "—";
+  const diffMs = Date.now() - new Date(isoStr).getTime();
+  if (diffMs < 0) return "just now";
+  const secs = Math.floor(diffMs / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function formatUptime(ms: number): string {
+  const secs = Math.floor(ms / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+  return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
 }
 
 function statusColor(s: "live" | "registered" | "deployed") {
@@ -732,12 +767,54 @@ function ClusterReport() {
         </div>
       </div>
 
+      {data.relay && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center text-xs" data-testid="relay-throughput-row">
+          <div className={`rounded-md border p-2 ${data.relay.msgsSent > 0 ? "bg-blue-500/10 border-blue-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
+            <span className={`block text-lg font-bold ${data.relay.msgsSent > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-sent">{data.relay.msgsSent}</span>
+            <span className="text-muted-foreground">Msgs Sent</span>
+          </div>
+          <div className={`rounded-md border p-2 ${data.relay.msgsDelivered > 0 ? "bg-blue-500/10 border-blue-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
+            <span className={`block text-lg font-bold ${data.relay.msgsDelivered > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-delivered">{data.relay.msgsDelivered}</span>
+            <span className="text-muted-foreground">Delivered</span>
+          </div>
+          <div className={`rounded-md border p-2 ${data.relay.msgsQueued > 0 ? "bg-gray-500/10 border-gray-500/20" : "bg-blue-500/10 border-blue-500/20"}`}>
+            <span className={`block text-lg font-bold ${data.relay.msgsQueued > 0 ? "text-gray-500 dark:text-gray-400" : "text-blue-600 dark:text-blue-400"}`} data-testid="text-relay-queued">{data.relay.msgsQueued}</span>
+            <span className="text-muted-foreground">Queued</span>
+          </div>
+          <div className={`rounded-md border p-2 ${data.relay.msgPerSec > 0 ? "bg-blue-500/10 border-blue-500/20" : "bg-gray-500/10 border-gray-500/20"}`}>
+            <span className={`block text-lg font-bold ${data.relay.msgPerSec > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`} data-testid="text-relay-msgps">{data.relay.msgPerSec}</span>
+            <span className="text-muted-foreground">Msg/s</span>
+          </div>
+        </div>
+      )}
+
+      {data.relay && (
+        <div className="flex items-center gap-4 mb-4 px-1 text-xs text-muted-foreground" data-testid="relay-status-row">
+          <span className="flex items-center gap-1">
+            <span className={`inline-block w-2 h-2 rounded-full ${data.relay.connectedPeers > 0 ? "bg-blue-500" : "bg-black dark:bg-white"}`} />
+            <strong className="text-foreground">{data.relay.connectedPeers}</strong> WebSocket peer{data.relay.connectedPeers !== 1 ? "s" : ""}
+          </span>
+          <span>
+            <strong className={data.relay.pendingMessages > 0 ? "text-gray-500 dark:text-gray-400" : "text-foreground"}>{data.relay.pendingMessages}</strong> pending msg{data.relay.pendingMessages !== 1 ? "s" : ""}
+          </span>
+          <span className="ml-auto">
+            Uptime: <strong className="text-foreground">{formatUptime(data.relay.uptimeMs)}</strong>
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2" data-testid="cluster-daemon-list">
         {data.daemons.map((d, i) => (
           <div key={`${d.address}-${i}`} className={`rounded-md border p-3 text-xs ${statusBg(d.status)}`} data-testid={`daemon-row-${i}`}>
             <div className="flex items-center justify-between mb-1">
               <span className="font-medium text-foreground">{d.hostname} — Daemon #{i + 1}</span>
-              <Badge variant="outline" className={`text-[9px] uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${i}`}>{d.status}</Badge>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] ${d.lastSeen ? (Date.now() - new Date(d.lastSeen).getTime() < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-black dark:text-white"}`} data-testid={`daemon-heartbeat-${i}`}>
+                  {formatTimeAgo(d.lastSeen)}
+                </span>
+                <span className={`inline-block w-2 h-2 rounded-full ${d.connectedViaRelay ? "bg-blue-500" : "bg-black dark:bg-white"}`} title={d.connectedViaRelay ? "WebSocket connected" : "WebSocket disconnected"} data-testid={`daemon-ws-indicator-${i}`} />
+                <Badge variant="outline" className={`text-[9px] uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${i}`}>{d.status}</Badge>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-muted-foreground">
               <span>Address: <strong className="text-foreground font-mono text-[10px]">{d.address}</strong></span>
@@ -745,7 +822,6 @@ function ClusterReport() {
               <span>Port: <strong className="text-foreground">{d.port}</strong></span>
               <span>CRS: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
               <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
-              {d.lastSeen && <span>Last seen: <strong className="text-foreground">{new Date(d.lastSeen).toLocaleString()}</strong></span>}
             </div>
           </div>
         ))}

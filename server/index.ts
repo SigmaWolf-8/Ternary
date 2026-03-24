@@ -816,6 +816,18 @@ function startPqtiService(): ChildProcess | null {
       const registered = daemonChecks.filter(d => d.status === "registered").length;
       const deployed = daemonChecks.filter(d => d.status === "deployed").length;
 
+      const throughputRef = (globalThis as any).__relayThroughput as typeof relayThroughput | undefined;
+      const relayClientsForCount = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
+      const pendingRef = (globalThis as any).__pendingMessages as Map<string, any[]> | undefined;
+      const now = Date.now();
+      const msgPerSec = throughputRef
+        ? +(throughputRef.recentTimestamps.filter(t => t > now - 60_000).length / 60).toFixed(2)
+        : 0;
+      let totalPendingMsgs = 0;
+      if (pendingRef) {
+        for (const q of pendingRef.values()) totalPendingMsgs += q.length;
+      }
+
       res.json({
         crsAddress: CRS_ADDRESS,
         crsVersion: CRS_VERSION,
@@ -825,6 +837,16 @@ function startPqtiService(): ChildProcess | null {
         deployed,
         clusterHealthy: live > 0 || registered > 0,
         daemons: daemonChecks,
+        relay: {
+          connectedPeers: relayClientsForCount?.size || 0,
+          pendingQueues: pendingRef?.size || 0,
+          pendingMessages: totalPendingMsgs,
+          msgsSent: throughputRef?.sent || 0,
+          msgsDelivered: throughputRef?.delivered || 0,
+          msgsQueued: throughputRef?.queued || 0,
+          msgPerSec,
+          uptimeMs: now - (throughputRef?.startedAt || now),
+        },
         checkedAt: new Date().toISOString(),
       });
     } catch (err: any) {
@@ -949,6 +971,30 @@ function startPqtiService(): ChildProcess | null {
   (globalThis as any).__relayClients = relayClients;
   (globalThis as any).__pendingMessages = pendingMessages;
 
+  const relayThroughput = {
+    sent: 0,
+    delivered: 0,
+    failed: 0,
+    queued: 0,
+    startedAt: Date.now(),
+    recentTimestamps: [] as number[],
+  };
+  (globalThis as any).__relayThroughput = relayThroughput;
+
+  function recordRelayMsg(delivered: boolean) {
+    relayThroughput.sent++;
+    if (delivered) {
+      relayThroughput.delivered++;
+    } else {
+      relayThroughput.queued++;
+    }
+    const now = Date.now();
+    relayThroughput.recentTimestamps.push(now);
+    while (relayThroughput.recentTimestamps.length > 0 && relayThroughput.recentTimestamps[0] < now - 60_000) {
+      relayThroughput.recentTimestamps.shift();
+    }
+  }
+
   const wss = new WebSocketServer({ noServer: true });
 
   httpServer.on("upgrade", (request, socket, head) => {
@@ -1011,6 +1057,12 @@ function startPqtiService(): ChildProcess | null {
               for (const queued of pending) {
                 ws.send(JSON.stringify({ type: "relay", from: queued.from, msgType: queued.type, payload: queued.payload }));
               }
+              relayThroughput.delivered += pending.length;
+              if (relayThroughput.queued >= pending.length) {
+                relayThroughput.queued -= pending.length;
+              } else {
+                relayThroughput.queued = 0;
+              }
               console.log(`[ws-relay] Delivered ${pending.length} queued messages to ${nodeAddress}`);
               pendingMessages.delete(nodeAddress);
             }
@@ -1029,16 +1081,21 @@ function startPqtiService(): ChildProcess | null {
       if (msg.type === "relay" && msg.to && msg.payload) {
         const targetWs = relayClients.get(normalizeTernaryAddr(msg.to));
         const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
-        if (targetWs && targetWs.readyState === WebSocket.OPEN) {
-          targetWs.send(envelope);
+        const normalizedTo = normalizeTernaryAddr(msg.to);
+        const wasDelivered = !!(targetWs && targetWs.readyState === WebSocket.OPEN);
+        if (wasDelivered) {
+          targetWs!.send(envelope);
         } else {
-          if (!pendingMessages.has(msg.to)) pendingMessages.set(msg.to, []);
-          const queue = pendingMessages.get(msg.to)!;
+          if (!pendingMessages.has(normalizedTo)) pendingMessages.set(normalizedTo, []);
+          const queue = pendingMessages.get(normalizedTo)!;
           if (queue.length < 100) {
             queue.push({ from: nodeAddress, type: msg.msgType || "data", payload: msg.payload, ts: Date.now() });
+          } else {
+            relayThroughput.failed++;
           }
         }
-        ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: !!(targetWs && targetWs.readyState === WebSocket.OPEN) }));
+        recordRelayMsg(wasDelivered);
+        ws.send(JSON.stringify({ type: "relay_ack", to: msg.to, delivered: wasDelivered }));
         return;
       }
 
