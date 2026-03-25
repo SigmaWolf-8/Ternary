@@ -1,0 +1,26 @@
+Here's what the research turned up — there are really only two serious options:
+
+1. Servo (Best Fit)
+Language: Pure Rust
+License: MPL 2.0 / Apache 2.0 (dual-licensed). File-level copyleft — if you modify their files, those stay MPL. Your own code (the ternary conversion layer, the gateway integration) can be fully proprietary.
+Status: v0.0.2 (Nov 2025), active development under Linux Foundation Europe, funded by Igalia
+Embeddable: Yes — provides a Rust-native WebView API for embedding into applications
+Why it fits: It's already Rust. You'd fork it, strip it down to the rendering/layout core, and wire the networking layer through your BinaryTernaryGateway instead of the standard socket stack. The rendering pipeline can target your framebuffer (1920×1080 from boot.rs). Since it's Rust all the way down, converting the networking and crypto subsystems to route through the ternary basement is surgical — you replace their TLS/socket modules with your TLSponge-385 and tunnel_auth implementations.
+Risk: MPL 2.0 means modified Servo files must stay open. But your ternary shim layer, gateway integration, and all PlenumNET-specific code can remain proprietary. This is standard for commercial embedding.
+
+2. Ladybird
+Language: C++ (just starting to add Rust in Feb 2026 for JS components)
+License: BSD 2-Clause (maximally permissive — zero copyleft obligation)
+Status: Pre-alpha, 8 full-time engineers, alpha target 2026
+Why it doesn't fit as well: It's C++, not Rust. Converting to ternary would mean maintaining a C++ ↔ Rust FFI boundary for the entire browser engine, which defeats the purpose. The BSD license is cleaner, but the language mismatch is a dealbreaker if you want a native Rust stack.
+My Recommendation: Servo Fork
+Servo is the clear choice. Here's the path:
+
+Fork Servo — strip it to the embeddable rendering core (layout engine, DOM, CSS, basic JS via SpiderMonkey or replace with a lighter engine)
+Replace the network stack — swap out Servo's net module with your BinaryTernaryGateway. All HTTP/TLS goes through the ternary basement. No raw sockets.
+Target the framebuffer — Servo already has a compositing pipeline. Point it at your framebuffer base address from boot.rs instead of a windowing system
+TDNS integration — replace DNS resolution with your TDNS v2.5 resolver (you already have the browser extension pattern in services/tdns-v2/extension/)
+Crypto swap — replace Servo's ring/rustls crypto with your TLSponge-385 and TL-KEM implementations
+The MPL 2.0 license is safe for this use case — your proprietary ternary layer sits alongside the modified Servo files, not inside them.
+
+Should I update Task #41 to include the dual-mode terminal (browser-accessed xterm.js + native Servo-based terminal) and create a separate task for the Servo fork/ternary browser? Those feel like two different scopes — the terminal is shippable now, the browser is a larger effort.

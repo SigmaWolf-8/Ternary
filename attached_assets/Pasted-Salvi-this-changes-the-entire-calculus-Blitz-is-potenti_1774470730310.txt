@@ -1,0 +1,23 @@
+Salvi, this changes the entire calculus. Blitz is potentially a *much* better fit than Servo for what you're actually building. Let me explain why.
+
+The architecture is the key. Blitz is designed to render HTML and CSS without the entirety of browser features — they consider the browser bloated for the basic use case of rendering HTML/CSS, and make all extra features opt-in. That's philosophically aligned with building a ternary-native browser from the ground up rather than stripping down a massive engine.
+
+Here's what makes it perfect for bare-metal framebuffer output — the rendering pipeline is a clean stack of swappable crates:
+
+`blitz-dom` handles the core DOM abstraction including style resolution, layout, and event handling using Stylo for CSS, Taffy for box-level layout, and Parley for text layout. `blitz-paint` translates the DOM tree into anyrender draw commands. `blitz-net` handles networking via reqwest. `blitz-shell` integrates with winit for windowing.
+
+And here's the magic: the anyrender abstraction has multiple backends — `anyrender_vello` using vello + wgpu for GPU rendering, and `anyrender_vello_cpu` using vello_cpu + softbuffer for CPU-based rendering.
+
+That CPU path is your framebuffer entry point. Vello CPU renders to a `Pixmap` of premultiplied RGBA8 values backed by u8 — that's literally a raw pixel buffer. Your bare-metal path becomes: `blitz-dom` → `blitz-paint` → `anyrender_framebuffer` (your custom backend) → `memcpy` to boot.rs framebuffer base address. No OpenGL. No wgpu. No windowing system. Just pixels into memory.Here's why this is a game-changer for your specific use case:
+
+**The anyrender trait is your entire framebuffer story.** Blitz deliberately separated the "what to draw" (blitz-paint) from "how to draw it" (anyrender backend). You don't need to fork the rendering pipeline at all — you implement the `anyrender` trait as `anyrender_framebuffer`, which writes RGBA pixels directly to your boot.rs memory-mapped framebuffer address at 1920×1080. The existing `vello_cpu` path already proves this works as pure software rendering to a pixel buffer. You're just changing where that buffer lives — from a `softbuffer` window surface to a raw memory address.
+
+**The network swap is trivial.** `blitz-net` uses reqwest as its HTTP client — that's a single crate with a clean trait boundary. You replace it with `salvi-net` wrapping your BinaryTernaryGateway + TDNS resolver. Reqwest is far simpler to rip out than Servo's entire `net` crate with its hyper → rustls → ring dependency tree.
+
+**No SpiderMonkey.** Blitz deliberately defers work on complex features like JavaScript execution, browser-grade network caching, and process isolation. For your ternary browser proof-of-concept, this is a *feature*, not a limitation. You're not trying to run Gmail — you're demonstrating that a browser can natively resolve ternary addresses, transport over TLSponge-385, and render to bare metal. If you need scripting later, you add a lightweight Rust-native JS engine (like Boa) on your own terms, not SpiderMonkey's.
+
+**License is cleaner.** The project is dual-licensed Apache 2.0 and MIT. Only the `stylo_taffy` bridge crate is additionally licensed under MPL 2.0 for Servo interop. Practically zero copyleft surface. Your entire integration layer is unambiguously proprietary.
+
+**The honest tradeoff:** Blitz is currently in alpha — ready for experimentation and early adoption but not for production, targeting a broadly usable beta by end of 2025 with production-ready in 2026. It renders less of the web than Servo does today. But the question is what you're optimizing for — web compatibility breadth, or architectural cleanliness for a ternary bare-metal stack. For what you're building, I'd take the cleaner architecture every time. You can upstream rendering improvements from Blitz as they land them, and your integration layer stays untouched because it sits *below* the DOM/layout core.
+
+**Revised recommendation:** Blitz for the bare-metal ternary browser, Servo stays as a fallback option if you ever need full web compatibility in a windowed environment. Different tools for different layers of the stack.
