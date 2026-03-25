@@ -44,17 +44,17 @@ The GF(3) ↔ Rep C conversion is `+1` / `−1`. Port formulas use GF(3); wire e
 
 These are the production port assignments. Do not change them. Do not suggest alternatives. Do not override them in code.
 
-All daemon ports live inside the 27-slot cube (BASE_PORT = 11111). The gateway/API is at the center slot (offset +13). Tri-Port per node = 3 consecutive ports around the center:
+Each node has **one gateway port** at the center of its 27-slot cube (offset +13, Rep C address [2,2,2]). The center is 1 hop from all 26 neighbors — this is why it is the gateway.
 
-| Node | `CUBE_PEER_PORT` | `CUBE_API_PORT` (gateway) | `LLM_PORT` |
-|------|-------------------|---------------------------|------------|
-| 1 (N=0) | 11123 | 11124 | 11125 |
-| 2 (N=1) | 11150 | 11151 | 11152 |
-| 3 (N=2) | 11177 | 11178 | 11179 |
+| Node | node_id (GF(3)) | Port Range | Gateway Port |
+|------|-----------------|------------|-------------|
+| 1 | 0 | 11111–11137 | **11124** |
+| 2 | 1 | 11138–11164 | **11151** |
+| 3 | 2 | 11165–11191 | **11178** |
 
-Formulas: `CUBE_API_PORT = 11124 + 27N` (center of each node's 3³ cube), `CUBE_PEER_PORT = CUBE_API_PORT - 1`, `LLM_PORT = CUBE_API_PORT + 1`.
+Formula: `gateway = BASE_PORT + (node_id × 27) + 13 = 11124 + 27N`.
 
-`CUBE_API_PORT` defaults to 11124. `CUBE_PEER_PORT` defaults to `CUBE_API_PORT - 1`. `LLM_PORT` is the LLM engine port one above the gateway.
+The gateway port is the single outbound port for all daemon communication — API, peer mesh, relay. The remaining 26 slots per node are for service registration. `CUBE_API_PORT` defaults to 11124.
 
 ### I-04: Ternary Address Format
 
@@ -85,11 +85,8 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 | `CUBE_MODE` | `all` | `crs`, `cube`, `all`, or `keygen` |
 | `CUBE_CRS_URL` | (required for cube) | CRS base URL — for YODA clusters, this is the LOCAL CRS (Daemon #1), NOT plenumnet.replit.app |
 | `RELAY_URL` | (cube: falls back to CUBE_CRS_URL; crs: no fallback) | WebSocket relay URL for NAT traversal — set to `https://plenumnet.replit.app` when CUBE_CRS_URL is a local address |
-| `CUBE_API_PORT` | `11124` | Daemon HTTP API / gateway port (center of 27-slot cube) |
+| `CUBE_API_PORT` | `11124` | Gateway port — center of the node's 27-slot cube. Single outbound port for all daemon communication. |
 | `API_PORT` | (alias) | Alias for CUBE_API_PORT |
-| `CUBE_PEER_PORT` | `CUBE_API_PORT - 1` | Direct peer-to-peer port (11123 for Node 1) |
-| `PEER_PORT` | (alias) | Alias for CUBE_PEER_PORT |
-| `LLM_PORT` | `CUBE_API_PORT + 1` | LLM engine port (11125 for Node 1) |
 | `CUBE_ENDPOINT` | `0.0.0.0:51820` | Wire protocol endpoint |
 | `CUBE_ROLE` | (optional) | `inference`, `review`, `kb`, `infra`, `relay`, `standby` |
 | `CUBE_IDENTITY_DIR` | `~/.plenumnet/identity/` | Master key storage |
@@ -99,9 +96,9 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 
 For any YODA or LAN deployment, an Array3 (3-node PlenumNET cluster) is independent and self-contained:
 
-- **Node #1 (port 11124)** starts in `CUBE_MODE=crs` — it IS the local CRS (coordinator) for the Array3
-- **Node #2 (port 11151)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:11124`
-- **Node #3 (port 11178)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:11124`
+- **Node #1 (gateway 11124)** starts in `CUBE_MODE=crs` — it IS the local CRS (coordinator) for the Array3
+- **Node #2 (gateway 11151)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:11124`
+- **Node #3 (gateway 11178)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:11124`
 
 The remote server (`plenumnet.replit.app`) is both:
 1. A **monitoring dashboard** — receives deployment summaries so the dashboard can display cluster health
@@ -168,56 +165,25 @@ Node binary: `C:\PlenumNET\target\release\inter-cube-daemon.exe`
 
 Each agent gets its own PlenumNET Node with its own identity. Separate identities are required because each node derives a unique ternary address from its master key (via TL-Sponge-385). Shared keys would produce the same address and collide at CRS.
 
-| Node | Identity Dir | `CUBE_PEER_PORT` | `CUBE_API_PORT` | `LLM_PORT` | CUBE_MODE |
-|------|-------------|-------------------|-----------------|------------|-----------|
-| 1 | `$env:USERPROFILE\.plenumnet\identity-1\` | 11123 | 11124 | 11125 | `crs` (coordinator) |
-| 2 | `$env:USERPROFILE\.plenumnet\identity-2\` | 11150 | 11151 | 11152 | `cube` (worker) |
-| 3 | `$env:USERPROFILE\.plenumnet\identity-3\` | 11177 | 11178 | 11179 | `cube` (worker) |
+| Node | Identity Dir | Gateway Port | CUBE_MODE |
+|------|-------------|-------------|-----------|
+| 1 | `%USERPROFILE%\.plenumnet\identity-1\` | 11124 | `crs` (coordinator) |
+| 2 | `%USERPROFILE%\.plenumnet\identity-2\` | 11151 | `cube` (worker) |
+| 3 | `%USERPROFILE%\.plenumnet\identity-3\` | 11178 | `cube` (worker) |
 
-Generate each identity once with `CUBE_MODE=keygen`:
-```powershell
-$env:CUBE_MODE="keygen"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-1"
-& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
-# Repeat for identity-2, identity-3
+YODA deploys nodes by calling the PlenumNET APIs — it does NOT run PowerShell commands directly:
+
+**Single node:**
+```
+POST https://plenumnet.replit.app/api/deploy-daemon
 ```
 
-Run each node in a separate terminal:
-
-**Node 1 (Coordinator):**
-```powershell
-$env:CUBE_MODE="crs"
-$env:CUBE_API_PORT="11124"
-$env:LLM_PORT="11125"
-$env:CUBE_ENDPOINT="<local-ip>:11124"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-1"
-$env:RELAY_URL="https://plenumnet.replit.app"
-& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+**Full Array3 (3 nodes):**
+```
+POST https://plenumnet.replit.app/api/deploy-yoda
 ```
 
-**Node 2 (Worker — registers with coordinator):**
-```powershell
-$env:CUBE_MODE="cube"
-$env:CUBE_API_PORT="11151"
-$env:LLM_PORT="11152"
-$env:CUBE_CRS_URL="http://localhost:11124"
-$env:RELAY_URL="https://plenumnet.replit.app"
-$env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-2"
-& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
-```
-
-**Node 3 (Worker — registers with coordinator):**
-```powershell
-$env:CUBE_MODE="cube"
-$env:CUBE_API_PORT="11178"
-$env:LLM_PORT="11179"
-$env:CUBE_CRS_URL="http://localhost:11124"
-$env:RELAY_URL="https://plenumnet.replit.app"
-$env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-3"
-& "C:\PlenumNET\target\release\inter-cube-daemon.exe"
-```
+The deployer handles identity generation, port assignment, CRS startup, worker registration, and relay configuration. YODA monitors the result via the endpoints in Section 9.
 
 ---
 
@@ -831,7 +797,7 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 
 ## SECTION 9: YODA MONITORING QUICK REFERENCE
 
-A single consolidated table of every endpoint YODA needs to monitor daemon infrastructure, WebSocket relay, and cluster health. All local endpoints assume the Tri-Port layout: Node #1 = 11124 (CRS/gateway), Node #2 = 11151 (cube), Node #3 = 11178 (cube).
+A single consolidated table of every endpoint YODA needs to monitor daemon infrastructure, WebSocket relay, and cluster health. Gateway ports: Node #1 = 11124 (CRS), Node #2 = 11151 (cube), Node #3 = 11178 (cube).
 
 ### 9.1 Local Daemon Monitoring (localhost)
 
@@ -869,15 +835,7 @@ A single consolidated table of every endpoint YODA needs to monitor daemon infra
 
 ### 9.4 LLM Engine Monitoring — YODA's Responsibility
 
-LLM engine monitoring is NOT provided by the daemon infrastructure. YODA launches and manages the LLM engines (llama-server, etc.) and knows which ports they run on:
-
-| Node | LLM Engine Port | Example Health Check |
-|------|----------------|---------------------|
-| 1 | 11125 | `GET http://localhost:11125/health` |
-| 2 | 11152 | `GET http://localhost:11152/health` |
-| 3 | 11179 | `GET http://localhost:11179/health` |
-
-YODA should poll these directly. The daemon deployer does not start or manage LLM engines — only the cube daemons.
+LLM engine monitoring is NOT provided by the daemon infrastructure. YODA launches and manages the LLM engines (llama-server, etc.) and registers them into available service slots. YODA should poll LLM health via the slot ports assigned at registration time. The daemon deployer does not start or manage LLM engines — only the cube daemons.
 
 ---
 
@@ -887,7 +845,7 @@ The PlenumLAN Node crate (`plenumlan/`) implements the Array3 Node Cluster pipel
 
 ### 10.1 Unified Port Layer
 
-All ports — daemon API, peer, LLM, and service slots — live in the 11111–11191 range. There is one port layer, not two. The daemon occupies the Tri-Port around the center of each node's 27-slot cube (see I-03). The remaining 24 slots are available for service registration.
+All ports live in the 11111–11191 range. There is one port layer. The daemon binds the gateway at the center of each node's 27-slot cube (see I-03). The remaining 26 slots per node are available for service registration.
 
 The zero-sentinel invariant (I-02) applies: all slot addresses and wire-packed bytes use Rep C {1,2,3}. A zero in any field is provable forgery before any cryptographic check runs.
 
@@ -1054,7 +1012,7 @@ These are in addition to the existing daemon env vars in Section 2.
 
 1. Node boots with `CUBE_NODE_ID=N` and `CUBE_ARRAY3_PEERS=ip1:port,ip2:port`
 2. Node binds its 27-port range: `BASE_PORT + (N × 27)` through `BASE_PORT + (N × 27) + 26`
-3. Node connects to each peer via existing `CUBE_PEER_PORT` infrastructure
+3. Node connects to each peer via its gateway port
 4. First handshake message includes: node_id, wire protocol version, port range, slot inventory (which slots are occupied), daemon version metadata
 5. Peer validates: no node_id collision (reject if duplicate), wire protocol compatible (V3 accepts V2 during dual-acceptance), port ranges don't overlap
 6. On successful handshake: peer mesh formed, slot-to-node routing table populated, failover candidates identified (same classification on different node = replica pair)
