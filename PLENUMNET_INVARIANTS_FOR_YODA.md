@@ -982,7 +982,57 @@ Slots are agnostic — plane/role/instance define the topology, not the service 
 
 The 3-trit (plane, role, instance) address maps to offset 0–26 within EACH node's 27-slot range. The slot address is the SAME across all three nodes — what differs is which node OWNS the registration. Two services with identical classifications on different nodes occupy the "same slot" but on different nodes — this IS the HA replica mechanism.
 
-### 10.6 Wire Encoding
+### 10.6 Windows Server Role → Slot Mapping
+
+Slots are agnostic, but the 12 core Windows Server SMB roles have fixed 27-trit classifications that project to known planes. Source: `windows_roles.rs`, verified by `all_roles_project_to_expected_plane` test.
+
+| Role | Plane (Rep C) | Plane Name | Legacy Bridge Port |
+|------|--------------|------------|-------------------|
+| File Server | 1 | Data | :445 (SMB) |
+| Print Server | 1 | Data | :631 (IPP) |
+| Web Server (IIS) | 1 | Data | — |
+| Remote Desktop Services | 1 | Data | — |
+| AD Domain Services | 2 | Control | — |
+| DNS Server | 2 | Control | :53 (DNS) |
+| DHCP Server | 2 | Control | :67 (DHCP) |
+| Certificate Authority | 2 | Control | — |
+| NPS (RADIUS) | 2 | Control | :1812 (RADIUS) |
+| Hyper-V | 3 | Management | — |
+| WSUS | 3 | Management | — |
+| Failover Clustering | 3 | Management | — |
+
+Legacy bridge derivation (`bridge.rs`) matches 4 classification dimensions — D5 (Interactivity), D6 (MediaRichness), D12 (APIPresence), D15 (ProtocolLayering) — to assign well-known ports. A bridged service gets BOTH its native slot port (111xx) AND its legacy port (53/67/445/631/1812).
+
+### 10.7 Runtime Address Lookup
+
+To reach a service at runtime, the full lookup chain is:
+
+```
+27-trit classification
+    → project_to_slot() → 3-trit slot [plane, role, instance]
+    → slot_port(node_id, slot) → TCP port
+    → CRS routing table → node_ip
+    → runtime address = node_ip:port
+```
+
+**User-facing formula** (given a node's IP and the service classification):
+
+```
+port = 11111 + (node_id × 27) + (plane × 9) + (role × 3) + instance
+address = <node_ip>:<port>
+```
+
+Where `node_id`, `plane`, `role`, `instance` are all GF(3) {0, 1, 2}. The CRS resolves `node_id` → `node_ip` from its routing table (populated during Array3 formation or from `CUBE_ARRAY3_PEERS`).
+
+**Reverse lookup** (`port_to_slot()` in `port.rs`): Given a port, decode back to `(node_id, [plane, role, instance])`. This is how the CRS resolves inbound traffic to a slot owner.
+
+**Example**: DNS Server on Node 1 (node_id=0):
+- Classification projects to plane=1 (Control), role=0 (Primary), instance=0 → slot [1,0,0] in GF(3)
+- Port = 11111 + (0×27) + (1×9) + (0×3) + 0 = 11120
+- Legacy bridge also binds :53
+- Runtime address = `<node1_ip>:11120` (native) or `<node1_ip>:53` (legacy bridge)
+
+### 10.8 Wire Encoding
 
 Slot addresses are packed into a single byte for wire transmission:
 
@@ -997,7 +1047,7 @@ Slot addresses are packed into a single byte for wire transmission:
 
 Functions: `pack_slot_addr([u8;3]) → Option<u8>`, `unpack_slot_addr(u8) → Option<[u8;3]>`
 
-### 10.7 New Environment Variables
+### 10.9 New Environment Variables
 
 | Variable | Default | Values | Purpose |
 |----------|---------|--------|---------|
@@ -1007,7 +1057,7 @@ Functions: `pack_slot_addr([u8;3]) → Option<u8>`, `unpack_slot_addr(u8) → Op
 
 These are in addition to the existing daemon env vars in Section 2.
 
-### 10.8 Array3 Formation Protocol
+### 10.10 Array3 Formation Protocol
 
 1. Node boots with `CUBE_NODE_ID=N` and `CUBE_ARRAY3_PEERS=ip1:port,ip2:port`
 2. Node binds its 27-port range: `BASE_PORT + (N × 27)` through `BASE_PORT + (N × 27) + 26`
@@ -1016,7 +1066,7 @@ These are in addition to the existing daemon env vars in Section 2.
 5. Peer validates: no node_id collision (reject if duplicate), wire protocol compatible (V3 accepts V2 during dual-acceptance), port ranges don't overlap
 6. On successful handshake: peer mesh formed, slot-to-node routing table populated, failover candidates identified (same classification on different node = replica pair)
 
-### 10.9 Wire Protocol V3
+### 10.11 Wire Protocol V3
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
@@ -1036,7 +1086,7 @@ These are in addition to the existing daemon env vars in Section 2.
 
 V3 accepts V2 messages. V1 is rejected. V3 message types sent with a V2 header produce `MessageRequiresV3` error.
 
-### 10.10 ServiceSlotRegistry (CRS Extension)
+### 10.12 ServiceSlotRegistry (CRS Extension)
 
 The CRS manages the 81-slot space (3 nodes × 27 slots each):
 
@@ -1045,7 +1095,7 @@ The CRS manages the 81-slot space (3 nodes × 27 slots each):
 - `resolve_slot(slot_addr)` → `SlotRoute` (node_id, port, identity)
   - Takes 3-trit slot address, searches all 3 nodes, returns routing info
 
-### 10.11 Key Freshness Zones
+### 10.13 Key Freshness Zones
 
 Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOCH:
 
@@ -1056,7 +1106,7 @@ Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOC
 | Aging | 122–182 | Read-only |
 | (expired) | >182 | None — key must be rotated |
 
-### 10.12 Health Endpoint (Updated)
+### 10.14 Health Endpoint (Updated)
 
 `GET /health` now returns PlenumLAN Node fields:
 
@@ -1073,7 +1123,7 @@ Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOC
 }
 ```
 
-### 10.13 Version Constants
+### 10.15 Version Constants
 
 All version constants in `shared/constants.ts`:
 
