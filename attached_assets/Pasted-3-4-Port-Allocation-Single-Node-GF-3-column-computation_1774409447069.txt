@@ -1,0 +1,74 @@
+3.4 Port Allocation: Single Node
+GF(3) column = computation (port formula). Rep C column = wire format (zero-sentinel applies).
+
+Offset	GF(3)	Rep C	Port	Slot (agnostic)
++0	000	111	11111	Data / Primary / 1
++1	001	112	11112	Data / Primary / 2
++2	002	113	11113	Data / Primary / 3
++3	010	121	11114	Data / Secondary / 1
++4	011	122	11115	Data / Secondary / 2
++5	012	123	11116	Data / Secondary / 3
++6	020	131	11117	Data / Tertiary / 1
++7	021	132	11118	Data / Tertiary / 2
++8	022	133	11119	Data / Tertiary / 3
++9	100	211	11120	Control / Primary / 1
++10	101	212	11121	Control / Primary / 2
++11	102	213	11122	Control / Primary / 3
++12	110	221	11123	Control / Secondary / 1
++13	111	222	11124	THE CENTER — Gateway · Shell · Key Rotation Pivot
++14	112	223	11125	Control / Secondary / 3
++15	120	231	11126	Control / Tertiary / 1
++16	121	232	11127	Control / Tertiary / 2
++17	122	233	11128	Control / Tertiary / 3
++18	200	311	11129	Management / Primary / 1
++19	201	312	11130	Management / Primary / 2
++20	202	313	11131	Management / Primary / 3
++21	210	321	11132	Management / Secondary / 1
++22	211	322	11133	Management / Secondary / 2
++23	212	323	11134	Management / Secondary / 3
++24	220	331	11135	Management / Tertiary / 1
++25	221	332	11136	Management / Tertiary / 2
++26	222	333	11137	Management / Tertiary / 3
+No service names. Slots are agnostic. No zeros in any Rep C column — the entire table is forgery-proof. A zero in any wire-format trit is provable forgery before any cryptographic check runs. The center (222 in Rep C) is the only named position — it is the gate.
+
+3.5 Array3: Formation, Port Addressing, and Node Identity
+Three nodes. 81 slots = 3⁴. Each node owns a complete 3³ cube of 27 slots. The cube is 3 dimensions (plane, role, instance). The node_id is a GF(3) multiplier {0, 1, 2} that selects which node’s port range the slot lives in — it is NOT a 4th cube dimension. The cube stays 3D; the Array3 is 3 copies of it.
+
+Port formula (Array3):
+
+port = BASE_PORT + (node_id × 27) + (plane × 9) + (role × 3) + instance
+Where BASE_PORT = 11111, all positional values are GF(3) {0, 1, 2}. A single node is Array3 with node_id = 0 and no peers — scalability is structural, not an upgrade.
+
+Per-node port ranges:
+
+Label	node_id (GF(3))	Port Range	Slots	Gateway Port
+Node 1	0	11111–11137	0–26	11124 (offset +13)
+Node 2	1	11138–11164	27–53	11151 (offset +40)
+Node 3	2	11165–11191	54–80	11178 (offset +67)
+Each node's gateway is at its own offset +13 (the center of its local 3³ cube). The Array3 has three gateways — one per node. The node with node_id = 0 is the primary gateway for external traffic; nodes 1 and 2 are HA replicas.
+
+Node identity assignment:
+
+CUBE_NODE_ID environment variable (values: 0, 1, or 2). Default = 0 (single-node mode). When CUBE_NODE_ID is set and CUBE_ARRAY3_PEERS lists the other nodes, the daemon operates in Array3 mode.
+
+Future: auto-negotiation via the formation protocol. For Release 0.1, explicit configuration.
+
+Array3 formation protocol:
+
+Node boots with CUBE_NODE_ID=N and CUBE_ARRAY3_PEERS=ip1:port,ip2:port
+Node binds its 27-port range: BASE_PORT + (N × 27) through BASE_PORT + (N × 27) + 26
+Node connects to each peer via existing CUBE_PEER_PORT infrastructure
+First handshake message includes: node_id, wire protocol version, port range, slot inventory (which slots are occupied), daemon version metadata
+Peer validates: no node_id collision (reject if duplicate), wire protocol compatible (V3 accepts V2 during dual-acceptance), port ranges don't overlap
+On successful handshake: peer mesh formed, slot-to-node routing table populated, failover candidates identified (same classification on different node = replica pair)
+Slot-to-node routing:
+
+The 3-trit (plane, role, instance) address maps to offset 0–26 within EACH node's 27-slot range. The slot address is the SAME across all three nodes — what differs is which node OWNS the registration. The CRS tracks slot→node ownership. A classification query returns the owning node_id alongside the slot address.
+
+Two services with identical classifications on different nodes occupy the "same slot" (same plane, role, instance) but on different nodes. This IS the HA replica mechanism. The CRS knows both registrations and routes to the primary; on failure, traffic fails over to the replica on another node.
+
+Single-node is the degenerate case:
+
+CUBE_NODE_ID=0, no peers, ports 11111–11137. The exact same code path. The only difference: no peer mesh, no failover candidates. Adding a second node later = set its node_id to 1, point it at node 0, formation protocol runs, Array3 begins forming. No reinstallation. No reconfiguration of node 0.
+
+3.6 The Dual-Circle Architecture
