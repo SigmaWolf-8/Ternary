@@ -44,15 +44,17 @@ The GF(3) ↔ Rep C conversion is `+1` / `−1`. Port formulas use GF(3); wire e
 
 These are the production port assignments. Do not change them. Do not suggest alternatives. Do not override them in code.
 
-Tri-Port Architecture (3 ports per node, spacing = 3): peer port `8079 + 3N`, app port `8080 + 3N`, node port `8081 + 3N`.
+Tri-Port Architecture (3 ports per node, spacing = 3):
 
-| Agent | Peer Port | App Port | Node Port | `CUBE_PEER_PORT` | `CUBE_API_PORT` | `LLM_PORT` |
-|-------|-----------|----------|-----------|-------------------|-----------------|------------|
-| A (N=0) | 8079 | 8080 | 8081 | 8079 | 8080 | 8081 |
-| B (N=1) | 8082 | 8083 | 8084 | 8082 | 8083 | 8084 |
-| C (N=2) | 8085 | 8086 | 8087 | 8085 | 8086 | 8087 |
+| Agent | `CUBE_PEER_PORT` | `CUBE_API_PORT` | `LLM_PORT` |
+|-------|-------------------|-----------------|------------|
+| A (N=0) | 8079 | 8080 | 8081 |
+| B (N=1) | 8082 | 8083 | 8084 |
+| C (N=2) | 8085 | 8086 | 8087 |
 
-The PlenumNET Node reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. `CUBE_PEER_PORT` defaults to `CUBE_API_PORT - 1`. Each node's `LLM_PORT` points to the LLM engine port one above the daemon API.
+Formulas: `CUBE_PEER_PORT = 8079 + 3N`, `CUBE_API_PORT = 8080 + 3N`, `LLM_PORT = 8081 + 3N`.
+
+`CUBE_API_PORT` defaults to 8080. `CUBE_PEER_PORT` defaults to `CUBE_API_PORT - 1`. `LLM_PORT` is the LLM engine port one above the daemon API.
 
 Daemon ports are plain TCP port numbers. The zero-sentinel (I-02) applies to the ternary addresses and PlenumLAN slot encoding carried over these ports, not to the port numbers themselves.
 
