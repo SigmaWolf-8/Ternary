@@ -887,12 +887,22 @@ The daemon API ports (8081/8083/8085) remain exactly as documented in Section 2.
 | `BASE_PORT` | 11111 | `plenumlan/src/cube/constants.rs` |
 | `MAX_NODES` | 3 | Array3 cluster = 3 nodes |
 | `SLOTS_PER_NODE` | 27 | 3³ = 27 slots per node |
+| `SLOTS_PER_PLANE` | 9 | role × instance = 3 × 3 |
+| `GF3_ORDER` | 3 | Ternary field order |
 | `GATEWAY_NODE_ID` | 1 | Node 1 is always the gateway |
-| `GATEWAY_OFFSET` | 13 | Center slot of 27 (1-indexed) |
+| `GATEWAY_OFFSET` | 13 | Center slot [2,2,2] = DIMENSIONS |
 
-**Port formula**: `BASE_PORT + (node_id - 1) × 27 + offset`
+**Port formula** (`plenumlan/src/cube/port.rs`):
 
-Where `node_id` ∈ {1, 2, 3} (Rep C) and `offset` ∈ {0..26}.
+```
+port = BASE_PORT
+     + (node_id - 1) × SLOTS_PER_NODE
+     + (plane - 1) × SLOTS_PER_PLANE
+     + (role - 1) × GF3_ORDER
+     + (instance - 1)
+```
+
+All inputs are Rep C {1, 2, 3}. The `- 1` converts each to GF(3) offset. `node_id` ∈ {1, 2, 3}, `plane/role/instance` ∈ {1, 2, 3}.
 
 ### 10.3 Default Port Ranges
 
@@ -911,17 +921,17 @@ Each service slot has a 3-trit address in Rep C encoding: `[plane, role, instanc
 
 | Trit | Name | Values | Meaning |
 |------|------|--------|---------|
-| 1 | Plane | 1=Outer, 2=Void, 3=Inner | Security boundary |
-| 2 | Role | 1, 2, 3 | Role within plane |
+| 1 | Plane | 1=Data, 2=Control, 3=Management | Service plane (`projection.rs` SlotAddress) |
+| 2 | Role | 1=Primary, 2=Secondary, 3=Tertiary | Role within plane |
 | 3 | Instance | 1, 2, 3 | Instance within role |
 
-**Plane assignments (Windows Server roles)**:
+**Plane assignments (Windows Server roles)** — verified in `windows_roles.rs` `expected_plane` values:
 
 | Plane | Purpose | Example Roles |
 |-------|---------|---------------|
-| Outer (1) | Data services | File Server, Print Server, IIS |
-| Void (2) | Control services | DNS, DHCP, NPS |
-| Inner (3) | Management services | Active Directory, Certificate Authority, WSUS |
+| 1 (Data) | Data services | File Server, Print Server, Web Server (IIS), Remote Desktop Services |
+| 2 (Control) | Control services | AD Domain Services, DNS, DHCP, Certificate Authority, NPS (RADIUS) |
+| 3 (Management) | Management services | Hyper-V, WSUS, Failover Clustering |
 
 **27→3 projection**: A 27-trit classification vector is projected to a 3-trit slot address using polarity tables (3 groups × 9 dimensions each). The projection calls `project_to_gf3(k, DIMS_PER_GROUP=9)` for each group.
 

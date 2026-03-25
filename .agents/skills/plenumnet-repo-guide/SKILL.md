@@ -761,7 +761,7 @@ Standalone Rust crate: Array3 Node Cluster pipeline — 27 classification trits 
 | `freshness.rs` | Fresh/Active/Aging zones (mirrors key_rotation.rs KeyFreshnessZone). |
 | `scan_templates.rs` | 6 LAN entity scan templates per §7.8. |
 | `entity_detect.rs` | Entity class detection: HTTP endpoints → TDNS scanner, hardware → template-driven scan. |
-| `windows_roles.rs` | 12 SMB roles with plane validation (Outer→data, Void→control, Inner→management). |
+| `windows_roles.rs` | 12 SMB roles with plane validation (1=Data, 2=Control, 3=Management). AD DS, DNS, DHCP, Cert Authority, NPS → Control. File/Print/IIS/RDS → Data. Hyper-V, WSUS, Failover → Management. |
 
 **Environment Variables** (parsed in `node.rs` and `main.rs`):
 
