@@ -571,6 +571,13 @@ impl WireMessage {
             });
         }
 
+        if msg_type.requires_v3() && self.header.version < PROTOCOL_VERSION_V3 {
+            return Err(WireError::MessageRequiresV3 {
+                msg_type: self.header.msg_type,
+                version: self.header.version,
+            });
+        }
+
         if self.header.payload_len as usize != self.payload.len() {
             return Err(WireError::PayloadLengthMismatch {
                 declared: self.header.payload_len,
@@ -602,6 +609,11 @@ pub enum WireError {
         msg_type: u8,
         version: u8,
     },
+    /// V3 message type received on a pre-V3 connection.
+    MessageRequiresV3 {
+        msg_type: u8,
+        version: u8,
+    },
     /// Declared payload length doesn't match actual.
     PayloadLengthMismatch {
         declared: u32,
@@ -625,6 +637,9 @@ impl std::fmt::Display for WireError {
             Self::UnknownMessageType(t) => write!(f, "unknown message type 0x{:02X}", t),
             Self::MessageRequiresV2 { msg_type, version } => {
                 write!(f, "message type 0x{:02X} requires v2, got v{}", msg_type, version)
+            }
+            Self::MessageRequiresV3 { msg_type, version } => {
+                write!(f, "message type 0x{:02X} requires v3, got v{}", msg_type, version)
             }
             Self::PayloadLengthMismatch { declared, actual } => {
                 write!(f, "payload length mismatch: declared {}, actual {}", declared, actual)
@@ -1027,6 +1042,42 @@ mod tests {
 
         let err = msg.validate().unwrap_err();
         assert!(matches!(err, WireError::MessageRequiresV2 { .. }));
+    }
+
+    #[test]
+    fn test_validate_v3_message_on_v2_header() {
+        let mut msg = WireMessage::new(
+            MessageType::Array3Handshake,
+            0,
+            vec![],
+        );
+        msg.header.version = PROTOCOL_VERSION_V2;
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, WireError::MessageRequiresV3 { .. }));
+    }
+
+    #[test]
+    fn test_validate_v3_slot_register_on_v2_header() {
+        let mut msg = WireMessage::new(
+            MessageType::SlotRegister,
+            0,
+            vec![],
+        );
+        msg.header.version = PROTOCOL_VERSION_V2;
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, WireError::MessageRequiresV3 { .. }));
+    }
+
+    #[test]
+    fn test_validate_v3_message_on_v3_header_ok() {
+        let msg = WireMessage::new(
+            MessageType::Array3Handshake,
+            0,
+            vec![],
+        );
+        assert!(msg.validate().is_ok());
     }
 
     #[test]
