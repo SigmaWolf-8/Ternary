@@ -21,12 +21,24 @@ PlenumNET uses its own cryptographic primitives. There are ZERO references to BL
 
 If you see "PQ-native tunnel keys derived," the parenthetical MUST say `(TL-Sponge-385)`, never `(BLAKE3)`.
 
-### I-02: Rep C Trit Encoding — {1, 2, 3} Only
+### I-02: Rep C Zero-Sentinel — {1, 2, 3} Only on the Wire
 
-Ternary trit values are 1, 2, 3. Never 0, 1, 2. There is no trit value 0.
+PlenumNET uses two trit representations:
 
-- Valid address: `1111111111112`
-- Invalid address: `1111111111110`
+| Domain | Values | Purpose |
+|--------|--------|---------|
+| **GF(3)** | {0, 1, 2} | Computation — port formulas, address derivation, arithmetic |
+| **Rep C** | {1, 2, 3} | Wire format — addresses, slot encoding, packed bytes |
+
+**Zero-sentinel invariant**: A zero in any Rep C field is provable forgery before any cryptographic check runs. This applies at both port layers:
+
+- **Daemon layer** (Section 2, I-03): Ternary addresses are 13-trit Rep C strings. A `0` in any trit position = invalid address.
+- **PlenumLAN layer** (Section 10): Slot addresses are 3-trit Rep C `[plane, role, instance]`. Wire-packed bytes use 2-bit fields where `00` = forgery. The full 27-slot port table has zero Rep C zeros — the table itself is forgery-proof.
+
+The GF(3) ↔ Rep C conversion is `+1` / `−1`. Port formulas use GF(3); wire encoding uses Rep C.
+
+- Valid address: `1111111111112` (Rep C — no zeros)
+- Invalid address: `1111111111110` (zero = provable forgery)
 
 ### I-03: Port Assignments Are Fixed
 
@@ -41,6 +53,8 @@ Tri-Port Architecture (3 ports per node, spacing = 3): peer port `8079 + 3N`, ap
 | C (N=2) | 8085 | 8086 | 8087 | 8085 | 8086 | 8087 |
 
 The PlenumNET Node reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. `CUBE_PEER_PORT` defaults to `CUBE_API_PORT - 1`. Each node's `LLM_PORT` points to the LLM engine port one above the daemon API.
+
+Daemon ports are plain TCP port numbers. The zero-sentinel (I-02) applies to the ternary addresses and PlenumLAN slot encoding carried over these ports, not to the port numbers themselves.
 
 ### I-04: Ternary Address Format
 
@@ -880,64 +894,93 @@ PlenumNET has **two independent port layers**. Do not confuse them.
 | **Daemon API** (Section 2) | CRS/cube HTTP API, heartbeat, relay | 8080, 8083, 8086 | `CUBE_API_PORT` env var |
 | **PlenumLAN Service Slots** (this section) | Service-to-service traffic within an Array3 cluster | 11111–11191 | `BASE_PORT` + `CUBE_NODE_ID` |
 
-The daemon API ports (8080/8083/8086) remain exactly as documented in Section 2. The PlenumLAN service ports (11111–11191) are a separate layer for Array3 slot-addressed services.
+The daemon API ports (8080/8083/8086) remain exactly as documented in Section 2. The PlenumLAN service ports (11111–11191) are a separate layer for Array3 slot-addressed services. The zero-sentinel invariant (I-02) applies at the PlenumLAN layer: all slot addresses and wire-packed bytes use Rep C {1,2,3} — a zero in any field is provable forgery. Daemon ports are plain TCP numbers; the sentinel applies to the ternary data carried over them.
 
 ### 10.2 Base Port & Formula
 
 | Constant | Value | Source |
 |----------|-------|--------|
-| `BASE_PORT` | 11111 | `plenumlan/src/cube/constants.rs` |
+| `BASE_PORT` | 11111 | `plenumlan/src/cube/constants.rs` — decimal repunit resonating with ternary repunit (11111₁₀ parsed as base-3 = R₅ = 121 = 11²) |
 | `MAX_NODES` | 3 | Array3 cluster = 3 nodes |
 | `SLOTS_PER_NODE` | 27 | 3³ = 27 slots per node |
-| `SLOTS_PER_PLANE` | 9 | role × instance = 3 × 3 |
 | `GF3_ORDER` | 3 | Ternary field order |
-| `GATEWAY_NODE_ID` | 1 | Node 1 is always the gateway |
-| `GATEWAY_OFFSET` | 13 | Center slot [2,2,2] = DIMENSIONS |
+| `GATEWAY_OFFSET` | 13 | Center slot [2,2,2] = DIMENSIONS = T₇ = 1 ternary radian |
 
-**Port formula** (`plenumlan/src/cube/port.rs`):
+**Port formula** (GF(3) — computation domain):
 
 ```
-port = BASE_PORT
-     + (node_id - 1) × SLOTS_PER_NODE
-     + (plane - 1) × SLOTS_PER_PLANE
-     + (role - 1) × GF3_ORDER
-     + (instance - 1)
+port = BASE_PORT + (node_id × 27) + (plane × 9) + (role × 3) + instance
 ```
 
-All inputs are Rep C {1, 2, 3}. The `- 1` converts each to GF(3) offset. `node_id` ∈ {1, 2, 3}, `plane/role/instance` ∈ {1, 2, 3}.
+All positional values are GF(3) {0, 1, 2}. GF(3) is the computation column. Rep C {1, 2, 3} is the wire format — zero in any Rep C trit is provable forgery before any cryptographic check runs.
 
-### 10.3 Default Port Ranges
+The Rust code in `port.rs` accepts Rep C inputs and subtracts 1 internally: `(node_id - 1) × 27`, etc. The formula above is the mathematical form.
 
-| Node | CUBE_NODE_ID | Port Range | Gateway/Center Port | Total Ports |
-|------|-------------|------------|---------------------|-------------|
-| Node 1 | 1 | 11111–11137 | 11124 (gateway) | 27 |
-| Node 2 | 2 | 11138–11164 | 11151 | 27 |
-| Node 3 | 3 | 11165–11191 | 11178 | 27 |
-| **Total** | | **11111–11191** | | **81** |
+### 10.3 Port Allocation: Single Node (27 Slots)
 
-Node 1's gateway port (11124) is the Array3 cluster entry point. All external traffic enters through this port.
+| Offset | GF(3) | Rep C | Port | Slot (agnostic) |
+|--------|-------|-------|------|-----------------|
+| +0 | 000 | 111 | 11111 | Data / Primary / 1 |
+| +1 | 001 | 112 | 11112 | Data / Primary / 2 |
+| +2 | 002 | 113 | 11113 | Data / Primary / 3 |
+| +3 | 010 | 121 | 11114 | Data / Secondary / 1 |
+| +4 | 011 | 122 | 11115 | Data / Secondary / 2 |
+| +5 | 012 | 123 | 11116 | Data / Secondary / 3 |
+| +6 | 020 | 131 | 11117 | Data / Tertiary / 1 |
+| +7 | 021 | 132 | 11118 | Data / Tertiary / 2 |
+| +8 | 022 | 133 | 11119 | Data / Tertiary / 3 |
+| +9 | 100 | 211 | 11120 | Control / Primary / 1 |
+| +10 | 101 | 212 | 11121 | Control / Primary / 2 |
+| +11 | 102 | 213 | 11122 | Control / Primary / 3 |
+| +12 | 110 | 221 | 11123 | Control / Secondary / 1 |
+| +13 | 111 | 222 | 11124 | THE CENTER — Gateway · Shell · Key Rotation Pivot |
+| +14 | 112 | 223 | 11125 | Control / Secondary / 3 |
+| +15 | 120 | 231 | 11126 | Control / Tertiary / 1 |
+| +16 | 121 | 232 | 11127 | Control / Tertiary / 2 |
+| +17 | 122 | 233 | 11128 | Control / Tertiary / 3 |
+| +18 | 200 | 311 | 11129 | Management / Primary / 1 |
+| +19 | 201 | 312 | 11130 | Management / Primary / 2 |
+| +20 | 202 | 313 | 11131 | Management / Primary / 3 |
+| +21 | 210 | 321 | 11132 | Management / Secondary / 1 |
+| +22 | 211 | 322 | 11133 | Management / Secondary / 2 |
+| +23 | 212 | 323 | 11134 | Management / Secondary / 3 |
+| +24 | 220 | 331 | 11135 | Management / Tertiary / 1 |
+| +25 | 221 | 332 | 11136 | Management / Tertiary / 2 |
+| +26 | 222 | 333 | 11137 | Management / Tertiary / 3 |
 
-### 10.4 Slot Addressing (3-Trit Rep C)
+No service names. Slots are agnostic. No zeros in any Rep C column — the entire table is forgery-proof. A zero in any wire-format trit is provable forgery before any cryptographic check runs. The center (222 in Rep C) is the only named position — it is the gate.
 
-Each service slot has a 3-trit address in Rep C encoding: `[plane, role, instance]`
+### 10.4 Array3: Per-Node Port Ranges
 
-| Trit | Name | Values | Meaning |
-|------|------|--------|---------|
-| 1 | Plane | 1=Data, 2=Control, 3=Management | Service plane (`projection.rs` SlotAddress) |
-| 2 | Role | 1=Primary, 2=Secondary, 3=Tertiary | Role within plane |
-| 3 | Instance | 1, 2, 3 | Instance within role |
+Three nodes. 81 slots = 3⁴. Each node owns a complete 3³ cube of 27 slots. The cube is 3 dimensions (plane, role, instance). The node_id is a GF(3) multiplier {0, 1, 2} that selects which node's port range the slot lives in — it is NOT a 4th cube dimension. The cube stays 3D; the Array3 is 3 copies of it.
 
-**Plane assignments (Windows Server roles)** — verified in `windows_roles.rs` `expected_plane` values:
+| Label | node_id (GF(3)) | Port Range | Slots | Gateway Port |
+|-------|-----------------|------------|-------|-------------|
+| Node 1 | 0 | 11111–11137 | 0–26 | 11124 (offset +13) |
+| Node 2 | 1 | 11138–11164 | 27–53 | 11151 (offset +40) |
+| Node 3 | 2 | 11165–11191 | 54–80 | 11178 (offset +67) |
 
-| Plane | Purpose | Example Roles |
-|-------|---------|---------------|
-| 1 (Data) | Data services | File Server, Print Server, Web Server (IIS), Remote Desktop Services |
-| 2 (Control) | Control services | AD Domain Services, DNS, DHCP, Certificate Authority, NPS (RADIUS) |
-| 3 (Management) | Management services | Hyper-V, WSUS, Failover Clustering |
+Each node's gateway is at its own offset +13 (the center of its local 3³ cube). The Array3 has three gateways — one per node. The node with node_id = 0 is the primary gateway for external traffic; nodes 1 and 2 are HA replicas.
+
+A single node is Array3 with node_id = 0 and no peers — scalability is structural, not an upgrade. Adding a second node later = set its node_id to 1, point it at node 0, formation protocol runs, Array3 begins forming. No reinstallation. No reconfiguration of node 0.
+
+### 10.5 Slot Addressing (3-Trit)
+
+Each service slot has a 3-trit address: `[plane, role, instance]`
+
+| Trit | Name | GF(3) Values | Rep C Values | Meaning |
+|------|------|-------------|-------------|---------|
+| 1 | Plane | 0=Data, 1=Control, 2=Management | 1, 2, 3 | Service plane |
+| 2 | Role | 0=Primary, 1=Secondary, 2=Tertiary | 1, 2, 3 | Role within plane |
+| 3 | Instance | 0, 1, 2 | 1, 2, 3 | Instance within role |
+
+Slots are agnostic — plane/role/instance define the topology, not the service type. What occupies a slot is determined by the classification projection at registration time.
 
 **27→3 projection**: A 27-trit classification vector is projected to a 3-trit slot address using polarity tables (3 groups × 9 dimensions each). The projection calls `project_to_gf3(k, DIMS_PER_GROUP=9)` for each group.
 
-### 10.5 Wire Encoding
+The 3-trit (plane, role, instance) address maps to offset 0–26 within EACH node's 27-slot range. The slot address is the SAME across all three nodes — what differs is which node OWNS the registration. Two services with identical classifications on different nodes occupy the "same slot" but on different nodes — this IS the HA replica mechanism.
+
+### 10.6 Wire Encoding
 
 Slot addresses are packed into a single byte for wire transmission:
 
@@ -948,21 +991,30 @@ Slot addresses are packed into a single byte for wire transmission:
 | [3:2] | instance | 01, 10, 11 |
 | [1:0] | reserved | 00 |
 
-**Zero in any 2-bit field = forgery** — the wire decoder rejects it.
+**Zero in any 2-bit field = forgery** — the wire decoder rejects it before any cryptographic check runs.
 
 Functions: `pack_slot_addr([u8;3]) → Option<u8>`, `unpack_slot_addr(u8) → Option<[u8;3]>`
 
-### 10.6 New Environment Variables
+### 10.7 New Environment Variables
 
 | Variable | Default | Values | Purpose |
 |----------|---------|--------|---------|
-| `CUBE_NODE_ID` | 1 | 1, 2, 3 (Rep C) | Node identity in Array3. Zero = fatal error (zero-sentinel). |
-| `CUBE_ARRAY3_PEERS` | (empty) | Comma-separated `ip:port` | Array3 peer discovery addresses. |
+| `CUBE_NODE_ID` | 0 | 0, 1, 2 (GF(3)) | Node identity in Array3. Default = 0 (single-node mode). Wire format uses Rep C {1,2,3} where zero = forgery. |
+| `CUBE_ARRAY3_PEERS` | (empty) | Comma-separated `ip:port` | Array3 peer discovery addresses. When set with CUBE_NODE_ID, daemon operates in Array3 mode. |
 | `EAGER_BIND` | false | `true`/`1` or `false`/`0` | `true` = bind all 27 ports at startup (production). `false` = bind on register (Replit/dev). |
 
 These are in addition to the existing daemon env vars in Section 2.
 
-### 10.7 Wire Protocol V3
+### 10.8 Array3 Formation Protocol
+
+1. Node boots with `CUBE_NODE_ID=N` and `CUBE_ARRAY3_PEERS=ip1:port,ip2:port`
+2. Node binds its 27-port range: `BASE_PORT + (N × 27)` through `BASE_PORT + (N × 27) + 26`
+3. Node connects to each peer via existing `CUBE_PEER_PORT` infrastructure
+4. First handshake message includes: node_id, wire protocol version, port range, slot inventory (which slots are occupied), daemon version metadata
+5. Peer validates: no node_id collision (reject if duplicate), wire protocol compatible (V3 accepts V2 during dual-acceptance), port ranges don't overlap
+6. On successful handshake: peer mesh formed, slot-to-node routing table populated, failover candidates identified (same classification on different node = replica pair)
+
+### 10.9 Wire Protocol V3
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
@@ -982,7 +1034,7 @@ These are in addition to the existing daemon env vars in Section 2.
 
 V3 accepts V2 messages. V1 is rejected. V3 message types sent with a V2 header produce `MessageRequiresV3` error.
 
-### 10.8 ServiceSlotRegistry (CRS Extension)
+### 10.10 ServiceSlotRegistry (CRS Extension)
 
 The CRS manages the 81-slot space (3 nodes × 27 slots each):
 
@@ -991,7 +1043,7 @@ The CRS manages the 81-slot space (3 nodes × 27 slots each):
 - `resolve_slot(slot_addr)` → `SlotRoute` (node_id, port, identity)
   - Takes 3-trit slot address, searches all 3 nodes, returns routing info
 
-### 10.9 Key Freshness Zones
+### 10.11 Key Freshness Zones
 
 Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOCH:
 
@@ -1002,7 +1054,7 @@ Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOC
 | Aging | 122–182 | Read-only |
 | (expired) | >182 | None — key must be rotated |
 
-### 10.10 Health Endpoint (Updated)
+### 10.12 Health Endpoint (Updated)
 
 `GET /health` now returns PlenumLAN Node fields:
 
@@ -1015,11 +1067,11 @@ Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOC
   "address": "1111111111111",
   "wire_protocol": 3,
   "wire_protocol_min": 2,
-  "node_id": 1
+  "node_id": 0
 }
 ```
 
-### 10.11 Version Constants
+### 10.13 Version Constants
 
 All version constants in `shared/constants.ts`:
 
