@@ -1,0 +1,284 @@
+# Task #36 — Gateway + 9-Factor Authentication Shell
+
+## What & Why
+
+Build the gateway multiplexer at (2,2,2) Rep C / (1,1,1) GF(3) — offset +13, port 11124 — and the 9-factor authentication shell that wraps it. This is where all external requests enter the cube, where key rotation is orchestrated, and where the 28th dimension (the shell) meets the 27 classification dimensions (the cube interior).
+
+The gateway is the single outbound security chokepoint for the entire Array3 cluster. **One gateway per cluster. Node 1 only.** Nodes 2 and 3 route all outbound traffic through Node 1's gateway at port 11124. One firewall hole, one audit trail for external access. If Node 1 dies, Node 2 promotes to gateway (new outbound WebSocket, same cluster identity key, no firewall change needed — the connection is outbound).
+
+---
+
+## ⚠ EXISTING CODE — Import, Do Not Rebuild
+
+| What | Where | Notes |
+|---|---|---|
+| TL-DSA signing (Factor 1) | ternary-math/src/tl_dsa.rs + tunnel_auth.rs | Challenge-response, NIST PQC Level 5 |
+| HPTP timing (Factor 3) | services/timing/ | Femtosecond-precision timestamps |
+| Capability tokens (Factor 4) | server/services/capability-service.ts | HMAC-chained, scoped |
+| Delegation chains (Factor 6) | Part of capability service | Chain verified to root |
+| Merkle audit trail (Factor 7) | server/services/audit-export.service.ts | Periodically Hedera-anchored |
+| Hedera HCS witnessing | Topic 0.0.8058631, 26 messages | Public, court-verifiable |
+| SignHere (Factor 9) | sign-here/src/pre-sign-check.ts | RFC 3161, dual sig, Document Notary |
+| TSA (RFC 3161) | server/services/tsa-service.ts | Legally recognized timestamping |
+| Key rotation orchestrator | services/inter-cube/src/key_rotation.rs | ROTATION_PERIOD_SECS, radian boundaries |
+| WebSocket relay | services/inter-cube/src/ws_relay.rs | Gateway transport |
+| TLSponge-385 | ternary-math/src/tlsponge385.rs + N-API | Outer tunnel encryption |
+| is_valid_rep_c() | ternary-math/src/plenum_checksum.rs:96 | Zero-sentinel check |
+| hamming_distance() | services/inter-cube/src/placement.rs:229 | For Factor 5 proximity |
+
+---
+
+## Gateway Architecture (Spec §6)
+
+```
+27 internal services (localhost, ports 11111–11137)
+         │
+    ┌────┴────┐
+    │ Sentinel│  ← Zero-trit check (§7.2) — BEFORE shell
+    └────┬────┘
+         │
+    ┌────┴────┐
+    │  Shell  │  ← 9-factor auth (Dimension 28)
+    └────┬────┘
+         │
+    Multiplexer at (2,2,2) Rep C — offset +13 = T₇ = π − 1
+         │
+    TLSponge-385 + TL-DSA
+         │
+    Outbound WSS :443 ──── FIREWALL ──── Relay
+```
+
+Every external request flows: sentinel → shell → multiplexer → slot. Every outbound response flows: slot → multiplexer → tunnel → relay. The sentinel rejects forgeries before the shell spends any crypto. The shell gates by identity, authorization, and accountability. The multiplexer routes by the 3-trit Rep C destination in the envelope header.
+
+---
+
+## Zero-Sentinel Pre-Filter (Spec §7.2)
+
+**This runs BEFORE all 9 factors.** It is not a factor. It is the wall the factors are built on.
+
+Every Rep C address in the request is checked for zero trits: the caller's 54-trit TDNS-L address, the 3-trit slot destination in the multiplexing header, and the subject/object addresses in any capability token. Zero in any trit = mathematical proof of forgery. Rejected in nanoseconds. No key lookup. No hash computation. No database query. One comparison per trit, constant time, no branching on secrets.
+
+Wire existing `is_valid_rep_c()` from `plenum_checksum.rs:96` at the gateway entry point. This function already rejects 0 and >3 — it IS the sentinel check.
+
+---
+
+## The 9 Factors (Spec §7.3–§7.5)
+
+### Identity Factors (Who You Are)
+
+**F1 — TL-DSA Key Possession.** Challenge-response with the caller's PQ private key. NIST PQC Level 5. Wire existing `tl_dsa.rs` + `tunnel_auth.rs`. Replaces passwords, hashes, tickets, tokens, certificates.
+
+**F2 — Physical Binding.** Something inseparable from the physical entity — biometric/hardware key for humans, XPlenum/PUF for machines. **NOT INCLUDED in initial factor requirement rows.** The shell reports F2 as "not required," never as "verified." When the binding mechanism is built, F2 is added to the requirement rows that need it. No stub. No fake pass. The shell is honest about what it checked.
+
+**F3 — HPTP Temporal Presence.** Femtosecond-precision signed timestamp with nonce from F1. Wire existing timing services. Tolerance derived from target slot classification:
+- ≤1µs for real-time services (live streaming, control systems)
+- ≤100µs for near-time services (database, file access)
+- ≤1s for batch services (backup, patching)
+
+Key freshness gate: a key older than one arc (ARC_EPOCH = 182) triggers mandatory rotation before authentication proceeds.
+
+### Authorization Factors (What You May Do)
+
+**F4 — Capability Token.** HMAC-chained, scoped to slot + action + time. Each delegation narrows. Widening is cryptographically impossible. Wire existing `capability-service.ts`. Every token carries `key_birth_epoch` so any verifier computes freshness without additional state.
+
+**F5 — Geometric Proximity.** NEW: Hamming distance check between caller's slot address and target slot address using existing `hamming_distance()` from `placement.rs`. Cross-plane access (HD ≥ 2) requires explicit capability token authorization. Same-plane access (HD 1) is direct. The address IS the access control — the geometry decides who may call whom cheaply.
+
+**F6 — Delegation Chain.** HMAC chain verified to root. Every link: delegator had authority, scope narrows, no widening. Even root cannot widen beyond root capability. Wire existing delegation logic in capability service.
+
+### Accountability Factors (What Happens When We Catch You)
+
+**F7 — Pre-Committed Audit Entry.** **BEFORE the request processes** (not after — this is critical), an entry is Merkle-chained, HPTP-timestamped, periodically Hedera-anchored. Records: who (F1 identity), what (operation), when (F3 timestamp), where (F5 caller/target addresses), chain (F6 delegation path). Cannot be erased. Chain break = tamper-evident. Wire existing `audit-export.service.ts`.
+
+**F8 — Jurisdictional Compliance.** NEW: Before the action executes, check: data location (from classification D17 + D2 + IPv6 subnet), caller location (node address), applicable regulations (GDPR, PIPEDA, SOX, HIPAA). Violations **rejected BEFORE the action** — the geometry enforces sovereignty. Implementation: read classification dimensions from the target slot's registration record + site-level config for jurisdiction mappings.
+
+**F9 — SignHere: Cryptographic Contract Execution.** Before sensitive access, the caller executes a contract via SignHere. Wire existing `pre-sign-check.ts` + `tsa-service.ts`. The contract has 6 components, all deployed and operational:
+1. RFC 3161 timestamping — legally recognized proof of signing time
+2. Dual RSA-4096 + TL-DSA co-signatures — admissible today, quantum-proof tomorrow
+3. Merkle audit log — signature events chained with the cube's audit fabric
+4. Hedera HCS witnessing — public, decentralized, independently verifiable by courts
+5. 42-calendar epoch system — timestamps across cultural and legal frameworks
+6. Document Notary — 6 verification checks confirmed passing on real PDFs
+
+**F9 contract content must specify:** what data can be accessed (scoped to slot + classification), purpose limitation (TDNS-L WHY category D17–D20), retention period (from F8 jurisdictional analysis), penalties for misuse, governing jurisdiction, and the full identity chain (F1–F6 bound cryptographically). Admissible under eIDAS, ESIGN, UETA, and equivalents.
+
+F9 is the only factor with temporal depth beyond the request moment. It creates a legal artifact that must survive the evidentiary arc (650 time-units). The signed contract must be provable long after the key that signed it rotates at arc 182.
+
+---
+
+## Adaptive Requirements Table (Spec §7.6)
+
+Which factors are required for which operation class. Determined by the target slot's classification dimensions (D17, D2, D25, D26). The geometry decides.
+
+| Operation class | Required factors |
+|---|---|
+| Public read (D2=3, D9=3) | F1, F3, F7 |
+| Authenticated read | F1, F3, F4, F7 |
+| Authenticated write | F1, F3, F4, F5, F6, F7 |
+| Cross-jurisdiction | F1, F3–F8 |
+| Regulated / sensitive | All 9 + freshness ≥ 1/3 |
+| Administrative override | All 9 + freshness ≥ 2/3 + threshold governance |
+
+Note: F2 is absent from all rows until the Physical Binding mechanism is implemented. When it ships, it is added to the rows that need it.
+
+---
+
+## Key Freshness (Spec §7.6)
+
+Add `key_birth_epoch` to TL-DSA key metadata. Include birth epoch in every signed capability token. Shell computes at verification time:
+
+```
+freshness = 1 − (key_age / ARC_EPOCH)
+```
+
+Three zones at the same 1/3 and 2/3 boundaries used by `project_to_gf3` everywhere else:
+
+| Zone | Key age | Freshness | Operations permitted |
+|---|---|---|---|
+| Fresh | 0–60 | 2/3–1 | All, including administrative |
+| Active | 61–121 | 1/3–2/3 | All except administrative. Boundary at 121 = REPUNIT_R5 = 11² |
+| Aging | 122–182 | 0–1/3 | Standard read/write only. Rejected for regulated and admin. Rotation imminent. |
+
+No new thresholds — same ternary quantization as the slot projection.
+
+---
+
+## Key Rotation Protocol (Spec §6.3)
+
+Gateway monitors all slot key ages via their birth epochs. When a slot's key reaches ARC_EPOCH (182), the 6-step protocol executes:
+
+1. **Gateway generates** a new TL-DSA keypair for the slot
+2. **New key pushed** to the slot. Slot acknowledges and begins signing with the new key
+3. **Old key enters grace period.** Both keys accepted by verifiers. Grace window duration derived from the slot's F3 tolerance class:
+   - Real-time slots (≤1µs tolerance): short grace (minimize dual-key window)
+   - Near-time slots (≤100µs): standard grace
+   - Batch slots (≤1s): extended grace (allow in-flight batch jobs to complete)
+4. **Old public key enters the 4-generation archive.** Private key destroyed. The contract stores the signing key's generation index so verifiers know which archived public key to use for signature verification
+5. **Grace period ends.** Only the new key accepted. The 36-checkpoint transition verification begins on the archived key's evidence
+6. **Slot misses rotation** (no ack within grace window): gateway marks slot Suspect — same state transition as FTS. Self-healing takes over
+
+### 4-Generation Key Archive
+
+Ring buffer of public keys. Size = `ceil(EVIDENCE_ARC / ARC_EPOCH) = ceil(650/182) = 4`. When the 5th key is born, the oldest is purged — but **only because all evidence it signed has passed the evidentiary arc (650) and is no longer subject to verification.** The purge condition is evidence expiry, not just count.
+
+Any court or verifier can check a contract's signature against the archived public key without the private key existing. The contract itself carries the generation index pointing to the right archived key.
+
+### 36-Checkpoint Transition Verification
+
+After each rotation, schedule `CHECKPOINTS = TRANSITION_GAP / DIMENSIONS = 468 / 13 = 36` verification passes spread evenly over the 468 time-unit transition gap. Each pass re-validates the retired key's evidence:
+
+- Merkle chain integrity (no broken links)
+- Hedera HCS witness availability (topic still accessible)
+- SignHere contract signature validity using the archived public key
+
+Failed checkpoint → alert + forensic capture. This is not a new module — it's the existing Merkle verification and Hedera query running on a geometry-derived schedule. 36 = REDIRECT_DEPTH × SHELL_FACTORS = 4 × 9.
+
+---
+
+## Done looks like
+
+- Gateway at port 11124 multiplexes all 27 slots through one WSS :443 connection
+- One gateway per cluster — Node 1 only. Nodes 2-3 route outbound through it. Gateway migration works on Node 1 failure.
+- Zero-sentinel pre-filter rejects any Rep C address with zero trit BEFORE Factor 1 runs
+- Remote request passes through all required factors (per adaptive table) to reach a slot
+- F2 NOT in any requirement row — shell reports "not required," never "verified"
+- Public read passes with only F1, F3, F7
+- Authenticated write requires F1, F3, F4, F5, F6, F7
+- Regulated operation requires all 9 + freshness ≥ 1/3
+- Administrative operation requires all 9 + freshness ≥ 2/3 + threshold governance
+- F7 audit entry committed BEFORE request processes, not after
+- F8 jurisdictional check rejects violations BEFORE the action
+- F9 contract contains: data scope, purpose limitation (D17–D20), retention period, penalties, jurisdiction, full identity chain (F1–F6 bound)
+- Key in Aging zone (122–182, freshness < 1/3) rejected for regulated and admin operations
+- Key in Active zone (61–121, freshness ≥ 1/3) accepted for regulated, rejected for admin
+- Key in Fresh zone (0–60, freshness ≥ 2/3) accepted for all operations
+- Key rotation completes 6-step protocol with grace period from F3 tolerance class
+- Old private key destroyed, old public key in 4-generation archive with generation index
+- Contracts store signing key's generation index for verifier lookup
+- Oldest archived key purged only when all its evidence passes 650 arc
+- 36-checkpoint transition verification schedules over 468 time-units, each checks Merkle + Hedera + SignHere
+- Missed rotation marks slot Suspect and triggers self-healing
+- key_birth_epoch in TL-DSA metadata and in every capability token
+
+---
+
+## Out of scope
+
+- F2 (Physical Binding) full implementation — deferred until mechanism is built. No stub.
+- Gateway multiplexer TLS internals beyond the WSS :443 connection (wire protocol details are in Task #35 V3 spec)
+- WAN P2P tunnels (Task #38)
+- TDNS-L ↔ TDNS promotion and address lifecycle (Task #37)
+- Application compatibility subsystem (Task #39)
+- Dashboard visualization of shell status (Task #40)
+
+---
+
+## Tasks
+
+### New code
+
+1. **Gateway multiplexer** at offset +13 (port 11124). One outbound WSS :443. TLSponge-385 outer tunnel. 3-trit Rep C destination routing header. Shell factor proof in envelope. Single gateway per cluster — Node 1 advertises gateway role in Array3 handshake (from Task #35). Nodes 2-3 route outbound here.
+
+2. **Zero-sentinel pre-filter** at gateway entry. Wire `is_valid_rep_c()` from `plenum_checksum.rs:96`. Check caller's 54-trit address, 3-trit slot destination, capability token subject/object fields. Zero in any trit → reject immediately. Runs BEFORE Factor 1.
+
+3. **F5 — Geometric Proximity.** New: compute HD between caller and target using existing `hamming_distance()` from `placement.rs:229`. Same-plane (HD 1) = direct. Cross-plane (HD ≥ 2) = require explicit capability token. The address IS the access control.
+
+4. **F8 — Jurisdictional Compliance.** New: read classification D17 (jurisdiction) + D2 (sensitivity) + site-level jurisdiction config. Check data location vs caller location vs applicable regulations. Reject violations BEFORE the action executes.
+
+5. **Adaptive requirements engine.** Map target slot's classification dimensions (D17, D2, D25, D26) to the 6-row requirements table. Determine which factors are required for the current operation class. Check freshness against ternary 1/3 and 2/3 thresholds.
+
+6. **Key freshness computation.** Add `key_birth_epoch` to TL-DSA key metadata. Include in every signed capability token. Shell computes `freshness = 1 − (key_age / ARC_EPOCH)` at verification time. Three zones (Fresh/Active/Aging) at 1/3 and 2/3 boundaries using same `project_to_gf3` quantization.
+
+7. **6-step key rotation protocol.** Gateway monitors all slot key ages. Rotation sequence: generate → push → ack → grace → archive → verify. Grace window duration mapped from F3 tolerance class (real-time = short, batch = extended). Missed rotation → Suspect.
+
+8. **4-generation key archive.** Ring buffer. Size = `ceil(EVIDENCE_ARC / ARC_EPOCH)` = 4. Each entry: public key + generation index + birth epoch + evidence item count. Contracts store generation index. Purge condition: all evidence past 650 arc, not just 5th key born.
+
+9. **36-checkpoint transition verification.** After rotation, schedule `CHECKPOINTS` = 36 passes over `TRANSITION_GAP` = 468 time-units. Each pass: Merkle chain integrity + Hedera witness availability + SignHere contract signature validity using archived public key. Failed → alert + forensic capture.
+
+### Extensions to existing code
+
+10. **Wire F1** — existing `tl_dsa.rs` + `tunnel_auth.rs` into shell as first factor after sentinel
+11. **Wire F3** — existing timing services into shell with tolerance classes (≤1µs / ≤100µs / ≤1s) from target slot classification
+12. **Wire F4** — existing `capability-service.ts` into shell. Add `key_birth_epoch` field to token.
+13. **Wire F6** — existing delegation chain logic into shell
+14. **Wire F7** — existing `audit-export.service.ts` into shell. Critical: entry MUST be committed BEFORE the request processes, not after.
+15. **Wire F9** — existing `pre-sign-check.ts` + `tsa-service.ts` into shell as contract execution gate. Contract content: data scope (slot + classification), purpose limitation (D17–D20), retention (from F8), penalties, jurisdiction, identity chain (F1–F6).
+16. **Extend key_rotation.rs** with freshness zones using existing REPUNIT_R5 = 121 as Active/Aging boundary. Add generation index tracking.
+17. **Gateway migration** — when Node 1 dies, Node 2 opens new outbound WSS :443 to relay, re-authenticates with cluster identity key, takes over gateway role. No firewall change. CRS role update propagates to Node 3.
+
+---
+
+## Relevant files
+
+**Existing (wire into shell):**
+```
+ternary-math/src/tl_dsa.rs                    — F1 key possession
+ternary-math/src/tlsponge385.rs               — Outer tunnel encryption
+ternary-math/src/plenum_checksum.rs:96         — Zero-sentinel (is_valid_rep_c)
+services/timing/                               — F3 HPTP temporal presence
+services/inter-cube/src/key_rotation.rs        — Key rotation orchestrator
+services/inter-cube/src/tunnel_auth.rs         — TL-DSA mutual auth
+services/inter-cube/src/ws_relay.rs            — Gateway WebSocket transport
+services/inter-cube/src/placement.rs:229       — F5 hamming_distance()
+server/services/capability-service.ts          — F4 capability tokens + F6 delegation
+server/services/audit-export.service.ts        — F7 Merkle audit trail
+server/services/tsa-service.ts                 — F9 RFC 3161 TSA
+sign-here/src/pre-sign-check.ts                — F9 Document Notary + contract execution
+```
+
+**Create:**
+```
+plenumlan/src/cube/shell.rs                    — 9-factor shell + adaptive requirements engine
+plenumlan/src/cube/gateway.rs                  — Multiplexer + sentinel + routing
+```
+
+---
+
+## Dependencies
+
+- Task #35 (PlenumNET Node + Array3) — provides slot allocation, port formula, Rep C addressing, Array3 formation with gateway role assignment
+
+---
+
+*Così sia, Fratello.*
+
+*© 2026 Capomastro Holdings Ltd. — Applied Physics Division*

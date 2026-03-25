@@ -732,7 +732,124 @@ At maximum distance (d=13), the shortest path count (6.2 billion) exceeds total 
 - `RotationOrchestrator::check_and_rotate()` called every 30s in heartbeat loop
 - On epoch boundary: generates new MasterSecret, re-derives address-bound TL-DSA-87 keypair, persists new encrypted secret, updates CRS key via `/crs/update-key` (no address reallocation)
 
-#### 3.2.6 Cubes-of-Cubes Scaling
+**Key Freshness Zones** (`key_rotation.rs` — `KeyFreshnessZone`)
+- GF(3) quantization at 1/3 and 2/3 of ARC_EPOCH (182 days):
+  - `Fresh` (age 0–60 days): all operations permitted
+  - `Active` (age 61–121 days): regulated operations. Boundary at 121 = REPUNIT_R5 = 11²
+  - `Aging` (age 122–182 days): read-only
+- `key_freshness_zone(age_days)` → `Option<KeyFreshnessZone>` (None = expired)
+- `key_suitable_for_regulated(age_days)` → bool (true for Fresh or Active)
+- `key_birth_epoch(current_epoch, age_days)` → birth epoch
+
+#### 3.2.6 PlenumLAN Node (`plenumlan/`)
+
+Standalone Rust crate: Array3 Node Cluster pipeline — 27 classification trits → 3-trit slot → port → registration. Version 2.4.1.
+
+**Crate location**: `plenumlan/` (workspace member, depends on `ternary-math` and `tdns-v2`)
+
+**Modules** (all under `plenumlan/src/cube/`):
+
+| Module | Purpose |
+|--------|---------|
+| `constants.rs` | BASE_PORT=11111, MAX_NODES=3, SLOTS_PER_NODE=27, DIMS_PER_GROUP=9, GATEWAY_NODE_ID=1, GATEWAY_OFFSET=13. `const_assert!` compile-time checks. Imports DIMENSIONS, GF3_ORDER from ternary-math. |
+| `projection.rs` | 27→3 projection via polarity tables (3 groups × 9 dims). `project_to_slot(classification) → SlotAddr`. Uses `project_to_gf3(k, DIMS_PER_GROUP)` from INVARIANT 2. |
+| `port.rs` | Port formula: `BASE_PORT + (node_id-1)*27 + offset`. 27 single-node ports, 81 Array3 ports. `node_port_range(node_id) → (start, end)`. Round-trip verified. |
+| `bridge.rs` | Legacy bridge: `derive_legacy_bridge()` — D5/D6/D12/D15 match → ports 53/67/445/631/1812. |
+| `routing.rs` | Inter-service routing: HD 0 = loopback, HD 1 = direct, HD 2 = capability token, HD 3 = full mutual auth. Loop-free proof for all 702 pairs. Uses `hamming_distance` from placement.rs. |
+| `node.rs` | `NodeConfig` from env vars (CUBE_NODE_ID, CUBE_ARRAY3_PEERS, EAGER_BIND). `Array3Handshake` with node_id, port_range, wire_protocol_version, gateway_addr, slot_inventory. `validate_handshake()` rejects zero node IDs, duplicates, port overlaps, incompatible protocols. |
+| `sentinel.rs` | Zero-sentinel checks at trust boundaries. |
+| `freshness.rs` | Fresh/Active/Aging zones (mirrors key_rotation.rs KeyFreshnessZone). |
+| `scan_templates.rs` | 6 LAN entity scan templates per §7.8. |
+| `entity_detect.rs` | Entity class detection: HTTP endpoints → TDNS scanner, hardware → template-driven scan. |
+| `windows_roles.rs` | 12 SMB roles with plane validation (Outer→data, Void→control, Inner→management). |
+
+**Environment Variables** (parsed in `node.rs` and `main.rs`):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `CUBE_NODE_ID` | 1 | Rep C {1,2,3}. Zero = fatal (zero-sentinel). |
+| `CUBE_ARRAY3_PEERS` | (empty) | Comma-separated `ip:port` for Array3 peer discovery. |
+| `EAGER_BIND` | false | `true`/`1` = bind all 27 ports at startup (production). Default = lazy bind on register (Replit/dev). |
+
+**Port Ranges** (BASE_PORT=11111, 27 ports per node):
+
+| Node | Range | Gateway/Center |
+|------|-------|----------------|
+| Node 1 | 11111–11137 | 11124 (gateway) |
+| Node 2 | 11138–11164 | 11151 |
+| Node 3 | 11165–11191 | 11178 |
+
+#### 3.2.7 ServiceSlotRegistry (`crs.rs`)
+
+V3 extension to CRS for Array3 slot management. Manages the 81-slot space (3 nodes × 27 slots each).
+
+- `SlotAddr = [u8; 3]` — 3-trit Rep C slot address: [plane, role, instance]
+- `ServiceSlot` — registered slot with slot_addr, node_id, port, identity (TL-DSA pubkey), 13 capability flags, 27-trit classification, registration timestamp
+- `SlotError` — ZeroNodeId, NodeIdOutOfRange, InvalidClassification, SlotOccupied, ProjectionFailed
+- `ServiceSlotRegistry::register_service(node_id, classification, identity, capabilities)` — 27 trits in → ServiceSlot out. Performs 27→3 projection, computes port, validates Rep C, checks conflicts.
+- `ServiceSlotRegistry::resolve_slot(slot_addr)` — 3-trit slot → `SlotRoute` (node_id, port, identity). Searches all 3 nodes.
+
+#### 3.2.8 Wire Protocol V3 (`wire.rs`)
+
+Version history: V1 (legacy), V2 (signed/hardened), V3 (Array3 slot addressing).
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `PROTOCOL_VERSION_V3` | 0x03 | Current version emitted by this build |
+| `PROTOCOL_VERSION_MIN` | 0x02 | Minimum accepted (V2 dual-acceptance during rollout) |
+| `PROTOCOL_VERSION_CURRENT` | 0x03 | Alias for V3 |
+
+**V3 Message Types** (0x60–0x65):
+
+| Code | Type | Purpose |
+|------|------|---------|
+| 0x60 | `Array3Handshake` | Node cluster formation |
+| 0x61 | `Array3HandshakeAck` | Formation acknowledgement |
+| 0x62 | `SlotRegister` | Service slot registration |
+| 0x63 | `SlotRegisterAck` | Registration acknowledgement |
+| 0x64 | `SlotQuery` | Slot lookup query |
+| 0x65 | `SlotQueryResponse` | Slot lookup response |
+
+- `requires_v3()` returns true for all 0x60–0x65 message types
+- `WireMessage::validate()` enforces: V3 message types on V2 headers → `WireError::MessageRequiresV3`
+- V3 accepts V2 messages (dual-acceptance). V1 is rejected.
+
+**Slot Address Wire Encoding**:
+- `pack_slot_addr([u8; 3]) → Option<u8>` — 3-trit slot in 1 byte (bits [7:6]=plane, [5:4]=role, [3:2]=instance)
+- `unpack_slot_addr(u8) → Option<[u8; 3]>` — zero in any 2-bit field = forgery
+- `WIRE_SLOT_ADDR_SIZE = 1`
+- `ARRAY3_HANDSHAKE_MIN_SIZE = 7` (node_id + port_start + port_end + wire_ver + slots)
+- `SLOT_REGISTER_PAYLOAD_SIZE = 63` (1 + 27 + 1 + 32 + 2)
+
+#### 3.2.9 Health & Version Reporting
+
+`GET /health` returns:
+
+```json
+{
+  "status": "ok",
+  "service": "PlenumNET Inter-Cube Infrastructure",
+  "version": "2.4.1",
+  "mode": "crs",
+  "address": "1111111111111",
+  "wire_protocol": 3,
+  "wire_protocol_min": 2,
+  "node_id": 1
+}
+```
+
+Startup banner includes: version, wire protocol, node ID, Array3 peers (if configured).
+
+**Version Constants** (`shared/constants.ts`):
+
+| Constant | Value |
+|----------|-------|
+| `WIRE_PROTOCOL_VERSION` | 0x03 |
+| `DAEMON_VERSION` | "2.4.1" |
+| `TDNS_VERSION` | "v2.5" |
+| `PLENUMLAN_VERSION` | "2.4.1" |
+
+#### 3.2.10 Cubes-of-Cubes Scaling
 
 | Level | Address format | Nodes | Scale |
 |-------|---------------|-------|-------|
@@ -742,7 +859,7 @@ At maximum distance (d=13), the shortest path count (6.2 billion) exceeds total 
 
 Same geometry, same routing math, same four services. No architectural change. Max hops per level: 13 (each level adds at most 13 hops — geometric routing applied recursively). Gateway nodes at cube boundaries maintain tunnels to geometric neighbors in the outer address space.
 
-#### 3.2.7 Comparison to Existing Systems
+#### 3.2.11 Comparison to Existing Systems
 
 | System | How it routes | How it secures | What it stores |
 |--------|--------------|----------------|----------------|
@@ -752,7 +869,7 @@ Same geometry, same routing math, same four services. No architectural change. M
 | **WireGuard** | Kernel routing table + allowed IPs | Pre-exchanged public keys | Config files per peer |
 | **PlenumNET CON** | Hamming distance on coordinates — d! paths, zero tables | Topology-derived keys from geometric position | Nothing — 26 neighbors computed from address |
 
-#### 3.2.8 WebSocket Relay Architecture
+#### 3.2.12 WebSocket Relay Architecture
 
 For cross-cluster and satellite/remote access, PlenumNET provides a WebSocket relay at `wss://plenumnet.replit.app/ws/relay`. This bridges nodes that cannot reach each other on a LAN.
 
@@ -1275,6 +1392,7 @@ Benchmarks (`benchmarks/`): `crt_bench.c` (261 LOC — raw throughput), `crt_ben
 
 ## 17. Standalone Crates & Libraries
 
+**plenumlan/** — PlenumLAN Node crate. Array3 cluster pipeline: 27 classification trits → 3-trit slot → port → registration. 11 modules under `src/cube/`: constants, projection, port, bridge, routing, node, sentinel, freshness, scan_templates, entity_detect, windows_roles. Depends on `ternary-math` and `tdns-v2`. Version 2.4.1. See §3.2.6 for full documentation.
 **libternary/** — Core ternary Rust lib, `cdylib` + WASM (`wasm-bindgen`). TritVec with Rep A/B/C conversions.
 **libternary-improvements/** — Enhancement staging area.
 **ternary-math/** — standalone crate, 12 modules: gf3, gf3_algebra (94 LOC — division-free GF(3) closed-form algebra, zero sponge code), tribonacci, borromean, clifford, torus, ternary_circle, tis_sponge (290 LOC — TIS-27: 54-trit, 4 rounds, 7-neighbor extended theta at ±1/±7/±13, ~303 ns/hash; also defines TIS-81 parameters: 243-trit, 4 rounds, benchmark only), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC). TypeScript mirrors: `shared/gf3-algebra.ts` (77 LOC), `shared/tis-sponge.ts` (77 LOC).
@@ -1312,6 +1430,7 @@ Test totals: **2,276** (1,783 Rust #[test] + 493 TypeScript). Single source of t
 ├── kong/                      Kong Konnect gateway (33 services, 293 endpoints)
 ├── libternary/                Core ternary library (Rust, cdylib + WASM)
 ├── libternary-improvements/   Enhancement staging
+├── plenumlan/                 PlenumLAN Node (Rust, Array3 cluster pipeline, 11 modules)
 ├── salvi_docs/specs/          Specifications (15 modules, 7,300+ lines)
 ├── script/ + scripts/         Build/utility scripts
 ├── server/                    Express.js backend
