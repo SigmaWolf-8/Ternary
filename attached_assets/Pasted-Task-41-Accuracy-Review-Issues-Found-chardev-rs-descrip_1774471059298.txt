@@ -1,0 +1,17 @@
+Task #41 Accuracy Review — Issues Found:
+
+chardev.rs description says "CharDevice trait" — it's actually a struct, not a trait. The CharDeviceManager struct does exist and works correctly. Minor wording fix needed.
+
+gateway.rs described as "BinaryTernaryGateway that routes messages to the basement. Shimmed syscalls go here." — The BinaryTernaryGateway struct exists (line 153), but it currently does binary ↔ ternary data conversion only (convert_to_ternary, convert_to_binary, convert_i64, convert_f64). It has no message routing, no basement integration, and no syscall handling. The description overstates what's there — it would be more accurate to say "BinaryTernaryGateway exists for data conversion; needs to be extended with message routing and syscall dispatch."
+
+boot.rs (lines 240–301) described as "Service startup patterns for launching the PTY multiplexer" — These lines are actually architecture-specific boot configurations (x86_64, aarch64, riscv64 BootParams structs with memory maps, framebuffer settings, and kernel offsets). They have nothing to do with service startup patterns. This reference is wrong.
+
+ipc.rs and engine.rs described as "Syscall interception machinery; extend to cover the shell process" — Neither file has syscall interception. ipc.rs is kernel-level IPC message-passing (channels, typed messages). engine.rs:24-89 is VmMemory (basic read/write). There IS a Syscall opcode handler at engine.rs line 799, but it only handles 5 trivial introspection syscalls (noop, cycles, trit-width, memory-size, security-domain). There's no socket/connect/network interception infrastructure to "extend." This would be entirely new work.
+
+"No existing syscall shim or interception layer" — The task description assumes there's existing syscall interception to extend ("Use existing syscall interception from process/ipc.rs and vm/engine.rs"). There isn't. The process module has no syscall shim. This is greenfield work, which significantly changes the scope estimate.
+
+Task #32 reference says "was IMPLEMENTED but never merged" — Task #32 is currently in IMPLEMENTED state, which is accurate. The advice to "leverage or reimplement its relevant patterns" is reasonable.
+
+All Inter-Cube references are accurate — ws_relay.rs, tunnel_auth.rs, api.rs, config.rs, main.rs all exist and contain what's described.
+
+Summary: The task's vision is coherent, but it overestimates the existing infrastructure. Three of the referenced source files are described with capabilities they don't actually have (gateway routing, boot startup patterns, syscall interception). The implementer would discover there's no syscall shim to extend — that whole subsystem would need to be built from scratch. Would you like me to update the task description to correct these inaccuracies?
