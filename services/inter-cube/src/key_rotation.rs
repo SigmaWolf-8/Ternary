@@ -128,6 +128,71 @@ pub const MAX_JITTER_SECS: u64 = 900;
 /// SYNC: `identity.rs` → `MAX_DUAL_ACCEPT_SECS` must equal this value (1).
 pub const DUAL_ACCEPT_SECS: u64 = 1;
 
+// ═══════════════════════════════════════════════════════════════════════
+// KEY FRESHNESS ZONES (T-35)
+//
+// Freshness at ternary 1/3 and 2/3 thresholds within ARC_EPOCH (182 days):
+//   Fresh  (age 0–60):   key is in first third. All operations.
+//   Active (age 61–121): key is in second third. Regulated ops.
+//                        Boundary at 121 = REPUNIT_R5 = 11².
+//   Aging  (age 122–182): key is in final third. Read-only.
+// ═══════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum KeyFreshnessZone {
+    Fresh,
+    Active,
+    Aging,
+}
+
+impl KeyFreshnessZone {
+    pub fn label(&self) -> &'static str {
+        match self {
+            KeyFreshnessZone::Fresh => "fresh",
+            KeyFreshnessZone::Active => "active",
+            KeyFreshnessZone::Aging => "aging",
+        }
+    }
+}
+
+impl std::fmt::Display for KeyFreshnessZone {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.label())
+    }
+}
+
+/// Compute the freshness zone for a key of the given age in days.
+///
+/// Uses GF(3) quantization: floor(3 × age / ARC_EPOCH).
+/// Returns `None` if age exceeds ARC_EPOCH (expired key).
+pub fn key_freshness_zone(age_days: u64) -> Option<KeyFreshnessZone> {
+    if age_days > ARC_EPOCH_SECS / 86400 {
+        return None; // expired
+    }
+    let arc_days = ARC_EPOCH_SECS / 86400; // 182
+    let zone = std::cmp::min(3 * age_days / arc_days, 2);
+    Some(match zone {
+        0 => KeyFreshnessZone::Fresh,
+        1 => KeyFreshnessZone::Active,
+        2 => KeyFreshnessZone::Aging,
+        _ => unreachable!(),
+    })
+}
+
+/// Check whether a key is suitable for regulated/sensitive operations.
+pub fn key_suitable_for_regulated(age_days: u64) -> bool {
+    matches!(key_freshness_zone(age_days), Some(KeyFreshnessZone::Fresh | KeyFreshnessZone::Active))
+}
+
+/// Compute the birth epoch of the current key.
+///
+/// birth_epoch = current_epoch - age_in_radian_epochs
+pub fn key_birth_epoch(current_epoch: u64, age_days: u64) -> u64 {
+    let radian_days = ROTATION_PERIOD_SECS / 86400; // 14
+    let age_radians = age_days / radian_days;
+    current_epoch.saturating_sub(age_radians)
+}
+
 /// Capability token TTL: 1,800 seconds (30 minutes).
 ///
 /// How long an operator has to use an emergency rotation token.
@@ -716,5 +781,64 @@ mod tests {
         assert_eq!(orch.history().len(), 2);
         assert!(orch.history()[0].forced);
         assert!(orch.history()[1].forced);
+    }
+
+    // ── Key Freshness Zones (T-17) ─────────────────────────────
+
+    #[test]
+    fn test_freshness_zone_fresh() {
+        assert_eq!(key_freshness_zone(0), Some(KeyFreshnessZone::Fresh));
+        assert_eq!(key_freshness_zone(30), Some(KeyFreshnessZone::Fresh));
+        assert_eq!(key_freshness_zone(60), Some(KeyFreshnessZone::Fresh));
+    }
+
+    #[test]
+    fn test_freshness_zone_active() {
+        assert_eq!(key_freshness_zone(61), Some(KeyFreshnessZone::Active));
+        assert_eq!(key_freshness_zone(90), Some(KeyFreshnessZone::Active));
+        assert_eq!(key_freshness_zone(121), Some(KeyFreshnessZone::Active));
+    }
+
+    #[test]
+    fn test_freshness_zone_aging() {
+        assert_eq!(key_freshness_zone(122), Some(KeyFreshnessZone::Aging));
+        assert_eq!(key_freshness_zone(150), Some(KeyFreshnessZone::Aging));
+        assert_eq!(key_freshness_zone(182), Some(KeyFreshnessZone::Aging));
+    }
+
+    #[test]
+    fn test_freshness_zone_expired() {
+        assert_eq!(key_freshness_zone(183), None);
+        assert_eq!(key_freshness_zone(365), None);
+    }
+
+    #[test]
+    fn test_freshness_boundary_at_repunit_r5() {
+        assert_eq!(key_freshness_zone(121), Some(KeyFreshnessZone::Active));
+        assert_eq!(key_freshness_zone(122), Some(KeyFreshnessZone::Aging));
+    }
+
+    #[test]
+    fn test_key_suitable_for_regulated() {
+        assert!(key_suitable_for_regulated(0));
+        assert!(key_suitable_for_regulated(60));
+        assert!(key_suitable_for_regulated(121));
+        assert!(!key_suitable_for_regulated(122));
+        assert!(!key_suitable_for_regulated(182));
+    }
+
+    #[test]
+    fn test_key_birth_epoch() {
+        assert_eq!(key_birth_epoch(13, 0), 13);
+        assert_eq!(key_birth_epoch(13, 14), 12);
+        assert_eq!(key_birth_epoch(13, 28), 11);
+        assert_eq!(key_birth_epoch(13, 182), 0);
+    }
+
+    #[test]
+    fn test_freshness_zone_display() {
+        assert_eq!(format!("{}", KeyFreshnessZone::Fresh), "fresh");
+        assert_eq!(format!("{}", KeyFreshnessZone::Active), "active");
+        assert_eq!(format!("{}", KeyFreshnessZone::Aging), "aging");
     }
 }

@@ -55,17 +55,22 @@ use crate::cube_addr::CubeAddr;
 /// No signature verification, no authenticated heartbeats, no ECC.
 pub const PROTOCOL_VERSION_V1: u8 = 0x01;
 
-/// Protocol version for the hardened wire format (this release).
+/// Protocol version for the hardened wire format.
 /// Signed CRS, authenticated heartbeats, mutual tunnel auth, dual checksum, ECC.
 pub const PROTOCOL_VERSION_V2: u8 = 0x02;
 
+/// Protocol version for Array3 Node Cluster (this release).
+/// Slot addressing, 13-capability registration, key birth epochs, Rep C node IDs.
+/// V3 accepts V2 during dual-acceptance period.
+pub const PROTOCOL_VERSION_V3: u8 = 0x03;
+
 /// The current protocol version emitted by this build.
-pub const PROTOCOL_VERSION_CURRENT: u8 = PROTOCOL_VERSION_V2;
+pub const PROTOCOL_VERSION_CURRENT: u8 = PROTOCOL_VERSION_V3;
 
 /// Minimum protocol version this build will accept.
-/// During dual-acceptance period, this is V1. After Phase 2 ships,
-/// set to V2 to reject legacy nodes.
-pub const PROTOCOL_VERSION_MIN: u8 = PROTOCOL_VERSION_V1;
+/// During dual-acceptance period, V2 is accepted alongside V3.
+/// V1 legacy nodes are no longer accepted.
+pub const PROTOCOL_VERSION_MIN: u8 = PROTOCOL_VERSION_V2;
 
 // ═══════════════════════════════════════════════════════════════════════
 // WIRE HEADER
@@ -245,6 +250,20 @@ pub enum MessageType {
     DataForward = 0x50,
     /// SubCube multicast packet.
     DataMulticast = 0x51,
+
+    // ── Array3 / Slot Operations (0x60–0x6F, V3) ─────────────
+    /// Array3 formation handshake (V3).
+    Array3Handshake = 0x60,
+    /// Array3 handshake acknowledgment (V3).
+    Array3HandshakeAck = 0x61,
+    /// Service slot registration with 13-capability vector (V3).
+    SlotRegister = 0x62,
+    /// Service slot registration acknowledgment (V3).
+    SlotRegisterAck = 0x63,
+    /// Slot-to-node routing query (V3).
+    SlotQuery = 0x64,
+    /// Slot-to-node routing response (V3).
+    SlotQueryResponse = 0x65,
 }
 
 impl MessageType {
@@ -272,6 +291,12 @@ impl MessageType {
             0x42 => Some(Self::TunnelConfirm),
             0x50 => Some(Self::DataForward),
             0x51 => Some(Self::DataMulticast),
+            0x60 => Some(Self::Array3Handshake),
+            0x61 => Some(Self::Array3HandshakeAck),
+            0x62 => Some(Self::SlotRegister),
+            0x63 => Some(Self::SlotRegisterAck),
+            0x64 => Some(Self::SlotQuery),
+            0x65 => Some(Self::SlotQueryResponse),
             _ => None,
         }
     }
@@ -288,6 +313,19 @@ impl MessageType {
                 | Self::TunnelChallenge
                 | Self::TunnelResponse
                 | Self::TunnelConfirm
+        )
+    }
+
+    /// Whether this message type requires protocol version ≥ V3.
+    pub fn requires_v3(&self) -> bool {
+        matches!(
+            self,
+            Self::Array3Handshake
+                | Self::Array3HandshakeAck
+                | Self::SlotRegister
+                | Self::SlotRegisterAck
+                | Self::SlotQuery
+                | Self::SlotQueryResponse
         )
     }
 
@@ -319,6 +357,12 @@ impl std::fmt::Display for MessageType {
             Self::TunnelConfirm => write!(f, "tunnel-confirm"),
             Self::DataForward => write!(f, "data-forward"),
             Self::DataMulticast => write!(f, "data-multicast"),
+            Self::Array3Handshake => write!(f, "array3-handshake"),
+            Self::Array3HandshakeAck => write!(f, "array3-handshake-ack"),
+            Self::SlotRegister => write!(f, "slot-register"),
+            Self::SlotRegisterAck => write!(f, "slot-register-ack"),
+            Self::SlotQuery => write!(f, "slot-query"),
+            Self::SlotQueryResponse => write!(f, "slot-query-response"),
         }
     }
 }
@@ -396,6 +440,54 @@ pub fn unpack_addr(buf: &[u8; WIRE_ADDR_SIZE]) -> Option<CubeAddr> {
     let trits = unpack_trit_array(buf)?;
     CubeAddr::try_from_bytes(&trits)
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// SLOT ADDRESS — 3-trit Rep C wire encoding (V3)
+// ═══════════════════════════════════════════════════════════════════════
+
+pub const WIRE_SLOT_ADDR_SIZE: usize = 1;
+
+/// Pack a 3-trit slot address into a single wire byte.
+///
+/// Layout: bits [7:6] = plane, [5:4] = role, [3:2] = instance, [1:0] = reserved.
+/// Rep C {1,2,3} → 2-bit {0b01, 0b10, 0b11}. Zero = forgery.
+pub fn pack_slot_addr(slot: &[u8; 3]) -> Option<u8> {
+    for &t in slot {
+        if t == 0 || t > 3 { return None; }
+    }
+    Some((slot[0] << 6) | (slot[1] << 4) | (slot[2] << 2))
+}
+
+/// Unpack a wire byte into a 3-trit slot address.
+///
+/// Returns `None` if any 2-bit field is 0b00 (Rep C violation).
+pub fn unpack_slot_addr(byte: u8) -> Option<[u8; 3]> {
+    let plane = (byte >> 6) & 0x03;
+    let role  = (byte >> 4) & 0x03;
+    let inst  = (byte >> 2) & 0x03;
+    if plane == 0 || role == 0 || inst == 0 { return None; }
+    Some([plane, role, inst])
+}
+
+/// V3 Array3 handshake payload (serialized after wire header).
+///
+/// ```text
+/// ┌──────────┬────────────┬────────────┬──────────┬──────────┐
+/// │ node_id  │ port_start │ port_end   │ wire_ver │ slots    │
+/// │  (1B RC) │  (2B LE)   │  (2B LE)   │   (1B)   │ (1B cnt) │
+/// └──────────┴────────────┴────────────┴──────────┴──────────┘
+/// ```
+pub const ARRAY3_HANDSHAKE_MIN_SIZE: usize = 7;
+
+/// V3 SlotRegister payload (serialized after wire header).
+///
+/// ```text
+/// ┌──────────┬──────────────┬───────┬──────────────┬──────────┐
+/// │ node_id  │ classification│ slot  │ identity     │ caps     │
+/// │  (1B RC) │  (27B trits) │ (1B)  │ (32B pubkey) │ (2B LE)  │
+/// └──────────┴──────────────┴───────┴──────────────┴──────────┘
+/// ```
+pub const SLOT_REGISTER_PAYLOAD_SIZE: usize = 1 + 27 + 1 + 32 + 2;
 
 // ═══════════════════════════════════════════════════════════════════════
 // WIRE MESSAGE — Header + Payload
@@ -1200,5 +1292,50 @@ mod tests {
             while b != 0 { let t = b; b = a % b; a = t; } a
         }
         assert_eq!(gcd(364, 333), 1, "Moduli must be coprime for CRT");
+    }
+
+    // ── Slot Address Wire Encoding (V3) ────────────────────────
+
+    #[test]
+    fn test_pack_slot_addr_roundtrip() {
+        let slot = [1u8, 2, 3];
+        let packed = pack_slot_addr(&slot).unwrap();
+        let unpacked = unpack_slot_addr(packed).unwrap();
+        assert_eq!(unpacked, slot);
+    }
+
+    #[test]
+    fn test_pack_slot_addr_all_values() {
+        for p in 1..=3u8 {
+            for r in 1..=3u8 {
+                for i in 1..=3u8 {
+                    let slot = [p, r, i];
+                    let packed = pack_slot_addr(&slot).unwrap();
+                    let unpacked = unpack_slot_addr(packed).unwrap();
+                    assert_eq!(unpacked, slot, "roundtrip failed for ({},{},{})", p, r, i);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_pack_slot_addr_zero_rejected() {
+        assert!(pack_slot_addr(&[0, 1, 1]).is_none());
+        assert!(pack_slot_addr(&[1, 0, 1]).is_none());
+        assert!(pack_slot_addr(&[1, 1, 0]).is_none());
+    }
+
+    #[test]
+    fn test_unpack_slot_addr_zero_rejected() {
+        assert!(unpack_slot_addr(0b00_01_01_00).is_none()); // plane=0
+        assert!(unpack_slot_addr(0b01_00_01_00).is_none()); // role=0
+        assert!(unpack_slot_addr(0b01_01_00_00).is_none()); // instance=0
+    }
+
+    #[test]
+    fn test_slot_addr_wire_constants() {
+        assert_eq!(WIRE_SLOT_ADDR_SIZE, 1);
+        assert_eq!(ARRAY3_HANDSHAKE_MIN_SIZE, 7);
+        assert_eq!(SLOT_REGISTER_PAYLOAD_SIZE, 63);
     }
 }

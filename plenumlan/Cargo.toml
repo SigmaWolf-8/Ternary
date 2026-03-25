@@ -1,0 +1,17 @@
+[package]
+name = "plenumlan"
+version = "2.4.0"
+edition = "2021"
+description = "PlenumNET LAN — Array3 Node Cluster, 27→3 Projection, Service Slot Engine"
+license = "LicenseRef-Proprietary"
+authors = ["Salvi — Capomastro Holdings Ltd."]
+repository = "https://github.com/SigmaWolf-8/Ternary"
+
+[dependencies]
+ternary-math = { path = "../ternary-math", default-features = false }
+tdns-v2 = { path = "../services/tdns-v2" }
+serde = { version = "1", features = ["derive"] }
+static_assertions = "1.1"
+
+[dev-dependencies]
+serde_json = "1"

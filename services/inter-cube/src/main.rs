@@ -2,7 +2,7 @@
 // Patent(s) Pending — All Rights Reserved
 // Applied Physics Division
 //
-// PlenumNET Inter-Cube Infrastructure Daemon v0.4.0
+// PlenumNET Inter-Cube Infrastructure Daemon v2.4.0
 //
 // MODES (controlled by CUBE_MODE env var):
 //   "crs"    — Central Registration Service. Allocates addresses,
@@ -33,6 +33,8 @@
 //   API_PORT                   — Alias for CUBE_API_PORT
 //   CUBE_PEER_PORT             — Direct peer-to-peer port (default: API_PORT - 1)
 //   PEER_PORT                  — Alias for CUBE_PEER_PORT
+//   CUBE_NODE_ID               — Array3 node ID, Rep C {1,2,3} (default: 1)
+//   CUBE_ARRAY3_PEERS          — Comma-separated peer addresses for Array3 formation
 //   CUBE_IDENTITY_DIR          — Directory for master.key (default: ~/.plenumnet/identity/)
 //   CUBE_IDENTITY_PASSPHRASE   — Passphrase for master.key encryption
 
@@ -116,6 +118,30 @@ fn role_label() -> Option<String> {
 
 fn relay_url(crs_fallback: Option<&str>) -> Option<String> {
     env::var("RELAY_URL").ok().or_else(|| crs_fallback.map(|s| s.to_string()))
+}
+
+fn cube_node_id() -> u8 {
+    env::var("CUBE_NODE_ID")
+        .ok()
+        .and_then(|v| v.parse::<u8>().ok())
+        .unwrap_or(1)
+}
+
+fn cube_array3_peers() -> Vec<String> {
+    env::var("CUBE_ARRAY3_PEERS")
+        .ok()
+        .map(|v| v.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+        .unwrap_or_default()
+}
+
+#[derive(Clone, Debug)]
+struct Array3NodeInfo {
+    node_id: u8,
+    port_start: u16,
+    port_end: u16,
+    wire_version: u8,
+    slots_registered: u8,
+    accepted: bool,
 }
 
 type PeerConnections = Arc<Mutex<HashMap<String, PeerInfo>>>;
@@ -641,6 +667,9 @@ async fn run_crs_mode() {
         }
     }
 
+    let node_id = cube_node_id();
+    let array3_peers = cube_array3_peers();
+
     println!();
     println!("=== Inter-Cube Stack Active ===");
     println!("  Address:       {} ({})", local_address.to_dotted(), local_address);
@@ -652,7 +681,12 @@ async fn run_crs_mode() {
     println!("  Dimensions:    {}", DIMENSIONS);
     println!("  Neighbors:     {}", NEIGHBORS_PER_CUBE);
     println!("  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)");
+    println!("  Wire:          V{} (min V{})", inter_cube::wire::PROTOCOL_VERSION_CURRENT, inter_cube::wire::PROTOCOL_VERSION_MIN);
     println!("  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)");
+    println!("  Node ID:       {} (Rep C)", node_id);
+    if !array3_peers.is_empty() {
+        println!("  Array3 peers:  {}", array3_peers.join(", "));
+    }
     println!();
     println!("  CRS -> CON -> FTS -> GLB pipeline operational.");
     println!("  The geometry IS the routing protocol.");
@@ -1459,6 +1493,7 @@ async fn main() {
         "  PlenumNET Inter-Cube Infrastructure Services v{}",
         VERSION
     );
+    println!("  Wire Protocol: V{}", inter_cube::wire::PROTOCOL_VERSION_CURRENT);
     println!("  Applied Physics Division -- Capomastro Holdings Ltd.");
     println!("===========================================================");
     println!();

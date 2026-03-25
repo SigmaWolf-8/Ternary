@@ -6,6 +6,7 @@ members = [
     "services/pqti-service",
     "services/inter-cube",
     "services/tdns-v2",
+    "plenumlan",
 ]
 exclude = [
     "libternary",

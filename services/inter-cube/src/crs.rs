@@ -861,6 +861,205 @@ impl Default for CubeRegistrationService {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// SERVICE SLOT REGISTRY (V3 — Array3 Node Cluster)
+// ═══════════════════════════════════════════════════════════════════════
+
+/// 3-trit Rep C slot address within a node's 27-slot cube.
+/// Index 0 = plane (1=Data, 2=Control, 3=Management),
+/// 1 = role, 2 = instance.
+pub type SlotAddr = [u8; 3];
+
+/// Registered service slot with identity, capabilities, and port.
+#[derive(Debug, Clone)]
+pub struct ServiceSlot {
+    pub slot_addr: SlotAddr,
+    pub node_id: u8,         // Rep C {1, 2, 3}
+    pub port: u16,           // Computed from port formula
+    pub identity: Vec<u8>,   // TL-DSA public key (32 bytes)
+    pub capabilities: [bool; DIMENSIONS], // 13 capability flags
+    pub classification: [u8; 27],        // Original 27-trit input
+    pub registered_at: Instant,
+}
+
+/// Error during service slot registration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SlotError {
+    ZeroNodeId,
+    NodeIdOutOfRange(u8),
+    InvalidClassification,
+    SlotOccupied(SlotAddr),
+    ProjectionFailed,
+}
+
+impl std::fmt::Display for SlotError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SlotError::ZeroNodeId =>
+                write!(f, "FATAL: node_id=0 — zero-sentinel forgery"),
+            SlotError::NodeIdOutOfRange(id) =>
+                write!(f, "FATAL: node_id={} exceeds MAX_NODES=3", id),
+            SlotError::InvalidClassification =>
+                write!(f, "classification contains non-Rep-C values"),
+            SlotError::SlotOccupied(addr) =>
+                write!(f, "slot ({},{},{}) already occupied", addr[0], addr[1], addr[2]),
+            SlotError::ProjectionFailed =>
+                write!(f, "27→3 projection failed"),
+        }
+    }
+}
+
+/// Result of slot-to-node routing resolution.
+#[derive(Debug, Clone)]
+pub struct SlotRoute {
+    pub node_id: u8,
+    pub port: u16,
+    pub identity: Vec<u8>,
+}
+
+/// Registry for service slots within an Array3 cluster.
+///
+/// Manages the 81-slot space (3 nodes × 27 slots each).
+/// Provides register_service() (T-14) and resolve_slot() (T-15).
+pub struct ServiceSlotRegistry {
+    slots: HashMap<(u8, SlotAddr), ServiceSlot>,
+}
+
+impl ServiceSlotRegistry {
+    pub fn new() -> Self {
+        ServiceSlotRegistry {
+            slots: HashMap::new(),
+        }
+    }
+
+    /// Register a service: 27 classification trits → ServiceSlot.
+    ///
+    /// Performs 27→3 projection, computes port, stores identity and capabilities.
+    /// Returns the computed ServiceSlot on success.
+    pub fn register_service(
+        &mut self,
+        node_id: u8,
+        classification: &[u8; 27],
+        identity: Vec<u8>,
+        capabilities: [bool; DIMENSIONS],
+    ) -> Result<ServiceSlot, SlotError> {
+        if node_id == 0 {
+            return Err(SlotError::ZeroNodeId);
+        }
+        if node_id > 3 {
+            return Err(SlotError::NodeIdOutOfRange(node_id));
+        }
+
+        // Validate all trits are Rep C {1, 2, 3}
+        for &t in classification.iter() {
+            if t < 1 || t > 3 {
+                return Err(SlotError::InvalidClassification);
+            }
+        }
+
+        // 27→3 projection using same GF(3) quantization as plenumlan
+        let slot_addr = self.project_27_to_3(classification)
+            .ok_or(SlotError::ProjectionFailed)?;
+
+        // Check for conflicts
+        let key = (node_id, slot_addr);
+        if self.slots.contains_key(&key) {
+            return Err(SlotError::SlotOccupied(slot_addr));
+        }
+
+        // Compute port: BASE_PORT + (node_id-1)*27 + offset
+        let base_port: u16 = 11111;
+        let offset = ((slot_addr[0] as u16 - 1) * 9)
+            + ((slot_addr[1] as u16 - 1) * 3)
+            + (slot_addr[2] as u16 - 1);
+        let port = base_port + ((node_id as u16 - 1) * 27) + offset;
+
+        let slot = ServiceSlot {
+            slot_addr,
+            node_id,
+            port,
+            identity,
+            capabilities,
+            classification: *classification,
+            registered_at: Instant::now(),
+        };
+
+        self.slots.insert(key, slot.clone());
+        Ok(slot)
+    }
+
+    /// Resolve a 3-trit slot address to the owning node and port (T-15).
+    ///
+    /// Searches across all nodes for a registered service at the given slot.
+    pub fn resolve_slot(&self, slot_addr: &SlotAddr) -> Option<SlotRoute> {
+        for node_id in 1..=3u8 {
+            if let Some(slot) = self.slots.get(&(node_id, *slot_addr)) {
+                return Some(SlotRoute {
+                    node_id: slot.node_id,
+                    port: slot.port,
+                    identity: slot.identity.clone(),
+                });
+            }
+        }
+        None
+    }
+
+    /// Number of registered service slots across all nodes.
+    pub fn slot_count(&self) -> usize {
+        self.slots.len()
+    }
+
+    /// 27→3 projection (mirrors plenumlan/src/cube/projection.rs).
+    ///
+    /// Uses the same polarity tables and GF(3) quantization.
+    fn project_27_to_3(&self, classification: &[u8; 27]) -> Option<SlotAddr> {
+        // Polarity tables (same as Rust plenumlan)
+        // Plane: D1+, D2−, D3+, D9−, D10+, D17+, D19+, D25+, D26+
+        let plane_dims: [(usize, bool); 9] = [
+            (0, true), (1, false), (2, true), (8, false), (9, true),
+            (16, true), (18, true), (24, true), (25, true),
+        ];
+        // Role: D5+, D6+, D7+, D8+, D12+, D18+, D22−, D23+, D24−
+        let role_dims: [(usize, bool); 9] = [
+            (4, true), (5, true), (6, true), (7, true), (11, true),
+            (17, true), (21, false), (22, true), (23, false),
+        ];
+        // Instance: D4+, D11+, D13+, D14+, D15+, D16+, D20+, D21+, D27+
+        let inst_dims: [(usize, bool); 9] = [
+            (3, true), (10, true), (12, true), (13, true), (14, true),
+            (15, true), (19, true), (20, true), (26, true),
+        ];
+
+        fn count_high(class: &[u8; 27], dims: &[(usize, bool); 9]) -> u64 {
+            let mut k = 0u64;
+            for &(idx, positive) in dims {
+                let raw = class[idx];
+                let adjusted = if positive { raw } else {
+                    match raw { 1 => 3, 3 => 1, _ => 2 }
+                };
+                if adjusted == 3 { k += 1; }
+            }
+            k
+        }
+
+        fn project_to_gf3(k: u64, n: u64) -> u8 {
+            std::cmp::min((3 * k / n) as u8, 2)
+        }
+
+        let plane_k = count_high(classification, &plane_dims);
+        let role_k = count_high(classification, &role_dims);
+        let inst_k = count_high(classification, &inst_dims);
+
+        let n = 9u64; // DIMS_PER_GROUP
+
+        let plane = project_to_gf3(plane_k, n) + 1;
+        let role = project_to_gf3(role_k, n) + 1;
+        let instance = project_to_gf3(inst_k, n) + 1;
+
+        Some([plane, role, instance])
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // TESTS
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1341,5 +1540,102 @@ mod tests {
         assert_eq!(crs.registered_count(), 3);
         assert_eq!(crs.legacy_count(), 3);
         assert_eq!(crs.signed_count(), 0);
+    }
+
+    // ── Service Slot tests (V3) ─────────────────────────────────
+
+    #[test]
+    fn test_service_slot_registration() {
+        let mut registry = ServiceSlotRegistry::new();
+        let classification = [2u8; 27]; // center classification
+        let identity = vec![0xABu8; 32];
+        let capabilities = [false; 13];
+
+        let result = registry.register_service(1, &classification, identity.clone(), capabilities);
+        assert!(result.is_ok());
+        let slot = result.unwrap();
+        assert!(slot.port >= 11111 && slot.port <= 11137);
+    }
+
+    #[test]
+    fn test_service_slot_rejects_zero_node_id() {
+        let mut registry = ServiceSlotRegistry::new();
+        let classification = [2u8; 27];
+        let result = registry.register_service(0, &classification, vec![0xAB; 32], [false; 13]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_slot_to_node_routing() {
+        let mut registry = ServiceSlotRegistry::new();
+        let classification = [2u8; 27];
+        let identity = vec![0xABu8; 32];
+        let slot = registry.register_service(1, &classification, identity.clone(), [false; 13]).unwrap();
+
+        let route = registry.resolve_slot(&slot.slot_addr);
+        assert!(route.is_some());
+        let route = route.unwrap();
+        assert_eq!(route.node_id, 1);
+        assert_eq!(route.port, slot.port);
+        assert_eq!(route.identity, identity);
+    }
+
+    #[test]
+    fn test_slot_registry_duplicate_rejected() {
+        let mut registry = ServiceSlotRegistry::new();
+        let classification = [2u8; 27];
+        registry.register_service(1, &classification, vec![0xAB; 32], [false; 13]).unwrap();
+        let result = registry.register_service(1, &classification, vec![0xCD; 32], [false; 13]);
+        assert!(matches!(result, Err(SlotError::SlotOccupied(_))));
+    }
+
+    #[test]
+    fn test_slot_registry_same_slot_different_nodes() {
+        let mut registry = ServiceSlotRegistry::new();
+        let classification = [2u8; 27];
+        registry.register_service(1, &classification, vec![0xAB; 32], [false; 13]).unwrap();
+        let result = registry.register_service(2, &classification, vec![0xCD; 32], [false; 13]);
+        assert!(result.is_ok());
+        assert_eq!(registry.slot_count(), 2);
+    }
+
+    #[test]
+    fn test_slot_registry_node_id_out_of_range() {
+        let mut registry = ServiceSlotRegistry::new();
+        let classification = [2u8; 27];
+        let result = registry.register_service(4, &classification, vec![0xAB; 32], [false; 13]);
+        assert_eq!(result.unwrap_err(), SlotError::NodeIdOutOfRange(4));
+    }
+
+    #[test]
+    fn test_slot_registry_invalid_classification() {
+        let mut registry = ServiceSlotRegistry::new();
+        let mut classification = [2u8; 27];
+        classification[0] = 0; // zero = Rep C violation
+        let result = registry.register_service(1, &classification, vec![0xAB; 32], [false; 13]);
+        assert_eq!(result.unwrap_err(), SlotError::InvalidClassification);
+    }
+
+    #[test]
+    fn test_slot_port_ranges_by_node() {
+        let mut registry = ServiceSlotRegistry::new();
+        let c1 = [1u8; 27]; // all-1s classification
+        let c2 = [3u8; 27]; // all-3s classification
+
+        let s1 = registry.register_service(1, &c1, vec![0x11; 32], [false; 13]).unwrap();
+        assert!(s1.port >= 11111 && s1.port <= 11137, "Node 1 port {} out of range", s1.port);
+
+        let s2 = registry.register_service(2, &c2, vec![0x22; 32], [false; 13]).unwrap();
+        assert!(s2.port >= 11138 && s2.port <= 11164, "Node 2 port {} out of range", s2.port);
+
+        let s3_class = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3];
+        let s3 = registry.register_service(3, &s3_class, vec![0x33; 32], [false; 13]).unwrap();
+        assert!(s3.port >= 11165 && s3.port <= 11191, "Node 3 port {} out of range", s3.port);
+    }
+
+    #[test]
+    fn test_resolve_slot_not_found() {
+        let registry = ServiceSlotRegistry::new();
+        assert!(registry.resolve_slot(&[1, 1, 1]).is_none());
     }
 }

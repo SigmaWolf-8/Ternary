@@ -113,15 +113,35 @@ pub struct PlenumConfig {
 
     /// Protocol version to emit in wire message headers.
     ///
-    /// Set to 2 for the hardened format. Set to 1 for legacy.
+    /// Set to 3 for Array3 Node Cluster format. Set to 2 for V2 hardened.
     /// This controls what VERSION byte goes into outgoing messages.
     pub protocol_version: u8,
 
     /// Minimum protocol version to accept from peers.
     ///
-    /// During dual-acceptance period: 1 (accept both v1 and v2).
-    /// After Phase 2: 2 (reject v1 peers).
+    /// During dual-acceptance period: 2 (accept V2 and V3).
+    /// After full V3 rollout: 3 (reject V2 peers).
     pub protocol_version_min: u8,
+
+    // ── Array3 Node Cluster (V3) ──────────────────────────────
+
+    /// T-35: Enable Array3 slot addressing in wire messages.
+    ///
+    /// When `true`, V3 message types (0x60-0x6F) are emitted and accepted.
+    /// When `false`, slot operations are disabled (V2 compatibility mode).
+    pub enable_slot_addressing: bool,
+
+    /// T-35: Enable key freshness zone reporting in heartbeats.
+    ///
+    /// When `true`, heartbeat payloads include the key's freshness zone
+    /// (fresh/active/aging) and birth epoch.
+    pub enable_key_freshness: bool,
+
+    /// T-35: Node ID within Array3 cluster (Rep C {1,2,3}, 0=unset).
+    ///
+    /// Read from CUBE_NODE_ID env var. Node 1 = cluster gateway.
+    /// Zero-sentinel: 0 means unconfigured (single-node mode).
+    pub cube_node_id: u8,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -142,8 +162,11 @@ impl Default for PlenumConfig {
             enable_dual_checksum: false,
             enable_wire_ecc: false,
             enable_sponge_shuffles: false,
-            protocol_version: 2,
-            protocol_version_min: 1,
+            protocol_version: 3,
+            protocol_version_min: 2,
+            enable_slot_addressing: false,
+            enable_key_freshness: false,
+            cube_node_id: 0,
         }
     }
 }
@@ -169,6 +192,9 @@ impl PlenumConfig {
         config.enable_sponge_shuffles = env_bool("PLENUM_ENABLE_SPONGE_SHUFFLES", config.enable_sponge_shuffles);
         config.protocol_version = env_u8("PLENUM_PROTOCOL_VERSION", config.protocol_version);
         config.protocol_version_min = env_u8("PLENUM_PROTOCOL_VERSION_MIN", config.protocol_version_min);
+        config.enable_slot_addressing = env_bool("PLENUM_ENABLE_SLOT_ADDRESSING", config.enable_slot_addressing);
+        config.enable_key_freshness = env_bool("PLENUM_ENABLE_KEY_FRESHNESS", config.enable_key_freshness);
+        config.cube_node_id = env_u8("CUBE_NODE_ID", config.cube_node_id);
 
         config
     }
@@ -185,8 +211,11 @@ impl PlenumConfig {
             enable_dual_checksum: true,
             enable_wire_ecc: true,
             enable_sponge_shuffles: true,
-            protocol_version: 2,
-            protocol_version_min: 2,
+            protocol_version: 3,
+            protocol_version_min: 3,
+            enable_slot_addressing: true,
+            enable_key_freshness: true,
+            cube_node_id: 1,
         }
     }
 
@@ -211,6 +240,9 @@ impl PlenumConfig {
         println!("  enable_sponge_shuffles:{}", self.enable_sponge_shuffles);
         println!("  protocol_version:      v{}", self.protocol_version);
         println!("  protocol_version_min:  v{}", self.protocol_version_min);
+        println!("  enable_slot_addressing:{}", self.enable_slot_addressing);
+        println!("  enable_key_freshness:  {}", self.enable_key_freshness);
+        println!("  cube_node_id:          {}", self.cube_node_id);
         println!("====================");
     }
 }
@@ -262,13 +294,16 @@ mod tests {
         assert!(!config.enable_dual_checksum);
         assert!(!config.enable_wire_ecc);
         assert!(!config.enable_sponge_shuffles);
+        assert!(!config.enable_slot_addressing);
+        assert!(!config.enable_key_freshness);
+        assert_eq!(config.cube_node_id, 0);
     }
 
     #[test]
     fn test_default_config_protocol_versions() {
         let config = PlenumConfig::default();
-        assert_eq!(config.protocol_version, 2);
-        assert_eq!(config.protocol_version_min, 1);
+        assert_eq!(config.protocol_version, 3);
+        assert_eq!(config.protocol_version_min, 2);
     }
 
     #[test]
@@ -284,8 +319,11 @@ mod tests {
         assert!(config.enable_dual_checksum);
         assert!(config.enable_wire_ecc);
         assert!(config.enable_sponge_shuffles);
-        assert_eq!(config.protocol_version, 2);
-        assert_eq!(config.protocol_version_min, 2);
+        assert!(config.enable_slot_addressing);
+        assert!(config.enable_key_freshness);
+        assert_eq!(config.protocol_version, 3);
+        assert_eq!(config.protocol_version_min, 3);
+        assert_eq!(config.cube_node_id, 1);
     }
 
     #[test]

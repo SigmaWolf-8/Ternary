@@ -167,6 +167,9 @@ pub struct HealthResponse {
     pub version: &'static str,
     pub mode: String,
     pub address: String,
+    pub wire_protocol: u8,
+    pub wire_protocol_min: u8,
+    pub node_id: u8,
 }
 
 /// Topology information response.
@@ -222,12 +225,19 @@ pub fn parse_address_string(s: &str) -> Option<CubeAddr> {
 
 /// GET /health — Docker healthcheck.
 pub async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
+    let node_id = std::env::var("CUBE_NODE_ID")
+        .ok()
+        .and_then(|v| v.parse::<u8>().ok())
+        .unwrap_or(1);
     Json(HealthResponse {
         status: "ok",
         service: FRAMEWORK,
         version: VERSION,
         mode: state.mode.clone(),
         address: format!("{}", state.local_address),
+        wire_protocol: crate::wire::PROTOCOL_VERSION_CURRENT,
+        wire_protocol_min: crate::wire::PROTOCOL_VERSION_MIN,
+        node_id,
     })
 }
 
