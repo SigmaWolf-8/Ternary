@@ -261,6 +261,80 @@ impl BinaryTernaryGateway {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GatewayMessageType {
+    SyscallRequest,
+    SyscallResponse,
+    CryptoRequest,
+    CryptoResponse,
+    NetworkRequest,
+    NetworkResponse,
+    StorageRequest,
+    StorageResponse,
+}
+
+#[derive(Debug, Clone)]
+pub struct GatewayMessage {
+    pub msg_type: GatewayMessageType,
+    pub session_id: u32,
+    pub sequence: u64,
+    pub payload_trits: Vec<i8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GatewayService {
+    Crypto,
+    Network,
+    Storage,
+    Tdns,
+}
+
+pub struct GatewayRouter {
+    gateway: BinaryTernaryGateway,
+    message_count: u64,
+}
+
+impl GatewayRouter {
+    pub fn new(mode: GatewayMode) -> Self {
+        Self {
+            gateway: BinaryTernaryGateway::new(mode),
+            message_count: 0,
+        }
+    }
+
+    pub fn classify_service(&self, msg: &GatewayMessage) -> GatewayService {
+        match msg.msg_type {
+            GatewayMessageType::CryptoRequest | GatewayMessageType::CryptoResponse => GatewayService::Crypto,
+            GatewayMessageType::NetworkRequest | GatewayMessageType::NetworkResponse => GatewayService::Network,
+            GatewayMessageType::StorageRequest | GatewayMessageType::StorageResponse => GatewayService::Storage,
+            GatewayMessageType::SyscallRequest | GatewayMessageType::SyscallResponse => GatewayService::Network,
+        }
+    }
+
+    pub fn route_binary_to_basement(&mut self, data: &[u8], msg_type: GatewayMessageType, session_id: u32) -> CompatResult<GatewayMessage> {
+        let trits = self.gateway.convert_to_ternary(data)?;
+        self.message_count += 1;
+        Ok(GatewayMessage {
+            msg_type,
+            session_id,
+            sequence: self.message_count,
+            payload_trits: trits,
+        })
+    }
+
+    pub fn route_basement_to_binary(&mut self, msg: &GatewayMessage) -> CompatResult<Vec<u8>> {
+        self.gateway.convert_to_binary(&msg.payload_trits)
+    }
+
+    pub fn message_count(&self) -> u64 {
+        self.message_count
+    }
+
+    pub fn gateway_stats(&self) -> GatewayStats {
+        self.gateway.stats()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -463,5 +537,37 @@ mod tests {
         assert!(trits.is_empty());
         let bytes = gw.convert_to_binary(&[]).unwrap();
         assert!(bytes.is_empty());
+    }
+
+    #[test]
+    fn test_gateway_router_roundtrip() {
+        let mut router = GatewayRouter::new(GatewayMode::Balanced);
+        let data = [42u8, 0, 255];
+        let msg = router.route_binary_to_basement(&data, GatewayMessageType::SyscallRequest, 1).unwrap();
+        assert_eq!(msg.session_id, 1);
+        assert_eq!(msg.sequence, 1);
+        let back = router.route_basement_to_binary(&msg).unwrap();
+        assert_eq!(back, data);
+    }
+
+    #[test]
+    fn test_gateway_router_classify_service() {
+        let router = GatewayRouter::new(GatewayMode::Balanced);
+        let msg = GatewayMessage {
+            msg_type: GatewayMessageType::CryptoRequest,
+            session_id: 0,
+            sequence: 0,
+            payload_trits: Vec::new(),
+        };
+        assert_eq!(router.classify_service(&msg), GatewayService::Crypto);
+    }
+
+    #[test]
+    fn test_gateway_router_message_count() {
+        let mut router = GatewayRouter::new(GatewayMode::Balanced);
+        assert_eq!(router.message_count(), 0);
+        let _ = router.route_binary_to_basement(&[1u8], GatewayMessageType::NetworkRequest, 1);
+        let _ = router.route_binary_to_basement(&[2u8], GatewayMessageType::StorageRequest, 2);
+        assert_eq!(router.message_count(), 2);
     }
 }

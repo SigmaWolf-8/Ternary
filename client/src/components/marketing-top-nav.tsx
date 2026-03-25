@@ -111,6 +111,7 @@ const developersColumns: NavColumn[] = [
       { title: "HPTP Timing Lab", subtitle: "Femtosecond precision", href: "/hptp" },
       { title: "Compression Studio", subtitle: "Encode & decode", href: "/compression" },
       { title: "Ternary VM Terminal", subtitle: "Execute ternary opcodes", href: "/vm-demo" },
+      { title: "Node Terminal", subtitle: "PTY shell + cluster shell", href: "/terminal" },
     ],
   },
   {

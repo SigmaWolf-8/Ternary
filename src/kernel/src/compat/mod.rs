@@ -15,6 +15,7 @@
 pub mod gateway;
 pub mod adapter;
 pub mod crypto_interop;
+pub mod syscall_shim;
 
 use alloc::string::String;
 use core::fmt;

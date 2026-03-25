@@ -37,9 +37,10 @@ import { createServer } from "http";
 import { securityHeaders, additionalSecurityHeaders } from "./middleware/security-headers";
 import { corsMiddleware } from "./middleware/cors-config";
 import { globalLimiter } from "./middleware/rate-limiter";
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, execSync, type ChildProcess } from "child_process";
 import { existsSync } from "fs";
 import { WebSocketServer, WebSocket } from "ws";
+import { createSession, getSession, destroySession, listSessions, resizeSession, isSessionOwner, isClusterCommandAllowed, type TerminalSession } from "./terminal";
 import * as path from "path";
 import { spongeHashTrits } from "./crypto/sponge-hash";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
@@ -1420,7 +1421,24 @@ function startPqtiService(): ChildProcess | null {
     }
   }, 45_000);
 
+  const terminalTokens = new Map<string, { userId: string; createdAt: number }>();
+  const TERMINAL_TOKEN_TTL = 30_000;
+  const TERMINAL_MSG_RATE_LIMIT = 100;
+  const TERMINAL_MSG_MAX_SIZE = 8192;
+
+  app.post("/api/terminal/token", (req: any, res) => {
+    const user = req.user as any;
+    if (!req.isAuthenticated?.() || !user?.claims?.sub) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const token = crypto.randomBytes(16).toString("hex");
+    terminalTokens.set(token, { userId: user.claims.sub, createdAt: Date.now() });
+    setTimeout(() => terminalTokens.delete(token), TERMINAL_TOKEN_TTL);
+    res.json({ token });
+  });
+
   const wss = new WebSocketServer({ noServer: true });
+  const terminalWss = new WebSocketServer({ noServer: true });
 
   httpServer.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url || "", `http://${request.headers.host}`);
@@ -1428,9 +1446,207 @@ function startPqtiService(): ChildProcess | null {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request);
       });
-    } else {
+    } else if (url.pathname === "/ws/terminal") {
+      const token = url.searchParams.get("token");
+      const tokenData = token ? terminalTokens.get(token) : null;
+      if (!tokenData || (Date.now() - tokenData.createdAt > TERMINAL_TOKEN_TTL)) {
+        if (token) terminalTokens.delete(token);
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+      terminalTokens.delete(token!);
+      (request as any)._terminalUserId = tokenData.userId;
+      terminalWss.handleUpgrade(request, socket, head, (ws) => {
+        terminalWss.emit("connection", ws, request);
+      });
+    } else if (url.pathname !== "/vite-hmr") {
       socket.destroy();
     }
+  });
+
+  terminalWss.on("connection", (ws: WebSocket, request: any) => {
+    const url = new URL(request.url || "", `http://${request.headers.host}`);
+    const requestedSession = url.searchParams.get("session");
+    const ownerId: string = request._terminalUserId || "anonymous";
+    let activeSessionId: string | null = null;
+    let dataListener: ((data: string) => void) | null = null;
+    let msgCount = 0;
+    let msgWindowStart = Date.now();
+
+    function checkRateLimit(): boolean {
+      const now = Date.now();
+      if (now - msgWindowStart > 1000) {
+        msgCount = 0;
+        msgWindowStart = now;
+      }
+      msgCount++;
+      return msgCount <= TERMINAL_MSG_RATE_LIMIT;
+    }
+
+    function attachToSession(session: ReturnType<typeof getSession>) {
+      if (!session) return;
+      if (dataListener && activeSessionId) {
+        const oldSession = getSession(activeSessionId);
+        if (oldSession) {
+          oldSession.ptyProcess.removeListener("data", dataListener);
+        }
+      }
+      activeSessionId = session.id;
+      dataListener = (data: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "output", data }));
+        }
+      };
+      session.ptyProcess.onData(dataListener);
+      if (!session.exitHandlerAttached) {
+        session.exitHandlerAttached = true;
+        session.ptyProcess.onExit(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "session_ended", sessionId: session.id }));
+          }
+          destroySession(session.id);
+          if (activeSessionId === session.id) activeSessionId = null;
+        });
+      }
+    }
+
+    if (requestedSession && isSessionOwner(requestedSession, ownerId)) {
+      const existing = getSession(requestedSession);
+      if (existing) {
+        attachToSession(existing);
+        ws.send(JSON.stringify({ type: "session_attached", sessionId: requestedSession }));
+      }
+    }
+
+    if (!activeSessionId) {
+      const session = createSession(ownerId);
+      attachToSession(session);
+      ws.send(JSON.stringify({ type: "session_created", sessionId: session.id }));
+    }
+
+    ws.on("message", (raw: Buffer) => {
+      if (raw.length > TERMINAL_MSG_MAX_SIZE) return;
+      if (!checkRateLimit()) return;
+
+      let msg: any;
+      try {
+        msg = JSON.parse(raw.toString());
+      } catch {
+        return;
+      }
+
+      switch (msg.type) {
+        case "input": {
+          if (activeSessionId) {
+            const session = getSession(activeSessionId);
+            if (session && isSessionOwner(session.id, ownerId)) {
+              session.lastActivity = Date.now();
+              session.ptyProcess.write(msg.data);
+            }
+          }
+          break;
+        }
+        case "resize": {
+          if (activeSessionId && msg.cols && msg.rows) {
+            if (isSessionOwner(activeSessionId, ownerId)) {
+              resizeSession(activeSessionId, msg.cols, msg.rows);
+            }
+          }
+          break;
+        }
+        case "new_session": {
+          const session = createSession(ownerId);
+          attachToSession(session);
+          ws.send(JSON.stringify({ type: "session_created", sessionId: session.id }));
+          ws.send(JSON.stringify({ type: "session_list", sessions: listSessions(ownerId) }));
+          break;
+        }
+        case "attach": {
+          if (!isSessionOwner(msg.sessionId, ownerId)) {
+            ws.send(JSON.stringify({ type: "error", message: "Access denied" }));
+            break;
+          }
+          const session = getSession(msg.sessionId);
+          if (session) {
+            attachToSession(session);
+            ws.send(JSON.stringify({ type: "session_attached", sessionId: msg.sessionId }));
+          } else {
+            ws.send(JSON.stringify({ type: "error", message: "Session not found" }));
+          }
+          break;
+        }
+        case "destroy": {
+          if (!isSessionOwner(msg.sessionId, ownerId)) {
+            ws.send(JSON.stringify({ type: "error", message: "Access denied" }));
+            break;
+          }
+          destroySession(msg.sessionId);
+          if (msg.sessionId === activeSessionId) {
+            activeSessionId = null;
+          }
+          ws.send(JSON.stringify({ type: "session_list", sessions: listSessions(ownerId) }));
+          break;
+        }
+        case "list_sessions": {
+          ws.send(JSON.stringify({ type: "session_list", sessions: listSessions(ownerId) }));
+          break;
+        }
+        case "cluster_exec": {
+          const command = msg.command;
+          if (!command) break;
+          if (!isClusterCommandAllowed(command)) {
+            ws.send(JSON.stringify({ type: "cluster_result", results: [{ nodeId: "local", address: "this-node", output: "", error: "Command not in allowlist. Allowed: echo, hostname, whoami, uname, date, uptime, df, free, ls, pwd, id, ps, env, printenv. No pipes, semicolons, or subshells.", exitCode: 1 }] }));
+            break;
+          }
+          const results: Array<{ nodeId: string; address: string; output: string; error?: string; exitCode: number | null }> = [];
+          const localResult = { nodeId: "local", address: "this-node", output: "", error: undefined as string | undefined, exitCode: null as number | null };
+
+          try {
+            const output = execSync(command, { timeout: 5000, encoding: "utf-8", maxBuffer: 1024 * 64, shell: "/bin/bash" });
+            localResult.output = output;
+            localResult.exitCode = 0;
+          } catch (err: any) {
+            localResult.output = err.stdout || "";
+            localResult.error = err.stderr || err.message;
+            localResult.exitCode = err.status ?? 1;
+          }
+          results.push(localResult);
+
+          const connectedPeers = Array.from(relayClients.entries());
+          for (const [addr, peerWs] of connectedPeers) {
+            if (peerWs.readyState === WebSocket.OPEN) {
+              results.push({
+                nodeId: toDottedAddr(addr),
+                address: addr,
+                output: `[Remote execution via relay — command dispatched: ${command}]`,
+                exitCode: null,
+              });
+              try {
+                peerWs.send(JSON.stringify({
+                  type: "relay",
+                  msgType: "cluster-exec",
+                  payload: JSON.stringify({ command }),
+                  from: "coordinator",
+                }));
+              } catch {}
+            }
+          }
+
+          ws.send(JSON.stringify({ type: "cluster_result", results }));
+          break;
+        }
+      }
+    });
+
+    ws.on("close", () => {
+      if (dataListener && activeSessionId) {
+        const session = getSession(activeSessionId);
+        if (session) {
+          try { session.ptyProcess.removeListener("data", dataListener); } catch {}
+        }
+      }
+    });
   });
 
   async function verifyNodeRegistration(address: string, publicKey: string): Promise<boolean> {

@@ -88,6 +88,7 @@ const QuantumSim = lazyRetry(() => import("@/pages/quantum-sim"));
 const ApiKeysPage = lazyRetry(() => import("@/pages/api-keys"));
 const FPGABenchmarks = lazyRetry(() => import("@/pages/fpga-benchmarks"));
 const TsaPage = lazyRetry(() => import("@/pages/tsa"));
+const TerminalPage = lazyRetry(() => import("@/pages/terminal"));
 import InstallExtensionDialog from "@/components/InstallExtensionCard";
 
 function LoadingSpinner() {
@@ -131,6 +132,7 @@ function AppRouter() {
             <Route path="/vm-demo" component={VMDemo} />
             <Route path="/quantum-sim" component={QuantumSim} />
             <Route path="/agent-array" component={AgentArray} />
+            <Route path="/terminal" component={TerminalPage} />
 
             {/* Calendars */}
             <Route path="/calendar" component={CalendarPage} />
