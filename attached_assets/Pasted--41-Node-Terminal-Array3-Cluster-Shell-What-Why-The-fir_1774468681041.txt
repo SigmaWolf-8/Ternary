@@ -1,0 +1,66 @@
+#41 - Node Terminal + Array3 Cluster Shell
+What & Why
+The first end-to-end hosted application on the gateway layer, proving the z=0 boundary works. A browser-accessible terminal on every PlenumNode that routes all privileged operations (crypto, TDNS, storage, tunnel auth) through the ternary basement via the syscall shim. The terminal session has no independent network access — every packet touching the wire goes through TLSponge-385 authenticated tunnels.
+
+For Array3, each node gets its own terminal endpoint plus a cluster shell mode that fans out commands across all three nodes via authenticated Inter-Cube tunnels.
+
+This validates the gateway architecture before building more complex services, forces the node to expose clean interfaces, and is independently demoable. It also lays the foundation for the "Secure Desktop" path — the framebuffer pipeline for GUI streaming reuses the same serving infrastructure.
+
+Architecture
+Browser (xterm.js)  ↔  WebSocket  ↔  PTY multiplexer (Rust)  ↔  CharDevice  ↔  BinaryTernaryGateway  ↔  Ternary Basement
+All network/crypto calls from the shell are intercepted by the syscall shim and redirected through the BinaryTernaryGateway. The cluster shell uses Inter-Cube tunnels to fan out commands.
+
+Reusable Components
+chardev.rs — CharDevice trait and CharDeviceManager. Implement a new device wrapping a PTY.
+gateway.rs — BinaryTernaryGateway that routes messages to the basement. Shimmed syscalls go here.
+ws_relay.rs, tunnel_auth.rs — Inter-Cube tunnel infrastructure for cluster communication.
+ipc.rs, engine.rs — Syscall interception machinery; extend to cover the shell process.
+boot.rs (lines 240–301) — Service startup patterns for launching the PTY multiplexer.
+Tri-port patterns from Task #32 (peer port for LAN communication) can guide the cluster shell. Task #32 was IMPLEMENTED but never merged — leverage or reimplement its relevant patterns.
+Done looks like
+A browser tab pointed at a PlenumNode's web interface opens a fully functional terminal (xterm.js)
+The terminal session runs in a sandboxed PTY with no raw network access
+Outbound crypto/TDNS/network calls are intercepted by the syscall shim and routed through the ternary basement via BinaryTernaryGateway
+Each node in an Array3 cluster has its own terminal endpoint
+A cluster shell mode issues a command once, fans it out across all three Array3 nodes, and displays aggregated results with node identifiers
+Terminal sessions are authenticated through the node's existing authentication mechanism
+Multiple concurrent terminal sessions are supported via PTY multiplexing
+Resize events propagate from xterm.js to the PTY
+Sessions clean up on WebSocket disconnect
+Out of scope
+Full GUI desktop / framebuffer streaming (future work building on this infrastructure)
+RDP or VNC-style remote desktop
+Terminal-based file editor or IDE
+WAN peer-to-peer hole-punching (LAN-only for Array3 cluster shell)
+Changes to the ternary basement or kernel internals
+Persistent terminal sessions across browser reconnects (may be added later)
+Tasks
+PTY multiplexer service — New Rust crate (services/pty-mux). Use portable-pty (tokio-compatible) to create PTY pairs. Each session gets a unique ID and a CharDevice instance registered with CharDeviceManager. The device bridges read/write between PTY and gateway. Runs as a long-lived tokio task handling session lifecycle (create, resize, destroy). Exposes a channel-based internal API for the WebSocket bridge to create/attach to sessions.
+
+Syscall shim for shell process — Ensure the shell has no independent network access. Use existing syscall interception from process/ipc.rs and vm/engine.rs to intercept socket/connect/sendto etc. Redirect to BinaryTernaryGateway. Crypto calls (/dev/urandom, TLS) route through the basement. The shell runs as a user process under the PlenumNode process supervisor with standard I/O attached to the PTY device. Consider starting with a minimal shell (e.g., busybox) for initial testing.
+
+WebSocket bridge — New route on the existing web server (e.g., /api/terminal). Authenticates via the node's existing mechanism (cookie/token). On connection, creates a new PTY session or attaches to existing one. Message types: input (send to PTY master), resize (update PTY size), output (PTY to client). Uses tokio-tungstenite. Communicates with PTY multiplexer via cross-crate MPSC channels. Supports multiple concurrent sessions with unique IDs.
+
+xterm.js frontend — New static page (/terminal) loading xterm.js. Session selector for multiple concurrent sessions. Handles reconnection. Cluster shell mode as a toggle or separate view that issues a single command to all three nodes. Served from the node's existing static file infrastructure.
+
+Array3 cluster shell — Fan-out command dispatch using Inter-Cube tunnels (ws_relay, tunnel_auth). Browser sends a "cluster command" message over WebSocket; the node broadcasts to its peers via Inter-Cube. Each node runs the command independently in its own PTY context. Results collected with node identifiers and returned to client. Commands authenticated via existing tunnel authentication. The tri-port peer port (LAN) from Task #32 patterns can be reused for intra-cluster communication. Extend services/inter-cube/src/api.rs with a command fan-out endpoint.
+
+Integration validation — End-to-end test simulating a browser: authenticate with node, open WebSocket, create PTY session, send command, verify output. For cluster mode: send command and verify output from all three nodes. Verify that raw network attempts (curl, nc) from the terminal are intercepted and either fail or route through the gateway.
+
+Implementation Notes
+PTY vs CharDevice integration: The PTY multiplexer must integrate with CharDeviceManager. Implement a custom CharDevice using an internal channel to the PTY. Ensure read/write calls are asynchronous and non-blocking.
+Syscall interception depth: If the existing shim doesn't cover all network syscalls, extend it. Start with a minimal shell for initial testing.
+Concurrency: Use tokio tasks and channels; each session's PTY master is owned by a task that forwards data.
+Authentication: WebSocket uses node's existing cookie-based auth. Cluster shell commands authenticated via tunnel_auth's existing challenge-response protocol.
+Task #32 (unmerged): Evaluate whether existing Inter-Cube ws_relay and tunnel_auth already support command fan-out. If not, extend. For LAN-only cluster communication, a simple TCP listener accepting local-only connections may suffice rather than reimplementing the full tri-port architecture.
+Relevant files
+src/kernel/src/io/chardev.rs
+src/kernel/src/compat/gateway.rs
+src/kernel/src/arch/boot.rs:240-301
+src/kernel/src/process/ipc.rs
+src/kernel/src/vm/engine.rs:24-89
+services/inter-cube/src/ws_relay.rs
+services/inter-cube/src/tunnel_auth.rs
+services/inter-cube/src/main.rs
+services/inter-cube/src/api.rs
+services/inter-cube/src/config.rs

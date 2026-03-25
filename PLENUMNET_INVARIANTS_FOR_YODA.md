@@ -212,11 +212,23 @@ These endpoints are for the remote dashboard. They are NOT used for local cube o
 
 **Endpoint:** `wss://plenumnet.replit.app/ws/relay`
 
-**Auth (first message, 10s deadline):**
+**Challenge-response auth (10s deadline):**
+
+1. Server → Client (immediate on connect):
 ```json
-{ "type": "auth", "address": "<assigned>", "publicKey": "<hex>" }
+{ "type": "challenge", "nonce": "<random-hex>" }
 ```
-Response: `{ "type": "auth_ok", "address": "...", "connectedPeers": [...] }`
+
+2. Client → Server:
+```json
+{ "type": "auth", "address": "<assigned>", "publicKey": "<hex>", "nonce": "<same-nonce>", "signature": "<hex>" }
+```
+The `signature` is a TL-DSA-87 signature over `nonce||address||publicKey` using the address-bound key. Legacy clients without a registered TL-DSA key may omit `signature`, but nodes with a key on file MUST sign (server rejects unsigned auth from keyed nodes).
+
+3. Server → Client:
+```json
+{ "type": "auth_ok", "address": "...", "connectedPeers": [...] }
+```
 
 **Keepalive (every 25s):**
 ```json
@@ -818,7 +830,8 @@ A single consolidated table of every endpoint YODA needs to monitor daemon infra
 
 | Action | Message | Response |
 |--------|---------|----------|
-| Authenticate | `{"type":"auth","address":"...","publicKey":"..."}` | `{"type":"auth_ok","address":"...","connectedPeers":[...]}` |
+| Challenge (server→client, on connect) | — | `{"type":"challenge","nonce":"<hex>"}` |
+| Authenticate (client→server) | `{"type":"auth","address":"...","publicKey":"...","nonce":"<nonce>","signature":"<hex>"}` | `{"type":"auth_ok","address":"...","connectedPeers":[...]}` |
 | Keepalive (25s) | `{"type":"ping"}` | `{"type":"pong","ts":...}` |
 | List peers | `{"type":"peers"}` | `{"type":"peers","connected":[...]}` |
 | Send message | `{"type":"relay","to":"...","msgType":"...","payload":"..."}` | `{"type":"relay_ack","to":"...","delivered":true/false}` |
@@ -1060,7 +1073,7 @@ Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOC
   "address": "1111111111111",
   "wire_protocol": 3,
   "wire_protocol_min": 2,
-  "node_id": 0
+  "node_id": 1
 }
 ```
 
