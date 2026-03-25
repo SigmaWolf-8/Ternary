@@ -1,0 +1,592 @@
+#35 - PlenumNET Node + Array3 Node Cluster
+What & Why
+Build the complete Service Cube engine end-to-end: 27 classification trits go in, a registered service with a correct port on the correct node with the correct bridge port comes out. This is one continuous pipeline — projection, port formula, Array3 node identity, slot registration, entity scanning, legacy bridging, zero-sentinel enforcement, inter-service routing, and versioning.
+
+⚠ EXISTING CODE — Import, Do Not Rebuild
+These constants, functions, and modules already exist in the codebase. Import and re-export where needed — do NOT redefine them:
+
+Constants & Core Types:
+
+What	Where	Notes
+DIMENSIONS = 13	ternary-math/src/cube_addr.rs:17, ternary-math/src/pt26_dsa.rs:61	Also in shared/constants.ts:42 as HYPERCUBE_DIMENSIONS: 13
+ARC_EPOCH_SECS = 182 * 86400	services/inter-cube/src/identity.rs:88	Already used in key_rotation.rs
+SALVI_EPOCH_UNIX = 1_743_465_600	services/inter-cube/src/identity.rs:104	Also kernel SALVI_EPOCH_NS in src/kernel/src/lib.rs:58
+FULL_CIRCLE = 364	src/kernel/src/hptp/crt_fast_path.rs:55, shared/constants.ts:80, 6+ other locations	
+REPUNIT_R5 = 121 = 11111₃ = 11²	ternary-math/src/repunit_circles.rs:25	Key freshness boundary
+CubeAddr (13-trit Rep C)	ternary-math/src/cube_addr.rs:17-56	Rep C trits {1,2,3}
+Bijective/Rep C & Zero-Sentinel (already implemented):
+
+What	Where	Notes
+is_valid_rep_c(trits)	ternary-math/src/plenum_checksum.rs:96	Rejects 0 and >3 — this IS the zero-sentinel check
+rep_c_valid()	src/kernel/src/crypto/metatronic_cube.rs:656	Cube vertex validation
+address_sentinel module	src/kernel/src/crypto/address_sentinel.rs	Full sentinel planting/detection
+byte_to_bijective() / bijective_to_byte()	ternary-math/src/ttc.rs:415-422	Rep C ↔ byte conversion
+from_bijective() / from_repr_c()	libternary/src/borromean.rs:151, libternary/src/tribonacci.rs:312	Rep C construction
+CGUID zero-sentinel check	services/tdns-v2/src/identity.rs:114	"forgery sentinel" on zero trit
+Projection & Derivation (already implemented):
+
+What	Where	Notes
+project_to_gf3(k, n)	services/tdns-v2/src/derive.rs:42	Also ternary-math/src/gf3_algebra.rs:80 (u64 version)
+derive_trit(k, n)	ternary-math/src/gf3_algebra.rs:81	= project_to_gf3(k, n) + 1 (GF3 → Rep C in one step)
+All 27 per-dimension derivation rules	services/tdns-v2/src/derive.rs:90-574	Each dimension's scanner + trit assignment
+Routing & Placement (already implemented):
+
+What	Where	Notes
+hamming_distance(a, b)	services/inter-cube/src/placement.rs:229	13-trit Rep C Hamming
+Placement scoring by HD	services/inter-cube/src/placement.rs	Min/avg HD to registered nodes
+Sampling by HD	services/inter-cube/src/sampling.rs:52	Stratified sampling
+TDNS greedy geodesic routing	services/tdns-v2/src/routing.rs:9	HD = hop count, loop-free
+Infrastructure (already implemented):
+
+What	Where	Notes
+Key rotation / dual-accept	services/inter-cube/src/key_rotation.rs	ROTATION_PERIOD_SECS, radian boundaries
+CUBE_PEER_PORT / CUBE_MODE	services/inter-cube/src/main.rs:7-35,1466	Peer mesh + mode selection
+Wire protocol versioning	services/inter-cube/src/config.rs:118-146	protocol_version: u8, currently V2
+Wire header with protocol_version	services/inter-cube/src/wire.rs:81-188	24-byte header, dual checksum, ECC at V2
+CRS registration	services/inter-cube/src/crs.rs	Extend, don't replace
+DeviceClass / DeviceType / registry	src/kernel/src/device/mod.rs:67, device/registry.rs	Device classification exists
+First-Principle Derivations (Reference for New Constants)
+The following constants are NEW and must be added to plenumlan/src/cube/constants.rs. They derive from DIMENSIONS = 13 (imported from ternary-math). Include the existing ones in the reference block for compile-time cross-validation but import them rather than redefining:
+
+// ── IMPORTED (already exist — use, don't redefine) ──
+use ternary_math::cube_addr::DIMENSIONS;  // 13
+// ARC_EPOCH_SECS (182 * 86400) from services/inter-cube/src/identity.rs
+// FULL_CIRCLE (364) from multiple locations
+// project_to_gf3(k, n) from services/tdns-v2/src/derive.rs
+// ── NEW constants for Service Cube (add to plenumlan/src/cube/constants.rs) ──
+pub const SLOTS_PER_NODE: usize = 3_usize.pow(3);          // 27
+pub const CLUSTER_SLOTS: usize = 3_usize.pow(4);           // 81
+pub const SHELL_FACTORS: usize = 3_usize.pow(2);           // 9
+pub const GATEWAY_OFFSET: usize = DIMENSIONS;               // 13 = T₇ = π − 1
+pub const ARC_EPOCH: usize = DIMENSIONS * 14;               // 182 = 13 × π = 20202₃ (palindrome)
+pub const ADMIN_EPOCH: usize = 2_usize.pow(6) * DIMENSIONS; // 832 = 2⁶ × 13
+pub const EVIDENCE_ARC: usize = ADMIN_EPOCH - ARC_EPOCH;    // 650 = 220002₃ (directional)
+pub const REDIRECT_DEPTH: usize = (EVIDENCE_ARC + ARC_EPOCH - 1) / ARC_EPOCH; // ceil(650/182) = 4
+pub const TRANSITION_GAP: usize = EVIDENCE_ARC - ARC_EPOCH; // 468 = 6² × 13
+pub const CHECKPOINTS: usize = TRANSITION_GAP / DIMENSIONS;  // 36 = 4 × 9 = REDIRECT_DEPTH × SHELL_FACTORS
+pub const BASE_PORT: u16 = 11111;                           // "11111" in base-3 = 121 = 11²
+// Compile-time cross-validation against imported values
+const_assert!(ARC_EPOCH * EVIDENCE_ARC == DIMENSIONS * DIMENSIONS * 700);  // 182 × 650 = 118,300
+const_assert!(ARC_EPOCH + EVIDENCE_ARC == ADMIN_EPOCH);                    // 182 + 650 = 832
+const_assert!(2 * ARC_EPOCH == 364);                                       // 2 × 182 = FULL_CIRCLE
+const_assert!(CHECKPOINTS == REDIRECT_DEPTH * SHELL_FACTORS);              // 36 = 4 × 9
+const_assert!(GATEWAY_OFFSET == DIMENSIONS);                               // 13 = 13
+The arc equation: arc² − 832·arc + 118,300 = 0 has roots 182 (cryptographic arc, key rotation, palindrome 20202₃) and 650 (evidentiary arc, legal retention, directional 220002₃). Sum = 832 = ADMIN_EPOCH. Product = 118,300 = 13² × 700.
+
+Rep C and GF(3) — The Dual Representation
+GF(3) {0, 1, 2} — internal computation. Used in the port formula and offset calculations. Rep C {1, 2, 3} — wire format. Conversion: rep_c = gf3 + 1, gf3 = rep_c - 1.
+
+Zero is structurally impossible in Rep C. Its presence in any trit of any address at any trust boundary is mathematical proof of forgery, detectable in constant time with no branching on secrets.
+
+Dimension	GF(3)	Rep C	Meaning
+Plane (trit 2)	0, 1, 2	1, 2, 3	Security domain (Data, Control, Management)
+Role (trit 1)	0, 1, 2	1, 2, 3	Functional class (Primary, Secondary, Tertiary)
+Instance (trit 0)	0, 1, 2	1, 2, 3	Service variant
+Port Formula
+port = BASE_PORT + (node × 27) + (plane × 9) + (role × 3) + instance
+Where BASE_PORT = 11111, all positional values GF(3) {0, 1, 2}. The node is a multiplier selecting which of the 3 nodes owns this port range — NOT a 4th cube dimension. The cube stays 3D (plane, role, instance). Single node = node 0, no peers.
+
+Single-node port table (§3.4) — all 27 slots:
+
+Offset	GF(3)	Rep C	Port	Slot
++0	000	111	11111	Data / Primary / 1
++1	001	112	11112	Data / Primary / 2
++2	002	113	11113	Data / Primary / 3
++3	010	121	11114	Data / Secondary / 1
++4	011	122	11115	Data / Secondary / 2
++5	012	123	11116	Data / Secondary / 3
++6	020	131	11117	Data / Tertiary / 1
++7	021	132	11118	Data / Tertiary / 2
++8	022	133	11119	Data / Tertiary / 3
++9	100	211	11120	Control / Primary / 1
++10	101	212	11121	Control / Primary / 2
++11	102	213	11122	Control / Primary / 3
++12	110	221	11123	Control / Secondary / 1
++13	111	222	11124	THE CENTER — Gateway · Shell · Key Rotation Pivot
++14	112	223	11125	Control / Secondary / 3
++15	120	231	11126	Control / Tertiary / 1
++16	121	232	11127	Control / Tertiary / 2
++17	122	233	11128	Control / Tertiary / 3
++18	200	311	11129	Management / Primary / 1
++19	201	312	11130	Management / Primary / 2
++20	202	313	11131	Management / Primary / 3
++21	210	321	11132	Management / Secondary / 1
++22	211	322	11133	Management / Secondary / 2
++23	212	323	11134	Management / Secondary / 3
++24	220	331	11135	Management / Tertiary / 1
++25	221	332	11136	Management / Tertiary / 2
++26	222	333	11137	Management / Tertiary / 3
+Array3 (§3.5) — 81 slots across 3 nodes:
+
+Node	node_id (GF(3))	Port Range	(2,2,2) Slot Port
+Node 1	0	11111–11137	11124 — THE GATEWAY (cluster-singular)
+Node 2	1	11138–11164	11151 — regular slot (routes through Node 1 gateway)
+Node 3	2	11165–11191	11178 — regular slot (routes through Node 1 gateway)
+ONE gateway for the entire Array3 cluster. Only Node 1's (2,2,2) slot at port 11124 is the gateway. This is the single outbound security chokepoint — it punches ONE clean hole through the firewall. All 81 slots across all 3 nodes funnel outbound through Node 1's gateway. Nodes 2 and 3 still have a (2,2,2) slot in their port range, but it is NOT a gateway — it is a regular service slot that routes outbound through Node 1:11124.
+
+Firewall rule: open port 11124 inbound/outbound on Node 1's IP. That's it. No other ports need firewall exposure. Internal LAN traffic between nodes uses the full 81-port range freely — the firewall only governs the edge.
+
+First-Instance Array3 PlenumNET Cluster — Complete Node Addressing
+This is the canonical reference for a first-instance 3-node Array3 cluster. Every node is an independent machine running one YODA daemon. Every node gets the same port structure on its own IP. The Service Cube ports ARE the endpoints.
+
+Node 1 — CRS Primary + Cluster Gateway
+═══ IDENTITY ═══════════════════════════════════════════════════════
+Address:          222.222.222.222.2        (13-trit TDNS Rep C, gateway center)
+Slot Address:     (2,2,2) Rep C            (GF(3) center = offset +13 = T₇ = DIMENSIONS)
+Endpoint:         192.168.1.10:11124       (gateway port — cluster-singular)
+Node ID:          0                        (CUBE_NODE_ID, GF(3))
+Daemon Version:   2.4.0
+TDNS Version:     v2.5
+═══ PORTS ══════════════════════════════════════════════════════════
+Cube Range:       11111–11137              (27 slots, BASE_PORT + 0 × 27)
+Gateway:          11124                    (offset +13 = GATEWAY_OFFSET = DIMENSIONS)
+                                           THE single outbound chokepoint — punches one
+                                           clean hole through the firewall for entire cluster
+EAGER_BIND:       true                     (all 27 ports bound at startup)
+═══ SECURITY ═══════════════════════════════════════════════════════
+Wire Protocol:    V3                       (slot addressing, zero-sentinel, key birth epochs)
+Protocol Min:     V2                       (dual-acceptance: V3 accepts V2 peers)
+TL-DSA Signature: required                 (PLENUM_REQUIRE_SIGNATURE=true)
+Dual Checksum:    mod-364 + mod-333        (PLENUM_ENABLE_DUAL_CHECKSUM=true)
+Wire ECC:         8-trit syndrome          (PLENUM_ENABLE_WIRE_ECC=true)
+Sponge Shuffles:  σ_A–σ_D enabled         (PLENUM_ENABLE_SPONGE_SHUFFLES=true)
+Zero-Sentinel:    active                   (is_valid_rep_c() at every trust boundary)
+PoW Difficulty:   K=5                      (leading zero trits in TIS-27 for registration)
+Rate Limiting:    enabled                  (per-IP caps on CRS registration)
+Identity Dir:     ~/.plenumnet/identity/   (master.key encrypted at rest)
+═══ KEY ROTATION ═══════════════════════════════════════════════════
+Key Freshness:    fresh                    (age 12/182 days, in first 1/3)
+Arc Epoch:        182 days                 (ARC_EPOCH = 13 × π = 20202₃ palindrome)
+Rotation Period:  14 days                  (ARC_EPOCH / RADIAN_DEG = 182 / 13)
+Current Radian:   0                        (of 13 total per arc)
+Freshness Zones:  fresh (0–60), active (61–121), aging (122–182)
+Freshness Bound:  121 = 11² = R₅ = 11111₃ (resonates with BASE_PORT)
+Capability TTL:   1,800s                   (30 min, force-rotation requires 3FA token)
+Dual Accept:      active                   (old + new keys accepted during rotation window)
+═══ CLUSTER ROLE ═══════════════════════════════════════════════════
+Role:             CRS + Gateway            (Central Registration Service primary)
+                                           ONLY gateway in the cluster — all outbound funnels here
+Registered:       yes
+Relay:            yes                      (WebSocket to plenumnet.replit.app)
+Connection:       direct (2 peers)         (LAN peer to Node #2, #3 via peer discovery)
+═══ SLOT INVENTORY (14/27 occupied) ════════════════════════════════
+  (1,1,1) :11111  Data/Primary/1     — PlenumDB               [occupied]
+  (1,1,2) :11112  Data/Primary/2     — File Services           [occupied] + bridge :445 (SMB)
+  (1,1,3) :11113  Data/Primary/3     — Print Services          [occupied] + bridge :631 (IPP)
+  (1,2,1) :11114  Data/Secondary/1   — Backup Agent            [occupied]
+  (1,2,2) :11115  Data/Secondary/2   — —                       [empty]
+  (1,2,3) :11116  Data/Secondary/3   — —                       [empty]
+  (1,3,1) :11117  Data/Tertiary/1    — —                       [empty]
+  (1,3,2) :11118  Data/Tertiary/2    — —                       [empty]
+  (1,3,3) :11119  Data/Tertiary/3    — —                       [empty]
+  (2,1,1) :11120  Ctrl/Primary/1     — DNS                     [occupied] + bridge :53
+  (2,1,2) :11121  Ctrl/Primary/2     — DHCP                    [occupied] + bridge :67
+  (2,1,3) :11122  Ctrl/Primary/3     — NPS/RADIUS              [occupied] + bridge :1812
+  (2,2,1) :11123  Ctrl/Secondary/1   — Certificate Authority   [occupied]
+  (2,2,2) :11124  ⬣ GATEWAY CENTER  — 9-Factor Shell + Pivot  [occupied]  HD ≤ 2 from ALL slots
+                                       CLUSTER GATEWAY — single firewall punch
+  (2,2,3) :11125  Ctrl/Secondary/3   — VPN Gateway             [occupied]
+  (2,3,1) :11126  Ctrl/Tertiary/1    — —                       [empty]
+  (2,3,2) :11127  Ctrl/Tertiary/2    — —                       [empty]
+  (2,3,3) :11128  Ctrl/Tertiary/3    — —                       [empty]
+  (3,1,1) :11129  Mgmt/Primary/1     — Active Directory        [occupied]
+  (3,1,2) :11130  Mgmt/Primary/2     — Audit Service           [occupied]
+  (3,1,3) :11131  Mgmt/Primary/3     — WSUS/Patching           [occupied]
+  (3,2,1) :11132  Mgmt/Secondary/1   — Dashboard API           [occupied]
+  (3,2,2) :11133  Mgmt/Secondary/2   — —                       [empty]
+  (3,2,3) :11134  Mgmt/Secondary/3   — —                       [empty]
+  (3,3,1) :11135  Mgmt/Tertiary/1    — —                       [empty]
+  (3,3,2) :11136  Mgmt/Tertiary/2    — —                       [empty]
+  (3,3,3) :11137  Mgmt/Tertiary/3    — —                       [empty]
+═══ BRIDGE PORTS ═══════════════════════════════════════════════════
+  :53   DNS      (D5=3, D6=1, D12=3, D15=2)  → slot (2,1,1) :11120
+  :67   DHCP     (D5=3, D6=1, D12=3, D15=1)  → slot (2,1,2) :11121
+  :445  SMB      (D5=2, D6=1, D12=1, D15=2)  → slot (1,1,2) :11112
+  :631  IPP      (D5=2, D6=2, D12=1, D15=_)  → slot (1,1,3) :11113
+  :1812 RADIUS   (D5=3, D6=1, D12=3, D15=3)  → slot (2,1,3) :11122
+═══ HAMMING DISTANCE ROUTING ═══════════════════════════════════════
+  HD 0 (1 slot):   loopback — no auth needed
+  HD 1 (6 slots):  direct call — same security domain
+  HD 2 (12 slots): capability token required — crosses boundary
+  HD 3 (8 slots):  full mutual TL-DSA auth — corner-to-corner
+═══ ENV VARS ═══════════════════════════════════════════════════════
+  CUBE_NODE_ID=0
+  CUBE_MODE=crs
+  CUBE_ARRAY3_PEERS=192.168.1.11:11151,192.168.1.12:11178
+  CUBE_IDENTITY_DIR=~/.plenumnet/identity/
+  CUBE_IDENTITY_PASSPHRASE=<encrypted>
+  EAGER_BIND=true
+  PLENUM_PROTOCOL_VERSION=3
+  PLENUM_PROTOCOL_VERSION_MIN=2
+  PLENUM_REQUIRE_SIGNATURE=true
+  PLENUM_ENABLE_DUAL_CHECKSUM=true
+  PLENUM_ENABLE_WIRE_ECC=true
+  PLENUM_ENABLE_SPONGE_SHUFFLES=true
+Node 2 — HA Replica (routes outbound through Node 1 gateway)
+═══ IDENTITY ═══════════════════════════════════════════════════════
+Address:          222.222.222.222.2        (13-trit TDNS Rep C, gateway center)
+Slot Address:     (2,2,2) Rep C
+Endpoint:         192.168.1.11:11151       (NOT a gateway — regular service slot)
+Node ID:          1                        (CUBE_NODE_ID, GF(3))
+Daemon Version:   2.4.0
+TDNS Version:     v2.5
+═══ PORTS ══════════════════════════════════════════════════════════
+Cube Range:       11138–11164              (27 slots, BASE_PORT + 1 × 27)
+(2,2,2) Port:     11151                    (offset +13 within node range — NOT a gateway)
+Outbound Route:   → 192.168.1.10:11124    (all outbound funnels through Node 1 gateway)
+EAGER_BIND:       true
+═══ SECURITY ═══════════════════════════════════════════════════════
+Wire Protocol:    V3
+Protocol Min:     V2                       (dual-acceptance)
+TL-DSA Signature: required
+Dual Checksum:    mod-364 + mod-333
+Wire ECC:         8-trit syndrome
+Sponge Shuffles:  σ_A–σ_D enabled
+Zero-Sentinel:    active
+PoW Difficulty:   K=5
+Rate Limiting:    enabled
+Identity Dir:     ~/.plenumnet/identity/
+═══ KEY ROTATION ═══════════════════════════════════════════════════
+Key Freshness:    fresh                    (age 12/182 days)
+Arc Epoch:        182 days
+Rotation Period:  14 days
+Current Radian:   0
+Freshness Zones:  fresh (0–60), active (61–121), aging (122–182)
+Capability TTL:   1,800s
+═══ CLUSTER ROLE ═══════════════════════════════════════════════════
+Role:             HA Replica               (NOT a gateway — routes outbound through Node 1)
+                                           CRS failover candidate if Node 1 dies
+Registered:       yes
+Relay:            yes
+Connection:       direct (2 peers)
+═══ SLOT INVENTORY (7/27 occupied) ═════════════════════════════════
+  (1,1,1) :11138  Data/Primary/1     — PlenumDB (replica)     [occupied]  ← HA of Node 1
+  (1,1,2) :11139  Data/Primary/2     — File Services (replica) [occupied] + bridge :445  ← HA
+  (1,1,3) :11140  Data/Primary/3     — —                       [empty]
+  (1,2,1) :11141  Data/Secondary/1   — —                       [empty]
+  (1,2,2) :11142  Data/Secondary/2   — —                       [empty]
+  (1,2,3) :11143  Data/Secondary/3   — —                       [empty]
+  (1,3,1) :11144  Data/Tertiary/1    — —                       [empty]
+  (1,3,2) :11145  Data/Tertiary/2    — —                       [empty]
+  (1,3,3) :11146  Data/Tertiary/3    — —                       [empty]
+  (2,1,1) :11147  Ctrl/Primary/1     — DNS (replica)           [occupied] + bridge :53  ← HA
+  (2,1,2) :11148  Ctrl/Primary/2     — DHCP (replica)          [occupied] + bridge :67  ← HA
+  (2,1,3) :11149  Ctrl/Primary/3     — —                       [empty]
+  (2,2,1) :11150  Ctrl/Secondary/1   — —                       [empty]
+  (2,2,2) :11151  Ctrl/Secondary/2   — Regular service slot    [occupied]  (NOT a gateway)
+  (2,2,3) :11152  Ctrl/Secondary/3   — —                       [empty]
+  (2,3,1) :11153  Ctrl/Tertiary/1    — —                       [empty]
+  (2,3,2) :11154  Ctrl/Tertiary/2    — —                       [empty]
+  (2,3,3) :11155  Ctrl/Tertiary/3    — —                       [empty]
+  (3,1,1) :11156  Mgmt/Primary/1     — Active Directory (rep)  [occupied]  ← HA
+  (3,1,2) :11157  Mgmt/Primary/2     — —                       [empty]
+  (3,1,3) :11158  Mgmt/Primary/3     — —                       [empty]
+  (3,2,1) :11159  Mgmt/Secondary/1   — —                       [empty]
+  (3,2,2) :11160  Mgmt/Secondary/2   — —                       [empty]
+  (3,2,3) :11161  Mgmt/Secondary/3   — —                       [empty]
+  (3,3,1) :11162  Mgmt/Tertiary/1    — —                       [empty]
+  (3,3,2) :11163  Mgmt/Tertiary/2    — —                       [empty]
+  (3,3,3) :11164  Mgmt/Tertiary/3    — —                       [empty]
+═══ BRIDGE PORTS ═══════════════════════════════════════════════════
+  :53   DNS      → slot (2,1,1) :11147
+  :67   DHCP     → slot (2,1,2) :11148
+  :445  SMB      → slot (1,1,2) :11139
+═══ ENV VARS ═══════════════════════════════════════════════════════
+  CUBE_NODE_ID=1
+  CUBE_MODE=cube
+  CUBE_CRS_URL=http://192.168.1.10:11124
+  CUBE_GATEWAY=192.168.1.10:11124
+  CUBE_ARRAY3_PEERS=192.168.1.10:11124,192.168.1.12:11178
+  CUBE_IDENTITY_DIR=~/.plenumnet/identity/
+  CUBE_IDENTITY_PASSPHRASE=<encrypted>
+  EAGER_BIND=true
+  PLENUM_PROTOCOL_VERSION=3
+  PLENUM_PROTOCOL_VERSION_MIN=2
+  PLENUM_REQUIRE_SIGNATURE=true
+  PLENUM_ENABLE_DUAL_CHECKSUM=true
+  PLENUM_ENABLE_WIRE_ECC=true
+  PLENUM_ENABLE_SPONGE_SHUFFLES=true
+Node 3 — HA Replica (routes outbound through Node 1 gateway)
+═══ IDENTITY ═══════════════════════════════════════════════════════
+Address:          222.222.222.222.2        (13-trit TDNS Rep C, gateway center)
+Slot Address:     (2,2,2) Rep C
+Endpoint:         192.168.1.12:11178       (NOT a gateway — regular service slot)
+Node ID:          2                        (CUBE_NODE_ID, GF(3))
+Daemon Version:   2.4.0
+TDNS Version:     v2.5
+═══ PORTS ══════════════════════════════════════════════════════════
+Cube Range:       11165–11191              (27 slots, BASE_PORT + 2 × 27)
+(2,2,2) Port:     11178                    (offset +13 within node range — NOT a gateway)
+Outbound Route:   → 192.168.1.10:11124    (all outbound funnels through Node 1 gateway)
+EAGER_BIND:       true
+═══ SECURITY ═══════════════════════════════════════════════════════
+Wire Protocol:    V3
+Protocol Min:     V2
+TL-DSA Signature: required
+Dual Checksum:    mod-364 + mod-333
+Wire ECC:         8-trit syndrome
+Sponge Shuffles:  σ_A–σ_D enabled
+Zero-Sentinel:    active
+PoW Difficulty:   K=5
+Rate Limiting:    enabled
+Identity Dir:     ~/.plenumnet/identity/
+═══ KEY ROTATION ═══════════════════════════════════════════════════
+Key Freshness:    fresh                    (age 12/182 days)
+Arc Epoch:        182 days
+Rotation Period:  14 days
+Current Radian:   0
+Freshness Zones:  fresh (0–60), active (61–121), aging (122–182)
+Capability TTL:   1,800s
+═══ CLUSTER ROLE ═══════════════════════════════════════════════════
+Role:             HA Replica               (NOT a gateway — routes outbound through Node 1)
+                                           CRS failover candidate if Node 1 dies
+Registered:       yes
+Relay:            yes
+Connection:       direct (2 peers)
+═══ SLOT INVENTORY (4/27 occupied) ═════════════════════════════════
+  (1,1,1) :11165  Data/Primary/1     — —                       [empty]
+  (1,1,2) :11166  Data/Primary/2     — —                       [empty]
+  (1,1,3) :11167  Data/Primary/3     — Print Services (rep)    [occupied] + bridge :631  ← HA
+  (1,2,1) :11168  Data/Secondary/1   — Backup Agent (replica)  [occupied]  ← HA
+  (1,2,2) :11169  Data/Secondary/2   — —                       [empty]
+  (1,2,3) :11170  Data/Secondary/3   — —                       [empty]
+  (1,3,1) :11171  Data/Tertiary/1    — —                       [empty]
+  (1,3,2) :11172  Data/Tertiary/2    — —                       [empty]
+  (1,3,3) :11173  Data/Tertiary/3    — —                       [empty]
+  (2,1,1) :11174  Ctrl/Primary/1     — —                       [empty]
+  (2,1,2) :11175  Ctrl/Primary/2     — —                       [empty]
+  (2,1,3) :11176  Ctrl/Primary/3     — NPS/RADIUS (replica)    [occupied] + bridge :1812  ← HA
+  (2,2,1) :11177  Ctrl/Secondary/1   — —                       [empty]
+  (2,2,2) :11178  Ctrl/Secondary/2   — Regular service slot    [occupied]  (NOT a gateway)
+  (2,2,3) :11179  Ctrl/Secondary/3   — —                       [empty]
+  (2,3,1) :11180  Ctrl/Tertiary/1    — —                       [empty]
+  (2,3,2) :11181  Ctrl/Tertiary/2    — —                       [empty]
+  (2,3,3) :11182  Ctrl/Tertiary/3    — —                       [empty]
+  (3,1,1) :11183  Mgmt/Primary/1     — —                       [empty]
+  (3,1,2) :11184  Mgmt/Primary/2     — Audit Service (replica) [occupied]  ← HA
+  (3,1,3) :11185  Mgmt/Primary/3     — —                       [empty]
+  (3,2,1) :11186  Mgmt/Secondary/1   — —                       [empty]
+  (3,2,2) :11187  Mgmt/Secondary/2   — —                       [empty]
+  (3,2,3) :11188  Mgmt/Secondary/3   — —                       [empty]
+  (3,3,1) :11189  Mgmt/Tertiary/1    — —                       [empty]
+  (3,3,2) :11190  Mgmt/Tertiary/2    — —                       [empty]
+  (3,3,3) :11191  Mgmt/Tertiary/3    — —                       [empty]
+═══ BRIDGE PORTS ═══════════════════════════════════════════════════
+  :631  IPP      → slot (1,1,3) :11167
+  :1812 RADIUS   → slot (2,1,3) :11176
+═══ ENV VARS ═══════════════════════════════════════════════════════
+  CUBE_NODE_ID=2
+  CUBE_MODE=cube
+  CUBE_CRS_URL=http://192.168.1.10:11124
+  CUBE_GATEWAY=192.168.1.10:11124
+  CUBE_ARRAY3_PEERS=192.168.1.10:11124,192.168.1.11:11151
+  CUBE_IDENTITY_DIR=~/.plenumnet/identity/
+  CUBE_IDENTITY_PASSPHRASE=<encrypted>
+  EAGER_BIND=true
+  PLENUM_PROTOCOL_VERSION=3
+  PLENUM_PROTOCOL_VERSION_MIN=2
+  PLENUM_REQUIRE_SIGNATURE=true
+  PLENUM_ENABLE_DUAL_CHECKSUM=true
+  PLENUM_ENABLE_WIRE_ECC=true
+  PLENUM_ENABLE_SPONGE_SHUFFLES=true
+Cluster Summary
+═══ ARRAY3 CLUSTER: PLM-OFFICE-001 ════════════════════════════════
+Nodes:            3/3 up
+Total Slots:      25/81 occupied (14 + 7 + 4)
+HA Coverage:      AD ✓  DNS ✓  DHCP ✓  SMB ✓  PlenumDB ✓  IPP ✓  RADIUS ✓  Backup ✓  Audit ✓
+Single Points:    CA, VPN, WSUS, Dashboard API (Node 1 only)
+Port Structure:
+  Node 1:          11111–11137  (27 slots, gateway at :11124)
+  Node 2:          11138–11164  (27 slots, routes outbound → Node 1 :11124)
+  Node 3:          11165–11191  (27 slots, routes outbound → Node 1 :11124)
+  Bridge shims:    53/67/445/631/1812  (only where classification matches)
+Firewall:         ONE port open — 11124 on Node 1's IP
+                  All 81 service ports are LAN-only
+                  Gateway multiplexes outbound through :11124 via TLS
+Security Stack (per node — IDENTICAL on all 3 machines):
+  Wire:            V3 (V2 dual-acceptance)
+  Signatures:      TL-DSA required on CRS registration
+  Checksums:       mod-364 + mod-333 dual
+  ECC:             8-trit syndrome on wire addresses
+  Sponge:          σ_A–σ_D shuffles enabled
+  Sentinel:        is_valid_rep_c() at every trust boundary — zero = forgery
+  PoW:             K=5 leading zero trits (TIS-27)
+  Rate Limit:      per-IP caps on registration
+  Key Storage:     master.key encrypted at rest
+  Rotation:        14-day radian period, 182-day arc, 3FA for force-rotate
+  Capability TTL:  1,800s (30 min max)
+  HD Routing:      HD 0 = loopback, HD 1 = direct, HD 2 = capability, HD 3 = full auth
+Failover:
+  Node 1 dies → CRS promotes Node 2, gateway role migrates
+  Same-slot replicas on different nodes = automatic HA
+  Bridge ports follow: :445 on Node 2 takes over SMB traffic
+Hamming Distance Routing
+HD	Count	Meaning
+0	1	Same slot — loopback
+1	6	Adjacent — direct call, same domain
+2	12	Crosses boundaries — requires capability token
+3	8	Corners — full mutual auth
+The gateway at (1,1,1) has HD ≤ 2 from every slot in the cube.
+
+27→3 Projection (§9)
+The projection is source-agnostic per spec §9.3 — takes 27 trits from ANY source (internet TDNS, LAN entity scan, manual entry, future methods) and returns 3 trits.
+
+27 dimensions partition into three groups of 9 (27 = 3² + 3² + 3²). Each group determines one port trit via project_to_gf3(k, 9) with polarity-adjusted dimensions.
+
+For each port trit: take 9 dimensions, apply polarity (invert if −), count k = polarity-adjusted dimensions with value 3, apply project_to_gf3(k, 9) = min(floor(k/3), 2) + 1.
+
+Polarity tables:
+
+Plane group (security domain): D1, D2(−), D3, D9(−), D10, D17, D19, D25, D26
+Role group (functional class): D5, D6, D7, D8, D12, D18, D22(−), D23, D24(−)
+Instance group (temporal/scale): D4, D11, D13, D14, D15, D16, D20, D21, D27
+Dimensions marked (−) are polarity-inverted before aggregation: if value is 1→3, if 3→1, if 2→2. Polarity is a structural property of the schema, not a tuning parameter.
+
+D19 (PolicyPresence) in Plane: compliance posture is a security domain property. D8 (Intelligence) in Role: what kind of processing. D20 (CostModel) in Instance with + polarity: subscription implies higher availability. D27 (Confidence) in Instance to balance 9/9/9 partition.
+
+Legacy Bridge Derivation (§8)
+pub fn derive_legacy_bridge(classification: &[Trit; 27]) -> Option<LegacyBridge> {
+    // Array indices are 0-based; dimension numbers are 1-based (D5 = index 4)
+    match (classification[4], classification[5], classification[11], classification[14]) {
+        (Trit(3), Trit(1), Trit(3), Trit(2)) => Some(LegacyBridge::Dns(53)),
+        (Trit(3), Trit(1), Trit(3), Trit(1)) => Some(LegacyBridge::Dhcp(67)),
+        (Trit(2), Trit(1), Trit(1), Trit(2)) => Some(LegacyBridge::Smb(445)),
+        (Trit(2), Trit(2), Trit(1), _)       => Some(LegacyBridge::Ipp(631)),
+        (Trit(3), Trit(1), Trit(3), Trit(3)) => Some(LegacyBridge::Radius(1812)),
+        _                                     => None,
+    }
+}
+Bridge dimensions: D5 = Device role (1=endpoint, 2=server, 3=infrastructure), D6 = Content type (1=docs, 2=media, 3=stream), D12 = Transport (1=file/print, 2=streaming, 3=control/mgmt), D15 = Data freshness (1=static, 2=periodic, 3=live).
+
+Each service gets BOTH a native slot port (111xx) AND a legacy bridge port (53/67/445/631/1812) if its classification matches.
+
+Key Freshness Zones
+Freshness at ternary 1/3 and 2/3 thresholds within the cryptographic arc (182):
+
+Fresh (age 0–60): key is in first third. Suitable for all operations.
+Active (age 61–121): key is in second third. Required for regulated/sensitive operations. Boundary at 121 = 11² resonates with base port digit string 11111₃ = 121.
+Aging (age 122–182): key is in final third. Restricted to read-only. Rotation imminent.
+Zero-Sentinel Pre-Filter
+At every trust boundary (multiplexing header, caller identity, capability token fields, routing messages, redirect entries): if ANY trit in a Rep C address is 0, reject immediately before any cryptographic operation. Rep C values are {1, 2, 3} — zero is structurally impossible and its presence is proof of forgery.
+
+Array3 Formation Protocol
+Node boots with CUBE_NODE_ID=N (env var, default 0) and CUBE_ARRAY3_PEERS=ip1:port,ip2:port
+Node binds its 27-port range: BASE_PORT + (N × 27) through BASE_PORT + (N × 27) + 26
+Node 0 (CUBE_NODE_ID=0) is always the cluster gateway — its (2,2,2) slot at port 11124 is the single outbound security chokepoint that punches through the firewall
+Nodes 1 and 2 route all outbound traffic through Node 0's gateway at :11124 — their (2,2,2) slots are regular service slots, NOT gateways
+Node connects to each peer via existing CUBE_PEER_PORT infrastructure
+First handshake includes: node_id, wire protocol version, port range, slot inventory, daemon version, gateway_address (Node 0 advertises itself as gateway)
+Peer validates: no node_id collision (reject duplicate), wire protocol compatible (V3 accepts V2 during dual-acceptance), port ranges don't overlap
+On success: peer mesh formed, slot-to-node routing populated, outbound routing through Node 0 gateway confirmed, failover candidates identified
+Single node = CUBE_NODE_ID=0, no peers, ports 11111–11137, gateway at :11124. Adding a second node later requires no reconfiguration of node 0 — new nodes auto-discover the gateway.
+
+Firewall posture: One port open on one IP. All 81 internal service ports are LAN-only. The gateway multiplexes outbound through :11124 via TLS. This is by design — a clean single-hole firewall punch.
+
+Slot-to-Node Routing
+The 3-trit slot address (plane, role, instance) maps to offset 0–26 within EACH node's 27-slot range. The CRS tracks slot→node ownership. Two services with identical classifications on different nodes occupy the "same slot" on different nodes — this IS the HA replica mechanism. The CRS routes to the primary; on failure, traffic fails over to the replica.
+
+Entity Scan Templates (Technical Manifest §7)
+Two registration flows, same output:
+
+Service endpoints (HTTP-accessible): standard TDNS scanner runs against .plm.local URL, auto-derives all 27 trits
+Hardware entities: LAN scan template pre-fills deterministic dimensions, probes variable dimensions via MAC OUI, LLDP, SNMP, port scan, protocol fingerprint
+6 templates per §7.8:
+
+Template	Pre-filled	Variable	Typical Questions
+Workstation	D1=1, D2=1, D3=3, D5=1, D7=1, D24=3	D4, D8, D9, D13, D19, D25 + others	~12
+Server	D2=3, D3=3, D5=2, D14=3, D24=1	D4, D7, D8, D11, D16, D17, D25 + others	~14
+Network Infrastructure	D1=3, D3=3, D5=3, D14=3, D16=3, D24=1	D9, D11, D12, D13, D25 + limited	~8
+Printer / Device	D1=2, D3=3, D5=2, D7=1, D8=1, D17=1, D24=1	D9, D12, D13, D20, D25 + limited	~9
+IoT / Sensor	D1=2, D3=3, D5=2, D7=2, D8=2, D17=1	D6, D9, D12, D15, D16, D20, D25 + limited	~10
+Service Endpoint	D3=3, D27=3	All via standard TDNS HTTP scan	Automatic
+Wire Protocol V3 and Versioning
+Wire Protocol	Features	Platform Version
+V1	Legacy — no signatures, no auth heartbeats, no ECC	≤ 2.2.x
+V2	Hardened — signed CRS, auth heartbeats, mutual tunnel auth, dual checksum, ECC	2.3.x
+V3	Service Cube — slot addressing, zero-sentinel enforcement, 13-capability registration, key birth epochs in capability tokens, Array3 formation handshake	2.4.x
+V3 nodes accept V2 peers during dual-acceptance. V2 CRS registrations without slot addresses are assigned slots on first heartbeat.
+
+Version constants: WIRE_PROTOCOL_VERSION = 0x03, DAEMON_VERSION = "2.4.0", TDNS_VERSION = "v2.5".
+
+Daemon reports version via: health endpoint JSON, startup banner, CRS self-registration metadata.
+
+Done looks like
+project_to_slot takes any 27-trit classification (source-agnostic) and returns Rep C 3-trit address {1,2,3} — zero never appears
+Polarity tables for all 27 dimensions with inversions, validated against derive.rs semantics (D8=Intelligence, D19=PolicyPresence, D20=CostModel)
+All 12 Windows Server role classifications produce correct plane assignments (Outer→data, Void→control, Inner→management)
+Rust in plenumlan/src/cube/projection.rs and TypeScript in shared/service-projection.ts produce byte-identical output for 100+ test vectors
+Port formula verified against full spec port table — all 27 single-node ports and all 81 Array3 ports
+Every node boots with CUBE_NODE_ID, computes its 27-port range; Node 0 is the cluster gateway (single outbound chokepoint at :11124), Nodes 1–2 route outbound through it
+Array3 formation: handshake with node_id + port range + slot inventory + wire version, reject duplicate IDs
+register_service() — 27 trits in, ServiceSlot out with Rep C address, port, identity, capabilities, bridge, audit, discovery, tunnel, shell
+Zero-sentinel pre-filter at every trust boundary — zero in any Rep C trit = immediate reject
+derive_legacy_bridge() matches D5/D6/D12/D15 → auto-opens 53/67/445/631/1812
+LAN scan templates for 6 entity classes per §7.8, entity class detection selects correct template
+Inter-service calls route by Hamming distance — HD 0 loopback, HD 1 direct, HD 2 capability token, HD 3 full mutual auth
+EAGER_BIND env flag: bind-all-at-startup (production) vs bind-on-register (Replit)
+All deployment constants derived from DIMENSIONS = 13 with const_assert! compile-time verification of all 5 equations
+Key freshness at 1/3 and 2/3 boundaries (0–60 fresh, 61–121 active, 122–182 aging), boundary at 121 = 11²
+Wire protocol V3 with dual-acceptance, version matrix documented, daemon version reporting via health/banner/CRS
+Failover test: kill a node, Array3 promotes replica
+Out of scope
+Gateway multiplexer (the TLS multiplexing logic at the single cluster gateway :11124 that funnels all 81 slots through one firewall hole) and 9-factor authentication shell (Task #36)
+TDNS-L ↔ TDNS promotion and address lifecycle (Task #37)
+WAN P2P tunnel engine (Task #38)
+Application compatibility subsystem (Task #39)
+Dashboard cube visualization (Task #40)
+Tasks
+New code (does not exist yet)
+Create plenumlan/ crate with Cargo.toml, importing ternary-math and tdns-v2 as workspace dependencies
+Add NEW Service Cube constants (SLOTS_PER_NODE, CLUSTER_SLOTS, SHELL_FACTORS, GATEWAY_OFFSET, ARC_EPOCH, ADMIN_EPOCH, EVIDENCE_ARC, REDIRECT_DEPTH, TRANSITION_GAP, CHECKPOINTS, BASE_PORT) — importing DIMENSIONS from ternary-math, with const_assert! cross-validation of all 5 equations
+Implement 27→3 agnostic slot projection: polarity tables (3 groups × 9 dims with inversions per §9), project_to_slot calling existing project_to_gf3(k, 9) from derive.rs, polarity inversion (1↔3, 2→2) — this is the NEW aggregation layer that does not exist yet
+Implement TypeScript mirror in shared/service-projection.ts — byte-identical to Rust projection
+Build Windows Server classification matrix for all 12 core SMB roles, validate plane assignments
+Cross-language test suite: 100+ vectors, Rust and TypeScript produce identical 3-trit output
+Implement port formula: BASE_PORT + (node × 27) + (plane × 9) + (role × 3) + instance — validate against full 27-row port table (§3.4) and 81-port Array3 ranges (§3.5)
+Implement CUBE_NODE_ID env var (default 0), CUBE_ARRAY3_PEERS for peer discovery, and single-gateway routing — Node 0 is always the cluster gateway at :11124, Nodes 1–2 route all outbound through it; one firewall hole, clean punch
+Implement derive_legacy_bridge() — exact match table for D5/D6/D12/D15 → ports 53/67/445/631/1812 (reference code in §8 above)
+Implement LAN entity scan templates per Technical Manifest §7 — 6 templates with pre-filled + variable dimensions, auto-probe (MAC OUI, LLDP, SNMP, port scan)
+Implement entity class detection: HTTP endpoints → existing TDNS scanner, hardware → template-driven scan
+Implement EAGER_BIND env flag: bind-all-at-startup (production) vs bind-on-register (Replit)
+Extensions to existing code (modify, don't replace)
+Extend Array3 formation into existing CUBE_PEER_PORT infrastructure in main.rs — handshake adds node_id + port range + slot inventory + wire version + gateway_address (Node 0 advertises itself as the cluster-singular gateway), reject duplicate node IDs, Nodes 1–2 confirm outbound routing through Node 0's gateway
+Extend register_service() in existing CRS (crs.rs) per §5.1 — 27 trits in, ServiceSlot out with slot address, port, identity, all 13 capabilities
+Add slot-to-node routing to existing CRS — resolve any 3-trit slot address to owning node + TCP port
+Wire existing is_valid_rep_c() from plenum_checksum.rs as zero-sentinel pre-filter at new trust boundaries (multiplexing header, capability tokens, routing messages)
+Extend existing key rotation in key_rotation.rs with freshness zones using existing REPUNIT_R5 = 121: fresh (0–60), active (61–121), aging (122–182)
+Build inter-service call API using existing hamming_distance() from placement.rs — HD 0 loopback, HD 1 direct, HD 2 capability token, HD 3 full mutual auth
+Add wire protocol V3 to existing wire.rs + config.rs — slot addressing, 13-capability registration, key birth epochs in capability tokens, V3 accepts V2 during dual-acceptance
+Add version constants to existing shared/constants.ts: WIRE_PROTOCOL_VERSION = 0x03, DAEMON_VERSION = "2.4.0", TDNS_VERSION = "v2.5"
+Add daemon version reporting: /health JSON, startup banner, CRS self-registration metadata
+Relevant files
+ternary-math/src/cube_addr.rs:17-56
+ternary-math/src/gf3_algebra.rs:79-81
+ternary-math/src/pt26_dsa.rs:61
+ternary-math/src/plenum_checksum.rs:96
+ternary-math/src/repunit_circles.rs:25-29
+ternary-math/src/ttc.rs:415-422
+libternary/src/borromean.rs:151
+libternary/src/tribonacci.rs:312
+services/tdns-v2/src/derive.rs:42-46,90-574
+services/tdns-v2/src/scanner.rs
+services/tdns-v2/src/schema.rs
+services/tdns-v2/src/identity.rs:114
+services/tdns-v2/src/routing.rs:9-30
+services/inter-cube/src/identity.rs:88-104
+services/inter-cube/src/key_rotation.rs:87-109
+services/inter-cube/src/main.rs:7-35,54-74,100-105,148-278,375-496,1466
+services/inter-cube/src/crs.rs
+services/inter-cube/src/placement.rs:225-229
+services/inter-cube/src/sampling.rs:52
+services/inter-cube/src/config.rs:118-146
+services/inter-cube/src/wire.rs:48-188
+services/inter-cube/src/tunnel_auth.rs:53-55
+src/kernel/src/crypto/address_sentinel.rs
+src/kernel/src/crypto/metatronic_cube.rs:656
+src/kernel/src/device/mod.rs:67
+src/kernel/src/device/registry.rs
+shared/constants.ts:10-50,80
+shared/repunit-circles.ts:87-91,161-169
+attached_assets/Pasted--PlenumLAN-Technical-Manifest-One-Language-One-Binary-F_1773844540809.txt:114-152,554-657
+attached_assets/Pasted--Task-33-The-PlenumNET-Service-Cube-3-Agnostic-Applicat_1774386064313.txt:63-152,393-447,722-747
+attached_assets/Pasted--Task-33-Sub-Task-Breakdown-v2-33-1-33-2-33-3-33-4-33-3_1774386071333.txt

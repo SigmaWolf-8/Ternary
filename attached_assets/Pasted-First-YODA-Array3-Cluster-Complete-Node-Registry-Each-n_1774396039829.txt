@@ -1,0 +1,292 @@
+First YODA Array3 Cluster — Complete Node Registry
+Each node is an independent machine running one YODA daemon. Every node gets the same port structure on its own IP. The Service Cube ports ARE the endpoints.
+
+Node #1 — CRS Primary
+DESKTOP-PLM001 — Node #1
+5s ago
+live
+up
+═══ IDENTITY ═══════════════════════════════════════════════════════
+Address:          222.222.222.222.2        (13-trit TDNS Rep C, gateway center)
+Slot Address:     (2,2,2) Rep C            (GF(3) center = offset +13 = T₇ = DIMENSIONS)
+Endpoint:         192.168.1.10:11124       (gateway port)
+Node ID:          0                        (CUBE_NODE_ID, GF(3))
+Hostname:         DESKTOP-PLM001
+Daemon Version:   2.4.0
+TDNS Version:     v2.5
+═══ PORTS ══════════════════════════════════════════════════════════
+Cube Range:       11111–11137              (27 slots, BASE_PORT + 0 × 27)
+Gateway:          11124                    (offset +13 = GATEWAY_OFFSET = DIMENSIONS)
+                                           Multiplexes all 27 slots through port 443 (TLS)
+EAGER_BIND:       true                     (all 27 ports bound at startup)
+═══ SECURITY ═══════════════════════════════════════════════════════
+Wire Protocol:    V3                       (slot addressing, zero-sentinel, key birth epochs)
+Protocol Min:     V2                       (dual-acceptance: V3 accepts V2 peers)
+TL-DSA Signature: required                 (PLENUM_REQUIRE_SIGNATURE=true)
+Dual Checksum:    mod-364 + mod-333        (PLENUM_ENABLE_DUAL_CHECKSUM=true)
+Wire ECC:         8-trit syndrome          (PLENUM_ENABLE_WIRE_ECC=true)
+Sponge Shuffles:  σ_A–σ_D enabled         (PLENUM_ENABLE_SPONGE_SHUFFLES=true)
+Zero-Sentinel:    active                   (is_valid_rep_c() at every trust boundary)
+PoW Difficulty:   K=5                      (leading zero trits in TIS-27 for registration)
+Rate Limiting:    enabled                  (per-IP caps on CRS registration)
+Identity Dir:     ~/.plenumnet/identity/   (master.key encrypted at rest)
+═══ KEY ROTATION ═══════════════════════════════════════════════════
+Key Freshness:    fresh                    (age 12/182 days, in first 1/3)
+Arc Epoch:        182 days                 (ARC_EPOCH = 13 × π = 20202₃ palindrome)
+Rotation Period:  14 days                  (ARC_EPOCH / RADIAN_DEG = 182 / 13)
+Current Radian:   0                        (of 13 total per arc)
+Freshness Zones:  fresh (0–60), active (61–121), aging (122–182)
+Freshness Bound:  121 = 11² = R₅ = 11111₃ (resonates with BASE_PORT)
+Capability TTL:   1,800s                   (30 min, force-rotation requires 3FA token)
+Dual Accept:      active                   (old + new keys accepted during rotation window)
+═══ CLUSTER ROLE ═══════════════════════════════════════════════════
+Role:             CRS + Gateway            (Central Registration Service primary)
+Registered:       yes
+Relay:            yes                      (WebSocket to plenumnet.replit.app)
+Connection:       direct (2 peers)         (LAN peer to Node #2, #3 via peer discovery)
+═══ SLOT INVENTORY (14/27 occupied) ════════════════════════════════
+  (1,1,1) :11111  Data/Primary/1     — PlenumDB               [occupied]
+  (1,1,2) :11112  Data/Primary/2     — File Services           [occupied] + bridge :445 (SMB)
+  (1,1,3) :11113  Data/Primary/3     — Print Services          [occupied] + bridge :631 (IPP)
+  (1,2,1) :11114  Data/Secondary/1   — Backup Agent            [occupied]
+  (1,2,2) :11115  Data/Secondary/2   — —                       [empty]
+  (1,2,3) :11116  Data/Secondary/3   — —                       [empty]
+  (1,3,1) :11117  Data/Tertiary/1    — —                       [empty]
+  (1,3,2) :11118  Data/Tertiary/2    — —                       [empty]
+  (1,3,3) :11119  Data/Tertiary/3    — —                       [empty]
+  (2,1,1) :11120  Ctrl/Primary/1     — DNS                     [occupied] + bridge :53
+  (2,1,2) :11121  Ctrl/Primary/2     — DHCP                    [occupied] + bridge :67
+  (2,1,3) :11122  Ctrl/Primary/3     — NPS/RADIUS              [occupied] + bridge :1812
+  (2,2,1) :11123  Ctrl/Secondary/1   — Certificate Authority   [occupied]
+  (2,2,2) :11124  ⬣ GATEWAY CENTER  — 9-Factor Shell + Pivot  [occupied]  HD ≤ 2 from ALL slots
+  (2,2,3) :11125  Ctrl/Secondary/3   — VPN Gateway             [occupied]
+  (2,3,1) :11126  Ctrl/Tertiary/1    — —                       [empty]
+  (2,3,2) :11127  Ctrl/Tertiary/2    — —                       [empty]
+  (2,3,3) :11128  Ctrl/Tertiary/3    — —                       [empty]
+  (3,1,1) :11129  Mgmt/Primary/1     — Active Directory        [occupied]
+  (3,1,2) :11130  Mgmt/Primary/2     — Audit Service           [occupied]
+  (3,1,3) :11131  Mgmt/Primary/3     — WSUS/Patching           [occupied]
+  (3,2,1) :11132  Mgmt/Secondary/1   — Dashboard API           [occupied]
+  (3,2,2) :11133  Mgmt/Secondary/2   — —                       [empty]
+  (3,2,3) :11134  Mgmt/Secondary/3   — —                       [empty]
+  (3,3,1) :11135  Mgmt/Tertiary/1    — —                       [empty]
+  (3,3,2) :11136  Mgmt/Tertiary/2    — —                       [empty]
+  (3,3,3) :11137  Mgmt/Tertiary/3    — —                       [empty]
+═══ BRIDGE PORTS ═══════════════════════════════════════════════════
+  :53   DNS      (D5=3, D6=1, D12=3, D15=2)  → slot (2,1,1) :11120
+  :67   DHCP     (D5=3, D6=1, D12=3, D15=1)  → slot (2,1,2) :11121
+  :445  SMB      (D5=2, D6=1, D12=1, D15=2)  → slot (1,1,2) :11112
+  :631  IPP      (D5=2, D6=2, D12=1, D15=_)  → slot (1,1,3) :11113
+  :1812 RADIUS   (D5=3, D6=1, D12=3, D15=3)  → slot (2,1,3) :11122
+═══ HAMMING DISTANCE ROUTING ═══════════════════════════════════════
+  HD 0 (1 slot):   loopback — no auth needed
+  HD 1 (6 slots):  direct call — same security domain
+  HD 2 (12 slots): capability token required — crosses boundary
+  HD 3 (8 slots):  full mutual TL-DSA auth — corner-to-corner
+═══ ENV VARS ═══════════════════════════════════════════════════════
+  CUBE_NODE_ID=0
+  CUBE_MODE=crs
+  CUBE_ARRAY3_PEERS=192.168.1.11:11151,192.168.1.12:11178
+  CUBE_IDENTITY_DIR=~/.plenumnet/identity/
+  CUBE_IDENTITY_PASSPHRASE=<encrypted>
+  EAGER_BIND=true
+  PLENUM_PROTOCOL_VERSION=3
+  PLENUM_PROTOCOL_VERSION_MIN=2
+  PLENUM_REQUIRE_SIGNATURE=true
+  PLENUM_ENABLE_DUAL_CHECKSUM=true
+  PLENUM_ENABLE_WIRE_ECC=true
+  PLENUM_ENABLE_SPONGE_SHUFFLES=true
+Node #2 — HA Replica
+LAPTOP-PLM002 — Node #2
+8s ago
+live
+up
+═══ IDENTITY ═══════════════════════════════════════════════════════
+Address:          222.222.222.222.2        (13-trit TDNS Rep C, gateway center)
+Slot Address:     (2,2,2) Rep C
+Endpoint:         192.168.1.11:11151       (gateway port)
+Node ID:          1
+Hostname:         LAPTOP-PLM002
+Daemon Version:   2.4.0
+TDNS Version:     v2.5
+═══ PORTS ══════════════════════════════════════════════════════════
+Cube Range:       11138–11164              (27 slots, BASE_PORT + 1 × 27)
+Gateway:          11151                    (offset +13 within node range)
+EAGER_BIND:       true
+═══ SECURITY ═══════════════════════════════════════════════════════
+Wire Protocol:    V3
+Protocol Min:     V2                       (dual-acceptance)
+TL-DSA Signature: required
+Dual Checksum:    mod-364 + mod-333
+Wire ECC:         8-trit syndrome
+Sponge Shuffles:  σ_A–σ_D enabled
+Zero-Sentinel:    active
+PoW Difficulty:   K=5
+Rate Limiting:    enabled
+Identity Dir:     ~/.plenumnet/identity/
+═══ KEY ROTATION ═══════════════════════════════════════════════════
+Key Freshness:    fresh                    (age 12/182 days)
+Rotation Period:  14 days
+Current Radian:   0
+Capability TTL:   1,800s
+═══ CLUSTER ROLE ═══════════════════════════════════════════════════
+Role:             Gateway                  (HA replica, CRS failover candidate)
+Registered:       yes
+Relay:            yes
+Connection:       direct (2 peers)
+═══ SLOT INVENTORY (7/27 occupied) ═════════════════════════════════
+  (1,1,1) :11138  Data/Primary/1     — PlenumDB (replica)     [occupied]  ← HA of Node #1
+  (1,1,2) :11139  Data/Primary/2     — File Services (replica) [occupied] + bridge :445  ← HA
+  (1,1,3) :11140  Data/Primary/3     — —                       [empty]
+  (1,2,1) :11141  Data/Secondary/1   — —                       [empty]
+  (1,2,2) :11142  Data/Secondary/2   — —                       [empty]
+  (1,2,3) :11143  Data/Secondary/3   — —                       [empty]
+  (1,3,1) :11144  Data/Tertiary/1    — —                       [empty]
+  (1,3,2) :11145  Data/Tertiary/2    — —                       [empty]
+  (1,3,3) :11146  Data/Tertiary/3    — —                       [empty]
+  (2,1,1) :11147  Ctrl/Primary/1     — DNS (replica)           [occupied] + bridge :53  ← HA
+  (2,1,2) :11148  Ctrl/Primary/2     — DHCP (replica)          [occupied] + bridge :67  ← HA
+  (2,1,3) :11149  Ctrl/Primary/3     — —                       [empty]
+  (2,2,1) :11150  Ctrl/Secondary/1   — —                       [empty]
+  (2,2,2) :11151  ⬣ GATEWAY CENTER  — 9-Factor Shell + Pivot  [occupied]
+  (2,2,3) :11152  Ctrl/Secondary/3   — —                       [empty]
+  (2,3,1) :11153  Ctrl/Tertiary/1    — —                       [empty]
+  (2,3,2) :11154  Ctrl/Tertiary/2    — —                       [empty]
+  (2,3,3) :11155  Ctrl/Tertiary/3    — —                       [empty]
+  (3,1,1) :11156  Mgmt/Primary/1     — Active Directory (rep)  [occupied]  ← HA
+  (3,1,2) :11157  Mgmt/Primary/2     — —                       [empty]
+  (3,1,3) :11158  Mgmt/Primary/3     — —                       [empty]
+  (3,2,1) :11159  Mgmt/Secondary/1   — —                       [empty]
+  (3,2,2) :11160  Mgmt/Secondary/2   — —                       [empty]
+  (3,2,3) :11161  Mgmt/Secondary/3   — —                       [empty]
+  (3,3,1) :11162  Mgmt/Tertiary/1    — —                       [empty]
+  (3,3,2) :11163  Mgmt/Tertiary/2    — —                       [empty]
+  (3,3,3) :11164  Mgmt/Tertiary/3    — —                       [empty]
+═══ BRIDGE PORTS ═══════════════════════════════════════════════════
+  :53   DNS      → slot (2,1,1) :11147
+  :67   DHCP     → slot (2,1,2) :11148
+  :445  SMB      → slot (1,1,2) :11139
+═══ ENV VARS ═══════════════════════════════════════════════════════
+  CUBE_NODE_ID=1
+  CUBE_MODE=cube
+  CUBE_CRS_URL=http://192.168.1.10:11124
+  CUBE_ARRAY3_PEERS=192.168.1.10:11124,192.168.1.12:11178
+  EAGER_BIND=true
+  PLENUM_PROTOCOL_VERSION=3
+  PLENUM_PROTOCOL_VERSION_MIN=2
+  PLENUM_REQUIRE_SIGNATURE=true
+  PLENUM_ENABLE_DUAL_CHECKSUM=true
+  PLENUM_ENABLE_WIRE_ECC=true
+  PLENUM_ENABLE_SPONGE_SHUFFLES=true
+Node #3 — HA Replica
+MINI-SRV003 — Node #3
+3s ago
+live
+up
+═══ IDENTITY ═══════════════════════════════════════════════════════
+Address:          222.222.222.222.2        (13-trit TDNS Rep C, gateway center)
+Slot Address:     (2,2,2) Rep C
+Endpoint:         192.168.1.12:11178       (gateway port)
+Node ID:          2
+Hostname:         MINI-SRV003
+Daemon Version:   2.4.0
+TDNS Version:     v2.5
+═══ PORTS ══════════════════════════════════════════════════════════
+Cube Range:       11165–11191              (27 slots, BASE_PORT + 2 × 27)
+Gateway:          11178                    (offset +13 within node range)
+EAGER_BIND:       true
+═══ SECURITY ═══════════════════════════════════════════════════════
+Wire Protocol:    V3
+Protocol Min:     V2
+TL-DSA Signature: required
+Dual Checksum:    mod-364 + mod-333
+Wire ECC:         8-trit syndrome
+Sponge Shuffles:  σ_A–σ_D enabled
+Zero-Sentinel:    active
+PoW Difficulty:   K=5
+Rate Limiting:    enabled
+Identity Dir:     ~/.plenumnet/identity/
+═══ KEY ROTATION ═══════════════════════════════════════════════════
+Key Freshness:    fresh                    (age 12/182 days)
+Rotation Period:  14 days
+Current Radian:   0
+Capability TTL:   1,800s
+═══ CLUSTER ROLE ═══════════════════════════════════════════════════
+Role:             Gateway                  (HA replica, CRS failover candidate)
+Registered:       yes
+Relay:            yes
+Connection:       direct (2 peers)
+═══ SLOT INVENTORY (4/27 occupied) ═════════════════════════════════
+  (1,1,1) :11165  Data/Primary/1     — —                       [empty]
+  (1,1,2) :11166  Data/Primary/2     — —                       [empty]
+  (1,1,3) :11167  Data/Primary/3     — Print Services (rep)    [occupied] + bridge :631  ← HA
+  (1,2,1) :11168  Data/Secondary/1   — Backup Agent (replica)  [occupied]  ← HA
+  (1,2,2) :11169  Data/Secondary/2   — —                       [empty]
+  (1,2,3) :11170  Data/Secondary/3   — —                       [empty]
+  (1,3,1) :11171  Data/Tertiary/1    — —                       [empty]
+  (1,3,2) :11172  Data/Tertiary/2    — —                       [empty]
+  (1,3,3) :11173  Data/Tertiary/3    — —                       [empty]
+  (2,1,1) :11174  Ctrl/Primary/1     — —                       [empty]
+  (2,1,2) :11175  Ctrl/Primary/2     — —                       [empty]
+  (2,1,3) :11176  Ctrl/Primary/3     — NPS/RADIUS (replica)    [occupied] + bridge :1812  ← HA
+  (2,2,1) :11177  Ctrl/Secondary/1   — —                       [empty]
+  (2,2,2) :11178  ⬣ GATEWAY CENTER  — 9-Factor Shell + Pivot  [occupied]
+  (2,2,3) :11179  Ctrl/Secondary/3   — —                       [empty]
+  (2,3,1) :11180  Ctrl/Tertiary/1    — —                       [empty]
+  (2,3,2) :11181  Ctrl/Tertiary/2    — —                       [empty]
+  (2,3,3) :11182  Ctrl/Tertiary/3    — —                       [empty]
+  (3,1,1) :11183  Mgmt/Primary/1     — —                       [empty]
+  (3,1,2) :11184  Mgmt/Primary/2     — Audit Service (replica) [occupied]  ← HA
+  (3,1,3) :11185  Mgmt/Primary/3     — —                       [empty]
+  (3,2,1) :11186  Mgmt/Secondary/1   — —                       [empty]
+  (3,2,2) :11187  Mgmt/Secondary/2   — —                       [empty]
+  (3,2,3) :11188  Mgmt/Secondary/3   — —                       [empty]
+  (3,3,1) :11189  Mgmt/Tertiary/1    — —                       [empty]
+  (3,3,2) :11190  Mgmt/Tertiary/2    — —                       [empty]
+  (3,3,3) :11191  Mgmt/Tertiary/3    — —                       [empty]
+═══ BRIDGE PORTS ═══════════════════════════════════════════════════
+  :631  IPP      → slot (1,1,3) :11167
+  :1812 RADIUS   → slot (2,1,3) :11176
+═══ ENV VARS ═══════════════════════════════════════════════════════
+  CUBE_NODE_ID=2
+  CUBE_MODE=cube
+  CUBE_CRS_URL=http://192.168.1.10:11124
+  CUBE_ARRAY3_PEERS=192.168.1.10:11124,192.168.1.11:11151
+  EAGER_BIND=true
+  PLENUM_PROTOCOL_VERSION=3
+  PLENUM_PROTOCOL_VERSION_MIN=2
+  PLENUM_REQUIRE_SIGNATURE=true
+  PLENUM_ENABLE_DUAL_CHECKSUM=true
+  PLENUM_ENABLE_WIRE_ECC=true
+  PLENUM_ENABLE_SPONGE_SHUFFLES=true
+Cluster Summary
+═══ ARRAY3 CLUSTER: PLM-OFFICE-001 ════════════════════════════════
+Nodes:            3/3 up
+Total Slots:      25/81 occupied (14 + 7 + 4)
+HA Coverage:      AD ✓  DNS ✓  DHCP ✓  SMB ✓  PlenumDB ✓  IPP ✓  RADIUS ✓  Backup ✓  Audit ✓
+Single Points:    CA, VPN, WSUS, Dashboard API (Node #1 only)
+Port Structure (per node — IDENTICAL port numbers, different IPs):
+  11111+N×27       27 Service Cube slots
+  gateway at +13   Node #1 :11124, Node #2 :11151, Node #3 :11178
+  53/67/445/631/1812  Legacy bridge shims (only where classification matches)
+Security Stack (per node — IDENTICAL on all 3 machines):
+  Wire:            V3 (V2 dual-acceptance)
+  Signatures:      TL-DSA required on CRS registration
+  Checksums:       mod-364 + mod-333 dual
+  ECC:             8-trit syndrome on wire addresses
+  Sponge:          σ_A–σ_D shuffles enabled
+  Sentinel:        is_valid_rep_c() at every trust boundary — zero = forgery
+  PoW:             K=5 leading zero trits (TIS-27)
+  Rate Limit:      per-IP caps on registration
+  Key Storage:     master.key encrypted at rest
+  Rotation:        14-day radian period, 182-day arc, 3FA for force-rotate
+  Capability TTL:  1,800s (30 min max)
+  HD Routing:      HD 0 = loopback, HD 1 = direct, HD 2 = capability, HD 3 = full auth
+Gateways (all at offset +13 = DIMENSIONS = T₇):
+  Node #1  192.168.1.10:11124  (CRS primary)
+  Node #2  192.168.1.11:11151  (failover)
+  Node #3  192.168.1.12:11178  (failover)
+Failover:
+  Node #1 dies → CRS promotes Node #2 gateway (:11151)
+  Same-slot replicas on different nodes = automatic HA
+  Bridge ports follow: :445 on Node #2 takes over SMB traffic

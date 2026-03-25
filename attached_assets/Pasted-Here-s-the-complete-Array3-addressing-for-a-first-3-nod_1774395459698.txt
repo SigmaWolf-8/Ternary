@@ -1,0 +1,117 @@
+Here's the complete Array3 addressing for a first 3-node cluster:
+
+Array3 Cluster Overview
+Node 0	Node 1	Node 2
+node_id (GF3)	0	1	2
+Port Range	11111–11137	11138–11164	11165–11191
+Gateway Port	11124	11151	11178
+Gateway Rep C	(2,2,2)	(2,2,2)	(2,2,2)
+Slots	27	27	27
+Endpoint	node0.plm.local	node1.plm.local	node2.plm.local
+Env	CUBE_NODE_ID=0	CUBE_NODE_ID=1	CUBE_NODE_ID=2
+Total: 81 slots across 3 nodes, port span 11111–11191
+
+Node 0 — Slots (ports 11111–11137)
+Offset	GF(3)	Rep C	Port	Endpoint	Plane / Role / Instance
++0	0,0,0	1,1,1	11111	node0.plm.local:11111	Data / Primary / 1
++1	0,0,1	1,1,2	11112	node0.plm.local:11112	Data / Primary / 2
++2	0,0,2	1,1,3	11113	node0.plm.local:11113	Data / Primary / 3
++3	0,1,0	1,2,1	11114	node0.plm.local:11114	Data / Secondary / 1
++4	0,1,1	1,2,2	11115	node0.plm.local:11115	Data / Secondary / 2
++5	0,1,2	1,2,3	11116	node0.plm.local:11116	Data / Secondary / 3
++6	0,2,0	1,3,1	11117	node0.plm.local:11117	Data / Tertiary / 1
++7	0,2,1	1,3,2	11118	node0.plm.local:11118	Data / Tertiary / 2
++8	0,2,2	1,3,3	11119	node0.plm.local:11119	Data / Tertiary / 3
++9	1,0,0	2,1,1	11120	node0.plm.local:11120	Control / Primary / 1
++10	1,0,1	2,1,2	11121	node0.plm.local:11121	Control / Primary / 2
++11	1,0,2	2,1,3	11122	node0.plm.local:11122	Control / Primary / 3
++12	1,1,0	2,2,1	11123	node0.plm.local:11123	Control / Secondary / 1
++13	1,1,1	2,2,2	11124	node0.plm.local:11124	⬣ GATEWAY CENTER
++14	1,1,2	2,2,3	11125	node0.plm.local:11125	Control / Secondary / 3
++15	1,2,0	2,3,1	11126	node0.plm.local:11126	Control / Tertiary / 1
++16	1,2,1	2,3,2	11127	node0.plm.local:11127	Control / Tertiary / 2
++17	1,2,2	2,3,3	11128	node0.plm.local:11128	Control / Tertiary / 3
++18	2,0,0	3,1,1	11129	node0.plm.local:11129	Mgmt / Primary / 1
++19	2,0,1	3,1,2	11130	node0.plm.local:11130	Mgmt / Primary / 2
++20	2,0,2	3,1,3	11131	node0.plm.local:11131	Mgmt / Primary / 3
++21	2,1,0	3,2,1	11132	node0.plm.local:11132	Mgmt / Secondary / 1
++22	2,1,1	3,2,2	11133	node0.plm.local:11133	Mgmt / Secondary / 2
++23	2,1,2	3,2,3	11134	node0.plm.local:11134	Mgmt / Secondary / 3
++24	2,2,0	3,3,1	11135	node0.plm.local:11135	Mgmt / Tertiary / 1
++25	2,2,1	3,3,2	11136	node0.plm.local:11136	Mgmt / Tertiary / 2
++26	2,2,2	3,3,3	11137	node0.plm.local:11137	Mgmt / Tertiary / 3
+Node 1 — Slots (ports 11138–11164)
+Offset	GF(3)	Rep C	Port	Endpoint	Plane / Role / Instance
++27	0,0,0	1,1,1	11138	node1.plm.local:11138	Data / Primary / 1
++28	0,0,1	1,1,2	11139	node1.plm.local:11139	Data / Primary / 2
++29	0,0,2	1,1,3	11140	node1.plm.local:11140	Data / Primary / 3
++30	0,1,0	1,2,1	11141	node1.plm.local:11141	Data / Secondary / 1
++31	0,1,1	1,2,2	11142	node1.plm.local:11142	Data / Secondary / 2
++32	0,1,2	1,2,3	11143	node1.plm.local:11143	Data / Secondary / 3
++33	0,2,0	1,3,1	11144	node1.plm.local:11144	Data / Tertiary / 1
++34	0,2,1	1,3,2	11145	node1.plm.local:11145	Data / Tertiary / 2
++35	0,2,2	1,3,3	11146	node1.plm.local:11146	Data / Tertiary / 3
++36	1,0,0	2,1,1	11147	node1.plm.local:11147	Control / Primary / 1
++37	1,0,1	2,1,2	11148	node1.plm.local:11148	Control / Primary / 2
++38	1,0,2	2,1,3	11149	node1.plm.local:11149	Control / Primary / 3
++39	1,1,0	2,2,1	11150	node1.plm.local:11150	Control / Secondary / 1
++40	1,1,1	2,2,2	11151	node1.plm.local:11151	⬣ GATEWAY CENTER
++41	1,1,2	2,2,3	11152	node1.plm.local:11152	Control / Secondary / 3
++42	1,2,0	2,3,1	11153	node1.plm.local:11153	Control / Tertiary / 1
++43	1,2,1	2,3,2	11154	node1.plm.local:11154	Control / Tertiary / 2
++44	1,2,2	2,3,3	11155	node1.plm.local:11155	Control / Tertiary / 3
++45	2,0,0	3,1,1	11156	node1.plm.local:11156	Mgmt / Primary / 1
++46	2,0,1	3,1,2	11157	node1.plm.local:11157	Mgmt / Primary / 2
++47	2,0,2	3,1,3	11158	node1.plm.local:11158	Mgmt / Primary / 3
++48	2,1,0	3,2,1	11159	node1.plm.local:11159	Mgmt / Secondary / 1
++49	2,1,1	3,2,2	11160	node1.plm.local:11160	Mgmt / Secondary / 2
++50	2,1,2	3,2,3	11161	node1.plm.local:11161	Mgmt / Secondary / 3
++51	2,2,0	3,3,1	11162	node1.plm.local:11162	Mgmt / Tertiary / 1
++52	2,2,1	3,3,2	11163	node1.plm.local:11163	Mgmt / Tertiary / 2
++53	2,2,2	3,3,3	11164	node1.plm.local:11164	Mgmt / Tertiary / 3
+Node 2 — Slots (ports 11165–11191)
+Offset	GF(3)	Rep C	Port	Endpoint	Plane / Role / Instance
++54	0,0,0	1,1,1	11165	node2.plm.local:11165	Data / Primary / 1
++55	0,0,1	1,1,2	11166	node2.plm.local:11166	Data / Primary / 2
++56	0,0,2	1,1,3	11167	node2.plm.local:11167	Data / Primary / 3
++57	0,1,0	1,2,1	11168	node2.plm.local:11168	Data / Secondary / 1
++58	0,1,1	1,2,2	11169	node2.plm.local:11169	Data / Secondary / 2
++59	0,1,2	1,2,3	11170	node2.plm.local:11170	Data / Secondary / 3
++60	0,2,0	1,3,1	11171	node2.plm.local:11171	Data / Tertiary / 1
++61	0,2,1	1,3,2	11172	node2.plm.local:11172	Data / Tertiary / 2
++62	0,2,2	1,3,3	11173	node2.plm.local:11173	Data / Tertiary / 3
++63	1,0,0	2,1,1	11174	node2.plm.local:11174	Control / Primary / 1
++64	1,0,1	2,1,2	11175	node2.plm.local:11175	Control / Primary / 2
++65	1,0,2	2,1,3	11176	node2.plm.local:11176	Control / Primary / 3
++66	1,1,0	2,2,1	11177	node2.plm.local:11177	Control / Secondary / 1
++67	1,1,1	2,2,2	11178	node2.plm.local:11178	⬣ GATEWAY CENTER
++68	1,1,2	2,2,3	11179	node2.plm.local:11179	Control / Secondary / 3
++69	1,2,0	2,3,1	11180	node2.plm.local:11180	Control / Tertiary / 1
++70	1,2,1	2,3,2	11181	node2.plm.local:11181	Control / Tertiary / 2
++71	1,2,2	2,3,3	11182	node2.plm.local:11182	Control / Tertiary / 3
++72	2,0,0	3,1,1	11183	node2.plm.local:11183	Mgmt / Primary / 1
++73	2,0,1	3,1,2	11184	node2.plm.local:11184	Mgmt / Primary / 2
++74	2,0,2	3,1,3	11185	node2.plm.local:11185	Mgmt / Primary / 3
++75	2,1,0	3,2,1	11186	node2.plm.local:11186	Mgmt / Secondary / 1
++76	2,1,1	3,2,2	11187	node2.plm.local:11187	Mgmt / Secondary / 2
++77	2,1,2	3,2,3	11188	node2.plm.local:11188	Mgmt / Secondary / 3
++78	2,2,0	3,3,1	11189	node2.plm.local:11189	Mgmt / Tertiary / 1
++79	2,2,1	3,3,2	11190	node2.plm.local:11190	Mgmt / Tertiary / 2
++80	2,2,2	3,3,3	11191	node2.plm.local:11191	Mgmt / Tertiary / 3
+Legacy Bridge Ports (per node, alongside native slot ports)
+When a service's 27-trit classification matches, the node also binds the legacy port:
+
+Bridge	Legacy Port	Classification Match (D5, D6, D12, D15)	Node 0	Node 1	Node 2
+DNS	53	(3, 1, 3, 2)	node0.plm.local:53	node1.plm.local:53	node2.plm.local:53
+DHCP	67	(3, 1, 3, 1)	node0.plm.local:67	node1.plm.local:67	node2.plm.local:67
+SMB	445	(2, 1, 1, 2)	node0.plm.local:445	node1.plm.local:445	node2.plm.local:445
+IPP	631	(2, 2, 1, _)	node0.plm.local:631	node1.plm.local:631	node2.plm.local:631
+RADIUS	1812	(3, 1, 3, 3)	node0.plm.local:1812	node1.plm.local:1812	node2.plm.local:1812
+Each service gets BOTH its native slot port (111xx) AND its legacy bridge port. Existing Windows clients hit port 445/53/67 — the bridge shim routes to the correct slot internally.
+
+Cluster Geometry Summary
+81 native ports: 11111–11191 (contiguous, no gaps)
+Up to 15 bridge ports: 5 legacy ports × 3 nodes (only bound when matching services are registered)
+3 gateways: 11124, 11151, 11178 — each at HD ≤ 2 from every slot on its node
+HA replicas: same Rep C address (e.g., 2,2,2) on two different nodes = primary + failover. CRS routes to primary, fails over to replica automatically.
+Gateway spacing: exactly 27 ports apart (11124 → 11151 → 11178), each at local offset +13 = DIMENSIONS = T₇
