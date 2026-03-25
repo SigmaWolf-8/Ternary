@@ -138,7 +138,32 @@ pub struct Array3Handshake {
     pub wire_protocol_version: u8, // 0x03 for V3
     pub daemon_version: String,    // "2.4.0"
     pub is_gateway: bool,
+    pub gateway_addr: Option<PeerAddr>, // gateway endpoint for node 2/3 discovery
     pub slot_count: usize,         // number of occupied slots
+    pub slot_inventory: Vec<[u8; 3]>, // 3-trit slot addresses currently registered
+}
+
+impl NodeConfig {
+    pub fn build_handshake(&self, wire_protocol_version: u8, daemon_version: &str, slot_inventory: Vec<[u8; 3]>) -> Array3Handshake {
+        let gateway_addr = if self.is_gateway {
+            Some(PeerAddr {
+                ip: "0.0.0.0".to_string(),
+                port: self.gateway_port,
+            })
+        } else {
+            None
+        };
+        Array3Handshake {
+            node_id: self.node_id,
+            port_range: self.port_range,
+            wire_protocol_version,
+            daemon_version: daemon_version.to_string(),
+            is_gateway: self.is_gateway,
+            gateway_addr,
+            slot_count: slot_inventory.len(),
+            slot_inventory,
+        }
+    }
 }
 
 /// Validate a received handshake against local state.
@@ -255,58 +280,69 @@ mod tests {
         assert_eq!(config.bind_strategy, BindStrategy::LazyBind);
     }
 
+    fn test_handshake(node_id: u8, port_range: (u16, u16), version: u8, is_gateway: bool) -> Array3Handshake {
+        Array3Handshake {
+            node_id,
+            port_range,
+            wire_protocol_version: version,
+            daemon_version: "2.4.0".to_string(),
+            is_gateway,
+            gateway_addr: if is_gateway {
+                Some(PeerAddr { ip: "10.0.0.1".to_string(), port: 11124 })
+            } else {
+                None
+            },
+            slot_count: 0,
+            slot_inventory: Vec::new(),
+        }
+    }
+
     #[test]
     fn handshake_rejects_zero_node_id() {
-        let hs = Array3Handshake {
-            node_id: 0,
-            port_range: (11138, 11164),
-            wire_protocol_version: 3,
-            daemon_version: "2.4.0".to_string(),
-            is_gateway: false,
-            slot_count: 0,
-        };
+        let hs = test_handshake(0, (11138, 11164), 3, false);
         let err = validate_handshake(1, (11111, 11137), 2, &hs).unwrap_err();
         assert_eq!(err, HandshakeError::ZeroNodeId);
     }
 
     #[test]
     fn handshake_rejects_duplicate_node_id() {
-        let hs = Array3Handshake {
-            node_id: 1,
-            port_range: (11138, 11164),
-            wire_protocol_version: 3,
-            daemon_version: "2.4.0".to_string(),
-            is_gateway: true,
-            slot_count: 5,
-        };
+        let hs = test_handshake(1, (11138, 11164), 3, true);
         let err = validate_handshake(1, (11111, 11137), 2, &hs).unwrap_err();
         assert_eq!(err, HandshakeError::DuplicateNodeId(1));
     }
 
     #[test]
     fn handshake_accepts_v2_during_dual_acceptance() {
-        let hs = Array3Handshake {
-            node_id: 2,
-            port_range: (11138, 11164),
-            wire_protocol_version: 2,
-            daemon_version: "2.3.0".to_string(),
-            is_gateway: false,
-            slot_count: 3,
-        };
+        let hs = test_handshake(2, (11138, 11164), 2, false);
         assert!(validate_handshake(1, (11111, 11137), 2, &hs).is_ok());
     }
 
     #[test]
     fn handshake_rejects_v1_when_min_is_v2() {
-        let hs = Array3Handshake {
-            node_id: 2,
-            port_range: (11138, 11164),
-            wire_protocol_version: 1,
-            daemon_version: "2.2.0".to_string(),
-            is_gateway: false,
-            slot_count: 0,
-        };
+        let hs = test_handshake(2, (11138, 11164), 1, false);
         let err = validate_handshake(1, (11111, 11137), 2, &hs).unwrap_err();
         assert!(matches!(err, HandshakeError::IncompatibleProtocol { .. }));
+    }
+
+    #[test]
+    fn handshake_gateway_carries_address() {
+        let hs = test_handshake(1, (11111, 11137), 3, true);
+        assert!(hs.gateway_addr.is_some());
+        let gw = hs.gateway_addr.unwrap();
+        assert_eq!(gw.port, 11124);
+    }
+
+    #[test]
+    fn handshake_non_gateway_no_address() {
+        let hs = test_handshake(2, (11138, 11164), 3, false);
+        assert!(hs.gateway_addr.is_none());
+    }
+
+    #[test]
+    fn handshake_slot_inventory() {
+        let mut hs = test_handshake(1, (11111, 11137), 3, true);
+        hs.slot_inventory = vec![[1, 2, 3], [2, 1, 1]];
+        hs.slot_count = 2;
+        assert_eq!(hs.slot_inventory.len(), hs.slot_count);
     }
 }
