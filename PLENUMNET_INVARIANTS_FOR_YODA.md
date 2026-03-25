@@ -794,7 +794,11 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 | TL-Sponge-385 | Cryptographic sponge (385-bit PQ security) |
 | TIS-27 | Wire integrity sponge (43-bit) |
 | TL-KEM | Ternary Lattice Key Encapsulation |
+| PlenumLAN Node | The `plenumlan/` Rust crate — Array3 cluster pipeline (27→3 projection, port assignment, slot addressing) |
 | PlenumLAN | A local Inter-Cube network (any topology — the network management layer built on Replit/Rust) |
+| Service Slot | A 3-trit Rep C address [plane, role, instance] mapped to a TCP port in the 11111–11191 range |
+| SlotAddr | `[u8; 3]` — 3-trit Rep C slot address |
+| Array3 | 3-node PlenumNET cluster (81 total service slots) |
 | YODA | The frontend app at yoda.replit.app |
 | Cube daemon | The Rust binary on the laptop |
 | Local CRS | Daemon #1 in any YODA/LAN cluster — the operational CRS for cube registration and routing |
@@ -858,6 +862,161 @@ LLM engine monitoring is NOT provided by the daemon infrastructure. YODA launche
 | C | 8084 | `GET http://localhost:8084/health` |
 
 YODA should poll these directly. The daemon deployer does not start or manage LLM engines — only the cube daemons.
+
+---
+
+## SECTION 10: PLENUMLAN NODE — PORT RANGES & SLOT ADDRESSING (v2.4.1)
+
+The PlenumLAN Node crate (`plenumlan/`) implements the Array3 Node Cluster pipeline: 27 classification trits → 3-trit slot → port → registration. This section documents all default port numbers and addressing for YODA deployments.
+
+### 10.1 Two Port Layers
+
+PlenumNET has **two independent port layers**. Do not confuse them.
+
+| Layer | Purpose | Ports | Controlled By |
+|-------|---------|-------|---------------|
+| **Daemon API** (Section 2) | CRS/cube HTTP API, heartbeat, relay | 8081, 8083, 8085 | `CUBE_API_PORT` env var |
+| **PlenumLAN Service Slots** (this section) | Service-to-service traffic within an Array3 cluster | 11111–11191 | `BASE_PORT` + `CUBE_NODE_ID` |
+
+The daemon API ports (8081/8083/8085) remain exactly as documented in Section 2. The PlenumLAN service ports (11111–11191) are a separate layer for Array3 slot-addressed services.
+
+### 10.2 Base Port & Formula
+
+| Constant | Value | Source |
+|----------|-------|--------|
+| `BASE_PORT` | 11111 | `plenumlan/src/cube/constants.rs` |
+| `MAX_NODES` | 3 | Array3 cluster = 3 nodes |
+| `SLOTS_PER_NODE` | 27 | 3³ = 27 slots per node |
+| `GATEWAY_NODE_ID` | 1 | Node 1 is always the gateway |
+| `GATEWAY_OFFSET` | 13 | Center slot of 27 (1-indexed) |
+
+**Port formula**: `BASE_PORT + (node_id - 1) × 27 + offset`
+
+Where `node_id` ∈ {1, 2, 3} (Rep C) and `offset` ∈ {0..26}.
+
+### 10.3 Default Port Ranges
+
+| Node | CUBE_NODE_ID | Port Range | Gateway/Center Port | Total Ports |
+|------|-------------|------------|---------------------|-------------|
+| Node 1 | 1 | 11111–11137 | 11124 (gateway) | 27 |
+| Node 2 | 2 | 11138–11164 | 11151 | 27 |
+| Node 3 | 3 | 11165–11191 | 11178 | 27 |
+| **Total** | | **11111–11191** | | **81** |
+
+Node 1's gateway port (11124) is the Array3 cluster entry point. All external traffic enters through this port.
+
+### 10.4 Slot Addressing (3-Trit Rep C)
+
+Each service slot has a 3-trit address in Rep C encoding: `[plane, role, instance]`
+
+| Trit | Name | Values | Meaning |
+|------|------|--------|---------|
+| 1 | Plane | 1=Outer, 2=Void, 3=Inner | Security boundary |
+| 2 | Role | 1, 2, 3 | Role within plane |
+| 3 | Instance | 1, 2, 3 | Instance within role |
+
+**Plane assignments (Windows Server roles)**:
+
+| Plane | Purpose | Example Roles |
+|-------|---------|---------------|
+| Outer (1) | Data services | File Server, Print Server, IIS |
+| Void (2) | Control services | DNS, DHCP, NPS |
+| Inner (3) | Management services | Active Directory, Certificate Authority, WSUS |
+
+**27→3 projection**: A 27-trit classification vector is projected to a 3-trit slot address using polarity tables (3 groups × 9 dimensions each). The projection calls `project_to_gf3(k, DIMS_PER_GROUP=9)` for each group.
+
+### 10.5 Wire Encoding
+
+Slot addresses are packed into a single byte for wire transmission:
+
+| Bits | Field | Values |
+|------|-------|--------|
+| [7:6] | plane | 01, 10, 11 (Rep C {1,2,3}) |
+| [5:4] | role | 01, 10, 11 |
+| [3:2] | instance | 01, 10, 11 |
+| [1:0] | reserved | 00 |
+
+**Zero in any 2-bit field = forgery** — the wire decoder rejects it.
+
+Functions: `pack_slot_addr([u8;3]) → Option<u8>`, `unpack_slot_addr(u8) → Option<[u8;3]>`
+
+### 10.6 New Environment Variables
+
+| Variable | Default | Values | Purpose |
+|----------|---------|--------|---------|
+| `CUBE_NODE_ID` | 1 | 1, 2, 3 (Rep C) | Node identity in Array3. Zero = fatal error (zero-sentinel). |
+| `CUBE_ARRAY3_PEERS` | (empty) | Comma-separated `ip:port` | Array3 peer discovery addresses. |
+| `EAGER_BIND` | false | `true`/`1` or `false`/`0` | `true` = bind all 27 ports at startup (production). `false` = bind on register (Replit/dev). |
+
+These are in addition to the existing daemon env vars in Section 2.
+
+### 10.7 Wire Protocol V3
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `PROTOCOL_VERSION_V3` | 0x03 | Current version |
+| `PROTOCOL_VERSION_MIN` | 0x02 | Minimum accepted (V2 dual-acceptance) |
+
+**V3 message types (0x60–0x65)**:
+
+| Code | Type | Purpose |
+|------|------|---------|
+| 0x60 | Array3Handshake | Node cluster formation |
+| 0x61 | Array3HandshakeAck | Formation acknowledgement |
+| 0x62 | SlotRegister | Service slot registration |
+| 0x63 | SlotRegisterAck | Registration acknowledgement |
+| 0x64 | SlotQuery | Slot lookup query |
+| 0x65 | SlotQueryResponse | Slot lookup response |
+
+V3 accepts V2 messages. V1 is rejected. V3 message types sent with a V2 header produce `MessageRequiresV3` error.
+
+### 10.8 ServiceSlotRegistry (CRS Extension)
+
+The CRS manages the 81-slot space (3 nodes × 27 slots each):
+
+- `register_service(node_id, classification, identity, capabilities)` → `ServiceSlot`
+  - Takes 27-trit classification, projects to 3-trit slot, computes port, validates Rep C, checks conflicts
+- `resolve_slot(slot_addr)` → `SlotRoute` (node_id, port, identity)
+  - Takes 3-trit slot address, searches all 3 nodes, returns routing info
+
+### 10.9 Key Freshness Zones
+
+Keys age through three zones based on GF(3) quantization of the 182-day ARC_EPOCH:
+
+| Zone | Age (days) | Permitted Operations |
+|------|-----------|---------------------|
+| Fresh | 0–60 | All operations |
+| Active | 61–121 | Regulated operations (boundary at 121 = REPUNIT_R5) |
+| Aging | 122–182 | Read-only |
+| (expired) | >182 | None — key must be rotated |
+
+### 10.10 Health Endpoint (Updated)
+
+`GET /health` now returns PlenumLAN Node fields:
+
+```json
+{
+  "status": "ok",
+  "service": "PlenumNET Inter-Cube Infrastructure",
+  "version": "2.4.1",
+  "mode": "crs",
+  "address": "1111111111111",
+  "wire_protocol": 3,
+  "wire_protocol_min": 2,
+  "node_id": 1
+}
+```
+
+### 10.11 Version Constants
+
+All version constants in `shared/constants.ts`:
+
+| Constant | Value |
+|----------|-------|
+| `WIRE_PROTOCOL_VERSION` | 0x03 |
+| `DAEMON_VERSION` | "2.4.1" |
+| `TDNS_VERSION` | "v2.5" |
+| `PLENUMLAN_VERSION` | "2.4.1" |
 
 ---
 
