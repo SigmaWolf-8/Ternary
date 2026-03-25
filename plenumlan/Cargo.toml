@@ -1,6 +1,6 @@
 [package]
 name = "plenumlan"
-version = "2.4.0"
+version = "2.4.1"
 edition = "2021"
 description = "PlenumNET LAN — Array3 Node Cluster, 27→3 Projection, Service Slot Engine"
 license = "LicenseRef-Proprietary"
