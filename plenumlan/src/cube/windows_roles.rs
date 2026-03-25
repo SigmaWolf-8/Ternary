@@ -28,7 +28,7 @@ const fn make_class(base: [Trit; CLASSIFICATION_DIMS], _label: &str) -> [Trit; C
 /// Control plane: authentication, authorization, directory
 pub const AD_DS: [Trit; CLASSIFICATION_DIMS] = [
 //  D1  D2  D3  D4  D5  D6  D7  D8  D9  D10 D11 D12 D13 D14 D15 D16 D17 D18 D19 D20 D21 D22 D23 D24 D25 D26 D27
-    3,  3,  3,  3,  3,  1,  3,  2,  3,  3,  3,  3,  1,  3,  3,  1,  3,  3,  3,  2,  2,  1,  2,  1,  3,  1,  3,
+    3,  3,  3,  3,  3,  1,  3,  2,  3,  3,  3,  3,  1,  3,  3,  1,  3,  3,  3,  2,  2,  1,  2,  1,  2,  1,  3,
 ];
 
 /// DNS Server
@@ -40,7 +40,7 @@ pub const DNS_SERVER: [Trit; CLASSIFICATION_DIMS] = [
 /// DHCP Server
 /// Control plane: address allocation, network infrastructure
 pub const DHCP_SERVER: [Trit; CLASSIFICATION_DIMS] = [
-    3,  3,  3,  3,  3,  1,  2,  1,  2,  2,  2,  3,  2,  3,  1,  3,  2,  2,  2,  2,  1,  1,  3,  1,  2,  1,  3,
+    3,  3,  3,  3,  3,  1,  2,  1,  2,  2,  2,  3,  2,  3,  1,  3,  2,  2,  3,  2,  1,  1,  3,  1,  2,  1,  3,
 ];
 
 /// File Server (SMB)
@@ -70,19 +70,19 @@ pub const HYPER_V: [Trit; CLASSIFICATION_DIMS] = [
 /// WSUS (Windows Server Update Services)
 /// Management plane: patch distribution
 pub const WSUS: [Trit; CLASSIFICATION_DIMS] = [
-    3,  3,  3,  3,  2,  1,  3,  1,  2,  2,  2,  2,  2,  3,  2,  2,  3,  3,  3,  2,  1,  1,  3,  2,  3,  1,  3,
+    3,  3,  3,  3,  2,  1,  3,  1,  2,  3,  2,  2,  2,  3,  2,  2,  3,  3,  3,  2,  1,  1,  3,  2,  3,  1,  3,
 ];
 
 /// Certificate Authority (AD CS)
 /// Control plane: PKI, certificate management
 pub const CERT_AUTHORITY: [Trit; CLASSIFICATION_DIMS] = [
-    3,  3,  3,  3,  3,  1,  3,  2,  3,  3,  3,  3,  1,  3,  3,  1,  3,  1,  3,  2,  2,  1,  1,  1,  3,  1,  3,
+    3,  3,  3,  3,  3,  1,  3,  2,  3,  3,  3,  3,  1,  3,  3,  1,  3,  1,  3,  2,  2,  1,  1,  1,  2,  1,  3,
 ];
 
 /// NPS (RADIUS)
 /// Control plane: network access, authentication
 pub const NPS_RADIUS: [Trit; CLASSIFICATION_DIMS] = [
-    3,  3,  3,  3,  3,  1,  2,  2,  3,  3,  2,  3,  1,  3,  3,  1,  3,  2,  3,  2,  2,  1,  2,  1,  3,  1,  3,
+    3,  3,  3,  3,  3,  1,  2,  2,  3,  3,  2,  3,  1,  3,  3,  1,  3,  2,  3,  2,  2,  1,  2,  1,  2,  1,  3,
 ];
 
 /// Remote Desktop Services

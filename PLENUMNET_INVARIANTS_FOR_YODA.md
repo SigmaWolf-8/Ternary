@@ -58,7 +58,7 @@ The GF(3) ↔ Rep C conversion is `+1` / `−1`. Port formulas use GF(3); wire e
 
 These are the production port assignments. Do not change them. Do not suggest alternatives. Do not override them in code.
 
-Each node has **one gateway port** at the center of its 27-slot cube (offset +13, Rep C address [2,2,2]). The center is 1 hop from all 26 neighbors — this is why it is the gateway.
+Each node has **one gateway port** at the center of its 27-slot cube (offset +13, Rep C address [2,2,2]). HD distribution from center: HD 0 = 1 (self), HD 1 = 6 (face), HD 2 = 12 (edge), HD 3 = 8 (corner). The center reaches 19/27 slots at HD ≤ 2 (no full TL-DSA required); the 8 corners need full mutual auth.
 
 | Node | CUBE_NODE_ID (Rep C) | Port Range | Gateway Port |
 |------|---------------------|------------|-------------|

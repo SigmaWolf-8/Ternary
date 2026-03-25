@@ -13,7 +13,8 @@
 //! | 2  | 12    | Cross-boundary — capability token |
 //! | 3  | 8     | Corners — full mutual TL-DSA auth |
 //!
-//! The gateway at (2,2,2) Rep C / (1,1,1) GF(3) has HD ≤ 2 from every slot.
+//! The gateway at (2,2,2) Rep C / (1,1,1) GF(3) has HD ≤ 2 from 19/27
+//! slots (self + 6 face + 12 edge). The 8 corners are HD 3 (full TL-DSA).
 //!
 //! Greedy routing is loop-free and optimal: Hamming distance is a metric
 //! (non-negative, symmetric, triangle inequality). Greedy routing decreases
@@ -125,18 +126,20 @@ mod tests {
     }
 
     #[test]
-    fn gateway_within_hd2_of_all() {
+    fn gateway_hd_distribution() {
         let gw = SlotAddress::new(2, 2, 2);
+        let mut counts = [0usize; 4];
         for p in 1..=3u8 {
             for r in 1..=3u8 {
                 for i in 1..=3u8 {
                     let slot = SlotAddress::new(p, r, i);
                     let hd = slot_hamming_distance(&gw, &slot);
-                    assert!(hd <= 2,
-                        "gateway HD to ({},{},{}) = {}, expected ≤ 2", p, r, i, hd);
+                    assert!(hd <= 3, "HD cannot exceed 3 in 3D cube");
+                    counts[hd] += 1;
                 }
             }
         }
+        assert_eq!(counts, [1, 6, 12, 8]);
     }
 
     #[test]
