@@ -54,7 +54,7 @@ Each node has **one gateway port** at the center of its 27-slot cube (offset +13
 
 Formula: `gateway = BASE_PORT + (node_id × 27) + 13 = 11124 + 27N`.
 
-The gateway port is the single outbound port for all daemon communication — API, peer mesh, relay. The remaining 26 slots per node are for service registration. `CUBE_API_PORT` defaults to 11124.
+The gateway port is the single outbound port for all daemon communication — API, peer mesh, relay. Each node has 27 slots total (3³ = 27); the gateway is the center slot. `CUBE_API_PORT` defaults to 11124.
 
 ### I-04: Ternary Address Format
 
@@ -845,7 +845,7 @@ The PlenumLAN Node crate (`plenumlan/`) implements the Array3 Node Cluster pipel
 
 ### 10.1 Unified Port Layer
 
-All ports live in the 11111–11191 range. There is one port layer. The daemon binds the gateway at the center of each node's 27-slot cube (see I-03). The remaining 26 slots per node are available for service registration.
+All ports live in the 11111–11191 range. There is one port layer. The daemon binds the gateway at the center of each node's 27-slot cube (see I-03). Each node has 27 slots total (3 nodes × 27 = 81 slots across the Array3).
 
 The zero-sentinel invariant (I-02) applies: all slot addresses and wire-packed bytes use Rep C {1,2,3}. A zero in any field is provable forgery before any cryptographic check runs.
 
