@@ -13,10 +13,11 @@
 //   "all"    — Same as "crs" (backward compat).
 //   "keygen" — Generate PT26-DSA identity keypair and exit.
 //
-// TRI-PORT ARCHITECTURE (3 ports per node, centered on gateway):
-//   Node #1: 11123 (peer), 11124 (gateway/API), 11125 (LLM)
-//   Node #2: 11150 (peer), 11151 (gateway/API), 11152 (LLM)
-//   Node #3: 11177 (peer), 11178 (gateway/API), 11179 (LLM)
+// GATEWAY ARCHITECTURE (1 outbound port per node, at center of 27-slot cube):
+//   Node #1: gateway 11124 (center slot [2,2,2], 1 hop to all 26 neighbors)
+//   Node #2: gateway 11151
+//   Node #3: gateway 11178
+//   Formula: gateway = 11111 + ((CUBE_NODE_ID - 1) × 27) + 13
 //
 // ENV VARS:
 //   CUBE_MODE                  — "crs", "cube", "all", or "keygen" (default: "all")

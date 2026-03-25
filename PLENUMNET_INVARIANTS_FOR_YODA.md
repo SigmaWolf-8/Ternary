@@ -4,6 +4,20 @@
 **Authoritative reference for any agent working on YODA (yoda.replit.app)**
 **CRS Authority: https://plenumnet.replit.app**
 
+### Source-of-Truth Files
+
+If anything in this document disagrees with the code, the code wins. Before changing this document, read these files:
+
+| File | What it defines |
+|------|----------------|
+| `plenumlan/src/cube/constants.rs` | BASE_PORT, SLOTS_PER_NODE, GATEWAY_OFFSET, all compile-time assertions |
+| `plenumlan/src/cube/port.rs` | `slot_port()`, `gateway_port()`, `port_to_slot()` — the port formula implementation |
+| `plenumlan/src/cube/projection.rs` | 27→3 slot projection, SlotAddress, polarity tables |
+| `plenumlan/src/cube/bridge.rs` | Legacy bridge derivation (DNS:53, DHCP:67, SMB:445, IPP:631, RADIUS:1812) |
+| `plenumlan/src/cube/windows_roles.rs` | 12 Windows Server role classifications |
+| `services/inter-cube/src/main.rs` | Daemon entry point, env var parsing, port defaults |
+| `shared/constants.ts` | Version constants (DAEMON_VERSION, WIRE_PROTOCOL_VERSION) |
+
 ---
 
 ## SECTION 1: ABSOLUTE INVARIANTS — VIOLATIONS BREAK THE SYSTEM
@@ -46,13 +60,13 @@ These are the production port assignments. Do not change them. Do not suggest al
 
 Each node has **one gateway port** at the center of its 27-slot cube (offset +13, Rep C address [2,2,2]). The center is 1 hop from all 26 neighbors — this is why it is the gateway.
 
-| Node | node_id (GF(3)) | Port Range | Gateway Port |
-|------|-----------------|------------|-------------|
-| 1 | 0 | 11111–11137 | **11124** |
-| 2 | 1 | 11138–11164 | **11151** |
-| 3 | 2 | 11165–11191 | **11178** |
+| Node | CUBE_NODE_ID (Rep C) | Port Range | Gateway Port |
+|------|---------------------|------------|-------------|
+| 1 | 1 | 11111–11137 | **11124** |
+| 2 | 2 | 11138–11164 | **11151** |
+| 3 | 3 | 11165–11191 | **11178** |
 
-Formula: `gateway = BASE_PORT + (node_id × 27) + 13 = 11124 + 27N`.
+Formula: `gateway = BASE_PORT + ((CUBE_NODE_ID - 1) × 27) + 13`. The code accepts Rep C {1,2,3} and subtracts 1 internally for GF(3) arithmetic. Zero is rejected (zero-sentinel).
 
 The gateway port is the single outbound port for all daemon communication — API, peer mesh, relay. Each node has 27 slots total (3³ = 27); the gateway is the center slot. `CUBE_API_PORT` defaults to 11124.
 
@@ -113,28 +127,16 @@ Each new deployment is independent. The deployer may or may not find a previous 
 
 ### Deploying — Single PlenumNET Node
 
-Deploy (or update) a single PlenumNET Node with a single command in PowerShell:
-
-```powershell
-irm https://plenumnet.replit.app/api/deploy-daemon | iex
+YODA triggers deployment by calling the API:
 ```
-
-Or download and double-click the `.bat` installer:
-```
-https://plenumnet.replit.app/api/deploy-daemon.bat
+GET https://plenumnet.replit.app/api/deploy-daemon
 ```
 
 ### Deploying — PlenumNET Array3 (v0.4.0)
 
-Deploy a full 3-node PlenumNET Array3:
-
-```powershell
-irm https://plenumnet.replit.app/api/deploy-yoda | iex
+YODA triggers a full 3-node Array3 deployment by calling:
 ```
-
-Or download and double-click the `.bat` installer:
-```
-https://plenumnet.replit.app/api/deploy-yoda.bat
+GET https://plenumnet.replit.app/api/deploy-yoda
 ```
 
 The Array3 deployer automatically:
@@ -171,19 +173,7 @@ Each agent gets its own PlenumNET Node with its own identity. Separate identitie
 | 2 | `%USERPROFILE%\.plenumnet\identity-2\` | 11151 | `cube` (worker) |
 | 3 | `%USERPROFILE%\.plenumnet\identity-3\` | 11178 | `cube` (worker) |
 
-YODA deploys nodes by calling the PlenumNET APIs — it does NOT run PowerShell commands directly:
-
-**Single node:**
-```
-POST https://plenumnet.replit.app/api/deploy-daemon
-```
-
-**Full Array3 (3 nodes):**
-```
-POST https://plenumnet.replit.app/api/deploy-yoda
-```
-
-The deployer handles identity generation, port assignment, CRS startup, worker registration, and relay configuration. YODA monitors the result via the endpoints in Section 9.
+YODA deploys via the API (see "Deploying" above). The deployer handles identity generation, port assignment, CRS startup, worker registration, and relay configuration. YODA monitors the result via the endpoints in Section 9.
 
 ---
 
@@ -905,17 +895,17 @@ No service names. Slots are agnostic. No zeros in any Rep C column — the entir
 
 ### 10.4 Array3: Per-Node Port Ranges
 
-Three nodes. 81 slots = 3⁴. Each node owns a complete 3³ cube of 27 slots. The cube is 3 dimensions (plane, role, instance). The node_id is a GF(3) multiplier {0, 1, 2} that selects which node's port range the slot lives in — it is NOT a 4th cube dimension. The cube stays 3D; the Array3 is 3 copies of it.
+Three nodes. 81 slots = 3⁴. Each node owns a complete 3³ cube of 27 slots. The cube is 3 dimensions (plane, role, instance). The CUBE_NODE_ID is a Rep C selector {1, 2, 3} that identifies which node's port range the slot lives in — it is NOT a 4th cube dimension. The cube stays 3D; the Array3 is 3 copies of it.
 
-| Label | node_id (GF(3)) | Port Range | Slots | Gateway Port |
-|-------|-----------------|------------|-------|-------------|
-| Node 1 | 0 | 11111–11137 | 0–26 | 11124 (offset +13) |
-| Node 2 | 1 | 11138–11164 | 27–53 | 11151 (offset +40) |
-| Node 3 | 2 | 11165–11191 | 54–80 | 11178 (offset +67) |
+| Label | CUBE_NODE_ID (Rep C) | Port Range | Slots | Gateway Port |
+|-------|---------------------|------------|-------|-------------|
+| Node 1 | 1 | 11111–11137 | 0–26 | 11124 (offset +13) |
+| Node 2 | 2 | 11138–11164 | 27–53 | 11151 (offset +40) |
+| Node 3 | 3 | 11165–11191 | 54–80 | 11178 (offset +67) |
 
-Each node's gateway is at its own offset +13 (the center of its local 3³ cube). The Array3 has three gateways — one per node. The node with node_id = 0 is the primary gateway for external traffic; nodes 1 and 2 are HA replicas.
+Each node's gateway is at its own offset +13 (the center of its local 3³ cube). The Array3 has three gateways — one per node. Node 1 is the primary gateway for external traffic; nodes 2 and 3 are HA replicas. `CUBE_NODE_ID` uses Rep C {1,2,3} — zero is rejected (zero-sentinel).
 
-A single node is Array3 with node_id = 0 and no peers — scalability is structural, not an upgrade. Adding a second node later = set its node_id to 1, point it at node 0, formation protocol runs, Array3 begins forming. No reinstallation. No reconfiguration of node 0.
+A single node is Array3 with CUBE_NODE_ID=1 and no peers — scalability is structural, not an upgrade. Adding a second node later = set its CUBE_NODE_ID to 2, point it at node 1, formation protocol runs, Array3 begins forming. No reinstallation. No reconfiguration of node 1.
 
 ### 10.5 Slot Addressing (3-Trit)
 
@@ -973,11 +963,11 @@ port = 11111 + (node_id × 27) + (plane × 9) + (role × 3) + instance
 address = <node_ip>:<port>
 ```
 
-Where `node_id`, `plane`, `role`, `instance` are all GF(3) {0, 1, 2}. The CRS resolves `node_id` → `node_ip` from its routing table (populated during Array3 formation or from `CUBE_ARRAY3_PEERS`).
+Where `node_id`, `plane`, `role`, `instance` are all GF(3) {0, 1, 2} (the math form). The env var `CUBE_NODE_ID` is Rep C {1, 2, 3} — the code subtracts 1 internally. The CRS resolves `node_id` → `node_ip` from its routing table (populated during Array3 formation or from `CUBE_ARRAY3_PEERS`).
 
-**Reverse lookup** (`port_to_slot()` in `port.rs`): Given a port, decode back to `(node_id, [plane, role, instance])`. This is how the CRS resolves inbound traffic to a slot owner.
+**Reverse lookup** (`port_to_slot()` in `port.rs`): Given a port, decode back to `(node_id, [plane, role, instance])` in Rep C. This is how the CRS resolves inbound traffic to a slot owner.
 
-**Example**: DNS Server on Node 1 (node_id=0):
+**Example**: DNS Server on Node 1 (CUBE_NODE_ID=1, GF(3) node_id=0):
 - Classification projects to plane=1 (Control), role=0 (Primary), instance=0 → slot [1,0,0] in GF(3)
 - Port = 11111 + (0×27) + (1×9) + (0×3) + 0 = 11120
 - Legacy bridge also binds :53
@@ -1002,7 +992,7 @@ Functions: `pack_slot_addr([u8;3]) → Option<u8>`, `unpack_slot_addr(u8) → Op
 
 | Variable | Default | Values | Purpose |
 |----------|---------|--------|---------|
-| `CUBE_NODE_ID` | 0 | 0, 1, 2 (GF(3)) | Node identity in Array3. Default = 0 (single-node mode). Wire format uses Rep C {1,2,3} where zero = forgery. |
+| `CUBE_NODE_ID` | 1 | 1, 2, 3 (Rep C) | Node identity in Array3. Default = 1 (single-node mode). Zero is rejected (zero-sentinel). Code subtracts 1 internally for GF(3) port arithmetic. |
 | `CUBE_ARRAY3_PEERS` | (empty) | Comma-separated `ip:port` | Array3 peer discovery addresses. When set with CUBE_NODE_ID, daemon operates in Array3 mode. |
 | `EAGER_BIND` | false | `true`/`1` or `false`/`0` | `true` = bind all 27 ports at startup (production). `false` = bind on register (Replit/dev). |
 
