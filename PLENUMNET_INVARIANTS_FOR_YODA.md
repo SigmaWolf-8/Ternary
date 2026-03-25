@@ -32,15 +32,15 @@ Ternary trit values are 1, 2, 3. Never 0, 1, 2. There is no trit value 0.
 
 These are the production port assignments. Do not change them. Do not suggest alternatives. Do not override them in code.
 
-Each application port is paired with its own PlenumNET Node instance. Agent N = app port `8080 + 2N`, node port `8081 + 2N`.
+Tri-Port Architecture (3 ports per node, spacing = 3): peer port `8079 + 3N`, app port `8080 + 3N`, node port `8081 + 3N`.
 
-| Agent | App Port | Node Port | `LLM_PORT` | `CUBE_API_PORT` |
-|-------|----------|-----------|------------|-----------------|
-| A (N=0) | 8080 | 8081 | 8080 | 8081 |
-| B (N=1) | 8082 | 8083 | 8082 | 8083 |
-| C (N=2) | 8084 | 8085 | 8084 | 8085 |
+| Agent | Peer Port | App Port | Node Port | `CUBE_PEER_PORT` | `LLM_PORT` | `CUBE_API_PORT` |
+|-------|-----------|----------|-----------|-------------------|------------|-----------------|
+| A (N=0) | 8079 | 8080 | 8081 | 8079 | 8080 | 8081 |
+| B (N=1) | 8082 | 8083 | 8084 | 8082 | 8083 | 8084 |
+| C (N=2) | 8085 | 8086 | 8087 | 8085 | 8086 | 8087 |
 
-The PlenumNET Node reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. Each node's `LLM_PORT` points to its paired application port.
+The PlenumNET Node reads `CUBE_API_PORT` (or `API_PORT`) and defaults to 8080 if unset. `CUBE_PEER_PORT` defaults to `CUBE_API_PORT - 1`. Each node's `LLM_PORT` points to its paired application port.
 
 ### I-04: Ternary Address Format
 
@@ -73,6 +73,8 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 | `RELAY_URL` | (cube: falls back to CUBE_CRS_URL; crs: no fallback) | WebSocket relay URL for NAT traversal — set to `https://plenumnet.replit.app` when CUBE_CRS_URL is a local address |
 | `CUBE_API_PORT` | `8080` | Daemon HTTP API port |
 | `API_PORT` | (alias) | Alias for CUBE_API_PORT |
+| `CUBE_PEER_PORT` | `CUBE_API_PORT - 1` | Direct peer-to-peer port |
+| `PEER_PORT` | (alias) | Alias for CUBE_PEER_PORT |
 | `CUBE_ENDPOINT` | `0.0.0.0:51820` | Wire protocol endpoint |
 | `CUBE_ROLE` | (optional) | `inference`, `review`, `kb`, `infra`, `relay`, `standby` |
 | `LLM_PORT` | `8080` | Where llama-server listens (each daemon forwards inference here) |
@@ -84,8 +86,8 @@ All cryptographic operations use real TL-DSA-87 / PT26-DSA. No mock signatures, 
 For any YODA or LAN deployment, an Array3 (3-node PlenumNET cluster) is independent and self-contained:
 
 - **Node #1 (Agent A, port 8081)** starts in `CUBE_MODE=crs` — it IS the local CRS (coordinator) for the Array3
-- **Node #2 (Agent B, port 8083)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
-- **Node #3 (Agent C, port 8085)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
+- **Node #2 (Agent B, port 8084)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
+- **Node #3 (Agent C, port 8087)** starts in `CUBE_MODE=cube` with `CUBE_CRS_URL=http://localhost:8081`
 
 The remote server (`plenumnet.replit.app`) is both:
 1. A **monitoring dashboard** — receives deployment summaries so the dashboard can display cluster health
@@ -152,11 +154,11 @@ Node binary: `C:\PlenumNET\target\release\inter-cube-daemon.exe`
 
 Each agent gets its own PlenumNET Node with its own identity. Separate identities are required because each node derives a unique ternary address from its master key (via TL-Sponge-385). Shared keys would produce the same address and collide at CRS.
 
-| Agent | Identity Dir | App Port | Node Port | CUBE_MODE |
-|-------|-------------|----------|-----------|-----------|
-| A | `$env:USERPROFILE\.plenumnet\identity-1\` | 8080 | 8081 | `crs` (coordinator) |
-| B | `$env:USERPROFILE\.plenumnet\identity-2\` | 8082 | 8083 | `cube` (worker) |
-| C | `$env:USERPROFILE\.plenumnet\identity-3\` | 8084 | 8085 | `cube` (worker) |
+| Agent | Identity Dir | Peer Port | App Port | Node Port | CUBE_MODE |
+|-------|-------------|-----------|----------|-----------|-----------|
+| A | `$env:USERPROFILE\.plenumnet\identity-1\` | 8079 | 8080 | 8081 | `crs` (coordinator) |
+| B | `$env:USERPROFILE\.plenumnet\identity-2\` | 8082 | 8083 | 8084 | `cube` (worker) |
+| C | `$env:USERPROFILE\.plenumnet\identity-3\` | 8085 | 8086 | 8087 | `cube` (worker) |
 
 Generate each identity once with `CUBE_MODE=keygen`:
 ```powershell
@@ -182,8 +184,8 @@ $env:LLM_PORT="8080"
 **Node B (Worker — registers with coordinator):**
 ```powershell
 $env:CUBE_MODE="cube"
-$env:CUBE_API_PORT="8083"
-$env:LLM_PORT="8082"
+$env:CUBE_API_PORT="8084"
+$env:LLM_PORT="8083"
 $env:CUBE_CRS_URL="http://localhost:8081"
 $env:RELAY_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
@@ -194,8 +196,8 @@ $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-2"
 **Node C (Worker — registers with coordinator):**
 ```powershell
 $env:CUBE_MODE="cube"
-$env:CUBE_API_PORT="8085"
-$env:LLM_PORT="8084"
+$env:CUBE_API_PORT="8087"
+$env:LLM_PORT="8086"
 $env:CUBE_CRS_URL="http://localhost:8081"
 $env:RELAY_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
@@ -375,7 +377,7 @@ All endpoints below are served from `https://plenumnet.replit.app`. Auth-require
 | `/api/salvi/inter-cube/topology` | GET | — | 13D hypercube topology |
 | `/health` | GET | — | Daemon health |
 
-### 5.2 PlenumNET Node Local API (on laptop — ports 8081 / 8083 / 8085)
+### 5.2 PlenumNET Node Local API (on laptop — ports 8081 / 8084 / 8087)
 
 Each PlenumNET Node exposes the same endpoints on its `CUBE_API_PORT`:
 
@@ -815,21 +817,21 @@ These files and systems are off-limits. Do not modify, mock, or rewrite them.
 
 ## SECTION 9: YODA MONITORING QUICK REFERENCE
 
-A single consolidated table of every endpoint YODA needs to monitor daemon infrastructure, WebSocket relay, and cluster health. All local endpoints assume the standard port layout: Daemon #1 = 8081 (CRS), Daemon #2 = 8083 (cube), Daemon #3 = 8085 (cube).
+A single consolidated table of every endpoint YODA needs to monitor daemon infrastructure, WebSocket relay, and cluster health. All local endpoints assume the Tri-Port layout: Daemon #1 = 8081 (CRS), Daemon #2 = 8084 (cube), Daemon #3 = 8087 (cube).
 
 ### 9.1 Local Daemon Monitoring (localhost)
 
 | Monitoring Need | Method | Endpoint | Ports | Notes |
 |----------------|--------|----------|-------|-------|
-| Daemon health | GET | `http://localhost:{port}/health` | 8081, 8083, 8085 | Returns version, address, mode |
-| Node info | GET | `http://localhost:{port}/api/salvi/inter-cube/node/info` | 8081, 8083, 8085 | Address, mode, CRS URL, ports |
+| Daemon health | GET | `http://localhost:{port}/health` | 8081, 8084, 8087 | Returns version, address, mode |
+| Node info | GET | `http://localhost:{port}/api/salvi/inter-cube/node/info` | 8081, 8084, 8087 | Address, mode, CRS URL, ports |
 | CRS stats | GET | `http://localhost:8081/api/salvi/inter-cube/crs/stats` | 8081 only | Registered node count, addresses |
 | Registered node lookup | GET | `http://localhost:8081/api/salvi/inter-cube/crs/lookup/:address` | 8081 only | Look up any registered node |
 | Geometric neighbors | GET | `http://localhost:8081/api/salvi/inter-cube/crs/neighbors/:address` | 8081 only | 26 potential neighbors in 13D hypercube |
-| FTS dead nodes | GET | `http://localhost:{port}/api/salvi/inter-cube/fts/dead` | 8081, 8083, 8085 | Dead neighbor list |
-| FTS status | GET | `http://localhost:{port}/api/salvi/inter-cube/fts/status` | 8081, 8083, 8085 | Fault tolerance health |
-| GLB stats | GET | `http://localhost:{port}/api/salvi/inter-cube/glb/stats` | 8081, 8083, 8085 | Geometric load balancer stats |
-| Topology | GET | `http://localhost:{port}/api/salvi/inter-cube/topology` | 8081, 8083, 8085 | 13D hypercube topology view |
+| FTS dead nodes | GET | `http://localhost:{port}/api/salvi/inter-cube/fts/dead` | 8081, 8084, 8087 | Dead neighbor list |
+| FTS status | GET | `http://localhost:{port}/api/salvi/inter-cube/fts/status` | 8081, 8084, 8087 | Fault tolerance health |
+| GLB stats | GET | `http://localhost:{port}/api/salvi/inter-cube/glb/stats` | 8081, 8084, 8087 | Geometric load balancer stats |
+| Topology | GET | `http://localhost:{port}/api/salvi/inter-cube/topology` | 8081, 8084, 8087 | 13D hypercube topology view |
 
 ### 9.2 Remote Monitoring (plenumnet.replit.app)
 
@@ -858,8 +860,8 @@ LLM engine monitoring is NOT provided by the daemon infrastructure. YODA launche
 | Agent | LLM Engine Port | Example Health Check |
 |-------|----------------|---------------------|
 | A | 8080 | `GET http://localhost:8080/health` |
-| B | 8082 | `GET http://localhost:8082/health` |
-| C | 8084 | `GET http://localhost:8084/health` |
+| B | 8083 | `GET http://localhost:8083/health` |
+| C | 8086 | `GET http://localhost:8086/health` |
 
 YODA should poll these directly. The daemon deployer does not start or manage LLM engines — only the cube daemons.
 
@@ -875,10 +877,10 @@ PlenumNET has **two independent port layers**. Do not confuse them.
 
 | Layer | Purpose | Ports | Controlled By |
 |-------|---------|-------|---------------|
-| **Daemon API** (Section 2) | CRS/cube HTTP API, heartbeat, relay | 8081, 8083, 8085 | `CUBE_API_PORT` env var |
+| **Daemon API** (Section 2) | CRS/cube HTTP API, heartbeat, relay | 8081, 8084, 8087 | `CUBE_API_PORT` env var |
 | **PlenumLAN Service Slots** (this section) | Service-to-service traffic within an Array3 cluster | 11111–11191 | `BASE_PORT` + `CUBE_NODE_ID` |
 
-The daemon API ports (8081/8083/8085) remain exactly as documented in Section 2. The PlenumLAN service ports (11111–11191) are a separate layer for Array3 slot-addressed services.
+The daemon API ports (8081/8084/8087) remain exactly as documented in Section 2. The PlenumLAN service ports (11111–11191) are a separate layer for Array3 slot-addressed services.
 
 ### 10.2 Base Port & Formula
 
