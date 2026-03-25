@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Capomastro 364° – Toggleable SVG for React</title>
+<style>
+  body { margin:0; background:#0a0a0a; font-family:system-ui; color:#fff; }
+  #controls { position:fixed; top:12px; left:12px; background:rgba(0,0,0,0.9); padding:16px; border-radius:12px; z-index:1000; max-width:280px; }
+  label { display:block; margin:10px 0; cursor:pointer; font-size:15px; }
+  svg { width:100vw; height:100vh; display:block; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <h3>Capomastro 364° Layers</h3>
+  
+  <label><input type="checkbox" checked onchange="toggle('circle',this.checked)"> Circle (364°)</label>
+  <label><input type="checkbox" checked onchange="toggle('square',this.checked)"> Square (√182)</label>
+  <label><input type="checkbox" checked onchange="toggle('triangle',this.checked)"> Triangle + 144,000</label>
+  <label><input type="checkbox" checked onchange="toggle('pentagon',this.checked)"> Pentagon</label>
+  <label><input type="checkbox" checked onchange="toggle('hexagon',this.checked)"> Hexagon</label>
+  <label><input type="checkbox" checked onchange="toggle('heptagon',this.checked)"> Heptagon</label>
+  <label><input type="checkbox" checked onchange="toggle('octagon',this.checked)"> Octagon</label>
+  <label><input type="checkbox" checked onchange="toggle('nonagon',this.checked)"> Nonagon</label>
+  <label><input type="checkbox" checked onchange="toggle('decagon',this.checked)"> Decagon</label>
+  
+  <hr>
+  <label><input type="checkbox" checked onchange="toggle('arc182',this.checked)"> 182° Red Arc</label>
+  <label><input type="checkbox" checked onchange="toggle('arc650',this.checked)"> 650° Green Arc</label>
+  
+  <hr>
+  <label><input type="checkbox" checked onchange="toggle('labels',this.checked)"> Degree Labels (toggleable)</label>
+  
+  <button onclick="resetAll()" style="margin-top:12px; padding:8px 16px;">Reset All</button>
+</div>
+
+<svg id="svg" viewBox="0 0 1200 1200" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Circle -->
+  <g id="circle">
+    <circle cx="600" cy="600" r="400" fill="none" stroke="#00ffff" stroke-width="14"/>
+    <text x="600" y="70" text-anchor="middle" font-size="32" fill="#00ffff" font-family="monospace">364°</text>
+  </g>
+
+  <!-- Square -->
+  <g id="square">
+    <rect x="200" y="200" width="800" height="800" fill="none" stroke="#ffff00" stroke-width="14"/>
+    <text x="600" y="1050" text-anchor="middle" font-size="22" fill="#ffff00">√182 = √(14×13)</text>
+  </g>
+
+  <!-- Triangle + 144,000 -->
+  <g id="triangle">
+    <polygon points="600,220 280,780 920,780" fill="none" stroke="#ff00ff" stroke-width="14"/>
+    <text x="600" y="580" text-anchor="middle" font-size="52" fill="#ff00ff" font-weight="bold">144,000</text>
+  </g>
+
+  <!-- Pentagon -->
+  <g id="pentagon">
+    <polygon points="600,240 820,360 820,640 600,760 380,640" fill="none" stroke="#00ff00" stroke-width="12"/>
+  </g>
+
+  <!-- Hexagon -->
+  <g id="hexagon">
+    <polygon points="600,250 780,340 820,520 780,700 600,790 420,700" fill="none" stroke="#00aaff" stroke-width="12"/>
+  </g>
+
+  <!-- Heptagon -->
+  <g id="heptagon">
+    <polygon points="600,235 760,310 820,460 780,620 680,760 520,760 420,620" fill="none" stroke="#ffaa00" stroke-width="11"/>
+  </g>
+
+  <!-- Octagon -->
+  <g id="octagon">
+    <polygon points="600,230 730,300 800,430 800,570 730,700 600,770 470,700 400,570" fill="none" stroke="#aa00ff" stroke-width="11"/>
+  </g>
+
+  <!-- Nonagon -->
+  <g id="nonagon">
+    <polygon points="600,225 720,280 800,380 820,500 780,620 700,730 500,730 420,620 380,500" fill="none" stroke="#00ffaa" stroke-width="10"/>
+  </g>
+
+  <!-- Decagon -->
+  <g id="decagon">
+    <polygon points="600,220 710,270 790,360 820,480 800,600 730,700 600,770 470,700 400,600 380,480" fill="none" stroke="#ff8800" stroke-width="10"/>
+  </g>
+
+  <!-- Red 182° Arc -->
+  <g id="arc182">
+    <path d="M600,200 Q220,380 220,600" fill="none" stroke="#ff0000" stroke-width="18" stroke-linecap="round"/>
+    <text x="320" y="340" font-size="24" fill="#ff0000">182°</text>
+  </g>
+
+  <!-- Green 650° Arc -->
+  <g id="arc650">
+    <path d="M600,200 Q980,380 980,600" fill="none" stroke="#00ff00" stroke-width="18" stroke-linecap="round"/>
+    <text x="880" y="340" font-size="24" fill="#00ff00">650° (286°)</text>
+  </g>
+
+  <!-- Degree Labels (toggleable group) -->
+  <g id="labels">
+    <!-- Example labels - you can expand as needed -->
+    <text x="600" y="140" text-anchor="middle" font-size="18" fill="#ffffff">0°</text>
+    <text x="850" y="380" font-size="18" fill="#ffffff">91°</text>
+    <text x="600" y="1050" text-anchor="middle" font-size="18" fill="#ffffff">182°</text>
+    <text x="350" y="380" font-size="18" fill="#ffffff">273°</text>
+    <text x="820" y="620" font-size="18" fill="#ffff00">218.4°</text>
+  </g>
+
+</svg>
+
+<script>
+// Toggle any layer by id
+function toggle(layerId, visible) {
+  const g = document.getElementById(layerId);
+  if (g) g.style.display = visible ? 'inline' : 'none';
+}
+
+// Reset everything
+function resetAll() {
+  document.querySelectorAll('g[id]').forEach(g => g.style.display = 'inline');
+  document.querySelectorAll('#controls input[type="checkbox"]').forEach(cb => cb.checked = true);
+}
+</script>
+
+</body>
+</html>
