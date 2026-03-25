@@ -13,10 +13,10 @@
 //   "all"    — Same as "crs" (backward compat).
 //   "keygen" — Generate PT26-DSA identity keypair and exit.
 //
-// TRI-PORT ARCHITECTURE (3 ports per node, spacing = 3):
-//   Daemon #1: 8079 (peer), 8080 (app API), 8081 (node/relay)
-//   Daemon #2: 8082 (peer), 8083 (app API), 8084 (node/relay)
-//   Daemon #3: 8085 (peer), 8086 (app API), 8087 (node/relay)
+// TRI-PORT ARCHITECTURE (3 ports per node, centered on gateway):
+//   Node #1: 11123 (peer), 11124 (gateway/API), 11125 (LLM)
+//   Node #2: 11150 (peer), 11151 (gateway/API), 11152 (LLM)
+//   Node #3: 11177 (peer), 11178 (gateway/API), 11179 (LLM)
 //
 // ENV VARS:
 //   CUBE_MODE                  — "crs", "cube", "all", or "keygen" (default: "all")
@@ -24,12 +24,12 @@
 //   RELAY_URL                  — WebSocket relay URL (default: CUBE_CRS_URL)
 //                                Set to remote relay (e.g. https://plenumnet.replit.app)
 //                                when CUBE_CRS_URL points to a local CRS
-//   LLM_PORT                   — Local LLM engine port for inference dispatch (default: 8080)
+//   LLM_PORT                   — Local LLM engine port for inference dispatch (default: CUBE_API_PORT + 1)
 //   CUBE_ENDPOINT              — Wire protocol endpoint (default: "0.0.0.0:51820")
 //   ADDRESS                    — Alias for CUBE_ENDPOINT
 //   CUBE_ROLE                  — Role annotation (inference, review, kb, infra, relay, standby)
 //   ROLE                       — Alias for CUBE_ROLE
-//   CUBE_API_PORT              — HTTP API bind port (default: 8080)
+//   CUBE_API_PORT              — HTTP API bind port (default: 11124 = gateway center)
 //   API_PORT                   — Alias for CUBE_API_PORT
 //   CUBE_PEER_PORT             — Direct peer-to-peer port (default: API_PORT - 1)
 //   PEER_PORT                  — Alias for CUBE_PEER_PORT
@@ -94,7 +94,7 @@ fn api_port() -> u16 {
         .or_else(|_| env::var("API_PORT"))
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(8080)
+        .unwrap_or(11124)
 }
 
 fn peer_port() -> u16 {
@@ -1133,7 +1133,7 @@ fn spawn_relay_client(
     peer_senders: Option<PeerSenders>,
     peer_msg_rx: Option<tokio::sync::mpsc::Receiver<inter_cube::ws_relay::RelayEnvelope>>,
 ) {
-    let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
+    let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| format!("{}", api_port() + 1));
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
     let api_port_val = api_port();
     let endpoint_str = format!("0.0.0.0:{}", api_port_val);
