@@ -1,0 +1,37 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> ^C
+PS C:\Users\Sigma> Get-Service PlenumNode2, Get-Service PlenumNode3
+Get-Service : A positional parameter cannot be found that accepts argument 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, Get-Service PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Service], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\Users\Sigma> cd c:\plenumNET
+PS C:\plenumNET> Get-Service PlenumNode2, Get-Service PlenumNode3
+Get-Service : A positional parameter cannot be found that accepts argument 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, Get-Service PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Service], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\plenumNET> Get-Service PlenumNode2, PlenumNode3
+Get-Service : Cannot find any service with service name 'PlenumNode2'.
+At line:1 char:1
++ Get-Service PlenumNode2, PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNode2:String) [Get-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.GetServiceCommand
+
+Get-Service : Cannot find any service with service name 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNode3:String) [Get-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.GetServiceCommand
