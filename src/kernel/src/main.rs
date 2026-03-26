@@ -134,6 +134,18 @@ fn put_u32(n: u32) {
     put_usize(n as usize);
 }
 
+fn put_hex_u64(n: u64) {
+    let digits = b"0123456789ABCDEF";
+    let mut started = false;
+    for i in (0..16).rev() {
+        let nibble = ((n >> (i * 4)) & 0xF) as usize;
+        if nibble != 0 || started || i == 0 {
+            serial::putchar(digits[nibble]);
+            started = true;
+        }
+    }
+}
+
 #[cfg(target_arch = "x86_64")]
 core::arch::global_asm!(
     ".section .multiboot2, \"a\"",
@@ -285,31 +297,61 @@ pub extern "C" fn kernel_main() -> ! {
     puts("================================================================\n");
     puts("\n");
 
-    let arch_name = if cfg!(target_arch = "x86_64") {
-        "x86_64"
-    } else if cfg!(target_arch = "aarch64") {
-        "aarch64"
-    } else if cfg!(target_arch = "riscv64") {
-        "riscv64"
-    } else {
-        "unknown"
+    use plenumnet_kernel::arch::boot::{self, BootSequence, BootParams};
+    use plenumnet_kernel::arch::ArchId;
+
+    #[cfg(target_arch = "x86_64")]
+    let boot_params: BootParams = boot::x86_64_boot_config();
+    #[cfg(target_arch = "aarch64")]
+    let boot_params: BootParams = boot::aarch64_boot_config();
+    #[cfg(target_arch = "riscv64")]
+    let boot_params: BootParams = boot::riscv64_boot_config();
+
+    let arch_name = match boot_params.arch_id {
+        ArchId::X86_64 => "x86_64",
+        ArchId::Aarch64 => "aarch64",
+        ArchId::RiscV64 => "riscv64",
     };
     puts("[boot] Architecture: ");
     puts(arch_name);
     puts("\n");
 
-    use plenumnet_kernel::arch::boot::BootSequence;
-    use plenumnet_kernel::arch::ArchId;
+    puts("[boot] Kernel physical base: 0x");
+    put_hex_u64(boot_params.kernel_physical_base);
+    puts("\n");
+    puts("[boot] Kernel size: 0x");
+    put_hex_u64(boot_params.kernel_size);
+    puts("\n");
+    puts("[boot] Framebuffer base: 0x");
+    put_hex_u64(boot_params.framebuffer_base);
+    puts(" (");
+    put_u32(boot_params.framebuffer_width);
+    puts("x");
+    put_u32(boot_params.framebuffer_height);
+    puts(", pitch=");
+    put_u32(boot_params.framebuffer_pitch);
+    puts(")\n");
+    puts("[boot] Memory regions: ");
+    put_usize(boot_params.memory_map.len());
+    puts("\n");
+    for region in &boot_params.memory_map {
+        puts("[boot]   0x");
+        put_hex_u64(region.base);
+        puts(" size=0x");
+        put_hex_u64(region.size);
+        puts(" (");
+        puts(match region.region_type {
+            plenumnet_kernel::arch::MemoryRegionType::Usable => "usable",
+            plenumnet_kernel::arch::MemoryRegionType::Reserved => "reserved",
+            plenumnet_kernel::arch::MemoryRegionType::AcpiReclaimable => "acpi",
+            plenumnet_kernel::arch::MemoryRegionType::AcpiNvs => "acpi-nvs",
+            plenumnet_kernel::arch::MemoryRegionType::Defective => "defective",
+            plenumnet_kernel::arch::MemoryRegionType::TernaryCoprocessor => "ternary-coproc",
+        });
+        puts(")\n");
+    }
 
-    let arch_id = if cfg!(target_arch = "x86_64") {
-        ArchId::X86_64
-    } else if cfg!(target_arch = "aarch64") {
-        ArchId::Aarch64
-    } else {
-        ArchId::RiscV64
-    };
-
-    let mut seq = BootSequence::new(arch_id);
+    let mut seq = BootSequence::new(boot_params.arch_id);
 
     let stage_names = [
         "FirmwareHandoff",
@@ -346,9 +388,29 @@ pub extern "C" fn kernel_main() -> ! {
     puts(" stages)\n");
     puts("\n");
 
+    let fb_w = if boot_params.framebuffer_width > 0 && boot_params.framebuffer_width <= 4096 {
+        boot_params.framebuffer_width
+    } else {
+        320
+    };
+    let fb_h = if boot_params.framebuffer_height > 0 && boot_params.framebuffer_height <= 4096 {
+        boot_params.framebuffer_height
+    } else {
+        200
+    };
+
+    let smoke_w = if fb_w > 320 { 320 } else { fb_w };
+    let smoke_h = if fb_h > 200 { 200 } else { fb_h };
+
     puts("[browser] Initializing PlenumBrowser subsystem...\n");
-    let mut browser = plenumnet_kernel::browser::Browser::new(320, 200);
-    puts("[browser] Framebuffer: 320x200 (CPU renderer)\n");
+    let mut browser = plenumnet_kernel::browser::Browser::new(smoke_w, smoke_h);
+    puts("[browser] Framebuffer: ");
+    put_u32(smoke_w);
+    puts("x");
+    put_u32(smoke_h);
+    puts(" (CPU renderer, hw fb @ 0x");
+    put_hex_u64(boot_params.framebuffer_base);
+    puts(")\n");
 
     browser.flush_render();
     puts("[browser] Render pipeline: OK\n");
@@ -372,8 +434,8 @@ pub extern "C" fn kernel_main() -> ! {
     {
         let fb = browser.framebuffer_mut();
         fb.clear([20, 40, 80, 255]);
-        fb.fill_rect(10, 10, 300, 40, [255, 255, 255, 255]);
-        fb.fill_rect(10, 55, 300, 2, [139, 92, 246, 255]);
+        fb.fill_rect(10, 10, 300.min(smoke_w - 20), 40, [255, 255, 255, 255]);
+        fb.fill_rect(10, 55, 300.min(smoke_w - 20), 2, [139, 92, 246, 255]);
     }
     browser.flush_render();
     puts("[browser] Test page rendered to framebuffer\n");
