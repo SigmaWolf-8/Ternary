@@ -23,6 +23,15 @@ A 4-service system provides geometric routing across the 13D ternary cube networ
 ### Rust Kernel Architecture
 A Rust-based kernel provides core functionalities: Ternary Operations (GF(3) arithmetic), Femtosecond-precision Timing (HPTP), Phase Encryption, and a 3-Tier Security System. It includes Cryptographic Primitives (ternary hash, TL-KEM, TL-DSA, CNSA 2.0 compliance), a Torsion Network (N-dimensional torus topology, Ternary Transport/Transfer/DNS), and a Ternary Virtual Machine (176-opcode ISA, ternary addressing, three-ring privilege levels, quantum-ternary simulation, ternary-aware garbage collector). A Binary Compatibility Layer handles balanced ternary conversion and crypto interoperability.
 
+### PlenumBrowser Kernel Subsystem (Phase 1 — CPU Path)
+A browser engine built as kernel subsystem modules in `src/kernel/src/browser/`. Not a fork — parsing, layout, scripting, rendering, and networking are kernel-space with direct access to the GPU, ternary crypto stack, and z=0 distributor. Phase 1 implements CPU rendering via `render_cpu.rs` (tiny-skia fallback path). Modules: `parse.rs` (DOM/CSS types), `layout.rs` (iterative Flexbox layout), `script.rs` (cooperative JS executor with watchdog), `render_cpu.rs` (framebuffer + sponge XOR encryption), `tabs.rs` (tab isolation via kernel tasks, max 64), `input.rs` (TIS-27 encoded key dispatch), `net.rs` (resource requests to z=0), `mesh.rs` (540-node recursive polygon mesh with Bézier interpolation), `color.rs` (PlenumColor mesh↔sRGB mapping). 71 unit tests.
+
+### z=0 Distributor
+The z-axis dome geometry from TM-2026-017. Above ground (+z) is presentation, below ground (−z) is processing, z=0 is the equatorial distributor plane. Implements (7, 11, 13) coprime walk over 540 nodes — gcd(1001, 540)=1, full coverage guaranteed. Modules in `src/kernel/src/distributor/`: `coprime_walk.rs` (parallel walkers with stride 7/11/13), `z_router.rs` (routes requests to z-levels −6 through +n), `sponge_rekey.rs` (per-frame TLSponge-385 keystream advance). Layer stubs in `src/kernel/src/layers/` for all z-levels: gateway (−1), services (−2), conventional (−3), ternary_native (−4), data (−5), infrastructure (−6), fileserver (+2), snapshots (+3..+n).
+
+### TIS-27 Keyboard Input
+Kernel-space TIS-27 encoding in `src/kernel/src/input/keyboard.rs`. Scancodes encoded before any buffer using 54-trit sponge (4 rounds, 43-bit integrity). Decoded to Unicode inside browser DOM handler at last possible moment — direct kernel call, no IPC.
+
 ### XPlenum RISC-V Hardware Extension
 A custom RISC-V extension integrated with CVA6 provides 21 custom instructions and 12 custom CSRs for ternary security operations, PQC acceleration, and compliance.
 

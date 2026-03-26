@@ -47,6 +47,10 @@ pub mod network;
 pub mod vm;
 pub mod hptp;
 pub mod compat;
+pub mod browser;
+pub mod distributor;
+pub mod input;
+pub mod layers;
 
 #[cfg(kani)]
 mod kani_proofs;
