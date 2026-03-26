@@ -43,7 +43,7 @@ impl SpongeRekeyState {
         }
     }
 
-    pub fn advance_frame(&mut self) -> &[u8] {
+    pub fn advance_frame(&mut self) -> Vec<u8> {
         self.frame_counter += 1;
 
         let fc_bytes = self.frame_counter.to_le_bytes();
@@ -57,7 +57,19 @@ impl SpongeRekeyState {
             self.permute_round(round);
         }
 
-        &self.state[..core::cmp::min(self.keystream_len, self.state.len())]
+        let rate = SPONGE_WIDTH_TRITS / 2;
+        let mut keystream = Vec::with_capacity(self.keystream_len);
+
+        while keystream.len() < self.keystream_len {
+            keystream.extend_from_slice(&self.state[..rate.min(self.state.len())]);
+
+            for round in 0..SPONGE_ROUNDS {
+                self.permute_round(round);
+            }
+        }
+
+        keystream.truncate(self.keystream_len);
+        keystream
     }
 
     fn permute_round(&mut self, round: usize) {
@@ -66,20 +78,23 @@ impl SpongeRekeyState {
             return;
         }
 
-        let rot = (round * 7 + 3) % len;
-        self.state.rotate_left(rot);
-
+        let mut scratch = Vec::with_capacity(len);
         for i in 0..len {
             let a = self.state[i] as u16;
             let b = self.state[(i + 1) % len] as u16;
             let c = self.state[(i + 2) % len] as u16;
-            self.state[i] = ((a ^ (!b & c)) & 0xFF) as u8;
+            let mixed = (a ^ (!b & c)) as u8;
+            scratch.push(mixed);
         }
+        self.state.copy_from_slice(&scratch);
 
         let round_const = (round as u8).wrapping_mul(0x9E).wrapping_add(0x37);
-        for byte in self.state.iter_mut() {
-            *byte ^= round_const;
+        for (i, byte) in self.state.iter_mut().enumerate() {
+            *byte ^= round_const.wrapping_add(i as u8);
         }
+
+        let rot = (round * 7 + 3) % len;
+        self.state.rotate_left(rot);
     }
 
     pub fn frame_counter(&self) -> u64 {
@@ -150,13 +165,23 @@ mod tests {
         let mut state = SpongeRekeyState::new(&key, FrameResolution::Custom { width: 8, height: 8 });
         assert_eq!(state.frame_counter(), 0);
 
-        let ks1 = state.advance_frame().to_vec();
+        let ks1 = state.advance_frame();
         assert_eq!(state.frame_counter(), 1);
+        assert_eq!(ks1.len(), 8 * 8 * 4);
 
-        let ks2 = state.advance_frame().to_vec();
+        let ks2 = state.advance_frame();
         assert_eq!(state.frame_counter(), 2);
+        assert_eq!(ks2.len(), 8 * 8 * 4);
 
         assert_ne!(ks1, ks2, "each frame must produce a different keystream");
+    }
+
+    #[test]
+    fn test_keystream_full_resolution() {
+        let key = [0x01u8; 32];
+        let mut state = SpongeRekeyState::new(&key, FrameResolution::Custom { width: 100, height: 100 });
+        let ks = state.advance_frame();
+        assert_eq!(ks.len(), 100 * 100 * 4, "keystream must match full resolution");
     }
 
     #[test]

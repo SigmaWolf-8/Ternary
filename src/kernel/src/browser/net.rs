@@ -8,6 +8,8 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
+use crate::distributor::Distributor;
+use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceType {
@@ -22,6 +24,21 @@ pub enum ResourceType {
     Other,
 }
 
+impl ResourceType {
+    pub fn to_z_request_type(&self) -> RequestType {
+        match self {
+            ResourceType::Document => RequestType::HttpRequest,
+            ResourceType::Script => RequestType::ScriptExec,
+            ResourceType::Stylesheet => RequestType::FileServe,
+            ResourceType::Image => RequestType::FileServe,
+            ResourceType::Font => RequestType::FileServe,
+            ResourceType::Xhr | ResourceType::Fetch => RequestType::HttpRequest,
+            ResourceType::WebSocket => RequestType::HttpRequest,
+            ResourceType::Other => RequestType::HttpRequest,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ResourceRequest {
     pub id: u64,
@@ -29,6 +46,7 @@ pub struct ResourceRequest {
     pub resource_type: ResourceType,
     pub method: HttpMethod,
     pub headers: Vec<(String, String)>,
+    pub z_request: Option<ZRequest>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +71,7 @@ pub struct ResourceResponse {
 pub struct NetworkLayer {
     request_counter: u64,
     pending: Vec<u64>,
+    distributor: Distributor,
 }
 
 impl NetworkLayer {
@@ -60,17 +79,23 @@ impl NetworkLayer {
         Self {
             request_counter: 0,
             pending: Vec::new(),
+            distributor: Distributor::new(),
         }
     }
 
     pub fn fetch(&mut self, url: String, resource_type: ResourceType) -> ResourceRequest {
         self.request_counter += 1;
+
+        let z_payload = resource_type.to_z_request_type();
+        let z_req = self.distributor.dispatch(ZLevel::UI, z_payload);
+
         let req = ResourceRequest {
             id: self.request_counter,
             url,
             resource_type,
             method: HttpMethod::Get,
             headers: Vec::new(),
+            z_request: Some(z_req),
         };
         self.pending.push(req.id);
         req
@@ -87,6 +112,10 @@ impl NetworkLayer {
     pub fn requests_made(&self) -> u64 {
         self.request_counter
     }
+
+    pub fn distributor_position(&self) -> u32 {
+        self.distributor.walker_position()
+    }
 }
 
 #[cfg(test)]
@@ -94,11 +123,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_network_fetch() {
+    fn test_network_fetch_routes_through_distributor() {
         let mut net = NetworkLayer::new();
         let req = net.fetch("https://example.com".into(), ResourceType::Document);
         assert_eq!(req.id, 1);
         assert_eq!(net.pending_count(), 1);
+
+        let z_req = req.z_request.as_ref().unwrap();
+        assert_eq!(z_req.origin, ZLevel::UI);
+        assert_eq!(z_req.target, ZLevel::API_GATEWAY);
+        assert_eq!(z_req.direction, RouteDirection::Falling);
+    }
+
+    #[test]
+    fn test_network_fetch_fileserve_routes() {
+        let mut net = NetworkLayer::new();
+        let req = net.fetch("font.woff2".into(), ResourceType::Font);
+        let z_req = req.z_request.as_ref().unwrap();
+        assert_eq!(z_req.target, ZLevel::FILE_SERVER);
+        assert_eq!(z_req.direction, RouteDirection::Bubbling);
     }
 
     #[test]
@@ -110,11 +153,22 @@ mod tests {
     }
 
     #[test]
-    fn test_request_counter() {
+    fn test_request_counter_and_distributor() {
         let mut net = NetworkLayer::new();
         net.fetch("a".into(), ResourceType::Script);
         net.fetch("b".into(), ResourceType::Image);
         net.fetch("c".into(), ResourceType::Font);
         assert_eq!(net.requests_made(), 3);
+        assert!(net.distributor_position() > 0);
+    }
+
+    #[test]
+    fn test_coprime_walk_advances() {
+        let mut net = NetworkLayer::new();
+        let r1 = net.fetch("a".into(), ResourceType::Document);
+        let r2 = net.fetch("b".into(), ResourceType::Document);
+        let pos1 = r1.z_request.unwrap().ring_position;
+        let pos2 = r2.z_request.unwrap().ring_position;
+        assert_ne!(pos1, pos2, "coprime walk must advance to different positions");
     }
 }

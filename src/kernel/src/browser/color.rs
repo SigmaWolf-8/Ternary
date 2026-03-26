@@ -154,67 +154,84 @@ fn quadratic_bezier(p0: BezierPoint, p1: BezierPoint, p2: BezierPoint, t: f64) -
 }
 
 pub fn srgb_to_mesh(rgba: Rgba, depth: usize) -> MeshAddress {
-    let r_norm = rgba.r as f64 / 255.0;
-    let g_norm = rgba.g as f64 / 255.0;
-    let b_norm = rgba.b as f64 / 255.0;
+    let combined = (rgba.r as f64 / 255.0) * 0.5
+        + (rgba.g as f64 / 255.0) * 0.3
+        + (rgba.b as f64 / 255.0) * 0.2;
 
+    let total = MESH_NODES as f64;
     let mut cells = Vec::with_capacity(depth);
-    let mut r_rem = r_norm;
-    let mut g_rem = g_norm;
-    let mut b_rem = b_norm;
+    let mut remainder = combined;
 
     for _ in 0..depth {
-        let r_cell = (r_rem * (MESH_NODES as f64 / 3.0)).min((MESH_NODES as f64 / 3.0) - 1.0) as u16;
-        let g_cell = (g_rem * (MESH_NODES as f64 / 3.0)).min((MESH_NODES as f64 / 3.0) - 1.0) as u16;
-        let b_cell = (b_rem * (MESH_NODES as f64 / 3.0)).min((MESH_NODES as f64 / 3.0) - 1.0) as u16;
-
-        let cell = (r_cell * (MESH_NODES as u16 / 3) + g_cell) * (MESH_NODES as u16 / 3) + b_cell;
-        let cell = cell.min(MESH_NODES as u16 - 1);
+        let scaled = remainder * total;
+        let cell = (scaled as u16).min(MESH_NODES as u16 - 1);
         cells.push(cell);
-
-        let scale = MESH_NODES as f64 / 3.0;
-        r_rem = r_rem * scale - r_cell as f64;
-        g_rem = g_rem * scale - g_cell as f64;
-        b_rem = b_rem * scale - b_cell as f64;
-
-        r_rem = r_rem.max(0.0).min(1.0);
-        g_rem = g_rem.max(0.0).min(1.0);
-        b_rem = b_rem.max(0.0).min(1.0);
+        remainder = scaled - cell as f64;
+        remainder = remainder.max(0.0).min(1.0);
     }
 
     MeshAddress { cells, depth }
 }
 
-pub fn mesh_to_srgb(address: &MeshAddress) -> Rgba {
-    let depth = address.depth();
-    let cells = address.cells();
-    let scale = MESH_NODES as f64 / 3.0;
+pub fn srgb_to_mesh_rgb(rgba: Rgba, depth: usize) -> [MeshAddress; 3] {
+    [
+        channel_to_mesh(rgba.r, depth),
+        channel_to_mesh(rgba.g, depth),
+        channel_to_mesh(rgba.b, depth),
+    ]
+}
 
-    let mut r = 0.0f64;
-    let mut g = 0.0f64;
-    let mut b = 0.0f64;
+fn channel_to_mesh(val: u8, depth: usize) -> MeshAddress {
+    let norm = val as f64 / 255.0;
+    let total = MESH_NODES as f64;
+    let mut cells = Vec::with_capacity(depth);
+    let mut remainder = norm;
 
-    let mut divisor = 1.0f64;
-    for &cell in cells {
-        let cell = cell as f64;
-        let cube_root = (MESH_NODES as f64 / 3.0) as u16;
-        let r_cell = (cell / (cube_root as f64 * cube_root as f64)) as f64;
-        let g_cell = ((cell % (cube_root as f64 * cube_root as f64)) / cube_root as f64) as f64;
-        let b_cell = (cell % cube_root as f64) as f64;
-
-        r += r_cell / (divisor * scale);
-        g += g_cell / (divisor * scale);
-        b += b_cell / (divisor * scale);
-
-        divisor *= scale;
+    for _ in 0..depth {
+        let scaled = remainder * total;
+        let cell = (scaled as u16).min(MESH_NODES as u16 - 1);
+        cells.push(cell);
+        remainder = scaled - cell as f64;
+        remainder = remainder.max(0.0).min(1.0);
     }
 
-    let _ = depth;
+    MeshAddress { cells, depth }
+}
 
+fn mesh_to_channel(address: &MeshAddress) -> u8 {
+    let mut value = 0.0f64;
+    let mut divisor = MESH_NODES as f64;
+
+    for &cell in address.cells() {
+        value += cell as f64 / divisor;
+        divisor *= MESH_NODES as f64;
+    }
+
+    (value * 255.0).round().min(255.0).max(0.0) as u8
+}
+
+pub fn mesh_to_srgb(address: &MeshAddress) -> Rgba {
+    let mut value = 0.0f64;
+    let mut divisor = MESH_NODES as f64;
+
+    for &cell in address.cells() {
+        value += cell as f64 / divisor;
+        divisor *= MESH_NODES as f64;
+    }
+
+    let luma = value;
+    let r = (luma * 255.0).round().min(255.0).max(0.0) as u8;
+    let g = (luma * 255.0).round().min(255.0).max(0.0) as u8;
+    let b = (luma * 255.0).round().min(255.0).max(0.0) as u8;
+
+    Rgba::new(r, g, b, 255)
+}
+
+pub fn mesh_rgb_to_srgb(channels: &[MeshAddress; 3]) -> Rgba {
     Rgba::new(
-        (r * 255.0).min(255.0).max(0.0) as u8,
-        (g * 255.0).min(255.0).max(0.0) as u8,
-        (b * 255.0).min(255.0).max(0.0) as u8,
+        mesh_to_channel(&channels[0]),
+        mesh_to_channel(&channels[1]),
+        mesh_to_channel(&channels[2]),
         255,
     )
 }
@@ -305,9 +322,67 @@ mod tests {
     }
 
     #[test]
+    fn test_srgb_rgb_roundtrip() {
+        let colors = [
+            Rgba::new(0, 0, 0, 255),
+            Rgba::new(255, 255, 255, 255),
+            Rgba::new(128, 64, 32, 255),
+            Rgba::new(255, 0, 0, 255),
+            Rgba::new(0, 255, 0, 255),
+            Rgba::new(0, 0, 255, 255),
+        ];
+        for &color in &colors {
+            let channels = srgb_to_mesh_rgb(color, 3);
+            let back = mesh_rgb_to_srgb(&channels);
+            assert!((back.r as i16 - color.r as i16).abs() <= 1,
+                "R mismatch: {} vs {}", back.r, color.r);
+            assert!((back.g as i16 - color.g as i16).abs() <= 1,
+                "G mismatch: {} vs {}", back.g, color.g);
+            assert!((back.b as i16 - color.b as i16).abs() <= 1,
+                "B mismatch: {} vs {}", back.b, color.b);
+        }
+    }
+
+    #[test]
+    fn test_mesh_node_distribution() {
+        let mut seen = alloc::collections::BTreeSet::new();
+        for r in (0..=255).step_by(16) {
+            let addr = channel_to_mesh(r as u8, 1);
+            seen.insert(addr.cells()[0]);
+        }
+        assert!(seen.len() > 10, "should map to many distinct mesh nodes, got {}", seen.len());
+    }
+
+    #[test]
+    fn test_different_colors_different_mesh() {
+        let red = srgb_to_mesh_rgb(Rgba::new(255, 0, 0, 255), 3);
+        let blue = srgb_to_mesh_rgb(Rgba::new(0, 0, 255, 255), 3);
+        assert_ne!(red[0].cells(), blue[0].cells(),
+            "R channel: 255 vs 0 must map to different mesh addresses");
+        assert_ne!(red[2].cells(), blue[2].cells(),
+            "B channel: 0 vs 255 must map to different mesh addresses");
+
+        let white = srgb_to_mesh_rgb(Rgba::new(255, 255, 255, 255), 3);
+        let black = srgb_to_mesh_rgb(Rgba::new(0, 0, 0, 255), 3);
+        for ch in 0..3 {
+            assert_ne!(white[ch].cells(), black[ch].cells(),
+                "channel {} must differ between white and black", ch);
+        }
+    }
+
+    #[test]
     fn test_arc_configs() {
         assert_eq!(ArcConfig::Diverge as u8, 0);
         assert_eq!(ArcConfig::VesicaPiscis as u8, 3);
+    }
+
+    #[test]
+    fn test_arc_equation_roots() {
+        let sum = ARC_RED + ARC_GREEN;
+        let product = ARC_RED * ARC_GREEN;
+        assert_eq!(sum, 832);
+        assert_eq!(product, ARC_PRODUCT);
+        assert_eq!(ARC_PRODUCT, 118_300);
     }
 
     fn gcd(a: u32, b: u32) -> u32 {
