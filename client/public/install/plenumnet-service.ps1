@@ -25,8 +25,9 @@ $InstallDir = "C:\PlenumNET"
 $IdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
 $LogDir = Join-Path $IdentityBase "logs"
 $BinaryPath = Join-Path $InstallDir "target\release\inter-cube-daemon.exe"
-$BasePeerPort = 8079
-$PortStep = 3
+$BasePort = 11111
+$SlotsPerNode = 27
+$GatewayOffset = 13
 $CRS_URL = "https://plenumnet.replit.app"
 
 function Get-ServiceName {
@@ -207,9 +208,8 @@ function Invoke-Install {
         return
     }
 
-    $peerPort = $BasePeerPort + (($Id - 1) * $PortStep)
-    $enginePort = $peerPort + 1
-    $daemonPort = $peerPort + 2
+    $rangeStart = $BasePort + (($Id - 1) * $SlotsPerNode)
+    $gatewayPort = $rangeStart + $GatewayOffset
     $svcName = Get-ServiceName -Id $Id
     $displayName = Get-ServiceDisplayName -Id $Id
 
@@ -227,9 +227,8 @@ function Invoke-Install {
 @echo off
 setlocal enabledelayedexpansion
 set CUBE_MODE=cube
-set CUBE_API_PORT=$daemonPort
-set LLM_PORT=$enginePort
-set CUBE_PEER_PORT=$peerPort
+set CUBE_NODE_ID=$Id
+set CUBE_API_PORT=$gatewayPort
 set CUBE_CRS_URL=$CRS_URL
 set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$agentDir
@@ -237,7 +236,7 @@ set CUBE_ROLE=inference
 set RESTART_DELAY=5
 set RESTART_COUNT=0
 :loop
-echo [%date% %time%] Starting PlenumNET Cube #$Id [restart #!RESTART_COUNT!] >> "$logFile"
+echo [%date% %time%] Starting PlenumNET Cube #$Id gateway=$gatewayPort [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
 echo [%date% %time%] Cube #$Id exited with code !EXIT_CODE! >> "$logFile"
