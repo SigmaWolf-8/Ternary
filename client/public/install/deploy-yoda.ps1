@@ -620,6 +620,7 @@ $daemonsArray = @()
 foreach ($cfg in $daemonConfigs) {
     $daemonsArray += @{
         id = $cfg.Id
+        port = $cfg.GatewayPort
         gatewayPort = $cfg.GatewayPort
         rangeStart = $cfg.RangeStart
         address = if ($cfg.Address) { $cfg.Address } else { "" }

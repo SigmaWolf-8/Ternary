@@ -1015,7 +1015,7 @@ function startPqtiService(): ChildProcess | null {
           daemonChecks.push({
             address: toDottedAddr(normalAddr),
             endpoint: d.endpoint || "",
-            port: d.port || 0,
+            port: d.port || d.gatewayPort || 0,
             peerPort: d.peerPort || 0,
             hostname: record.hostname || "",
             deploymentId: record.id,
