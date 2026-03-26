@@ -1501,7 +1501,7 @@ function startPqtiService(): ChildProcess | null {
       if (dataListener && activeSessionId) {
         const oldSession = getSession(activeSessionId);
         if (oldSession) {
-          oldSession.ptyProcess.removeListener("data", dataListener);
+          (oldSession.ptyProcess as any).removeListener("data", dataListener);
         }
       }
       activeSessionId = session.id;
@@ -1655,7 +1655,7 @@ function startPqtiService(): ChildProcess | null {
       if (dataListener && activeSessionId) {
         const session = getSession(activeSessionId);
         if (session) {
-          try { session.ptyProcess.removeListener("data", dataListener); } catch {}
+          try { (session.ptyProcess as any).removeListener("data", dataListener); } catch {}
         }
       }
     });

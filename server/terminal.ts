@@ -1,3 +1,8 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
+// See LICENSE in the repository root for full terms.
+
 import * as pty from "node-pty";
 import crypto from "crypto";
 
