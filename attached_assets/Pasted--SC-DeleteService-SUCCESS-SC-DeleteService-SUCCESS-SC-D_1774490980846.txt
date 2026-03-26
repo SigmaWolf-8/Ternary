@@ -1,0 +1,88 @@
+[SC] DeleteService SUCCESS
+[SC] DeleteService SUCCESS
+[SC] DeleteService SUCCESS
+
+==========================================================
+  PlenumNET Array3 Deployer
+  PlenumNET Inter-Cube Infrastructure
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+  Nodes        : 3 instances
+  Coordinator  : Node #1 (port 8081)
+  Node Ports   : 8081, 8084, 8087
+  App Ports    : 8080, 8083, 8086
+  Peer Ports   : 8079, 8082, 8085
+  Relay        : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Registry     : https://plenumnet.replit.app (monitoring only)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/8: Build environment
+---
+  Architecture: Arm64
+  [OK] clang
+
+STEP 3/8: Source code + build
+---
+  Updating source...
+  [OK] Source ready
+  Stopping running node(s)...
+  Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+     Compiling inter-cube v2.4.1 (C:\PlenumNET\services\inter-cube)
+      Finished `release` profile [optimized] target(s) in 44.86s
+  [OK] Build successful (3 MB)
+
+STEP 4/8: Version check
+---
+  Local node    : v2.4.1
+  CRS reference : v0.4.0
+  NOTE: Version mismatch -- local v2.4.1 vs CRS v0.4.0
+        Run the deployer again after 'git pull' to update.
+
+STEP 5/8: Network detection                                                                                             ---                                                                                                                       Local IP: 10.0.0.42                                                                                                                                                                                                                           STEP 6/8: Generating 3 node identities                                                                                  ---                                                                                                                       Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...                                   [OK] Node #1 identity exists                                                                                            [OK] Node #2 identity exists                                                                                            [OK] Node #3 identity exists                                                                                                                                                                                                                  STEP 7/8: Registering Array3 as Windows Services                                                                        ---                                                                                                                       [OK] Node #1 registered as service 'PlenumNET-Array3-1'                                                                 [OK] Node #2 registered as service 'PlenumNET-Array3-2'                                                                 [OK] Node #3 registered as service 'PlenumNET-Array3-3'                                                                                                                                                                                         Starting Node #1 (coordinator) first...                                                                                 Waiting for coordinator to be ready...                                                                                  [OK] Coordinator ready at http://localhost:8081                                                                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' to start...                         [OK] Node #2 service started                                                                                          WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...                       WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...
+WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...
+WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...
+WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...
+WARNING: Waiting for service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' to start...
+  [OK] Node #3 service started
+  [OK] Watchdog scheduled task registered: PlenumNET-Array3-Watchdog
+       Checks every 5 minutes + on boot - restarts any stopped nodes
+  [OK] Node #1 (coordinator) address: 1111111111111
+  [OK] Node #2 registered -> address: 1211111111111
+  [OK] Node #3 registered -> address: 2211111111111
+
+STEP 8/8: Deployment summary + desktop launcher
+---
+  [OK] Deployment summary posted to PlenumNET Node Registry
+       Query: https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+
+  [OK] Desktop launcher created: C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.bat
+  [OK] Stop launcher created: C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.bat
+
+==========================================================
+  PlenumNET Array3 Deployment Complete
+==========================================================
+
+  Node #1 (coordinator): port 8081, address 1111111111111
+  Node #2 (worker)     : port 8084, address 1211111111111
+  Node #3 (worker)     : port 8087, address 2211111111111
+
+  Services       : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+  Startup        : Automatic (survives reboots + terminal close)
+  Watchdog       : PlenumNET-Array3-Watchdog (every 5 min + on boot)
+  Coordinator    : http://localhost:8081 (Node #1)
+  Relay          : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Registry       : https://plenumnet.replit.app (monitoring dashboard)
+  Node Registry  : https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+  Start Launcher : C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.bat
+  Stop Launcher  : C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.bat
+  Logs           : C:\PlenumNET\plenumnet-data\logs
+
+  Closing this window will NOT stop the nodes -- they run as services.
+  Applications (e.g. YODA) connect via the relay to reach these nodes.
+
+Press Enter to close:

@@ -1,0 +1,105 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Stop-Service PlenumNET-Array3-* -Force -ErrorAction SilentlyContinue; cd C:\PlenumNET; git reset --hard origin/main; git pull origin main; & .\services\inter-cube\deploy-yoda.ps1
+HEAD is now at 9b1e53a1 Update CRS version to match local node version for consistency
+remote: Enumerating objects: 20, done.
+remote: Counting objects: 100% (20/20), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 12 (delta 9), reused 12 (delta 9), pack-reused 0 (from 0)
+Unpacking objects: 100% (12/12), 5.94 KiB | 507.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   9b1e53a1..17da3fdf  main       -> origin/main
+Updating 9b1e53a1..17da3fdf
+Fast-forward
+ ...ht-C-Microsoft-Corporation-Al_1774490606918.txt | 368 +++++++++++++++++++++
+ client/public/install/deploy-yoda.ps1              |   7 +-
+ services/inter-cube/deploy-yoda.ps1                |   7 +-
+ 3 files changed, 380 insertions(+), 2 deletions(-)
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774490606918.txt
+
+==========================================================
+  PlenumNET Array3 Deployer
+  PlenumNET Inter-Cube Infrastructure
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+  Nodes        : 3 instances (27 slots each)
+  Coordinator  : Node #1 (gateway 11124)
+  Gateway Ports: 11124, 11151, 11178
+  Port Ranges  : 11111-11137, 11138-11164, 11165-11191
+  Relay        : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Registry     : https://plenumnet.replit.app (monitoring only)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/8: Build environment
+---
+  Architecture: ARM64
+  [OK] clang
+
+STEP 3/8: Source code + build
+---
+  Updating source...
+  [OK] Source ready
+  Stopping running node(s)...
+Stop-Process : Cannot stop process "inter-cube-daemon (226064)" because of the following error: Access is denied
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:265 char:23
++     $runningDaemons | Stop-Process -Force
++                       ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : CloseError: (System.Diagnost...er-cube-daemon):Process) [Stop-Process], ProcessCommandEx
+   ception
+    + FullyQualifiedErrorId : CouldNotStopProcess,Microsoft.PowerShell.Commands.StopProcessCommand
+
+Stop-Process : Cannot stop process "inter-cube-daemon (226980)" because of the following error: Access is denied
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:265 char:23
++     $runningDaemons | Stop-Process -Force
++                       ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : CloseError: (System.Diagnost...er-cube-daemon):Process) [Stop-Process], ProcessCommandEx
+   ception
+    + FullyQualifiedErrorId : CouldNotStopProcess,Microsoft.PowerShell.Commands.StopProcessCommand
+
+Stop-Process : Cannot stop process "inter-cube-daemon (227304)" because of the following error: Access is denied
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:265 char:23
++     $runningDaemons | Stop-Process -Force
++                       ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : CloseError: (System.Diagnost...er-cube-daemon):Process) [Stop-Process], ProcessCommandEx
+   ception
+    + FullyQualifiedErrorId : CouldNotStopProcess,Microsoft.PowerShell.Commands.StopProcessCommand
+
+  Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+      Finished `release` profile [optimized] target(s) in 0.15s
+  [OK] Build successful (3 MB)
+
+STEP 4/8: Version check
+---
+  Local node    : v2.4.1
+  CRS reference : v0.4.0
+  NOTE: Version mismatch -- local v2.4.1 vs CRS v0.4.0
+        Run the deployer again after 'git pull' to update.
+
+STEP 5/8: Network detection
+---
+  Local IP: 10.0.0.42
+
+STEP 6/8: Generating 3 node identities
+---
+  Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...
+  [OK] Migrated identity-1
+  [OK] Migrated identity-2
+  [OK] Migrated identity-3
+  [OK] Node #1 identity exists
+  [OK] Node #2 identity exists
+  [OK] Node #3 identity exists
+
+STEP 7/8: Registering Array3 as Windows Services
+---
+  Administrator privileges required to register Windows Services.
+  Elevating...
+  Re-launched as Administrator. This window can be closed.
