@@ -29,14 +29,25 @@ pub struct SessionConfig {
     pub env: HashMap<String, String>,
 }
 
+const ENV_ALLOWLIST: &[&str] = &[
+    "PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "LC_CTYPE",
+    "SHELL", "HOSTNAME", "CUBE_NODE_ID", "CUBE_MODE",
+];
+
 impl Default for SessionConfig {
     fn default() -> Self {
+        let mut env = HashMap::new();
+        for key in ENV_ALLOWLIST {
+            if let Ok(val) = std::env::var(key) {
+                env.insert(key.to_string(), val);
+            }
+        }
         Self {
             cols: 80,
             rows: 24,
             shell: std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string()),
             cwd: std::env::var("HOME").unwrap_or_else(|_| "/".to_string()),
-            env: std::env::vars().collect(),
+            env,
         }
     }
 }
@@ -57,8 +68,8 @@ pub struct SessionInfo {
 struct LiveSession {
     info: SessionInfo,
     master: Box<dyn MasterPty + Send>,
+    child: Box<dyn portable_pty::Child + Send + Sync>,
     stdin_tx: mpsc::Sender<Vec<u8>>,
-    kill_tx: mpsc::Sender<()>,
 }
 
 pub struct PtyMuxService {
@@ -154,7 +165,6 @@ impl PtyMuxService {
         });
 
         let (stdin_tx, mut stdin_rx) = mpsc::channel::<Vec<u8>>(256);
-        let (kill_tx, _kill_rx) = mpsc::channel::<()>(1);
 
         let mut writer = pair
             .master
@@ -177,8 +187,8 @@ impl PtyMuxService {
         let session = LiveSession {
             info,
             master: pair.master,
+            child,
             stdin_tx,
-            kill_tx,
         };
 
         self.sessions.insert(id, session);
@@ -222,9 +232,11 @@ impl PtyMuxService {
     }
 
     pub fn destroy_session(&mut self, id: SessionId) -> bool {
-        if let Some(session) = self.sessions.remove(&id) {
-            let _ = session.kill_tx.try_send(());
-            println!("[pty-mux] Session {} destroyed", id.0);
+        if let Some(mut session) = self.sessions.remove(&id) {
+            let _ = session.child.kill();
+            let _ = session.child.wait();
+            drop(session.stdin_tx);
+            println!("[pty-mux] Session {} destroyed (pid={})", id.0, session.info.pid);
             true
         } else {
             false
@@ -355,6 +367,28 @@ async fn handle_ws_session(
                                     mux_write.lock().unwrap_or_else(|e| e.into_inner());
                                 let _ =
                                     guard.write_to_session(sid, data.as_bytes().to_vec());
+                                drop(guard);
+                            }
+                        } else if cmd["type"].as_str() == Some("cluster_exec") {
+                            if let Some(command) = cmd["command"].as_str() {
+                                let output = match std::process::Command::new("sh")
+                                    .arg("-c")
+                                    .arg(command)
+                                    .output()
+                                {
+                                    Ok(out) => {
+                                        let stdout = String::from_utf8_lossy(&out.stdout);
+                                        let stderr = String::from_utf8_lossy(&out.stderr);
+                                        format!("{}{}", stdout, stderr)
+                                    }
+                                    Err(e) => format!("exec error: {}", e),
+                                };
+                                let result_msg = serde_json::json!({
+                                    "type": "cluster_result",
+                                    "output": output,
+                                });
+                                let guard = mux_write.lock().unwrap_or_else(|e| e.into_inner());
+                                let _ = guard.write_to_session(sid, result_msg.to_string().into_bytes());
                                 drop(guard);
                             }
                         }

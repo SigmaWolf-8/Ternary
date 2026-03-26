@@ -734,7 +734,8 @@ async fn run_crs_mode() {
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), None, None);
 
     let terminal_mux = pty_mux::new_shared_mux(16);
-    let terminal_bind: SocketAddr = format!("0.0.0.0:{}", t_port).parse().unwrap();
+    let term_bind_addr = env::var("CUBE_TERMINAL_BIND").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let terminal_bind: SocketAddr = format!("{}:{}", term_bind_addr, t_port).parse().unwrap();
     tokio::spawn(pty_mux::run_ws_terminal_server(terminal_bind, terminal_mux));
 
     println!();
@@ -1146,7 +1147,8 @@ async fn run_cube_mode() {
     let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
 
     let terminal_mux = pty_mux::new_shared_mux(16);
-    let terminal_bind: SocketAddr = format!("0.0.0.0:{}", t_port).parse().unwrap();
+    let term_bind_addr = env::var("CUBE_TERMINAL_BIND").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let terminal_bind: SocketAddr = format!("{}:{}", term_bind_addr, t_port).parse().unwrap();
     tokio::spawn(pty_mux::run_ws_terminal_server(terminal_bind, terminal_mux));
 
     println!();
