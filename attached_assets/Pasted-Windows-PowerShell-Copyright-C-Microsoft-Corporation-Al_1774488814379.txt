@@ -1,0 +1,74 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> ^C
+PS C:\Users\Sigma> Get-Service PlenumNode2, Get-Service PlenumNode3
+Get-Service : A positional parameter cannot be found that accepts argument 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, Get-Service PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Service], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\Users\Sigma> cd c:\plenumNET
+PS C:\plenumNET> Get-Service PlenumNode2, Get-Service PlenumNode3
+Get-Service : A positional parameter cannot be found that accepts argument 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, Get-Service PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Service], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\plenumNET> Get-Service PlenumNode2, PlenumNode3
+Get-Service : Cannot find any service with service name 'PlenumNode2'.
+At line:1 char:1
++ Get-Service PlenumNode2, PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNode2:String) [Get-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.GetServiceCommand
+
+Get-Service : Cannot find any service with service name 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNode3:String) [Get-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\plenumNET> Get-Service Plenum*
+
+Status   Name               DisplayName
+------   ----               -----------
+Stopped  PlenumNET-Array3-1 PlenumNET Array3 Node #1 (coordinator)
+Stopped  PlenumNET-Array3-2 PlenumNET Array3 Node #2 (worker)
+Stopped  PlenumNET-Array3-3 PlenumNET Array3 Node #3 (worker)
+
+
+PS C:\plenumNET> Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-1 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-2 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-3 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
