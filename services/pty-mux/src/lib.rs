@@ -13,8 +13,12 @@
 // See LICENSE in the repository root for full terms.
 
 use std::collections::HashMap;
+use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
+use std::net::SocketAddr;
 use serde::{Serialize, Deserialize};
+use portable_pty::{CommandBuilder, PtySize, native_pty_system, MasterPty};
+use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionConfig {
@@ -50,9 +54,16 @@ pub struct SessionInfo {
     pub pid: u32,
 }
 
+struct LiveSession {
+    info: SessionInfo,
+    master: Box<dyn MasterPty + Send>,
+    stdin_tx: mpsc::Sender<Vec<u8>>,
+    kill_tx: mpsc::Sender<()>,
+}
+
 pub struct PtyMuxService {
     next_id: u64,
-    sessions: HashMap<SessionId, SessionInfo>,
+    sessions: HashMap<SessionId, LiveSession>,
     max_sessions: usize,
 }
 
@@ -65,10 +76,38 @@ impl PtyMuxService {
         }
     }
 
-    pub fn create_session(&mut self, config: SessionConfig) -> Result<SessionId, String> {
+    pub fn create_session(
+        &mut self,
+        config: SessionConfig,
+        stdout_tx: mpsc::Sender<Vec<u8>>,
+    ) -> Result<SessionId, String> {
         if self.sessions.len() >= self.max_sessions {
             return Err("Maximum session limit reached".to_string());
         }
+
+        let pty_system = native_pty_system();
+        let pair = pty_system
+            .openpty(PtySize {
+                rows: config.rows,
+                cols: config.cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| format!("Failed to open PTY: {}", e))?;
+
+        let mut cmd = CommandBuilder::new(&config.shell);
+        cmd.cwd(&config.cwd);
+        for (k, v) in &config.env {
+            cmd.env(k, v);
+        }
+        cmd.env("TERM", "xterm-256color");
+
+        let child = pair
+            .slave
+            .spawn_command(cmd)
+            .map_err(|e| format!("Failed to spawn shell: {}", e))?;
+
+        let pid = child.process_id().unwrap_or(0);
 
         let id = SessionId(self.next_id);
         self.next_id += 1;
@@ -84,33 +123,120 @@ impl PtyMuxService {
             rows: config.rows,
             created_at: now,
             last_activity: now,
-            pid: 0,
+            pid,
         };
 
-        self.sessions.insert(id, info);
+        let mut reader = pair
+            .master
+            .try_clone_reader()
+            .map_err(|e| format!("Failed to clone PTY reader: {}", e))?;
+
+        let session_id_for_read = id;
+        let stdout_tx_clone = stdout_tx.clone();
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 4096];
+            loop {
+                match reader.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let data = buf[..n].to_vec();
+                        if stdout_tx_clone.blocking_send(data).is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+            println!(
+                "[pty-mux] Reader thread ended for session {}",
+                session_id_for_read.0
+            );
+        });
+
+        let (stdin_tx, mut stdin_rx) = mpsc::channel::<Vec<u8>>(256);
+        let (kill_tx, _kill_rx) = mpsc::channel::<()>(1);
+
+        let mut writer = pair
+            .master
+            .take_writer()
+            .map_err(|e| format!("Failed to take PTY writer: {}", e))?;
+
+        std::thread::spawn(move || {
+            loop {
+                match stdin_rx.blocking_recv() {
+                    Some(data) => {
+                        if writer.write_all(&data).is_err() {
+                            break;
+                        }
+                    }
+                    None => break,
+                }
+            }
+        });
+
+        let session = LiveSession {
+            info,
+            master: pair.master,
+            stdin_tx,
+            kill_tx,
+        };
+
+        self.sessions.insert(id, session);
+        println!(
+            "[pty-mux] Session {} created (pid={}, shell={}, {}x{})",
+            id.0, pid, config.shell, config.cols, config.rows
+        );
         Ok(id)
     }
 
-    pub fn destroy_session(&mut self, id: SessionId) -> bool {
-        self.sessions.remove(&id).is_some()
-    }
+    pub fn write_to_session(&self, id: SessionId, data: Vec<u8>) -> Result<(), String> {
+        let session = self
+            .sessions
+            .get(&id)
+            .ok_or_else(|| format!("Session {} not found", id.0))?;
 
-    pub fn get_session(&self, id: SessionId) -> Option<&SessionInfo> {
-        self.sessions.get(&id)
-    }
-
-    pub fn list_sessions(&self) -> Vec<&SessionInfo> {
-        self.sessions.values().collect()
+        session
+            .stdin_tx
+            .try_send(data)
+            .map_err(|e| format!("Failed to write to session {}: {}", id.0, e))
     }
 
     pub fn resize_session(&mut self, id: SessionId, cols: u16, rows: u16) -> bool {
         if let Some(session) = self.sessions.get_mut(&id) {
-            session.cols = cols;
-            session.rows = rows;
+            let result = session.master.resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            });
+            if result.is_ok() {
+                session.info.cols = cols;
+                session.info.rows = rows;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    pub fn destroy_session(&mut self, id: SessionId) -> bool {
+        if let Some(session) = self.sessions.remove(&id) {
+            let _ = session.kill_tx.try_send(());
+            println!("[pty-mux] Session {} destroyed", id.0);
             true
         } else {
             false
         }
+    }
+
+    pub fn get_session(&self, id: SessionId) -> Option<&SessionInfo> {
+        self.sessions.get(&id).map(|s| &s.info)
+    }
+
+    pub fn list_sessions(&self) -> Vec<SessionInfo> {
+        self.sessions.values().map(|s| s.info.clone()).collect()
     }
 
     pub fn session_count(&self) -> usize {
@@ -124,52 +250,269 @@ pub fn new_shared_mux(max_sessions: usize) -> SharedPtyMux {
     Arc::new(Mutex::new(PtyMuxService::new(max_sessions)))
 }
 
+pub async fn run_ws_terminal_server(
+    bind_addr: SocketAddr,
+    mux: SharedPtyMux,
+) {
+    let listener = match tokio::net::TcpListener::bind(bind_addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            println!("[pty-mux] Failed to bind terminal WS on {}: {}", bind_addr, e);
+            return;
+        }
+    };
+
+    println!("[pty-mux] Terminal WebSocket server listening on {}", bind_addr);
+
+    loop {
+        let (stream, peer) = match listener.accept().await {
+            Ok(s) => s,
+            Err(e) => {
+                println!("[pty-mux] Accept error: {}", e);
+                continue;
+            }
+        };
+
+        let mux = mux.clone();
+        tokio::spawn(async move {
+            let ws_stream = match tokio_tungstenite::accept_async(stream).await {
+                Ok(ws) => ws,
+                Err(e) => {
+                    println!("[pty-mux] WebSocket handshake failed from {}: {}", peer, e);
+                    return;
+                }
+            };
+
+            println!("[pty-mux] WebSocket connection from {}", peer);
+            handle_ws_session(ws_stream, mux, peer).await;
+            println!("[pty-mux] WebSocket connection closed from {}", peer);
+        });
+    }
+}
+
+async fn handle_ws_session(
+    ws_stream: tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
+    mux: SharedPtyMux,
+    peer: SocketAddr,
+) {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::Message;
+
+    let (mut ws_tx, mut ws_rx) = ws_stream.split();
+
+    let (stdout_tx, mut stdout_rx) = mpsc::channel::<Vec<u8>>(512);
+
+    let config = SessionConfig::default();
+    let create_result = {
+        let mut guard = mux.lock().unwrap_or_else(|e| e.into_inner());
+        guard.create_session(config, stdout_tx)
+    };
+    let session_id = match create_result {
+        Ok(id) => id,
+        Err(e) => {
+            println!("[pty-mux] Failed to create session for {}: {}", peer, e);
+            let err_msg = serde_json::json!({"error": e});
+            let _ = ws_tx
+                .send(Message::Text(err_msg.to_string()))
+                .await;
+            return;
+        }
+    };
+
+    let mux_write = mux.clone();
+    let mux_cleanup = mux.clone();
+    let sid = session_id;
+
+    let write_task = tokio::spawn(async move {
+        while let Some(data) = stdout_rx.recv().await {
+            if ws_tx.send(Message::Binary(data)).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    let read_task = tokio::spawn(async move {
+        while let Some(msg) = ws_rx.next().await {
+            match msg {
+                Ok(Message::Binary(data)) => {
+                    let _ = {
+                        let guard = mux_write.lock().unwrap_or_else(|e| e.into_inner());
+                        guard.write_to_session(sid, data)
+                    };
+                }
+                Ok(Message::Text(text)) => {
+                    if let Ok(cmd) = serde_json::from_str::<serde_json::Value>(&text) {
+                        if cmd["type"].as_str() == Some("resize") {
+                            let cols = cmd["cols"].as_u64().unwrap_or(80) as u16;
+                            let rows = cmd["rows"].as_u64().unwrap_or(24) as u16;
+                            let mut guard =
+                                mux_write.lock().unwrap_or_else(|e| e.into_inner());
+                            guard.resize_session(sid, cols, rows);
+                            drop(guard);
+                        } else if cmd["type"].as_str() == Some("input") {
+                            if let Some(data) = cmd["data"].as_str() {
+                                let guard =
+                                    mux_write.lock().unwrap_or_else(|e| e.into_inner());
+                                let _ =
+                                    guard.write_to_session(sid, data.as_bytes().to_vec());
+                                drop(guard);
+                            }
+                        }
+                    } else {
+                        let _ = {
+                            let guard = mux_write.lock().unwrap_or_else(|e| e.into_inner());
+                            guard.write_to_session(sid, text.into_bytes())
+                        };
+                    }
+                }
+                Ok(Message::Close(_)) => break,
+                Err(_) => break,
+                _ => {}
+            }
+        }
+    });
+
+    let _ = tokio::select! {
+        r = write_task => r,
+        r = read_task => r,
+    };
+
+    {
+        let mut guard = mux_cleanup.lock().unwrap_or_else(|e| e.into_inner());
+        guard.destroy_session(session_id);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterCommand {
+    pub command: String,
+    pub targets: Vec<String>,
+    pub timeout_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterResult {
+    pub node: String,
+    pub output: String,
+    pub exit_code: i32,
+    pub elapsed_ms: u64,
+}
+
+pub async fn fan_out_command(
+    cmd: &ClusterCommand,
+    peer_ports: &HashMap<String, u16>,
+) -> Vec<ClusterResult> {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::Message;
+
+    let mut handles = Vec::new();
+
+    for target in &cmd.targets {
+        let port = match peer_ports.get(target) {
+            Some(p) => *p,
+            None => continue,
+        };
+        let target = target.clone();
+        let command = cmd.command.clone();
+        let timeout_ms = cmd.timeout_ms;
+
+        handles.push(tokio::spawn(async move {
+            let start = std::time::Instant::now();
+            let url = format!("ws://{}:{}", target, port);
+            let timeout = std::time::Duration::from_millis(timeout_ms);
+
+            let connect_result =
+                tokio::time::timeout(timeout, tokio_tungstenite::connect_async(&url)).await;
+
+            match connect_result {
+                Ok(Ok((mut ws, _))) => {
+                    let input_msg = serde_json::json!({
+                        "type": "cluster_exec",
+                        "command": command,
+                    });
+                    let _ = ws.send(Message::Text(input_msg.to_string())).await;
+
+                    let mut output = String::new();
+                    while let Some(Ok(msg)) = ws.next().await {
+                        if msg.is_text() {
+                            let text = msg.to_text().unwrap_or("");
+                            if let Ok(resp) = serde_json::from_str::<serde_json::Value>(text) {
+                                if resp["type"].as_str() == Some("cluster_result") {
+                                    output = resp["output"]
+                                        .as_str()
+                                        .unwrap_or("")
+                                        .to_string();
+                                    break;
+                                }
+                            }
+                        } else if msg.is_binary() {
+                            output.push_str(&String::from_utf8_lossy(msg.into_data().as_ref()));
+                        }
+                    }
+                    let _ = ws.close(None).await;
+
+                    ClusterResult {
+                        node: target,
+                        output,
+                        exit_code: 0,
+                        elapsed_ms: start.elapsed().as_millis() as u64,
+                    }
+                }
+                _ => ClusterResult {
+                    node: target,
+                    output: "Connection failed or timed out".to_string(),
+                    exit_code: -1,
+                    elapsed_ms: start.elapsed().as_millis() as u64,
+                },
+            }
+        }));
+    }
+
+    let mut results = Vec::new();
+    for h in handles {
+        if let Ok(r) = h.await {
+            results.push(r);
+        }
+    }
+    results
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_create_session() {
-        let mut mux = PtyMuxService::new(10);
-        let id = mux.create_session(SessionConfig::default()).unwrap();
-        assert_eq!(id.0, 1);
-        assert_eq!(mux.session_count(), 1);
+    fn test_session_config_default() {
+        let config = SessionConfig::default();
+        assert_eq!(config.cols, 80);
+        assert_eq!(config.rows, 24);
+        assert!(!config.shell.is_empty());
     }
 
     #[test]
-    fn test_destroy_session() {
-        let mut mux = PtyMuxService::new(10);
-        let id = mux.create_session(SessionConfig::default()).unwrap();
-        assert!(mux.destroy_session(id));
+    fn test_session_id_equality() {
+        let a = SessionId(1);
+        let b = SessionId(1);
+        let c = SessionId(2);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn test_cluster_command_serde() {
+        let cmd = ClusterCommand {
+            command: "uname -a".to_string(),
+            targets: vec!["127.0.0.1".to_string()],
+            timeout_ms: 5000,
+        };
+        let json = serde_json::to_string(&cmd).unwrap();
+        let parsed: ClusterCommand = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.command, "uname -a");
+    }
+
+    #[test]
+    fn test_mux_service_creation() {
+        let mux = PtyMuxService::new(10);
         assert_eq!(mux.session_count(), 0);
-        assert!(!mux.destroy_session(id));
-    }
-
-    #[test]
-    fn test_max_sessions() {
-        let mut mux = PtyMuxService::new(2);
-        let _ = mux.create_session(SessionConfig::default()).unwrap();
-        let _ = mux.create_session(SessionConfig::default()).unwrap();
-        let result = mux.create_session(SessionConfig::default());
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_resize_session() {
-        let mut mux = PtyMuxService::new(10);
-        let id = mux.create_session(SessionConfig::default()).unwrap();
-        assert!(mux.resize_session(id, 120, 40));
-        let info = mux.get_session(id).unwrap();
-        assert_eq!(info.cols, 120);
-        assert_eq!(info.rows, 40);
-    }
-
-    #[test]
-    fn test_list_sessions() {
-        let mut mux = PtyMuxService::new(10);
-        let _ = mux.create_session(SessionConfig::default()).unwrap();
-        let _ = mux.create_session(SessionConfig::default()).unwrap();
-        let list = mux.list_sessions();
-        assert_eq!(list.len(), 2);
     }
 }

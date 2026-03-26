@@ -34,6 +34,7 @@
 //   API_PORT                   — Alias for CUBE_API_PORT
 //   CUBE_PEER_PORT             — Direct peer-to-peer port (default: API_PORT - 1)
 //   PEER_PORT                  — Alias for CUBE_PEER_PORT
+//   CUBE_TERMINAL_PORT         — WebSocket PTY terminal port (default: API_PORT - 2)
 //   CUBE_NODE_ID               — Array3 node ID, Rep C {1,2,3} (default: 1)
 //   CUBE_ARRAY3_PEERS          — Comma-separated peer addresses for Array3 formation
 //   CUBE_IDENTITY_DIR          — Directory for master.key (default: ~/.plenumnet/identity/)
@@ -119,6 +120,13 @@ fn role_label() -> Option<String> {
 
 fn relay_url(crs_fallback: Option<&str>) -> Option<String> {
     env::var("RELAY_URL").ok().or_else(|| crs_fallback.map(|s| s.to_string()))
+}
+
+fn terminal_port() -> u16 {
+    env::var("CUBE_TERMINAL_PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(|| api_port().saturating_sub(2))
 }
 
 fn cube_node_id() -> u8 {
@@ -693,10 +701,20 @@ async fn run_crs_mode() {
     println!("  The geometry IS the routing protocol.");
 
     let shared_state = AppState::new_crs(crs, con, fts, glb, local_address.clone());
-    let app = crs_router(shared_state);
+
+    let vm = inter_cube::vm_service::new_shared_vm(65536);
+    let vm_routes = inter_cube::vm_service::vm_router(vm);
+
+    let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted());
+    let cluster_routes = inter_cube::cluster_shell::cluster_shell_router(cluster_shell);
+
+    let app = crs_router(shared_state)
+        .merge(vm_routes)
+        .merge(cluster_routes);
 
     let port = api_port();
     let p_port = peer_port();
+    let t_port = terminal_port();
     let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     if let Some(role) = role_label() {
         println!("  Role:          {}", role);
@@ -715,11 +733,20 @@ async fn run_crs_mode() {
     let peers = new_peer_registry();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), None, None);
 
+    let terminal_mux = pty_mux::new_shared_mux(16);
+    let terminal_bind: SocketAddr = format!("0.0.0.0:{}", t_port).parse().unwrap();
+    tokio::spawn(pty_mux::run_ws_terminal_server(terminal_bind, terminal_mux));
+
     println!();
     println!("=== HTTP Server (CRS) ===");
     println!("  http://{}", listen_addr);
-    println!("  Peer port: {}", p_port);
-    println!("  {} routes active", CRS_ROUTE_COUNT);
+    println!("  Peer port:     {}", p_port);
+    println!("  Terminal port: {} (WebSocket PTY)", t_port);
+    println!("  {} API + {} VM + {} cluster routes active",
+        CRS_ROUTE_COUNT,
+        inter_cube::vm_service::VM_ROUTE_COUNT,
+        inter_cube::cluster_shell::CLUSTER_ROUTE_COUNT,
+    );
     println!("  Ready for cube registrations. Ctrl+C to stop.");
     println!();
 
@@ -1102,16 +1129,36 @@ async fn run_cube_mode() {
     let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     spawn_peer_discovery(relay_target_for_discovery, addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone(), Some(peer_msg_tx_discovery));
 
-    let shared_state = AppState::new_cube(con, fts, glb, local_address);
-    let app = cube_router(shared_state);
+    let shared_state = AppState::new_cube(con, fts, glb, local_address.clone());
+
+    let vm = inter_cube::vm_service::new_shared_vm(65536);
+    let vm_routes = inter_cube::vm_service::vm_router(vm);
+
+    let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted());
+    let cluster_routes = inter_cube::cluster_shell::cluster_shell_router(cluster_shell);
+
+    let app = cube_router(shared_state)
+        .merge(vm_routes)
+        .merge(cluster_routes);
 
     let port = api_port();
+    let t_port = terminal_port();
     let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+
+    let terminal_mux = pty_mux::new_shared_mux(16);
+    let terminal_bind: SocketAddr = format!("0.0.0.0:{}", t_port).parse().unwrap();
+    tokio::spawn(pty_mux::run_ws_terminal_server(terminal_bind, terminal_mux));
+
     println!();
     println!("=== HTTP Server (Cube) ===");
     println!("  http://{}", listen_addr);
-    println!("  Peer port: {}", p_port);
-    println!("  {} routes active", CUBE_ROUTE_COUNT);
+    println!("  Peer port:     {}", p_port);
+    println!("  Terminal port: {} (WebSocket PTY)", t_port);
+    println!("  {} API + {} VM + {} cluster routes active",
+        CUBE_ROUTE_COUNT,
+        inter_cube::vm_service::VM_ROUTE_COUNT,
+        inter_cube::cluster_shell::CLUSTER_ROUTE_COUNT,
+    );
     println!("  Routing:   Direct peer (LAN) -> Relay (WAN) fallback");
     println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
     println!();

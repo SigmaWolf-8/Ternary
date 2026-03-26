@@ -438,6 +438,7 @@ foreach ($cfg in $daemonConfigs) {
     $logFile = Join-Path $LOG_DIR "array3-node-$($cfg.Id).log"
     $wrapperBat = Join-Path $wrapperDir "array3-node-$($cfg.Id)-start.bat"
 
+    $termPort = $cfg.GatewayPort - 2
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
@@ -445,6 +446,7 @@ setlocal enabledelayedexpansion
 set CUBE_MODE=crs
 set CUBE_NODE_ID=$($cfg.Id)
 set CUBE_API_PORT=$($cfg.GatewayPort)
+set CUBE_TERMINAL_PORT=$termPort
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
@@ -473,6 +475,7 @@ setlocal enabledelayedexpansion
 set CUBE_MODE=cube
 set CUBE_NODE_ID=$($cfg.Id)
 set CUBE_API_PORT=$($cfg.GatewayPort)
+set CUBE_TERMINAL_PORT=$termPort
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
@@ -622,6 +625,7 @@ foreach ($cfg in $daemonConfigs) {
         id = $cfg.Id
         port = $cfg.GatewayPort
         gatewayPort = $cfg.GatewayPort
+        terminalPort = $cfg.GatewayPort - 2
         rangeStart = $cfg.RangeStart
         address = if ($cfg.Address) { $cfg.Address } else { "" }
         publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }

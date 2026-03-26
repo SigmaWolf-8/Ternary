@@ -25,6 +25,7 @@ $RepoUrl = "https://github.com/SigmaWolf-8/Ternary.git"
 $IdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
 $BasePeerPort = 8079
 $PortStep = 3
+$TerminalPortOffset = 2
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -293,9 +294,11 @@ try {
             pid = 0
         }
 
-        Write-Host "  Start Daemon #$id (peer=$pp, app=$ep, node=$dp):" -ForegroundColor White
+        $tp = $pp - $TerminalPortOffset
+
+        Write-Host "  Start Daemon #$id (peer=$pp, app=$ep, node=$dp, terminal=$tp):" -ForegroundColor White
         Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$dp`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
-        Write-Host "    `$env:CUBE_PEER_PORT=`"$pp`"; `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_PEER_PORT=`"$pp`"; `$env:CUBE_TERMINAL_PORT=`"$tp`"; `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray
         Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
         Write-Host ""
@@ -338,6 +341,7 @@ try {
             if (-not (Test-Path $wrapperDir)) {
                 New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
             }
+            $tp = $pp - $TerminalPortOffset
             $wrapperBat = Join-Path $wrapperDir "cube-${id}-start.bat"
             @"
 @echo off
@@ -345,6 +349,7 @@ set CUBE_MODE=cube
 set CUBE_API_PORT=$dp
 set LLM_PORT=$ep
 set CUBE_PEER_PORT=$pp
+set CUBE_TERMINAL_PORT=$tp
 set CUBE_CRS_URL=$CRS_URL
 set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$idDir
