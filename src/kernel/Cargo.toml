@@ -45,6 +45,11 @@ rand = "0.8"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bin]]
+name = "plenumnet-kernel"
+path = "src/main.rs"
+required-features = ["no_std"]
+
+[[bin]]
 name = "salvi-bench"
 path = "benchmarks/salvi_benchmarks.rs"
 

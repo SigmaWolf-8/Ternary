@@ -207,7 +207,8 @@ fn mesh_to_channel(address: &MeshAddress) -> u8 {
         divisor *= MESH_NODES as f64;
     }
 
-    (value * 255.0).round().min(255.0).max(0.0) as u8
+    let v = libm::round(value * 255.0);
+    if v < 0.0 { 0u8 } else if v > 255.0 { 255u8 } else { v as u8 }
 }
 
 pub fn mesh_to_srgb(address: &MeshAddress) -> Rgba {
@@ -220,9 +221,13 @@ pub fn mesh_to_srgb(address: &MeshAddress) -> Rgba {
     }
 
     let luma = value;
-    let r = (luma * 255.0).round().min(255.0).max(0.0) as u8;
-    let g = (luma * 255.0).round().min(255.0).max(0.0) as u8;
-    let b = (luma * 255.0).round().min(255.0).max(0.0) as u8;
+    let clamp = |x: f64| -> u8 {
+        let v = libm::round(x);
+        if v < 0.0 { 0u8 } else if v > 255.0 { 255u8 } else { v as u8 }
+    };
+    let r = clamp(luma * 255.0);
+    let g = clamp(luma * 255.0);
+    let b = clamp(luma * 255.0);
 
     Rgba::new(r, g, b, 255)
 }
