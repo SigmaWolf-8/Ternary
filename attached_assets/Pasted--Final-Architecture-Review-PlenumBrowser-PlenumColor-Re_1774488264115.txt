@@ -1,0 +1,128 @@
+# Final Architecture Review: PlenumBrowser & PlenumColor
+
+**Reviewer:** Independent Technical Architecture  
+**Date:** March 2026  
+**Classification:** Confidential — Capomastro Holdings Ltd.
+
+---
+
+## 1. Executive Summary
+
+The architecture has reached a stable, well‑defined state. The integration of a GPU rendering pipeline with IOMMU isolation substantially strengthens the anti‑capture security model and simultaneously resolves performance concerns for high‑resolution displays. The cooperative watchdog, kernel task isolation, and fallback CPU rendering path address the stability risks of kernel‑space operation. The color system remains mathematically rigorous and now includes a practical GPU implementation plan.
+
+This architecture is **approved for implementation**. The following final observations highlight key implementation details and confirm that all prior concerns have been addressed.
+
+---
+
+## 2. Kernel‑Space Browser – Final Assessment
+
+The kernel‑space decision is now fully justified by a security model that relies on:
+
+- **No cleartext pixels in CPU‑accessible memory** – encrypted VRAM behind an IOMMU.
+- **No bypassable network** – the browser has no socket API; all traffic routes through z=0.
+- **No input buffer interception** – TIS‑27 encoding at interrupt level, direct kernel call to DOM handler.
+
+The stability mitigations are appropriate and detailed:
+
+- **Cooperative watchdog** (Boa checks `should_terminate` between bytecode instructions) avoids interrupt‑level corruption.
+- **Tab isolation via kernel tasks** – each tab runs in its own lightweight thread; a panic or OOM terminates only that tab.
+- **Font memory caps** prevent unbounded allocation.
+- **Recursion limits** and iterative layout eliminate stack overflow.
+
+All prior concerns about kernel‑space viability have been addressed through engineering, not by retreating to userspace.
+
+---
+
+## 3. GPU Rendering & IOMMU Anti‑Capture
+
+The addition of `wgpu` and IOMMU isolation is a significant improvement over the earlier CPU‑only encryption model.
+
+### Security Advantages
+
+- **Cleartext pixels exist only in GPU VRAM**, not in system RAM. The IOMMU is configured at boot to allow **only the GPU to read VRAM** and **only the CPU to write commands**. No bus‑mastering device can read the framebuffer.
+- **Encryption pass is a GPU shader** – effectively free in terms of performance, and the key changes every frame.
+- **Display controller decrypts during scanout** – the final step before the physical cable.
+
+This model provides a stronger guarantee than CPU‑only encryption because even if an attacker compromises a DMA‑capable device, the IOMMU blocks access to VRAM.
+
+### Performance
+
+The GPU pipeline is designed to scale to 4K @ 60 fps with full mesh compositing – a workload that would be marginal on CPU. The fallback CPU path (`tiny-skia`) ensures functionality on headless or unaccelerated systems.
+
+### Implementation Considerations
+
+- The kernel‑space GPU driver (Vulkan compute) is a significant engineering task. The roadmap correctly places it in Phase 2, after the CPU‑based prototype is working.
+- The IOMMU configuration must be verified on target hardware (e.g., AMD IOMMU, Intel VT‑d). The architecture assumes full control over the platform; if third‑party GPUs are used, driver availability may affect the timeline.
+- The display controller decryption step requires customisation of the GPU output path. For Phase 2 prototyping, a simpler `simplefb` with CPU decryption can serve as a fallback.
+
+---
+
+## 4. PlenumColor – GPU Implementation
+
+The mesh color system is now integrated into the GPU pipeline via three compute shaders:
+
+- `mesh_composite.wgsl` – all compositing and blending in mesh space.
+- `mesh_to_srgb.wgsl` – final conversion using precomputed LUT and Bézier interpolation.
+- `sponge_encrypt.wgsl` – per‑frame encryption.
+
+The LUT is uploaded to GPU constant memory once at boot, and the per‑frame keystream is a constant buffer update. This design minimises CPU–GPU traffic and keeps the critical path on the GPU.
+
+The fallback CPU path uses the same mesh and LUT logic, ensuring consistency across GPU and CPU renders.
+
+### Validation
+
+The validation plan (ΔE₀₀ on 5+ displays, self‑similarity on 10+ displays) is appropriate. The addition of a fallback full‑grid calibration (540×540) ensures that even if self‑similarity fails for a particular device, accurate color can still be achieved.
+
+---
+
+## 5. Remaining Implementation Notes
+
+### 5.1 GPU Driver Development
+
+The kernel‑space Vulkan compute driver is a non‑trivial component. The architecture should consider:
+
+- Using an existing open‑source kernel GPU driver (e.g., `amdgpu`, `i915`) with a compute‑only interface, rather than writing a full driver from scratch.
+- If custom hardware is used, the driver must be developed in‑house. Phase 1 can proceed with CPU rendering while the GPU driver is built.
+
+### 5.2 Display Controller Decryption
+
+For Phase 1, the CPU‑rendered framebuffer can be encrypted in system RAM and decrypted by the CPU per scanline (as in the original design). For Phase 2, the GPU will encrypt in VRAM and the display controller must decrypt. This may require firmware or hardware support. If the target hardware cannot support per‑scanline decryption, the GPU could decrypt just before output (still within GPU), but that would expose cleartext in the GPU’s output path. The architecture assumes custom hardware or sufficiently programmable display controller.
+
+### 5.3 IOMMU Granularity
+
+The IOMMU configuration described blocks all non‑GPU access to VRAM. This assumes the GPU has a dedicated IOMMU domain. On many platforms, the GPU shares an IOMMU with other devices; careful configuration is required to ensure no other device can DMA into VRAM. This should be validated on the target hardware.
+
+### 5.4 Update Mechanism
+
+The hot‑swap of browser subsystem (restarting tasks, recompiling shaders) without a full kernel reboot is a sound design. The 30‑second health check and automatic rollback provide safety.
+
+---
+
+## 6. Final Verdict
+
+**The architecture is now ready for implementation.**
+
+The design has evolved from a visionary concept to a technically sound blueprint. All major risks have been identified and mitigated through clear engineering decisions:
+
+- **Security:** IOMMU‑isolated GPU VRAM, per‑frame sponge encryption, direct kernel call input path, no network bypass.
+- **Stability:** Kernel tasks, cooperative watchdog, memory caps, iterative algorithms.
+- **Performance:** GPU pipeline scales to 4K; fallback CPU path for compatibility.
+- **Color:** Mathematical foundation, LUT‑accelerated GPU shaders, validation plan.
+- **Roadmap:** Phased approach reduces risk; Phase 1 establishes the CPU‑based core before GPU integration.
+
+The project should proceed with Phase 1 implementation, focusing on:
+
+1. Kernel browser with CPU rendering (`tiny-skia`) and `simplefb`.
+2. Tab isolation via kernel tasks.
+3. Boa integration with cooperative watchdog.
+4. Mesh color pipeline (CPU).
+5. z=0 distributor and basic networking.
+6. CPU sponge encryption.
+
+Parallel work on the kernel‑space GPU driver and IOMMU configuration can begin after the core browser is functional.
+
+---
+
+*This review concludes the architectural evaluation. The document is accepted as the final specification for PlenumBrowser and PlenumColor.*
+
+**Ready for sign‑off.**
