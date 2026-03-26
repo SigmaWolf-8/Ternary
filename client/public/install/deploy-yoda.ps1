@@ -151,7 +151,12 @@ Write-Host ""
 Write-Host "STEP 2/8: Build environment" -ForegroundColor Yellow
 Write-Host "---"
 
-$cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+try {
+    $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+} catch {
+    $cpuArch = $env:PROCESSOR_ARCHITECTURE
+    if (-not $cpuArch) { $cpuArch = "AMD64" }
+}
 Write-Host "  Architecture: $cpuArch"
 
 $vsWhere = $null
