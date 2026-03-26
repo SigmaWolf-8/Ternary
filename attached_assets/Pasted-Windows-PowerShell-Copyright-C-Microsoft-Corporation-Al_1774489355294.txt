@@ -1,0 +1,210 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> ^C
+PS C:\Users\Sigma> Get-Service PlenumNode2, Get-Service PlenumNode3
+Get-Service : A positional parameter cannot be found that accepts argument 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, Get-Service PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Service], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\Users\Sigma> cd c:\plenumNET
+PS C:\plenumNET> Get-Service PlenumNode2, Get-Service PlenumNode3
+Get-Service : A positional parameter cannot be found that accepts argument 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, Get-Service PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Service], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\plenumNET> Get-Service PlenumNode2, PlenumNode3
+Get-Service : Cannot find any service with service name 'PlenumNode2'.
+At line:1 char:1
++ Get-Service PlenumNode2, PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNode2:String) [Get-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.GetServiceCommand
+
+Get-Service : Cannot find any service with service name 'PlenumNode3'.
+At line:1 char:1
++ Get-Service PlenumNode2, PlenumNode3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNode3:String) [Get-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.GetServiceCommand
+
+PS C:\plenumNET> Get-Service Plenum*
+
+Status   Name               DisplayName
+------   ----               -----------
+Stopped  PlenumNET-Array3-1 PlenumNET Array3 Node #1 (coordinator)
+Stopped  PlenumNET-Array3-2 PlenumNET Array3 Node #2 (worker)
+Stopped  PlenumNET-Array3-3 PlenumNET Array3 Node #3 (worker)
+
+
+PS C:\plenumNET> Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-1 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-2 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-3 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+PS C:\plenumNET> Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-1 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-2 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-3 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+PS C:\plenumNET> Start-Process powershell -Verb RunAs -ArgumentList '-Command "Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3"'
+PS C:\plenumNET> Get-EventLog -LogName Application -Source "PlenumNET*" -Newest 10 -ErrorAction SilentlyContinue
+PS C:\plenumNET> Get-ChildItem C:\plenumNET\*.log -ErrorAction SilentlyContinue
+PS C:\plenumNET> Get-ChildItem C:\plenumNET\logs\ -ErrorAction SilentlyContinue
+PS C:\plenumNET> Get-Service PlenumNET-Array3-*
+
+Status   Name               DisplayName
+------   ----               -----------
+Stopped  PlenumNET-Array3-1 PlenumNET Array3 Node #1 (coordinator)
+Stopped  PlenumNET-Array3-2 PlenumNET Array3 Node #2 (worker)
+Stopped  PlenumNET-Array3-3 PlenumNET Array3 Node #3 (worker)
+
+
+PS C:\plenumNET> Get-CimInstance Win32_Service -Filter "Name LIKE 'PlenumNET%'" | Select-Object Name, State, PathName | Format-List
+
+
+Name     : PlenumNET-Array3-1
+State    : Stopped
+PathName : cmd.exe /c "C:\PlenumNET\services\wrappers\array3-node-1-start.bat"
+
+Name     : PlenumNET-Array3-2
+State    : Stopped
+PathName : cmd.exe /c "C:\PlenumNET\services\wrappers\array3-node-2-start.bat"
+
+Name     : PlenumNET-Array3-3
+State    : Stopped
+PathName : cmd.exe /c "C:\PlenumNET\services\wrappers\array3-node-3-start.bat"
+
+
+
+PS C:\plenumNET> type C:\PlenumNET\services\wrappers\array3-node-1-start.bat
+@echo off
+echo [%date% %time%] Starting PlenumNET Node #1 (CRS) >> "C:\PlenumNET\plenumnet-data\logs\array3-node-1.log"
+set CUBE_MODE=crs
+set CUBE_API_PORT=8081
+set CUBE_PEER_PORT=8079
+set CUBE_ENDPOINT=10.0.0.42:8081
+set CUBE_IDENTITY_DIR=C:\PlenumNET\plenumnet-data\identity-1
+set RELAY_URL=https://plenumnet.replit.app
+set LLM_PORT=8080
+cd /d "C:\PlenumNET"
+"C:\PlenumNET\target\release\inter-cube-daemon.exe" >> "C:\PlenumNET\plenumnet-data\logs\array3-node-1.log" 2>&1
+echo [%date% %time%] Node #1 exited with code %ERRORLEVEL% >> "C:\PlenumNET\plenumnet-data\logs\array3-node-1.log"
+PS C:\plenumNET> type C:\PlenumNET\plenumnet-data\logs\array3-node-1.log
+[2026-03-24 16:13:46.34] Starting PlenumNET Node #1 (CRS)
+PS C:\plenumNET> Test-Path C:\PlenumNET\target\release\inter-cube-daemon.exe
+True
+PS C:\plenumNET> type C:\PlenumNET\plenumnet-data\logs\array3-node-1.log
+[2026-03-24 16:13:46.34] Starting PlenumNET Node #1 (CRS)
+PS C:\plenumNET>
+PS C:\plenumNET> Get-ScheduledTask -TaskName "PlenumNET-Daemon-Watchdog" -ErrorAction SilentlyContinue
+PS C:\plenumNET> $env:CUBE_MODE = "crs"
+PS C:\plenumNET> $env:CUBE_API_PORT = "8081"
+PS C:\plenumNET> $env:CUBE_PEER_PORT = "8079"
+PS C:\plenumNET> $env:CUBE_ENDPOINT = "10.0.0.42:8081"
+PS C:\plenumNET> $env:CUBE_IDENTITY_DIR = "C:\PlenumNET\plenumnet-data\identity-1"
+PS C:\plenumNET> $env:RELAY_URL = "https://plenumnet.replit.app"
+PS C:\plenumNET> $env:LLM_PORT = "8080"
+PS C:\plenumNET> cd C:\PlenumNET
+PS C:\PlenumNET> & .\target\release\inter-cube-daemon.exe
+>>
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.4.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from C:\PlenumNET\plenumnet-data\identity-1\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0102010102020101...)
+[CRS] Registered with address: 1111111111111
+[CRS] PT26-DSA identity: 0102010102020101...
+[CRS] 26 neighbors: 0 registered, 26 awaiting
+[CON] Overlay: 0 up, 26 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: c82a1fb691c85ee1...)
+[IDENTITY] CRS registry updated with address-bound key
+
+=== Inter-Cube Stack Active ===
+  Address:       111.111.111.111.1 (1111111111111)
+  Address space: 1 / 1594323 used
+  Dimensions:    13
+  Neighbors:     26
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CRS -> CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+  Relay:         https://plenumnet.replit.app (WebSocket, TL-DSA-87 challenge-response)
+
+
+=== HTTP Server (CRS) ===
+  http://0.0.0.0:8081
+  Peer port: 8079
+  13 routes active
+  Ready for cube registrations. Ctrl+C to stop.
+
+[ws-relay] Establishing relay connection to https://plenumnet.replit.app...
+[ws-relay] Inference dispatch target: http://127.0.0.1:8080/v1/chat/completions
+[PEER] Failed to bind peer port 8079: Only one usage of each socket address (protocol/network address/port) is normally permitted. (os error 10048)
+[PEER] Direct peering disabled — relay-only mode
+
+thread 'main' (225888) panicked at services\inter-cube\src\main.rs:693:10:
+Failed to bind to port 8081: Os { code: 10048, kind: AddrInUse, message: "Only one usage of each socket address (protocol/network address/port) is normally permitted." }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\PlenumNET>
