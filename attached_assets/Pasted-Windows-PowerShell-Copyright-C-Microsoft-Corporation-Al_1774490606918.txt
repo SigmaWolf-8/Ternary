@@ -1,0 +1,368 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+remote: Enumerating objects: 232, done.
+remote: Counting objects: 100% (232/232), done.
+remote: Compressing objects: 100% (105/105), done.
+remote: Total 200 (delta 88), reused 185 (delta 87), pack-reused 0 (from 0)
+Receiving objects: 100% (200/200), 407.86 KiB | 1.57 MiB/s, done.
+Resolving deltas: 100% (88/88), completed with 27 local objects.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   44dbe796..9b1e53a1  main       -> origin/main
+Updating 44dbe796..9b1e53a1
+error: Your local changes to the following files would be overwritten by merge:
+        Cargo.lock
+Please commit your changes or stash them before you merge.
+Aborting
+PS C:\PlenumNET>
+PS C:\PlenumNET> git stash
+warning: in the working copy of 'Cargo.lock', LF will be replaced by CRLF the next time Git touches it
+Saved working directory and index state WIP on master: 44dbe796 fix(docs+code): source-of-truth xref, CUBE_NODE_ID is Rep C, no PowerShell for YODA
+PS C:\PlenumNET> git pull origin main
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+Updating 44dbe796..9b1e53a1
+Fast-forward
+ .replit                                            |    4 +
+ Cargo.lock                                         |   22 +-
+ PLENUMNET_INVARIANTS_FOR_YODA.md                   |   25 +-
+ .../mockup-sandbox/.replit-artifact/artifact.toml  |   22 +
+ artifacts/mockup-sandbox/components.json           |   21 +
+ artifacts/mockup-sandbox/index.html                |   31 +
+ artifacts/mockup-sandbox/mockupPreviewPlugin.ts    |  199 +
+ artifacts/mockup-sandbox/package-lock.json         | 5474 ++++++++++++++++++++
+ artifacts/mockup-sandbox/package.json              |   75 +
+ artifacts/mockup-sandbox/public/favicon.svg        |    3 +
+ .../src/.generated/mockup-components.ts            |    6 +
+ artifacts/mockup-sandbox/src/App.tsx               |  146 +
+ .../mockups/capomastro364/Capomastro364.tsx        |  141 +
+ .../coprime-projection/CoprimeProjection.tsx       |  164 +
+ .../mockup-sandbox/src/components/ui/accordion.tsx |   55 +
+ .../src/components/ui/alert-dialog.tsx             |  139 +
+ .../mockup-sandbox/src/components/ui/alert.tsx     |   59 +
+ .../src/components/ui/aspect-ratio.tsx             |    5 +
+ .../mockup-sandbox/src/components/ui/avatar.tsx    |   50 +
+ .../mockup-sandbox/src/components/ui/badge.tsx     |   43 +
+ .../src/components/ui/breadcrumb.tsx               |  115 +
+ .../src/components/ui/button-group.tsx             |   83 +
+ .../mockup-sandbox/src/components/ui/button.tsx    |   65 +
+ .../mockup-sandbox/src/components/ui/calendar.tsx  |  213 +
+ .../mockup-sandbox/src/components/ui/card.tsx      |   76 +
+ .../mockup-sandbox/src/components/ui/carousel.tsx  |  260 +
+ .../mockup-sandbox/src/components/ui/chart.tsx     |  367 ++
+ .../mockup-sandbox/src/components/ui/checkbox.tsx  |   28 +
+ .../src/components/ui/collapsible.tsx              |   11 +
+ .../mockup-sandbox/src/components/ui/command.tsx   |  153 +
+ .../src/components/ui/context-menu.tsx             |  198 +
+ .../mockup-sandbox/src/components/ui/dialog.tsx    |  120 +
+ .../mockup-sandbox/src/components/ui/drawer.tsx    |  116 +
+ .../src/components/ui/dropdown-menu.tsx            |  201 +
+ .../mockup-sandbox/src/components/ui/empty.tsx     |  104 +
+ .../mockup-sandbox/src/components/ui/field.tsx     |  244 +
+ .../mockup-sandbox/src/components/ui/form.tsx      |  176 +
+ .../src/components/ui/hover-card.tsx               |   27 +
+ .../src/components/ui/input-group.tsx              |  168 +
+ .../mockup-sandbox/src/components/ui/input-otp.tsx |   69 +
+ .../mockup-sandbox/src/components/ui/input.tsx     |   22 +
+ .../mockup-sandbox/src/components/ui/item.tsx      |  193 +
+ artifacts/mockup-sandbox/src/components/ui/kbd.tsx |   28 +
+ .../mockup-sandbox/src/components/ui/label.tsx     |   26 +
+ .../mockup-sandbox/src/components/ui/menubar.tsx   |  254 +
+ .../src/components/ui/navigation-menu.tsx          |  128 +
+ .../src/components/ui/pagination.tsx               |  117 +
+ .../mockup-sandbox/src/components/ui/popover.tsx   |   31 +
+ .../mockup-sandbox/src/components/ui/progress.tsx  |   28 +
+ .../src/components/ui/radio-group.tsx              |   42 +
+ .../mockup-sandbox/src/components/ui/resizable.tsx |   45 +
+ .../src/components/ui/scroll-area.tsx              |   46 +
+ .../mockup-sandbox/src/components/ui/select.tsx    |  159 +
+ .../mockup-sandbox/src/components/ui/separator.tsx |   29 +
+ .../mockup-sandbox/src/components/ui/sheet.tsx     |  140 +
+ .../mockup-sandbox/src/components/ui/sidebar.tsx   |  727 +++
+ .../mockup-sandbox/src/components/ui/skeleton.tsx  |   15 +
+ .../mockup-sandbox/src/components/ui/slider.tsx    |   26 +
+ .../mockup-sandbox/src/components/ui/sonner.tsx    |   31 +
+ .../mockup-sandbox/src/components/ui/spinner.tsx   |   16 +
+ .../mockup-sandbox/src/components/ui/switch.tsx    |   27 +
+ .../mockup-sandbox/src/components/ui/table.tsx     |  120 +
+ .../mockup-sandbox/src/components/ui/tabs.tsx      |   53 +
+ .../mockup-sandbox/src/components/ui/textarea.tsx  |   22 +
+ .../mockup-sandbox/src/components/ui/toast.tsx     |  127 +
+ .../mockup-sandbox/src/components/ui/toaster.tsx   |   33 +
+ .../src/components/ui/toggle-group.tsx             |   61 +
+ .../mockup-sandbox/src/components/ui/toggle.tsx    |   43 +
+ .../mockup-sandbox/src/components/ui/tooltip.tsx   |   32 +
+ artifacts/mockup-sandbox/src/hooks/use-mobile.tsx  |   19 +
+ artifacts/mockup-sandbox/src/hooks/use-toast.ts    |  189 +
+ artifacts/mockup-sandbox/src/index.css             |  158 +
+ artifacts/mockup-sandbox/src/lib/utils.ts          |    6 +
+ artifacts/mockup-sandbox/src/main.tsx              |    5 +
+ artifacts/mockup-sandbox/tsconfig.json             |   20 +
+ artifacts/mockup-sandbox/vite.config.ts            |   72 +
+ ...luster-Shell-What-Why-The-fir_1774468681041.txt |   66 +
+ ...luster-Shell-What-Why-The-fir_1774469305081.txt |   66 +
+ ...-head-meta-charset-UTF-8-titl_1774443491796.txt |  127 +
+ ...-PlenumBrowser-PlenumColor-Re_1774488264115.txt |  128 +
+ ...eployer-PlenumN-1774490264272_1774490264272.txt |  100 +
+ ...lete-API-Reference-for-YODA-C_1774489448696.txt | 1093 ++++
+ ...urned-up-there-are-really-onl_1774469357803.txt |   26 +
+ ...ire-calculus-Blitz-is-potenti_1774470730310.txt |   23 +
+ ...sues-Found-chardev-rs-descrip_1774471059298.txt |   17 +
+ ...ure-into-focus-The-browser-is_1774474527144.txt |   54 +
+ ...-milestone-the-first-end-to-e_1774467497802.txt |  185 +
+ ...-milestone-the-first-end-to-e_1774467544880.txt |  185 +
+ ...ht-C-Microsoft-Corporation-Al_1774488750235.txt |   37 +
+ ...ht-C-Microsoft-Corporation-Al_1774488814379.txt |   74 +
+ ...ht-C-Microsoft-Corporation-Al_1774489355294.txt |  210 +
+ ...ht-C-Microsoft-Corporation-Al_1774489737080.txt |  227 +
+ ...ht-C-Microsoft-Corporation-Al_1774490148509.txt |   81 +
+ ...entioned-browser-accessible-t_1774469148948.txt |   34 +
+ client/public/install/deploy-yoda.ps1              |  113 +-
+ client/public/install/plenumnet-service.ps1        |   31 +-
+ client/src/App.tsx                                 |    2 +
+ client/src/components/marketing-top-nav.tsx        |    1 +
+ client/src/pages/terminal.tsx                      |  377 ++
+ package-lock.json                                  |   17 +
+ package.json                                       |    1 +
+ plenumlan/Cargo.toml                               |    1 -
+ plenumlan/src/cube/routing.rs                      |   11 +-
+ plenumlan/src/cube/windows_roles.rs                |   10 +-
+ replit.md                                          |    5 +-
+ server/index.ts                                    |  296 +-
+ server/terminal.ts                                 |  140 +
+ services/inter-cube/deploy-yoda.ps1                |  113 +-
+ services/pty-mux/Cargo.toml                        |   13 +
+ services/pty-mux/src/lib.rs                        |  175 +
+ src/kernel/src/compat/gateway.rs                   |  106 +
+ src/kernel/src/compat/mod.rs                       |    1 +
+ src/kernel/src/compat/syscall_shim.rs              |  247 +
+ terminal_before_cluster.png                        |  Bin 0 -> 65529 bytes
+ terminal_cluster_panel.png                         |  Bin 0 -> 78187 bytes
+ 115 files changed, 16805 insertions(+), 156 deletions(-)
+ create mode 100644 artifacts/mockup-sandbox/.replit-artifact/artifact.toml
+ create mode 100644 artifacts/mockup-sandbox/components.json
+ create mode 100644 artifacts/mockup-sandbox/index.html
+ create mode 100644 artifacts/mockup-sandbox/mockupPreviewPlugin.ts
+ create mode 100644 artifacts/mockup-sandbox/package-lock.json
+ create mode 100644 artifacts/mockup-sandbox/package.json
+ create mode 100644 artifacts/mockup-sandbox/public/favicon.svg
+ create mode 100644 artifacts/mockup-sandbox/src/.generated/mockup-components.ts
+ create mode 100644 artifacts/mockup-sandbox/src/App.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/mockups/capomastro364/Capomastro364.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/mockups/coprime-projection/CoprimeProjection.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/accordion.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/alert-dialog.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/alert.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/aspect-ratio.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/avatar.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/badge.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/breadcrumb.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/button-group.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/button.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/calendar.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/card.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/carousel.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/chart.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/checkbox.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/collapsible.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/command.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/context-menu.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/dialog.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/drawer.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/dropdown-menu.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/empty.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/field.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/form.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/hover-card.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/input-group.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/input-otp.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/input.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/item.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/kbd.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/label.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/menubar.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/navigation-menu.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/pagination.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/popover.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/progress.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/radio-group.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/resizable.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/scroll-area.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/select.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/separator.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/sheet.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/sidebar.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/skeleton.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/slider.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/sonner.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/spinner.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/switch.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/table.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/tabs.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/textarea.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/toast.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/toaster.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/toggle-group.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/toggle.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/components/ui/tooltip.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/hooks/use-mobile.tsx
+ create mode 100644 artifacts/mockup-sandbox/src/hooks/use-toast.ts
+ create mode 100644 artifacts/mockup-sandbox/src/index.css
+ create mode 100644 artifacts/mockup-sandbox/src/lib/utils.ts
+ create mode 100644 artifacts/mockup-sandbox/src/main.tsx
+ create mode 100644 artifacts/mockup-sandbox/tsconfig.json
+ create mode 100644 artifacts/mockup-sandbox/vite.config.ts
+ create mode 100644 attached_assets/Pasted--41-Node-Terminal-Array3-Cluster-Shell-What-Why-The-fir_1774468681041.txt
+ create mode 100644 attached_assets/Pasted--41-Node-Terminal-Array3-Cluster-Shell-What-Why-The-fir_1774469305081.txt
+ create mode 100644 attached_assets/Pasted--DOCTYPE-html-html-lang-en-head-meta-charset-UTF-8-titl_1774443491796.txt
+ create mode 100644 attached_assets/Pasted--Final-Architecture-Review-PlenumBrowser-PlenumColor-Re_1774488264115.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-Array3-Deployer-PlenumN-1774490264272_1774490264272.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-Invariants-Complete-API-Reference-for-YODA-C_1774489448696.txt
+ create mode 100644 attached_assets/Pasted-Here-s-what-the-research-turned-up-there-are-really-onl_1774469357803.txt
+ create mode 100644 attached_assets/Pasted-Salvi-this-changes-the-entire-calculus-Blitz-is-potenti_1774470730310.txt
+ create mode 100644 attached_assets/Pasted-Task-41-Accuracy-Review-Issues-Found-chardev-rs-descrip_1774471059298.txt
+ create mode 100644 attached_assets/Pasted-This-snaps-the-entire-picture-into-focus-The-browser-is_1774474527144.txt
+ create mode 100644 attached_assets/Pasted-This-task-is-a-significant-milestone-the-first-end-to-e_1774467497802.txt
+ create mode 100644 attached_assets/Pasted-This-task-is-a-significant-milestone-the-first-end-to-e_1774467544880.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774488750235.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774488814379.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774489355294.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774489737080.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774490148509.txt
+ create mode 100644 attached_assets/Pasted-Your-earlier-description-mentioned-browser-accessible-t_1774469148948.txt
+ create mode 100644 client/src/pages/terminal.tsx
+ create mode 100644 server/terminal.ts
+ create mode 100644 services/pty-mux/Cargo.toml
+ create mode 100644 services/pty-mux/src/lib.rs
+ create mode 100644 src/kernel/src/compat/syscall_shim.rs
+ create mode 100644 terminal_before_cluster.png
+ create mode 100644 terminal_cluster_panel.png
+PS C:\PlenumNET> git stash pop
+Auto-merging Cargo.lock
+CONFLICT (content): Merge conflict in Cargo.lock
+On branch master
+Unmerged paths:
+  (use "git restore --staged <file>..." to unstage)
+  (use "git add <file>..." to mark resolution)
+        both modified:   Cargo.lock
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        .plenumnet/
+        .scriptssetup-mathstral.ps1.txt
+        8082)
+        8084)
+        client/public/videos/
+        deploy-output.log
+        deploy-yoda-v5.ps1
+        plenumnet-data/
+        scripts/setup-mathstral.ps1
+        scripts/setup-mathstral.psl
+        scripts/setup-mathstral.psl.txt
+        services/wrappers/
+        ternary-math/BENCH-2026-03-14-622104BF.md
+        ternary-math/BENCH-2026-03-14-624FAE4B.md
+        ternary-math/BENCH-2026-03-14-62571155.md
+        ternary-math/BENCH-2026-03-14-626DE1EB.md
+        ternary-math/BENCH-2026-03-14-6549C714.md
+        ternary-math/BENCH-2026-03-14-659BBA4F.md
+        ternary-math/BENCH-2026-03-14-65ABC8EB.md
+        ternary-math/BENCH-2026-03-14-65DD00A4.md
+        ternary-math/BENCH-2026-03-14-65E84240.md
+        ternary-math/benches/tis27_bench.rs
+        ternary-math/src/inter_cube.rs
+        ternary-math/src/sponge.rs
+        ternary-math/src/tis_sponge.rs
+
+no changes added to commit (use "git add" and/or "git commit -a")
+The stash entry is kept in case you need it again.
+PS C:\PlenumNET>
+PS C:\PlenumNET>
+PS C:\PlenumNET> Stop-Service PlenumNET-Array3-* -Force -ErrorAction SilentlyContinue
+PS C:\PlenumNET> sc.exe delete PlenumNET-Array3-1
+[SC] OpenService FAILED 5:
+
+Access is denied.
+
+PS C:\PlenumNET> sc.exe delete PlenumNET-Array3-2
+[SC] OpenService FAILED 5:
+
+Access is denied.
+
+PS C:\PlenumNET> sc.exe delete PlenumNET-Array3-3
+[SC] OpenService FAILED 5:
+
+Access is denied.
+
+PS C:\PlenumNET> Start-Sleep 3
+PS C:\PlenumNET> & C:\PlenumNET\services\inter-cube\deploy-yoda.ps1
+
+==========================================================
+  PlenumNET Array3 Deployer
+  PlenumNET Inter-Cube Infrastructure
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+  Nodes        : 3 instances (27 slots each)
+  Coordinator  : Node #1 (gateway 11124)
+  Gateway Ports: 11124, 11151, 11178
+  Port Ranges  : 11111-11137, 11138-11164, 11165-11191
+  Relay        : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Registry     : https://plenumnet.replit.app (monitoring only)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/8: Build environment
+---
+You cannot call a method on a null-valued expression.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:154 char:1
++ $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArc ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [], RuntimeException
+    + FullyQualifiedErrorId : InvokeMethodOnNull
+
+  Architecture:
+  [OK] clang
+
+STEP 3/8: Source code + build
+---
+  Updating source...
+  [OK] Source ready
+  Stopping running node(s)...
+Stop-Process : Cannot stop process "inter-cube-daemon (226064)" because of the following error: Access is denied
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:260 char:23
++     $runningDaemons | Stop-Process -Force
++                       ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : CloseError: (System.Diagnost...er-cube-daemon):Process) [Stop-Process], ProcessCommandEx
+   ception
+    + FullyQualifiedErrorId : CouldNotStopProcess,Microsoft.PowerShell.Commands.StopProcessCommand
+
+Stop-Process : Cannot stop process "inter-cube-daemon (226980)" because of the following error: Access is denied
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:260 char:23
++     $runningDaemons | Stop-Process -Force
++                       ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : CloseError: (System.Diagnost...er-cube-daemon):Process) [Stop-Process], ProcessCommandEx
+   ception
+    + FullyQualifiedErrorId : CouldNotStopProcess,Microsoft.PowerShell.Commands.StopProcessCommand
+
+Stop-Process : Cannot stop process "inter-cube-daemon (227304)" because of the following error: Access is denied
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:260 char:23
++     $runningDaemons | Stop-Process -Force
++                       ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : CloseError: (System.Diagnost...er-cube-daemon):Process) [Stop-Process], ProcessCommandEx
+   ception
+    + FullyQualifiedErrorId : CouldNotStopProcess,Microsoft.PowerShell.Commands.StopProcessCommand
+
+  Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+  error: failed to parse lock file at: C:\PlenumNET\Cargo.lock
+    TOML parse error at line 1567, column 1
+ERROR: Build failed.
+Press Enter to close:
