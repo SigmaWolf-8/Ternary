@@ -1,0 +1,65 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+error: Pulling is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'git add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+PS C:\PlenumNET> git checkout -- .
+error: path 'Cargo.lock' is unmerged
+PS C:\PlenumNET> git clean -fd
+Removing .plenumnet/
+Removing .scriptssetup-mathstral.ps1.txt
+Removing 8082)
+Removing 8084)
+Removing client/public/videos/
+Removing deploy-output.log
+Removing deploy-yoda-v5.ps1
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) y
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) y
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) y
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) y
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) y
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) yy
+Sorry, I did not understand your answer. Please type 'y' or 'n'
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) y
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) y
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n)
+Sorry, I did not understand your answer. Please type 'y' or 'n'
+Unlink of file 'plenumnet-data/logs/array3-node-1.log' failed. Should I try again? (y/n) n
+warning: failed to remove plenumnet-data/logs/array3-node-1.log: Invalid argument
+Unlink of file 'plenumnet-data/logs/array3-node-2.log' failed. Should I try again? (y/n) n
+warning: failed to remove plenumnet-data/logs/array3-node-2.log: Invalid argument
+Unlink of file 'plenumnet-data/logs/array3-node-3.log' failed. Should I try again? (y/n) n
+warning: failed to remove plenumnet-data/logs/array3-node-3.log: Invalid argument
+Removing plenumnet-data/identity-1
+Removing plenumnet-data/identity-2
+Removing plenumnet-data/identity-3
+Removing scripts/setup-mathstral.ps1
+Removing scripts/setup-mathstral.psl
+Removing scripts/setup-mathstral.psl.txt
+Removing services/wrappers/
+Removing ternary-math/BENCH-2026-03-14-622104BF.md
+Removing ternary-math/BENCH-2026-03-14-624FAE4B.md
+Removing ternary-math/BENCH-2026-03-14-62571155.md
+Removing ternary-math/BENCH-2026-03-14-626DE1EB.md
+Removing ternary-math/BENCH-2026-03-14-6549C714.md
+Removing ternary-math/BENCH-2026-03-14-659BBA4F.md
+Removing ternary-math/BENCH-2026-03-14-65ABC8EB.md
+Removing ternary-math/BENCH-2026-03-14-65DD00A4.md
+Removing ternary-math/BENCH-2026-03-14-65E84240.md
+Removing ternary-math/benches/tis27_bench.rs
+Removing ternary-math/src/inter_cube.rs
+Removing ternary-math/src/sponge.rs
+Removing ternary-math/src/tis_sponge.rs
+PS C:\PlenumNET> git pull origin main
+error: Pulling is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'git add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+PS C:\PlenumNET>
+PS C:\PlenumNET>
