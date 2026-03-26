@@ -1949,8 +1949,14 @@ function startPqtiService(): ChildProcess | null {
         } else {
           if (!pendingMessages.has(normalizedTo)) pendingMessages.set(normalizedTo, []);
           const queue = pendingMessages.get(normalizedTo)!;
-          if (queue.length < 100) {
-            queue.push({ from: nodeAddress, type: msg.msgType || "data", payload: msg.payload, ts: Date.now() });
+          const PENDING_MAX = 500;
+          const PENDING_TTL_MS = 300_000;
+          const nowTs = Date.now();
+          while (queue.length > 0 && (nowTs - queue[0].ts) > PENDING_TTL_MS) {
+            queue.shift();
+          }
+          if (queue.length < PENDING_MAX) {
+            queue.push({ from: nodeAddress, type: msg.msgType || "data", payload: msg.payload, ts: nowTs });
             outcome = "queued";
             ws.send(JSON.stringify({ ...makeErrorResponse("ERR_RELAY_TARGET_UNKNOWN", "relay"), type: "relay_ack", to: msg.to, delivered: false, queued: true }));
             recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { code: "ERR_RELAY_TARGET_UNKNOWN", target: msg.to, queued: true } });

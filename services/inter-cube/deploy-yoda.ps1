@@ -438,7 +438,6 @@ foreach ($cfg in $daemonConfigs) {
     $logFile = Join-Path $LOG_DIR "array3-node-$($cfg.Id).log"
     $wrapperBat = Join-Path $wrapperDir "array3-node-$($cfg.Id)-start.bat"
 
-    $termPort = $cfg.GatewayPort - 2
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
@@ -446,7 +445,6 @@ setlocal enabledelayedexpansion
 set CUBE_MODE=crs
 set CUBE_NODE_ID=$($cfg.Id)
 set CUBE_API_PORT=$($cfg.GatewayPort)
-set CUBE_TERMINAL_PORT=$termPort
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
@@ -475,7 +473,6 @@ setlocal enabledelayedexpansion
 set CUBE_MODE=cube
 set CUBE_NODE_ID=$($cfg.Id)
 set CUBE_API_PORT=$($cfg.GatewayPort)
-set CUBE_TERMINAL_PORT=$termPort
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
@@ -555,27 +552,66 @@ for ($i = 2; $i -le $DAEMON_COUNT; $i++) {
 
 $watchdogScript = Join-Path $wrapperDir "array3-watchdog.ps1"
 @"
+`$logDir = Join-Path `$env:USERPROFILE '.plenumnet\logs'
+if (-not (Test-Path `$logDir)) { New-Item -ItemType Directory -Force -Path `$logDir | Out-Null }
+`$wdLog = Join-Path `$logDir 'watchdog.log'
+`$ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 `$stopped = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
-foreach (`$svc in `$stopped) {
-    try { Start-Service -Name `$svc.Name -ErrorAction Stop } catch {}
+if (`$stopped) {
+    foreach (`$svc in `$stopped) {
+        try {
+            Start-Service -Name `$svc.Name -ErrorAction Stop
+            Add-Content -Path `$wdLog -Value "[`$ts] Restarted `$(`$svc.Name)"
+        } catch {
+            Add-Content -Path `$wdLog -Value "[`$ts] FAILED to restart `$(`$svc.Name): `$_"
+        }
+    }
+} else {
+    `$running = (Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Measure-Object).Count
+    Add-Content -Path `$wdLog -Value "[`$ts] All `$running node(s) healthy"
 }
 "@ | Set-Content -Path $watchdogScript -Encoding ASCII
 
 $taskName = "PlenumNET-Array3-Watchdog"
-$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-if ($existingTask) {
-    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+try {
+    $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($existingTask) {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+} catch {}
+
+try {
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$watchdogScript`""
+    $triggerBoot = New-ScheduledTaskTrigger -AtStartup
+    $triggerRepeat = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 2)
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 5 -RestartInterval (New-TimeSpan -Seconds 30)
+
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET Array3 watchdog - restarts stopped services every 2 minutes and on boot" | Out-Null
+
+    $verify = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($verify) {
+        Write-Host "  [OK] Watchdog scheduled task registered: $taskName" -ForegroundColor Green
+        Write-Host "       Checks every 2 minutes + on boot - restarts any stopped nodes" -ForegroundColor DarkGray
+        Write-Host "       Watchdog log: $env:USERPROFILE\.plenumnet\logs\watchdog.log" -ForegroundColor DarkGray
+    } else {
+        Write-Host "  WARN: Watchdog task registered but verification failed" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "  WARN: Watchdog scheduled task registration failed: $_" -ForegroundColor Yellow
+    Write-Host "       Falling back to schtasks.exe..." -ForegroundColor Yellow
+    try {
+        schtasks.exe /Create /TN $taskName /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$watchdogScript`"" /SC MINUTE /MO 2 /RU SYSTEM /RL HIGHEST /F 2>&1 | Out-Null
+        $fallbackVerify = schtasks.exe /Query /TN $taskName 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  [OK] Watchdog registered via schtasks.exe fallback" -ForegroundColor Green
+        } else {
+            Write-Host "  ERROR: Watchdog registration failed completely" -ForegroundColor Red
+        }
+    } catch {
+        Write-Host "  ERROR: Watchdog registration failed on both paths: $_" -ForegroundColor Red
+    }
 }
-
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$watchdogScript`""
-$triggerBoot = New-ScheduledTaskTrigger -AtStartup
-$triggerRepeat = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
-$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET Array3 watchdog - restarts stopped services every 5 minutes and on boot" | Out-Null
-Write-Host "  [OK] Watchdog scheduled task registered: $taskName" -ForegroundColor Green
-Write-Host "       Checks every 5 minutes + on boot - restarts any stopped nodes" -ForegroundColor DarkGray
 
 Start-Sleep -Seconds 3
 
@@ -625,7 +661,6 @@ foreach ($cfg in $daemonConfigs) {
         id = $cfg.Id
         port = $cfg.GatewayPort
         gatewayPort = $cfg.GatewayPort
-        terminalPort = $cfg.GatewayPort - 2
         rangeStart = $cfg.RangeStart
         address = if ($cfg.Address) { $cfg.Address } else { "" }
         publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }
