@@ -10,26 +10,23 @@
     Run with:  irm https://plenumnet.replit.app/api/deploy-yoda | iex
     Or download the .bat wrapper from the Distribution page.
 
-    Array3 tri-port topology (port step = 3):
-      Node #1 (Agent A) : peer 8079, app 8080, node 8081  -- Coordinator  (CUBE_MODE=crs)
-      Node #2 (Agent B) : peer 8082, app 8083, node 8084  -- Worker       (registers with Node #1)
-      Node #3 (Agent C) : peer 8085, app 8086, node 8087  -- Worker       (registers with Node #1)
+    Array3 27-slot cube topology (SLOTS_PER_NODE = 27, GATEWAY_OFFSET = 13):
+      Node #1 (Rep C 1) : range 11111-11137, gateway 11124  -- Coordinator  (CUBE_MODE=crs)
+      Node #2 (Rep C 2) : range 11138-11164, gateway 11151  -- Worker       (registers with Node #1)
+      Node #3 (Rep C 3) : range 11165-11191, gateway 11178  -- Worker       (registers with Node #1)
 
-    Each daemon uses 3 ports: peer (WebSocket LAN mesh), app (application
-    forwarding), and node (CRS/cube HTTP API). Port step is 3.
+    Each node owns 27 ports (3^3 slots). The gateway port is the center
+    slot [2,2,2] at offset +13. Formula:
+      gateway = BASE_PORT + ((CUBE_NODE_ID - 1) * 27) + 13
 
     Node #1 is always the coordinator for the Array3. Nodes #2 and #3
-    register with it at http://localhost:8081. The remote PlenumNET server
+    register with it at http://localhost:11124. The remote PlenumNET server
     (plenumnet.replit.app) only receives a deployment summary for the
     dashboard -- it is NOT the CRS for local node operations.
 
     All 3 nodes connect outbound to plenumnet.replit.app via WebSocket
     relay (RELAY_URL). This is the NAT-traversal tunnel through which
-    applications like YODA dispatch requests. Each node forwards requests
-    to a local application port at 127.0.0.1:{LLM_PORT}.
-
-    LAN peers connect directly via the peer port for low-latency
-    intra-cluster communication, bypassing the relay when possible.
+    applications like YODA dispatch requests.
 
     Application engines are NOT installed by this script. Application
     setup is handled separately by the consuming app (e.g. YODA).
@@ -39,13 +36,13 @@
     Applied Physics Division
 #>
 
-$DAEMON_COUNT  = 3
-$REMOTE_CRS    = "https://plenumnet.replit.app"
-$BASE_PEER_PORT = 8079
-$PORT_STEP     = 3
-$BASE_DAEMON_PORT = $BASE_PEER_PORT + 2
-$LOCAL_CRS_PORT = $BASE_DAEMON_PORT
-$LOCAL_CRS_URL = "http://localhost:$LOCAL_CRS_PORT"
+$DAEMON_COUNT   = 3
+$REMOTE_CRS     = "https://plenumnet.replit.app"
+$BASE_PORT      = 11111
+$SLOTS_PER_NODE = 27
+$GATEWAY_OFFSET = 13
+$LOCAL_CRS_PORT = $BASE_PORT + $GATEWAY_OFFSET
+$LOCAL_CRS_URL  = "http://localhost:$LOCAL_CRS_PORT"
 $RepoDir       = "C:\PlenumNET"
 $BinaryName    = "inter-cube-daemon.exe"
 $BinaryPath    = Join-Path $RepoDir "target\release\$BinaryName"
@@ -108,11 +105,10 @@ Write-Host "  PlenumNET Inter-Cube Infrastructure" -ForegroundColor Cyan
 Write-Host "  Applied Physics Division -- Capomastro Holdings Ltd." -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Nodes        : $DAEMON_COUNT instances" -ForegroundColor White
-Write-Host "  Coordinator  : Node #1 (port $LOCAL_CRS_PORT)" -ForegroundColor White
-Write-Host "  Node Ports   : $BASE_DAEMON_PORT, $($BASE_DAEMON_PORT + $PORT_STEP), $($BASE_DAEMON_PORT + 2 * $PORT_STEP)" -ForegroundColor White
-Write-Host "  App Ports    : $($BASE_PEER_PORT + 1), $($BASE_PEER_PORT + $PORT_STEP + 1), $($BASE_PEER_PORT + 2 * $PORT_STEP + 1)" -ForegroundColor White
-Write-Host "  Peer Ports   : $BASE_PEER_PORT, $($BASE_PEER_PORT + $PORT_STEP), $($BASE_PEER_PORT + 2 * $PORT_STEP)" -ForegroundColor White
+Write-Host "  Nodes        : $DAEMON_COUNT instances (27 slots each)" -ForegroundColor White
+Write-Host "  Coordinator  : Node #1 (gateway $LOCAL_CRS_PORT)" -ForegroundColor White
+Write-Host "  Gateway Ports: $($BASE_PORT + $GATEWAY_OFFSET), $($BASE_PORT + $SLOTS_PER_NODE + $GATEWAY_OFFSET), $($BASE_PORT + 2 * $SLOTS_PER_NODE + $GATEWAY_OFFSET)" -ForegroundColor White
+Write-Host "  Port Ranges  : $BASE_PORT-$($BASE_PORT + $SLOTS_PER_NODE - 1), $($BASE_PORT + $SLOTS_PER_NODE)-$($BASE_PORT + 2 * $SLOTS_PER_NODE - 1), $($BASE_PORT + 2 * $SLOTS_PER_NODE)-$($BASE_PORT + 3 * $SLOTS_PER_NODE - 1)" -ForegroundColor White
 Write-Host "  Relay        : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
 Write-Host "  Registry     : $REMOTE_CRS (monitoring only)" -ForegroundColor White
 Write-Host ""
@@ -358,10 +354,9 @@ $daemonConfigs = @()
 for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     $dir = Join-Path $IdentityBase "identity-$i"
     $keyFile = Join-Path $dir "master.key"
-    $peerPort = $BASE_PEER_PORT + (($i - 1) * $PORT_STEP)
-    $appPort = $peerPort + 1
-    $daemonPort = $peerPort + 2
-    $endpoint = "${ip}:${daemonPort}"
+    $rangeStart = $BASE_PORT + (($i - 1) * $SLOTS_PER_NODE)
+    $gatewayPort = $rangeStart + $GATEWAY_OFFSET
+    $endpoint = "${ip}:${gatewayPort}"
 
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
 
@@ -396,9 +391,8 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
 
     $daemonConfigs += @{
         Id = $i
-        Port = $daemonPort
-        AppPort = $appPort
-        PeerPort = $peerPort
+        GatewayPort = $gatewayPort
+        RangeStart = $rangeStart
         IdentityDir = $dir
         Endpoint = $endpoint
         PublicKey = $pubKey
@@ -442,33 +436,59 @@ foreach ($cfg in $daemonConfigs) {
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) >> "$logFile"
+setlocal enabledelayedexpansion
 set CUBE_MODE=crs
-set CUBE_API_PORT=$($cfg.Port)
-set CUBE_PEER_PORT=$($cfg.PeerPort)
+set CUBE_NODE_ID=$($cfg.Id)
+set CUBE_API_PORT=$($cfg.GatewayPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
-set LLM_PORT=$($cfg.AppPort)
 cd /d "$RepoDir"
+set RESTART_DELAY=5
+set RESTART_COUNT=0
+:loop
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) gateway=$($cfg.GatewayPort) [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
-echo [%date% %time%] Node #$($cfg.Id) exited with code %ERRORLEVEL% >> "$logFile"
+set EXIT_CODE=!ERRORLEVEL!
+echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
+if !EXIT_CODE! equ 0 goto :eof
+set /a RESTART_COUNT+=1
+if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
+if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
+if !RESTART_COUNT! gtr 6 if !RESTART_COUNT! leq 10 set RESTART_DELAY=30
+if !RESTART_COUNT! gtr 10 set RESTART_DELAY=60
+echo [%date% %time%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
+timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
+goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     } else {
         @"
 @echo off
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) >> "$logFile"
+setlocal enabledelayedexpansion
 set CUBE_MODE=cube
-set CUBE_API_PORT=$($cfg.Port)
-set CUBE_PEER_PORT=$($cfg.PeerPort)
+set CUBE_NODE_ID=$($cfg.Id)
+set CUBE_API_PORT=$($cfg.GatewayPort)
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
-set LLM_PORT=$($cfg.AppPort)
 cd /d "$RepoDir"
+set RESTART_DELAY=5
+set RESTART_COUNT=0
+:loop
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) gateway=$($cfg.GatewayPort) [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
-echo [%date% %time%] Node #$($cfg.Id) exited with code %ERRORLEVEL% >> "$logFile"
+set EXIT_CODE=!ERRORLEVEL!
+echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
+if !EXIT_CODE! equ 0 goto :eof
+set /a RESTART_COUNT+=1
+if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
+if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
+if !RESTART_COUNT! gtr 6 if !RESTART_COUNT! leq 10 set RESTART_DELAY=30
+if !RESTART_COUNT! gtr 10 set RESTART_DELAY=60
+echo [%date% %time%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
+timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
+goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     }
 
@@ -595,9 +615,8 @@ $daemonsArray = @()
 foreach ($cfg in $daemonConfigs) {
     $daemonsArray += @{
         id = $cfg.Id
-        port = $cfg.Port
-        peerPort = $cfg.PeerPort
-        appPort = $cfg.AppPort
+        gatewayPort = $cfg.GatewayPort
+        rangeStart = $cfg.RangeStart
         address = if ($cfg.Address) { $cfg.Address } else { "" }
         publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }
         endpoint = $cfg.Endpoint
@@ -622,7 +641,7 @@ $deploymentPayload = @{
     identityBase = $IdentityBase
     localVersion = $localVersion
     timestamp = (Get-Date -Format "o")
-    deployer = "deploy-yoda/v0.4.0"
+    deployer = "deploy-yoda/v0.5.0"
 } | ConvertTo-Json -Depth 3
 
 try {
@@ -673,11 +692,11 @@ $launchLines = @(
     "echo."
     "echo ========================================"
     "echo   PlenumNET Array3 Services Active"
-    "echo   Node #1 (coordinator) : http://localhost:$($crsCfg.Port)"
+    "echo   Node #1 (coordinator) : http://localhost:$($crsCfg.GatewayPort)"
 )
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    $launchLines += "echo   Node #$($cfg.Id) (worker)     : http://localhost:$($cfg.Port)"
+    $launchLines += "echo   Node #$($cfg.Id) (worker)     : http://localhost:$($cfg.GatewayPort)"
 }
 $launchLines += @(
     "echo ========================================"
