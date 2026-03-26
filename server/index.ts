@@ -1012,10 +1012,12 @@ function startPqtiService(): ChildProcess | null {
               }
             }
           }
+          const endpointParsed = parseHostPort(d.endpoint || "");
+          const resolvedPort = d.port || d.gatewayPort || (endpointParsed ? parseInt(endpointParsed.port) : 0);
           daemonChecks.push({
             address: toDottedAddr(normalAddr),
             endpoint: d.endpoint || "",
-            port: d.port || d.gatewayPort || 0,
+            port: resolvedPort,
             peerPort: d.peerPort || 0,
             hostname: record.hostname || "",
             deploymentId: record.id,
@@ -1042,7 +1044,7 @@ function startPqtiService(): ChildProcess | null {
           if (depParsed) {
             deploymentDaemonsByPort.set(depParsed.port, {
               hostname: record.hostname || "",
-              port: d.port || 0,
+              port: d.port || (depParsed ? parseInt(depParsed.port) : 0),
               peerPort: d.peerPort || 0,
               endpoint: d.endpoint || "",
               deploymentId: record.id,

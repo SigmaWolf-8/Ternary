@@ -1076,7 +1076,7 @@ function ClusterReport() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-muted-foreground">
               <span>Address: <strong className="text-foreground font-mono text-[10px]">{d.address}</strong></span>
               <span>Endpoint: <strong className="text-foreground font-mono text-[10px]">{d.endpoint}</strong></span>
-              <span>Port: <strong className="text-foreground">{d.port}</strong>{d.peerPort ? <span className="text-muted-foreground"> / Peer {d.peerPort}</span> : null}</span>
+              <span>Port: <strong className="text-foreground">{d.port || (() => { const m = d.endpoint?.match(/:(\d+)$/); return m ? m[1] : "—"; })()}</strong>{d.peerPort ? <span className="text-muted-foreground"> / Peer {d.peerPort}</span> : null}</span>
               <span>Role: <strong className="text-foreground">{d.role === "crs" ? "CRS" : "Cube"}</strong></span>
               <span>Registered: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
               <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
