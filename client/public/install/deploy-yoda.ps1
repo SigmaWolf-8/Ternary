@@ -442,7 +442,7 @@ foreach ($cfg in $daemonConfigs) {
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) >> "$logFile"
+setlocal enabledelayedexpansion
 set CUBE_MODE=crs
 set CUBE_API_PORT=$($cfg.Port)
 set CUBE_PEER_PORT=$($cfg.PeerPort)
@@ -451,13 +451,28 @@ set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
 set LLM_PORT=$($cfg.AppPort)
 cd /d "$RepoDir"
+set RESTART_DELAY=5
+set RESTART_COUNT=0
+:loop
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) [restart #!RESTART_COUNT!] >> "$logFile"
+set START_TIME=%time%
 "$BinaryPath" >> "$logFile" 2>&1
-echo [%date% %time%] Node #$($cfg.Id) exited with code %ERRORLEVEL% >> "$logFile"
+set EXIT_CODE=!ERRORLEVEL!
+echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
+if !EXIT_CODE! equ 0 goto :eof
+set /a RESTART_COUNT+=1
+if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
+if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
+if !RESTART_COUNT! gtr 6 if !RESTART_COUNT! leq 10 set RESTART_DELAY=30
+if !RESTART_COUNT! gtr 10 set RESTART_DELAY=60
+echo [%date% %time%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
+timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
+goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     } else {
         @"
 @echo off
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) >> "$logFile"
+setlocal enabledelayedexpansion
 set CUBE_MODE=cube
 set CUBE_API_PORT=$($cfg.Port)
 set CUBE_PEER_PORT=$($cfg.PeerPort)
@@ -467,8 +482,23 @@ set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
 set LLM_PORT=$($cfg.AppPort)
 cd /d "$RepoDir"
+set RESTART_DELAY=5
+set RESTART_COUNT=0
+:loop
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) [restart #!RESTART_COUNT!] >> "$logFile"
+set START_TIME=%time%
 "$BinaryPath" >> "$logFile" 2>&1
-echo [%date% %time%] Node #$($cfg.Id) exited with code %ERRORLEVEL% >> "$logFile"
+set EXIT_CODE=!ERRORLEVEL!
+echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
+if !EXIT_CODE! equ 0 goto :eof
+set /a RESTART_COUNT+=1
+if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
+if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
+if !RESTART_COUNT! gtr 6 if !RESTART_COUNT! leq 10 set RESTART_DELAY=30
+if !RESTART_COUNT! gtr 10 set RESTART_DELAY=60
+echo [%date% %time%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
+timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
+goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     }
 

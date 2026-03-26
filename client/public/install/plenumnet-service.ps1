@@ -225,6 +225,7 @@ function Invoke-Install {
     $wrapperBat = Join-Path $wrapperDir "cube-${Id}-start.bat"
     @"
 @echo off
+setlocal enabledelayedexpansion
 set CUBE_MODE=cube
 set CUBE_API_PORT=$daemonPort
 set LLM_PORT=$enginePort
@@ -233,7 +234,22 @@ set CUBE_CRS_URL=$CRS_URL
 set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$agentDir
 set CUBE_ROLE=inference
+set RESTART_DELAY=5
+set RESTART_COUNT=0
+:loop
+echo [%date% %time%] Starting PlenumNET Cube #$Id [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
+set EXIT_CODE=!ERRORLEVEL!
+echo [%date% %time%] Cube #$Id exited with code !EXIT_CODE! >> "$logFile"
+if !EXIT_CODE! equ 0 goto :eof
+set /a RESTART_COUNT+=1
+if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
+if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
+if !RESTART_COUNT! gtr 6 if !RESTART_COUNT! leq 10 set RESTART_DELAY=30
+if !RESTART_COUNT! gtr 10 set RESTART_DELAY=60
+echo [%date% %time%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
+timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
+goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
 
     $existingSvc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
