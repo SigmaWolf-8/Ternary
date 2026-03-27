@@ -1,0 +1,43 @@
+#43 - VM + Terminal Integration into Node Daemon & Installers
+What & Why
+The inter-cube daemon (inter-cube-daemon) currently runs the cube overlay network (CRS/worker modes, WebSocket relay, peer connections) but does NOT include the Ternary VM or the PTY terminal server. The pty-mux crate is a skeleton with session bookkeeping but no actual PTY spawning. The TernaryVm engine exists in the kernel source but is not linked into the daemon binary. Users who install a PlenumNET node (single or Array3) should get a working VM and an interactive terminal out of the box — both need to be integrated into the daemon and the installer scripts.
+
+Done looks like
+Each running PlenumNET node (whether single-node or part of an Array3) starts a PTY terminal service on one of its 27 allocated ports, accessible via WebSocket
+Each running node embeds the TernaryVm engine and can execute ternary programs (176-opcode ISA v2.1) via API endpoint on the gateway port
+The pty-mux crate is fully functional — it spawns real PTY sessions using portable-pty, handles I/O streaming, resize, and cleanup
+The daemon binary (inter-cube-daemon) includes both the pty-mux service and the TernaryVm, started automatically alongside the cube network services
+The deploy-yoda.ps1 (Array3 installer) and deploy-daemon.ps1/.bat (single-node) set environment variables and start the terminal + VM services as part of node startup
+A user who runs the installer can connect to their node's terminal port and get an interactive shell
+A user can submit ternary programs to their node's VM endpoint and get execution results back
+The Array3 Cluster Shell mode fans terminal commands to all 3 nodes
+Out of scope
+Browser engine integration (Phase 2 GPU path — separate future work)
+GUI/frontend terminal page changes on the marketing website (the web-based terminal at /terminal already exists)
+New port allocations — terminal and VM use ports from the existing 27-slot range per node
+Changes to the WebSocket relay protocol
+Windows GUI terminal client — this is server-side only, clients connect via WebSocket
+Tasks
+Complete the pty-mux crate — add actual PTY process spawning using portable-pty, wire up I/O streaming (stdin/stdout as async channels), handle session cleanup on disconnect, and expose a WebSocket server that accepts terminal connections on a designated port from the node's 27-slot range.
+Integrate the TernaryVm engine into the daemon binary — add the kernel VM as a dependency, expose a REST API endpoint on the gateway port for program submission and execution results, support register inspection and status queries.
+Wire both services into the daemon startup — when the daemon starts in crs or cube mode, also start the pty-mux WebSocket listener and the VM service. Allocate specific slots from the 27-port range (e.g., gateway+1 for terminal, gateway+2 for VM, or use existing env var conventions).
+Update the installer scripts — modify deploy-yoda.ps1, deploy-daemon.ps1, and deploy-daemon.bat to set the terminal and VM port environment variables and document the new ports in the startup output.
+Add Cluster Shell support — when a terminal session is in cluster mode on the CRS node, fan out commands to all registered Array3 peers' terminal ports and aggregate output.
+Implementation Notes
+Port allocation: Use slots from the existing 27-slot range per node. Do NOT add new ports outside the 11111-11191 range. Suggested: terminal = gateway - 2, VM = gateway + 1 (within the 27-slot block).
+CUBE_NODE_ID is Rep C {1,2,3} — NEVER GF(3) {0,1,2}. Zero is fatal.
+Do NOT touch: server/ternary.ts, compress/decompress logic, deployments/ folder, tunnel_auth.rs.
+Correct Array3 ports: Node 1=11124, Node 2=11151, Node 3=11178.
+Relevant files
+services/pty-mux/src/lib.rs
+services/pty-mux/Cargo.toml
+services/inter-cube/src/main.rs
+services/inter-cube/src/lib.rs
+services/inter-cube/Cargo.toml
+services/inter-cube/deploy-yoda.ps1
+services/inter-cube/deploy-daemon.ps1
+services/inter-cube/deploy-daemon.bat
+src/kernel/src/vm/engine.rs
+src/kernel/src/vm/instruction.rs
+src/kernel/src/vm/instruction_v2.rs
+server/terminal.ts
