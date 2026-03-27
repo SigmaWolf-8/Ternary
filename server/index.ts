@@ -584,10 +584,14 @@ function startPqtiService(): ChildProcess | null {
   }
 
   app.get("/api/salvi/inter-cube/relay/register", async (req, res) => {
-    const { publicKey, endpoint, tlDsaPk } = req.query as { publicKey?: string; endpoint?: string; tlDsaPk?: string };
-    if (!publicKey || !endpoint) {
+    const { publicKey, endpoint: rawEndpoint, tlDsaPk } = req.query as { publicKey?: string; endpoint?: string; tlDsaPk?: string };
+    if (!publicKey || !rawEndpoint) {
       return res.status(400).json({ error: "publicKey and endpoint query params required" });
     }
+    const callerIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "").split(",")[0].trim();
+    const endpoint = rawEndpoint.startsWith("0.0.0.0:") && callerIp
+      ? `${callerIp}:${rawEndpoint.split(":")[1]}`
+      : rawEndpoint;
 
     const candidateAddr = publicKeyAddressMap.get(publicKey) ||
       [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];

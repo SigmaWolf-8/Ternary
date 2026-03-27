@@ -355,6 +355,7 @@ export default function TerminalPage() {
                     <span className="flex items-center gap-2">
                       <span className={`inline-block w-2 h-2 rounded-full ${node.connected ? "bg-blue-500" : "bg-red-500"}`} />
                       <span className="font-mono font-medium">{node.addressDotted}</span>
+                      {node.endpoint && <span className="text-muted-foreground">{node.endpoint}</span>}
                     </span>
                   </SelectItem>
                 ))}
@@ -442,7 +443,7 @@ export default function TerminalPage() {
                 data-testid={`node-badge-${node.addressDotted}`}
               >
                 <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${node.connected ? "bg-blue-500" : "bg-red-500"}`} />
-                {node.addressDotted}
+                {node.addressDotted} {node.endpoint || ""}
               </Badge>
             ))}
           </div>
