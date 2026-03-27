@@ -157,11 +157,11 @@ export default function TerminalPage() {
             break;
           case "remote_connected":
             terminalRef.current?.reset();
-            terminalRef.current?.writeln(`\x1b[38;2;100;255;100m[Connected to remote node ${msg.address}]\x1b[0m\r\n`);
+            terminalRef.current?.writeln(`\x1b[38;2;96;165;250m[Connected to remote node ${msg.address}]\x1b[0m\r\n`);
             break;
           case "local_connected":
             terminalRef.current?.reset();
-            terminalRef.current?.writeln(`\x1b[38;2;100;255;100m[Connected to local CRS node]\x1b[0m\r\n`);
+            terminalRef.current?.writeln(`\x1b[38;2;96;165;250m[Connected to local CRS node]\x1b[0m\r\n`);
             break;
           case "error":
             terminalRef.current?.writeln(`\r\n\x1b[38;2;255;100;100m[Error: ${msg.message}]\x1b[0m`);
@@ -192,26 +192,26 @@ export default function TerminalPage() {
       fontSize: 18,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       theme: {
-        background: "#1a1410",
-        foreground: "#d4c8bc",
-        cursor: "#c49a6c",
-        selectionBackground: "#3d2e22",
-        black: "#1a1410",
+        background: "#0a0a0f",
+        foreground: "#e2e8f0",
+        cursor: "#60a5fa",
+        selectionBackground: "#1e293b",
+        black: "#0a0a0f",
         red: "#f87171",
-        green: "#4ade80",
+        green: "#60a5fa",
         yellow: "#fbbf24",
         blue: "#60a5fa",
         magenta: "#c084fc",
         cyan: "#22d3ee",
-        white: "#e2e8f0",
-        brightBlack: "#7a6b5d",
+        white: "#f1f5f9",
+        brightBlack: "#64748b",
         brightRed: "#fb7185",
-        brightGreen: "#86efac",
+        brightGreen: "#93c5fd",
         brightYellow: "#fcd34d",
         brightBlue: "#93c5fd",
         brightMagenta: "#d8b4fe",
         brightCyan: "#67e8f9",
-        brightWhite: "#f8fafc",
+        brightWhite: "#ffffff",
       },
       allowProposedApi: true,
       scrollback: 5000,
@@ -329,7 +329,7 @@ export default function TerminalPage() {
             </h1>
             <Badge
               variant={connected ? "secondary" : "destructive"}
-              className={connected ? "bg-green-500/20 text-green-300 border-green-500/30" : ""}
+              className={connected ? "bg-blue-500/20 text-blue-300 border-blue-500/30" : ""}
               data-testid="connection-status"
             >
               {connected ? "Connected" : authError ? "Auth Required" : "Disconnected"}
@@ -353,9 +353,8 @@ export default function TerminalPage() {
                 {crsNodes.map(node => (
                   <SelectItem key={node.addressDotted} value={node.addressDotted} data-testid={`node-option-${node.addressDotted}`}>
                     <span className="flex items-center gap-2">
-                      <span className={`inline-block w-2 h-2 rounded-full ${node.connected ? "bg-green-500" : "bg-red-500"}`} />
+                      <span className={`inline-block w-2 h-2 rounded-full ${node.connected ? "bg-blue-500" : "bg-red-500"}`} />
                       <span className="font-mono font-medium">{node.addressDotted}</span>
-                      <span className="text-muted-foreground">{node.endpoint || ""}</span>
                     </span>
                   </SelectItem>
                 ))}
@@ -436,15 +435,14 @@ export default function TerminalPage() {
                 variant="outline"
                 className={`text-xs font-mono cursor-pointer ${
                   node.connected
-                    ? "border-green-500/30 text-green-400"
+                    ? "border-blue-500/30 text-blue-400"
                     : "border-red-500/30 text-red-400"
                 } ${selectedNode === node.addressDotted ? "bg-primary/10 border-primary" : ""}`}
                 onClick={() => setSelectedNode(node.addressDotted)}
                 data-testid={`node-badge-${node.addressDotted}`}
               >
-                <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${node.connected ? "bg-green-500" : "bg-red-500"}`} />
+                <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${node.connected ? "bg-blue-500" : "bg-red-500"}`} />
                 {node.addressDotted}
-                {node.endpoint && <span className="text-muted-foreground ml-1.5">{node.endpoint}</span>}
               </Badge>
             ))}
           </div>
