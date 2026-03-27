@@ -70,19 +70,110 @@ extern "C" {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// BOOT ENTRY POINT
+// MULTIBOOT1 HEADER + 32→64 BIT TRAMPOLINE
+// Multiboot boots in 32-bit protected mode. We must set up paging,
+// enable long mode, and far-jump to 64-bit code before calling Rust.
+// ─────────────────────────────────────────────────────────────────────
+
+core::arch::global_asm!(
+    ".section .multiboot, \"a\"",
+    ".align 4",
+    "mb_header:",
+    ".long 0x1BADB002",
+    ".long 0x00000003",
+    ".long -(0x1BADB002 + 0x00000003)",
+    "",
+    ".section .text.boot, \"ax\"",
+    ".code32",
+    ".global _start",
+    "_start:",
+    "cli",
+    "mov esi, ebx",
+    "",
+    "lea edi, [boot_pml4]",
+    "xor eax, eax",
+    "mov ecx, 3072",
+    "rep stosd",
+    "",
+    "lea eax, [boot_pdpt]",
+    "or eax, 0x03",
+    "mov [boot_pml4], eax",
+    "",
+    "lea eax, [boot_pd]",
+    "or eax, 0x03",
+    "mov [boot_pdpt], eax",
+    "",
+    "lea edi, [boot_pd]",
+    "mov eax, 0x83",
+    "mov ecx, 512",
+    "2:",
+    "mov [edi], eax",
+    "add eax, 0x200000",
+    "add edi, 8",
+    "dec ecx",
+    "jnz 2b",
+    "",
+    "lea eax, [boot_pml4]",
+    "mov cr3, eax",
+    "",
+    "mov eax, cr4",
+    "or eax, 0x20",
+    "mov cr4, eax",
+    "",
+    "mov ecx, 0xC0000080",
+    "rdmsr",
+    "or eax, 0x100",
+    "wrmsr",
+    "",
+    "mov eax, cr0",
+    "or eax, 0x80000000",
+    "mov cr0, eax",
+    "",
+    "lgdt [boot_gdt_ptr]",
+    "",
+    "push 0x08",
+    "lea eax, [_start64]",
+    "push eax",
+    "retf",
+    "",
+    ".code64",
+    ".global _start64",
+    "_start64:",
+    "mov ax, 0x10",
+    "mov ds, ax",
+    "mov es, ax",
+    "mov fs, ax",
+    "mov gs, ax",
+    "mov ss, ax",
+    "lea rsp, [rip + __stack_top]",
+    "call kernel_main",
+    "3:",
+    "hlt",
+    "jmp 3b",
+    "",
+    ".section .bss.boot, \"aw\", @nobits",
+    ".align 4096",
+    "boot_pml4: .space 4096",
+    "boot_pdpt: .space 4096",
+    "boot_pd:   .space 4096",
+    "",
+    ".section .rodata.boot, \"a\"",
+    ".align 16",
+    "boot_gdt:",
+    ".quad 0",
+    ".quad 0x00AF9A000000FFFF",
+    ".quad 0x00CF92000000FFFF",
+    "boot_gdt_ptr:",
+    ".short boot_gdt_ptr - boot_gdt - 1",
+    ".long boot_gdt",
+);
+
+// ─────────────────────────────────────────────────────────────────────
+// KERNEL MAIN — called from assembly after 64-bit mode is established
 // ─────────────────────────────────────────────────────────────────────
 
 #[unsafe(no_mangle)]
-#[link_section = ".text.boot"]
-pub extern "C" fn _start() -> ! {
-    unsafe {
-        core::arch::asm!(
-            "lea rsp, [rip + __stack_top]",
-            options(nostack, nomem)
-        );
-    }
-
+pub extern "C" fn kernel_main() -> ! {
     zero_bss();
     serial::init();
 
