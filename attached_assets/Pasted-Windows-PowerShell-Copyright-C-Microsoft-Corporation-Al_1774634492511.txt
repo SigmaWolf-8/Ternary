@@ -1,0 +1,207 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+remote: Enumerating objects: 516, done.
+remote: Counting objects: 100% (214/214), done.
+remote: Compressing objects: 100% (80/80), done.
+remote: Total 516 (delta 130), reused 201 (delta 122), pack-reused 302 (from 1)
+Receiving objects: 100% (516/516), 1.10 MiB | 2.52 MiB/s, done.
+Resolving deltas: 100% (325/325), completed with 30 local objects.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   7f1a78c7..95f89821  main       -> origin/main
+Updating 7f1a78c7..95f89821
+Fast-forward
+ .github/workflows/build-kernel.yml                 |  148 +
+ .replit                                            |    4 +
+ Cargo.lock                                         | 1317 +++++-
+ Cargo.toml                                         |    1 +
+ LICENSES/MPL-2.0.md                                |   27 +
+ ...d-feature-for-this-target-ign_1774614562860.txt | 3004 +++++++++++++
+ ...n-into-Node-Daemon-Installers_1774617702442.txt |   43 +
+ ...Recovery-Name-Status-StartTyp_1774605899492.txt |   48 +
+ ...SC-DeleteService-SUCCESS-SC-D_1774606351617.txt |   99 +
+ ...efers-to-the-techniques-and-m_1774606290576.txt |   54 +
+ ...-Proposition-Redesign-What-Wh_1774620496813.txt |   36 +
+ ...ing-stack-has-two-layers-toda_1774610284041.txt |   26 +
+ ...belongs-in-the-user-space-We-_1774610664928.txt |   29 +
+ ...nt-FILE-data-Cap-on-RASTERIZE_1774619707769.txt |   44 +
+ ...Architecture-Summary-Settled-_1774619316677.txt |  328 ++
+ ...-caps-are-still-wrong-The-tas_1774619806502.txt |   22 +
+ ...nt-caching-overlap-slots-z-st_1774620020940.txt |    8 +
+ ...dditions-to-the-task-Frame-ra_1774622575031.txt |   10 +
+ ...ike-for-the-user-Prerequisite_1774610097941.txt |   46 +
+ ...ht-C-Microsoft-Corporation-Al_1774510654186.txt |   63 +
+ ...ht-C-Microsoft-Corporation-Al_1774605820685.txt |   57 +
+ ...ht-C-Microsoft-Corporation-Al_1774611124289.txt |  179 +
+ ...ht-C-Microsoft-Corporation-Al_1774611154935.txt |  179 +
+ ...ht-C-Microsoft-Corporation-Al_1774611452760.txt |  239 ++
+ ...ht-C-Microsoft-Corporation-Al_1774611571079.txt |  330 ++
+ ...ht-C-Microsoft-Corporation-Al_1774611773452.txt |  654 +++
+ ...ht-C-Microsoft-Corporation-Al_1774611849843.txt |  667 +++
+ ...ht-C-Microsoft-Corporation-Al_1774612066923.txt |  758 ++++
+ ...ht-C-Microsoft-Corporation-Al_1774612928414.txt | 1382 ++++++
+ ...ht-C-Microsoft-Corporation-Al_1774613257736.txt | 1862 ++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774613319397.txt | 1669 ++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774613406782.txt | 3180 ++++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774613530885.txt | 3649 ++++++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774613715716.txt | 4479 ++++++++++++++++++++
+ ...out-Let-me-go-through-it-agai_1774496279594.txt |   31 +
+ ...Ternary-src-kernel-bare-metal_1774613127465.txt |  511 +++
+ ...Ternary-src-kernel-bare-metal_1774614704195.txt | 3194 ++++++++++++++
+ ...Ternary-src-kernel-bare-metal_1774617466954.txt |   79 +
+ ...Ternary-src-kernel-bare-metal_1774617629187.txt |  205 +
+ ...-not-successful-View-workflow_1774613072960.txt |   56 +
+ attached_assets/image_1774499841287.png            |  Bin 0 -> 110033 bytes
+ attached_assets/image_1774510584696.png            |  Bin 0 -> 193827 bytes
+ attached_assets/image_1774607385197.png            |  Bin 0 -> 110326 bytes
+ attached_assets/image_1774608774933.png            |  Bin 0 -> 70952 bytes
+ attached_assets/image_1774608927493.png            |  Bin 0 -> 328708 bytes
+ boot.sh                                            |  193 +
+ client/public/install/deploy-yoda.ps1              |   91 +-
+ client/src/pages/distribution.tsx                  |   79 +-
+ client/src/pages/isa-security-paper.tsx            | 1105 ++---
+ replit.md                                          |    6 +
+ server/index.ts                                    |   33 +-
+ services/inter-cube/deploy-daemon.bat              |    2 +-
+ services/inter-cube/deploy-daemon.ps1              |    8 +-
+ services/inter-cube/deploy-yoda.ps1                |  115 +-
+ src/kernel/.cargo/config.toml                      |   16 +
+ src/kernel/Cargo.toml                              |   47 +
+ src/kernel/bare-metal/.cargo/config.toml           |   18 +-
+ src/kernel/bare-metal/Cargo.lock                   |   95 +
+ src/kernel/bare-metal/Cargo.toml                   |    2 +-
+ src/kernel/bare-metal/linker.ld                    |   21 +-
+ src/kernel/bare-metal/scripts/build.sh             |   91 +-
+ src/kernel/bare-metal/scripts/diagnose.sh          |  112 +
+ src/kernel/bare-metal/scripts/qemu-run.sh          |  237 +-
+ src/kernel/bare-metal/scripts/rustc-wrapper.sh     |    7 +
+ src/kernel/bare-metal/scripts/setup-and-test.sh    |   90 +
+ src/kernel/bare-metal/src/main.rs                  |  148 +-
+ src/kernel/bare-metal/src/selftest.rs              |    4 +-
+ src/kernel/build.rs                                |   25 +
+ src/kernel/linker-aarch64.ld                       |   43 +
+ src/kernel/linker-riscv64.ld                       |   43 +
+ src/kernel/linker-x86_64.ld                        |   53 +
+ src/kernel/rust-toolchain.toml                     |    4 +
+ src/kernel/src/allocator.rs                        |  521 +++
+ src/kernel/src/browser/color.rs                    |  440 +-
+ src/kernel/src/browser/home_page.rs                |  426 ++
+ src/kernel/src/browser/input.rs                    |  240 +-
+ src/kernel/src/browser/layout.rs                   |  783 +++-
+ src/kernel/src/browser/mod.rs                      |  477 ++-
+ src/kernel/src/browser/net.rs                      |   48 +-
+ src/kernel/src/browser/parse.rs                    |  923 +++-
+ src/kernel/src/browser/render.rs                   |  390 ++
+ src/kernel/src/browser/render_cpu.rs               |  843 +++-
+ src/kernel/src/browser/script.rs                   |  535 ++-
+ src/kernel/src/browser/tabs.rs                     |  423 +-
+ src/kernel/src/distributor/mod.rs                  |  104 +-
+ src/kernel/src/distributor/sponge_rekey.rs         |  154 +-
+ src/kernel/src/lib.rs                              |    1 +
+ src/kernel/src/main.rs                             |  548 +++
+ src/kernel/targets/aarch64-plenum-none.json        |   25 +
+ src/kernel/targets/riscv64gc-plenum-none.json      |   26 +
+ src/kernel/targets/x86_64-plenum-none.json         |   26 +
+ src/plenum-std/Cargo.toml                          |   13 +
+ src/plenum-std/src/collections/mod.rs              |   31 +
+ src/plenum-std/src/env/mod.rs                      |  101 +
+ src/plenum-std/src/fs/mod.rs                       |  210 +
+ src/plenum-std/src/io/mod.rs                       |  873 ++++
+ src/plenum-std/src/lib.rs                          |  403 ++
+ src/plenum-std/src/net/mod.rs                      |  272 ++
+ src/plenum-std/src/panic/mod.rs                    |   19 +
+ src/plenum-std/src/process/mod.rs                  |  128 +
+ src/plenum-std/src/sync/barrier_impl.rs            |   43 +
+ src/plenum-std/src/sync/condvar_impl.rs            |   33 +
+ src/plenum-std/src/sync/mod.rs                     |   18 +
+ src/plenum-std/src/sync/mpsc.rs                    |  144 +
+ src/plenum-std/src/sync/mutex_impl.rs              |  171 +
+ src/plenum-std/src/sync/once_impl.rs               |   93 +
+ src/plenum-std/src/sync/rwlock_impl.rs             |  140 +
+ src/plenum-std/src/thread/mod.rs                   |  304 ++
+ src/plenum-std/src/time/mod.rs                     |  209 +
+ src/plenum-std/tests/std_facade.rs                 |   97 +
+ 110 files changed, 40761 insertions(+), 879 deletions(-)
+ create mode 100644 LICENSES/MPL-2.0.md
+ create mode 100644 attached_assets/Pasted--3dnowa-is-not-a-recognized-feature-for-this-target-ign_1774614562860.txt
+ create mode 100644 attached_assets/Pasted--43-VM-Terminal-Integration-into-Node-Daemon-Installers_1774617702442.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-Array3-Service-Recovery-Name-Status-StartTyp_1774605899492.txt
+ create mode 100644 attached_assets/Pasted--SC-DeleteService-SUCCESS-SC-DeleteService-SUCCESS-SC-D_1774606351617.txt
+ create mode 100644 attached_assets/Pasted--WebSocket-NAT-Traversal-refers-to-the-techniques-and-m_1774606290576.txt
+ create mode 100644 attached_assets/Pasted-30-Distribution-Page-Value-Proposition-Redesign-What-Wh_1774620496813.txt
+ create mode 100644 attached_assets/Pasted-Current-State-Your-networking-stack-has-two-layers-toda_1774610284041.txt
+ create mode 100644 attached_assets/Pasted-I-m-not-sure-punching-NAX-belongs-in-the-user-space-We-_1774610664928.txt
+ create mode 100644 attached_assets/Pasted-Per-tab-no-fixed-cap-on-font-FILE-data-Cap-on-RASTERIZE_1774619707769.txt
+ create mode 100644 attached_assets/Pasted-PlenumBrowser-PlenumColor-Architecture-Summary-Settled-_1774619316677.txt
+ create mode 100644 attached_assets/Pasted-Several-issues-Font-memory-caps-are-still-wrong-The-tas_1774619806502.txt
+ create mode 100644 attached_assets/Pasted-This-is-much-better-The-font-caching-overlap-slots-z-st_1774620020940.txt
+ create mode 100644 attached_assets/Pasted-Valid-concerns-that-need-additions-to-the-task-Frame-ra_1774622575031.txt
+ create mode 100644 attached_assets/Pasted-What-the-flow-would-look-like-for-the-user-Prerequisite_1774610097941.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774510654186.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774605820685.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611124289.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611154935.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611452760.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611571079.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611773452.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611849843.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774612066923.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774612928414.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774613257736.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774613319397.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774613406782.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774613530885.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774613715716.txt
+ create mode 100644 attached_assets/Pasted-You-re-right-to-call-this-out-Let-me-go-through-it-agai_1774496279594.txt
+ create mode 100644 attached_assets/Pasted-librawolf-SSLaptopPMHU6JD-Ternary-src-kernel-bare-metal_1774613127465.txt
+ create mode 100644 attached_assets/Pasted-librawolf-SSLaptopPMHU6JD-Ternary-src-kernel-bare-metal_1774614704195.txt
+ create mode 100644 attached_assets/Pasted-librawolf-SSLaptopPMHU6JD-Ternary-src-kernel-bare-metal_1774617466954.txt
+ create mode 100644 attached_assets/Pasted-librawolf-SSLaptopPMHU6JD-Ternary-src-kernel-bare-metal_1774617629187.txt
+ create mode 100644 attached_assets/Pasted-uild-Kernel-Some-jobs-were-not-successful-View-workflow_1774613072960.txt
+ create mode 100644 attached_assets/image_1774499841287.png
+ create mode 100644 attached_assets/image_1774510584696.png
+ create mode 100644 attached_assets/image_1774607385197.png
+ create mode 100644 attached_assets/image_1774608774933.png
+ create mode 100644 attached_assets/image_1774608927493.png
+ create mode 100755 boot.sh
+ create mode 100644 src/kernel/.cargo/config.toml
+ create mode 100755 src/kernel/bare-metal/scripts/diagnose.sh
+ create mode 100755 src/kernel/bare-metal/scripts/rustc-wrapper.sh
+ create mode 100755 src/kernel/bare-metal/scripts/setup-and-test.sh
+ create mode 100644 src/kernel/build.rs
+ create mode 100644 src/kernel/linker-aarch64.ld
+ create mode 100644 src/kernel/linker-riscv64.ld
+ create mode 100644 src/kernel/linker-x86_64.ld
+ create mode 100644 src/kernel/rust-toolchain.toml
+ create mode 100644 src/kernel/src/allocator.rs
+ create mode 100644 src/kernel/src/browser/home_page.rs
+ create mode 100644 src/kernel/src/browser/render.rs
+ create mode 100644 src/kernel/src/main.rs
+ create mode 100644 src/kernel/targets/aarch64-plenum-none.json
+ create mode 100644 src/kernel/targets/riscv64gc-plenum-none.json
+ create mode 100644 src/kernel/targets/x86_64-plenum-none.json
+ create mode 100644 src/plenum-std/Cargo.toml
+ create mode 100644 src/plenum-std/src/collections/mod.rs
+ create mode 100644 src/plenum-std/src/env/mod.rs
+ create mode 100644 src/plenum-std/src/fs/mod.rs
+ create mode 100644 src/plenum-std/src/io/mod.rs
+ create mode 100644 src/plenum-std/src/lib.rs
+ create mode 100644 src/plenum-std/src/net/mod.rs
+ create mode 100644 src/plenum-std/src/panic/mod.rs
+ create mode 100644 src/plenum-std/src/process/mod.rs
+ create mode 100644 src/plenum-std/src/sync/barrier_impl.rs
+ create mode 100644 src/plenum-std/src/sync/condvar_impl.rs
+ create mode 100644 src/plenum-std/src/sync/mod.rs
+ create mode 100644 src/plenum-std/src/sync/mpsc.rs
+ create mode 100644 src/plenum-std/src/sync/mutex_impl.rs
+ create mode 100644 src/plenum-std/src/sync/once_impl.rs
+ create mode 100644 src/plenum-std/src/sync/rwlock_impl.rs
+ create mode 100644 src/plenum-std/src/thread/mod.rs
+ create mode 100644 src/plenum-std/src/time/mod.rs
+ create mode 100644 src/plenum-std/tests/std_facade.rs
+PS C:\PlenumNET>
