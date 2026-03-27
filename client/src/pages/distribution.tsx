@@ -1058,17 +1058,21 @@ function ClusterReport() {
         {(() => {
           const clusters = new Map<string, typeof data.daemons>();
           data.daemons.forEach((d) => {
-            const key = d.hostname || d.endpoint?.split(":")[0] || "unknown";
+            const key = d.deploymentId ? `deploy-${d.deploymentId}` : (d.hostname || d.endpoint?.split(":")[0] || "unknown");
             if (!clusters.has(key)) clusters.set(key, []);
             clusters.get(key)!.push(d);
           });
-          return Array.from(clusters.entries()).map(([clusterName, nodes], ci) => (
-            <div key={clusterName} className="rounded-md border p-3" data-testid={`cluster-group-${ci}`}>
+          return Array.from(clusters.entries()).map(([clusterKey, nodes], ci) => {
+            const hostname = nodes[0]?.hostname || "CRS-Discovered";
+            const hostIp = (() => { const m = nodes[0]?.endpoint?.match(/^([^:]+):/); return m ? m[1] : null; })();
+            return (
+            <div key={clusterKey} className="rounded-md border p-3" data-testid={`cluster-group-${ci}`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`inline-block w-2 h-2 rounded-full ${nodes.every(n => n.healthState === "up") ? "bg-emerald-500" : nodes.some(n => n.healthState === "up") ? "bg-yellow-500" : "bg-red-500"}`} />
-                <span className="text-xs font-medium text-foreground">{clusterName}</span>
-                <Badge variant="outline" className="text-[8px] px-1 py-0">{nodes.length}-node Array3</Badge>
-                {nodes[0]?.source === "crs" && <Badge variant="outline" className="text-[8px] px-1 py-0 border-blue-500/50 text-blue-600 dark:text-blue-400">CRS</Badge>}
+                <span className="text-xs font-medium text-foreground">{hostname}</span>
+                {hostIp && <span className="text-[10px] text-muted-foreground font-mono">{hostIp}</span>}
+                <Badge variant="outline" className="text-[9px] px-1 py-0">{nodes.length}-node Array3</Badge>
+                {nodes[0]?.source === "crs" && <Badge variant="outline" className="text-[9px] px-1 py-0 border-blue-500/50 text-blue-600 dark:text-blue-400">CRS</Badge>}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {nodes.map((d, ni) => {
@@ -1099,7 +1103,7 @@ function ClusterReport() {
                 })}
               </div>
             </div>
-          ));
+          );})
         })()}
       </div>
 
