@@ -1,0 +1,86 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> Start-Service PlenumNET-Array3-1
+>> Start-Service PlenumNET-Array3-2
+>> Start-Service PlenumNET-Array3-3
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-1 on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-2 on computer '.'.
+At line:2 char:1
++ Start-Service PlenumNET-Array3-2
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-3 on computer '.'.
+At line:3 char:1
++ Start-Service PlenumNET-Array3-3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+PS C:\windows\system32> # Check what the service is trying to run
+>> sc.exe qc PlenumNET-Array3-1
+>> # Check what the service is trying to run
+>> sc.exe qc PlenumNET-Array3-1
+[SC] QueryServiceConfig SUCCESS
+
+SERVICE_NAME: PlenumNET-Array3-1
+        TYPE               : 10  WIN32_OWN_PROCESS
+        START_TYPE         : 2   AUTO_START
+        ERROR_CONTROL      : 1   NORMAL
+        BINARY_PATH_NAME   : cmd.exe /c "C:\PlenumNET\services\wrappers\array3-node-1-start.bat"
+        LOAD_ORDER_GROUP   :
+        TAG                : 0
+        DISPLAY_NAME       : PlenumNET Array3 Node #1 (coordinator)
+        DEPENDENCIES       :
+        SERVICE_START_NAME : LocalSystem
+[SC] QueryServiceConfig SUCCESS
+
+SERVICE_NAME: PlenumNET-Array3-1
+        TYPE               : 10  WIN32_OWN_PROCESS
+        START_TYPE         : 2   AUTO_START
+        ERROR_CONTROL      : 1   NORMAL
+        BINARY_PATH_NAME   : cmd.exe /c "C:\PlenumNET\services\wrappers\array3-node-1-start.bat"
+        LOAD_ORDER_GROUP   :
+        TAG                : 0
+        DISPLAY_NAME       : PlenumNET Array3 Node #1 (coordinator)
+        DEPENDENCIES       :
+        SERVICE_START_NAME : LocalSystem
+PS C:\windows\system32> # Check the log files for errors
+>> Get-Content C:\PlenumNET\plenumnet-data\logs\array3-node-1.log -Tail 20
+>> # Check the log files for errors
+>> Get-Content C:\PlenumNET\plenumnet-data\logs\array3-node-1.log -Tail 20
+[2026-03-24 16:13:46.34] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 19:50:23.45] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 19:52:11.40] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 19:55:43.79] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 20:09:18.51] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-25 20:33:06.53] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-25 22:23:20.50] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27  4:06:52.34] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27  9:32:02.41] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-24 16:13:46.34] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 19:50:23.45] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 19:52:11.40] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 19:55:43.79] Starting PlenumNET Node #1 (CRS)
+[2026-03-25 20:09:18.51] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-25 20:33:06.53] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-25 22:23:20.50] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27  4:06:52.34] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27  9:32:02.41] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+PS C:\windows\system32>
