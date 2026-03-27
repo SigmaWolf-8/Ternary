@@ -2,10 +2,6 @@
 # PlenumNET Ternary Kernel — Bare-Metal Build
 # Copyright (c) 2025-2026 Capomastro Holdings Ltd.
 #
-# Builds the bare-metal kernel binary for x86_64 QEMU validation.
-# rust-toolchain.toml pins the exact nightly version — rustup handles
-# installation automatically when you enter this directory.
-#
 # Usage:
 #   bash scripts/build.sh          # debug build
 #   bash scripts/build.sh release  # release build
@@ -28,13 +24,13 @@ if ! command -v rustup &>/dev/null; then
     exit 1
 fi
 
-ACTIVE=$(rustup show active-toolchain 2>/dev/null || echo "none")
-echo "  Toolchain: ${ACTIVE}"
-
 if ! rustup component list --installed 2>/dev/null | grep -q rust-src; then
     echo "[SETUP] Installing rust-src..."
     rustup component add rust-src
 fi
+
+WRAPPER="$(cd "$(dirname "$0")" && pwd)/rustc-wrapper.sh"
+export RUSTC="$WRAPPER"
 
 echo ""
 
