@@ -473,6 +473,13 @@ timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
 goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     } else {
+        $peerList = @()
+        foreach ($other in $daemonConfigs) {
+            if ($other.Id -ne $cfg.Id -and $other.Mode -ne "crs") {
+                $peerList += "127.0.0.1:$($other.TerminalPort)"
+            }
+        }
+        $peerEnv = $peerList -join ","
         @"
 @echo off
 setlocal enabledelayedexpansion
@@ -484,6 +491,7 @@ set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
+set CUBE_ARRAY3_PEERS=$peerEnv
 cd /d "$RepoDir"
 set RESTART_DELAY=5
 set RESTART_COUNT=0

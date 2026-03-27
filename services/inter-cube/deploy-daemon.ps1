@@ -348,6 +348,16 @@ try {
             if (-not (Test-Path $wrapperDir)) {
                 New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
             }
+            $peerList = @()
+            foreach ($otherId in $allIds) {
+                if ($otherId -ne $id) {
+                    $otherNs = $BasePort + (($otherId - 1) * $NodeSlotSize)
+                    $otherTp = $otherNs + $GatewayCenterOffset - 2
+                    $peerList += "127.0.0.1:$otherTp"
+                }
+            }
+            $peerEnv = $peerList -join ","
+
             $wrapperBat = Join-Path $wrapperDir "cube-${id}-start.bat"
             @"
 @echo off
@@ -360,6 +370,7 @@ set CUBE_CRS_URL=$CRS_URL
 set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$idDir
 set CUBE_ROLE=inference
+set CUBE_ARRAY3_PEERS=$peerEnv
 "$BinaryPath" >> "$logFile" 2>&1
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
 

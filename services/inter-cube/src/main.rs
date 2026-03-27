@@ -323,7 +323,7 @@ fn new_peer_senders() -> PeerSenders {
     Arc::new(Mutex::new(HashMap::new()))
 }
 
-fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections, senders: PeerSenders, peer_msg_tx: Option<tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>>) {
+fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_port: u16, peers: PeerConnections, senders: PeerSenders, peer_msg_tx: Option<tokio::sync::mpsc::Sender<inter_cube::ws_relay::RelayEnvelope>>, cluster_shell: Option<inter_cube::cluster_shell::SharedClusterShell>) {
     let discovery_base = relay_url
         .replace("wss://", "https://")
         .replace("ws://", "http://")
@@ -381,6 +381,18 @@ fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_por
                                                 senders.clone(),
                                                 peer_msg_tx.clone(),
                                             );
+                                        }
+                                        if let Some(ref cs) = cluster_shell {
+                                            let terminal_p = pp.saturating_sub(2);
+                                            if terminal_p >= 11111 {
+                                                println!("[cluster-shell] Auto-registered peer {} (host={}, terminal={})", addr, ip_str, terminal_p);
+                                                inter_cube::cluster_shell::register_peer(
+                                                    cs,
+                                                    addr.clone(),
+                                                    ip_str.to_string(),
+                                                    terminal_p,
+                                                );
+                                            }
                                         }
                                     }
                                 }
@@ -1139,9 +1151,6 @@ async fn run_cube_mode() {
     let peer_msg_tx_discovery = peer_msg_tx.clone();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));
 
-    let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
-    spawn_peer_discovery(relay_target_for_discovery, addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone(), Some(peer_msg_tx_discovery));
-
     let shared_state = AppState::new_cube(con, fts, glb, local_address.clone());
 
     let vm = inter_cube::vm_service::new_shared_vm(65536);
@@ -1160,6 +1169,10 @@ async fn run_cube_mode() {
         })
         .collect();
     let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted(), nid, &a3_peers_cube);
+
+    let addr_str_for_discovery: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
+    spawn_peer_discovery(relay_target_for_discovery, addr_str_for_discovery, p_port, peers.clone(), peer_senders.clone(), Some(peer_msg_tx_discovery), Some(cluster_shell.clone()));
+
     let cluster_routes = inter_cube::cluster_shell::cluster_shell_router(cluster_shell);
 
     let app = cube_router(shared_state)
