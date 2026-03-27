@@ -1,0 +1,29 @@
+I'm not sure punching NAX belongs in the user space. We want, fast, reliable, peer to peer, with impenetrable security and a seamless UX, so they don't know the difference...
+
+You make a valid point. If the goal is fast, reliable, impenetrable, and invisible to the user, then splitting the decision-making from the mechanics introduces latency and complexity at exactly the wrong boundary.
+
+Here's the argument for putting it in the kernel:
+
+Why kernel-level NAT traversal fits PlenumNET:
+
+Speed — Hole-punching requires precise timing (microsecond-level coordinated sends). HPTP is already in the kernel. If the punch logic is in userspace, you're crossing the kernel-userspace boundary for every timing-critical packet. In the kernel, the HPTP clock and the send operation are in the same address space — zero overhead.
+
+Security — The kernel already owns TL-Sponge-385, Phase Encryption, and TL-DSA. If NAT traversal is in userspace, the punched UDP channel has to hand packets up to userspace for encryption, then back down. In the kernel, the moment a punch succeeds, the channel is immediately encrypted — there's no window where a raw punched connection exists unprotected.
+
+Reliability — The kernel's geometric router already tracks neighbors. If it also owns the transport state (which path is alive, which just failed), failover from a broken punch to relay is a routing table update — not an IPC round trip to a userspace service asking it to switch paths.
+
+Seamless UX — To the user, it just works. The kernel handles everything: discovers peers, attempts direct connection, punches through NAT if needed, falls back to relay if that fails, encrypts everything. No VPN to configure, no ports to open, no settings to touch.
+
+What this means architecturally:
+
+The kernel's src/kernel/src/network/ would expand to include:
+
+Transport layer — UDP socket management, STUN binding, hole-punch state machine
+Path manager — Tracks available paths per neighbor (LAN / punched / relay), monitors health, handles failover
+HPTP-synchronized punching — Uses the existing femtosecond timing for coordinated simultaneous sends
+Encrypted channels — Phase Encryption applied at the transport level, before packets leave the kernel
+The services layer (inter-cube) becomes thinner — it's just the initial bootstrap (CRS registration, relay WebSocket for signaling) but once peers discover each other, the kernel takes over the data path entirely.
+
+This is essentially building a kernel-native encrypted mesh network — which is exactly what PlenumNET should be. No existing OS does this at the kernel level with post-quantum crypto.
+
+This is a bigger scope than Option C but it's the right architecture for what you're building. Want me to revise Task #38 and the kernel milestones to reflect this direction?
