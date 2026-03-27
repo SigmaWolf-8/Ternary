@@ -38,10 +38,14 @@ SECTIONS
         *(.data .data.*)
     }
 
+    .bss.boot ALIGN(4K) (NOLOAD) :
+    {
+        KEEP(*(.bss.boot))
+    }
+
     .bss ALIGN(4K) :
     {
         __bss_start = .;
-        KEEP(*(.bss.boot))
         *(.bss .bss.*)
         *(COMMON)
         __bss_end = .;
