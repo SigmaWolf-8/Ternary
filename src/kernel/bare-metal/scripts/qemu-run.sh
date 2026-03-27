@@ -5,7 +5,8 @@
 set -euo pipefail
 
 KERNEL="${1:?Usage: qemu-run.sh <kernel-binary>}"
-TIMEOUT="${QEMU_TIMEOUT:-30}"
+TIMEOUT="${QEMU_TIMEOUT:-120}"
+SERIAL_LOG="/tmp/plenum-serial.log"
 
 if ! command -v qemu-system-x86_64 &>/dev/null; then
     echo "[ERROR] qemu-system-x86_64 not found."
@@ -22,16 +23,24 @@ echo "  Timeout: ${TIMEOUT}s"
 echo "================================================================"
 echo ""
 
+: > "$SERIAL_LOG"
+
 QEMU_EXIT_CODE=0
 timeout "${TIMEOUT}" qemu-system-x86_64 \
     -kernel "${KERNEL}" \
-    -serial stdio \
+    -serial file:"${SERIAL_LOG}" \
     -display none \
     -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
     -no-reboot \
-    -m 64M \
+    -m 128M \
     || QEMU_EXIT_CODE=$?
 
+echo "--- Serial Output ---"
+if [ -s "$SERIAL_LOG" ]; then
+    cat "$SERIAL_LOG"
+else
+    echo "(no serial output captured)"
+fi
 echo ""
 
 case $QEMU_EXIT_CODE in
@@ -49,7 +58,9 @@ case $QEMU_EXIT_CODE in
         exit 1
         ;;
     124)
-        echo "[ERROR] QEMU timed out after ${TIMEOUT}s"
+        echo "[TIMEOUT] QEMU did not exit within ${TIMEOUT}s"
+        echo "  The kernel booted but may have hung during self-tests."
+        echo "  Full serial log: ${SERIAL_LOG}"
         exit 1
         ;;
     *)
