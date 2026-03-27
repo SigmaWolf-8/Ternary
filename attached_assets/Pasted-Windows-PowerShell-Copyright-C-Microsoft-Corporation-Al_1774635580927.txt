@@ -1,0 +1,1097 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> wsl
+librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ cd /mnt/c/PlenumNET
+git pull origin main
+cd src/kernel/bare-metal
+sed -i 's/\r$//' scripts/build.sh scripts/qemu-run.sh
+bash scripts/build.sh
+QEMU_TIMEOUT=300 bash scripts/qemu-run.sh target/x86_64-unknown-none/debug/ternary-kernel.mb
+remote: Enumerating objects: 30, done.
+remote: Counting objects: 100% (30/30), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 21 (delta 14), reused 21 (delta 14), pack-reused 0 (from 0)
+Unpacking objects: 100% (21/21), 46.05 KiB | 279.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   2cb1e7d9..b2c6361a  main       -> origin/main
+Updating 2cb1e7d9..b2c6361a
+Fast-forward
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774634853712.txt | 1450 +++++++++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774634936701.txt | 4740 +++++++++++++++++++++++++++++++++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774635046356.txt |  168 ++
+ src/kernel/bare-metal/linker.ld                                             |    2 +-
+ src/kernel/bare-metal/src/main.rs                                           |  234 +-
+ src/kernel/bare-metal/src/serial.rs                                         |   12 +
+ 6 files changed, 6544 insertions(+), 62 deletions(-)
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774634853712.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774634936701.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774635046356.txt
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+
+   Compiling compiler_builtins v0.1.160 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow-3dnow' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+''-3dnowa-3dnowa' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow-3dnow' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+''-3dnowa-3dnowa' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+''-3dnowa' is not a recognized feature for this target-3dnow (ignoring feature)
+' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow-3dnow' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+''-3dnowa' is not a recognized feature for this target (ignoring feature)
+-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow-3dnow' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+'-3dnowa'' is not a recognized feature for this target-3dnowa (ignoring feature)
+' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+   Compiling zerocopy v0.8.47
+   Compiling ahash v0.8.12
+   Compiling libm v0.2.16
+   Compiling plenumnet-kernel v0.1.0 (/mnt/c/PlenumNET/src/kernel)
+   Compiling alloc v0.0.0 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow-3dnow' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+''-3dnowa-3dnowa' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+   Compiling cfg-if v1.0.4
+   Compiling once_cell v1.21.4
+   Compiling spin v0.9.8
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+   Compiling lazy_static v1.5.0
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+   Compiling hashbrown v0.14.5
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+warning: unknown and unstable feature specified for `-Ctarget-feature`: `mmx`
+  |
+  = note: it is still passed through to the codegen backend, but use of this feature might be unsound and the behavior of this feature can change in the future
+  = help: consider filing a feature request
+
+warning: unknown and unstable feature specified for `-Ctarget-feature`: `3dnow`
+  |
+  = note: it is still passed through to the codegen backend, but use of this feature might be unsound and the behavior of this feature can change in the future
+  = help: consider filing a feature request
+
+warning: unknown and unstable feature specified for `-Ctarget-feature`: `3dnowa`
+  |
+  = note: it is still passed through to the codegen backend, but use of this feature might be unsound and the behavior of this feature can change in the future
+  = help: consider filing a feature request
+
+warning: target feature `soft-float` cannot be enabled with `-Ctarget-feature`: use a soft-float target instead
+  |
+  = note: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+  = note: for more information, see issue #116344 <https://github.com/rust-lang/rust/issues/116344>
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/metatronic_cube.rs:268:12
+    |
+268 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/metatronic_cube.rs:390:12
+    |
+390 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/metatronic_cube.rs:446:12
+    |
+446 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/metatronic_cube.rs:788:12
+    |
+788 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/metatronic_cube.rs:830:12
+    |
+830 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/metatronic_cube.rs:865:12
+    |
+865 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+    --> /mnt/c/PlenumNET/src/kernel/src/crypto/metatronic_cube.rs:1112:12
+     |
+1112 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+     |            ^^^^^^^^^^^^^^^^^
+     |
+     = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+     = help: consider adding `serde` as a feature in `Cargo.toml`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/address_sentinel.rs:88:12
+   |
+88 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+   = help: consider adding `serde` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /mnt/c/PlenumNET/src/kernel/src/lib.rs:56:7
+   |
+56 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/mod.rs:71:7
+   |
+71 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `CryptoError`, `CryptoResult`, and `TernaryDigest`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/x509.rs:39:13
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |             ^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/phase_cnsa.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `CryptoResult`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/phase_cnsa.rs:39:26
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |                          ^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/services.rs:35:5
+   |
+35 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ModeIndicator` and `ModuleStateMachine`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/services.rs:38:40
+   |
+38 | use super::module_state::{ModuleState, ModuleStateMachine, ModeIndicator};
+   |                                        ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/ternary_cube_perm.rs:74:5
+   |
+74 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/ternary_cube_perm.rs:75:5
+   |
+75 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/keyed_sponge.rs:71:5
+   |
+71 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `sponge_hash`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/keyed_sponge.rs:73:21
+   |
+73 | use super::sponge::{sponge_hash, TernarySponge as UnkeyedSponge};
+   |                     ^^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/address_sentinel.rs:121:35
+    |
+121 | #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/address_sentinel.rs:54:5
+   |
+54 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/address_sentinel.rs:276:39
+    |
+276 |     #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `boa_engine`, `browser-crates`, `cssparser`, `default`, `finra-613`, `fontdue`, `fpga`, `html5ever`, `nalgebra`, `no_std`, `plenum-std`, `rand`, `resvg`, `rustybuzz`, `std`, `taffy`, and `tiny-skia`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /mnt/c/PlenumNET/src/kernel/src/network/metatronic_bridge.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /mnt/c/PlenumNET/src/kernel/src/vm/mod.rs:32:7
+   |
+32 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `SimulatedHptp`
+  --> /mnt/c/PlenumNET/src/kernel/src/vm/engine.rs:21:57
+   |
+21 | use crate::timing::{FemtosecondTimestamp, HptpProvider, SimulatedHptp};
+   |                                                         ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::format`
+  --> /mnt/c/PlenumNET/src/kernel/src/vm/compiler.rs:17:5
+   |
+17 | use alloc::format;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /mnt/c/PlenumNET/src/kernel/src/compat/syscall_shim.rs:15:5
+   |
+15 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `FRAME_BUDGET_US`, `FontFamily`, and `TARGET_FPS`
+  --> /mnt/c/PlenumNET/src/kernel/src/browser/render_cpu.rs:24:28
+   |
+24 |     GradientStop, TextRun, FontFamily, ImageData, SvgData,
+   |                            ^^^^^^^^^^
+25 |     TARGET_FPS, FRAME_BUDGET_US,
+   |     ^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /mnt/c/PlenumNET/src/kernel/src/browser/input.rs:15:5
+   |
+15 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `RouteDirection`, `ZLevel`, and `ZRequest`
+  --> /mnt/c/PlenumNET/src/kernel/src/browser/net.rs:14:36
+   |
+14 | use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
+   |                                    ^^^^^^  ^^^^^^^^               ^^^^^^^^^^^^^^
+
+warning: unused imports: `RenderBackendType`, `RenderColor`, and `RenderPrimitive`
+  --> /mnt/c/PlenumNET/src/kernel/src/browser/mod.rs:35:14
+   |
+35 | use render::{RenderBackendType, RenderScene, RenderPrimitive, RenderColor};
+   |              ^^^^^^^^^^^^^^^^^               ^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+ --> /mnt/c/PlenumNET/src/kernel/src/distributor/z_router.rs:9:5
+  |
+9 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::fmt`
+  --> /mnt/c/PlenumNET/src/kernel/src/layers/mod.rs:18:5
+   |
+18 | use core::fmt;
+   |     ^^^^^^^^^
+
+warning: unused variable: `q32`
+    --> /mnt/c/PlenumNET/src/kernel/src/crypto/ternary_lattice.rs:1088:9
+     |
+1088 |     let q32 = q as i32;
+     |         ^^^ help: if this is intentional, prefix it with an underscore: `_q32`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `CHI_BLOCKS` is never used
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:47:7
+   |
+47 | const CHI_BLOCKS: usize = 243;         // 729 / 3 — blocks for chi layer
+   |       ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: static `CHI_MAP_T0` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:187:8
+    |
+187 | static CHI_MAP_T0: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T1` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:193:8
+    |
+193 | static CHI_MAP_T1: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T2` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:199:8
+    |
+199 | static CHI_MAP_T2: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: function `chi_layer_avx2` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:208:11
+    |
+208 | unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v2_avx2` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:409:11
+    |
+409 | unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_avx2` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:488:11
+    |
+488 | unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_scalar` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:734:4
+    |
+734 | fn sponge_permutation_v1_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/sponge.rs:781:4
+    |
+781 | fn sponge_permutation_v1(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cbd_eta2_avx2` is never used
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/ternary_lattice.rs:604:11
+    |
+604 | unsafe fn cbd_eta2_avx2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    |           ^^^^^^^^^^^^^
+
+warning: constant `ESTIMATED_MIN_ENTROPY_PER_SAMPLE` is never used
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/entropy.rs:51:7
+   |
+51 | const ESTIMATED_MIN_ENTROPY_PER_SAMPLE: f64 = 4.0;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `OVERSAMPLING_RATIO` is never used
+  --> /mnt/c/PlenumNET/src/kernel/src/crypto/entropy.rs:53:7
+   |
+53 | const OVERSAMPLING_RATIO: usize = 2;
+   |       ^^^^^^^^^^^^^^^^^^
+
+warning: field `apt_window` is never read
+   --> /mnt/c/PlenumNET/src/kernel/src/crypto/entropy.rs:262:5
+    |
+259 | pub struct HealthTestState {
+    |            --------------- field in this struct
+...
+262 |     apt_window: Vec<u64>,
+    |     ^^^^^^^^^^
+    |
+    = note: `HealthTestState` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: constant `PI` is never used
+  --> /mnt/c/PlenumNET/src/kernel/src/vm/quantum_ops.rs:36:7
+   |
+36 | const PI: f64 = core::f64::consts::PI;
+   |       ^^
+
+warning: function `ct_select_i64` is never used
+  --> /mnt/c/PlenumNET/src/kernel/src/vm/quantum_ops.rs:67:4
+   |
+67 | fn ct_select_i64(condition: i64, if_true: i64, if_false: i64) -> i64 {
+   |    ^^^^^^^^^^^^^
+
+warning: method `norm` is never used
+  --> /mnt/c/PlenumNET/src/kernel/src/vm/quantum_ops.rs:94:8
+   |
+82 | impl Complex64 {
+   | -------------- method in this implementation
+...
+94 |     fn norm(self) -> f64 {
+   |        ^^^^
+
+warning: field `check_interval` is never read
+   --> /mnt/c/PlenumNET/src/kernel/src/browser/script.rs:282:5
+    |
+277 | pub struct CooperativeWatchdog {
+    |            ------------------- field in this struct
+...
+282 |     check_interval: u64,
+    |     ^^^^^^^^^^^^^^
+
+warning: field `last_frame_us` is never read
+   --> /mnt/c/PlenumNET/src/kernel/src/browser/render_cpu.rs:519:5
+    |
+516 | pub struct CpuRenderer {
+    |            ----------- field in this struct
+...
+519 |     last_frame_us: u64,
+    |     ^^^^^^^^^^^^^
+
+warning: fields `r_inverse`, `g_inverse`, and `b_inverse` are never read
+   --> /mnt/c/PlenumNET/src/kernel/src/browser/color.rs:328:5
+    |
+324 | pub struct MeshColorLut {
+    |            ------------ fields in this struct
+...
+328 |     r_inverse: Vec<u8>,
+    |     ^^^^^^^^^
+329 |     g_inverse: Vec<u8>,
+    |     ^^^^^^^^^
+330 |     b_inverse: Vec<u8>,
+    |     ^^^^^^^^^
+
+warning: field `session_key` is never read
+  --> /mnt/c/PlenumNET/src/kernel/src/input/keyboard.rs:16:5
+   |
+14 | pub struct Tis27State {
+   |            ---------- field in this struct
+15 |     state: [u8; TIS27_TRITS],
+16 |     session_key: [u8; 32],
+   |     ^^^^^^^^^^^
+   |
+   = note: `Tis27State` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: unused `Result` that must be used
+   --> /mnt/c/PlenumNET/src/kernel/src/browser/mod.rs:286:21
+    |
+286 |                     bridge.set_text_content(n.node_id, text);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+286 |                     let _ = bridge.set_text_content(n.node_id, text);
+    |                     +++++++
+
+warning: `plenumnet-kernel` (lib) generated 59 warnings (run `cargo fix --lib -p plenumnet-kernel` to apply 21 suggestions)
+   Compiling plenumnet-bare-metal v0.1.0 (/mnt/c/PlenumNET/src/kernel/bare-metal)
+warning: function `print_i32` is never used
+  --> src/serial.rs:92:8
+   |
+92 | pub fn print_i32(val: i32) {
+   |        ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow' is not a recognized feature for this target (ignoring feature)
+-3dnow'' is not a recognized feature for this target-3dnowa (ignoring feature)
+' is not a recognized feature for this target' (ignoring feature)
+-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow-3dnow' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+''-3dnowa-3dnowa' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow-3dnow' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+''-3dnowa-3dnowa' is not a recognized feature for this target' is not a recognized feature for this target (ignoring feature)
+ (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+''-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+'-3dnow' is not a recognized feature for this target (ignoring feature)
+'-3dnowa' is not a recognized feature for this target (ignoring feature)
+warning: `plenumnet-bare-metal` (bin "ternary-kernel") generated 5 warnings (4 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.78s
+[POST] Converting ELF64 → ELF32 (using /home/librawolf/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/lib/rustlib/aarch64-unknown-linux-gnu/bin/llvm-objcopy)...
+[POST] Created: target/x86_64-unknown-none/debug/ternary-kernel.mb
+
+================================================================
+  BUILD COMPLETE
+  Binary: target/x86_64-unknown-none/debug/ternary-kernel.mb
+  Size:   27620684 bytes
+
+  Run QEMU test:
+    bash scripts/qemu-run.sh target/x86_64-unknown-none/debug/ternary-kernel.mb
+================================================================
+================================================================
+  PlenumNET — QEMU Bare-Metal Validation (Milestone 1C)
+  Kernel:  ternary-kernel.mb
+  Target:  x86_64-unknown-none
+  Timeout: 300s
+  Verify:  encryption=true
+================================================================
+
+^C
+QEMU_TIMEOUT=60 bash scripts/qemu-run.sh target/x86_64-unknown-none/debug/ternary-kernel.mb
