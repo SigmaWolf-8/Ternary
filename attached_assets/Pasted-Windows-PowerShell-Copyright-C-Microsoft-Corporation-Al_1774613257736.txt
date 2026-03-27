@@ -1,0 +1,1862 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> wsl
+To run a command as administrator (user "root"), use "sudo <command>".
+See "man sudo_root" for details.
+
+librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ # Install QEMU and Rust bare-metal targets
+sudo apt install qemu-system-x86 qemu-system-arm qemu-system-misc
+rustup target add x86_64-unknown-none aarch64-unknown-none-softfloat riscv64gc-unknown-none-elf
+
+# Navigate to the kernel directory and run the boot script
+cd /path/to/Ternary/src/kernel
+bash boot.sh --ci
+[sudo] password for librawolf:
+Sorry, try again.
+[sudo] password for librawolf:
+Sorry, try again.
+[sudo] password for librawolf:
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  acl alsa-topology-conf alsa-ucm-conf cpu-checker glib-networking glib-networking-common glib-networking-services
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x ibverbs-providers ipxe-qemu
+  ipxe-qemu-256k-compat-efi-roms libaa1 libaio1t64 libasound2-data libasound2t64 libasyncns0 libavc1394-0
+  libboost-iostreams1.83.0 libboost-thread1.83.0 libbrlapi0.8 libcaca0 libcacard0 libcdparanoia0 libdaxctl1
+  libdecor-0-0 libdecor-0-plugin-1-gtk libdv4t64 libfdt1 libflac12t64 libgstreamer-plugins-base1.0-0
+  libgstreamer-plugins-good1.0-0 libgudev-1.0-0 libibverbs1 libiec61883-0 libiscsi7 libjack-jackd2-0 libmp3lame0
+  libmpg123-0t64 libncurses6 libndctl6 libnfs14 libnl-3-200 libnl-route-3-200 libnspr4 libnss3 libnuma1 libogg0
+  libopus0 liborc-0.4-0t64 libpcsclite1 libpipewire-0.3-0t64 libpipewire-0.3-common libpmem1 libpmemobj1 libproxy1v5
+  libpulse0 librados2 libraw1394-11 librbd1 librdmacm1t64 libsamplerate0 libsdl2-2.0-0 libshout3 libslirp0 libsndfile1
+  libsoup-3.0-0 libsoup-3.0-common libspa-0.2-modules libspeex1 libspice-server1 libtag1v5 libtag1v5-vanilla
+  libtheora0 libtwolame0 liburing2 libusb-1.0-0 libusbredirparser1t64 libv4l-0t64 libv4lconvert0t64 libvirglrenderer1
+  libvisual-0.4-0 libvorbis0a libvorbisenc2 libvpx9 libvte-2.91-0 libvte-2.91-common libwavpack1
+  libwebrtc-audio-processing1 libxss1 libxv1 ovmf qemu-block-extra qemu-efi-aarch64 qemu-efi-arm qemu-system-common
+  qemu-system-data qemu-system-gui qemu-system-modules-opengl qemu-system-modules-spice qemu-utils seabios
+Suggested packages:
+  gvfs alsa-utils libasound2-plugins libdv-bin oss-compat libvisual-0.4-plugins jackd2 opus-tools pcscd pipewire
+  pulseaudio libraw1394-doc xdg-utils speex gstreamer1.0-libav gstreamer1.0-plugins-ugly samba vde2
+The following NEW packages will be installed:
+  acl alsa-topology-conf alsa-ucm-conf cpu-checker glib-networking glib-networking-common glib-networking-services
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x ibverbs-providers ipxe-qemu
+  ipxe-qemu-256k-compat-efi-roms libaa1 libaio1t64 libasound2-data libasound2t64 libasyncns0 libavc1394-0
+  libboost-iostreams1.83.0 libboost-thread1.83.0 libbrlapi0.8 libcaca0 libcacard0 libcdparanoia0 libdaxctl1
+  libdecor-0-0 libdecor-0-plugin-1-gtk libdv4t64 libfdt1 libflac12t64 libgstreamer-plugins-base1.0-0
+  libgstreamer-plugins-good1.0-0 libgudev-1.0-0 libibverbs1 libiec61883-0 libiscsi7 libjack-jackd2-0 libmp3lame0
+  libmpg123-0t64 libncurses6 libndctl6 libnfs14 libnl-3-200 libnl-route-3-200 libnspr4 libnss3 libnuma1 libogg0
+  libopus0 liborc-0.4-0t64 libpcsclite1 libpipewire-0.3-0t64 libpipewire-0.3-common libpmem1 libpmemobj1 libproxy1v5
+  libpulse0 librados2 libraw1394-11 librbd1 librdmacm1t64 libsamplerate0 libsdl2-2.0-0 libshout3 libslirp0 libsndfile1
+  libsoup-3.0-0 libsoup-3.0-common libspa-0.2-modules libspeex1 libspice-server1 libtag1v5 libtag1v5-vanilla
+  libtheora0 libtwolame0 liburing2 libusb-1.0-0 libusbredirparser1t64 libv4l-0t64 libv4lconvert0t64 libvirglrenderer1
+  libvisual-0.4-0 libvorbis0a libvorbisenc2 libvpx9 libvte-2.91-0 libvte-2.91-common libwavpack1
+  libwebrtc-audio-processing1 libxss1 libxv1 ovmf qemu-block-extra qemu-efi-aarch64 qemu-efi-arm qemu-system-arm
+  qemu-system-common qemu-system-data qemu-system-gui qemu-system-misc qemu-system-modules-opengl
+  qemu-system-modules-spice qemu-system-x86 qemu-utils seabios
+0 upgraded, 106 newly installed, 0 to remove and 68 not upgraded.
+Need to get 115 MB of archives.
+After this operation, 960 MB of additional disk space will be used.
+Do you want to continue? [Y/n] y
+Get:1 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnl-3-200 arm64 3.7.0-0.3build1.1 [57.5 kB]
+Get:2 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnl-route-3-200 arm64 3.7.0-0.3build1.1 [182 kB]
+Get:3 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libibverbs1 arm64 50.0-2ubuntu0.2 [67.5 kB]
+Get:4 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ibverbs-providers arm64 50.0-2ubuntu0.2 [375 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libncurses6 arm64 6.4+20240113-1ubuntu2 [110 kB]
+Get:6 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnuma1 arm64 2.0.18-1ubuntu0.24.04.1 [23.7 kB]
+Get:7 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libusb-1.0-0 arm64 2:1.0.27-1 [54.1 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 acl arm64 2.3.2-1build1.1 [39.0 kB]
+Get:9 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 alsa-topology-conf all 1.2.5.1-2 [15.5 kB]
+Get:10 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libasound2-data all 1.2.11-1ubuntu0.2 [21.3 kB]
+Get:11 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libasound2t64 arm64 1.2.11-1ubuntu0.2 [387 kB]
+Err:12 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 alsa-ucm-conf all 1.2.10-1ubuntu5.9
+  404  Not Found [IP: 91.189.91.104 80]
+Get:13 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 cpu-checker arm64 0.7-1.3build2 [6134 B]
+Get:14 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libproxy1v5 arm64 0.5.4-4build1 [26.1 kB]
+Get:15 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-networking-common all 2.80.0-1build1 [6702 B]
+Get:16 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-networking-services arm64 2.80.0-1build1 [12.7 kB]
+Get:17 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-networking arm64 2.80.0-1build1 [63.9 kB]
+Get:18 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcdparanoia0 arm64 3.10.2+debian-14build3 [46.9 kB]
+Get:19 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 liborc-0.4-0t64 arm64 1:0.4.38-1ubuntu0.1 [205 kB]
+Get:20 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libgstreamer-plugins-base1.0-0 arm64 1.24.2-1ubuntu0.3 [829 kB]
+Get:21 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libogg0 arm64 1.3.5-3build1 [22.6 kB]
+Get:22 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libopus0 arm64 1.4-1build1 [198 kB]
+Get:23 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtheora0 arm64 1.1.1+dfsg.1-16.1build3 [224 kB]
+Get:24 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvisual-0.4-0 arm64 0.4.2-2build1 [110 kB]
+Get:25 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvorbis0a arm64 1.3.7-1build3 [94.0 kB]
+Get:26 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvorbisenc2 arm64 1.3.7-1build3 [80.0 kB]
+Get:27 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gstreamer1.0-plugins-base arm64 1.24.2-1ubuntu0.3 [691 kB]
+Get:28 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libaa1 arm64 1.4p5-51.1 [49.7 kB]
+Get:29 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libraw1394-11 arm64 2.1.2-2build3 [26.9 kB]
+Get:30 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libavc1394-0 arm64 0.5.4-5build3 [15.8 kB]
+Get:31 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libcaca0 arm64 0.99.beta20-4ubuntu0.1 [206 kB]
+Get:32 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdv4t64 arm64 1.0.0-17.1build1 [60.2 kB]
+Get:33 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libflac12t64 arm64 1.4.3+ds-2.1ubuntu2 [170 kB]
+Get:34 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libgstreamer-plugins-good1.0-0 arm64 1.24.2-1ubuntu1.2 [32.7 kB]
+Get:35 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libgudev-1.0-0 arm64 1:238-5ubuntu1 [15.1 kB]
+Get:36 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libiec61883-0 arm64 1.2.0-6build1 [24.3 kB]
+Get:37 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libmp3lame0 arm64 3.100-6build1 [141 kB]
+Get:38 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libmpg123-0t64 arm64 1.32.5-1ubuntu1.1 [172 kB]
+Get:39 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libasyncns0 arm64 0.8-6build4 [11.2 kB]
+Get:40 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsndfile1 arm64 1.2.2-1ubuntu5.24.04.1 [208 kB]
+Get:41 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libpulse0 arm64 1:16.1+dfsg1-2ubuntu10.1 [271 kB]
+Get:42 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libspeex1 arm64 1.2.1-2ubuntu2.24.04.1 [56.2 kB]
+Get:43 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libshout3 arm64 2.4.6-1build2 [51.0 kB]
+Get:44 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtag1v5-vanilla arm64 1.13.1-1build1 [303 kB]
+Get:45 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtag1v5 arm64 1.13.1-1build1 [11.7 kB]
+Get:46 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtwolame0 arm64 0.4.0-2build3 [51.7 kB]
+Get:47 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libv4lconvert0t64 arm64 1.26.1-4build3 [88.6 kB]
+Get:48 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libv4l-0t64 arm64 1.26.1-4build3 [46.4 kB]
+Get:49 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libvpx9 arm64 1.14.0-1ubuntu2.3 [1233 kB]
+Get:50 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libwavpack1 arm64 5.6.0-1build1 [79.2 kB]
+Get:51 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsoup-3.0-common all 3.4.4-5ubuntu0.7 [11.6 kB]
+Get:52 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsoup-3.0-0 arm64 3.4.4-5ubuntu0.7 [290 kB]
+Get:53 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gstreamer1.0-plugins-good arm64 1.24.2-1ubuntu1.2 [2157 kB]
+Get:54 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libxv1 arm64 2:1.0.11-1.1build1 [10.7 kB]
+Get:55 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gstreamer1.0-x arm64 1.24.2-1ubuntu0.3 [85.3 kB]
+Get:56 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 ipxe-qemu all 1.21.1+git-20220113.fbbdc3926-0ubuntu2 [1565 kB]
+Get:57 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 ipxe-qemu-256k-compat-efi-roms all 1.0.0+git-20150424.a25a16d-0ubuntu5 [548 kB]
+Get:58 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libaio1t64 arm64 0.3.113-6build1.1 [7192 B]
+Get:59 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libboost-iostreams1.83.0 arm64 1.83.0-2.1ubuntu3.2 [258 kB]
+Get:60 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libboost-thread1.83.0 arm64 1.83.0-2.1ubuntu3.2 [275 kB]
+Get:61 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libbrlapi0.8 arm64 6.6-4ubuntu5 [31.5 kB]
+Get:62 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libnspr4 arm64 2:4.35-1.1build1 [114 kB]
+Get:63 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnss3 arm64 2:3.98-1ubuntu0.1 [1406 kB]
+Get:64 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpcsclite1 arm64 2.0.3-1build1 [21.8 kB]
+Get:65 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcacard0 arm64 1:2.8.0-3build4 [36.3 kB]
+Get:66 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdaxctl1 arm64 77-2ubuntu2 [21.2 kB]
+Get:67 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdecor-0-0 arm64 0.2.2-1build2 [16.5 kB]
+Get:68 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdecor-0-plugin-1-gtk arm64 0.2.2-1build2 [21.0 kB]
+Get:69 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 librdmacm1t64 arm64 50.0-2ubuntu0.2 [70.6 kB]
+Get:70 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libiscsi7 arm64 1.19.0-3build4 [68.0 kB]
+Get:71 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libsamplerate0 arm64 0.2.2-4build1 [1343 kB]
+Get:72 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libjack-jackd2-0 arm64 1.9.21~dfsg-3ubuntu3 [285 kB]
+Get:73 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libndctl6 arm64 77-2ubuntu2 [63.1 kB]
+Get:74 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libnfs14 arm64 5.0.2-1build1 [112 kB]
+Get:75 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libwebrtc-audio-processing1 arm64 0.3.1-0ubuntu6 [285 kB]
+Get:76 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libspa-0.2-modules arm64 1.0.5-1ubuntu3.2 [575 kB]
+Get:77 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libpipewire-0.3-0t64 arm64 1.0.5-1ubuntu3.2 [247 kB]
+Get:78 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libpipewire-0.3-common all 1.0.5-1ubuntu3.2 [19.1 kB]
+Get:79 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpmem1 arm64 1.13.1-1.1ubuntu2 [36.2 kB]
+Get:80 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpmemobj1 arm64 1.13.1-1.1ubuntu2 [117 kB]
+Get:81 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 librados2 arm64 19.2.3-0ubuntu0.24.04.3 [3910 kB]
+Get:82 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 librbd1 arm64 19.2.3-0ubuntu0.24.04.3 [3337 kB]
+Get:83 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libxss1 arm64 1:1.2.3-1build3 [7244 B]
+Get:84 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsdl2-2.0-0 arm64 2.30.0+dfsg-1ubuntu3.1 [671 kB]
+Get:85 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libslirp0 arm64 4.7.0-1ubuntu3 [61.8 kB]
+Get:86 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libspice-server1 arm64 0.15.1-1build2 [336 kB]
+Get:87 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 liburing2 arm64 2.5-1build1 [21.7 kB]
+Get:88 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libusbredirparser1t64 arm64 0.13.0-2.1build1 [16.6 kB]
+Get:89 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvirglrenderer1 arm64 1.0.0-1ubuntu2 [225 kB]
+Get:90 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libvte-2.91-common arm64 0.76.0-1ubuntu0.1 [13.4 kB]
+Get:91 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libvte-2.91-0 arm64 0.76.0-1ubuntu0.1 [215 kB]
+Get:92 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libfdt1 arm64 1.7.0-2build1 [21.1 kB]
+Get:93 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-common arm64 1:8.2.2+ds-0ubuntu1.13 [1212 kB]
+Get:94 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-data all 1:8.2.2+ds-0ubuntu1.13 [1795 kB]
+Get:95 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 seabios all 1.16.3-2 [175 kB]
+Get:96 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-x86 arm64 1:8.2.2+ds-0ubuntu1.13 [8050 kB]
+Get:97 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-misc arm64 1:8.2.2+ds-0ubuntu1.13 [54.1 MB]
+Get:98 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-arm arm64 1:8.2.2+ds-0ubuntu1.13 [10.3 MB]
+Get:99 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-utils arm64 1:8.2.2+ds-0ubuntu1.13 [2043 kB]
+Get:100 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-block-extra arm64 1:8.2.2+ds-0ubuntu1.13 [112 kB]
+Get:101 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-modules-opengl arm64 1:8.2.2+ds-0ubuntu1.13 [181 kB]
+Get:102 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-gui arm64 1:8.2.2+ds-0ubuntu1.13 [304 kB]
+Get:103 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-modules-spice arm64 1:8.2.2+ds-0ubuntu1.13 [70.0 kB]
+Get:104 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ovmf all 2024.02-2ubuntu0.7 [5176 kB]
+Get:105 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-efi-aarch64 all 2024.02-2ubuntu0.7 [4096 kB]
+Get:106 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-efi-arm all 2024.02-2ubuntu0.7 [776 kB]
+Fetched 115 MB in 11s (9973 kB/s)
+E: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/pool/main/a/alsa-ucm-conf/alsa-ucm-conf_1.2.10-1ubuntu5.9_all.deb  404  Not Found [IP: 91.189.91.104 80]
+E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+Command 'rustup' not found, but can be installed with:
+sudo snap install rustup  # version 1.28.2, or
+sudo apt  install rustup  # version 1.26.0-3
+See 'snap info rustup' for additional versions.
+-bash: cd: /path/to/Ternary/src/kernel: No such file or directory
+bash: boot.sh: No such file or directory
+librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ # Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source ~/.cargo/env
+
+# Add bare-metal targets
+rustup target add x86_64-unknown-none aarch64-unknown-none-softfloat riscv64gc-unknown-none-elf
+
+# Clone the repo and run the boot test
+git clone https://github.com/SigmaWolf-8/Ternary.git ~/Ternary
+cd ~/Ternary/src/kernel
+bash boot.sh --ci
+info: downloading installer
+warn: It looks like you have an existing rustup settings file at:
+warn: /home/librawolf/.rustup/settings.toml
+warn: Rustup will install the default toolchain as specified in the settings file,
+warn: instead of the one inferred from the default host triple.
+info: profile set to default
+info: default host triple is aarch64-unknown-linux-gnu
+info: syncing channel updates for stable-aarch64-unknown-linux-gnu
+info: latest update on 2026-03-26 for version 1.94.1 (e408947bf 2026-03-25)
+info: downloading 6 components
+        cargo installed                        9.91 MiB
+       clippy installed                        3.50 MiB
+    rust-docs installed                       20.62 MiB
+     rust-std installed                       27.15 MiB
+        rustc installed                       58.34 MiB
+      rustfmt installed                        1.91 MiB                                                                 info: default toolchain set to stable-aarch64-unknown-linux-gnu
+
+  stable-aarch64-unknown-linux-gnu installed - rustc 1.94.1 (e408947bf 2026-03-25)
+
+
+Rust is installed now. Great!
+
+To get started you may need to restart your current shell.
+This would reload your PATH environment variable to include
+Cargo's bin directory ($HOME/.cargo/bin).
+
+To configure your current shell, you need to source
+the corresponding env file under $HOME/.cargo.
+
+This is usually done by running one of the following (note the leading DOT):
+. "$HOME/.cargo/env"            # For sh/bash/zsh/ash/dash/pdksh
+source "$HOME/.cargo/env.fish"  # For fish
+source "~/.cargo/env.nu"  # For nushell
+source "$HOME/.cargo/env.tcsh"  # For tcsh
+. "$HOME/.cargo/env.ps1"        # For pwsh
+source "$HOME/.cargo/env.xsh"   # For xonsh
+warn: no default linker (`cc`) was found in your PATH
+warn: many Rust crates require a system C toolchain to build
+info: downloading component rust-std
+     rust-std installed                       13.97 MiB                                                                 info: downloading component rust-std
+     rust-std installed                       12.74 MiB                                                                 info: downloading component rust-std
+     rust-std installed                       11.38 MiB                                                                 Cloning into '/home/librawolf/Ternary'...
+remote: Enumerating objects: 21364, done.
+remote: Counting objects: 100% (877/877), done.
+remote: Compressing objects: 100% (318/318), done.
+remote: Total 21364 (delta 652), reused 715 (delta 547), pack-reused 20487 (from 3)
+Receiving objects: 100% (21364/21364), 281.43 MiB | 11.11 MiB/s, done.
+Resolving deltas: 100% (13845/13845), done.
+bash: boot.sh: No such file or directory
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel$ # Install the C toolchain (Rust warned about missing linker)
+sudo apt install -y build-essential
+
+# Check if boot.sh exists
+ls -la boot.sh
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  bzip2 cpp cpp-13 cpp-13-aarch64-linux-gnu cpp-aarch64-linux-gnu dpkg-dev fakeroot g++ g++-13
+  g++-13-aarch64-linux-gnu g++-aarch64-linux-gnu gcc gcc-13 gcc-13-aarch64-linux-gnu gcc-13-base gcc-aarch64-linux-gnu
+  libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libaom3 libasan8 libatomic1 libc-dev-bin
+  libc-devtools libc6-dev libcc1-0 libcrypt-dev libde265-0 libdpkg-perl libfakeroot libfile-fcntllock-perl
+  libgcc-13-dev libgd3 libgomp1 libheif-plugin-aomdec libheif-plugin-aomenc libheif-plugin-libde265 libheif1
+  libhwasan0 libisl23 libitm1 liblsan0 libmpc3 libstdc++-13-dev libtsan2 libubsan1 libxpm4 linux-libc-dev
+  lto-disabled-list make manpages-dev rpcsvc-proto
+Suggested packages:
+  bzip2-doc cpp-doc gcc-13-locales cpp-13-doc debian-keyring gcc-13-doc gcc-multilib autoconf automake libtool flex
+  bison gdb gcc-doc gdb-aarch64-linux-gnu glibc-doc bzr libgd-tools libheif-plugin-x265 libheif-plugin-ffmpegdec
+  libheif-plugin-jpegdec libheif-plugin-jpegenc libheif-plugin-j2kdec libheif-plugin-j2kenc libheif-plugin-rav1e
+  libheif-plugin-svtenc libstdc++-13-doc make-doc
+The following NEW packages will be installed:
+  build-essential bzip2 cpp cpp-13 cpp-13-aarch64-linux-gnu cpp-aarch64-linux-gnu dpkg-dev fakeroot g++ g++-13
+  g++-13-aarch64-linux-gnu g++-aarch64-linux-gnu gcc gcc-13 gcc-13-aarch64-linux-gnu gcc-13-base gcc-aarch64-linux-gnu
+  libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libaom3 libasan8 libatomic1 libc-dev-bin
+  libc-devtools libc6-dev libcc1-0 libcrypt-dev libde265-0 libdpkg-perl libfakeroot libfile-fcntllock-perl
+  libgcc-13-dev libgd3 libgomp1 libheif-plugin-aomdec libheif-plugin-aomenc libheif-plugin-libde265 libheif1
+  libhwasan0 libisl23 libitm1 liblsan0 libmpc3 libstdc++-13-dev libtsan2 libubsan1 libxpm4 linux-libc-dev
+  lto-disabled-list make manpages-dev rpcsvc-proto
+0 upgraded, 53 newly installed, 0 to remove and 68 not upgraded.
+Need to get 65.1 MB of archives.
+After this operation, 221 MB of additional disk space will be used.
+Get:1 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libc-dev-bin arm64 2.39-0ubuntu8.7 [19.7 kB]
+Ign:2 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 linux-libc-dev arm64 6.8.0-101.101
+Get:3 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcrypt-dev arm64 1:4.4.36-4build1 [118 kB]
+Get:4 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 rpcsvc-proto arm64 1.4.2-0ubuntu7 [64.8 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libc6-dev arm64 2.39-0ubuntu8.7 [1596 kB]
+Get:6 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gcc-13-base arm64 13.3.0-6ubuntu2~24.04.1 [51.6 kB]
+Get:7 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libisl23 arm64 0.26-3build1.1 [669 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libmpc3 arm64 1.3.1-1build1.1 [56.4 kB]
+Get:9 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 cpp-13-aarch64-linux-gnu arm64 13.3.0-6ubuntu2~24.04.1 [9560 kB]
+Get:10 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 cpp-13 arm64 13.3.0-6ubuntu2~24.04.1 [1038 B]
+Get:11 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 cpp-aarch64-linux-gnu arm64 4:13.2.0-7ubuntu1 [5316 B]
+Get:12 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 cpp arm64 4:13.2.0-7ubuntu1 [22.4 kB]
+Get:13 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libcc1-0 arm64 14.2.0-4ubuntu2~24.04.1 [49.7 kB]
+Get:14 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libgomp1 arm64 14.2.0-4ubuntu2~24.04.1 [145 kB]
+Get:15 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libitm1 arm64 14.2.0-4ubuntu2~24.04.1 [28.2 kB]
+Get:16 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libatomic1 arm64 14.2.0-4ubuntu2~24.04.1 [11.6 kB]
+Get:17 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libasan8 arm64 14.2.0-4ubuntu2~24.04.1 [2928 kB]
+Get:18 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 liblsan0 arm64 14.2.0-4ubuntu2~24.04.1 [1289 kB]
+Get:19 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libtsan2 arm64 14.2.0-4ubuntu2~24.04.1 [2697 kB]
+Get:20 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libubsan1 arm64 14.2.0-4ubuntu2~24.04.1 [1157 kB]
+Get:21 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libhwasan0 arm64 14.2.0-4ubuntu2~24.04.1 [1605 kB]
+Get:22 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libgcc-13-dev arm64 13.3.0-6ubuntu2~24.04.1 [2473 kB]
+Get:23 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gcc-13-aarch64-linux-gnu arm64 13.3.0-6ubuntu2~24.04.1 [18.7 MB]
+Get:24 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gcc-13 arm64 13.3.0-6ubuntu2~24.04.1 [484 kB]
+Get:25 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 gcc-aarch64-linux-gnu arm64 4:13.2.0-7ubuntu1 [1198 B]
+Get:26 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 gcc arm64 4:13.2.0-7ubuntu1 [5018 B]
+Get:27 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libstdc++-13-dev arm64 13.3.0-6ubuntu2~24.04.1 [2397 kB]
+Get:28 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 g++-13-aarch64-linux-gnu arm64 13.3.0-6ubuntu2~24.04.1 [10.9 MB]
+Get:29 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 g++-13 arm64 13.3.0-6ubuntu2~24.04.1 [16.0 kB]
+Get:30 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 g++-aarch64-linux-gnu arm64 4:13.2.0-7ubuntu1 [962 B]
+Get:31 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 g++ arm64 4:13.2.0-7ubuntu1 [1082 B]
+Get:32 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 make arm64 4.3-4.1build2 [178 kB]
+Get:33 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libdpkg-perl all 1.22.6ubuntu6.5 [269 kB]
+Get:34 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 bzip2 arm64 1.0.8-5.1build0.1 [34.0 kB]
+Get:35 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 lto-disabled-list all 47 [12.4 kB]
+Get:36 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 dpkg-dev all 1.22.6ubuntu6.5 [1074 kB]
+Get:37 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 build-essential arm64 12.10ubuntu1 [4932 B]
+Get:38 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libfakeroot arm64 1.33-1 [32.5 kB]
+Get:39 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 fakeroot arm64 1.33-1 [66.9 kB]
+Get:40 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libalgorithm-diff-perl all 1.201-1 [41.8 kB]
+Get:41 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libalgorithm-diff-xs-perl arm64 0.04-8build3 [10.9 kB]
+Get:42 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libalgorithm-merge-perl all 0.08-5 [11.4 kB]
+Get:43 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libaom3 arm64 3.8.2-2ubuntu0.1 [1617 kB]
+Get:44 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libheif-plugin-aomdec arm64 1.17.6-1ubuntu4.2 [10.4 kB]
+Get:45 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libde265-0 arm64 1.0.15-1build3 [143 kB]
+Get:46 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libheif-plugin-libde265 arm64 1.17.6-1ubuntu4.2 [8016 B]
+Get:47 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libheif1 arm64 1.17.6-1ubuntu4.2 [260 kB]
+Get:48 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libxpm4 arm64 1:3.5.17-1build2 [35.1 kB]
+Get:49 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libgd3 arm64 2.3.3-9ubuntu5 [122 kB]
+Get:50 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libc-devtools arm64 2.39-0ubuntu8.7 [27.8 kB]
+Get:51 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libfile-fcntllock-perl arm64 0.22-4ubuntu5 [30.6 kB]
+Get:52 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libheif-plugin-aomenc arm64 1.17.6-1ubuntu4.2 [13.7 kB]
+Get:53 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 manpages-dev all 6.7-2 [2013 kB]
+Err:2 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 linux-libc-dev arm64 6.8.0-101.101
+  404  Not Found [IP: 91.189.92.20 80]
+Fetched 63.1 MB in 6s (10.6 MB/s)
+E: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/pool/main/l/linux/linux-libc-dev_6.8.0-101.101_arm64.deb  404  Not Found [IP: 91.189.92.20 80]
+E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+ls: cannot access 'boot.sh': No such file or directory
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel$ # Fix the stale package index first
+sudo apt-get update && sudo apt install -y --fix-missing build-essential
+
+# Run the bare-metal boot test
+cd ~/Ternary/src/kernel/bare-metal
+bash scripts/build.sh
+Hit:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Get:2 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease [126 kB]
+Get:3 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease [126 kB]
+Get:4 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease [126 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 Packages [1964 kB]
+Get:6 http://ports.ubuntu.com/ubuntu-ports noble-updates/main Translation-en [339 kB]
+Get:7 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 Components [174 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 c-n-f Metadata [16.6 kB]
+Get:9 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe arm64 Packages [1637 kB]
+Get:10 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe Translation-en [323 kB]
+Get:11 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe arm64 Components [385 kB]
+Get:12 http://ports.ubuntu.com/ubuntu-ports noble-updates/universe arm64 c-n-f Metadata [32.8 kB]
+Get:13 http://ports.ubuntu.com/ubuntu-ports noble-updates/restricted arm64 Packages [4040 kB]
+Get:14 http://ports.ubuntu.com/ubuntu-ports noble-updates/restricted Translation-en [656 kB]
+Get:15 http://ports.ubuntu.com/ubuntu-ports noble-updates/restricted arm64 Components [212 B]
+Get:16 http://ports.ubuntu.com/ubuntu-ports noble-updates/multiverse arm64 Packages [38.4 kB]
+Get:17 http://ports.ubuntu.com/ubuntu-ports noble-updates/multiverse Translation-en [7520 B]
+Get:18 http://ports.ubuntu.com/ubuntu-ports noble-updates/multiverse arm64 Components [212 B]
+Get:19 http://ports.ubuntu.com/ubuntu-ports noble-backports/main arm64 Packages [40.4 kB]
+Get:20 http://ports.ubuntu.com/ubuntu-ports noble-backports/main arm64 Components [3556 B]
+Get:21 http://ports.ubuntu.com/ubuntu-ports noble-backports/main arm64 c-n-f Metadata [372 B]
+Get:22 http://ports.ubuntu.com/ubuntu-ports noble-backports/universe arm64 Packages [30.7 kB]
+Get:23 http://ports.ubuntu.com/ubuntu-ports noble-backports/universe Translation-en [18.2 kB]
+Get:24 http://ports.ubuntu.com/ubuntu-ports noble-backports/universe arm64 Components [13.2 kB]
+Get:25 http://ports.ubuntu.com/ubuntu-ports noble-backports/universe arm64 c-n-f Metadata [1480 B]
+Get:26 http://ports.ubuntu.com/ubuntu-ports noble-backports/restricted arm64 Components [216 B]
+Get:27 http://ports.ubuntu.com/ubuntu-ports noble-backports/multiverse arm64 Packages [780 B]
+Get:28 http://ports.ubuntu.com/ubuntu-ports noble-backports/multiverse Translation-en [372 B]
+Get:29 http://ports.ubuntu.com/ubuntu-ports noble-backports/multiverse arm64 Components [212 B]
+Get:30 http://ports.ubuntu.com/ubuntu-ports noble-security/main arm64 Packages [1682 kB]
+Get:31 http://ports.ubuntu.com/ubuntu-ports noble-security/main Translation-en [249 kB]
+Get:32 http://ports.ubuntu.com/ubuntu-ports noble-security/main arm64 Components [18.4 kB]
+Get:33 http://ports.ubuntu.com/ubuntu-ports noble-security/main arm64 c-n-f Metadata [10.4 kB]
+Get:34 http://ports.ubuntu.com/ubuntu-ports noble-security/universe arm64 Packages [1169 kB]
+Get:35 http://ports.ubuntu.com/ubuntu-ports noble-security/universe Translation-en [225 kB]
+Get:36 http://ports.ubuntu.com/ubuntu-ports noble-security/universe arm64 Components [74.2 kB]
+Get:37 http://ports.ubuntu.com/ubuntu-ports noble-security/universe arm64 c-n-f Metadata [22.2 kB]
+Get:38 http://ports.ubuntu.com/ubuntu-ports noble-security/restricted arm64 Packages [3898 kB]
+Get:39 http://ports.ubuntu.com/ubuntu-ports noble-security/restricted Translation-en [627 kB]
+Get:40 http://ports.ubuntu.com/ubuntu-ports noble-security/restricted arm64 Components [212 B]
+Get:41 http://ports.ubuntu.com/ubuntu-ports noble-security/multiverse arm64 Packages [36.5 kB]
+Get:42 http://ports.ubuntu.com/ubuntu-ports noble-security/multiverse Translation-en [6980 B]
+Get:43 http://ports.ubuntu.com/ubuntu-ports noble-security/multiverse arm64 Components [212 B]
+Fetched 18.1 MB in 3s (5433 kB/s)
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  bzip2 cpp cpp-13 cpp-13-aarch64-linux-gnu cpp-aarch64-linux-gnu dpkg-dev fakeroot g++ g++-13
+  g++-13-aarch64-linux-gnu g++-aarch64-linux-gnu gcc gcc-13 gcc-13-aarch64-linux-gnu gcc-13-base gcc-aarch64-linux-gnu
+  libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libaom3 libasan8 libatomic1 libc-dev-bin
+  libc-devtools libc6-dev libcc1-0 libcrypt-dev libde265-0 libdpkg-perl libfakeroot libfile-fcntllock-perl
+  libgcc-13-dev libgd3 libgomp1 libheif-plugin-aomdec libheif-plugin-aomenc libheif-plugin-libde265 libheif1
+  libhwasan0 libisl23 libitm1 liblsan0 libmpc3 libstdc++-13-dev libtsan2 libubsan1 libxpm4 linux-libc-dev
+  lto-disabled-list make manpages-dev rpcsvc-proto
+Suggested packages:
+  bzip2-doc cpp-doc gcc-13-locales cpp-13-doc debian-keyring gcc-13-doc gcc-multilib autoconf automake libtool flex
+  bison gdb gcc-doc gdb-aarch64-linux-gnu glibc-doc bzr libgd-tools libheif-plugin-x265 libheif-plugin-ffmpegdec
+  libheif-plugin-jpegdec libheif-plugin-jpegenc libheif-plugin-j2kdec libheif-plugin-j2kenc libheif-plugin-rav1e
+  libheif-plugin-svtenc libstdc++-13-doc make-doc
+The following NEW packages will be installed:
+  build-essential bzip2 cpp cpp-13 cpp-13-aarch64-linux-gnu cpp-aarch64-linux-gnu dpkg-dev fakeroot g++ g++-13
+  g++-13-aarch64-linux-gnu g++-aarch64-linux-gnu gcc gcc-13 gcc-13-aarch64-linux-gnu gcc-13-base gcc-aarch64-linux-gnu
+  libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libaom3 libasan8 libatomic1 libc-dev-bin
+  libc-devtools libc6-dev libcc1-0 libcrypt-dev libde265-0 libdpkg-perl libfakeroot libfile-fcntllock-perl
+  libgcc-13-dev libgd3 libgomp1 libheif-plugin-aomdec libheif-plugin-aomenc libheif-plugin-libde265 libheif1
+  libhwasan0 libisl23 libitm1 liblsan0 libmpc3 libstdc++-13-dev libtsan2 libubsan1 libxpm4 linux-libc-dev
+  lto-disabled-list make manpages-dev rpcsvc-proto
+0 upgraded, 53 newly installed, 0 to remove and 90 not upgraded.
+Need to get 2069 kB/65.1 MB of archives.
+After this operation, 221 MB of additional disk space will be used.
+Get:1 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 linux-libc-dev arm64 6.8.0-106.106 [2069 kB]
+Fetched 2069 kB in 1s (2346 kB/s)
+Extracting templates from packages: 100%
+Selecting previously unselected package libc-dev-bin.
+(Reading database ... 40949 files and directories currently installed.)
+Preparing to unpack .../00-libc-dev-bin_2.39-0ubuntu8.7_arm64.deb ...
+Unpacking libc-dev-bin (2.39-0ubuntu8.7) ...
+Selecting previously unselected package linux-libc-dev:arm64.
+Preparing to unpack .../01-linux-libc-dev_6.8.0-106.106_arm64.deb ...
+Unpacking linux-libc-dev:arm64 (6.8.0-106.106) ...
+Selecting previously unselected package libcrypt-dev:arm64.
+Preparing to unpack .../02-libcrypt-dev_1%3a4.4.36-4build1_arm64.deb ...
+Unpacking libcrypt-dev:arm64 (1:4.4.36-4build1) ...
+Selecting previously unselected package rpcsvc-proto.
+Preparing to unpack .../03-rpcsvc-proto_1.4.2-0ubuntu7_arm64.deb ...
+Unpacking rpcsvc-proto (1.4.2-0ubuntu7) ...
+Selecting previously unselected package libc6-dev:arm64.
+Preparing to unpack .../04-libc6-dev_2.39-0ubuntu8.7_arm64.deb ...
+Unpacking libc6-dev:arm64 (2.39-0ubuntu8.7) ...
+Selecting previously unselected package gcc-13-base:arm64.
+Preparing to unpack .../05-gcc-13-base_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking gcc-13-base:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package libisl23:arm64.
+Preparing to unpack .../06-libisl23_0.26-3build1.1_arm64.deb ...
+Unpacking libisl23:arm64 (0.26-3build1.1) ...
+Selecting previously unselected package libmpc3:arm64.
+Preparing to unpack .../07-libmpc3_1.3.1-1build1.1_arm64.deb ...
+Unpacking libmpc3:arm64 (1.3.1-1build1.1) ...
+Selecting previously unselected package cpp-13-aarch64-linux-gnu.
+Preparing to unpack .../08-cpp-13-aarch64-linux-gnu_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking cpp-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package cpp-13.
+Preparing to unpack .../09-cpp-13_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking cpp-13 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package cpp-aarch64-linux-gnu.
+Preparing to unpack .../10-cpp-aarch64-linux-gnu_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking cpp-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package cpp.
+Preparing to unpack .../11-cpp_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking cpp (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package libcc1-0:arm64.
+Preparing to unpack .../12-libcc1-0_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libcc1-0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libgomp1:arm64.
+Preparing to unpack .../13-libgomp1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libgomp1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libitm1:arm64.
+Preparing to unpack .../14-libitm1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libitm1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libatomic1:arm64.
+Preparing to unpack .../15-libatomic1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libatomic1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libasan8:arm64.
+Preparing to unpack .../16-libasan8_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libasan8:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package liblsan0:arm64.
+Preparing to unpack .../17-liblsan0_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking liblsan0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libtsan2:arm64.
+Preparing to unpack .../18-libtsan2_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libtsan2:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libubsan1:arm64.
+Preparing to unpack .../19-libubsan1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libubsan1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libhwasan0:arm64.
+Preparing to unpack .../20-libhwasan0_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libhwasan0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libgcc-13-dev:arm64.
+Preparing to unpack .../21-libgcc-13-dev_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking libgcc-13-dev:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package gcc-13-aarch64-linux-gnu.
+Preparing to unpack .../22-gcc-13-aarch64-linux-gnu_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking gcc-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package gcc-13.
+Preparing to unpack .../23-gcc-13_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking gcc-13 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package gcc-aarch64-linux-gnu.
+Preparing to unpack .../24-gcc-aarch64-linux-gnu_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking gcc-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package gcc.
+Preparing to unpack .../25-gcc_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking gcc (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package libstdc++-13-dev:arm64.
+Preparing to unpack .../26-libstdc++-13-dev_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking libstdc++-13-dev:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package g++-13-aarch64-linux-gnu.
+Preparing to unpack .../27-g++-13-aarch64-linux-gnu_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking g++-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package g++-13.
+Preparing to unpack .../28-g++-13_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking g++-13 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package g++-aarch64-linux-gnu.
+Preparing to unpack .../29-g++-aarch64-linux-gnu_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking g++-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package g++.
+Preparing to unpack .../30-g++_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking g++ (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package make.
+Preparing to unpack .../31-make_4.3-4.1build2_arm64.deb ...
+Unpacking make (4.3-4.1build2) ...
+Selecting previously unselected package libdpkg-perl.
+Preparing to unpack .../32-libdpkg-perl_1.22.6ubuntu6.5_all.deb ...
+Unpacking libdpkg-perl (1.22.6ubuntu6.5) ...
+Selecting previously unselected package bzip2.
+Preparing to unpack .../33-bzip2_1.0.8-5.1build0.1_arm64.deb ...
+Unpacking bzip2 (1.0.8-5.1build0.1) ...
+Selecting previously unselected package lto-disabled-list.
+Preparing to unpack .../34-lto-disabled-list_47_all.deb ...
+Unpacking lto-disabled-list (47) ...
+Selecting previously unselected package dpkg-dev.
+Preparing to unpack .../35-dpkg-dev_1.22.6ubuntu6.5_all.deb ...
+Unpacking dpkg-dev (1.22.6ubuntu6.5) ...
+Selecting previously unselected package build-essential.
+Preparing to unpack .../36-build-essential_12.10ubuntu1_arm64.deb ...
+Unpacking build-essential (12.10ubuntu1) ...
+Selecting previously unselected package libfakeroot:arm64.
+Preparing to unpack .../37-libfakeroot_1.33-1_arm64.deb ...
+Unpacking libfakeroot:arm64 (1.33-1) ...
+Selecting previously unselected package fakeroot.
+Preparing to unpack .../38-fakeroot_1.33-1_arm64.deb ...
+Unpacking fakeroot (1.33-1) ...
+Selecting previously unselected package libalgorithm-diff-perl.
+Preparing to unpack .../39-libalgorithm-diff-perl_1.201-1_all.deb ...
+Unpacking libalgorithm-diff-perl (1.201-1) ...
+Selecting previously unselected package libalgorithm-diff-xs-perl:arm64.
+Preparing to unpack .../40-libalgorithm-diff-xs-perl_0.04-8build3_arm64.deb ...
+Unpacking libalgorithm-diff-xs-perl:arm64 (0.04-8build3) ...
+Selecting previously unselected package libalgorithm-merge-perl.
+Preparing to unpack .../41-libalgorithm-merge-perl_0.08-5_all.deb ...
+Unpacking libalgorithm-merge-perl (0.08-5) ...
+Selecting previously unselected package libaom3:arm64.
+Preparing to unpack .../42-libaom3_3.8.2-2ubuntu0.1_arm64.deb ...
+Unpacking libaom3:arm64 (3.8.2-2ubuntu0.1) ...
+Selecting previously unselected package libheif-plugin-aomdec:arm64.
+Preparing to unpack .../43-libheif-plugin-aomdec_1.17.6-1ubuntu4.2_arm64.deb ...
+Unpacking libheif-plugin-aomdec:arm64 (1.17.6-1ubuntu4.2) ...
+Selecting previously unselected package libde265-0:arm64.
+Preparing to unpack .../44-libde265-0_1.0.15-1build3_arm64.deb ...
+Unpacking libde265-0:arm64 (1.0.15-1build3) ...
+Selecting previously unselected package libheif-plugin-libde265:arm64.
+Preparing to unpack .../45-libheif-plugin-libde265_1.17.6-1ubuntu4.2_arm64.deb ...
+Unpacking libheif-plugin-libde265:arm64 (1.17.6-1ubuntu4.2) ...
+Selecting previously unselected package libheif1:arm64.
+Preparing to unpack .../46-libheif1_1.17.6-1ubuntu4.2_arm64.deb ...
+Unpacking libheif1:arm64 (1.17.6-1ubuntu4.2) ...
+Selecting previously unselected package libxpm4:arm64.
+Preparing to unpack .../47-libxpm4_1%3a3.5.17-1build2_arm64.deb ...
+Unpacking libxpm4:arm64 (1:3.5.17-1build2) ...
+Selecting previously unselected package libgd3:arm64.
+Preparing to unpack .../48-libgd3_2.3.3-9ubuntu5_arm64.deb ...
+Unpacking libgd3:arm64 (2.3.3-9ubuntu5) ...
+Selecting previously unselected package libc-devtools.
+Preparing to unpack .../49-libc-devtools_2.39-0ubuntu8.7_arm64.deb ...
+Unpacking libc-devtools (2.39-0ubuntu8.7) ...
+Selecting previously unselected package libfile-fcntllock-perl.
+Preparing to unpack .../50-libfile-fcntllock-perl_0.22-4ubuntu5_arm64.deb ...
+Unpacking libfile-fcntllock-perl (0.22-4ubuntu5) ...
+Selecting previously unselected package libheif-plugin-aomenc:arm64.
+Preparing to unpack .../51-libheif-plugin-aomenc_1.17.6-1ubuntu4.2_arm64.deb ...
+Unpacking libheif-plugin-aomenc:arm64 (1.17.6-1ubuntu4.2) ...
+Selecting previously unselected package manpages-dev.
+Preparing to unpack .../52-manpages-dev_6.7-2_all.deb ...
+Unpacking manpages-dev (6.7-2) ...
+Setting up libaom3:arm64 (3.8.2-2ubuntu0.1) ...
+Setting up manpages-dev (6.7-2) ...
+Setting up lto-disabled-list (47) ...
+Setting up libxpm4:arm64 (1:3.5.17-1build2) ...
+Setting up libfile-fcntllock-perl (0.22-4ubuntu5) ...
+Setting up libalgorithm-diff-perl (1.201-1) ...
+Setting up linux-libc-dev:arm64 (6.8.0-106.106) ...
+Setting up libgomp1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up bzip2 (1.0.8-5.1build0.1) ...
+Setting up libfakeroot:arm64 (1.33-1) ...
+Setting up fakeroot (1.33-1) ...
+update-alternatives: using /usr/bin/fakeroot-sysv to provide /usr/bin/fakeroot (fakeroot) in auto mode
+Setting up rpcsvc-proto (1.4.2-0ubuntu7) ...
+Setting up gcc-13-base:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Setting up make (4.3-4.1build2) ...
+Setting up libmpc3:arm64 (1.3.1-1build1.1) ...
+Setting up libatomic1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libdpkg-perl (1.22.6ubuntu6.5) ...
+Setting up libubsan1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libhwasan0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libcrypt-dev:arm64 (1:4.4.36-4build1) ...
+Setting up libasan8:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libtsan2:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libisl23:arm64 (0.26-3build1.1) ...
+Setting up libde265-0:arm64 (1.0.15-1build3) ...
+Setting up libc-dev-bin (2.39-0ubuntu8.7) ...
+Setting up libalgorithm-diff-xs-perl:arm64 (0.04-8build3) ...
+Setting up libcc1-0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up liblsan0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libitm1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libalgorithm-merge-perl (0.08-5) ...
+Setting up cpp-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+Setting up dpkg-dev (1.22.6ubuntu6.5) ...
+Setting up cpp-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+Setting up libgcc-13-dev:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Setting up libc6-dev:arm64 (2.39-0ubuntu8.7) ...
+Setting up libstdc++-13-dev:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Setting up cpp-13 (13.3.0-6ubuntu2~24.04.1) ...
+Setting up gcc-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+Setting up gcc-13 (13.3.0-6ubuntu2~24.04.1) ...
+Setting up cpp (4:13.2.0-7ubuntu1) ...
+Setting up g++-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+Setting up gcc-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+Setting up g++-13 (13.3.0-6ubuntu2~24.04.1) ...
+Setting up gcc (4:13.2.0-7ubuntu1) ...
+Setting up g++-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+Setting up g++ (4:13.2.0-7ubuntu1) ...
+update-alternatives: using /usr/bin/g++ to provide /usr/bin/c++ (c++) in auto mode
+Setting up build-essential (12.10ubuntu1) ...
+Setting up libheif1:arm64 (1.17.6-1ubuntu4.2) ...
+Setting up libgd3:arm64 (2.3.3-9ubuntu5) ...
+Setting up libc-devtools (2.39-0ubuntu8.7) ...
+Setting up libheif-plugin-aomdec:arm64 (1.17.6-1ubuntu4.2) ...
+Setting up libheif-plugin-libde265:arm64 (1.17.6-1ubuntu4.2) ...
+Setting up libheif-plugin-aomenc:arm64 (1.17.6-1ubuntu4.2) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+-- PlenumNET Bare-Metal Build --
+   Mode: debug
+# Fix the stale package index first
+sudo apt-get update && sudo apt install -y --fix-missing build-essential
+
+# Run the bare-metal boot test
+cd ~/Ternary/src/kernel/bare-metal
+bash scripts/build.sh
+error: `.json` target specs require -Zjson-target-spec
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ # Fix the stale package index first
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ sudo apt-get update && sudo apt install -y --fix-missing build-essential
+
+# Run the bare-metal boot test
+cd ~/Ternary/src/kernel/bare-metal
+bash scripts/build.sh
+Hit:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Hit:2 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Hit:3 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Hit:4 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+build-essential is already the newest version (12.10ubuntu1).
+0 upgraded, 0 newly installed, 0 to remove and 90 not upgraded.
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ rustup toolchain install nightly --component rust-src
+rustup override set nightly
+bash scripts/build.sh
+info: syncing channel updates for nightly-aarch64-unknown-linux-gnu
+info: latest update on 2026-03-27 for version 1.96.0-nightly (23903d01c 2026-03-26)
+info: component rust-src is up to date
+
+  nightly-aarch64-unknown-linux-gnu unchanged - rustc 1.96.0-nightly (23903d01c 2026-03-26)
+
+info: checking for self-update (current version: 1.29.0)
+info: override toolchain for /home/librawolf/Ternary/src/kernel/bare-metal set to nightly-aarch64-unknown-linux-gnu
+-- PlenumNET Bare-Metal Build --
+   Mode: debug
+error: `.json` target specs require -Zjson-target-spec
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+Already up to date.
+-- PlenumNET Bare-Metal Build --
+   Mode: debug
+error: `.json` target specs require -Zjson-target-spec
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ export RUSTFLAGS="-Zjson-target-spec"
+cargo build
+error: `.json` target specs require -Zjson-target-spec
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ export RUSTFLAGS="-Zjson-target-spec"
+cargo build
+error: `.json` target specs require -Zjson-target-spec
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$^C
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 167, done.
+remote: Counting objects: 100% (167/167), done.
+remote: Compressing objects: 100% (33/33), done.
+remote: Total 167 (delta 132), reused 167 (delta 132), pack-reused 0 (from 0)
+Receiving objects: 100% (167/167), 820.00 KiB | 2.11 MiB/s, done.
+Resolving deltas: 100% (132/132), completed with 27 local objects.
+From https://github.com/SigmaWolf-8/Ternary
+   7f1a78c7..8574a74e  main       -> origin/main
+Updating 7f1a78c7..8574a74e
+Fast-forward
+ .github/workflows/build-kernel.yml                                          | 148 ++++++++
+ ...PlenumNET-Array3-Service-Recovery-Name-Status-StartTyp_1774605899492.txt |  48 +++
+ ...SC-DeleteService-SUCCESS-SC-DeleteService-SUCCESS-SC-D_1774606351617.txt |  99 ++++++
+ ...WebSocket-NAT-Traversal-refers-to-the-techniques-and-m_1774606290576.txt |  54 +++
+ ...urrent-State-Your-networking-stack-has-two-layers-toda_1774610284041.txt |  26 ++
+ ...-m-not-sure-punching-NAX-belongs-in-the-user-space-We-_1774610664928.txt |  29 ++
+ ...hat-the-flow-would-look-like-for-the-user-Prerequisite_1774610097941.txt |  46 +++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774510654186.txt |  63 ++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774605820685.txt |  57 +++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611124289.txt | 179 ++++++++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611154935.txt | 179 ++++++++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611452760.txt | 239 +++++++++++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611571079.txt | 330 ++++++++++++++++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611773452.txt | 654 +++++++++++++++++++++++++++++++++++
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611849843.txt | 667 ++++++++++++++++++++++++++++++++++++
+ ...ou-re-right-to-call-this-out-Let-me-go-through-it-agai_1774496279594.txt |  31 ++
+ attached_assets/image_1774499841287.png                                     | Bin 0 -> 110033 bytes
+ attached_assets/image_1774510584696.png                                     | Bin 0 -> 193827 bytes
+ attached_assets/image_1774607385197.png                                     | Bin 0 -> 110326 bytes
+ attached_assets/image_1774608774933.png                                     | Bin 0 -> 70952 bytes
+ attached_assets/image_1774608927493.png                                     | Bin 0 -> 328708 bytes
+ boot.sh                                                                     | 193 +++++++++++
+ client/public/install/deploy-yoda.ps1                                       |  91 ++++-
+ client/src/pages/distribution.tsx                                           |  79 +++--
+ replit.md                                                                   |   3 +
+ server/index.ts                                                             |  33 +-
+ services/inter-cube/deploy-yoda.ps1                                         |  95 +++--
+ src/kernel/Cargo.toml                                                       |   5 +
+ src/kernel/bare-metal/scripts/build.sh                                      |   2 +
+ src/kernel/bare-metal/scripts/setup-and-test.sh                             |  77 +++++
+ src/kernel/build.rs                                                         |  25 ++
+ src/kernel/linker-aarch64.ld                                                |  43 +++
+ src/kernel/linker-riscv64.ld                                                |  43 +++
+ src/kernel/linker-x86_64.ld                                                 |  53 +++
+ src/kernel/src/browser/color.rs                                             |  13 +-
+ src/kernel/src/main.rs                                                      | 493 ++++++++++++++++++++++++++
+ 36 files changed, 4022 insertions(+), 75 deletions(-)
+ create mode 100644 attached_assets/Pasted--PlenumNET-Array3-Service-Recovery-Name-Status-StartTyp_1774605899492.txt
+ create mode 100644 attached_assets/Pasted--SC-DeleteService-SUCCESS-SC-DeleteService-SUCCESS-SC-D_1774606351617.txt
+ create mode 100644 attached_assets/Pasted--WebSocket-NAT-Traversal-refers-to-the-techniques-and-m_1774606290576.txt
+ create mode 100644 attached_assets/Pasted-Current-State-Your-networking-stack-has-two-layers-toda_1774610284041.txt
+ create mode 100644 attached_assets/Pasted-I-m-not-sure-punching-NAX-belongs-in-the-user-space-We-_1774610664928.txt
+ create mode 100644 attached_assets/Pasted-What-the-flow-would-look-like-for-the-user-Prerequisite_1774610097941.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774510654186.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774605820685.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611124289.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611154935.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611452760.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611571079.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611773452.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774611849843.txt
+ create mode 100644 attached_assets/Pasted-You-re-right-to-call-this-out-Let-me-go-through-it-agai_1774496279594.txt
+ create mode 100644 attached_assets/image_1774499841287.png
+ create mode 100644 attached_assets/image_1774510584696.png
+ create mode 100644 attached_assets/image_1774607385197.png
+ create mode 100644 attached_assets/image_1774608774933.png
+ create mode 100644 attached_assets/image_1774608927493.png
+ create mode 100755 boot.sh
+ create mode 100755 src/kernel/bare-metal/scripts/setup-and-test.sh
+ create mode 100644 src/kernel/build.rs
+ create mode 100644 src/kernel/linker-aarch64.ld
+ create mode 100644 src/kernel/linker-riscv64.ld
+ create mode 100644 src/kernel/linker-x86_64.ld
+ create mode 100644 src/kernel/src/main.rs
+-- PlenumNET Bare-Metal Build --
+   Mode: debug
+error: `.json` target specs require -Zjson-target-spec
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 13, done.
+remote: Counting objects: 100% (13/13), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 7 (delta 4), reused 7 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (7/7), 695 bytes | 231.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   8574a74e..d654a20b  main       -> origin/main
+Updating 8574a74e..d654a20b
+Fast-forward
+ src/kernel/bare-metal/scripts/build.sh | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+-- PlenumNET Bare-Metal Build --
+   Mode: debug
+error: failed to run `rustc` to learn about target-specific information
+
+Caused by:
+  process didn't exit successfully: `/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/bin/rustc - --crate-name ___ --print=file-names -Zjson-target-spec --target /home/librawolf/Ternary/src/kernel/bare-metal/x86_64-ternary-none.json -Zunstable-options --crate-type bin --crate-type rlib --crate-type dylib --crate-type cdylib --crate-type staticlib --crate-type proc-macro --print=sysroot --print=split-debuginfo --print=crate-name --print=cfg -Wwarnings` (exit status: 1)
+  --- stderr
+  error: unknown unstable option: `json-target-spec`
+
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 24, done.
+remote: Counting objects: 100% (24/24), done.
+remote: Compressing objects: 100% (6/6), done.
+remote: Total 14 (delta 7), reused 14 (delta 7), pack-reused 0 (from 0)
+Unpacking objects: 100% (14/14), 11.46 KiB | 156.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   d654a20b..9d6c2b70  main       -> origin/main
+Updating d654a20b..9d6c2b70
+Fast-forward
+ ...indows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774612066923.txt | 758 ++++++++++++++++++++++++++++++++++++
+ src/kernel/bare-metal/.cargo/config.toml                                    |   8 +-
+ src/kernel/bare-metal/scripts/build.sh                                      |  10 +-
+ src/kernel/bare-metal/scripts/setup-and-test.sh                             |   2 +-
+ 4 files changed, 769 insertions(+), 9 deletions(-)
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774612066923.txt
+-- PlenumNET Bare-Metal Build --
+   Mode: debug
+error: failed to run `rustc` to learn about target-specific information
+
+Caused by:
+  process didn't exit successfully: `/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/bin/rustc - --crate-name ___ --print=file-names -Zjson-target-spec --target x86_64-unknown-none --crate-type bin --crate-type rlib --crate-type dylib --crate-type cdylib --crate-type staticlib --crate-type proc-macro --print=sysroot --print=split-debuginfo --print=crate-name --print=cfg -Wwarnings` (exit status: 1)
+  --- stderr
+  error: unknown unstable option: `json-target-spec`
+
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 11, done.
+remote: Counting objects: 100% (11/11), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 6 (delta 3), reused 6 (delta 3), pack-reused 0 (from 0)
+Unpacking objects: 100% (6/6), 611 bytes | 87.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   9d6c2b70..0f8fb873  main       -> origin/main
+Updating 9d6c2b70..0f8fb873
+Fast-forward
+ src/kernel/bare-metal/rust-toolchain.toml | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+-- PlenumNET Bare-Metal Build --
+   Mode: debug
+error: failed to run `rustc` to learn about target-specific information
+
+Caused by:
+  process didn't exit successfully: `/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/bin/rustc - --crate-name ___ --print=file-names -Zjson-target-spec --target x86_64-unknown-none --crate-type bin --crate-type rlib --crate-type dylib --crate-type cdylib --crate-type staticlib --crate-type proc-macro --print=sysroot --print=split-debuginfo --print=crate-name --print=cfg -Wwarnings` (exit status: 1)
+  --- stderr
+  error: unknown unstable option: `json-target-spec`
+
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 21, done.
+remote: Counting objects: 100% (21/21), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 11 (delta 5), reused 11 (delta 5), pack-reused 0 (from 0)
+Unpacking objects: 100% (11/11), 2.74 KiB | 401.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   0f8fb873..97caa254  main       -> origin/main
+Updating 0f8fb873..97caa254
+Fast-forward
+ src/kernel/bare-metal/.cargo/config.toml        |  4 ----
+ src/kernel/bare-metal/rust-toolchain.toml       |  3 +--
+ src/kernel/bare-metal/scripts/build.sh          | 51 ++++++++++++++++++++++++++++++++++----------
+ src/kernel/bare-metal/scripts/setup-and-test.sh | 75 ++++++++++++++++++++++++++++++++++++++---------------------------
+ 4 files changed, 85 insertions(+), 48 deletions(-)
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+
+error: failed to run `rustc` to learn about target-specific information
+
+Caused by:
+  process didn't exit successfully: `/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/bin/rustc - --crate-name ___ --print=file-names -Zjson-target-spec --target x86_64-unknown-none --crate-type bin --crate-type rlib --crate-type dylib --crate-type cdylib --crate-type staticlib --crate-type proc-macro --print=sysroot --print=split-debuginfo --print=crate-name --print=cfg -Wwarnings` (exit status: 1)
+  --- stderr
+  error: unknown unstable option: `json-target-spec`
+
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ ^C
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ rustc +nightly --version && cargo +nightly --version
+rustc 1.96.0-nightly (23903d01c 2026-03-26)
+cargo 1.96.0-nightly (e84cb639e 2026-03-21)
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 15, done.
+remote: Counting objects: 100% (15/15), done.
+remote: Compressing objects: 100% (4/4), done.
+remote: Total 8 (delta 4), reused 8 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (8/8), 1.16 KiB | 237.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   97caa254..882d458d  main       -> origin/main
+Updating 97caa254..882d458d
+Fast-forward
+ src/kernel/bare-metal/rust-toolchain.toml |  2 +-
+ src/kernel/bare-metal/scripts/build.sh    | 23 ++++++++++-------------
+ 2 files changed, 11 insertions(+), 14 deletions(-)
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+  Toolchain: nightly-aarch64-unknown-linux-gnu (directory override for '/home/librawolf/Ternary/src/kernel/bare-metal')
+
+error: failed to run `rustc` to learn about target-specific information
+
+Caused by:
+  process didn't exit successfully: `/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/bin/rustc - --crate-name ___ --print=file-names -Zjson-target-spec --target x86_64-unknown-none --crate-type bin --crate-type rlib --crate-type dylib --crate-type cdylib --crate-type staticlib --crate-type proc-macro --print=sysroot --print=split-debuginfo --print=crate-name --print=cfg -Wwarnings` (exit status: 1)
+  --- stderr
+  error: unknown unstable option: `json-target-spec`
+
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ rustup override unset && bash scripts/build.sh
+info: override toolchain for '/home/librawolf/Ternary/src/kernel/bare-metal' removed
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+  Toolchain: nightly-2024-12-01-aarch64-unknown-linux-gnu (overridden by '/home/librawolf/Ternary/src/kernel/bare-metal/rust-toolchain.toml')
+
+error: failed to run `rustc` to learn about target-specific information
+
+Caused by:
+  process didn't exit successfully: `/home/librawolf/.rustup/toolchains/nightly-2024-12-01-aarch64-unknown-linux-gnu/bin/rustc - --crate-name ___ --print=file-names -Zjson-target-spec --target x86_64-unknown-none --crate-type bin --crate-type rlib --crate-type dylib --crate-type cdylib --crate-type staticlib --crate-type proc-macro --print=sysroot --print=split-debuginfo --print=crate-name --print=cfg` (exit status: 1)
+  --- stderr
+  error: unknown unstable option: `json-target-spec`
+
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 16, done.
+remote: Counting objects: 100% (16/16), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 9 (delta 4), reused 9 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (9/9), 1.13 KiB | 289.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   882d458d..3fff410e  main       -> origin/main
+Updating 882d458d..3fff410e
+Fast-forward
+ src/kernel/bare-metal/rust-toolchain.toml      |  2 +-
+ src/kernel/bare-metal/scripts/build.sh         | 10 +++-------
+ src/kernel/bare-metal/scripts/rustc-wrapper.sh |  7 +++++++
+ 3 files changed, 11 insertions(+), 8 deletions(-)
+ create mode 100755 src/kernel/bare-metal/scripts/rustc-wrapper.sh
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+
+    Updating crates.io index
+  Downloaded spin v0.9.8
+  Downloaded lazy_static v1.5.0
+  Downloaded libm v0.2.16
+  Downloaded 3 crates (212.1KiB) in 0.44s
+    Updating crates.io index
+  Downloaded rustc-literal-escaper v0.0.7
+  Downloaded rustc-demangle v0.1.27
+  Downloaded cfg-if v1.0.4
+  Downloaded foldhash v0.2.0
+  Downloaded getopts v0.2.24
+  Downloaded hashbrown v0.16.1
+  Downloaded libc v0.2.178
+  Downloaded 7 crates (1006.2KiB) in 1.00s
+   Compiling compiler_builtins v0.1.160 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+   Compiling core v0.0.0 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)
+   Compiling libm v0.2.16
+   Compiling plenumnet-kernel v0.1.0 (/home/librawolf/Ternary/src/kernel)
+   Compiling alloc v0.0.0 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+   Compiling spin v0.9.8
+   Compiling lazy_static v1.5.0
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:268:12
+    |
+268 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:390:12
+    |
+390 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:446:12
+    |
+446 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:788:12
+    |
+788 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:830:12
+    |
+830 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:865:12
+    |
+865 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+    --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:1112:12
+     |
+1112 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+     |            ^^^^^^^^^^^^^^^^^
+     |
+     = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+     = help: consider adding `serde` as a feature in `Cargo.toml`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:88:12
+   |
+88 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+   = help: consider adding `serde` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/lib.rs:55:7
+   |
+55 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/mod.rs:71:7
+   |
+71 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `CryptoError`, `CryptoResult`, and `TernaryDigest`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/x509.rs:39:13
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |             ^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/phase_cnsa.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `CryptoResult`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/phase_cnsa.rs:39:26
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |                          ^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/services.rs:35:5
+   |
+35 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ModeIndicator` and `ModuleStateMachine`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/services.rs:38:40
+   |
+38 | use super::module_state::{ModuleState, ModuleStateMachine, ModeIndicator};
+   |                                        ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_cube_perm.rs:74:5
+   |
+74 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_cube_perm.rs:75:5
+   |
+75 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/keyed_sponge.rs:71:5
+   |
+71 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `sponge_hash`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/keyed_sponge.rs:73:21
+   |
+73 | use super::sponge::{sponge_hash, TernarySponge as UnkeyedSponge};
+   |                     ^^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:121:35
+    |
+121 | #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:54:5
+   |
+54 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:276:39
+    |
+276 |     #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/network/metatronic_bridge.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/mod.rs:32:7
+   |
+32 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `SimulatedHptp`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/engine.rs:21:57
+   |
+21 | use crate::timing::{FemtosecondTimestamp, HptpProvider, SimulatedHptp};
+   |                                                         ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::format`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/compiler.rs:17:5
+   |
+17 | use alloc::format;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /home/librawolf/Ternary/src/kernel/src/compat/syscall_shim.rs:15:5
+   |
+15 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `RouteDirection`
+  --> /home/librawolf/Ternary/src/kernel/src/browser/net.rs:12:67
+   |
+12 | use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
+   |                                                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `script::ScriptExecutor`
+  --> /home/librawolf/Ternary/src/kernel/src/browser/mod.rs:26:5
+   |
+26 | use script::ScriptExecutor;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+ --> /home/librawolf/Ternary/src/kernel/src/distributor/z_router.rs:9:5
+  |
+9 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::fmt`
+  --> /home/librawolf/Ternary/src/kernel/src/layers/mod.rs:18:5
+   |
+18 | use core::fmt;
+   |     ^^^^^^^^^
+
+warning: unused variable: `q32`
+    --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_lattice.rs:1088:9
+     |
+1088 |     let q32 = q as i32;
+     |         ^^^ help: if this is intentional, prefix it with an underscore: `_q32`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `CHI_BLOCKS` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:47:7
+   |
+47 | const CHI_BLOCKS: usize = 243;         // 729 / 3 — blocks for chi layer
+   |       ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: static `CHI_MAP_T0` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:187:8
+    |
+187 | static CHI_MAP_T0: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T1` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:193:8
+    |
+193 | static CHI_MAP_T1: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:199:8
+    |
+199 | static CHI_MAP_T2: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: function `chi_layer_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:208:11
+    |
+208 | unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v2_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:409:11
+    |
+409 | unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:488:11
+    |
+488 | unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_scalar` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:734:4
+    |
+734 | fn sponge_permutation_v1_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:781:4
+    |
+781 | fn sponge_permutation_v1(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cbd_eta2_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_lattice.rs:604:11
+    |
+604 | unsafe fn cbd_eta2_avx2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    |           ^^^^^^^^^^^^^
+
+warning: constant `ESTIMATED_MIN_ENTROPY_PER_SAMPLE` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:51:7
+   |
+51 | const ESTIMATED_MIN_ENTROPY_PER_SAMPLE: f64 = 4.0;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `OVERSAMPLING_RATIO` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:53:7
+   |
+53 | const OVERSAMPLING_RATIO: usize = 2;
+   |       ^^^^^^^^^^^^^^^^^^
+
+warning: field `apt_window` is never read
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:262:5
+    |
+259 | pub struct HealthTestState {
+    |            --------------- field in this struct
+...
+262 |     apt_window: Vec<u64>,
+    |     ^^^^^^^^^^
+    |
+    = note: `HealthTestState` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: constant `PI` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:36:7
+   |
+36 | const PI: f64 = core::f64::consts::PI;
+   |       ^^
+
+warning: function `ct_select_i64` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:67:4
+   |
+67 | fn ct_select_i64(condition: i64, if_true: i64, if_false: i64) -> i64 {
+   |    ^^^^^^^^^^^^^
+
+warning: method `norm` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:94:8
+   |
+82 | impl Complex64 {
+   | -------------- method in this implementation
+...
+94 |     fn norm(self) -> f64 {
+   |        ^^^^
+
+warning: field `session_key` is never read
+  --> /home/librawolf/Ternary/src/kernel/src/input/keyboard.rs:16:5
+   |
+14 | pub struct Tis27State {
+   |            ---------- field in this struct
+15 |     state: [u8; TIS27_TRITS],
+16 |     session_key: [u8; 32],
+   |     ^^^^^^^^^^^
+   |
+   = note: `Tis27State` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `plenumnet-kernel` (lib) generated 49 warnings (run `cargo fix --lib -p plenumnet-kernel` to apply 19 suggestions)
+   Compiling plenumnet-bare-metal v0.1.0 (/home/librawolf/Ternary/src/kernel/bare-metal)
+error[E0432]: unresolved import `spin::Mutex`
+   --> src/serial.rs:8:5
+    |
+  8 | use spin::Mutex;
+    |     ^^^^^^^^^^^ no `Mutex` in the root
+    |
+note: found an item that was configured out
+   --> /home/librawolf/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spin-0.9.8/src/lib.rs:128:10
+    |
+126 | #[cfg(feature = "mutex")]
+    |       ----------------- the item is gated behind the `mutex` feature
+127 | #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
+128 | pub type Mutex<T> = crate::mutex::Mutex<T>;
+    |          ^^^^^
+help: consider importing this struct instead
+    |
+  8 - use spin::Mutex;
+  8 + use plenumnet_kernel::sync::Mutex;
+    |
+
+error[E0061]: this function takes 1 argument but 2 arguments were supplied
+   --> src/selftest.rs:125:20
+    |
+125 |     let unpacked = unpack_trits(packed, trits.len());
+    |                    ^^^^^^^^^^^^         ----------- unexpected argument #2 of type `usize`
+    |
+note: function defined here
+   --> /home/librawolf/Ternary/src/kernel/src/ternary.rs:212:8
+    |
+212 | pub fn unpack_trits(packed: i64) -> [Trit; TRITS_PER_WORD] {
+    |        ^^^^^^^^^^^^
+help: remove the extra argument
+    |
+125 -     let unpacked = unpack_trits(packed, trits.len());
+125 +     let unpacked = unpack_trits(packed);
+    |
+
+error[E0061]: this function takes 1 argument but 2 arguments were supplied
+   --> src/selftest.rs:140:25
+    |
+140 |     let unpacked_full = unpack_trits(packed_full, 27);
+    |                         ^^^^^^^^^^^^              -- unexpected argument #2 of type `{integer}`
+    |
+note: function defined here
+   --> /home/librawolf/Ternary/src/kernel/src/ternary.rs:212:8
+    |
+212 | pub fn unpack_trits(packed: i64) -> [Trit; TRITS_PER_WORD] {
+    |        ^^^^^^^^^^^^
+help: remove the extra argument
+    |
+140 -     let unpacked_full = unpack_trits(packed_full, 27);
+140 +     let unpacked_full = unpack_trits(packed_full);
+    |
+
+Some errors have detailed explanations: E0061, E0432.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `plenumnet-bare-metal` (bin "ternary-kernel") due to 3 previous errors
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ ^C
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 28, done.
+remote: Counting objects: 100% (28/28), done.
+remote: Compressing objects: 100% (4/4), done.
+Unpacking objects: 100% (15/15), 15.37 KiB | 1.54 MiB/s, done.
+remote: Total 15 (delta 9), reused 15 (delta 9), pack-reused 0 (from 0)
+From https://github.com/SigmaWolf-8/Ternary
+   3fff410e..1cc6f106  main       -> origin/main
+Updating 3fff410e..1cc6f106
+Fast-forward
+ artifacts/mockup-sandbox/src/.generated/mockup-components.ts |    4 +-
+ ...ll-Copyright-C-Microsoft-Corporation-Al_1774612928414.txt | 1382 ++++++++++++++++++++++++++
+ src/kernel/bare-metal/Cargo.toml                             |    2 +-
+ src/kernel/bare-metal/src/selftest.rs                        |    4 +-
+ 4 files changed, 1387 insertions(+), 5 deletions(-)
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774612928414.txt
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+
+   Compiling spin v0.9.8
+error: The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.
+  --> /home/librawolf/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spin-0.9.8/src/mutex.rs:44:1
+   |
+44 | compile_error!("The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.");
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `spin` (lib) due to 1 previous error
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 27, done.
+remote: Counting objects: 100% (27/27), done.
+remote: Compressing objects: 100% (8/8), done.
+remote: Total 16 (delta 9), reused 13 (delta 6), pack-reused 0 (from 0)
+Unpacking objects: 100% (16/16), 6.46 KiB | 661.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   1cc6f106..657f82e9  main       -> origin/main
+Updating 1cc6f106..657f82e9
+Fast-forward
+ artifacts/mockup-sandbox/src/.generated/mockup-components.ts |   4 +-
+ ...opPMHU6JD-Ternary-src-kernel-bare-metal_1774613127465.txt | 511 +++++++++++++++++++++++++++
+ ...-jobs-were-not-successful-View-workflow_1774613072960.txt |  56 +++
+ src/kernel/bare-metal/Cargo.toml                             |   2 +-
+ 4 files changed, 570 insertions(+), 3 deletions(-)
+ create mode 100644 attached_assets/Pasted-librawolf-SSLaptopPMHU6JD-Ternary-src-kernel-bare-metal_1774613127465.txt
+ create mode 100644 attached_assets/Pasted-uild-Kernel-Some-jobs-were-not-successful-View-workflow_1774613072960.txt
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+
+   Compiling spin v0.9.8
+   Compiling lazy_static v1.5.0
+   Compiling plenumnet-kernel v0.1.0 (/home/librawolf/Ternary/src/kernel)
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:268:12
+    |
+268 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:390:12
+    |
+390 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:446:12
+    |
+446 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:788:12
+    |
+788 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:830:12
+    |
+830 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:865:12
+    |
+865 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+    --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:1112:12
+     |
+1112 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+     |            ^^^^^^^^^^^^^^^^^
+     |
+     = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+     = help: consider adding `serde` as a feature in `Cargo.toml`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:88:12
+   |
+88 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+   = help: consider adding `serde` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/lib.rs:55:7
+   |
+55 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/mod.rs:71:7
+   |
+71 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `CryptoError`, `CryptoResult`, and `TernaryDigest`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/x509.rs:39:13
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |             ^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/phase_cnsa.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `CryptoResult`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/phase_cnsa.rs:39:26
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |                          ^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/services.rs:35:5
+   |
+35 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ModeIndicator` and `ModuleStateMachine`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/services.rs:38:40
+   |
+38 | use super::module_state::{ModuleState, ModuleStateMachine, ModeIndicator};
+   |                                        ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_cube_perm.rs:74:5
+   |
+74 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_cube_perm.rs:75:5
+   |
+75 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/keyed_sponge.rs:71:5
+   |
+71 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `sponge_hash`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/keyed_sponge.rs:73:21
+   |
+73 | use super::sponge::{sponge_hash, TernarySponge as UnkeyedSponge};
+   |                     ^^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:121:35
+    |
+121 | #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:54:5
+   |
+54 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:276:39
+    |
+276 |     #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/network/metatronic_bridge.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/mod.rs:32:7
+   |
+32 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `SimulatedHptp`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/engine.rs:21:57
+   |
+21 | use crate::timing::{FemtosecondTimestamp, HptpProvider, SimulatedHptp};
+   |                                                         ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::format`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/compiler.rs:17:5
+   |
+17 | use alloc::format;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /home/librawolf/Ternary/src/kernel/src/compat/syscall_shim.rs:15:5
+   |
+15 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `RouteDirection`
+  --> /home/librawolf/Ternary/src/kernel/src/browser/net.rs:12:67
+   |
+12 | use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
+   |                                                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `script::ScriptExecutor`
+  --> /home/librawolf/Ternary/src/kernel/src/browser/mod.rs:26:5
+   |
+26 | use script::ScriptExecutor;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+ --> /home/librawolf/Ternary/src/kernel/src/distributor/z_router.rs:9:5
+  |
+9 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::fmt`
+  --> /home/librawolf/Ternary/src/kernel/src/layers/mod.rs:18:5
+   |
+18 | use core::fmt;
+   |     ^^^^^^^^^
+
+warning: unused variable: `q32`
+    --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_lattice.rs:1088:9
+     |
+1088 |     let q32 = q as i32;
+     |         ^^^ help: if this is intentional, prefix it with an underscore: `_q32`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `CHI_BLOCKS` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:47:7
+   |
+47 | const CHI_BLOCKS: usize = 243;         // 729 / 3 — blocks for chi layer
+   |       ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: static `CHI_MAP_T0` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:187:8
+    |
+187 | static CHI_MAP_T0: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T1` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:193:8
+    |
+193 | static CHI_MAP_T1: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:199:8
+    |
+199 | static CHI_MAP_T2: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: function `chi_layer_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:208:11
+    |
+208 | unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v2_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:409:11
+    |
+409 | unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:488:11
+    |
+488 | unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_scalar` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:734:4
+    |
+734 | fn sponge_permutation_v1_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:781:4
+    |
+781 | fn sponge_permutation_v1(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cbd_eta2_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_lattice.rs:604:11
+    |
+604 | unsafe fn cbd_eta2_avx2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    |           ^^^^^^^^^^^^^
+
+warning: constant `ESTIMATED_MIN_ENTROPY_PER_SAMPLE` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:51:7
+   |
+51 | const ESTIMATED_MIN_ENTROPY_PER_SAMPLE: f64 = 4.0;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `OVERSAMPLING_RATIO` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:53:7
+   |
+53 | const OVERSAMPLING_RATIO: usize = 2;
+   |       ^^^^^^^^^^^^^^^^^^
+
+warning: field `apt_window` is never read
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:262:5
+    |
+259 | pub struct HealthTestState {
+    |            --------------- field in this struct
+...
+262 |     apt_window: Vec<u64>,
+    |     ^^^^^^^^^^
+    |
+    = note: `HealthTestState` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: constant `PI` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:36:7
+   |
+36 | const PI: f64 = core::f64::consts::PI;
+   |       ^^
+
+warning: function `ct_select_i64` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:67:4
+   |
+67 | fn ct_select_i64(condition: i64, if_true: i64, if_false: i64) -> i64 {
+   |    ^^^^^^^^^^^^^
+
+warning: method `norm` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:94:8
+   |
+82 | impl Complex64 {
+   | -------------- method in this implementation
+...
+94 |     fn norm(self) -> f64 {
+   |        ^^^^
+
+warning: field `session_key` is never read
+  --> /home/librawolf/Ternary/src/kernel/src/input/keyboard.rs:16:5
+   |
+14 | pub struct Tis27State {
+   |            ---------- field in this struct
+15 |     state: [u8; TIS27_TRITS],
+16 |     session_key: [u8; 32],
+   |     ^^^^^^^^^^^
+   |
+   = note: `Tis27State` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `plenumnet-kernel` (lib) generated 49 warnings (run `cargo fix --lib -p plenumnet-kernel` to apply 19 suggestions)
+   Compiling plenumnet-bare-metal v0.1.0 (/home/librawolf/Ternary/src/kernel/bare-metal)
+warning: function `print_i32` is never used
+  --> src/serial.rs:80:8
+   |
+80 | pub fn print_i32(val: i32) {
+   |        ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+error: linking with `rust-lld` failed: exit status: 1
+  |
+  = note:  "rust-lld" "-flavor" "gnu" "/home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/rustckEAJKa/symbols.o" "<41 object files omitted>" "--as-needed" "-Bstatic" "/home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/{libplenumnet_kernel-afd94eadfc5f6e5d,liblibm-7b7bf8628b1bca11,libspin-f0cf21e82c0abc6c,liballoc-6364bb94936aeeef,libcore-96537ff3bfcc6dcb,libcompiler_builtins-e336bfa69408e2b2}.rlib" "-L" "/home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/rustckEAJKa/raw-dylibs" "-Bdynamic" "--eh-frame-hdr" "-z" "noexecstack" "-o" "/home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef" "--gc-sections" "-pie" "-z" "relro" "-z" "now"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: rust-lld: error: undefined symbol: __bss_end
+          >>> referenced by main.rs:155 (src/main.rs:155)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(ternary_kernel::zero_bss)
+          >>> referenced by main.rs:155 (src/main.rs:155)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(ternary_kernel::zero_bss)
+          >>> referenced by main.rs:156 (src/main.rs:156)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(ternary_kernel::zero_bss)
+          >>> referenced 2 more times
+
+          rust-lld: error: undefined symbol: __heap_start
+          >>> referenced by main.rs:35 (src/main.rs:35)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(<ternary_kernel::BumpAllocator as core::alloc::global::GlobalAlloc>::alloc)
+          >>> referenced by main.rs:35 (src/main.rs:35)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(<ternary_kernel::BumpAllocator as core::alloc::global::GlobalAlloc>::alloc)
+          >>> referenced by main.rs:40 (src/main.rs:40)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(<ternary_kernel::BumpAllocator as core::alloc::global::GlobalAlloc>::alloc)
+
+          rust-lld: error: undefined symbol: __heap_end
+          >>> referenced by main.rs:36 (src/main.rs:36)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(<ternary_kernel::BumpAllocator as core::alloc::global::GlobalAlloc>::alloc)
+          >>> referenced by main.rs:36 (src/main.rs:36)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(<ternary_kernel::BumpAllocator as core::alloc::global::GlobalAlloc>::alloc)
+          >>> referenced by main.rs:44 (src/main.rs:44)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(<ternary_kernel::BumpAllocator as core::alloc::global::GlobalAlloc>::alloc)
+
+          rust-lld: error: undefined symbol: __stack_top
+          >>> referenced by main.rs:80 (src/main.rs:80)
+          >>>               /home/librawolf/Ternary/src/kernel/bare-metal/target/x86_64-unknown-none/debug/deps/ternary_kernel-2835dc7c331690ef.9dqju005i51wwdbcx24kue8qs.047fcny.rcgu.o:(_start)
+
+
+warning: `plenumnet-bare-metal` (bin "ternary-kernel") generated 1 warning
+error: could not compile `plenumnet-bare-metal` (bin "ternary-kernel") due to 1 previous error; 1 warning emitted
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$
