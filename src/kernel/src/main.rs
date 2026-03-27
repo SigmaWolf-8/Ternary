@@ -378,7 +378,8 @@ pub extern "C" fn kernel_main() -> ! {
     puts("MB capacity\n");
 
     puts("[browser] Initializing PlenumBrowser subsystem...\n");
-    let mut browser = plenumnet_kernel::browser::Browser::new(fb_w, fb_h);
+    let distributor = alloc::boxed::Box::new(plenumnet_kernel::distributor::Distributor::new());
+    let mut browser = plenumnet_kernel::browser::Browser::new(fb_w, fb_h, distributor);
     puts("[browser] Framebuffer: ");
     put_u32(fb_w);
     puts("x");
@@ -387,13 +388,25 @@ pub extern "C" fn kernel_main() -> ! {
     put_hex_u64(boot_params.framebuffer_base);
     puts(")\n");
 
-    browser.flush_render();
-    puts("[browser] Render pipeline: OK\n");
+    puts("[color] Initializing PlenumColor mesh pipeline (depth 3)...\n");
+    let precision = plenumnet_kernel::browser::color::MeshPrecision::compute(3);
+    puts("[color] Depth 3: ");
+    put_usize(precision.total_addresses as usize);
+    puts(" addresses, ~");
+    put_usize(precision.effective_bits as usize);
+    puts(" effective bits/channel\n");
 
-    let tab = browser.open_tab(alloc::string::String::from("plenum://boot-test"));
+    puts("[color] Building depth-3 LUT...\n");
+    let _lut = plenumnet_kernel::browser::color::MeshColorLut::build(3);
+    puts("[color] LUT built: ");
+    put_usize(_lut.memory_bytes());
+    puts(" bytes\n");
+
+    puts("[browser] Rendering plenum://home boot page...\n");
+    let tab = browser.open_tab(alloc::string::String::from("plenum://home"));
     match tab {
         Ok(id) => {
-            puts("[browser] Tab opened: plenum://boot-test (id=");
+            puts("[browser] Tab opened: plenum://home (id=");
             put_u32(id);
             puts(")\n");
         }
@@ -401,28 +414,51 @@ pub extern "C" fn kernel_main() -> ! {
             puts("[browser] Tab open: FAILED\n");
         }
     }
-    puts("[browser] Tab count: ");
-    put_usize(browser.tab_count());
-    puts("\n");
 
-    puts("[browser] Rendering boot test page...\n");
-    {
-        let fb = browser.framebuffer_mut();
-        fb.clear([20, 40, 80, 255]);
-        let rect_w = if fb_w > 20 { 300.min(fb_w - 20) } else { 1 };
-        fb.fill_rect(10, 10, rect_w, 40, [255, 255, 255, 255]);
-        fb.fill_rect(10, 55, rect_w, 2, [139, 92, 246, 255]);
-    }
-    browser.flush_render();
-    puts("[browser] Test page rendered to framebuffer\n");
+    browser.render_home_page();
+    puts("[browser] Home page rendered to framebuffer\n");
+
+    browser.apply_mesh_color();
+    puts("[color] Mesh color pipeline applied to framebuffer\n");
 
     puts("[distributor] Initializing z=0 distributor...\n");
     let mut dist = plenumnet_kernel::distributor::Distributor::new();
+    use plenumnet_kernel::distributor::RequestInterface;
     use plenumnet_kernel::distributor::z_router::{RequestType, ZLevel};
-    let _req = dist.dispatch(ZLevel::UI, RequestType::HttpRequest);
+
+    let _req1 = dist.submit_request(RequestType::HttpRequest);
+    let _req2 = dist.submit_request(RequestType::DataQuery);
+    let _req3 = dist.submit_request(RequestType::FileServe);
     puts("[distributor] Coprime walk + z-router: OK (");
     put_usize(dist.requests_processed() as usize);
-    puts(" requests)\n");
+    puts(" requests dispatched)\n");
+
+    puts("[sponge] Initializing TLSponge-385 per-frame encryption...\n");
+    use plenumnet_kernel::distributor::sponge_rekey::{SpongeRekeyState, FrameResolution};
+    let initial_key = [
+        0x50, 0x4C, 0x45, 0x4E, 0x55, 0x4D, 0x4E, 0x45,
+        0x54, 0x5F, 0x4B, 0x45, 0x59, 0x5F, 0x30, 0x31,
+        0x53, 0x41, 0x4C, 0x56, 0x49, 0x5F, 0x46, 0x52,
+        0x41, 0x4D, 0x45, 0x57, 0x4F, 0x52, 0x4B, 0x21,
+    ];
+    let resolution = if fb_w == 1920 && fb_h == 1080 {
+        FrameResolution::Hd1080
+    } else {
+        FrameResolution::Custom { width: fb_w, height: fb_h }
+    };
+    let mut sponge_state = SpongeRekeyState::new(&initial_key, resolution);
+    puts("[sponge] TLSponge-385: 729-trit state, 9 rounds, 385-bit security\n");
+    puts("[sponge] Rekey interval: 461 overlap slots (prime)\n");
+
+    let keystream = sponge_state.advance_frame();
+    browser.encrypt_framebuffer(&keystream);
+    puts("[sponge] Frame 1 encrypted (");
+    put_usize(keystream.len());
+    puts(" bytes keystream)\n");
+
+    puts("[browser] Tab count: ");
+    put_usize(browser.tab_count());
+    puts("\n");
 
     puts("[boot] Allocator stats: ");
     put_usize(ALLOCATOR.allocation_count());
@@ -435,6 +471,8 @@ pub extern "C" fn kernel_main() -> ! {
     puts("\n");
     puts("================================================================\n");
     puts("  PLENUMNET KERNEL BOOT OK\n");
+    puts("  Pipeline: parse -> layout -> render -> mesh color -> encrypt\n");
+    puts("  Home page: plenum://home (full pipeline exercised)\n");
     puts("================================================================\n");
     puts("\n");
 
@@ -446,9 +484,23 @@ pub extern "C" fn kernel_main() -> ! {
     puts("[kernel] Entering main event loop\n");
     let mut tick: u64 = 0;
     loop {
+        let keystream = sponge_state.advance_frame();
+
         browser.flush_render();
 
+        browser.apply_mesh_color();
+
+        browser.encrypt_framebuffer(&keystream);
+
         tick = tick.wrapping_add(1);
+
+        if tick % 900 == 0 {
+            puts("[kernel] Tick ");
+            put_usize(tick as usize);
+            puts(", frame ");
+            put_usize(sponge_state.frame_counter() as usize);
+            puts("\n");
+        }
 
         #[cfg(target_arch = "x86_64")]
         unsafe {

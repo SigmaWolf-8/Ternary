@@ -5,10 +5,12 @@
 // Network requests → z=0 distributor (kernel internal call).
 // The browser at z=+1 routes through z=0 to reach services.
 // No IPC, no shared memory — direct function calls in kernel space.
+// Isolation: browser imports only RequestInterface trait, never Distributor.
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use crate::distributor::Distributor;
+use alloc::boxed::Box;
+use crate::distributor::{RequestInterface, RequestResult};
 use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,7 +48,7 @@ pub struct ResourceRequest {
     pub resource_type: ResourceType,
     pub method: HttpMethod,
     pub headers: Vec<(String, String)>,
-    pub z_request: Option<ZRequest>,
+    pub result: Option<RequestResult>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,15 +73,15 @@ pub struct ResourceResponse {
 pub struct NetworkLayer {
     request_counter: u64,
     pending: Vec<u64>,
-    distributor: Distributor,
+    distributor: Box<dyn RequestInterface>,
 }
 
 impl NetworkLayer {
-    pub fn new() -> Self {
+    pub fn new(distributor: Box<dyn RequestInterface>) -> Self {
         Self {
             request_counter: 0,
             pending: Vec::new(),
-            distributor: Distributor::new(),
+            distributor,
         }
     }
 
@@ -87,7 +89,7 @@ impl NetworkLayer {
         self.request_counter += 1;
 
         let z_payload = resource_type.to_z_request_type();
-        let z_req = self.distributor.dispatch(ZLevel::UI, z_payload);
+        let result = self.distributor.submit_request(z_payload);
 
         let req = ResourceRequest {
             id: self.request_counter,
@@ -95,7 +97,7 @@ impl NetworkLayer {
             resource_type,
             method: HttpMethod::Get,
             headers: Vec::new(),
-            z_request: Some(z_req),
+            result: Some(result),
         };
         self.pending.push(req.id);
         req
@@ -121,32 +123,36 @@ impl NetworkLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::distributor::Distributor;
+
+    fn make_net() -> NetworkLayer {
+        NetworkLayer::new(Box::new(Distributor::new()))
+    }
 
     #[test]
     fn test_network_fetch_routes_through_distributor() {
-        let mut net = NetworkLayer::new();
+        let mut net = make_net();
         let req = net.fetch("https://example.com".into(), ResourceType::Document);
         assert_eq!(req.id, 1);
         assert_eq!(net.pending_count(), 1);
 
-        let z_req = req.z_request.as_ref().unwrap();
-        assert_eq!(z_req.origin, ZLevel::UI);
-        assert_eq!(z_req.target, ZLevel::API_GATEWAY);
-        assert_eq!(z_req.direction, RouteDirection::Falling);
+        let result = req.result.as_ref().unwrap();
+        assert_eq!(result.target, ZLevel::API_GATEWAY);
+        assert_eq!(result.direction, RouteDirection::Falling);
     }
 
     #[test]
     fn test_network_fetch_fileserve_routes() {
-        let mut net = NetworkLayer::new();
+        let mut net = make_net();
         let req = net.fetch("font.woff2".into(), ResourceType::Font);
-        let z_req = req.z_request.as_ref().unwrap();
-        assert_eq!(z_req.target, ZLevel::FILE_SERVER);
-        assert_eq!(z_req.direction, RouteDirection::Bubbling);
+        let result = req.result.as_ref().unwrap();
+        assert_eq!(result.target, ZLevel::FILE_SERVER);
+        assert_eq!(result.direction, RouteDirection::Bubbling);
     }
 
     #[test]
     fn test_network_complete() {
-        let mut net = NetworkLayer::new();
+        let mut net = make_net();
         let req = net.fetch("https://example.com/style.css".into(), ResourceType::Stylesheet);
         net.complete(req.id);
         assert_eq!(net.pending_count(), 0);
@@ -154,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_request_counter_and_distributor() {
-        let mut net = NetworkLayer::new();
+        let mut net = make_net();
         net.fetch("a".into(), ResourceType::Script);
         net.fetch("b".into(), ResourceType::Image);
         net.fetch("c".into(), ResourceType::Font);
@@ -164,11 +170,11 @@ mod tests {
 
     #[test]
     fn test_coprime_walk_advances() {
-        let mut net = NetworkLayer::new();
+        let mut net = make_net();
         let r1 = net.fetch("a".into(), ResourceType::Document);
         let r2 = net.fetch("b".into(), ResourceType::Document);
-        let pos1 = r1.z_request.unwrap().ring_position;
-        let pos2 = r2.z_request.unwrap().ring_position;
+        let pos1 = r1.result.unwrap().ring_position;
+        let pos2 = r2.result.unwrap().ring_position;
         assert_ne!(pos1, pos2, "coprime walk must advance to different positions");
     }
 }

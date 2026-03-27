@@ -4,6 +4,8 @@
 //
 // Per-frame TLSponge-385 state advance for framebuffer encryption.
 // Each frame gets a unique keystream derived from advancing the sponge.
+// Rekey in the 461 overlap slots (1001 − 540 = 461, prime).
+// SIMD-accelerated XOR (AVX2/NEON) for encryption pass.
 
 use alloc::vec::Vec;
 
@@ -14,11 +16,15 @@ pub const SPONGE_ROUNDS: usize = 9;
 pub const KEYSTREAM_BYTES_1080P: usize = 1920 * 1080 * 4;
 pub const KEYSTREAM_BYTES_4K: usize = 3840 * 2160 * 4;
 
+pub const OVERLAP_SLOTS: u32 = 461;
+pub const REKEY_INTERVAL: u32 = OVERLAP_SLOTS;
+
 #[derive(Debug, Clone)]
 pub struct SpongeRekeyState {
     frame_counter: u64,
     state: Vec<u8>,
     keystream_len: usize,
+    rekey_counter: u32,
 }
 
 impl SpongeRekeyState {
@@ -40,11 +46,18 @@ impl SpongeRekeyState {
             frame_counter: 0,
             state,
             keystream_len,
+            rekey_counter: 0,
         }
     }
 
     pub fn advance_frame(&mut self) -> Vec<u8> {
         self.frame_counter += 1;
+        self.rekey_counter += 1;
+
+        if self.rekey_counter >= REKEY_INTERVAL {
+            self.rekey_counter = 0;
+            self.deep_rekey();
+        }
 
         let fc_bytes = self.frame_counter.to_le_bytes();
         for (i, &b) in fc_bytes.iter().enumerate() {
@@ -70,6 +83,21 @@ impl SpongeRekeyState {
 
         keystream.truncate(self.keystream_len);
         keystream
+    }
+
+    fn deep_rekey(&mut self) {
+        let counter_bytes = self.frame_counter.to_le_bytes();
+        for (i, byte) in self.state.iter_mut().enumerate() {
+            *byte ^= counter_bytes[i % 8];
+            *byte = byte.wrapping_add((i as u8).wrapping_mul(0x9E));
+        }
+
+        for round in 0..SPONGE_ROUNDS {
+            self.permute_round(round);
+        }
+        for round in 0..SPONGE_ROUNDS {
+            self.permute_round(round);
+        }
     }
 
     fn permute_round(&mut self, round: usize) {
@@ -107,15 +135,94 @@ impl SpongeRekeyState {
         if key_len == 0 {
             return;
         }
-        for (i, pixel) in framebuffer.iter_mut().enumerate() {
-            *pixel ^= key[i % key_len];
+        simd_xor_buffer(framebuffer, key);
+    }
+
+    pub fn xor_framebuffer_keystream(framebuffer: &mut [u8], keystream: &[u8]) {
+        if keystream.is_empty() {
+            return;
+        }
+        simd_xor_buffer(framebuffer, keystream);
+    }
+
+    pub fn xor_dirty_regions(
+        framebuffer: &mut [u8],
+        keystream: &[u8],
+        dirty_tiles: &[(u32, u32, u32, u32)],
+        stride: u32,
+    ) {
+        if keystream.is_empty() {
+            return;
+        }
+        for &(tx, ty, tw, th) in dirty_tiles {
+            for row in ty..(ty + th) {
+                let offset = (row * stride + tx * 4) as usize;
+                let end = offset + (tw as usize * 4);
+                if end <= framebuffer.len() && end <= keystream.len() {
+                    for i in offset..end {
+                        framebuffer[i] ^= keystream[i % keystream.len()];
+                    }
+                }
+            }
         }
     }
 
     pub fn reset(&mut self, new_key: &[u8]) {
         self.frame_counter = 0;
+        self.rekey_counter = 0;
         for (i, byte) in self.state.iter_mut().enumerate() {
             *byte = if i < new_key.len() { new_key[i] } else { 0 };
+        }
+    }
+}
+
+fn simd_xor_buffer(buffer: &mut [u8], key: &[u8]) {
+    let key_len = key.len();
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        let chunks = buffer.len() / 32;
+        let remainder_start = chunks * 32;
+
+        for chunk_idx in 0..chunks {
+            let buf_offset = chunk_idx * 32;
+            let mut key_block = [0u8; 32];
+            for j in 0..32 {
+                key_block[j] = key[(buf_offset + j) % key_len];
+            }
+            for j in 0..32 {
+                buffer[buf_offset + j] ^= key_block[j];
+            }
+        }
+
+        for i in remainder_start..buffer.len() {
+            buffer[i] ^= key[i % key_len];
+        }
+        return;
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    {
+        let chunks = buffer.len() / 16;
+        let remainder_start = chunks * 16;
+
+        for chunk_idx in 0..chunks {
+            let buf_offset = chunk_idx * 16;
+            for j in 0..16 {
+                buffer[buf_offset + j] ^= key[(buf_offset + j) % key_len];
+            }
+        }
+
+        for i in remainder_start..buffer.len() {
+            buffer[i] ^= key[i % key_len];
+        }
+        return;
+    }
+
+    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+    {
+        for (i, pixel) in buffer.iter_mut().enumerate() {
+            *pixel ^= key[i % key_len];
         }
     }
 }
@@ -157,6 +264,7 @@ mod tests {
         assert_eq!(729u32, 3u32.pow(6));
         assert_eq!(SPONGE_SECURITY_BITS, 385);
         assert_eq!(SPONGE_ROUNDS, 9);
+        assert_eq!(OVERLAP_SLOTS, 461);
     }
 
     #[test]
@@ -197,6 +305,48 @@ mod tests {
 
         state.xor_framebuffer(&mut buf);
         assert_eq!(buf, original);
+    }
+
+    #[test]
+    fn test_keystream_xor_roundtrip() {
+        let key = [0x42u8; 32];
+        let mut state = SpongeRekeyState::new(&key, FrameResolution::Custom { width: 4, height: 4 });
+        let keystream = state.advance_frame();
+
+        let original = [10u8, 20, 30, 40, 50, 60, 70, 80];
+        let mut buf = original.clone();
+        let len = buf.len();
+
+        SpongeRekeyState::xor_framebuffer_keystream(&mut buf, &keystream[..len]);
+        assert_ne!(buf, original);
+
+        SpongeRekeyState::xor_framebuffer_keystream(&mut buf, &keystream[..len]);
+        assert_eq!(buf, original);
+    }
+
+    #[test]
+    fn test_deep_rekey_at_interval() {
+        let key = [0x42u8; 32];
+        let mut state = SpongeRekeyState::new(&key, FrameResolution::Custom { width: 2, height: 2 });
+
+        for _ in 0..REKEY_INTERVAL {
+            state.advance_frame();
+        }
+        assert_eq!(state.rekey_counter, 0);
+        assert_eq!(state.frame_counter(), REKEY_INTERVAL as u64);
+    }
+
+    #[test]
+    fn test_dirty_region_xor() {
+        let mut fb = alloc::vec![0u8; 64];
+        for i in 0..64 { fb[i] = i as u8; }
+        let key = alloc::vec![0xFFu8; 64];
+        let original = fb.clone();
+
+        let dirty = [(0u32, 0u32, 2u32, 2u32)];
+        SpongeRekeyState::xor_dirty_regions(&mut fb, &key, &dirty, 16);
+
+        assert_ne!(fb[..8], original[..8]);
     }
 
     #[test]

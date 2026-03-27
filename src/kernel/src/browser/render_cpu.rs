@@ -855,13 +855,10 @@ impl RenderBackend for CpuRenderer {
 
 pub fn sponge_encrypt_framebuffer(fb: &mut CpuFramebuffer, keystream: &[u8]) {
     let pixels = fb.pixels_mut();
-    let key_len = keystream.len();
-    if key_len == 0 {
+    if keystream.is_empty() {
         return;
     }
-    for (i, pixel) in pixels.iter_mut().enumerate() {
-        *pixel ^= keystream[i % key_len];
-    }
+    crate::distributor::sponge_rekey::SpongeRekeyState::xor_framebuffer_keystream(pixels, keystream);
 }
 
 #[cfg(test)]

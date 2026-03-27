@@ -6,10 +6,14 @@
 // Not a fork. Not userspace. Kernel subsystem with direct access to
 // GPU, ternary cryptographic stack, and z=0 distributor.
 //
-// Pipeline: parse → layout → script → render (CPU/GPU) → encrypt → display
+// Pipeline: parse → layout → script → render (CPU/GPU) → mesh color → encrypt → display
 //
 // Phase 1: CPU rendering path via tiny-skia + resvg.
 // Phase 2: GPU rendering with IOMMU-isolated VRAM.
+//
+// Import enforcement: this module imports ONLY from
+// crate::distributor::RequestInterface for z=0 dispatch.
+// Zero imports from crate::layers::*, crate::crypto::*, crate::network::*.
 
 pub mod parse;
 pub mod layout;
@@ -21,13 +25,18 @@ pub mod input;
 pub mod net;
 pub mod mesh;
 pub mod color;
+pub mod home_page;
 
 use alloc::string::String;
+use alloc::vec::Vec;
+use alloc::boxed::Box;
 use tabs::{TabManager, TabError};
-use script::ScriptExecutor;
 use render_cpu::{CpuRenderer, CpuFramebuffer};
-use render::{RenderBackend, RenderBackendType, RenderScene, RenderPrimitive, RenderColor};
+use render::{RenderBackendType, RenderScene, RenderPrimitive, RenderColor};
+use script::ScriptExecutor;
 use net::NetworkLayer;
+use crate::distributor::{RequestInterface, RequestResult};
+use crate::distributor::z_router::RequestType;
 
 pub struct Browser {
     tab_manager: TabManager,
@@ -47,6 +56,7 @@ pub enum PipelineState {
     Layout,
     Scripting,
     Rendering,
+    MeshColor,
     Encrypting,
     DisplayReady,
 }
@@ -58,12 +68,12 @@ pub enum RenderBackendSelection {
 }
 
 impl Browser {
-    pub fn new(width: u32, height: u32) -> Self {
+    pub fn new(width: u32, height: u32, distributor: Box<dyn RequestInterface>) -> Self {
         Self {
             tab_manager: TabManager::new(),
             renderer: CpuRenderer::new(),
             framebuffer: CpuFramebuffer::new(width, height),
-            network: NetworkLayer::new(),
+            network: NetworkLayer::new(distributor),
             pipeline_state: PipelineState::Idle,
             script_executor: ScriptExecutor::new(script::DEFAULT_BUDGET_MS),
             input_handler: None,
@@ -300,9 +310,28 @@ impl Browser {
         scripts
     }
 
+    pub fn apply_mesh_color(&mut self) {
+        self.pipeline_state = PipelineState::MeshColor;
+        let w = self.framebuffer.width();
+        let h = self.framebuffer.height();
+        let pixels = self.framebuffer.pixels_mut();
+        color::process_framebuffer_colors(pixels, w, h, color::DEFAULT_DEPTH);
+        self.pipeline_state = PipelineState::DisplayReady;
+    }
+
     pub fn encrypt_framebuffer(&mut self, keystream: &[u8]) {
         self.pipeline_state = PipelineState::Encrypting;
         render_cpu::sponge_encrypt_framebuffer(&mut self.framebuffer, keystream);
+        self.pipeline_state = PipelineState::DisplayReady;
+    }
+
+    pub fn dispatch_request(&self, distributor: &mut dyn RequestInterface, req_type: RequestType) -> RequestResult {
+        distributor.submit_request(req_type)
+    }
+
+    pub fn render_home_page(&mut self) {
+        self.pipeline_state = PipelineState::Rendering;
+        home_page::render_home_page(&mut self.framebuffer, self.tab_manager.tab_count());
         self.pipeline_state = PipelineState::DisplayReady;
     }
 
@@ -346,10 +375,15 @@ impl Browser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::distributor::Distributor;
+
+    fn test_browser(w: u32, h: u32) -> Browser {
+        Browser::new(w, h, Box::new(Distributor::new()))
+    }
 
     #[test]
     fn test_browser_creation() {
-        let browser = Browser::new(1920, 1080);
+        let browser = test_browser(1920, 1080);
         assert_eq!(browser.pipeline_state(), PipelineState::Idle);
         assert_eq!(browser.render_backend(), RenderBackendSelection::Cpu);
         assert_eq!(browser.tab_count(), 0);
@@ -357,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_browser_tabs() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         let t1 = browser.open_tab("https://example.com".into()).unwrap();
         assert_eq!(browser.tab_count(), 1);
         browser.close_tab(t1).unwrap();
@@ -366,14 +400,22 @@ mod tests {
 
     #[test]
     fn test_browser_render_pipeline() {
-        let mut browser = Browser::new(100, 100);
+        let mut browser = test_browser(100, 100);
         browser.flush_render();
         assert_eq!(browser.pipeline_state(), PipelineState::DisplayReady);
     }
 
     #[test]
+    fn test_browser_mesh_color() {
+        let mut browser = test_browser(4, 4);
+        browser.framebuffer_mut().clear([128, 64, 200, 255]);
+        browser.apply_mesh_color();
+        assert_eq!(browser.pipeline_state(), PipelineState::DisplayReady);
+    }
+
+    #[test]
     fn test_browser_encrypt() {
-        let mut browser = Browser::new(4, 4);
+        let mut browser = test_browser(4, 4);
         browser.framebuffer_mut().clear([255, 0, 0, 255]);
         let key = [0xAB; 16];
         browser.encrypt_framebuffer(&key);
@@ -382,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_browser_render_page() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         let html = "<html><body><h1>Hello World</h1></body></html>";
         browser.render_page(html).unwrap();
         assert_eq!(browser.pipeline_state(), PipelineState::DisplayReady);
@@ -390,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_browser_render_page_with_style() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         let html = r#"<html><head><style>body { background: white; } h1 { color: blue; }</style></head><body><h1>Styled</h1></body></html>"#;
         browser.render_page(html).unwrap();
         assert_eq!(browser.pipeline_state(), PipelineState::DisplayReady);
@@ -398,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_browser_render_page_with_script() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         let html = r#"<html><body><script>document.createElement('div')</script><p>Content</p></body></html>"#;
         browser.render_page(html).unwrap();
         assert_eq!(browser.pipeline_state(), PipelineState::DisplayReady);
@@ -406,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_browser_input_init() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         assert!(browser.input_handler().is_none());
         browser.init_input([0x42; 32]);
         assert!(browser.input_handler().is_some());
@@ -414,14 +456,14 @@ mod tests {
 
     #[test]
     fn test_browser_font_cache() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         let id = browser.font_cache_mut().load_font("Test".into(), alloc::vec![0u8; 1024]);
         assert!(browser.font_cache_mut().get_font(id).is_some());
     }
 
     #[test]
     fn test_browser_tab_isolation() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         let t1 = browser.open_tab("tab1".into()).unwrap();
         let t2 = browser.open_tab("tab2".into()).unwrap();
 
@@ -432,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_css_affects_layout() {
-        let mut browser = Browser::new(800, 600);
+        let mut browser = test_browser(800, 600);
         let html = r#"<html><head><style>
             .container { display: flex; }
             .item { width: 200px; flex-grow: 1; }
@@ -445,7 +487,7 @@ mod tests {
 
     #[test]
     fn test_dom_bridge_sync_from_parsed_html() {
-        let mut browser = Browser::new(320, 200);
+        let mut browser = test_browser(320, 200);
         let html = r#"<html><body><div id="target">Hello</div></body></html>"#;
         browser.render_page(html).unwrap();
         let elem = browser.script_executor().dom_bridge().get_element_by_id("target");
@@ -454,7 +496,7 @@ mod tests {
 
     #[test]
     fn test_script_dom_mutation_triggers_relayout() {
-        let mut browser = Browser::new(320, 200);
+        let mut browser = test_browser(320, 200);
         let html = r#"<html><body>
             <div id="app">Before</div>
             <script>document.createElement('span')</script>
@@ -510,8 +552,25 @@ mod tests {
     }
 
     #[test]
+    fn test_browser_home_page() {
+        let mut browser = test_browser(320, 240);
+        browser.render_home_page();
+        assert_eq!(browser.pipeline_state(), PipelineState::DisplayReady);
+        let px = browser.framebuffer().get_pixel(160, 120);
+        assert_ne!(px, [0, 0, 0, 0], "home page should render non-transparent pixels");
+    }
+
+    #[test]
+    fn test_browser_request_dispatch() {
+        let browser = test_browser(100, 100);
+        let mut dist = crate::distributor::Distributor::new();
+        let result = browser.dispatch_request(&mut dist, RequestType::HttpRequest);
+        assert_eq!(result.status, crate::distributor::z_router::RouteStatus::Ok);
+    }
+
+    #[test]
     fn test_browser_full_pipeline() {
-        let mut browser = Browser::new(320, 200);
+        let mut browser = test_browser(320, 200);
 
         let _t = browser.open_tab("plenum://test".into()).unwrap();
         assert!(browser.tab_count() >= 1);
@@ -523,5 +582,17 @@ mod tests {
         browser.encrypt_framebuffer(&keystream);
 
         assert_eq!(browser.pipeline_state(), PipelineState::DisplayReady);
+    }
+
+    #[test]
+    fn test_full_pipeline() {
+        let mut browser = test_browser(64, 64);
+        browser.render_home_page();
+        browser.apply_mesh_color();
+        let keystream = alloc::vec![0xABu8; 64 * 64 * 4];
+        let original = browser.framebuffer().get_pixel(32, 32);
+        browser.encrypt_framebuffer(&keystream);
+        let encrypted = browser.framebuffer().get_pixel(32, 32);
+        assert_ne!(original, encrypted, "encryption must change pixel values");
     }
 }
