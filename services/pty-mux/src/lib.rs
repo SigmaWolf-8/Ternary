@@ -56,7 +56,13 @@ impl Default for SessionConfig {
         Self {
             cols: 80,
             rows: 24,
-            shell: std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string()),
+            shell: std::env::var("SHELL").unwrap_or_else(|_| {
+                if cfg!(target_os = "windows") {
+                    std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
+                } else {
+                    "/bin/bash".to_string()
+                }
+            }),
             cwd: std::env::var("HOME").unwrap_or_else(|_| "/".to_string()),
             env,
         }
@@ -409,10 +415,16 @@ async fn handle_ws_session(
                                 let (output, exit_code) = if !allowed {
                                     (format!("Command not allowed. Permitted: {}", CLUSTER_CMD_ALLOWLIST.join(", ")), -1i32)
                                 } else {
-                                    match std::process::Command::new("sh")
-                                        .arg("-c")
-                                        .arg(command)
-                                        .output()
+                                    match if cfg!(target_os = "windows") {
+                                        std::process::Command::new("cmd")
+                                            .args(&["/C", command])
+                                            .output()
+                                    } else {
+                                        std::process::Command::new("sh")
+                                            .arg("-c")
+                                            .arg(command)
+                                            .output()
+                                    }
                                     {
                                         Ok(out) => {
                                             let stdout = String::from_utf8_lossy(&out.stdout);

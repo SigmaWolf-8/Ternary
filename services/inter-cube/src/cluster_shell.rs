@@ -72,35 +72,40 @@ pub struct ClusterExecResponse {
     pub results: Vec<NodeResult>,
 }
 
+pub struct PeerInfo {
+    pub host: String,
+    pub terminal_port: u16,
+}
+
 pub struct ClusterShellState {
     pub local_address: String,
-    pub peer_terminal_ports: HashMap<String, u16>,
+    pub peers: HashMap<String, PeerInfo>,
     pub node_id: u8,
 }
 
 pub type SharedClusterShell = Arc<Mutex<ClusterShellState>>;
 
-pub fn new_cluster_shell(local_address: String, node_id: u8, peers: &[(String, u16)]) -> SharedClusterShell {
-    let mut peer_terminal_ports = HashMap::new();
-    for (addr, port) in peers {
-        peer_terminal_ports.insert(addr.clone(), *port);
+pub fn new_cluster_shell(local_address: String, node_id: u8, peers: &[(String, String, u16)]) -> SharedClusterShell {
+    let mut peer_map = HashMap::new();
+    for (addr, host, port) in peers {
+        peer_map.insert(addr.clone(), PeerInfo { host: host.clone(), terminal_port: *port });
     }
     Arc::new(Mutex::new(ClusterShellState {
         local_address,
-        peer_terminal_ports,
+        peers: peer_map,
         node_id,
     }))
 }
 
-pub fn register_peer(shell: &SharedClusterShell, address: String, terminal_port: u16) {
+pub fn register_peer(shell: &SharedClusterShell, address: String, host: String, terminal_port: u16) {
     if let Ok(mut guard) = shell.lock() {
-        guard.peer_terminal_ports.insert(address, terminal_port);
+        guard.peers.insert(address, PeerInfo { host, terminal_port });
     }
 }
 
 pub fn remove_peer(shell: &SharedClusterShell, address: &str) {
     if let Ok(mut guard) = shell.lock() {
-        guard.peer_terminal_ports.remove(address);
+        guard.peers.remove(address);
     }
 }
 
@@ -119,14 +124,22 @@ async fn handle_cluster_exec(
         }));
     }
 
-    let (peer_ports, _local_address) = {
+    let (dialable_ports, _local_address) = {
         let guard = shell.lock().unwrap_or_else(|e| e.into_inner());
-        (guard.peer_terminal_ports.clone(), guard.local_address.clone())
+        let ports: HashMap<String, u16> = guard.peers.iter()
+            .map(|(_addr, info)| (info.host.clone(), info.terminal_port))
+            .collect();
+        (ports, guard.local_address.clone())
     };
 
     let targets: Vec<String> = match req.targets {
-        Some(ref t) if !t.is_empty() => t.clone(),
-        _ => peer_ports.keys().cloned().collect(),
+        Some(ref t) if !t.is_empty() => {
+            let guard = shell.lock().unwrap_or_else(|e| e.into_inner());
+            t.iter().filter_map(|addr| {
+                guard.peers.get(addr).map(|info| info.host.clone())
+            }).collect()
+        }
+        _ => dialable_ports.keys().cloned().collect(),
     };
 
     let cluster_cmd = pty_mux::ClusterCommand {
@@ -135,7 +148,7 @@ async fn handle_cluster_exec(
         timeout_ms: req.timeout_ms,
     };
 
-    let raw_results = pty_mux::fan_out_command(&cluster_cmd, &peer_ports).await;
+    let raw_results = pty_mux::fan_out_command(&cluster_cmd, &dialable_ports).await;
 
     let results: Vec<NodeResult> = raw_results
         .into_iter()
@@ -166,12 +179,13 @@ async fn handle_cluster_peers(
 ) -> Json<serde_json::Value> {
     let guard = shell.lock().unwrap_or_else(|e| e.into_inner());
     let peers: Vec<serde_json::Value> = guard
-        .peer_terminal_ports
+        .peers
         .iter()
-        .map(|(addr, port)| {
+        .map(|(addr, info)| {
             serde_json::json!({
                 "address": addr,
-                "terminal_port": port,
+                "host": info.host,
+                "terminal_port": info.terminal_port,
             })
         })
         .collect();
@@ -206,10 +220,18 @@ async fn handle_register_peer(
             "error": "Terminal port must be in the 11111-11191 range",
         }));
     }
-    register_peer(&shell, req.address.clone(), req.terminal_port);
+    let host = req.host.clone().unwrap_or_else(|| "127.0.0.1".to_string());
+    if host.is_empty() || host.contains(';') || host.contains('&') || host.contains('|') {
+        return Json(serde_json::json!({
+            "ok": false,
+            "error": "Invalid host",
+        }));
+    }
+    register_peer(&shell, req.address.clone(), host.clone(), req.terminal_port);
     Json(serde_json::json!({
         "ok": true,
         "registered": req.address,
+        "host": host,
         "terminal_port": req.terminal_port,
     }))
 }
@@ -217,6 +239,7 @@ async fn handle_register_peer(
 #[derive(Debug, Clone, Deserialize)]
 pub struct RegisterPeerRequest {
     pub address: String,
+    pub host: Option<String>,
     pub terminal_port: u16,
 }
 

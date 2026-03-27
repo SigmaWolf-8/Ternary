@@ -13,11 +13,19 @@
 // See LICENSE in the repository root for full terms.
 //
 // ============================================================================
-// TVM ISA v2.1 Adapter — Delegates to kernel TernaryVm (176-opcode ISA)
+// TVM ISA v2.1 Adapter — Daemon-side VM interpreter (176-opcode ISA)
 //
-// This service exposes the full kernel VM engine (src/kernel/src/vm/) via
-// HTTP endpoints. All 176 opcodes from instruction_v2.rs are supported
-// through the opcode dispatch table below, which maps string mnemonics
+// Architecture note: The kernel TernaryVm (src/kernel/src/vm/) is a
+// #![no_std] bare-metal engine that cannot be linked into this std-based
+// daemon binary. This service is a standalone reimplementation of the
+// ISA v2.1 instruction set for the daemon context, providing HTTP API
+// access to VM execution. Core arithmetic, ternary, memory, control flow,
+// comparison, and logic opcodes are fully implemented. Crypto (0x60-0x6F),
+// SIMD (0x70-0x7F), and quantum simulation (0xA0-0xAF) opcodes set the
+// ternary flag and return stub results — full implementations require the
+// kernel's GF(3) primitives and sponge permutation which are kernel-only.
+//
+// All 176 opcodes from instruction_v2.rs are recognized
 // to the kernel's Opcode::from_u8() encoding.
 // ============================================================================
 
