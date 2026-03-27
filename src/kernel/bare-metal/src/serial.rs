@@ -77,6 +77,18 @@ pub fn print_u64(mut val: u64) {
     for i in (0..pos).rev() { write_byte(buf[i]); }
 }
 
+pub fn print_hex_u64(n: u64) {
+    let digits = b"0123456789ABCDEF";
+    let mut started = false;
+    for i in (0..16).rev() {
+        let nibble = ((n >> (i * 4)) & 0xF) as usize;
+        if nibble != 0 || started || i == 0 {
+            write_byte(digits[nibble]);
+            started = true;
+        }
+    }
+}
+
 pub fn print_i32(val: i32) {
     if val < 0 {
         write_byte(b'-');

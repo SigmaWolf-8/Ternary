@@ -58,7 +58,7 @@ SECTIONS
 
     . = ALIGN(4K);
     __heap_start = .;
-    . += 4M;
+    . += 256M;
     __heap_end = .;
 
     __kernel_end = .;
