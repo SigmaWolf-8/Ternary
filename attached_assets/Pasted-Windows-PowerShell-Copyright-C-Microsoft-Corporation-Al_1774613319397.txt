@@ -1,0 +1,1669 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Windows PowerShell
+Windows : The term 'Windows' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Windows PowerShell
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Windows:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Copyright (C) Microsoft Corporation. All rights reserved.
+C : The term 'C' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:12
++ Copyright (C) Microsoft Corporation. All rights reserved.
++            ~
+    + CategoryInfo          : ObjectNotFound: (C:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+Install : The term 'Install' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Install the latest PowerShell for new features and improvements! http ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Install:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> PS C:\Users\Sigma> wsl
+Get-Process : A positional parameter cannot be found that accepts argument 'wsl'.
+At line:1 char:1
++ PS C:\Users\Sigma> wsl
++ ~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Process], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetProcessCommand
+
+PS C:\Users\Sigma> To run a command as administrator (user "root"), use "sudo <command>".
+user : The term 'user' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:36
++ To run a command as administrator (user "root"), use "sudo <command>" ...
++                                    ~~~~
+    + CategoryInfo          : ObjectNotFound: (user:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> See "man sudo_root" for details.
+See : The term 'See' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ See "man sudo_root" for details.
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (See:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ # Install QEMU and Rust bare-metal targets
+librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ : The term 'librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$' is not
+recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if
+a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ # Install QEMU and Rust ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (librawolf@SSLap.../c/Users/Sigma$:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> sudo apt install qemu-system-x86 qemu-system-arm qemu-system-misc
+Command not found
+PS C:\Users\Sigma> rustup target add x86_64-unknown-none aarch64-unknown-none-softfloat riscv64gc-unknown-none-elf
+info: downloading component 'rust-std' for 'x86_64-unknown-none'
+info: installing component 'rust-std' for 'x86_64-unknown-none'
+info: downloading component 'rust-std' for 'aarch64-unknown-none-softfloat'
+info: installing component 'rust-std' for 'aarch64-unknown-none-softfloat'
+info: downloading component 'rust-std' for 'riscv64gc-unknown-none-elf'
+ 11.5 MiB /  11.5 MiB (100 %)   2.3 MiB/s in  5s
+info: installing component 'rust-std' for 'riscv64gc-unknown-none-elf'
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # Navigate to the kernel directory and run the boot script
+PS C:\Users\Sigma> cd /path/to/Ternary/src/kernel
+cd : Cannot find path 'C:\path\to\Ternary\src\kernel' because it does not exist.
+At line:1 char:1
++ cd /path/to/Ternary/src/kernel
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\path\to\Ternary\src\kernel:String) [Set-Location], ItemNotFoundExcep
+   tion
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\Users\Sigma> bash boot.sh --ci
+d directories currently installed.)
+Preparing to unpack .../00-libc-dev-bin_2.39-0ubuntu8.7_arm64.deb ...
+Unpacking libc-dev-bin (2.39-0ubuntu8.7) ...
+Selecting previously unselected package linux-libc-dev:arm64.
+Preparing to unpack .../01-linux-libc-dev_6.8.0-106.106_arm64.deb ...
+Unpacking linux-libc-dev:arm64 (6.8.0-106.106) ...
+Selecting previously unselected package libcrypt-dev:arm64.
+Preparing to unpack .../02-libcrypt-dev_1%3a4.4.36-4build1_arm64.deb ...
+Unpacking libcrypt-dev:arm64 (1:4.4.36-4build1) ...
+Selecting previously unselected package rpcsvc-proto.
+Preparing to unpack .../03-rpcsvc-proto_1.4.2-0ubuntu7_arm64.deb ...
+Unpacking rpcsvc-proto (1.4.2-0ubuntu7) ...
+Selecting previously unselected package libc6-dev:arm64.
+Preparing to unpack .../04-libc6-dev_2.39-0ubuntu8.7_arm64.deb ...
+Unpacking libc6-dev:arm64 (2.39-0ubuntu8.7) ...
+Selecting previously unselected package gcc-13-base:arm64.
+Preparing to unpack .../05-gcc-13-base_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking gcc-13-base:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package libisl23:arm64.
+Preparing to unpack .../06-libisl23_0.26-3build1.1_arm64.deb ...
+Unpacking libisl23:arm64 (0.26-3build1.1) ...
+Selecting previously unselected package libmpc3:arm64.
+Preparing to unpack .../07-libmpc3_1.3.1-1build1.1_arm64.deb ...
+Unpacking libmpc3:arm64 (1.3.1-1build1.1) ...
+Selecting previously unselected package cpp-13-aarch64-linux-gnu.
+Preparing to unpack .../08-cpp-13-aarch64-linux-gnu_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking cpp-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package cpp-13.
+Preparing to unpack .../09-cpp-13_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking cpp-13 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package cpp-aarch64-linux-gnu.
+Preparing to unpack .../10-cpp-aarch64-linux-gnu_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking cpp-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package cpp.
+Preparing to unpack .../11-cpp_4%3a13.2.0-7ubuntu1_arm64.deb ...
+Unpacking cpp (4:13.2.0-7ubuntu1) ...
+Selecting previously unselected package libcc1-0:arm64.
+Preparing to unpack .../12-libcc1-0_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libcc1-0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libgomp1:arm64.
+Preparing to unpack .../13-libgomp1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libgomp1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libitm1:arm64.
+Preparing to unpack .../14-libitm1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libitm1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libatomic1:arm64.
+Preparing to unpack .../15-libatomic1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libatomic1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libasan8:arm64.
+Preparing to unpack .../16-libasan8_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libasan8:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package liblsan0:arm64.
+Preparing to unpack .../17-liblsan0_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking liblsan0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libtsan2:arm64.
+Preparing to unpack .../18-libtsan2_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libtsan2:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libubsan1:arm64.
+Preparing to unpack .../19-libubsan1_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libubsan1:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libhwasan0:arm64.
+Preparing to unpack .../20-libhwasan0_14.2.0-4ubuntu2~24.04.1_arm64.deb ...
+Unpacking libhwasan0:arm64 (14.2.0-4ubuntu2~24.04.1) ...
+Selecting previously unselected package libgcc-13-dev:arm64.
+Preparing to unpack .../21-libgcc-13-dev_13.3.0-6ubuntu2~24.04.1_arm64.deb ...
+Unpacking libgcc-13-dev:arm64 (13.3.0-6ubuntu2~24.04.1) ...
+Selecting previously unselected package gcc-13-aarch64-linux-gnu.
+Preparing to unpack .../22-gc/bin/bash: boot.sh: No such file or directory
+PS C:\Users\Sigma> [sudo] password for librawolf:
+At line:1 char:8
++ [sudo] password for librawolf:
++        ~~~~~~~~
+Unexpected token 'password' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma> Sorry, try again.
+At line:1 char:6
++ Sorry, try again.
++      ~
+Missing argument in parameter list.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArgument
+
+PS C:\Users\Sigma> [sudo] password for librawolf:
+At line:1 char:8
++ [sudo] password for librawolf:
++        ~~~~~~~~
+Unexpected token 'password' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma> Sorry, try again.
+At line:1 char:6
++ Sorry, try again.
++      ~
+Missing argument in parameter list.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArgument
+
+PS C:\Users\Sigma> [sudo] password for librawolf:
+At line:1 char:8
++ [sudo] password for librawolf:
++        ~~~~~~~~
+Unexpected token 'password' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma> Reading package lists... Done
+Reading : The term 'Reading' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Reading package lists... Done
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Reading:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Building dependency tree... Done
+Building : The term 'Building' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Building dependency tree... Done
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Building:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Reading state information... Done
+Reading : The term 'Reading' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Reading state information... Done
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Reading:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> The following additional packages will be installed:
+The : The term 'The' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ The following additional packages will be installed:
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (The:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   acl alsa-topology-conf alsa-ucm-conf cpu-checker glib-networking glib-networking-common glib-networking-services
+Get-Acl : A positional parameter cannot be found that accepts argument 'alsa-ucm-conf'.
+At line:1 char:3
++   acl alsa-topology-conf alsa-ucm-conf cpu-checker glib-networking gl ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Acl], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetAclCommand
+
+PS C:\Users\Sigma>   gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x ibverbs-providers ipxe-qemu
+gstreamer1.0-plugins-base : The term 'gstreamer1.0-plugins-base' is not recognized as the name of a cmdlet, function,
+script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is
+correct and try again.
+At line:1 char:3
++   gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x  ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (gstreamer1.0-plugins-base:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   ipxe-qemu-256k-compat-efi-roms libaa1 libaio1t64 libasound2-data libasound2t64 libasyncns0 libavc1394-0
+ipxe-qemu-256k-compat-efi-roms : The term 'ipxe-qemu-256k-compat-efi-roms' is not recognized as the name of a cmdlet,
+function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the
+path is correct and try again.
+At line:1 char:3
++   ipxe-qemu-256k-compat-efi-roms libaa1 libaio1t64 libasound2-data li ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (ipxe-qemu-256k-compat-efi-roms:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libboost-iostreams1.83.0 libboost-thread1.83.0 libbrlapi0.8 libcaca0 libcacard0 libcdparanoia0 libdaxctl1
+libboost-iostreams1.83.0 : The term 'libboost-iostreams1.83.0' is not recognized as the name of a cmdlet, function,
+script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is
+correct and try again.
+At line:1 char:3
++   libboost-iostreams1.83.0 libboost-thread1.83.0 libbrlapi0.8 libcaca ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libboost-iostreams1.83.0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libdecor-0-0 libdecor-0-plugin-1-gtk libdv4t64 libfdt1 libflac12t64 libgstreamer-plugins-base1.0-0
+libdecor-0-0 : The term 'libdecor-0-0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libdecor-0-0 libdecor-0-plugin-1-gtk libdv4t64 libfdt1 libflac12t64 ...
++   ~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libdecor-0-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libgstreamer-plugins-good1.0-0 libgudev-1.0-0 libibverbs1 libiec61883-0 libiscsi7 libjack-jackd2-0 libmp3lame0
+libgstreamer-plugins-good1.0-0 : The term 'libgstreamer-plugins-good1.0-0' is not recognized as the name of a cmdlet,
+function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the
+path is correct and try again.
+At line:1 char:3
++   libgstreamer-plugins-good1.0-0 libgudev-1.0-0 libibverbs1 libiec618 ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libgstreamer-plugins-good1.0-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libmpg123-0t64 libncurses6 libndctl6 libnfs14 libnl-3-200 libnl-route-3-200 libnspr4 libnss3 libnuma1 libogg0
+libmpg123-0t64 : The term 'libmpg123-0t64' is not recognized as the name of a cmdlet, function, script file, or
+operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try
+again.
+At line:1 char:3
++   libmpg123-0t64 libncurses6 libndctl6 libnfs14 libnl-3-200 libnl-rou ...
++   ~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libmpg123-0t64:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libopus0 liborc-0.4-0t64 libpcsclite1 libpipewire-0.3-0t64 libpipewire-0.3-common libpmem1 libpmemobj1 libproxy1v5
+libopus0 : The term 'libopus0' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libopus0 liborc-0.4-0t64 libpcsclite1 libpipewire-0.3-0t64 libpipew ...
++   ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libopus0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libpulse0 librados2 libraw1394-11 librbd1 librdmacm1t64 libsamplerate0 libsdl2-2.0-0 libshout3 libslirp0 libsndfile1
+libpulse0 : The term 'libpulse0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libpulse0 librados2 libraw1394-11 librbd1 librdmacm1t64 libsamplera ...
++   ~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libpulse0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libsoup-3.0-0 libsoup-3.0-common libspa-0.2-modules libspeex1 libspice-server1 libtag1v5 libtag1v5-vanilla
+libsoup-3.0-0 : The term 'libsoup-3.0-0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libsoup-3.0-0 libsoup-3.0-common libspa-0.2-modules libspeex1 libsp ...
++   ~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libsoup-3.0-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libtheora0 libtwolame0 liburing2 libusb-1.0-0 libusbredirparser1t64 libv4l-0t64 libv4lconvert0t64 libvirglrenderer1
+libtheora0 : The term 'libtheora0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libtheora0 libtwolame0 liburing2 libusb-1.0-0 libusbredirparser1t64 ...
++   ~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libtheora0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libvisual-0.4-0 libvorbis0a libvorbisenc2 libvpx9 libvte-2.91-0 libvte-2.91-common libwavpack1
+libvisual-0.4-0 : The term 'libvisual-0.4-0' is not recognized as the name of a cmdlet, function, script file, or
+operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try
+again.
+At line:1 char:3
++   libvisual-0.4-0 libvorbis0a libvorbisenc2 libvpx9 libvte-2.91-0 lib ...
++   ~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libvisual-0.4-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libwebrtc-audio-processing1 libxss1 libxv1 ovmf qemu-block-extra qemu-efi-aarch64 qemu-efi-arm qemu-system-common
+libwebrtc-audio-processing1 : The term 'libwebrtc-audio-processing1' is not recognized as the name of a cmdlet,
+function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the
+path is correct and try again.
+At line:1 char:3
++   libwebrtc-audio-processing1 libxss1 libxv1 ovmf qemu-block-extra qe ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libwebrtc-audio-processing1:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   qemu-system-data qemu-system-gui qemu-system-modules-opengl qemu-system-modules-spice qemu-utils seabios
+qemu-system-data : The term 'qemu-system-data' is not recognized as the name of a cmdlet, function, script file, or
+operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try
+again.
+At line:1 char:3
++   qemu-system-data qemu-system-gui qemu-system-modules-opengl qemu-sy ...
++   ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (qemu-system-data:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Suggested packages:
+Suggested : The term 'Suggested' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Suggested packages:
++ ~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Suggested:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   gvfs alsa-utils libasound2-plugins libdv-bin oss-compat libvisual-0.4-plugins jackd2 opus-tools pcscd pipewire
+gvfs : The term 'gvfs' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   gvfs alsa-utils libasound2-plugins libdv-bin oss-compat libvisual-0 ...
++   ~~~~
+    + CategoryInfo          : ObjectNotFound: (gvfs:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   pulseaudio libraw1394-doc xdg-utils speex gstreamer1.0-libav gstreamer1.0-plugins-ugly samba vde2
+pulseaudio : The term 'pulseaudio' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   pulseaudio libraw1394-doc xdg-utils speex gstreamer1.0-libav gstrea ...
++   ~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (pulseaudio:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> The following NEW packages will be installed:
+The : The term 'The' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ The following NEW packages will be installed:
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (The:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   acl alsa-topology-conf alsa-ucm-conf cpu-checker glib-networking glib-networking-common glib-networking-services
+Get-Acl : A positional parameter cannot be found that accepts argument 'alsa-ucm-conf'.
+At line:1 char:3
++   acl alsa-topology-conf alsa-ucm-conf cpu-checker glib-networking gl ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Acl], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetAclCommand
+
+PS C:\Users\Sigma>   gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x ibverbs-providers ipxe-qemu
+gstreamer1.0-plugins-base : The term 'gstreamer1.0-plugins-base' is not recognized as the name of a cmdlet, function,
+script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is
+correct and try again.
+At line:1 char:3
++   gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x  ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (gstreamer1.0-plugins-base:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   ipxe-qemu-256k-compat-efi-roms libaa1 libaio1t64 libasound2-data libasound2t64 libasyncns0 libavc1394-0
+ipxe-qemu-256k-compat-efi-roms : The term 'ipxe-qemu-256k-compat-efi-roms' is not recognized as the name of a cmdlet,
+function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the
+path is correct and try again.
+At line:1 char:3
++   ipxe-qemu-256k-compat-efi-roms libaa1 libaio1t64 libasound2-data li ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (ipxe-qemu-256k-compat-efi-roms:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libboost-iostreams1.83.0 libboost-thread1.83.0 libbrlapi0.8 libcaca0 libcacard0 libcdparanoia0 libdaxctl1
+libboost-iostreams1.83.0 : The term 'libboost-iostreams1.83.0' is not recognized as the name of a cmdlet, function,
+script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is
+correct and try again.
+At line:1 char:3
++   libboost-iostreams1.83.0 libboost-thread1.83.0 libbrlapi0.8 libcaca ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libboost-iostreams1.83.0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libdecor-0-0 libdecor-0-plugin-1-gtk libdv4t64 libfdt1 libflac12t64 libgstreamer-plugins-base1.0-0
+libdecor-0-0 : The term 'libdecor-0-0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libdecor-0-0 libdecor-0-plugin-1-gtk libdv4t64 libfdt1 libflac12t64 ...
++   ~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libdecor-0-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libgstreamer-plugins-good1.0-0 libgudev-1.0-0 libibverbs1 libiec61883-0 libiscsi7 libjack-jackd2-0 libmp3lame0
+libgstreamer-plugins-good1.0-0 : The term 'libgstreamer-plugins-good1.0-0' is not recognized as the name of a cmdlet,
+function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the
+path is correct and try again.
+At line:1 char:3
++   libgstreamer-plugins-good1.0-0 libgudev-1.0-0 libibverbs1 libiec618 ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libgstreamer-plugins-good1.0-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libmpg123-0t64 libncurses6 libndctl6 libnfs14 libnl-3-200 libnl-route-3-200 libnspr4 libnss3 libnuma1 libogg0
+libmpg123-0t64 : The term 'libmpg123-0t64' is not recognized as the name of a cmdlet, function, script file, or
+operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try
+again.
+At line:1 char:3
++   libmpg123-0t64 libncurses6 libndctl6 libnfs14 libnl-3-200 libnl-rou ...
++   ~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libmpg123-0t64:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libopus0 liborc-0.4-0t64 libpcsclite1 libpipewire-0.3-0t64 libpipewire-0.3-common libpmem1 libpmemobj1 libproxy1v5
+libopus0 : The term 'libopus0' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libopus0 liborc-0.4-0t64 libpcsclite1 libpipewire-0.3-0t64 libpipew ...
++   ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libopus0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libpulse0 librados2 libraw1394-11 librbd1 librdmacm1t64 libsamplerate0 libsdl2-2.0-0 libshout3 libslirp0 libsndfile1
+libpulse0 : The term 'libpulse0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libpulse0 librados2 libraw1394-11 librbd1 librdmacm1t64 libsamplera ...
++   ~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libpulse0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libsoup-3.0-0 libsoup-3.0-common libspa-0.2-modules libspeex1 libspice-server1 libtag1v5 libtag1v5-vanilla
+libsoup-3.0-0 : The term 'libsoup-3.0-0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libsoup-3.0-0 libsoup-3.0-common libspa-0.2-modules libspeex1 libsp ...
++   ~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libsoup-3.0-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libtheora0 libtwolame0 liburing2 libusb-1.0-0 libusbredirparser1t64 libv4l-0t64 libv4lconvert0t64 libvirglrenderer1
+libtheora0 : The term 'libtheora0' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:3
++   libtheora0 libtwolame0 liburing2 libusb-1.0-0 libusbredirparser1t64 ...
++   ~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libtheora0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libvisual-0.4-0 libvorbis0a libvorbisenc2 libvpx9 libvte-2.91-0 libvte-2.91-common libwavpack1
+libvisual-0.4-0 : The term 'libvisual-0.4-0' is not recognized as the name of a cmdlet, function, script file, or
+operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try
+again.
+At line:1 char:3
++   libvisual-0.4-0 libvorbis0a libvorbisenc2 libvpx9 libvte-2.91-0 lib ...
++   ~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libvisual-0.4-0:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   libwebrtc-audio-processing1 libxss1 libxv1 ovmf qemu-block-extra qemu-efi-aarch64 qemu-efi-arm qemu-system-arm
+libwebrtc-audio-processing1 : The term 'libwebrtc-audio-processing1' is not recognized as the name of a cmdlet,
+function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the
+path is correct and try again.
+At line:1 char:3
++   libwebrtc-audio-processing1 libxss1 libxv1 ovmf qemu-block-extra qe ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (libwebrtc-audio-processing1:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   qemu-system-common qemu-system-data qemu-system-gui qemu-system-misc qemu-system-modules-opengl
+qemu-system-common : The term 'qemu-system-common' is not recognized as the name of a cmdlet, function, script file,
+or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and
+try again.
+At line:1 char:3
++   qemu-system-common qemu-system-data qemu-system-gui qemu-system-mis ...
++   ~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (qemu-system-common:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   qemu-system-modules-spice qemu-system-x86 qemu-utils seabios
+qemu-system-modules-spice : The term 'qemu-system-modules-spice' is not recognized as the name of a cmdlet, function,
+script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is
+correct and try again.
+At line:1 char:3
++   qemu-system-modules-spice qemu-system-x86 qemu-utils seabios
++   ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (qemu-system-modules-spice:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> 0 upgraded, 106 newly installed, 0 to remove and 68 not upgraded.
+At line:1 char:3
++ 0 upgraded, 106 newly installed, 0 to remove and 68 not upgraded.
++   ~~~~~~~~
+Unexpected token 'upgraded' in expression or statement.
+At line:1 char:11
++ 0 upgraded, 106 newly installed, 0 to remove and 68 not upgraded.
++           ~
+Missing argument in parameter list.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma> Need to get 115 MB of archives.
+Need : The term 'Need' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Need to get 115 MB of archives.
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (Need:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> After this operation, 960 MB of additional disk space will be used.
+After : The term 'After' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ After this operation, 960 MB of additional disk space will be used.
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (After:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Do you want to continue? [Y/n] y
+At line:1 char:3
++ Do you want to continue? [Y/n] y
++   ~
+Missing statement body in do loop.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingLoopStatement
+
+PS C:\Users\Sigma> Get:1 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnl-3-200 arm64 3.7.0-0.3build1.1 [57.5 kB]
+Get:1 : The term 'Get:1' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:1 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 l ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:1:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:2 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnl-route-3-200 arm64 3.7.0-0.3build1.1 [182 kB]
+Get:2 : The term 'Get:2' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:2 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 l ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:2:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:3 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libibverbs1 arm64 50.0-2ubuntu0.2 [67.5 kB]
+Get:3 : The term 'Get:3' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:3 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 l ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:3:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:4 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ibverbs-providers arm64 50.0-2ubuntu0.2 [375 kB]
+Get:4 : The term 'Get:4' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:4 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 i ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:4:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:5 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libncurses6 arm64 6.4+20240113-1ubuntu2 [110 kB]
+Get:5 : The term 'Get:5' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:5 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libncurse ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:5:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:6 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnuma1 arm64 2.0.18-1ubuntu0.24.04.1 [23.7 kB]
+Get:6 : The term 'Get:6' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:6 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 l ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:6:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:7 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libusb-1.0-0 arm64 2:1.0.27-1 [54.1 kB]
+Get:7 : The term 'Get:7' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:7 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libusb-1. ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:7:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:8 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 acl arm64 2.3.2-1build1.1 [39.0 kB]
+Get:8 : The term 'Get:8' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:8 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 a ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:8:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:9 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 alsa-topology-conf all 1.2.5.1-2 [15.5 kB]
+Get:9 : The term 'Get:9' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:9 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 alsa-topo ...
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:9:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:10 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libasound2-data all 1.2.11-1ubuntu0.2 [21.3 kB]
+Get:10 : The term 'Get:10' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:10 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:10:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:11 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libasound2t64 arm64 1.2.11-1ubuntu0.2 [387 kB]
+Get:11 : The term 'Get:11' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:11 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:11:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Err:12 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 alsa-ucm-conf all 1.2.10-1ubuntu5.9
+Err:12 : The term 'Err:12' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Err:12 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Err:12:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>   404  Not Found [IP: 91.189.91.104 80]
+At line:1 char:8
++   404  Not Found [IP: 91.189.91.104 80]
++        ~~~
+Unexpected token 'Not' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma> Get:13 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 cpu-checker arm64 0.7-1.3build2 [6134 B]
+
+Get:13 : The term 'Get:13' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:13 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 cpu-chec ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:13:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:14 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libproxy1v5 arm64 0.5.4-4build1 [26.1 kB]
+Get:14 : The term 'Get:14' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:14 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libproxy ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:14:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:15 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-networking-common all 2.80.0-1build1 [6702 B]
+Get:15 : The term 'Get:15' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:15 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-net ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:15:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:16 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-networking-services arm64 2.80.0-1build1 [12.7 kB]
+Get:16 : The term 'Get:16' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:16 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-net ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:16:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:17 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-networking arm64 2.80.0-1build1 [63.9 kB]
+Get:17 : The term 'Get:17' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:17 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 glib-net ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:17:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:18 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcdparanoia0 arm64 3.10.2+debian-14build3 [46.9 kB]
+Get:18 : The term 'Get:18' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:18 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcdpar ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:18:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:19 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 liborc-0.4-0t64 arm64 1:0.4.38-1ubuntu0.1 [205 kB]
+Get:19 : The term 'Get:19' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:19 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:19:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:20 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libgstreamer-plugins-base1.0-0 arm64 1.24.2-1ubuntu0.3 [829 kB]
+Get:20 : The term 'Get:20' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:20 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:20:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:21 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libogg0 arm64 1.3.5-3build1 [22.6 kB]
+Get:21 : The term 'Get:21' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:21 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libogg0  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:21:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:22 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libopus0 arm64 1.4-1build1 [198 kB]
+Get:22 : The term 'Get:22' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:22 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libopus0 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:22:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:23 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtheora0 arm64 1.1.1+dfsg.1-16.1build3 [224 kB]
+Get:23 : The term 'Get:23' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:23 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtheor ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:23:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:24 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvisual-0.4-0 arm64 0.4.2-2build1 [110 kB]
+Get:24 : The term 'Get:24' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:24 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvisua ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:24:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:25 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvorbis0a arm64 1.3.7-1build3 [94.0 kB]
+Get:25 : The term 'Get:25' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:25 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvorbi ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:25:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:26 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvorbisenc2 arm64 1.3.7-1build3 [80.0 kB]
+Get:26 : The term 'Get:26' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:26 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvorbi ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:26:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:27 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gstreamer1.0-plugins-base arm64 1.24.2-1ubuntu0.3 [691 kB]
+Get:27 : The term 'Get:27' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:27 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:27:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:28 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libaa1 arm64 1.4p5-51.1 [49.7 kB]
+Get:28 : The term 'Get:28' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:28 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libaa1 a ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:28:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:29 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libraw1394-11 arm64 2.1.2-2build3 [26.9 kB]
+Get:29 : The term 'Get:29' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:29 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libraw13 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:29:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:30 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libavc1394-0 arm64 0.5.4-5build3 [15.8 kB]
+Get:30 : The term 'Get:30' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:30 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libavc13 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:30:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:31 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libcaca0 arm64 0.99.beta20-4ubuntu0.1 [206 kB]
+Get:31 : The term 'Get:31' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:31 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:31:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:32 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdv4t64 arm64 1.0.0-17.1build1 [60.2 kB]
+Get:32 : The term 'Get:32' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:32 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdv4t6 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:32:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:33 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libflac12t64 arm64 1.4.3+ds-2.1ubuntu2 [170 kB]
+Get:33 : The term 'Get:33' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:33 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libflac1 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:33:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:34 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libgstreamer-plugins-good1.0-0 arm64 1.24.2-1ubuntu1.2 [32.7 kB]
+Get:34 : The term 'Get:34' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:34 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:34:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:35 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libgudev-1.0-0 arm64 1:238-5ubuntu1 [15.1 kB]
+Get:35 : The term 'Get:35' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:35 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libgudev ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:35:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:36 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libiec61883-0 arm64 1.2.0-6build1 [24.3 kB]
+Get:36 : The term 'Get:36' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:36 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libiec61 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:36:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:37 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libmp3lame0 arm64 3.100-6build1 [141 kB]
+
+Get:37 : The term 'Get:37' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:37 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libmp3la ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:37:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:38 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libmpg123-0t64 arm64 1.32.5-1ubuntu1.1 [172 kB]
+Get:38 : The term 'Get:38' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:38 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:38:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:39 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libasyncns0 arm64 0.8-6build4 [11.2 kB]
+Get:39 : The term 'Get:39' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:39 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libasync ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:39:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:40 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsndfile1 arm64 1.2.2-1ubuntu5.24.04.1 [208 kB]
+Get:40 : The term 'Get:40' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:40 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:40:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:41 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libpulse0 arm64 1:16.1+dfsg1-2ubuntu10.1 [271 kB]
+Get:41 : The term 'Get:41' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:41 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:41:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:42 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libspeex1 arm64 1.2.1-2ubuntu2.24.04.1 [56.2 kB]
+Get:42 : The term 'Get:42' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:42 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:42:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:43 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libshout3 arm64 2.4.6-1build2 [51.0 kB]
+Get:43 : The term 'Get:43' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:43 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libshout ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:43:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:44 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtag1v5-vanilla arm64 1.13.1-1build1 [303 kB]
+Get:44 : The term 'Get:44' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:44 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtag1v ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:44:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:45 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtag1v5 arm64 1.13.1-1build1 [11.7 kB]
+
+Get:45 : The term 'Get:45' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:45 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtag1v ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:45:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:46 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtwolame0 arm64 0.4.0-2build3 [51.7 kB]
+Get:46 : The term 'Get:46' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:46 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libtwola ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:46:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:47 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libv4lconvert0t64 arm64 1.26.1-4build3 [88.6 kB]
+Get:47 : The term 'Get:47' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:47 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libv4lco ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:47:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:48 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libv4l-0t64 arm64 1.26.1-4build3 [46.4 kB]
+Get:48 : The term 'Get:48' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:48 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libv4l-0 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:48:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:49 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libvpx9 arm64 1.14.0-1ubuntu2.3 [1233 kB]
+Get:49 : The term 'Get:49' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:49 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:49:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:50 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libwavpack1 arm64 5.6.0-1build1 [79.2 kB]
+Get:50 : The term 'Get:50' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:50 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libwavpa ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:50:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:51 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsoup-3.0-common all 3.4.4-5ubuntu0.7 [11.6 kB]
+Get:51 : The term 'Get:51' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:51 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:51:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:52 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsoup-3.0-0 arm64 3.4.4-5ubuntu0.7 [290 kB]
+Get:52 : The term 'Get:52' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:52 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:52:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:53 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gstreamer1.0-plugins-good arm64 1.24.2-1ubuntu1.2 [2157 kB]
+Get:53 : The term 'Get:53' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:53 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:53:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:54 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libxv1 arm64 2:1.0.11-1.1build1 [10.7 kB]
+Get:54 : The term 'Get:54' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:54 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libxv1 a ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:54:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:55 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 gstreamer1.0-x arm64 1.24.2-1ubuntu0.3 [85.3 kB]
+Get:55 : The term 'Get:55' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:55 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:55:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:56 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 ipxe-qemu all 1.21.1+git-20220113.fbbdc3926-0ubuntu2 [1565 kB]
+Get:56 : The term 'Get:56' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:56 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 ipxe-qem ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:56:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:57 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 ipxe-qemu-256k-compat-efi-roms all 1.0.0+git-20150424.a25a16d-0ubuntu5 [548 kB]
+Get:57 : The term 'Get:57' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:57 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 ipxe-qem ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:57:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:58 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libaio1t64 arm64 0.3.113-6build1.1 [7192 B]
+Get:58 : The term 'Get:58' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:58 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:58:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:59 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libboost-iostreams1.83.0 arm64 1.83.0-2.1ubuntu3.2 [258 kB]
+Get:59 : The term 'Get:59' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:59 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:59:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:60 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libboost-thread1.83.0 arm64 1.83.0-2.1ubuntu3.2 [275 kB]
+Get:60 : The term 'Get:60' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:60 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:60:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:61 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libbrlapi0.8 arm64 6.6-4ubuntu5 [31.5 kB]
+Get:61 : The term 'Get:61' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:61 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libbrlap ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:61:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:62 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libnspr4 arm64 2:4.35-1.1build1 [114 kB]
+
+Get:62 : The term 'Get:62' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:62 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libnspr4 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:62:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:63 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libnss3 arm64 2:3.98-1ubuntu0.1 [1406 kB]
+Get:63 : The term 'Get:63' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:63 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:63:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:64 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpcsclite1 arm64 2.0.3-1build1 [21.8 kB]
+Get:64 : The term 'Get:64' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:64 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpcscl ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:64:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:65 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcacard0 arm64 1:2.8.0-3build4 [36.3 kB]
+Get:65 : The term 'Get:65' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:65 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcacar ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:65:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:66 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdaxctl1 arm64 77-2ubuntu2 [21.2 kB]
+Get:66 : The term 'Get:66' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:66 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdaxct ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:66:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:67 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdecor-0-0 arm64 0.2.2-1build2 [16.5 kB]
+Get:67 : The term 'Get:67' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:67 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdecor ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:67:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:68 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdecor-0-plugin-1-gtk arm64 0.2.2-1build2 [21.0 kB]
+Get:68 : The term 'Get:68' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:68 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libdecor ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:68:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:69 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 librdmacm1t64 arm64 50.0-2ubuntu0.2 [70.6 kB]
+Get:69 : The term 'Get:69' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:69 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:69:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:70 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libiscsi7 arm64 1.19.0-3build4 [68.0 kB]
+
+Get:70 : The term 'Get:70' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:70 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libiscsi ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:70:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:71 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libsamplerate0 arm64 0.2.2-4build1 [1343 kB]
+Get:71 : The term 'Get:71' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:71 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libsampl ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:71:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:72 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libjack-jackd2-0 arm64 1.9.21~dfsg-3ubuntu3 [285 kB]
+Get:72 : The term 'Get:72' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:72 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libjack- ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:72:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:73 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libndctl6 arm64 77-2ubuntu2 [63.1 kB]
+Get:73 : The term 'Get:73' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:73 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libndctl ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:73:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:74 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libnfs14 arm64 5.0.2-1build1 [112 kB]
+Get:74 : The term 'Get:74' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:74 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libnfs14 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:74:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:75 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libwebrtc-audio-processing1 arm64 0.3.1-0ubuntu6 [285 kB]
+Get:75 : The term 'Get:75' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:75 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libwebrt ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:75:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:76 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libspa-0.2-modules arm64 1.0.5-1ubuntu3.2 [575 kB]
+Get:76 : The term 'Get:76' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:76 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:76:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:77 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libpipewire-0.3-0t64 arm64 1.0.5-1ubuntu3.2 [247 kB]
+Get:77 : The term 'Get:77' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:77 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:77:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:78 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libpipewire-0.3-common all 1.0.5-1ubuntu3.2 [19.1 kB]
+Get:78 : The term 'Get:78' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:78 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:78:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:79 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpmem1 arm64 1.13.1-1.1ubuntu2 [36.2 kB]
+Get:79 : The term 'Get:79' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:79 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpmem1 ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:79:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:80 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpmemobj1 arm64 1.13.1-1.1ubuntu2 [117 kB]
+Get:80 : The term 'Get:80' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:80 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libpmemo ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:80:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:81 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 librados2 arm64 19.2.3-0ubuntu0.24.04.3 [3910 kB]
+Get:81 : The term 'Get:81' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:81 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:81:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:82 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 librbd1 arm64 19.2.3-0ubuntu0.24.04.3 [3337 kB]
+Get:82 : The term 'Get:82' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:82 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:82:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:83 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libxss1 arm64 1:1.2.3-1build3 [7244 B]
+Get:83 : The term 'Get:83' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:83 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libxss1  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:83:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:84 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libsdl2-2.0-0 arm64 2.30.0+dfsg-1ubuntu3.1 [671 kB]
+Get:84 : The term 'Get:84' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:84 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:84:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:85 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libslirp0 arm64 4.7.0-1ubuntu3 [61.8 kB]
+
+Get:85 : The term 'Get:85' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:85 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libslirp ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:85:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:86 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libspice-server1 arm64 0.15.1-1build2 [336 kB]
+Get:86 : The term 'Get:86' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:86 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libspice ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:86:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:87 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 liburing2 arm64 2.5-1build1 [21.7 kB]
+Get:87 : The term 'Get:87' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:87 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 liburing ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:87:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:88 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libusbredirparser1t64 arm64 0.13.0-2.1build1 [16.6 kB]
+Get:88 : The term 'Get:88' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:88 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libusbre ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:88:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:89 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvirglrenderer1 arm64 1.0.0-1ubuntu2 [225 kB]
+Get:89 : The term 'Get:89' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:89 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libvirgl ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:89:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:90 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libvte-2.91-common arm64 0.76.0-1ubuntu0.1 [13.4 kB]
+Get:90 : The term 'Get:90' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:90 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:90:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:91 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 libvte-2.91-0 arm64 0.76.0-1ubuntu0.1 [215 kB]
+Get:91 : The term 'Get:91' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:91 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:91:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:92 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libfdt1 arm64 1.7.0-2build1 [21.1 kB]
+Get:92 : The term 'Get:92' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:92 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libfdt1  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:92:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:93 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-common arm64 1:8.2.2+ds-0ubuntu1.13 [1212 kB]
+Get:93 : The term 'Get:93' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:93 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:93:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:94 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-data all 1:8.2.2+ds-0ubuntu1.13 [1795 kB]
+Get:94 : The term 'Get:94' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:94 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:94:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:95 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 seabios all 1.16.3-2 [175 kB]
+Get:95 : The term 'Get:95' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:95 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 seabios  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:95:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:96 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-x86 arm64 1:8.2.2+ds-0ubuntu1.13 [8050 kB]
+Get:96 : The term 'Get:96' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:96 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:96:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:97 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-misc arm64 1:8.2.2+ds-0ubuntu1.13 [54.1 MB]
+Get:97 : The term 'Get:97' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:97 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:97:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:98 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-arm arm64 1:8.2.2+ds-0ubuntu1.13 [10.3 MB]
+Get:98 : The term 'Get:98' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:98 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:98:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:99 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-utils arm64 1:8.2.2+ds-0ubuntu1.13 [2043 kB]
+Get:99 : The term 'Get:99' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:99 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64  ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:99:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:100 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-block-extra arm64 1:8.2.2+ds-0ubuntu1.13 [112 kB]
+Get:100 : The term 'Get:100' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:100 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:100:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:101 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-modules-opengl arm64 1:8.2.2+ds-0ubuntu1.13 [181 kB]
+Get:101 : The term 'Get:101' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:101 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:101:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:102 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-gui arm64 1:8.2.2+ds-0ubuntu1.13 [304 kB]
+Get:102 : The term 'Get:102' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:102 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:102:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:103 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-system-modules-spice arm64 1:8.2.2+ds-0ubuntu1.13 [70.0 kB]
+Get:103 : The term 'Get:103' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:103 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:103:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:104 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ovmf all 2024.02-2ubuntu0.7 [5176 kB]
+Get:104 : The term 'Get:104' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:104 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:104:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:105 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-efi-aarch64 all 2024.02-2ubuntu0.7 [4096 kB]
+Get:105 : The term 'Get:105' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:105 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:105:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Get:106 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 qemu-efi-arm all 2024.02-2ubuntu0.7 [776 kB]
+Get:106 : The term 'Get:106' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Get:106 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Get:106:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Fetched 115 MB in 11s (9973 kB/s)
+At line:1 char:29
++ Fetched 115 MB in 11s (9973 kB/s)
++                             ~~~~
+Unexpected token 'kB/s' in expression or statement.
+At line:1 char:28
++ Fetched 115 MB in 11s (9973 kB/s)
++                            ~
+Missing closing ')' in expression.
+At line:1 char:33
++ Fetched 115 MB in 11s (9973 kB/s)
++                                 ~
+Unexpected token ')' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma> E: Failed to fetch http://ports.ubuntu.com/ubuntu-ports/pool/main/a/alsa-ucm-conf/alsa-ucm-conf_1.2.10-1ubuntu5.9_all.deb  404  Not Found [IP: 91.189.91.104 80]
+Set-Location : Cannot find drive. A drive with the name 'E' does not exist.
+At line:1 char:1
++ Set-Location $MyInvocation.MyCommand.Name
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (E:String) [Set-Location], DriveNotFoundException
+    + FullyQualifiedErrorId : DriveNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\Users\Sigma> E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+Set-Location : Cannot find drive. A drive with the name 'E' does not exist.
+At line:1 char:1
++ Set-Location $MyInvocation.MyCommand.Name
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (E:String) [Set-Location], DriveNotFoundException
+    + FullyQualifiedErrorId : DriveNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\Users\Sigma> Command 'rustup' not found, but can be installed with:
+Command : The command could not be retrieved because the ArgumentList parameter can be specified only when retrieving
+a single cmdlet or script.
+At line:1 char:1
++ Command 'rustup' not found, but can be installed with:
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (rustup.exe:ApplicationInfo) [Get-Command], PSArgumentException
+    + FullyQualifiedErrorId : CommandArgsOnlyForSingleCmdlet,Microsoft.PowerShell.Commands.GetCommandCommand
+
+PS C:\Users\Sigma> sudo snap install rustup  # version 1.28.2, or
+Command not found
+PS C:\Users\Sigma> sudo apt  install rustup  # version 1.26.0-3
+Command not found
+PS C:\Users\Sigma> See 'snap info rustup' for additional versions.
+See : The term 'See' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ See 'snap info rustup' for additional versions.
++ ~~~
+    + CategoryInfo          : ObjectNotFound: (See:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> -bash: cd: /path/to/Ternary/src/kernel: No such file or directory
+-bash: : The term '-bash:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ -bash: cd: /path/to/Ternary/src/kernel: No such file or directory
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (-bash::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> bash: boot.sh: No such file or directory
+bash: : The term 'bash:' is not recognized as the name of a cmdlet, function, script file, or operable program. Check
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ bash: boot.sh: No such file or directory
++ ~~~~~
+    + CategoryInfo          : ObjectNotFound: (bash::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ # Install Rust
+librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ : The term 'librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$' is not
+recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if
+a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ librawolf@SSLaptopPMHU6JD:/mnt/c/Users/Sigma$ # Install Rust
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (librawolf@SSLap.../c/Users/Sigma$:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+sh : The term 'sh' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:61
++ ... url --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- - ...
++                                                                ~~
+    + CategoryInfo          : ObjectNotFound: (sh:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> source ~/.cargo/env
+source : The term 'source' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ source ~/.cargo/env
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (source:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # Add bare-metal targets
+PS C:\Users\Sigma> rustup target add x86_64-unknown-none aarch64-unknown-none-softfloat riscv64gc-unknown-none-elf
+info: component 'rust-std' for target 'x86_64-unknown-none' is up to date
+info: component 'rust-std' for target 'aarch64-unknown-none-softfloat' is up to date
+info: component 'rust-std' for target 'riscv64gc-unknown-none-elf' is up to date
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # Clone the repo and run the boot test
+PS C:\Users\Sigma> git clone https://github.com/SigmaWolf-8/Ternary.git ~/Ternary
+Cloning into '~/Ternary'...
+remote: Enumerating objects: 21605, done.
+remote: Counting objects: 100% (1122/1122), done.
+remote: Compressing objects: 100% (396/396), done.
+Receiving objects:  61% (13236/21605), 98.33 MiB | 9.10 MiB/s
