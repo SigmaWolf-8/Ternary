@@ -124,31 +124,31 @@ async fn handle_cluster_exec(
         }));
     }
 
-    let (dialable_ports, _local_address) = {
+    let dial_targets: Vec<(String, String, u16)> = {
         let guard = shell.lock().unwrap_or_else(|e| e.into_inner());
-        let ports: HashMap<String, u16> = guard.peers.iter()
-            .map(|(_addr, info)| (info.host.clone(), info.terminal_port))
-            .collect();
-        (ports, guard.local_address.clone())
+        match &req.targets {
+            Some(t) if !t.is_empty() => {
+                t.iter().filter_map(|addr| {
+                    guard.peers.get(addr).map(|info| (addr.clone(), info.host.clone(), info.terminal_port))
+                }).collect()
+            }
+            _ => {
+                guard.peers.iter()
+                    .map(|(addr, info)| (addr.clone(), info.host.clone(), info.terminal_port))
+                    .collect()
+            }
+        }
     };
 
-    let targets: Vec<String> = match req.targets {
-        Some(ref t) if !t.is_empty() => {
-            let guard = shell.lock().unwrap_or_else(|e| e.into_inner());
-            t.iter().filter_map(|addr| {
-                guard.peers.get(addr).map(|info| info.host.clone())
-            }).collect()
-        }
-        _ => dialable_ports.keys().cloned().collect(),
-    };
+    let target_labels: Vec<String> = dial_targets.iter().map(|(label, _, _)| label.clone()).collect();
 
     let cluster_cmd = pty_mux::ClusterCommand {
         command: req.command.clone(),
-        targets: targets.clone(),
+        targets: target_labels,
         timeout_ms: req.timeout_ms,
     };
 
-    let raw_results = pty_mux::fan_out_command(&cluster_cmd, &dialable_ports).await;
+    let raw_results = pty_mux::fan_out_command(&cluster_cmd, &dial_targets).await;
 
     let results: Vec<NodeResult> = raw_results
         .into_iter()

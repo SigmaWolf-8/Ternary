@@ -484,25 +484,23 @@ pub struct ClusterResult {
 
 pub async fn fan_out_command(
     cmd: &ClusterCommand,
-    peer_ports: &HashMap<String, u16>,
+    dial_targets: &[(String, String, u16)],
 ) -> Vec<ClusterResult> {
     use futures_util::{SinkExt, StreamExt};
     use tokio_tungstenite::tungstenite::Message;
 
     let mut handles = Vec::new();
 
-    for target in &cmd.targets {
-        let port = match peer_ports.get(target) {
-            Some(p) => *p,
-            None => continue,
-        };
-        let target = target.clone();
+    for (label, host, port) in dial_targets {
+        let label = label.clone();
+        let host = host.clone();
+        let port = *port;
         let command = cmd.command.clone();
         let timeout_ms = cmd.timeout_ms;
 
         handles.push(tokio::spawn(async move {
             let start = std::time::Instant::now();
-            let url = format!("ws://{}:{}", target, port);
+            let url = format!("ws://{}:{}", host, port);
             let timeout = std::time::Duration::from_millis(timeout_ms);
 
             let connect_result =
@@ -540,14 +538,14 @@ pub async fn fan_out_command(
                     let _ = ws.close(None).await;
 
                     ClusterResult {
-                        node: target,
+                        node: label,
                         output,
                         exit_code: remote_exit_code,
                         elapsed_ms: start.elapsed().as_millis() as u64,
                     }
                 }
                 _ => ClusterResult {
-                    node: target,
+                    node: label,
                     output: "Connection failed or timed out".to_string(),
                     exit_code: -1,
                     elapsed_ms: start.elapsed().as_millis() as u64,
