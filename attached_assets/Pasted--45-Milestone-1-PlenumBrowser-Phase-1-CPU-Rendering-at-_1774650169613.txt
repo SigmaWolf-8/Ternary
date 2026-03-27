@@ -1,0 +1,204 @@
+#45 - Milestone 1 — PlenumBrowser Phase 1: CPU Rendering at Full HD
+What & Why
+The kernel boots, runs a 320x200 smoke test, and halts. The full browser subsystem scaffolding exists — parse, layout, script, tabs, input, net, mesh, color, distributor, layers — but everything is stubs and type definitions. Nothing renders real content, processes real input, or drives the 1920x1080 framebuffer that BootParams already declares.
+
+This milestone delivers Phase 1 of the approved PlenumBrowser architecture (ref: "PlenumBrowser & PlenumColor Architecture Summary — March 2026"). The browser is a kernel subsystem — not userspace, not a fork. After boot, the user sees PlenumBrowser rendering styled HTML/CSS content at 1920x1080 through the full pipeline: parse → layout → script → render (CPU/tiny-skia) → mesh color pipeline → sponge encrypt → simplefb. No window manager, no DWM, no compositor layer — single pipeline from DOM to framebuffer.
+
+Phase 1 uses the CPU fallback path (tiny-skia + CPU sponge XOR). Phase 2 (GPU via wgpu, IOMMU-isolated VRAM, mesh compute shaders, scanout decryption) is future work and out of scope. The render backend is behind a trait so Phase 2 swaps in without touching browser or distributor modules.
+
+This aligns with the architecture document's Phase 1 milestones 1.1 through 1.6:
+
+1.1: HTML/CSS rendering via tiny-skia to simplefb
+1.2: Boa integration with cooperative watchdog
+1.3: Tab isolation via kernel tasks
+1.4: Mesh color pipeline (CPU) — sRGB↔mesh conversion, Bézier interpolation, depth 3 gradients without banding
+1.5: z=0 distributor coprime walk routing through full z-stack
+1.6: CPU sponge encryption — in-place XOR on simplefb framebuffer
+Critical Architecture Decision: Custom std Shim (Redox OS Approach)
+The kernel is #![no_std] + alloc. Three of the seven browser crates (html5ever, rust-cssparser, boa_engine) require std. Rather than forking each crate or building no_std replacements — which creates permanent maintenance burden and risks conformance drift — this milestone uses the Redox OS approach: build a custom Rust target with a std shim backed by existing kernel primitives.
+
+The kernel already has everything std actually provides:
+
+std API	Kernel Primitive	Location
+std::alloc	BumpAllocator + #[global_allocator]	main.rs:19-44
+std::collections::HashMap	hashbrown (what std uses internally anyway)	re-export
+std::sync::Mutex	Security-aware Mutex<T> + ticket Spinlock	sync/mutex.rs, sync/spinlock.rs
+std::sync::RwLock	Kernel Semaphore-backed read/write lock	sync/semaphore.rs
+std::thread::spawn	ProcessTable::create_process + priority scheduler	process/table.rs, process/scheduler.rs
+std::time::Instant	FemtosecondTimestamp + HptpProvider	timing.rs, drivers/femtoclock.rs
+std::io::Read/Write	Thin trait wrappers over kernel buffers	new shim code
+std::fmt	Already in core — zero work	built-in
+std::net	Stub returning Err(Unsupported) — browser uses z=0, not sockets	stub
+std::fs	Stub returning Err(Unsupported) — fonts embedded, no filesystem	stub
+The shim is three custom Rust targets (x86_64-plenum-none, aarch64-plenum-none, riscv64gc-plenum-none) plus a plenum-std crate that re-exports core, alloc, and thin wrappers around kernel primitives under the std:: namespace. Every upstream crate (all eight) compiles unmodified. No forks. No no_std alternatives. No deferred functionality. And every future crate just works.
+
+This is real work — the biggest single task in Phase 1. But it solves the problem permanently.
+
+Done looks like
+Kernel boots to 1920x1080 graphical output (1280x720 on riscv64) — no 320x200 cap
+PlenumBrowser renders a styled boot/home page (plenum://home) at full HD via the complete pipeline
+HTML parsing via html5ever produces a real DOM tree; CSS parsing via rust-cssparser applies styles — both compile unmodified against the std shim
+Layout via Taffy (flexbox + CSS grid), text shaping via rustybuzz, glyph rasterization via fontdue — iterative work-queue layout (no recursion), font data embedded in the kernel binary (system-ui, monospace, serif, sans-serif)
+Boa JS engine v0.21 (94.12% Test262 conformance, bytecode VM, no JIT) executes scripts with cooperative watchdog — compiles unmodified against std shim, should_terminate checked between bytecode instructions, Termination exception caught by tab wrapper, clean shutdown
+Tab isolation — each tab is a kernel task with own stack/heap region; panic/OOM in one tab reclaimed by kernel, other tabs unaffected; catch_unwind for recoverable panics
+PlenumColor mesh pipeline (CPU path) — recursive self-similar polygon mesh (540 nodes/level, tunable depth). All compositing at mesh precision — no 8-bit DWM bottleneck. Phase 1 uses depth 3: 9.08 discrete bits/channel, 11.3 effective bits/channel with Bézier interpolation (between 10-bit HDR and 12-bit cinema). Architecture supports depth 4: 15.1 effective bits/channel (matches 14-bit RAW camera). Bézier interpolation: 4.8× improvement per level, 531× at depth 4 (proven). Parallel coprime walk: gcd(1001, 540) = 1, guarantees full 540-step coverage at any depth. Default sRGB mapping compiled at boot as GPU-ready LUT (~5.25MB at depth 3) — no calibration required. Optional 1,080-patch calibration for print matching (vs ICC's 4,913 patches) is out of scope for Phase 1. Every constant derives from arc² − 832·arc + 118,300 = 0: roots 182 (red arc) and 650 (green arc), product 118,300, sum 832, coprime step 1001 = 7×11×13. CSS colors converted via srgb_to_mesh() → mesh compositing → mesh_to_srgb() → RGBA. Gradients without banding.
+CPU sponge encryption — per-frame TLSponge-385 rekey, in-place XOR on the simplefb framebuffer, key advances every frame. Rekey happens in the 461 overlap slots (1001 − 540 = 461, prime) of the coprime walk.
+z=0 distributor routes all browser requests — (7,11,13) coprime walk on 540-node ring, requests fall down to appropriate z-level, results bubble up. Browser at z=+1 imports only from crate::distributor::RequestInterface — zero imports from crate::layers::*, crate::crypto::*, crate::network::* or any subsystem below z=0. The distributor imports from layers; the browser does not.
+Keyboard input via TIS-27 encoding at interrupt level (before any buffer), direct kernel call to browser DOM handler, decoded to Unicode inside Boa's DOM event handler at the last possible moment
+Font caching: global shared font file cache (256MB, LRU eviction — one copy per font shared across all tabs, holds ~20 CJK families or hundreds of Latin); per-tab rasterized glyph cache (16MB active / 2MB for background tabs idle >60s, LRU eviction); on-demand rasterization only (fontdue rasterizes individual glyphs, never pre-rasterizes full character sets); total worst case 20 active tabs = 576MB, typical 5 active + 15 background = 366MB. Embedded fonts: Noto Sans (sans-serif/system-ui, ~550KB), Noto Serif (serif, ~450KB), Noto Sans Mono (monospace, ~250KB). Total ~1.25MB embedded. Noto family chosen for CJK coverage path in future phases.
+Phase 1 frame rate: 30 FPS minimum at 1080p. Dirty-rectangle tracking for partial-frame updates if full-frame re-render can't meet the ~33ms frame budget. Performance regression test in CI.
+Phase 1 networking: embedded content only (plenum://home, plenum://settings, plenum://about). The z=0 distributor and z=-6 networking stack are wired but serve only embedded pages. External HTTP fetch is deferred to Phase 1.5 when the TDNS + TLSponge-385 transport is validated.
+Main event loop replaces halt loop — polls input, drives render pipeline
+QEMU CI smoke test verifies boot → full resolution init → home page render → tab isolation → watchdog termination → clean exit
+Out of scope
+Phase 2 GPU pipeline: wgpu rendering, IOMMU-isolated VRAM, mesh_composite.wgsl / mesh_to_srgb.wgsl / sponge_encrypt.wgsl compute shaders, scanout decryption, 4K@60fps — all future work
+src/kernel/src/gpu/ module (driver, shaders, iommu, scanout) — Phase 2
+Full web standards compliance beyond what html5ever + Boa v0.21 support
+WebRTC, Service Workers, advanced browser APIs beyond fetch/timers
+GUI chrome (tabs bar, address bar, bookmarks) — engine and pipeline only
+WAN tunneling — LAN-only
+JIT compilation for Boa (bytecode VM is a deliberate security choice)
+Wine/Darling sandbox for z=-1 (trait interface defined only)
+PlenumColor optional calibration (1,080-patch probe refinement) — default compiled mapping only
+4K resolution — 1080p is the Phase 1 target
+Hot-swap browser subsystem updates — Phase 1 requires reboot
+Tasks
+Build the PlenumNET std shim and custom Rust targets — This is the critical path, the biggest single task in Phase 1, and must be done first. The shim permanently solves crate compatibility for the entire project. This is not "write some wrapper code" — it is replicating the public API surface of the Rust standard library (every module, every type, every trait that the seven crates import via use std::*) backed by kernel primitives. Estimate 3-5 weeks. Reference: Redox OS solved this identically with relibc + redoxer toolchain.
+
+(a) Nightly Rust + -Z build-std sysroot: Requires nightly Rust with -Z build-std enabled. Create JSON target specs for x86_64-plenum-none, aarch64-plenum-none, riscv64gc-plenum-none based on the corresponding *-unknown-none targets. The build system compiles core, alloc, and the custom plenum-std (as the std crate) into a sysroot that rustc uses for all downstream compilation. The plenum-std crate must present exactly the same module tree and public API surface that std does — use std::collections::HashMap, use std::sync::Mutex, use std::thread, etc. must all resolve. Crates don't know they're running on PlenumNET — they call std and get kernel primitives underneath.
+
+(b) plenum-std crate — full std API surface mapping:
+
+std::alloc → existing #[global_allocator] BumpAllocator (must be upgraded — see (c))
+std::collections::HashMap/HashSet/BTreeMap/BTreeSet → hashbrown for hash maps (what std uses internally), core BTree re-exports
+std::sync::Mutex<T> → kernel Mutex<T> from sync/mutex.rs (wraps the ticket spinlock)
+std::sync::RwLock<T> → kernel semaphore-backed implementation from sync/semaphore.rs
+std::sync::Arc/Weak → re-export from alloc::sync (already available)
+std::thread::spawn → ProcessTable::create_process + kernel task with priority scheduler
+std::thread::JoinHandle<T> → kernel task completion signaling with return value
+std::thread::LocalKey / #[thread_local] → kernel task-local storage (TLS). This is critical for Boa. Boa's GC uses std::thread::LocalKey for per-thread GC root sets. The kernel task model must provide per-task storage slots that LocalKey::with() can access. Implementation: each ProcessDescriptor gets a TLS block (a BTreeMap<TypeId, Box<dyn Any>> or a fixed-slot array) that the std::thread::LocalKey shim indexes into using the current task's PID from the scheduler. Without this, Boa's GC will not function — it stores root pointers in thread-locals and expects them to be task-isolated.
+std::time::Instant → FemtosecondTimestamp from timing.rs (backed by HptpProvider / femtoclock driver). Must implement Instant::now(), Instant::elapsed(), Instant::duration_since().
+std::time::Duration → re-export from core (already available)
+std::time::SystemTime → map to FemtosecondTimestamp with a fixed epoch offset
+std::io::{Read, Write, Error, ErrorKind, Result, Cursor, BufReader, BufWriter} → thin trait wrappers over kernel buffers. ErrorKind must cover at minimum: NotFound, PermissionDenied, Unsupported, Other, WouldBlock, InvalidInput, UnexpectedEof. html5ever uses std::io::Read to consume input; the shim must make this work over in-memory byte slices.
+std::fmt → re-export from core (zero work)
+std::string::String, std::vec::Vec, std::boxed::Box → re-export from alloc
+std::net → stub module where TcpStream::connect(), TcpListener::bind(), etc. all return Err(io::Error::new(ErrorKind::Unsupported, "use z=0 distributor")). Browser networking goes through z=0, not sockets.
+std::fs → stub module where File::open(), read_to_string(), etc. all return Err(io::Error::new(ErrorKind::Unsupported, "fonts embedded, no filesystem")). Font files are embedded in the kernel binary.
+std::env → stub returning empty/defaults
+std::process → stub (no child processes in kernel)
+std::panic → wire to kernel panic handler with catch_unwind support for tab isolation
+(c) Allocator upgrade: The current BumpAllocator (1MB heap, no dealloc) cannot support real crate workloads. Upgrade to a proper kernel allocator (e.g., linked-list or buddy allocator) that supports deallocation and can grow the heap well beyond 1MB. This is load-bearing — Boa's GC, html5ever's tree builder, and Taffy's layout tree all allocate and free continuously. The allocator must handle the browser's memory profile: ~8MB framebuffer + ~5.25MB mesh LUT + font caches (256MB global + 16MB×active tabs) + per-tab DOM/layout/JS heaps.
+
+(d) Build system integration: Configure .cargo/config.toml with the custom target, -Z build-std=core,alloc,std, and sysroot paths. Pin to a specific nightly toolchain version in rust-toolchain.toml. Ensure cargo build --target x86_64-plenum-none compiles the kernel + all eight crates in a single pass. CI must use the same pinned nightly.
+
+(e) Validation: Compile all eight crates against the shim — if any use std::* path fails to resolve, the shim's module tree is incomplete and must be extended. Run existing kernel boot test in QEMU to verify the shim doesn't break boot. Specifically test: Boa's GC roots survive across yield points (proves TLS shim works), HashMap::insert/get round-trips (proves hashbrown wiring), Instant::elapsed() returns non-zero (proves timer shim), thread::spawn + JoinHandle::join completes (proves task shim).
+
+(f) Early integration test: After shim completion, compile html5ever alone and parse a simple HTML string (<html><body><h1>test</h1></body></html>) inside the kernel as a standalone validation test before wiring the full browser pipeline. This proves the shim's std::io::Read, std::collections::HashMap, and allocator all work correctly under html5ever's actual usage patterns. Run this test in QEMU as part of the boot sequence.
+
+Remove 320x200 cap and initialize at full resolution — Replace the smoke_w/smoke_h clamping in main.rs with direct use of BootParams framebuffer dimensions (1920x1080 / 1280x720). Scale the heap allocator to support full HD RGBA pixel buffers (~8MB for 1080p). Replace the halt loop with a main event loop.
+
+Wire html5ever + rust-cssparser into parse module — With the std shim in place, integrate html5ever (unmodified) tree-sink to produce real DomNode trees from HTML markup. Wire rust-cssparser (unmodified) for style rule extraction. Enforce MAX_RECURSION_DEPTH (512). Parser operates on in-memory data — the std::fs stub is never hit because all content is embedded or fetched via z=0.
+
+Wire Taffy + rustybuzz + fontdue into layout module with production font caching — Replace the placeholder compute_layout with real Taffy-backed flexbox/grid. Integrate rustybuzz for text shaping and fontdue for on-demand glyph rasterization (never pre-rasterize full character sets). Embed system fonts in the kernel binary: Noto Sans (~550KB, sans-serif/system-ui), Noto Serif (~450KB, serif), Noto Sans Mono (~250KB, monospace). Total ~1.25MB embedded. Noto family chosen for CJK coverage path in future phases. Use existing iterative work-queue (no recursion). Replace the existing MAX_FONT_CACHE_PER_TAB (8MB) and KERNEL_FONT_CACHE_CAP (64MB) constants in layout.rs with the settled values: FONT_FILE_CACHE_GLOBAL (256MB), GLYPH_CACHE_PER_TAB (16MB), GLYPH_CACHE_BACKGROUND (2MB). Implement the two-tier caching model: (a) FontCache — global shared font file cache, 256MB LRU, LruCache<FontId, Arc<FontData>>, one copy per font shared across all tabs, web fonts fetched via z=0, holds ~20 CJK families or hundreds of Latin; (b) TabGlyphCache — per-tab rasterized glyph cache, LruCache<(FontId, GlyphId, Size), RasterizedGlyph>, 16MB LRU for active tabs, 2MB trim for background tabs idle >60s (keep only visible viewport glyphs at time of backgrounding). On cache miss: get_or_rasterize() rasterizes that one glyph via fontdue, stores it, LRU-evicts oldest if full. Font file exceeding global pool evicts LRU font file. Web font exceeding per-tab glyph pool falls back to system font.
+
+Wire Boa JS engine into script module — Replace stub ScriptExecutor with real boa_engine v0.21 (compiles unmodified against std shim). Cooperative watchdog: context.set_timeout(budget_ms), Boa checks should_terminate between bytecode instructions, throws Termination exception caught by tab wrapper. Phase 1 DOM API surface (explicitly scoped): document.getElementById(), document.createElement(), element.textContent, element.style, element.addEventListener('click', ...), element.appendChild(). No querySelector, no MutationObserver, no classList, no dataset. Sufficient for the home page's interactive elements only. Route fetch() through net.rs → z=0 dispatcher. Boa's std::time::Instant calls hit the shim's FemtosecondTimestamp; its HashMap calls hit hashbrown; its thread-local GC state maps to kernel task-local storage via the std::thread shim.
+
+Create render.rs trait module and wire tiny-skia + resvg into render_cpu.rs as Phase 1 implementation — Create render.rs as the render backend trait module that dispatches to CPU or GPU. Implement the trait in render_cpu.rs using tiny-skia to produce full RGBA pixel buffer from the laid-out DOM tree. Replace the manual set_pixel/fill_rect with tiny-skia. Wire resvg (pure Rust, ~2,500 LOC, same author as tiny-skia, uses tiny-skia as its rendering backend) for SVG rendering — handles inline <svg> elements in HTML and <img src="*.svg"> references. resvg covers the static SVG subset: paths, shapes, gradients, transforms, clipping, filters. No animations or scripting needed. Support text rendering, gradients, raster images, and SVG images. The encode + encrypt step lives in render_cpu.rs. No separate compositor module — single pipeline: parse → layout → script → render → encrypt → display. The trait boundary is the Phase 1 → Phase 2 seam: Phase 2 GPU path swaps in without changing browser or distributor modules.
+
+Derive default mesh↔sRGB mapping and implement PlenumColor mesh pipeline (CPU path) — This is a math + implementation task, not just wiring. The existing mesh.rs and color.rs modules contain stubs with placeholder logic that must be replaced with the real derivation.
+
+Mathematical foundation — every constant from arc² − 832·arc + 118,300 = 0:
+
+Arc equation roots: red arc = 182°, green arc = 650° (in ternary 364° circle)
+Product: 182 × 650 = 118,300 (= ARC_PRODUCT)
+Sum: 182 + 650 = 832 (= arc equation coefficient)
+Coprime step: 1001 = 7 × 11 × 13; gcd(1001, 540) = 1 — guarantees full coverage of all 540 nodes in a single walk at any depth
+Overlap slots: 1001 − 540 = 461 (prime) — used for sponge rekey scheduling
+Recursive self-similar polygon mesh:
+
+540 nodes per level (482 interior + 58 rim), from 11 polygons (3-gon through 13-gon) inscribed in the 364° unit circle
+Self-similar: each node at depth d contains a full 540-node mesh at depth d+1
+Tunable depth — Phase 1 implements depth 3, architecture supports arbitrary depth
+Precision model (depth → effective bits/channel with Bézier):
+
+Depth 1: 540 addresses → 3.03 bits/ch discrete, ~5.3 effective
+Depth 2: 291,600 addresses → 6.05 bits/ch discrete, ~8.3 effective
+Depth 3: 157,464,000 addresses → 9.08 bits/ch discrete, 11.3 effective (between 10-bit HDR and 12-bit cinema) — Phase 1 target
+Depth 4: 85,030,560,000 addresses → 12.10 bits/ch discrete, 15.1 effective (matches 14-bit RAW camera) — future
+Bézier interpolation: 4.8× improvement per level (proven), 531× at depth 4
+Implementation requirements:
+
+Derive the default sRGB↔mesh lookup table from the arc equation, the two Bézier arcs (red 182°, green 650° control points already in color.rs), and the 540-node recursive polygon mesh geometry
+Implement srgb_to_mesh() to convert CSS RGB values to recursive mesh addresses at depth 3 — must use per-channel conversion through the mesh topology, not the current placeholder weighted-sum approach
+Implement mesh_to_srgb() to convert mesh addresses back to RGBA for display output — must reconstruct per-channel, not the current grayscale-only stub
+Implement Bézier interpolation between mesh nodes for sub-cell precision (4.8× per level)
+Parallel coprime walk: gcd(1001, 540) = 1 ensures 540 steps cover all nodes — use this for LUT construction and gradient sampling
+Precompute the depth-3 LUT at boot (~5.25MB) and store in kernel memory — this is the default compiled mapping, GPU-ready format for Phase 2
+All compositing happens at mesh depth 3 precision — no 8-bit DWM bottleneck anywhere in the pipeline
+Optional 1,080-patch calibration for print matching (vs ICC's 4,913 patches) is out of scope — default compiled mapping only
+Validation: gradients must render without banding — this is the primary visual criterion. sRGB round-trip error must be ≤1 LSB per channel at depth 3.
+Standalone test harness: Write a standalone test binary (separate from the browser pipeline) that computes the depth-3 LUT, renders a set of reference gradients (black→white, red→blue, dark navy #141E30→light cyan), and compares output against golden reference images (pixel-exact comparison with ≤1 LSB tolerance). This validates the math independently before integration. Run as a CI step.
+Wire CPU sponge encryption on framebuffer — Per-frame TLSponge-385 rekey using sponge_rekey.rs. XOR every pixel with per-frame keystream after render. Rekey in the 461 overlap slots (1001 − 540 = 461, prime) of the coprime walk. Key advances every frame. This is the CPU XOR path — Phase 2 moves this to GPU shader. SIMD-accelerated XOR (AVX2 on x86_64, NEON on aarch64) for the encryption pass — 8MB × 30fps = 240 MB/s of XOR at the 30 FPS target, which is feasible with SIMD but marginal without it on slower CPUs. If full-frame XOR exceeds the frame budget, encrypt only dirty regions (tiles that changed since last frame) — this aligns with the dirty-rectangle tracking in the render pipeline.
+
+Wire tab isolation via kernel tasks — Each tab runs as a separate kernel task with own stack/heap. Each tab's heap is a separate allocator region with guard pages. Page faults in a tab's region trigger task termination, not kernel panic. This is same-address-space isolation with hardware-assisted bounds checking, not separate address spaces. catch_unwind for recoverable panics. Double-panic or OOM: kernel reclaims task resources, other tabs unaffected. 30-second health check with automatic rollback on subsystem failure.
+
+Wire keyboard input through TIS-27 to browser DOM — Serial receive (COM1/PL011/SBI) at interrupt level, TIS-27 encode before any buffer, direct kernel call to BrowserInputHandler, decode to Unicode inside Boa's DOM event handler at the last possible moment. No IPC, no shared memory buffer.
+
+Wire z=0 distributor end-to-end — Verify the existing coprime walk (7,11,13) on 540-node ring routes browser requests through the full z-stack. Browser at z=+1 dispatches only through z=0, requests fall to z=-1 through z=-6 as needed, results bubble back. Import enforcement: the browser module imports only from crate::distributor::RequestInterface (the well-defined request/response trait). Zero imports from crate::layers::*, crate::crypto::*, crate::network::*, or any other subsystem below z=0. The distributor itself imports from layers — the browser does not. Enforced structurally via module visibility.
+
+Build the plenum://home boot page — Built-in styled HTML embedded in the kernel binary as the initial display after boot. Content: dark background (#141E30 → #243B55 gradient), centered PlenumNET logo as real inline SVG (rendered via resvg — paths, gradients, the PlenumNET purple #8B5CF6), system title "PlenumNET" in large sans-serif, subtitle "Salvi Framework — Applied Physics Division", kernel version string (e.g., "Kernel v0.1.0 · Phase 1 CPU"), system stats section showing architecture, framebuffer resolution, memory detected, tab count. Navigation links to plenum://settings, plenum://about (stub pages that display placeholder text). Styled with CSS: flexbox centering, system fonts, the PlenumNET purple (#8B5CF6) as accent color. This page exercises the full pipeline end-to-end: html5ever parses the HTML (including the inline <svg> element), rust-cssparser applies styles, Taffy lays it out, fontdue rasterizes the text, resvg renders the SVG logo via tiny-skia, tiny-skia composites everything to framebuffer, mesh pipeline processes colors, sponge encrypts the output.
+
+Update QEMU CI smoke test — Boot → full resolution init → browser subsystem OK → home page renders → tab open/close/crash recovery → cooperative watchdog terminates runaway JS → clean exit. Three verification mechanisms, all must pass:
+
+(a) Encryption verification (raw memory ≠ expected pixels): Read raw framebuffer bytes from QEMU guest physical memory (via QEMU monitor xp command or -dump-vmstate). Compare pixel values at known coordinates (e.g., (100,100), (960,540), (1800,1000)) against the expected unencrypted RGBA values from the home page. The raw bytes must NOT match the expected pixels — this proves sponge encryption is active on the framebuffer. If raw bytes equal expected pixels, encryption is broken or bypassed.
+(b) Decryption verification (display output = expected pixels): The kernel's display pipeline decrypts before scanout. Use QEMU's VNC or screenshot capture (screendump monitor command) to capture the displayed output. Pixel-sample at the same coordinates — these must match the expected RGBA values. This proves the decrypt path works correctly.
+(c) Framebuffer checksum: CRC32 of the full raw framebuffer after render. This checksum covers the encrypted bytes and must match a known-good baseline (computed once and committed). If it drifts, either the render output changed or the sponge key schedule changed — both require investigation.
+Additional checks: tab open/close/crash recovery, cooperative watchdog terminating runaway JS (verify via serial output that watchdog fired and tab was reclaimed).
+Dependencies (pinned crate versions — all compile unmodified against plenum-std shim)
+html5ever = "0.27" — HTML5 parsing (MPL 2.0, file-level copyleft — include MPL notice in LICENSES/)
+rust-cssparser = "0.33" — CSS parsing (MPL 2.0 — same notice requirement)
+taffy = "0.5" — Flexbox + CSS Grid layout (MIT/Apache 2.0)
+rustybuzz = "0.14" — Text shaping, pure Rust HarfBuzz (MIT)
+fontdue = "0.9" — Font rasterization to glyph bitmaps (MIT)
+boa_engine = "0.21" — JavaScript engine, 94.12% Test262 conformance, bytecode VM, no JIT (MIT)
+tiny-skia = "0.11" — CPU 2D rendering, Phase 1 fallback (MIT)
+resvg = "0.47" — SVG rendering, pure Rust, tiny-skia backend (MPL 2.0 — same notice requirement as html5ever/cssparser, include in LICENSES/)
+hashbrown = "0.14" — HashMap/HashSet backing (Apache 2.0/MIT) — used inside plenum-std shim
+Relevant files
+src/kernel/src/main.rs
+src/kernel/Cargo.toml
+src/kernel/src/browser/mod.rs
+src/kernel/src/browser/render.rs (new — render backend trait)
+src/kernel/src/browser/render_cpu.rs
+src/kernel/src/browser/parse.rs
+src/kernel/src/browser/layout.rs
+src/kernel/src/browser/script.rs
+src/kernel/src/browser/tabs.rs
+src/kernel/src/browser/input.rs
+src/kernel/src/browser/net.rs
+src/kernel/src/browser/mesh.rs
+src/kernel/src/browser/color.rs
+src/kernel/src/sync/mutex.rs
+src/kernel/src/sync/spinlock.rs
+src/kernel/src/sync/semaphore.rs
+src/kernel/src/process/mod.rs
+src/kernel/src/process/table.rs
+src/kernel/src/process/scheduler.rs
+src/kernel/src/timing.rs
+src/kernel/src/drivers/femtoclock.rs
+src/kernel/src/distributor/mod.rs
+src/kernel/src/distributor/coprime_walk.rs
+src/kernel/src/distributor/z_router.rs
+src/kernel/src/distributor/sponge_rekey.rs
+src/kernel/src/layers/mod.rs
+src/kernel/src/layers/gateway.rs
+src/kernel/src/layers/services.rs
+src/kernel/src/layers/conventional.rs
+src/kernel/src/layers/ternary_native.rs
+src/kernel/src/layers/data.rs
+src/kernel/src/layers/infrastructure.rs
+src/kernel/src/layers/fileserver.rs
+src/kernel/src/layers/snapshots.rs
+src/kernel/src/arch/boot.rs:232-306
+src/kernel/src/input/keyboard.rs
