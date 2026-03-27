@@ -1,0 +1,182 @@
+================================================================
+  PlenumNET — QEMU Bare-Metal Validation (Milestone 1C)
+  Kernel:  ternary-kernel.mb
+  Target:  x86_64-unknown-none
+  Timeout: 120s
+  Verify:  encryption=true
+================================================================
+
+qemu-system-x86_64: terminating on signal 15 from pid 2319 (timeout)
+--- Serial Output ---
+1234================================================================
+  PlenumNET Ternary Kernel — Bare-Metal Validation
+  Salvi Framework v0.1.0
+  Capomastro Holdings Ltd. — Applied Physics Division
+  Target: x86_64-unknown-none (QEMU)
+================================================================
+
+[BOOT] Kernel version: 0.1.0
+[BOOT] Copyright: Copyright (c) 2026 Capomastro Holdings Ltd
+[BOOT] Initializing kernel...
+[BOOT] Architecture: x86_64
+[BOOT] Timing source: System Clock
+[BOOT] Kernel initialized successfully.
+
+[TEST] Running bare-metal self-test suite...
+    Tests exercise the ACTUAL plenumnet-kernel library code.
+    No OS, no libc, no allocator runtime — just raw hardware.
+----------------------------------------------------------------
+  -- Kernel Init --
+  [PASS] kernel version matches
+  [PASS] ternary_ops enabled
+  [PASS] femtosecond_timing enabled
+  [PASS] phase_encryption enabled
+  -- Salvi Epoch --
+  [PASS] SALVI_EPOCH_NS is April 1 2025
+  [PASS] SALVI_EPOCH_FS consistent
+  -- Trit Arithmetic (GF(3)) --
+  [PASS] Trit::from_a(1) == +1
+  [PASS] Trit::from_a(0) == 0
+  [PASS] Trit::from_a(-1) == -1
+  [PASS] Trit::from_a(5) == None
+  [PASS] to_b: -1 -> 0
+  [PASS] to_b:  0 -> 1
+  [PASS] to_b: +1 -> 2
+  [PASS] to_c: -1 -> 1
+  [PASS] to_c:  0 -> 2
+  [PASS] to_c: +1 -> 3
+  [PASS] round-trip B: from_b(to_b(P))
+  [PASS] round-trip C: from_c(to_c(N))
+  [PASS] NOT(+1) == -1
+  [PASS] NOT(-1) == +1
+  [PASS] NOT(0) == 0
+  [PASS] double negation: NOT(NOT(P)) == P
+  [PASS] AND(P, N) == N
+  [PASS] AND(P, P) == P
+  [PASS] AND(P, Z) == Z
+  [PASS] OR(P, N) == P
+  [PASS] OR(N, N) == N
+  [PASS] OR(N, Z) == Z
+  [PASS] add(P, P) in GF(3)
+  [PASS] add(P, N) in GF(3)
+  [PASS] mul(P, P) == P
+  [PASS] mul(P, N) == N
+  [PASS] mul(N, N) == P
+  [PASS] mul(Z, P) == Z
+  [PASS] rotate(-1) == 0
+  [PASS] rotate(0) == 1
+  [PASS] rotate(1) == -1
+  -- Packed Trit Words --
+  [PASS] pack/unpack round-trip (9 trits)
+  [PASS] 27-trit pack/unpack: pos 0
+  [PASS] 27-trit pack/unpack: pos 13
+  [PASS] 27-trit pack/unpack: pos 26
+  -- Representation Bijections --
+  [PASS] A->B->C->A round trip (+1)
+  [PASS] A->B->A round trip (-1)
+  -- Boot Sequence --
+  [PASS] boot starts at PowerOn
+  [PASS] boot not complete initially
+  [PASS] all 11 boot stages advance
+  [PASS] boot sequence complete
+  [PASS] final stage is Running
+  [PASS] 11 stages recorded
+  [PASS] cannot advance past Running
+  -- x86_64 Boot Config --
+  [PASS] arch is X86_64
+  [PASS] kernel at 0x100000 (1 MiB)
+  [PASS] memory map has entries
+  [PASS] first region is Usable
+  -- Femtosecond Timing --
+  [PASS] FS_PER_NS == 1_000_000
+  [PASS] FS_PER_MS == 1e12
+  [PASS] FS_PER_SECOND == 1e15
+  [PASS] zero timestamp
+  [PASS] zero seconds()
+  [PASS] 1s timestamp: seconds() == 1
+  [PASS] 1s timestamp: sub_second_fs() == 0
+  [PASS] 1.5s timestamp: ms == 500
+  [PASS] from_unix_ns produces non-zero
+  -- Phase Encryption --
+  [PASS] HighSecurity: 7 phases
+  [PASS] Balanced: 5 phases
+  [PASS] Performance: 3 phases
+  [PASS] HighSecurity uses golden ratio
+  -- Architecture --
+  [PASS] architecture detected (not Unknown)
+----------------------------------------------------------------
+[RESULT] 68 passed, 0 failed
+
+[PASS] Self-tests passed. Proceeding to full browser boot...
+
+PlenumNET Kernel v0.1.0
+[boot] Architecture: x86_64
+[boot] Kernel physical base: 0x100000
+[boot] Stage FirmwareHandoff: OK
+[boot] Stage EarlyInit: OK
+[boot] Stage MemoryDetection: OK
+[boot] Stage PageTableSetup: OK
+[boot] Stage InterruptSetup: OK
+[boot] Stage TimerSetup: OK
+[boot] Stage TernaryCoprocessorInit: OK
+[boot] Stage DriverInit: OK
+[boot] Stage SchedulerInit: OK
+[boot] Stage LateInit: OK
+[boot] Stage Running: OK
+Boot sequence complete (11 stages)
+[boot] Heap allocator: linked-list, 256MB capacity
+[browser] Initializing PlenumBrowser subsystem...
+[browser] Framebuffer: 1920x1080 (CPU renderer)
+[color] Initializing PlenumColor mesh pipeline (depth 3)...
+[color] Depth 3: 157464000 addresses, ~11 effective bits/channel
+[color] Building depth-3 LUT...
+[color] LUT built: 6228 bytes
+[browser] Rendering plenum://home boot page...
+[browser] Tab opened: plenum://home (id=0)
+[browser] Home page rendered to framebuffer
+
+--- Verification ---
+[PASS] Kernel boot banner
+[PASS] Boot sequence complete
+[PASS] Browser subsystem init
+[PASS] Home page rendered
+[FAIL] Mesh color pipeline (pattern: Mesh color pipeline applied)
+[FAIL] Sponge encryption init (pattern: TLSponge-385)
+[FAIL] Frame encrypted (pattern: Frame 1 encrypted)
+[FAIL] Distributor init (pattern: z=0 distributor)
+[FAIL] Coprime walk OK (pattern: Coprime walk)
+[PASS] LUT built
+[FAIL] Kernel boot OK (pattern: PLENUMNET KERNEL BOOT OK)
+[FAIL] Full pipeline (pattern: parse -> layout -> render -> mesh color -> encrypt)
+[PASS] Tab opened
+
+=== Layer 1: Encryption Active ===
+[FAIL] No encryption evidence in serial output
+[FAIL] Rekey interval 461 (pattern: 461 overlap slots)
+[FAIL] Security 385-bit (pattern: 385-bit security)
+[INFO] Raw framebuffer not captured (QEMU monitor may not support pmemsave at this address)
+  Falling back to serial-only encryption verification
+
+=== Layer 2: Pipeline Stage Integrity ===
+[PASS] Depth 3 precision
+[FAIL] Requests dispatched (pattern: requests dispatched)
+
+=== Layer 3: Framebuffer CRC32 Baseline ===
+[INFO] No framebuffer capture available. CRC baseline deferred to next run with monitor.
+
+--- Tab Management ---
+[FAIL] Tab management
+
+================================================================
+  Three-Layer Verification Summary
+  Layer 1 (Encryption):  serial + VRAM entropy
+  Layer 2 (Pipeline):    stage ordering + serial checks
+  Layer 3 (CRC32):       framebuffer/screendump baseline
+  Passed: 7
+  Failed: 12
+================================================================
+
+[TIMEOUT] QEMU did not exit within 120s
+  The kernel booted but may have hung during self-tests.
+  Full serial log: /tmp/plenum-serial.log
+librawolf@SSLaptopPMHU6JD:/mnt/c/PlenumNET/src/kernel/bare-metal$
