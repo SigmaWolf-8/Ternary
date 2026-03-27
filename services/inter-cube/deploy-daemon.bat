@@ -3,7 +3,7 @@ title PlenumNET Cube Daemon Deployer
 color 0B
 echo.
 echo   ==========================================================
-echo     PlenumNET Cube Daemon Deployer v0.3.0
+echo     PlenumNET Cube Daemon Deployer v0.4.0
 echo     Applied Physics Division -- Capomastro Holdings Ltd.
 echo   ==========================================================
 echo.
