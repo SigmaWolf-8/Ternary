@@ -3,9 +3,8 @@
 # Copyright (c) 2025-2026 Capomastro Holdings Ltd.
 #
 # Builds the bare-metal kernel binary for x86_64 QEMU validation.
-# Uses the built-in x86_64-unknown-none target with -Zbuild-std passed
-# on the command line to avoid cargo/rustc flag-injection issues across
-# different nightly versions.
+# rust-toolchain.toml pins the exact nightly version — rustup handles
+# installation automatically when you enter this directory.
 #
 # Usage:
 #   bash scripts/build.sh          # debug build
@@ -16,7 +15,6 @@ cd "$(dirname "$0")/.."
 
 MODE="${1:-debug}"
 TARGET="x86_64-unknown-none"
-BUILD_STD="-Zbuild-std=core,compiler_builtins,alloc -Zbuild-std-features=compiler-builtins-mem"
 
 echo "================================================================"
 echo "  PlenumNET — Bare-Metal Build"
@@ -30,24 +28,23 @@ if ! command -v rustup &>/dev/null; then
     exit 1
 fi
 
-if ! rustup show active-toolchain 2>/dev/null | grep -q nightly; then
-    echo "[SETUP] Installing nightly toolchain..."
-    rustup toolchain install nightly --component rust-src
-    rustup override set nightly
-fi
+ACTIVE=$(rustup show active-toolchain 2>/dev/null || echo "none")
+echo "  Toolchain: ${ACTIVE}"
 
 if ! rustup component list --installed 2>/dev/null | grep -q rust-src; then
-    echo "[SETUP] Installing rust-src component..."
-    rustup component add rust-src --toolchain nightly
+    echo "[SETUP] Installing rust-src..."
+    rustup component add rust-src
 fi
 
 echo ""
 
+BUILD_CMD="cargo build -Zbuild-std=core,compiler_builtins,alloc -Zbuild-std-features=compiler-builtins-mem"
+
 if [ "$MODE" = "release" ]; then
-    cargo $BUILD_STD build --release
+    $BUILD_CMD --release
     BINARY="target/${TARGET}/release/ternary-kernel"
 else
-    cargo $BUILD_STD build
+    $BUILD_CMD
     BINARY="target/${TARGET}/debug/ternary-kernel"
 fi
 
