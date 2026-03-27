@@ -1,0 +1,46 @@
+What the flow would look like for the user:
+
+Prerequisites (they handle manually once):
+
+Shrink their Windows partition in Disk Management to free up space (say 20-50 GB)
+Leave the space as unformatted/unallocated
+Have a deployed Daemon Node running
+One-click from the dashboard:
+
+Click "Install PlenumNET OS" on the Admin page or Node Terminal
+The daemon writes the kernel image to the unallocated partition
+Adds a boot entry to the Windows Boot Manager (BCD)
+Prompts for a reboot
+On reboot:
+
+The standard Windows boot menu appears with two options: "Windows 11" and "PlenumNET"
+User picks one
+Technically, here's what's needed:
+
+The kernel needs to be self-sufficient — right now it boots and prints a sentinel. It would need disk drivers, a filesystem, networking, and a shell/UI to be useful as an actual OS option. That's a large body of work.
+
+Boot entry registration is straightforward on Windows — bcdedit can add a new entry pointing to a partition. The daemon already runs with admin privileges, so it has the access.
+
+Partition formatting — the daemon would format the free partition, write the kernel image, and set up a minimal bootloader (GRUB or a custom one).
+
+Architecture match — your Snapdragon laptop is ARM64, so the kernel needs the aarch64 build path (which is already implemented in Task #44).
+
+What's realistic today vs. what needs more work:
+
+Component	Status
+Kernel boots on bare metal (3 architectures)	Done (Task #44)
+Boot entry in Windows Boot Manager	Straightforward to script
+Partition detection + image writing	Moderate effort
+Kernel serial/UART output	Done
+Kernel GPU framebuffer (320x200)	Done (PlenumBrowser Phase 1)
+Kernel networking stack	Stubbed, not functional
+Kernel filesystem/disk access	Not yet
+Kernel shell/terminal	Not yet
+Auto-connect to Array3 cluster on boot	Not yet
+My honest take: The dual-boot installer itself (partition detection, image writing, BCD entry) is very doable as a near-term task. But the kernel needs more subsystems before booting into PlenumNET would be useful to a user — right now they'd see a 320x200 framebuffer with a test page. The experience would be: boot into PlenumNET, see "PLENUMNET KERNEL BOOT OK" on screen, and then need to reboot back to Windows because there's no shell or networking yet.
+
+A good roadmap would be:
+
+Next milestone: Kernel console/shell (so users get a command prompt on boot)
+Then: Basic networking (so the kernel can reach the Array3 cluster)
+Then: The dual-boot installer in the daemon

@@ -1,0 +1,26 @@
+Current State
+Your networking stack has two layers today:
+
+Kernel layer (src/kernel/src/network/) — Torus topology, geometric routing (Hamming distance hops), T3P protocol, metatronic bridge. This is all logical — it reasons about coordinates, neighbors, and routes but has no awareness of the physical network reality (NATs, firewalls, public vs private IPs).
+
+Services layer (services/inter-cube/) — The Cube Overlay Network (CON), WebSocket relay, CRS endpoint registry, tunnel authentication. This is where all the physical network plumbing lives today, including the relay fallback that handles NAT-ed nodes.
+
+Task #38 (WAN P2P Tunnel Engine) is already drafted and covers relay-assisted UDP hole punching, HPTP-coordinated timing, and transparent fallback — but it's scoped to the services layer.
+
+The Architectural Question
+Moving NAT traversal into the kernel means the kernel's networking subsystem would natively understand transport path types and participate in path selection — rather than having the services layer make those decisions above it.
+
+There are really three approaches here:
+
+Option A: Kernel-Aware Transport Abstraction
+Add a transport abstraction layer inside src/kernel/src/network/ that understands path types (LAN direct, WAN punched, relay) as first-class routing metadata. The kernel's geometric router would factor transport cost into hop selection — a relay hop costs more than a direct punch, which costs more than LAN. The actual hole-punching mechanics stay in userspace (services), but the kernel selects and manages paths.
+
+Option B: Full Kernel NAT Traversal
+Push the entire STUN/punch/relay state machine into the kernel. The kernel handles its own UDP sockets, HPTP-coordinated simultaneous sends, and maintains the punch state per neighbor. This gives you the tightest integration but means the kernel needs socket I/O and timer facilities that are typically userspace concerns.
+
+Option C: Hybrid — Kernel Policy, Userspace Mechanics
+The kernel defines a TransportPath trait and a path preference policy (LAN → direct punch → relay). Userspace services register available paths through a kernel interface. The kernel's routing table consults registered paths when forwarding. NAT traversal mechanics remain in inter-cube, but the kernel owns the decision of which path to use and can fail over instantly.
+
+Option C (Hybrid) is probably the strongest fit for your architecture. The kernel already does geometric routing — extending it to be transport-aware keeps the clean separation you have, while giving the kernel the authority to make path decisions. The hole-punching state machine is inherently async and network-dependent, which fits better in userspace.
+
+Would you like me to scope this out as a task — either standalone or building on top of Task #38? Or would you prefer to go deeper into one of these approaches first?
