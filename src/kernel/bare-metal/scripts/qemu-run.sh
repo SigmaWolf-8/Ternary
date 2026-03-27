@@ -30,7 +30,7 @@ timeout "${TIMEOUT}" qemu-system-x86_64 \
     -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
     -no-reboot \
     -m 64M \
-    2>/dev/null || QEMU_EXIT_CODE=$?
+    || QEMU_EXIT_CODE=$?
 
 echo ""
 
