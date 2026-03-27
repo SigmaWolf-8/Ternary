@@ -1,0 +1,56 @@
+uild Kernel: Some jobs were not successful
+ 
+View workflow run
+ 
+Status	Job	Annotations
+Build THDL Synthesizer	
+Build Kernel / Build THDL Synthesizer
+Succeeded in 15 seconds
+
+annotations for Build Kernel / Build THDL Synthesizer 2
+Build TSL Compiler	
+Build Kernel / Build TSL Compiler
+Succeeded in 17 seconds
+
+annotations for Build Kernel / Build TSL Compiler 2
+Build Kernel (Bare-Metal) (riscv64, riscv64gc-unknown-none-elf)	
+Build Kernel / Build Kernel (Bare-Metal) (riscv64, riscv64gc-unknown-none-elf)
+Failed in 21 seconds
+
+annotations for Build Kernel / Build Kernel (Bare-Metal) (riscv64, riscv64gc-unknown-none-elf) 2
+Build Kernel (Bare-Metal) (aarch64, aarch64-unknown-none)	
+Build Kernel / Build Kernel (Bare-Metal) (aarch64, aarch64-unknown-none)
+Cancelled
+
+annotations for Build Kernel / Build Kernel (Bare-Metal) (aarch64, aarch64-unknown-none) 1
+Build Microservices (blockchain/hedera-service)	
+Build Kernel / Build Microservices (blockchain/hedera-service)
+Succeeded in 32 seconds
+
+annotations for Build Kernel / Build Microservices (blockchain/hedera-service) 1
+Build Microservices (sfk-core-api)	
+Build Kernel / Build Microservices (sfk-core-api)
+Succeeded in 31 seconds
+
+annotations for Build Kernel / Build Microservices (sfk-core-api) 1
+Build Kernel (Bare-Metal) (x86_64, x86_64-unknown-none, -C code-model=small)	
+Build Kernel / Build Kernel (Bare-Metal) (x86_64, x86_64-unknown-none, -C code-model=small)
+Cancelled
+
+annotations for Build Kernel / Build Kernel (Bare-Metal) (x86_64, x86_64-unknown-none, -C code-model=small) 1
+Build Microservices (payment-listener)	
+Build Kernel / Build Microservices (payment-listener)
+Succeeded in 25 seconds
+
+annotations for Build Kernel / Build Microservices (payment-listener) 1
+Build Microservices (timing/femtosecond-service)	
+Build Kernel / Build Microservices (timing/femtosecond-service)
+Succeeded in 19 seconds
+
+annotations for Build Kernel / Build Microservices (timing/femtosecond-service) 1
+Build Microservices (blockchain/algorand-service)	
+Build Kernel / Build Microservices (blockchain/algorand-service)
+Succeeded in 18 seconds
+
+annotations for Build Kernel / Build Microservices (blockchain/algorand-service) 1
+View all 22 job statuses

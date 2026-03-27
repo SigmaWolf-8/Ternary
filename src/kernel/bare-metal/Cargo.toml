@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 plenumnet-kernel = { path = "..", features = ["no_std"], default-features = false }
-spin = { version = "0.9", default-features = false, features = ["mutex"] }
+spin = { version = "0.9", default-features = false, features = ["mutex", "spin_mutex"] }
 
 [profile.dev]
 panic = "abort"

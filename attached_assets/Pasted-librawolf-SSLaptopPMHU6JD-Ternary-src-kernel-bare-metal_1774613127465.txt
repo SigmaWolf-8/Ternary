@@ -1,0 +1,511 @@
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 16, done.
+remote: Counting objects: 100% (16/16), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 9 (delta 4), reused 9 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (9/9), 1.13 KiB | 289.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   882d458d..3fff410e  main       -> origin/main
+Updating 882d458d..3fff410e
+Fast-forward
+ src/kernel/bare-metal/rust-toolchain.toml      |  2 +-
+ src/kernel/bare-metal/scripts/build.sh         | 10 +++-------
+ src/kernel/bare-metal/scripts/rustc-wrapper.sh |  7 +++++++
+ 3 files changed, 11 insertions(+), 8 deletions(-)
+ create mode 100755 src/kernel/bare-metal/scripts/rustc-wrapper.sh
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+
+    Updating crates.io index
+  Downloaded spin v0.9.8
+  Downloaded lazy_static v1.5.0
+  Downloaded libm v0.2.16
+  Downloaded 3 crates (212.1KiB) in 0.44s
+    Updating crates.io index
+  Downloaded rustc-literal-escaper v0.0.7
+  Downloaded rustc-demangle v0.1.27
+  Downloaded cfg-if v1.0.4
+  Downloaded foldhash v0.2.0
+  Downloaded getopts v0.2.24
+  Downloaded hashbrown v0.16.1
+  Downloaded libc v0.2.178
+  Downloaded 7 crates (1006.2KiB) in 1.00s
+   Compiling compiler_builtins v0.1.160 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+   Compiling core v0.0.0 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)
+   Compiling libm v0.2.16
+   Compiling plenumnet-kernel v0.1.0 (/home/librawolf/Ternary/src/kernel)
+   Compiling alloc v0.0.0 (/home/librawolf/.rustup/toolchains/nightly-aarch64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+   Compiling spin v0.9.8
+   Compiling lazy_static v1.5.0
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:268:12
+    |
+268 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:390:12
+    |
+390 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:446:12
+    |
+446 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:788:12
+    |
+788 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:830:12
+    |
+830 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:865:12
+    |
+865 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `serde` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+    --> /home/librawolf/Ternary/src/kernel/src/crypto/metatronic_cube.rs:1112:12
+     |
+1112 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+     |            ^^^^^^^^^^^^^^^^^
+     |
+     = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+     = help: consider adding `serde` as a feature in `Cargo.toml`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `serde`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:88:12
+   |
+88 | #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+   = help: consider adding `serde` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/lib.rs:55:7
+   |
+55 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/mod.rs:71:7
+   |
+71 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `CryptoError`, `CryptoResult`, and `TernaryDigest`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/x509.rs:39:13
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |             ^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/phase_cnsa.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `CryptoResult`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/phase_cnsa.rs:39:26
+   |
+39 | use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+   |                          ^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/services.rs:35:5
+   |
+35 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ModeIndicator` and `ModuleStateMachine`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/services.rs:38:40
+   |
+38 | use super::module_state::{ModuleState, ModuleStateMachine, ModeIndicator};
+   |                                        ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_cube_perm.rs:74:5
+   |
+74 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_cube_perm.rs:75:5
+   |
+75 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/keyed_sponge.rs:71:5
+   |
+71 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `sponge_hash`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/keyed_sponge.rs:73:21
+   |
+73 | use super::sponge::{sponge_hash, TernarySponge as UnkeyedSponge};
+   |                     ^^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:121:35
+    |
+121 | #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:54:5
+   |
+54 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `diagnostics`
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/address_sentinel.rs:276:39
+    |
+276 |     #[cfg(any(debug_assertions, test, feature = "diagnostics"))]
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `asic`, `bench-tools`, `default`, `finra-613`, `fpga`, `nalgebra`, `no_std`, `rand`, and `std`
+    = help: consider adding `diagnostics` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec`
+  --> /home/librawolf/Ternary/src/kernel/src/network/metatronic_bridge.rs:37:5
+   |
+37 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `kani`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/mod.rs:32:7
+   |
+32 | #[cfg(kani)]
+   |       ^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(kani)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `SimulatedHptp`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/engine.rs:21:57
+   |
+21 | use crate::timing::{FemtosecondTimestamp, HptpProvider, SimulatedHptp};
+   |                                                         ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::format`
+  --> /home/librawolf/Ternary/src/kernel/src/vm/compiler.rs:17:5
+   |
+17 | use alloc::format;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+  --> /home/librawolf/Ternary/src/kernel/src/compat/syscall_shim.rs:15:5
+   |
+15 | use alloc::string::String;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `RouteDirection`
+  --> /home/librawolf/Ternary/src/kernel/src/browser/net.rs:12:67
+   |
+12 | use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
+   |                                                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `script::ScriptExecutor`
+  --> /home/librawolf/Ternary/src/kernel/src/browser/mod.rs:26:5
+   |
+26 | use script::ScriptExecutor;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::string::String`
+ --> /home/librawolf/Ternary/src/kernel/src/distributor/z_router.rs:9:5
+  |
+9 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::fmt`
+  --> /home/librawolf/Ternary/src/kernel/src/layers/mod.rs:18:5
+   |
+18 | use core::fmt;
+   |     ^^^^^^^^^
+
+warning: unused variable: `q32`
+    --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_lattice.rs:1088:9
+     |
+1088 |     let q32 = q as i32;
+     |         ^^^ help: if this is intentional, prefix it with an underscore: `_q32`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `CHI_BLOCKS` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:47:7
+   |
+47 | const CHI_BLOCKS: usize = 243;         // 729 / 3 — blocks for chi layer
+   |       ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: static `CHI_MAP_T0` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:187:8
+    |
+187 | static CHI_MAP_T0: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T1` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:193:8
+    |
+193 | static CHI_MAP_T1: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: static `CHI_MAP_T2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:199:8
+    |
+199 | static CHI_MAP_T2: [i8; 32] = {
+    |        ^^^^^^^^^^
+
+warning: function `chi_layer_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:208:11
+    |
+208 | unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v2_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:409:11
+    |
+409 | unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:488:11
+    |
+488 | unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1_scalar` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:734:4
+    |
+734 | fn sponge_permutation_v1_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sponge_permutation_v1` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/sponge.rs:781:4
+    |
+781 | fn sponge_permutation_v1(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cbd_eta2_avx2` is never used
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/ternary_lattice.rs:604:11
+    |
+604 | unsafe fn cbd_eta2_avx2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    |           ^^^^^^^^^^^^^
+
+warning: constant `ESTIMATED_MIN_ENTROPY_PER_SAMPLE` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:51:7
+   |
+51 | const ESTIMATED_MIN_ENTROPY_PER_SAMPLE: f64 = 4.0;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `OVERSAMPLING_RATIO` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:53:7
+   |
+53 | const OVERSAMPLING_RATIO: usize = 2;
+   |       ^^^^^^^^^^^^^^^^^^
+
+warning: field `apt_window` is never read
+   --> /home/librawolf/Ternary/src/kernel/src/crypto/entropy.rs:262:5
+    |
+259 | pub struct HealthTestState {
+    |            --------------- field in this struct
+...
+262 |     apt_window: Vec<u64>,
+    |     ^^^^^^^^^^
+    |
+    = note: `HealthTestState` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: constant `PI` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:36:7
+   |
+36 | const PI: f64 = core::f64::consts::PI;
+   |       ^^
+
+warning: function `ct_select_i64` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:67:4
+   |
+67 | fn ct_select_i64(condition: i64, if_true: i64, if_false: i64) -> i64 {
+   |    ^^^^^^^^^^^^^
+
+warning: method `norm` is never used
+  --> /home/librawolf/Ternary/src/kernel/src/vm/quantum_ops.rs:94:8
+   |
+82 | impl Complex64 {
+   | -------------- method in this implementation
+...
+94 |     fn norm(self) -> f64 {
+   |        ^^^^
+
+warning: field `session_key` is never read
+  --> /home/librawolf/Ternary/src/kernel/src/input/keyboard.rs:16:5
+   |
+14 | pub struct Tis27State {
+   |            ---------- field in this struct
+15 |     state: [u8; TIS27_TRITS],
+16 |     session_key: [u8; 32],
+   |     ^^^^^^^^^^^
+   |
+   = note: `Tis27State` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `plenumnet-kernel` (lib) generated 49 warnings (run `cargo fix --lib -p plenumnet-kernel` to apply 19 suggestions)
+   Compiling plenumnet-bare-metal v0.1.0 (/home/librawolf/Ternary/src/kernel/bare-metal)
+error[E0432]: unresolved import `spin::Mutex`
+   --> src/serial.rs:8:5
+    |
+  8 | use spin::Mutex;
+    |     ^^^^^^^^^^^ no `Mutex` in the root
+    |
+note: found an item that was configured out
+   --> /home/librawolf/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spin-0.9.8/src/lib.rs:128:10
+    |
+126 | #[cfg(feature = "mutex")]
+    |       ----------------- the item is gated behind the `mutex` feature
+127 | #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
+128 | pub type Mutex<T> = crate::mutex::Mutex<T>;
+    |          ^^^^^
+help: consider importing this struct instead
+    |
+  8 - use spin::Mutex;
+  8 + use plenumnet_kernel::sync::Mutex;
+    |
+
+error[E0061]: this function takes 1 argument but 2 arguments were supplied
+   --> src/selftest.rs:125:20
+    |
+125 |     let unpacked = unpack_trits(packed, trits.len());
+    |                    ^^^^^^^^^^^^         ----------- unexpected argument #2 of type `usize`
+    |
+note: function defined here
+   --> /home/librawolf/Ternary/src/kernel/src/ternary.rs:212:8
+    |
+212 | pub fn unpack_trits(packed: i64) -> [Trit; TRITS_PER_WORD] {
+    |        ^^^^^^^^^^^^
+help: remove the extra argument
+    |
+125 -     let unpacked = unpack_trits(packed, trits.len());
+125 +     let unpacked = unpack_trits(packed);
+    |
+
+error[E0061]: this function takes 1 argument but 2 arguments were supplied
+   --> src/selftest.rs:140:25
+    |
+140 |     let unpacked_full = unpack_trits(packed_full, 27);
+    |                         ^^^^^^^^^^^^              -- unexpected argument #2 of type `{integer}`
+    |
+note: function defined here
+   --> /home/librawolf/Ternary/src/kernel/src/ternary.rs:212:8
+    |
+212 | pub fn unpack_trits(packed: i64) -> [Trit; TRITS_PER_WORD] {
+    |        ^^^^^^^^^^^^
+help: remove the extra argument
+    |
+140 -     let unpacked_full = unpack_trits(packed_full, 27);
+140 +     let unpacked_full = unpack_trits(packed_full);
+    |
+
+Some errors have detailed explanations: E0061, E0432.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `plenumnet-bare-metal` (bin "ternary-kernel") due to 3 previous errors
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ ^C
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/build.sh
+remote: Enumerating objects: 28, done.
+remote: Counting objects: 100% (28/28), done.
+remote: Compressing objects: 100% (4/4), done.
+Unpacking objects: 100% (15/15), 15.37 KiB | 1.54 MiB/s, done.
+remote: Total 15 (delta 9), reused 15 (delta 9), pack-reused 0 (from 0)
+From https://github.com/SigmaWolf-8/Ternary
+   3fff410e..1cc6f106  main       -> origin/main
+Updating 3fff410e..1cc6f106
+Fast-forward
+ artifacts/mockup-sandbox/src/.generated/mockup-components.ts |    4 +-
+ ...ll-Copyright-C-Microsoft-Corporation-Al_1774612928414.txt | 1382 ++++++++++++++++++++++++++
+ src/kernel/bare-metal/Cargo.toml                             |    2 +-
+ src/kernel/bare-metal/src/selftest.rs                        |    4 +-
+ 4 files changed, 1387 insertions(+), 5 deletions(-)
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774612928414.txt
+================================================================
+  PlenumNET — Bare-Metal Build
+  Mode:   debug
+  Target: x86_64-unknown-none
+  Host:   aarch64
+================================================================
+
+   Compiling spin v0.9.8
+error: The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.
+  --> /home/librawolf/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spin-0.9.8/src/mutex.rs:44:1
+   |
+44 | compile_error!("The `mutex` feature flag was used (perhaps through another feature?) without either `spin_mutex` or `use_ticket_mutex`. One of these is required.");
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `spin` (lib) due to 1 previous error
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$
