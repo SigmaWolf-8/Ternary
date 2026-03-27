@@ -44,19 +44,45 @@ else
     BINARY="target/${TARGET}/debug/ternary-kernel"
 fi
 
-if [ -f "$BINARY" ]; then
-    SIZE=$(stat -c%s "$BINARY" 2>/dev/null || stat -f%z "$BINARY" 2>/dev/null)
-    echo ""
-    echo "================================================================"
-    echo "  BUILD COMPLETE"
-    echo "  Binary: ${BINARY}"
-    echo "  Size:   ${SIZE} bytes"
-    echo ""
-    echo "  Run QEMU test:"
-    echo "    bash scripts/qemu-run.sh ${BINARY}"
-    echo "================================================================"
-else
+if [ ! -f "$BINARY" ]; then
     echo ""
     echo "[ERROR] Build failed — binary not found at ${BINARY}"
     exit 1
 fi
+
+MB_BINARY="${BINARY}.mb"
+
+OBJCOPY=""
+if command -v llvm-objcopy &>/dev/null; then
+    OBJCOPY="llvm-objcopy"
+elif command -v rust-objcopy &>/dev/null; then
+    OBJCOPY="rust-objcopy"
+elif command -v objcopy &>/dev/null; then
+    OBJCOPY="objcopy"
+else
+    TOOLCHAIN_OBJCOPY="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | grep host | awk '{print $2}')/bin/llvm-objcopy"
+    if [ -x "$TOOLCHAIN_OBJCOPY" ]; then
+        OBJCOPY="$TOOLCHAIN_OBJCOPY"
+    fi
+fi
+
+if [ -z "$OBJCOPY" ]; then
+    echo "[WARN] No objcopy found. Install: rustup component add llvm-tools"
+    echo "       QEMU requires ELF32 for multiboot. Using ELF64 (may not boot)."
+    MB_BINARY="$BINARY"
+else
+    echo "[POST] Converting ELF64 → ELF32 for QEMU multiboot..."
+    $OBJCOPY -O elf32-i386 "$BINARY" "$MB_BINARY"
+    echo "[POST] Created: ${MB_BINARY}"
+fi
+
+SIZE=$(stat -c%s "$MB_BINARY" 2>/dev/null || stat -f%z "$MB_BINARY" 2>/dev/null)
+echo ""
+echo "================================================================"
+echo "  BUILD COMPLETE"
+echo "  Binary: ${MB_BINARY}"
+echo "  Size:   ${SIZE} bytes"
+echo ""
+echo "  Run QEMU test:"
+echo "    bash scripts/qemu-run.sh ${MB_BINARY}"
+echo "================================================================"
