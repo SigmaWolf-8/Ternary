@@ -682,7 +682,7 @@ impl LayoutEngine {
         }
 
         let count = children.len();
-        let cols = (count as f32).sqrt().ceil() as usize;
+        let cols = libm::ceilf(libm::sqrtf(count as f32)) as usize;
         let cols = cols.max(1);
         let rows = (count + cols - 1) / cols;
 

@@ -9,7 +9,7 @@
 // Parser operates on in-memory data — std::fs stub is never hit because
 // all content is embedded or fetched via z=0.
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
