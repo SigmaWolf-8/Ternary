@@ -122,7 +122,7 @@ pub fn run_all() -> TestResults {
 
     let trits = [p, n, z, p, p, n, z, z, p];
     let packed = pack_trits(&trits);
-    let unpacked = unpack_trits(packed, trits.len());
+    let unpacked = unpack_trits(packed);
     let mut round_trip_ok = true;
     for i in 0..trits.len() {
         if trits[i].to_a() != unpacked[i].to_a() {
@@ -137,7 +137,7 @@ pub fn run_all() -> TestResults {
     full_word[13] = n;
     full_word[26] = p;
     let packed_full = pack_trits(&full_word);
-    let unpacked_full = unpack_trits(packed_full, 27);
+    let unpacked_full = unpack_trits(packed_full);
     r.record("27-trit pack/unpack: pos 0", unpacked_full[0].to_a() == 1);
     r.record("27-trit pack/unpack: pos 13", unpacked_full[13].to_a() == -1);
     r.record("27-trit pack/unpack: pos 26", unpacked_full[26].to_a() == 1);
