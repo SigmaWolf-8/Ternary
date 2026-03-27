@@ -53,17 +53,13 @@ fi
 MB_BINARY="${BINARY}.mb"
 
 OBJCOPY=""
-if command -v llvm-objcopy &>/dev/null; then
+TOOLCHAIN_OBJCOPY="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | grep host | awk '{print $2}')/bin/llvm-objcopy"
+if [ -x "$TOOLCHAIN_OBJCOPY" ]; then
+    OBJCOPY="$TOOLCHAIN_OBJCOPY"
+elif command -v llvm-objcopy &>/dev/null; then
     OBJCOPY="llvm-objcopy"
 elif command -v rust-objcopy &>/dev/null; then
     OBJCOPY="rust-objcopy"
-elif command -v objcopy &>/dev/null; then
-    OBJCOPY="objcopy"
-else
-    TOOLCHAIN_OBJCOPY="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | grep host | awk '{print $2}')/bin/llvm-objcopy"
-    if [ -x "$TOOLCHAIN_OBJCOPY" ]; then
-        OBJCOPY="$TOOLCHAIN_OBJCOPY"
-    fi
 fi
 
 if [ -z "$OBJCOPY" ]; then
