@@ -1498,6 +1498,9 @@ function startPqtiService(): ChildProcess | null {
     }
   });
 
+  const remoteTerminalSessions = new Map<string, WebSocket>();
+  (globalThis as any).__remoteTerminalSessions = remoteTerminalSessions;
+
   terminalWss.on("connection", (ws: WebSocket, request: any) => {
     const url = new URL(request.url || "", `http://${request.headers.host}`);
     const requestedSession = url.searchParams.get("session");
@@ -1506,6 +1509,8 @@ function startPqtiService(): ChildProcess | null {
     let dataListener: ((data: string) => void) | null = null;
     let msgCount = 0;
     let msgWindowStart = Date.now();
+    let remoteNodeAddress: string | null = null;
+    const remoteSessionId = crypto.randomBytes(8).toString("hex");
 
     function checkRateLimit(): boolean {
       const now = Date.now();
@@ -1570,7 +1575,65 @@ function startPqtiService(): ChildProcess | null {
       }
 
       switch (msg.type) {
+        case "connect_remote": {
+          const nodeAddr = msg.address ? normalizeTernaryAddr(msg.address) : null;
+          if (!nodeAddr) {
+            ws.send(JSON.stringify({ type: "error", message: "No address provided" }));
+            break;
+          }
+          const nodeWs = relayClients.get(nodeAddr);
+          if (!nodeWs || nodeWs.readyState !== WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "error", message: `Node ${toDottedAddr(nodeAddr)} not connected to relay` }));
+            break;
+          }
+          remoteNodeAddress = nodeAddr;
+          remoteTerminalSessions.set(remoteSessionId, ws);
+          nodeWs.send(JSON.stringify({
+            type: "relay",
+            msgType: "terminal-open",
+            payload: JSON.stringify({ sessionId: remoteSessionId }),
+            from: "coordinator",
+          }));
+          ws.send(JSON.stringify({ type: "remote_connected", address: toDottedAddr(nodeAddr), remoteSessionId }));
+          console.log(`[terminal] Remote session ${remoteSessionId} opened to ${toDottedAddr(nodeAddr)}`);
+          break;
+        }
+        case "connect_local": {
+          if (remoteNodeAddress) {
+            const nodeWs = relayClients.get(remoteNodeAddress);
+            if (nodeWs && nodeWs.readyState === WebSocket.OPEN) {
+              nodeWs.send(JSON.stringify({
+                type: "relay",
+                msgType: "terminal-close",
+                payload: JSON.stringify({ sessionId: remoteSessionId }),
+                from: "coordinator",
+              }));
+            }
+            remoteTerminalSessions.delete(remoteSessionId);
+            remoteNodeAddress = null;
+            console.log(`[terminal] Remote session ${remoteSessionId} closed, switching to local`);
+          }
+          if (!activeSessionId) {
+            const session = createSession(ownerId);
+            attachToSession(session);
+            ws.send(JSON.stringify({ type: "session_created", sessionId: session.id }));
+          }
+          ws.send(JSON.stringify({ type: "local_connected" }));
+          break;
+        }
         case "input": {
+          if (remoteNodeAddress) {
+            const nodeWs = relayClients.get(remoteNodeAddress);
+            if (nodeWs && nodeWs.readyState === WebSocket.OPEN) {
+              nodeWs.send(JSON.stringify({
+                type: "relay",
+                msgType: "terminal-input",
+                payload: JSON.stringify({ sessionId: remoteSessionId, data: msg.data }),
+                from: "coordinator",
+              }));
+            }
+            break;
+          }
           if (activeSessionId) {
             const session = getSession(activeSessionId);
             if (session && isSessionOwner(session.id, ownerId)) {
@@ -1581,6 +1644,18 @@ function startPqtiService(): ChildProcess | null {
           break;
         }
         case "resize": {
+          if (remoteNodeAddress) {
+            const nodeWs = relayClients.get(remoteNodeAddress);
+            if (nodeWs && nodeWs.readyState === WebSocket.OPEN) {
+              nodeWs.send(JSON.stringify({
+                type: "relay",
+                msgType: "terminal-resize",
+                payload: JSON.stringify({ sessionId: remoteSessionId, cols: msg.cols, rows: msg.rows }),
+                from: "coordinator",
+              }));
+            }
+            break;
+          }
           if (activeSessionId && msg.cols && msg.rows) {
             if (isSessionOwner(activeSessionId, ownerId)) {
               resizeSession(activeSessionId, msg.cols, msg.rows);
@@ -1673,6 +1748,20 @@ function startPqtiService(): ChildProcess | null {
     });
 
     ws.on("close", () => {
+      if (remoteNodeAddress) {
+        const nodeWs = relayClients.get(remoteNodeAddress);
+        if (nodeWs && nodeWs.readyState === WebSocket.OPEN) {
+          try {
+            nodeWs.send(JSON.stringify({
+              type: "relay",
+              msgType: "terminal-close",
+              payload: JSON.stringify({ sessionId: remoteSessionId }),
+              from: "coordinator",
+            }));
+          } catch {}
+        }
+        remoteTerminalSessions.delete(remoteSessionId);
+      }
       if (dataListener && activeSessionId) {
         const session = getSession(activeSessionId);
         if (session) {
@@ -1973,6 +2062,17 @@ function startPqtiService(): ChildProcess | null {
       if (nodeAddress) {
         const entry = crsRegistry.get(nodeAddress);
         if (entry) entry.lastSeen = Date.now();
+      }
+
+      if (msg.type === "relay" && msg.msgType === "terminal-output" && msg.payload) {
+        try {
+          const payload = JSON.parse(msg.payload);
+          const termWs = remoteTerminalSessions.get(payload.sessionId);
+          if (termWs && termWs.readyState === WebSocket.OPEN) {
+            termWs.send(JSON.stringify({ type: "output", data: payload.data }));
+          }
+        } catch {}
+        return;
       }
 
       if (msg.type === "relay" && msg.to && msg.payload) {

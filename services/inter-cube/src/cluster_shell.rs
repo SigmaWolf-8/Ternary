@@ -32,6 +32,10 @@ fn contains_shell_metachar(cmd: &str) -> bool {
     cmd.chars().any(|c| matches!(c, ';' | '|' | '&' | '`' | '$' | '(' | ')' | '{' | '}' | '<' | '>' | '!' | '\\' | '\n' | '\r'))
 }
 
+pub fn is_command_allowed_public(cmd: &str) -> bool {
+    is_command_allowed(cmd)
+}
+
 fn is_command_allowed(cmd: &str) -> bool {
     let trimmed = cmd.trim();
     if contains_shell_metachar(trimmed) {

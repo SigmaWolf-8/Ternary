@@ -51,9 +51,22 @@ use inter_cube::key_rotation::RotationOrchestrator;
 use inter_cube::ws_relay::WsRelayClient;
 use std::collections::HashMap;
 use std::env;
+use std::io::Read;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+struct TerminalSession {
+    writer: Arc<tokio::sync::Mutex<Box<dyn std::io::Write + Send>>>,
+    master: Arc<tokio::sync::Mutex<Box<dyn portable_pty::MasterPty + Send>>>,
+    _child: Box<dyn portable_pty::Child + Send + Sync>,
+}
+
+type TerminalSessions = Arc<Mutex<HashMap<String, TerminalSession>>>;
+
+fn new_terminal_sessions() -> TerminalSessions {
+    Arc::new(Mutex::new(HashMap::new()))
+}
 
 static mut CLI_PEER_PORT: Option<u16> = None;
 
@@ -753,7 +766,7 @@ async fn run_crs_mode() {
         let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
         let tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
         let crs_relay_url = rurl.clone();
-        spawn_relay_client(rurl, addr_str.clone(), identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None, None);
+        spawn_relay_client(rurl, addr_str.clone(), identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None, None, new_terminal_sessions());
         spawn_peer_discovery(crs_relay_url, addr_str, p_port, new_peer_registry(), new_peer_senders(), None, Some(cluster_shell.clone()));
     } else {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
@@ -1151,7 +1164,7 @@ async fn run_cube_mode() {
     let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
     let (peer_msg_tx, peer_msg_rx) = tokio::sync::mpsc::channel::<inter_cube::ws_relay::RelayEnvelope>(64);
     let relay_target_for_discovery = relay_target.clone();
-    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx));
+    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx), new_terminal_sessions());
 
     let peer_msg_tx_discovery = peer_msg_tx.clone();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));
@@ -1224,6 +1237,7 @@ fn spawn_relay_client(
     tl_dsa_pk_hex: String,
     peer_senders: Option<PeerSenders>,
     peer_msg_rx: Option<tokio::sync::mpsc::Receiver<inter_cube::ws_relay::RelayEnvelope>>,
+    terminal_sessions: TerminalSessions,
 ) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| format!("{}", api_port() + 1));
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
@@ -1395,6 +1409,200 @@ fn spawn_relay_client(
                         if msg_type == "restart" || envelope.msg_type == "restart" {
                             println!("[ws-relay] Restart command received — closing relay for reconnect");
                             break;
+                        }
+
+                        if msg_type == "terminal-open" || msg_type == "terminal-input" || msg_type == "terminal-resize" || msg_type == "terminal-close" {
+                            let reply_tx = client.outgoing_tx.clone();
+                            let from_addr = from.clone();
+                            let addr_for_reply = address.clone();
+                            let terminal_sessions_clone = terminal_sessions.clone();
+                            let msg_type_owned = msg_type.to_string();
+
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
+                                let session_id = parsed.get("sessionId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                                match msg_type_owned.as_str() {
+                                    "terminal-open" => {
+                                        use portable_pty::{CommandBuilder, PtySize, native_pty_system};
+                                        let pty_system = native_pty_system();
+                                        let pair = match pty_system.openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 }) {
+                                            Ok(p) => p,
+                                            Err(e) => {
+                                                println!("[terminal] Failed to open PTY: {}", e);
+                                                return;
+                                            }
+                                        };
+                                        let shell = std::env::var("SHELL").unwrap_or_else(|_| {
+                                            if cfg!(target_os = "windows") { "cmd.exe".to_string() } else { "/bin/sh".to_string() }
+                                        });
+                                        let mut cmd = CommandBuilder::new(&shell);
+                                        cmd.env("TERM", "xterm-256color");
+                                        let child = match pair.slave.spawn_command(cmd) {
+                                            Ok(c) => c,
+                                            Err(e) => {
+                                                println!("[terminal] Failed to spawn shell: {}", e);
+                                                return;
+                                            }
+                                        };
+                                        let mut reader = match pair.master.try_clone_reader() {
+                                            Ok(r) => r,
+                                            Err(e) => {
+                                                println!("[terminal] Failed to clone reader: {}", e);
+                                                return;
+                                            }
+                                        };
+                                        let writer = match pair.master.take_writer() {
+                                            Ok(w) => w,
+                                            Err(e) => {
+                                                println!("[terminal] Failed to take writer: {}", e);
+                                                return;
+                                            }
+                                        };
+                                        {
+                                            let mut sessions = terminal_sessions_clone.lock().unwrap();
+                                            sessions.insert(session_id.clone(), TerminalSession {
+                                                writer: Arc::new(tokio::sync::Mutex::new(writer)),
+                                                master: Arc::new(tokio::sync::Mutex::new(pair.master)),
+                                                _child: child,
+                                            });
+                                        }
+                                        let sid = session_id.clone();
+                                        let sessions_for_reader = terminal_sessions_clone.clone();
+                                        tokio::task::spawn_blocking(move || {
+                                            let mut buf = [0u8; 4096];
+                                            loop {
+                                                match reader.read(&mut buf) {
+                                                    Ok(0) => break,
+                                                    Ok(n) => {
+                                                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                                                        let payload = serde_json::json!({
+                                                            "sessionId": sid,
+                                                            "data": data,
+                                                        });
+                                                        let env = inter_cube::ws_relay::RelayEnvelope {
+                                                            msg_type: "relay".to_string(),
+                                                            to: Some(from_addr.clone()),
+                                                            relay_msg_type: Some("terminal-output".to_string()),
+                                                            payload: Some(payload.to_string()),
+                                                            address: None,
+                                                            public_key: None,
+                                                            nonce: None,
+                                                            signature: None,
+                                                            from: None,
+                                                            error: None,
+                                                            delivered: None,
+                                                            connected_peers: None,
+                                                            ts: None,
+                                                            connected: None,
+                                                        };
+                                                        let _ = reply_tx.blocking_send(env);
+                                                    }
+                                                    Err(_) => break,
+                                                }
+                                            }
+                                            let mut sessions = sessions_for_reader.lock().unwrap();
+                                            sessions.remove(&sid);
+                                            println!("[terminal] Session {} ended", sid);
+                                        });
+                                        println!("[terminal] Session {} opened for {}", session_id, from_addr);
+                                    }
+                                    "terminal-input" => {
+                                        let data = parsed.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let sessions = terminal_sessions_clone.lock().unwrap();
+                                        if let Some(session) = sessions.get(&session_id) {
+                                            let writer = session.writer.clone();
+                                            tokio::spawn(async move {
+                                                let mut w = writer.lock().await;
+                                                let _ = std::io::Write::write_all(&mut *w, data.as_bytes());
+                                            });
+                                        }
+                                    }
+                                    "terminal-resize" => {
+                                        let cols = parsed.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
+                                        let rows = parsed.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
+                                        let sessions = terminal_sessions_clone.lock().unwrap();
+                                        if let Some(session) = sessions.get(&session_id) {
+                                            let master = session.master.clone();
+                                            tokio::spawn(async move {
+                                                let m = master.lock().await;
+                                                let _ = m.resize(portable_pty::PtySize { rows, cols, pixel_width: 0, pixel_height: 0 });
+                                            });
+                                        }
+                                    }
+                                    "terminal-close" => {
+                                        let mut sessions = terminal_sessions_clone.lock().unwrap();
+                                        if sessions.remove(&session_id).is_some() {
+                                            println!("[terminal] Session {} closed by coordinator", session_id);
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            });
+                            continue;
+                        }
+
+                        if msg_type == "cluster-exec" {
+                            let reply_tx = client.outgoing_tx.clone();
+                            let from_addr = from.clone();
+                            let addr_for_reply = address.clone();
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
+                                let command = parsed.get("command").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                println!("[cluster-exec] Executing command from {}: {}", from_addr, command);
+
+                                let allowed = inter_cube::cluster_shell::is_command_allowed_public(&command);
+                                let (output, error, exit_code) = if !allowed {
+                                    (String::new(), Some("Command not in allowlist".to_string()), 1)
+                                } else {
+                                    match tokio::process::Command::new("sh")
+                                        .arg("-c")
+                                        .arg(&command)
+                                        .output()
+                                        .await
+                                    {
+                                        Ok(out) => {
+                                            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                                            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                                            let code = out.status.code().unwrap_or(1);
+                                            let err = if stderr.is_empty() { None } else { Some(stderr) };
+                                            (stdout, err, code)
+                                        }
+                                        Err(e) => (String::new(), Some(format!("Exec error: {}", e)), 1),
+                                    }
+                                };
+
+                                let result_payload = serde_json::json!({
+                                    "nodeId": addr_for_reply,
+                                    "address": addr_for_reply,
+                                    "output": output,
+                                    "error": error,
+                                    "exitCode": exit_code,
+                                    "command": command,
+                                });
+
+                                let reply_env = inter_cube::ws_relay::RelayEnvelope {
+                                    msg_type: "relay".to_string(),
+                                    to: Some(from_addr),
+                                    relay_msg_type: Some("cluster-exec-result".to_string()),
+                                    payload: Some(result_payload.to_string()),
+                                    address: None,
+                                    public_key: None,
+                                    nonce: None,
+                                    signature: None,
+                                    from: None,
+                                    error: None,
+                                    delivered: None,
+                                    connected_peers: None,
+                                    ts: None,
+                                    connected: None,
+                                };
+                                if let Err(e) = reply_tx.send(reply_env).await {
+                                    println!("[cluster-exec] Failed to send result via relay: {}", e);
+                                }
+                                println!("[cluster-exec] Result sent back (exit={})", exit_code);
+                            });
+                            continue;
                         }
 
                         if msg_type == "inference_request" {

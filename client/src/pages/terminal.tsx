@@ -155,6 +155,14 @@ export default function TerminalPage() {
             setClusterResults(msg.results || []);
             setClusterPending(false);
             break;
+          case "remote_connected":
+            terminalRef.current?.reset();
+            terminalRef.current?.writeln(`\x1b[38;2;100;255;100m[Connected to remote node ${msg.address}]\x1b[0m\r\n`);
+            break;
+          case "local_connected":
+            terminalRef.current?.reset();
+            terminalRef.current?.writeln(`\x1b[38;2;100;255;100m[Connected to local CRS node]\x1b[0m\r\n`);
+            break;
           case "error":
             terminalRef.current?.writeln(`\r\n\x1b[38;2;255;100;100m[Error: ${msg.message}]\x1b[0m`);
             break;
@@ -251,6 +259,15 @@ export default function TerminalPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+    if (selectedNode === "local") {
+      wsRef.current.send(JSON.stringify({ type: "connect_local" }));
+    } else {
+      wsRef.current.send(JSON.stringify({ type: "connect_remote", address: selectedNode }));
+    }
+  }, [selectedNode]);
 
   const handleNewSession = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
