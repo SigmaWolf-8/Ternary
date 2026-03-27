@@ -1,0 +1,36 @@
+30 - Distribution Page Value Proposition Redesign
+What & Why
+The Distribution page currently reads like a technical deployment dashboard. It lists modules, ports, and crypto primitives but never tells a visitor what they get by installing a node. The value proposition — "install this on any machine and it joins a secure mesh network, no VPN or port forwarding needed" — is buried or absent. This task redesigns the 3 installer tab sections (Full Suite, PlenumNET Node, Array3) with clear, benefit-first copy and a canvas mockup for approval before implementation.
+
+Done looks like
+Canvas mockup of the redesigned DeployerCard showing all 3 tabs with proposed text
+After approval, the Distribution page's 3 installer sections updated with new copy
+Each tab leads with the value proposition (what you get), then the technical details
+Existing download buttons, platform selectors, and install instructions preserved
+No changes to the Cluster Report, module catalog, or any other section
+Out of scope
+Redesigning the module catalog grid or cluster health dashboard
+Adding new functionality or endpoints
+Changing any installer scripts or download URLs
+Modifying the page layout or navigation structure
+Proposed Text
+Tab 1: Full Suite
+Headline: Install the Salvi Framework Body: "Turn any machine into a PlenumNET node. One installer gives you the complete Salvi Framework — 21 modules including quantum-resistant cryptography, 13D ternary addressing, and encrypted mesh networking. Your machine gets a permanent identity, connects to the PlenumNET network through any firewall, and can communicate securely with every other node on the mesh. No VPN, no port forwarding, no IT setup."
+
+Footer stats: (keep existing: install path, version, tests passing, LOC)
+
+Tab 2: PlenumNET Node
+Headline: Deploy a PlenumNET Node Subheadline/Badge: v0.3.0 Body: "Add your machine to the PlenumNET mesh. Each node gets a permanent quantum-resistant identity (PT26-DSA) and a unique ternary address that never changes — even across reboots or network changes. Nodes connect outbound through firewalls and NAT automatically via encrypted WebSocket relay. Once connected, any node on the mesh can reach yours for secure messaging, remote commands, or distributed compute. Install once — your machine is always addressable."
+
+Footer stats: (keep existing: build path, auto-incrementing instances, PT26-DSA identity keys)
+
+Tab 3: Array3
+Headline: Deploy a 3-Node Cluster Subheadline/Badge: v0.4.0 Body: "Launch a ready-made 3-node cluster on your machine. Node #1 runs as the local coordinator (CRS); Nodes #2 and #3 register as workers. All three get permanent identities, connect to the PlenumNET mesh, and appear in the live cluster dashboard at plenumnet.replit.app. Use this for local compute clusters, YODA inference dispatch, or to test multi-node deployments before scaling to separate machines."
+
+Footer stats: (keep existing: relay URL, 3 PT26-DSA identities, CRS daemon registry)
+
+Tasks
+Create canvas mockup — Build a mockup of the DeployerCard component showing all 3 tabs with the proposed text, styled to match the existing design system. Present on canvas for user review.
+Update installer tab copy — After mockup approval, replace the description text in all 3 tabs of the DeployerCard component with the approved copy. Preserve all existing buttons, platform selectors, install instructions, and footer stats.
+Verify — Run e2e test confirming the Distribution page loads, all 3 tabs are clickable, download buttons work, and the new text is visible.
+Relevant files
