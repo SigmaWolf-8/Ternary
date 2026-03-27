@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TerminalSquare, Plus, X, Maximize2, Monitor, Layers, Server, LogIn } from "lucide-react";
+import { TerminalSquare, Plus, X, Maximize2, Monitor, Layers, Server, LogIn, RefreshCw } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 
 interface SessionInfo {
@@ -36,11 +36,14 @@ interface ClusterResult {
   exitCode: number | null;
 }
 
-const ARRAY3_NODES = [
-  { id: "1", label: "Node 1", address: "111.111.111.111.1" },
-  { id: "2", label: "Node 2", address: "111.111.111.111.2" },
-  { id: "3", label: "Node 3", address: "111.111.111.111.3" },
-];
+interface CrsNode {
+  address: string;
+  addressDotted: string;
+  connected: boolean;
+  endpoint: string | null;
+}
+
+const CRS_BASE_URL = "https://plenumnet.replit.app";
 
 export default function TerminalPage() {
   const termRef = useRef<HTMLDivElement>(null);
@@ -50,7 +53,7 @@ export default function TerminalPage() {
   const [connected, setConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
-  const [selectedNode, setSelectedNode] = useState("1");
+  const [selectedNode, setSelectedNode] = useState("local");
   const [clusterMode, setClusterMode] = useState(false);
   const [clusterResults, setClusterResults] = useState<ClusterResult[]>([]);
   const [clusterCommand, setClusterCommand] = useState("");
@@ -60,6 +63,29 @@ export default function TerminalPage() {
   const sessionIdRef = useRef<string | null>(null);
 
   const [authError, setAuthError] = useState(false);
+  const [crsNodes, setCrsNodes] = useState<CrsNode[]>([]);
+  const [loadingNodes, setLoadingNodes] = useState(true);
+
+  const fetchCrsNodes = useCallback(async () => {
+    setLoadingNodes(true);
+    try {
+      const resp = await fetch(`${CRS_BASE_URL}/api/salvi/inter-cube/relay/status`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setCrsNodes(data.nodes || []);
+      }
+    } catch {
+      setCrsNodes([]);
+    } finally {
+      setLoadingNodes(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCrsNodes();
+    const interval = setInterval(fetchCrsNodes, 30000);
+    return () => clearInterval(interval);
+  }, [fetchCrsNodes]);
 
   const connectWebSocket = useCallback(async (sid?: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -155,7 +181,7 @@ export default function TerminalPage() {
 
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: 16,
+      fontSize: 18,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       theme: {
         background: "#1a1410",
@@ -263,85 +289,113 @@ export default function TerminalPage() {
     }
   };
 
-  const currentNode = ARRAY3_NODES.find(n => n.id === selectedNode) || ARRAY3_NODES[0];
+  const allNodes = [
+    { id: "local", label: "CRS (Local)", address: "this-node", connected: true },
+    ...crsNodes.map(n => ({
+      id: n.addressDotted,
+      label: `Node ${n.addressDotted}`,
+      address: n.addressDotted,
+      connected: n.connected,
+    })),
+  ];
+
+  const currentNode = allNodes.find(n => n.id === selectedNode) || allNodes[0];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col" data-testid="terminal-page">
-      <div className="px-4 py-3 border-b border-border">
-        <div className="max-w-[1400px] mx-auto">
-          <div className="flex flex-wrap items-center gap-4 justify-between">
-            <div className="flex items-center gap-3">
-              <TerminalSquare className="w-5 h-5 text-primary" />
-              <h1 className="text-lg font-semibold" data-testid="text-terminal-title">
-                PlenumNode Terminal
-              </h1>
-              <Badge
-                variant={connected ? "secondary" : "destructive"}
-                className={connected ? "bg-green-500/20 text-green-300 border-green-500/30" : ""}
-                data-testid="connection-status"
-              >
-                {connected ? "Connected" : authError ? "Auth Required" : "Disconnected"}
+    <div className="h-screen bg-background flex flex-col overflow-hidden" data-testid="terminal-page">
+      <div className="px-4 py-2 border-b border-border flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-3 justify-between">
+          <div className="flex items-center gap-3">
+            <TerminalSquare className="w-5 h-5 text-primary" />
+            <h1 className="text-lg font-semibold" data-testid="text-terminal-title">
+              PlenumNode Terminal
+            </h1>
+            <Badge
+              variant={connected ? "secondary" : "destructive"}
+              className={connected ? "bg-green-500/20 text-green-300 border-green-500/30" : ""}
+              data-testid="connection-status"
+            >
+              {connected ? "Connected" : authError ? "Auth Required" : "Disconnected"}
+            </Badge>
+            {sessionId && (
+              <Badge variant="outline" className="text-xs" data-testid="session-id">
+                Session: {sessionId.slice(0, 8)}
               </Badge>
-              {sessionId && (
-                <Badge variant="outline" className="text-xs" data-testid="session-id">
-                  Session: {sessionId.slice(0, 8)}
-                </Badge>
-              )}
-            </div>
+            )}
+          </div>
 
-            <div className="flex items-center gap-2">
-              <Select value={selectedNode} onValueChange={setSelectedNode}>
-                <SelectTrigger className="w-[200px] h-8 text-xs" data-testid="node-selector">
-                  <SelectValue placeholder="Select node" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ARRAY3_NODES.map(node => (
-                    <SelectItem key={node.id} value={node.id} data-testid={`node-option-${node.id}`}>
-                      <span className="font-medium">{node.label}</span>
-                      <span className="text-muted-foreground ml-2">{node.address}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex items-center gap-2">
+            <Select value={selectedNode} onValueChange={setSelectedNode}>
+              <SelectTrigger className="w-[280px] h-8 text-xs" data-testid="node-selector">
+                <SelectValue placeholder="Select node" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local" data-testid="node-option-local">
+                  <span className="font-medium">CRS (Local)</span>
+                </SelectItem>
+                {crsNodes.map(node => (
+                  <SelectItem key={node.addressDotted} value={node.addressDotted} data-testid={`node-option-${node.addressDotted}`}>
+                    <span className="flex items-center gap-2">
+                      <span className={`inline-block w-2 h-2 rounded-full ${node.connected ? "bg-green-500" : "bg-red-500"}`} />
+                      <span className="font-mono font-medium">{node.addressDotted}</span>
+                      <span className="text-muted-foreground">{node.endpoint || ""}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+                {loadingNodes && crsNodes.length === 0 && (
+                  <SelectItem value="_loading" disabled>Loading nodes...</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
 
-              <Button
-                size="sm"
-                variant={clusterMode ? "default" : "outline"}
-                className="h-8 text-xs"
-                onClick={() => { setClusterMode(!clusterMode); handleListSessions(); }}
-                data-testid="toggle-cluster-mode"
-              >
-                <Layers className="w-3.5 h-3.5 mr-1" />
-                Cluster
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs"
-                onClick={handleNewSession}
-                disabled={authError}
-                data-testid="new-session-btn"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                New
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={handleFit}
-                data-testid="fit-terminal-btn"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              onClick={fetchCrsNodes}
+              title="Refresh node list"
+              data-testid="refresh-nodes-btn"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
+
+            <Button
+              size="sm"
+              variant={clusterMode ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => { setClusterMode(!clusterMode); handleListSessions(); }}
+              data-testid="toggle-cluster-mode"
+            >
+              <Layers className="w-3.5 h-3.5 mr-1" />
+              Cluster
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={handleNewSession}
+              disabled={authError}
+              data-testid="new-session-btn"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              New
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={handleFit}
+              data-testid="fit-terminal-btn"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </Button>
           </div>
         </div>
       </div>
 
       {authError && (
-        <div className="max-w-[1400px] mx-auto px-4 pt-4 w-full">
-          <Card className="p-4 border-amber-500/30 bg-amber-500/5" data-testid="auth-error">
+        <div className="px-4 pt-3 flex-shrink-0">
+          <Card className="p-3 border-amber-500/30 bg-amber-500/5" data-testid="auth-error">
             <div className="flex items-center gap-3">
               <LogIn className="w-4 h-4 text-amber-400" />
               <span className="text-sm">Sign in to access the terminal.</span>
@@ -356,13 +410,39 @@ export default function TerminalPage() {
         </div>
       )}
 
+      {crsNodes.length > 0 && (
+        <div className="px-4 pt-2 flex-shrink-0">
+          <div className="flex gap-2 flex-wrap" data-testid="node-status-bar">
+            {crsNodes.map(node => (
+              <Badge
+                key={node.addressDotted}
+                variant="outline"
+                className={`text-xs font-mono cursor-pointer ${
+                  node.connected
+                    ? "border-green-500/30 text-green-400"
+                    : "border-red-500/30 text-red-400"
+                } ${selectedNode === node.addressDotted ? "bg-primary/10 border-primary" : ""}`}
+                onClick={() => setSelectedNode(node.addressDotted)}
+                data-testid={`node-badge-${node.addressDotted}`}
+              >
+                <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${node.connected ? "bg-green-500" : "bg-red-500"}`} />
+                {node.addressDotted}
+                {node.endpoint && <span className="text-muted-foreground ml-1.5">{node.endpoint}</span>}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {clusterMode && (
-        <div className="max-w-[1400px] mx-auto px-4 pt-3 w-full">
+        <div className="px-4 pt-2 flex-shrink-0">
           <Card className="p-3" data-testid="cluster-panel">
             <div className="flex items-center gap-2 mb-2">
               <Server className="w-3.5 h-3.5 text-primary" />
               <span className="text-xs font-medium">Array3 Cluster Shell</span>
-              <span className="text-xs text-muted-foreground">— Fan-out to all {ARRAY3_NODES.length} nodes</span>
+              <span className="text-xs text-muted-foreground">
+                — Fan-out to {crsNodes.filter(n => n.connected).length} connected node(s)
+              </span>
             </div>
             <div className="flex gap-2">
               <input
@@ -390,7 +470,7 @@ export default function TerminalPage() {
                   <div key={i} className="rounded bg-muted/50 border border-border p-2">
                     <div className="flex items-center gap-2 mb-0.5">
                       <Monitor className="w-3 h-3 text-primary" />
-                      <span className="text-xs font-medium text-primary">Node {r.nodeId}</span>
+                      <span className="text-xs font-mono font-medium text-primary">{r.nodeId}</span>
                       <span className="text-xs text-muted-foreground">{r.address}</span>
                       {r.exitCode !== null && (
                         <Badge variant={r.exitCode === 0 ? "default" : "destructive"} className="text-xs h-4">
@@ -408,7 +488,7 @@ export default function TerminalPage() {
       )}
 
       {sessions.length > 1 && (
-        <div className="max-w-[1400px] mx-auto px-4 pt-2 w-full">
+        <div className="px-4 pt-2 flex-shrink-0">
           <div className="flex gap-1 overflow-x-auto" data-testid="session-tabs">
             {sessions.map((s) => (
               <div
@@ -436,15 +516,13 @@ export default function TerminalPage() {
         </div>
       )}
 
-      <div className="flex-1 max-w-[1400px] mx-auto px-4 py-3 w-full">
+      <div className="flex-1 px-4 py-2 min-h-0">
         <div
           className="w-full h-full rounded-md overflow-hidden border border-border"
-          style={{ minHeight: "400px" }}
         >
           <div
             ref={termRef}
             className="w-full h-full"
-            style={{ minHeight: "400px" }}
             data-testid="terminal-container"
             onClick={() => terminalRef.current?.focus()}
           />
