@@ -549,7 +549,8 @@ export default function TerminalPage() {
         >
           <div
             ref={termRef}
-            className="w-full h-full"
+            className="w-full h-full p-3"
+            style={{ backgroundColor: "#0a0a0f" }}
             data-testid="terminal-container"
             onClick={() => terminalRef.current?.focus()}
           />
