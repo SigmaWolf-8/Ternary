@@ -72,7 +72,7 @@ export function createSession(ownerId: string, cols = 80, rows = 24): TerminalSe
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
       PLENUM_TERMINAL: "1",
-      PS1: "\\[\\033[38;2;196;154;108m\\]salvi\\[\\033[0m\\]@\\[\\033[38;2;196;154;108m\\]plenumnode\\[\\033[0m\\] \\[\\033[38;2;80;200;120m\\]\\w\\[\\033[0m\\] $ ",
+      PS1: "\\[\\033[38;2;226;232;240m\\]salvi\\[\\033[0m\\]@\\[\\033[38;2;226;232;240m\\]plenumnode\\[\\033[0m\\] \\[\\033[38;2;96;165;250m\\]\\w\\[\\033[0m\\] $ ",
       HISTFILE: "",
     } as Record<string, string>,
   });

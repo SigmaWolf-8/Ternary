@@ -300,6 +300,17 @@ export default function TerminalPage() {
     try { fitAddonRef.current?.fit(); } catch {}
   };
 
+  const handleFullscreen = () => {
+    const el = document.querySelector('[data-testid="terminal-page"]') as HTMLElement;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      el.requestFullscreen().catch(() => {});
+    }
+    setTimeout(() => { try { fitAddonRef.current?.fit(); } catch {} }, 200);
+  };
+
   const handleListSessions = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "list_sessions" }));
@@ -401,7 +412,7 @@ export default function TerminalPage() {
               size="sm"
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={handleFit}
+              onClick={handleFullscreen}
               data-testid="fit-terminal-btn"
             >
               <Maximize2 className="w-3.5 h-3.5" />
