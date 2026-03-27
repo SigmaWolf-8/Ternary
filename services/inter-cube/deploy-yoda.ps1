@@ -443,6 +443,14 @@ foreach ($cfg in $daemonConfigs) {
     $logFile = Join-Path $LOG_DIR "array3-node-$($cfg.Id).log"
     $wrapperBat = Join-Path $wrapperDir "array3-node-$($cfg.Id)-start.bat"
 
+    $peerListForNode = @()
+    foreach ($other in $daemonConfigs) {
+        if ($other.Id -ne $cfg.Id) {
+            $peerListForNode += "127.0.0.1:$($other.TerminalPort)"
+        }
+    }
+    $peerEnvForNode = $peerListForNode -join ","
+
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
@@ -454,6 +462,7 @@ set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
+set CUBE_ARRAY3_PEERS=$peerEnvForNode
 cd /d "$RepoDir"
 set RESTART_DELAY=5
 set RESTART_COUNT=0
@@ -473,13 +482,6 @@ timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
 goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     } else {
-        $peerList = @()
-        foreach ($other in $daemonConfigs) {
-            if ($other.Id -ne $cfg.Id -and $other.Mode -ne "crs") {
-                $peerList += "127.0.0.1:$($other.TerminalPort)"
-            }
-        }
-        $peerEnv = $peerList -join ","
         @"
 @echo off
 setlocal enabledelayedexpansion
@@ -491,7 +493,7 @@ set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
-set CUBE_ARRAY3_PEERS=$peerEnv
+set CUBE_ARRAY3_PEERS=$peerEnvForNode
 cd /d "$RepoDir"
 set RESTART_DELAY=5
 set RESTART_COUNT=0

@@ -130,10 +130,14 @@ fn terminal_port() -> u16 {
 }
 
 fn cube_node_id() -> u8 {
-    env::var("CUBE_NODE_ID")
+    let id = env::var("CUBE_NODE_ID")
         .ok()
         .and_then(|v| v.parse::<u8>().ok())
-        .unwrap_or(1)
+        .unwrap_or(1);
+    if id == 0 || id > 3 {
+        panic!("FATAL: CUBE_NODE_ID must be Rep C {{1,2,3}}, got {}. Zero is not a valid node identity.", id);
+    }
+    id
 }
 
 fn cube_array3_peers() -> Vec<String> {
@@ -730,11 +734,10 @@ async fn run_crs_mode() {
         })
         .collect();
     let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted(), nid, &a3_peers);
-    let cluster_routes = inter_cube::cluster_shell::cluster_shell_router(cluster_shell);
 
     let app = crs_router(shared_state)
         .merge(vm_routes)
-        .merge(cluster_routes);
+        .merge(inter_cube::cluster_shell::cluster_shell_router(cluster_shell.clone()));
 
     let port = api_port();
     let p_port = peer_port();
@@ -749,7 +752,9 @@ async fn run_crs_mode() {
         println!("  Relay:         {} (WebSocket, TL-DSA-87 challenge-response)", rurl);
         let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
         let tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
-        spawn_relay_client(rurl, addr_str, identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None, None);
+        let crs_relay_url = rurl.clone();
+        spawn_relay_client(rurl, addr_str.clone(), identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None, None);
+        spawn_peer_discovery(crs_relay_url, addr_str, p_port, new_peer_registry(), new_peer_senders(), None, Some(cluster_shell.clone()));
     } else {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
     }
