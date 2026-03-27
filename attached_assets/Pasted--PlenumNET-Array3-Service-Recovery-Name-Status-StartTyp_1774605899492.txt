@@ -1,0 +1,48 @@
+=== PlenumNET Array3 Service Recovery ===
+
+Name                Status StartType
+----                ------ ---------
+PlenumNET-Array3-1 Stopped Automatic
+PlenumNET-Array3-2 Stopped Automatic
+PlenumNET-Array3-3 Stopped Automatic
+
+
+
+Starting services...
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-1 on computer '.'.
+At line:1 char:244
++ ... vice PlenumNET-Array3-* | Start-Service -ErrorAction Continue; Start- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-2 on computer '.'.
+At line:1 char:244
++ ... vice PlenumNET-Array3-* | Start-Service -ErrorAction Continue; Start- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-3 on computer '.'.
+At line:1 char:244
++ ... vice PlenumNET-Array3-* | Start-Service -ErrorAction Continue; Start- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+
+Name                Status
+----                ------
+PlenumNET-Array3-1 Stopped
+PlenumNET-Array3-2 Stopped
+PlenumNET-Array3-3 Stopped
+
+
+
+Done. Press Enter to close.
