@@ -44,6 +44,7 @@ export default function TerminalPage() {
   const [clusterPending, setClusterPending] = useState(false);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const authErrorRef = useRef(false);
+  const sessionIdRef = useRef<string | null>(null);
 
   const [authError, setAuthError] = useState(false);
 
@@ -55,8 +56,10 @@ export default function TerminalPage() {
     try {
       const resp = await fetch("/api/terminal/token", { method: "POST", credentials: "include" });
       if (!resp.ok) {
-        setAuthError(true);
-        authErrorRef.current = true;
+        if (resp.status === 401) {
+          setAuthError(true);
+          authErrorRef.current = true;
+        }
         setConnected(false);
         return;
       }
@@ -65,8 +68,6 @@ export default function TerminalPage() {
       setAuthError(false);
       authErrorRef.current = false;
     } catch {
-      setAuthError(true);
-      authErrorRef.current = true;
       setConnected(false);
       return;
     }
@@ -95,15 +96,18 @@ export default function TerminalPage() {
             terminalRef.current?.write(msg.data);
             break;
           case "session_created":
+            sessionIdRef.current = msg.sessionId;
             setSessionId(msg.sessionId);
             break;
           case "session_list":
             setSessions(msg.sessions || []);
             break;
           case "session_attached":
+            sessionIdRef.current = msg.sessionId;
             setSessionId(msg.sessionId);
             break;
           case "session_ended":
+            sessionIdRef.current = null;
             setSessionId(null);
             terminalRef.current?.writeln("\r\n\x1b[38;2;255;100;100m[Session ended]\x1b[0m");
             break;
@@ -123,14 +127,14 @@ export default function TerminalPage() {
     ws.onclose = () => {
       setConnected(false);
       if (!authErrorRef.current) {
-        reconnectTimer.current = setTimeout(() => connectWebSocket(sessionId || undefined), 5000);
+        reconnectTimer.current = setTimeout(() => connectWebSocket(sessionIdRef.current || undefined), 5000);
       }
     };
 
     ws.onerror = () => {
       ws.close();
     };
-  }, [sessionId]);
+  }, []);
 
   useEffect(() => {
     if (!termRef.current) return;
@@ -206,7 +210,7 @@ export default function TerminalPage() {
         clearTimeout(reconnectTimer.current);
       }
     };
-  }, [connectWebSocket]);
+  }, []);
 
   const handleNewSession = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
