@@ -1073,6 +1073,13 @@ function startPqtiService(): ChildProcess | null {
           if (existingEntry) {
             existingEntry.registeredInCrs = true;
             existingEntry.connectedViaRelay = existingEntry.connectedViaRelay || !!isRelayConnected;
+            if (crsEntry.endpoint && crsParsed) {
+              existingEntry.endpoint = crsEntry.endpoint;
+              existingEntry.port = parseInt(crsParsed.port) || existingEntry.port;
+            }
+            if (isRelayConnected && connectedAtRef?.has(crsAddr)) {
+              existingEntry.nodeUptimeMs = now - connectedAtRef.get(crsAddr)!;
+            }
             if (lastSeenTs && (!existingEntry.lastSeen || new Date(existingEntry.lastSeen).getTime() < lastSeenTs)) {
               existingEntry.lastSeen = new Date(lastSeenTs).toISOString();
               existingEntry.lastSeenAgeMs = now - lastSeenTs;

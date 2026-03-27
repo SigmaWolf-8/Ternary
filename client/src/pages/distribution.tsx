@@ -1079,8 +1079,7 @@ function ClusterReport() {
               <span>Port: <strong className="text-foreground">{d.port || (() => { const m = d.endpoint?.match(/:(\d+)$/); return m ? m[1] : "—"; })()}</strong>{d.peerPort ? <span className="text-muted-foreground"> / Peer {d.peerPort}</span> : null}</span>
               <span>Role: <strong className="text-foreground">{d.role === "crs" ? "CRS" : "Cube"}</strong></span>
               <span>Registered: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
-              <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
-              <span data-testid={`daemon-connection-mode-${i}`}>Connection: <strong className={d.directPeerCount > 0 ? "text-green-600 dark:text-green-400" : "text-foreground"}>{d.directPeerCount > 0 ? `direct (${d.directPeerCount} peer${d.directPeerCount > 1 ? "s" : ""})` : "relay"}</strong></span>
+              <span data-testid={`daemon-connection-mode-${i}`}>Connection: <strong className={d.connectedViaRelay ? "text-emerald-600 dark:text-emerald-400" : d.directPeerCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>{d.connectedViaRelay ? (d.directPeerCount > 0 ? `relay + direct (${d.directPeerCount} peer${d.directPeerCount > 1 ? "s" : ""})` : "relay") : "offline"}</strong></span>
               <span data-testid={`daemon-node-uptime-${i}`}>Node Uptime: <strong className="text-foreground">{d.nodeUptimeMs != null ? formatUptime(d.nodeUptimeMs) : "—"}</strong></span>
             </div>
           </div>
