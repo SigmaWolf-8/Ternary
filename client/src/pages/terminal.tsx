@@ -86,6 +86,7 @@ export default function TerminalPage() {
         clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;
       }
+      setTimeout(() => terminalRef.current?.focus(), 100);
     };
 
     ws.onmessage = (event) => {
@@ -144,11 +145,11 @@ export default function TerminalPage() {
       fontSize: 14,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       theme: {
-        background: "#0f172a",
-        foreground: "#cbd5e1",
-        cursor: "#6495ed",
-        selectionBackground: "#334155",
-        black: "#0f172a",
+        background: "#1a1410",
+        foreground: "#d4c8bc",
+        cursor: "#c49a6c",
+        selectionBackground: "#3d2e22",
+        black: "#1a1410",
         red: "#f87171",
         green: "#4ade80",
         yellow: "#fbbf24",
@@ -156,7 +157,7 @@ export default function TerminalPage() {
         magenta: "#c084fc",
         cyan: "#22d3ee",
         white: "#e2e8f0",
-        brightBlack: "#64748b",
+        brightBlack: "#7a6b5d",
         brightRed: "#fb7185",
         brightGreen: "#86efac",
         brightYellow: "#fcd34d",
@@ -250,9 +251,9 @@ export default function TerminalPage() {
 
   return (
     <div className="min-h-screen bg-background" data-testid="terminal-page">
-      <div className="bg-gradient-to-b from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 text-white py-8 px-4">
+      <div className="text-white py-8 px-4" style={{ background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)" }}>
         <div className="max-w-[1400px] mx-auto">
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-4" data-testid="text-breadcrumb">
+          <div className="flex items-center gap-2 text-sm mb-4" data-testid="text-breadcrumb" style={{ color: "hsl(20,10%,50%)" }}>
             <Link href="/" className="hover:text-white transition-colors">
               Home
             </Link>
@@ -263,12 +264,12 @@ export default function TerminalPage() {
           <div className="flex flex-wrap items-start gap-4 justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <TerminalSquare className="w-8 h-8 text-blue-400" />
+                <TerminalSquare className="w-8 h-8" style={{ color: "hsl(20,50%,60%)" }} />
                 <h1 className="text-3xl font-bold tracking-tight" data-testid="text-terminal-title">
                   PlenumNode Terminal
                 </h1>
               </div>
-              <p className="text-slate-300 max-w-2xl text-lg" data-testid="text-terminal-subtitle">
+              <p className="max-w-2xl text-lg" data-testid="text-terminal-subtitle" style={{ color: "hsl(20,10%,65%)" }}>
                 Interactive shell access to the PlenumNET node. Manage sessions, execute commands,
                 and fan out operations across the Array3 cluster via Inter-Cube tunnels.
               </p>
@@ -400,11 +401,12 @@ export default function TerminalPage() {
             {sessions.map((s) => (
               <div
                 key={s.id}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-t text-xs cursor-pointer transition-colors ${
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-t text-xs cursor-pointer transition-colors border border-b-0 ${
                   s.id === sessionId
-                    ? "bg-slate-900 text-white border border-b-0 border-border"
+                    ? "text-white"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
+                style={s.id === sessionId ? { background: "hsl(20,12%,10%)", borderColor: "hsl(20,12%,18%)" } : {}}
                 onClick={() => handleSwitchSession(s.id)}
                 data-testid={`session-tab-${s.id.slice(0, 8)}`}
               >
@@ -422,15 +424,15 @@ export default function TerminalPage() {
           </div>
         )}
 
-        <Card className="overflow-hidden border-slate-700 dark:border-slate-800">
-          <div className="flex items-center justify-between px-4 py-2 bg-slate-800 dark:bg-slate-900 border-b border-slate-700">
+        <Card className="overflow-hidden" style={{ borderColor: "hsl(20,12%,18%)" }}>
+          <div className="flex items-center justify-between px-4 py-2" style={{ background: "hsl(20,12%,12%)", borderBottom: "1px solid hsl(20,12%,18%)" }}>
             <div className="flex items-center gap-2">
               <div className="flex gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-red-500/80" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                 <div className="w-3 h-3 rounded-full bg-green-500/80" />
               </div>
-              <span className="text-xs text-slate-400 ml-2 font-mono">
+              <span className="text-xs ml-2 font-mono" style={{ color: "hsl(20,10%,45%)" }}>
                 salvi@plenumnode ~ {sessionId ? `session:${sessionId.slice(0, 8)}` : "ready"}
               </span>
             </div>
@@ -448,6 +450,7 @@ export default function TerminalPage() {
             className="w-full"
             style={{ height: clusterMode ? "calc(100vh - 520px)" : "calc(100vh - 360px)", minHeight: "300px" }}
             data-testid="terminal-container"
+            onClick={() => terminalRef.current?.focus()}
           />
         </Card>
       </div>

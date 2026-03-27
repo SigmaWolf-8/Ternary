@@ -71,9 +71,9 @@ export default function VMDemo() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-gradient-to-b from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 text-white py-12 px-4">
+      <div className="text-white py-12 px-4" style={{ background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)" }}>
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-4" data-testid="text-breadcrumb">
+          <div className="flex items-center gap-2 text-sm mb-4" data-testid="text-breadcrumb" style={{ color: "hsl(20,10%,50%)" }}>
             <Link href="/" className="hover-elevate rounded px-1">
               Home
             </Link>
@@ -84,12 +84,12 @@ export default function VMDemo() {
           <div className="flex flex-wrap items-start gap-4 justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <Terminal className="w-8 h-8 text-blue-400" />
+                <Terminal className="w-8 h-8" style={{ color: "hsl(20,50%,60%)" }} />
                 <h1 className="text-3xl font-bold tracking-tight" data-testid="text-vm-title">
                   Ternary Virtual Machine
                 </h1>
               </div>
-              <p className="text-slate-300 max-w-2xl text-lg" data-testid="text-vm-subtitle">
+              <p className="max-w-2xl text-lg" data-testid="text-vm-subtitle" style={{ color: "hsl(20,10%,65%)" }}>
                 Interactive simulation of the Salvi Framework's {PLATFORM.VM_OPCODES}-opcode ISA {PLATFORM.VM_ISA_VERSION}.
                 Explore ternary computing, quantum-ternary simulation, post-quantum cryptography, and capability-based security.
               </p>
@@ -118,20 +118,20 @@ export default function VMDemo() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3">
-            <Card className="overflow-visible border-slate-700 dark:border-slate-800 bg-[#0a0e1a]">
-              <div className="flex items-center justify-between px-4 py-2 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 rounded-t-md">
+            <Card className="overflow-visible" style={{ borderColor: "hsl(20,12%,18%)", background: "#1a1410" }}>
+              <div className="flex items-center justify-between px-4 py-2 rounded-t-md" style={{ background: "hsl(20,12%,12%)", borderBottom: "1px solid hsl(20,12%,18%)" }}>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-red-500/80" />
                     <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                     <div className="w-3 h-3 rounded-full bg-green-500/80" />
                   </div>
-                  <span className="text-xs text-slate-400 ml-2 font-mono">salvi@vm ~ Ternary VM v2.1</span>
+                  <span className="text-xs ml-2 font-mono" style={{ color: "hsl(20,10%,45%)" }}>salvi@vm ~ Ternary VM v2.1</span>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-slate-400 text-xs"
+                  className="text-xs" style={{ color: "hsl(20,10%,45%)" }}
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   data-testid="button-fullscreen-toggle"
                 >
