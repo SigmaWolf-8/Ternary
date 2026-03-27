@@ -525,7 +525,7 @@ goto :loop
     $displayName = "PlenumNET Array3 Node #$($cfg.Id) ($modeLabel)"
 
     try {
-        $svcBinPath = "cmd.exe /c `"$wrapperBat`""
+        $svcBinPath = "cmd.exe /s /c `" `"$wrapperBat`" `""
         New-Service -Name $svcName `
             -BinaryPathName $svcBinPath `
             -DisplayName $displayName `

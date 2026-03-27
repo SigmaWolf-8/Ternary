@@ -382,7 +382,7 @@ set CUBE_ARRAY3_PEERS=$peerEnv
             }
 
             try {
-                $svcBinPath = "cmd.exe /c `"$wrapperBat`""
+                $svcBinPath = "cmd.exe /s /c `" `"$wrapperBat`" `""
                 New-Service -Name $svcName `
                     -BinaryPathName $svcBinPath `
                     -DisplayName "PlenumNET Inter-Cube Daemon (Identity #$id)" `
