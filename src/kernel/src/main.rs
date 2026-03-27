@@ -5,44 +5,17 @@ extern crate alloc;
 extern crate plenumnet_kernel;
 
 use core::panic::PanicInfo;
-use core::sync::atomic::{AtomicUsize, Ordering};
-use core::alloc::{GlobalAlloc, Layout};
+use plenumnet_kernel::allocator::LinkedListAllocator;
 
-const HEAP_SIZE: usize = 1024 * 1024;
+const HEAP_SIZE: usize = 512 * 1024 * 1024;
 
 #[repr(C, align(4096))]
 struct HeapMemory([u8; HEAP_SIZE]);
 
 static mut HEAP: HeapMemory = HeapMemory([0; HEAP_SIZE]);
-static HEAP_POS: AtomicUsize = AtomicUsize::new(0);
-
-struct BumpAllocator;
-
-unsafe impl GlobalAlloc for BumpAllocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let size = layout.size();
-        let align = layout.align();
-        loop {
-            let pos = HEAP_POS.load(Ordering::Relaxed);
-            let aligned = (pos + align - 1) & !(align - 1);
-            let new_pos = aligned + size;
-            if new_pos > HEAP_SIZE {
-                return core::ptr::null_mut();
-            }
-            if HEAP_POS
-                .compare_exchange_weak(pos, new_pos, Ordering::SeqCst, Ordering::Relaxed)
-                .is_ok()
-            {
-                return unsafe { HEAP.0.as_mut_ptr().add(aligned) };
-            }
-        }
-    }
-
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
-}
 
 #[global_allocator]
-static ALLOCATOR: BumpAllocator = BumpAllocator;
+static ALLOCATOR: LinkedListAllocator = LinkedListAllocator::new();
 
 #[cfg(target_arch = "x86_64")]
 mod serial {
@@ -283,6 +256,13 @@ core::arch::global_asm!(
 pub extern "C" fn kernel_main() -> ! {
     serial::init();
 
+    unsafe {
+        ALLOCATOR.init(
+            HEAP.0.as_mut_ptr() as usize,
+            HEAP_SIZE,
+        );
+    }
+
     puts("\n");
     puts("================================================================\n");
     puts("  PlenumNET Kernel v0.1.0 — Salvi Framework\n");
@@ -385,23 +365,24 @@ pub extern "C" fn kernel_main() -> ! {
     let fb_w = if boot_params.framebuffer_width > 0 && boot_params.framebuffer_width <= 4096 {
         boot_params.framebuffer_width
     } else {
-        320
+        1920
     };
     let fb_h = if boot_params.framebuffer_height > 0 && boot_params.framebuffer_height <= 4096 {
         boot_params.framebuffer_height
     } else {
-        200
+        1080
     };
 
-    let smoke_w = if fb_w > 320 { 320 } else { fb_w };
-    let smoke_h = if fb_h > 200 { 200 } else { fb_h };
+    puts("[boot] Heap allocator: linked-list, ");
+    put_usize(HEAP_SIZE / (1024 * 1024));
+    puts("MB capacity\n");
 
     puts("[browser] Initializing PlenumBrowser subsystem...\n");
-    let mut browser = plenumnet_kernel::browser::Browser::new(smoke_w, smoke_h);
+    let mut browser = plenumnet_kernel::browser::Browser::new(fb_w, fb_h);
     puts("[browser] Framebuffer: ");
-    put_u32(smoke_w);
+    put_u32(fb_w);
     puts("x");
-    put_u32(smoke_h);
+    put_u32(fb_h);
     puts(" (CPU renderer, hw fb @ 0x");
     put_hex_u64(boot_params.framebuffer_base);
     puts(")\n");
@@ -428,8 +409,9 @@ pub extern "C" fn kernel_main() -> ! {
     {
         let fb = browser.framebuffer_mut();
         fb.clear([20, 40, 80, 255]);
-        fb.fill_rect(10, 10, 300.min(smoke_w - 20), 40, [255, 255, 255, 255]);
-        fb.fill_rect(10, 55, 300.min(smoke_w - 20), 2, [139, 92, 246, 255]);
+        let rect_w = if fb_w > 20 { 300.min(fb_w - 20) } else { 1 };
+        fb.fill_rect(10, 10, rect_w, 40, [255, 255, 255, 255]);
+        fb.fill_rect(10, 55, rect_w, 2, [139, 92, 246, 255]);
     }
     browser.flush_render();
     puts("[browser] Test page rendered to framebuffer\n");
@@ -442,6 +424,14 @@ pub extern "C" fn kernel_main() -> ! {
     put_usize(dist.requests_processed() as usize);
     puts(" requests)\n");
 
+    puts("[boot] Allocator stats: ");
+    put_usize(ALLOCATOR.allocation_count());
+    puts(" allocs, ");
+    put_usize(ALLOCATOR.deallocation_count());
+    puts(" deallocs, ");
+    put_usize(ALLOCATOR.allocated_bytes() / 1024);
+    puts("KB used\n");
+
     puts("\n");
     puts("================================================================\n");
     puts("  PLENUMNET KERNEL BOOT OK\n");
@@ -453,7 +443,26 @@ pub extern "C" fn kernel_main() -> ! {
         core::arch::asm!("out dx, al", in("dx") 0xF4u16, in("al") 0x31u8, options(nomem, nostack));
     }
 
-    halt_loop();
+    puts("[kernel] Entering main event loop\n");
+    let mut tick: u64 = 0;
+    loop {
+        browser.flush_render();
+
+        tick = tick.wrapping_add(1);
+
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            core::arch::asm!("hlt", options(nomem, nostack));
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            core::arch::asm!("wfe", options(nomem, nostack));
+        }
+        #[cfg(target_arch = "riscv64")]
+        unsafe {
+            core::arch::asm!("wfi", options(nomem, nostack));
+        }
+    }
 }
 
 fn halt_loop() -> ! {

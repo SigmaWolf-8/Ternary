@@ -51,6 +51,7 @@ pub mod browser;
 pub mod distributor;
 pub mod input;
 pub mod layers;
+pub mod allocator;
 
 #[cfg(kani)]
 mod kani_proofs;

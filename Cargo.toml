@@ -3,6 +3,7 @@ members = [
     "ternary-math",
     "ternary-math/napi",
     "src/kernel",
+    "src/plenum-std",
     "services/pqti-service",
     "services/inter-cube",
     "services/tdns-v2",

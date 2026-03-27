@@ -1,0 +1,26 @@
+{
+    "llvm-target": "riscv64-unknown-none-elf",
+    "data-layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+    "arch": "riscv64",
+    "target-endian": "little",
+    "target-pointer-width": "64",
+    "target-c-int-width": "32",
+    "os": "none",
+    "env": "",
+    "vendor": "plenum",
+    "linker-flavor": "ld.lld",
+    "linker": "rust-lld",
+    "panic-strategy": "abort",
+    "disable-redzone": true,
+    "features": "+m,+a,+f,+d,+c",
+    "executables": true,
+    "relocation-model": "static",
+    "pre-link-args": {
+        "ld.lld": ["--gc-sections"]
+    },
+    "position-independent-executables": false,
+    "has-thread-local": false,
+    "emit-debug-gdb-scripts": false,
+    "max-atomic-width": 64,
+    "atomic-cas": true
+}

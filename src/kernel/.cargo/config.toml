@@ -1,0 +1,16 @@
+[target.x86_64-plenum-none]
+runner = "qemu-system-x86_64 -nographic -serial mon:stdio -device isa-debug-exit,iobase=0xf4,iosize=0x04 -kernel"
+
+[target.aarch64-plenum-none]
+runner = "qemu-system-aarch64 -M virt -cpu cortex-a57 -nographic -serial mon:stdio -kernel"
+
+[target.riscv64gc-plenum-none]
+runner = "qemu-system-riscv64 -M virt -nographic -serial mon:stdio -kernel"
+
+[alias]
+kbuild = "build --target targets/x86_64-plenum-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem"
+kbuild-arm = "build --target targets/aarch64-plenum-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem"
+kbuild-rv = "build --target targets/riscv64gc-plenum-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem"
+kcheck = "check --target targets/x86_64-plenum-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem"
+kcheck-arm = "check --target targets/aarch64-plenum-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem"
+kcheck-rv = "check --target targets/riscv64gc-plenum-none.json -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem"
