@@ -1,0 +1,205 @@
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/diagnose.sh
+remote: Enumerating objects: 12, done.
+remote: Counting objects: 100% (12/12), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 7 (delta 4), reused 7 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (7/7), 2.00 KiB | 78.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   b3796d07..3a5224b2  main       -> origin/main
+Updating b3796d07..3a5224b2
+Fast-forward
+ src/kernel/bare-metal/scripts/diagnose.sh | 112 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 112 insertions(+)
+ create mode 100755 src/kernel/bare-metal/scripts/diagnose.sh
+================================================================
+  PlenumNET — Boot Diagnostics
+  Kernel: target/x86_64-unknown-none/debug/ternary-kernel.mb
+================================================================
+
+--- 1. File type ---
+target/x86_64-unknown-none/debug/ternary-kernel.mb: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, with debug_info, not stripped
+
+--- 2. ELF headers ---
+  Class:                             ELF32
+  Type:                              EXEC (Executable file)
+  Machine:                           Intel 80386
+  Entry point address:               0x101000
+
+--- 3. Program headers ---
+
+Elf file type is EXEC (Executable file)
+Entry point 0x101000
+There are 7 program headers, starting at offset 56
+
+Program Headers:
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  LOAD           0x001000 0x00100000 0x00100000 0x0000c 0x0000c R   0x1000
+  LOAD           0x002000 0x00101000 0x00101000 0x18be8 0x18be8 R E 0x1000
+  LOAD           0x01b000 0x0011a000 0x0011a000 0x06224 0x06224 R   0x1000
+  LOAD           0x021228 0x00120228 0x00120228 0x00028 0x00028 RW  0x1000
+  LOAD           0x022000 0x00121000 0x00121000 0x00000 0x04010 RW  0x1000
+  GNU_RELRO      0x021228 0x00120228 0x00120228 0x00028 0x00028 R   0x1
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x00000 RW  0
+
+ Section to Segment mapping:
+  Segment Sections...
+   00     .multiboot
+   01     .text.boot .text
+   02     .rodata .eh_frame_hdr
+   03     .got
+   04     .bss.boot .bss
+   05     .got
+   06
+
+--- 4. Multiboot header scan ---
+  Magic at file offset: 0x1000 (4096 bytes)
+  Flags: 0x3
+  Checksum: 0xE4524FFB
+  Checksum valid: True
+  Within 8KB limit: True
+
+--- 5. QEMU version ---
+QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.13)
+Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
+
+--- 6. QEMU boot test (10s, serial to file) ---
+
+--- 7. Serial output (expect '1234' if trampoline works) ---
+  Content:
+000000 31 32 33 34 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >1234============<
+000010 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >================<
+000020 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >================<
+000030 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >================<
+000040 3d 3d 3d 3d 0d 0a 20 20 50 6c 65 6e 75 6d 4e 45  >====..  PlenumNE<
+000050 54 20 54 65 72 6e 61 72 79 20 4b 65 72 6e 65 6c  >T Ternary Kernel<
+000060 20 e2 80 94 20 42 61 72 65 2d 4d 65 74 61 6c 20  > ... Bare-Metal <
+000070 56 61 6c 69 64 61 74 69 6f 6e 0d 0a 20 20 53 61  >Validation..  Sa<
+000080 6c 76 69 20 46 72 61 6d 65 77 6f 72 6b 20 76 30  >lvi Framework v0<
+000090 2e 31 2e 30 0d 0a 20 20 43 61 70 6f 6d 61 73 74  >.1.0..  Capomast<
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/qemu-run.sh target/x86_64-unknown-none/debug/ternary-kernel.mb
+remote: Enumerating objects: 13, done.
+remote: Counting objects: 100% (13/13), done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 7 (delta 5), reused 7 (delta 5), pack-reused 0 (from 0)
+Unpacking objects: 100% (7/7), 990 bytes | 123.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   3a5224b2..255998e4  main       -> origin/main
+Updating 3a5224b2..255998e4
+Fast-forward
+ src/kernel/bare-metal/scripts/qemu-run.sh | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+================================================================
+  PlenumNET — QEMU Bare-Metal Validation
+  Kernel:  ternary-kernel.mb
+  Target:  x86_64-unknown-none
+  Timeout: 120s
+================================================================
+
+--- Serial Output ---
+1234================================================================
+  PlenumNET Ternary Kernel — Bare-Metal Validation
+  Salvi Framework v0.1.0
+  Capomastro Holdings Ltd. — Applied Physics Division
+  Target: x86_64-unknown-none (QEMU)
+================================================================
+
+[BOOT] Kernel version: 0.1.0
+[BOOT] Copyright: Copyright (c) 2026 Capomastro Holdings Ltd
+[BOOT] Initializing kernel...
+[BOOT] Architecture: x86_64
+[BOOT] Timing source: System Clock
+[BOOT] Kernel initialized successfully.
+
+[TEST] Running bare-metal self-test suite...
+    Tests exercise the ACTUAL plenumnet-kernel library code.
+    No OS, no libc, no allocator runtime — just raw hardware.
+----------------------------------------------------------------
+  -- Kernel Init --
+  [PASS] kernel version matches
+  [PASS] ternary_ops enabled
+  [PASS] femtosecond_timing enabled
+  [PASS] phase_encryption enabled
+  -- Salvi Epoch --
+  [PASS] SALVI_EPOCH_NS is April 1 2025
+  [PASS] SALVI_EPOCH_FS consistent
+  -- Trit Arithmetic (GF(3)) --
+  [PASS] Trit::from_a(1) == +1
+  [PASS] Trit::from_a(0) == 0
+  [PASS] Trit::from_a(-1) == -1
+  [PASS] Trit::from_a(5) == None
+  [PASS] to_b: -1 -> 0
+  [PASS] to_b:  0 -> 1
+  [PASS] to_b: +1 -> 2
+  [PASS] to_c: -1 -> 1
+  [PASS] to_c:  0 -> 2
+  [PASS] to_c: +1 -> 3
+  [PASS] round-trip B: from_b(to_b(P))
+  [PASS] round-trip C: from_c(to_c(N))
+  [PASS] NOT(+1) == -1
+  [PASS] NOT(-1) == +1
+  [PASS] NOT(0) == 0
+  [PASS] double negation: NOT(NOT(P)) == P
+  [PASS] AND(P, N) == N
+  [PASS] AND(P, P) == P
+  [PASS] AND(P, Z) == Z
+  [PASS] OR(P, N) == P
+  [PASS] OR(N, N) == N
+  [PASS] OR(N, Z) == Z
+  [PASS] add(P, P) in GF(3)
+  [PASS] add(P, N) in GF(3)
+  [PASS] mul(P, P) == P
+  [PASS] mul(P, N) == N
+  [PASS] mul(N, N) == P
+  [PASS] mul(Z, P) == Z
+  [PASS] rotate(-1) == 0
+  [PASS] rotate(0) == 1
+  [PASS] rotate(1) == -1
+  -- Packed Trit Words --
+  [PASS] pack/unpack round-trip (9 trits)
+  [PASS] 27-trit pack/unpack: pos 0
+  [PASS] 27-trit pack/unpack: pos 13
+  [PASS] 27-trit pack/unpack: pos 26
+  -- Representation Bijections --
+  [PASS] A->B->C->A round trip (+1)
+  [PASS] A->B->A round trip (-1)
+  -- Boot Sequence --
+  [PASS] boot starts at PowerOn
+  [PASS] boot not complete initially
+  [PASS] all 11 boot stages advance
+  [PASS] boot sequence complete
+  [PASS] final stage is Running
+  [PASS] 11 stages recorded
+  [PASS] cannot advance past Running
+  -- x86_64 Boot Config --
+  [PASS] arch is X86_64
+  [PASS] kernel at 0x100000 (1 MiB)
+  [PASS] memory map has entries
+  [PASS] first region is Usable
+  -- Femtosecond Timing --
+  [PASS] FS_PER_NS == 1_000_000
+  [PASS] FS_PER_MS == 1e12
+  [PASS] FS_PER_SECOND == 1e15
+  [PASS] zero timestamp
+  [PASS] zero seconds()
+  [PASS] 1s timestamp: seconds() == 1
+  [PASS] 1s timestamp: sub_second_fs() == 0
+  [PASS] 1.5s timestamp: ms == 500
+  [PASS] from_unix_ns produces non-zero
+  -- Phase Encryption --
+  [PASS] HighSecurity: 7 phases
+  [PASS] Balanced: 5 phases
+  [PASS] Performance: 3 phases
+  [PASS] HighSecurity uses golden ratio
+  -- Architecture --
+  [PASS] architecture detected (not Unknown)
+----------------------------------------------------------------
+[RESULT] 68 passed, 0 failed
+
+[PASS] BARE-METAL VALIDATION PASSED
+       The PlenumNET kernel boots and runs on raw hardware.
+
+================================================================
+  BARE-METAL VALIDATION: PASSED
+  The PlenumNET kernel boots on raw hardware.
+================================================================
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$
