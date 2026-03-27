@@ -789,10 +789,10 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  PlenumNET Array3 Deployment Complete" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Node #1 (coordinator): port $($crsCfg.Port), address $($crsCfg.Address)" -ForegroundColor White
+Write-Host "  Node #1 (coordinator): port $($crsCfg.GatewayPort), address $($crsCfg.Address)" -ForegroundColor White
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    Write-Host "  Node #$($cfg.Id) (worker)     : port $($cfg.Port), address $($cfg.Address)" -ForegroundColor White
+    Write-Host "  Node #$($cfg.Id) (worker)     : port $($cfg.GatewayPort), address $($cfg.Address)" -ForegroundColor White
 }
 Write-Host ""
 Write-Host "  Services       : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3" -ForegroundColor White

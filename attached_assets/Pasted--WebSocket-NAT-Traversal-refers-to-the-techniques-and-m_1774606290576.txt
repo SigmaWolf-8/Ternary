@@ -1,0 +1,54 @@
+**WebSocket NAT Traversal** refers to the techniques and mechanisms that allow a WebSocket connection to be successfully established and maintained between a client and a server when the client is behind a **Network Address Translation (NAT)** device (like a home router or corporate firewall).
+
+Without these techniques, a WebSocket connection—which starts as an HTTP upgrade request and then becomes a persistent, bidirectional connection—can fail or be silently dropped.
+
+## Why NAT is a Problem for WebSockets
+
+NAT allows multiple devices on a private network (e.g., your phone, laptop, smart TV) to share a single public IP address. The NAT device maintains a **translation table** that maps internal `(private_ip, private_port)` pairs to external `(public_ip, public_port)` pairs.
+
+For outgoing connections (like a browser opening a WebSocket), this works fine initially. However, NAT introduces two main challenges for persistent connections like WebSockets:
+
+1.  **Mapping Timeouts:** NAT devices typically discard mapping entries after a period of inactivity (often 30 seconds to a few minutes). If a WebSocket connection sends no data for longer than that timeout, the NAT device forgets the mapping. When the server later tries to send a message, the NAT device no longer knows which internal client to forward it to, and the connection fails silently.
+2.  **Symmetric NAT Restrictions:** Some NATs (especially older or stricter corporate firewalls) are "symmetric"—they assign a different public port for each destination IP/port. This makes it difficult for a server to "reconnect" or for peer-to-peer (P2P) scenarios to work without a relay.
+
+## How WebSocket NAT Traversal Works
+
+Since WebSockets are typically client-initiated (the browser connects to the server first), the traversal strategy focuses on **keeping the connection alive** and **working within HTTP-based constraints**.
+
+### 1. The Initial Handshake (HTTP Upgrade)
+WebSockets leverage the fact that the initial connection is a standard HTTP `GET` request with an `Upgrade: websocket` header. Because this is an **outbound HTTP request**, it passes through most NATs and firewalls without issue. The NAT creates a mapping at this moment.
+
+### 2. Ping/Pong Frames (Keepalives)
+This is the most critical mechanism for NAT traversal. The WebSocket protocol defines **opcode `0x9` (Ping)** and **opcode `0xA` (Pong)** frames.
+
+- The server (or client) sends a small Ping frame.
+- The NAT device sees this outgoing or incoming traffic, resetting its idle timer.
+- The other side replies with a Pong.
+- By sending these every **30 seconds** (or less than the NAT timeout), the NAT mapping remains active, and the connection appears "in use" to the firewall.
+
+Most production WebSocket libraries and load balancers (like Nginx, HAProxy, or cloud services) automatically send these keepalives.
+
+### 3. Using Standard Ports (80 and 443)
+Corporate firewalls and strict NATs often block non-standard ports. WebSocket NAT traversal relies heavily on using:
+- **Port 80** (for `ws://`)
+- **Port 443** (for `wss://`, WebSocket over TLS)
+
+Because these ports are used for web browsing, they are almost always left open by NATs and firewalls. Using `wss://` (TLS) also has the benefit of making the traffic look like encrypted HTTPS, preventing deep packet inspection firewalls from identifying and blocking the "upgrade" specifically.
+
+### 4. STUN/TURN for Peer-to-Peer (P2P)
+If you are using WebSockets in a **peer-to-peer** context (e.g., WebRTC data channels fallback to WebSocket for signaling), full NAT traversal requires additional protocols:
+
+- **STUN (Session Traversal Utilities for NAT):** Helps a client discover its public IP address and port mapping (the "external side" of the NAT). This works for "full-cone" or "restricted-cone" NATs.
+- **TURN (Traversal Using Relays around NAT):** If the NAT is symmetric (or STUN fails), the traffic must be relayed through a public server. In the context of WebSockets, if a direct P2P connection fails, the WebSocket server acts as a TURN-like relay, forwarding messages between peers.
+
+## Summary
+
+In practice, **WebSocket NAT traversal is usually handled by the infrastructure**, not by writing custom socket code.
+
+| Component | Role in NAT Traversal |
+| :--- | :--- |
+| **Client (Browser)** | Initiates the connection via HTTP on port 80/443. |
+| **Server / Load Balancer** | Configures `websocket_timeout` or keepalive intervals to send Ping frames every 30–60 seconds. |
+| **NAT Router** | Maintains the mapping as long as Ping/Pong frames keep the session active. |
+
+If you are implementing a WebSocket server, the key to successful NAT traversal is ensuring that your server or reverse proxy sends frequent **WebSocket protocol Ping frames** (not TCP keepalives, which operate at a different layer) to prevent intermediate NAT devices from garbage-collecting the connection.
