@@ -11,6 +11,13 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TerminalSquare, Plus, X, Maximize2, Monitor, Layers, Server, ChevronRight, LogIn } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 
@@ -30,6 +37,12 @@ interface ClusterResult {
   exitCode: number | null;
 }
 
+const ARRAY3_NODES = [
+  { id: "1", label: "Node 1", address: "111.111.111.111.1" },
+  { id: "2", label: "Node 2", address: "111.111.111.111.2" },
+  { id: "3", label: "Node 3", address: "111.111.111.111.3" },
+];
+
 export default function TerminalPage() {
   const termRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -38,6 +51,7 @@ export default function TerminalPage() {
   const [connected, setConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [selectedNode, setSelectedNode] = useState("1");
   const [clusterMode, setClusterMode] = useState(false);
   const [clusterResults, setClusterResults] = useState<ClusterResult[]>([]);
   const [clusterCommand, setClusterCommand] = useState("");
@@ -221,22 +235,23 @@ export default function TerminalPage() {
 
   const handleSwitchSession = (sid: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "attach", sessionId: sid }));
-      terminalRef.current?.clear();
+      wsRef.current.send(JSON.stringify({ type: "switch_session", sessionId: sid }));
     }
   };
 
   const handleDestroySession = (sid: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "destroy", sessionId: sid }));
+      wsRef.current.send(JSON.stringify({ type: "destroy_session", sessionId: sid }));
     }
   };
 
   const handleClusterCommand = () => {
-    if (!clusterCommand.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    setClusterPending(true);
-    setClusterResults([]);
-    wsRef.current.send(JSON.stringify({ type: "cluster_exec", command: clusterCommand }));
+    if (!clusterCommand.trim()) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      setClusterPending(true);
+      setClusterResults([]);
+      wsRef.current.send(JSON.stringify({ type: "cluster_exec", command: clusterCommand }));
+    }
   };
 
   const handleFit = () => {
@@ -249,32 +264,24 @@ export default function TerminalPage() {
     }
   };
 
+  const currentNode = ARRAY3_NODES.find(n => n.id === selectedNode) || ARRAY3_NODES[0];
+
   return (
-    <div className="min-h-screen bg-background" data-testid="terminal-page">
-      <div className="text-white py-8 px-4" style={{ background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)" }}>
+    <div className="min-h-screen bg-background flex flex-col" data-testid="terminal-page">
+      <div className="px-4 py-3 border-b border-border">
         <div className="max-w-[1400px] mx-auto">
-          <div className="flex items-center gap-2 text-sm mb-4" data-testid="text-breadcrumb" style={{ color: "hsl(20,10%,50%)" }}>
-            <Link href="/" className="hover:text-white transition-colors">
-              Home
-            </Link>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2" data-testid="text-breadcrumb">
+            <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
             <ChevronRight className="w-3 h-3" />
-            <span>Node Terminal</span>
+            <span className="text-foreground">Node Terminal</span>
           </div>
 
-          <div className="flex flex-wrap items-start gap-4 justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <TerminalSquare className="w-8 h-8" style={{ color: "hsl(20,50%,60%)" }} />
-                <h1 className="text-3xl font-bold tracking-tight" data-testid="text-terminal-title">
-                  PlenumNode Terminal
-                </h1>
-              </div>
-              <p className="max-w-2xl text-lg" data-testid="text-terminal-subtitle" style={{ color: "hsl(20,10%,65%)" }}>
-                Interactive shell access to the PlenumNET node. Manage sessions, execute commands,
-                and fan out operations across the Array3 cluster via Inter-Cube tunnels.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-4 justify-between">
+            <div className="flex items-center gap-3">
+              <TerminalSquare className="w-5 h-5 text-primary" />
+              <h1 className="text-lg font-semibold" data-testid="text-terminal-title">
+                PlenumNode Terminal
+              </h1>
               <Badge
                 variant={connected ? "secondary" : "destructive"}
                 className={connected ? "bg-green-500/20 text-green-300 border-green-500/30" : ""}
@@ -283,90 +290,100 @@ export default function TerminalPage() {
                 {connected ? "Connected" : authError ? "Auth Required" : "Disconnected"}
               </Badge>
               {sessionId && (
-                <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30" data-testid="session-id">
+                <Badge variant="outline" className="text-xs" data-testid="session-id">
                   Session: {sessionId.slice(0, 8)}
                 </Badge>
               )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Select value={selectedNode} onValueChange={setSelectedNode}>
+                <SelectTrigger className="w-[200px] h-8 text-xs" data-testid="node-selector">
+                  <SelectValue placeholder="Select node" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ARRAY3_NODES.map(node => (
+                    <SelectItem key={node.id} value={node.id} data-testid={`node-option-${node.id}`}>
+                      <span className="font-medium">{node.label}</span>
+                      <span className="text-muted-foreground ml-2">{node.address}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                size="sm"
+                variant={clusterMode ? "default" : "outline"}
+                className="h-8 text-xs"
+                onClick={() => { setClusterMode(!clusterMode); handleListSessions(); }}
+                data-testid="toggle-cluster-mode"
+              >
+                <Layers className="w-3.5 h-3.5 mr-1" />
+                Cluster
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={handleNewSession}
+                disabled={authError}
+                data-testid="new-session-btn"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                New
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={handleFit}
+                data-testid="fit-terminal-btn"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 py-6">
-        {authError && (
-          <Card className="mb-6 p-6 border-amber-500/30 bg-amber-500/5" data-testid="auth-error">
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded-md bg-amber-500/10">
-                <LogIn className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm mb-1">Authentication Required</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Sign in to access the PlenumNode terminal. The terminal provides interactive shell access
-                  and requires authenticated sessions for security.
-                </p>
-                <a href="/api/login">
-                  <Button size="sm" data-testid="login-btn">
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Sign In
-                  </Button>
-                </a>
-              </div>
+      {authError && (
+        <div className="max-w-[1400px] mx-auto px-4 pt-4 w-full">
+          <Card className="p-4 border-amber-500/30 bg-amber-500/5" data-testid="auth-error">
+            <div className="flex items-center gap-3">
+              <LogIn className="w-4 h-4 text-amber-400" />
+              <span className="text-sm">Sign in to access the terminal.</span>
+              <a href="/api/login">
+                <Button size="sm" className="h-7 text-xs" data-testid="login-btn">
+                  <LogIn className="w-3 h-3 mr-1" />
+                  Sign In
+                </Button>
+              </a>
             </div>
           </Card>
-        )}
-
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={clusterMode ? "default" : "outline"}
-              onClick={() => { setClusterMode(!clusterMode); handleListSessions(); }}
-              data-testid="toggle-cluster-mode"
-            >
-              <Layers className="w-4 h-4 mr-1" />
-              Cluster Shell
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleNewSession}
-              disabled={authError}
-              data-testid="new-session-btn"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              New Session
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleFit}
-              data-testid="fit-terminal-btn"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
+      )}
 
-        {clusterMode && (
-          <Card className="mb-4 p-4" data-testid="cluster-panel">
-            <div className="flex items-center gap-2 mb-3">
-              <Server className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Array3 Cluster Shell</span>
-              <span className="text-xs text-muted-foreground">Fan-out command to all nodes via Inter-Cube tunnels</span>
+      {clusterMode && (
+        <div className="max-w-[1400px] mx-auto px-4 pt-3 w-full">
+          <Card className="p-3" data-testid="cluster-panel">
+            <div className="flex items-center gap-2 mb-2">
+              <Server className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-medium">Array3 Cluster Shell</span>
+              <span className="text-xs text-muted-foreground">— Fan-out to all {ARRAY3_NODES.length} nodes</span>
             </div>
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={clusterCommand}
                 onChange={(e) => setClusterCommand(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleClusterCommand(); }}
-                placeholder="Enter command to execute on all nodes..."
-                className="flex-1 px-3 py-2 rounded-md bg-muted border border-border text-foreground text-sm font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Command to execute on all nodes..."
+                className="flex-1 px-3 py-1.5 rounded-md bg-muted border border-border text-foreground text-xs font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 data-testid="cluster-command-input"
               />
               <Button
                 size="sm"
+                className="h-7 text-xs"
                 onClick={handleClusterCommand}
                 disabled={clusterPending || !clusterCommand.trim()}
                 data-testid="cluster-exec-btn"
@@ -375,10 +392,10 @@ export default function TerminalPage() {
               </Button>
             </div>
             {clusterResults.length > 0 && (
-              <div className="space-y-2" data-testid="cluster-results">
+              <div className="space-y-1.5 mt-2" data-testid="cluster-results">
                 {clusterResults.map((r, i) => (
-                  <div key={i} className="rounded-md bg-muted/50 border border-border p-3">
-                    <div className="flex items-center gap-2 mb-1">
+                  <div key={i} className="rounded bg-muted/50 border border-border p-2">
+                    <div className="flex items-center gap-2 mb-0.5">
                       <Monitor className="w-3 h-3 text-primary" />
                       <span className="text-xs font-medium text-primary">Node {r.nodeId}</span>
                       <span className="text-xs text-muted-foreground">{r.address}</span>
@@ -394,19 +411,20 @@ export default function TerminalPage() {
               </div>
             )}
           </Card>
-        )}
+        </div>
+      )}
 
-        {sessions.length > 1 && (
-          <div className="flex gap-1 mb-2 overflow-x-auto" data-testid="session-tabs">
+      {sessions.length > 1 && (
+        <div className="max-w-[1400px] mx-auto px-4 pt-2 w-full">
+          <div className="flex gap-1 overflow-x-auto" data-testid="session-tabs">
             {sessions.map((s) => (
               <div
                 key={s.id}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-t text-xs cursor-pointer transition-colors border border-b-0 ${
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer transition-colors ${
                   s.id === sessionId
-                    ? "text-white"
+                    ? "bg-primary/10 text-primary border border-primary/20"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
-                style={s.id === sessionId ? { background: "hsl(20,12%,10%)", borderColor: "hsl(20,12%,18%)" } : {}}
                 onClick={() => handleSwitchSession(s.id)}
                 data-testid={`session-tab-${s.id.slice(0, 8)}`}
               >
@@ -422,37 +440,22 @@ export default function TerminalPage() {
               </div>
             ))}
           </div>
-        )}
+        </div>
+      )}
 
-        <Card className="overflow-hidden" style={{ borderColor: "hsl(20,12%,18%)" }}>
-          <div className="flex items-center justify-between px-4 py-2" style={{ background: "hsl(20,12%,12%)", borderBottom: "1px solid hsl(20,12%,18%)" }}>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                <div className="w-3 h-3 rounded-full bg-green-500/80" />
-              </div>
-              <span className="text-xs ml-2 font-mono" style={{ color: "hsl(20,10%,45%)" }}>
-                salvi@plenumnode ~ {sessionId ? `session:${sessionId.slice(0, 8)}` : "ready"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {connected && (
-                <span className="flex items-center gap-1.5 text-xs text-green-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                  live
-                </span>
-              )}
-            </div>
-          </div>
+      <div className="flex-1 max-w-[1400px] mx-auto px-4 py-3 w-full">
+        <div
+          className="w-full h-full rounded-md overflow-hidden border border-border"
+          style={{ minHeight: "400px" }}
+        >
           <div
             ref={termRef}
-            className="w-full"
-            style={{ height: clusterMode ? "calc(100vh - 520px)" : "calc(100vh - 360px)", minHeight: "300px" }}
+            className="w-full h-full"
+            style={{ minHeight: "400px" }}
             data-testid="terminal-container"
             onClick={() => terminalRef.current?.focus()}
           />
-        </Card>
+        </div>
       </div>
     </div>
   );

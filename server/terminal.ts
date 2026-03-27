@@ -62,7 +62,7 @@ export function createSession(ownerId: string, cols = 80, rows = 24): TerminalSe
   const id = crypto.randomBytes(8).toString("hex");
   const shell = process.env.SHELL || "/bin/bash";
 
-  const ptyProcess = pty.spawn(shell, [], {
+  const ptyProcess = pty.spawn(shell, ["--norc", "--noprofile"], {
     name: "xterm-256color",
     cols,
     rows,
@@ -72,7 +72,8 @@ export function createSession(ownerId: string, cols = 80, rows = 24): TerminalSe
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
       PLENUM_TERMINAL: "1",
-      PS1: "\\[\\033[38;2;100;149;237m\\]plenum\\[\\033[0m\\]:\\[\\033[38;2;80;200;120m\\]\\w\\[\\033[0m\\]$ ",
+      PS1: "\\[\\033[38;2;196;154;108m\\]salvi\\[\\033[0m\\]@\\[\\033[38;2;196;154;108m\\]plenumnode\\[\\033[0m\\] \\[\\033[38;2;80;200;120m\\]\\w\\[\\033[0m\\] $ ",
+      HISTFILE: "",
     } as Record<string, string>,
   });
 
