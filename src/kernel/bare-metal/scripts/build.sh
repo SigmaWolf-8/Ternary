@@ -44,19 +44,49 @@ else
     BINARY="target/${TARGET}/debug/ternary-kernel"
 fi
 
-if [ -f "$BINARY" ]; then
-    SIZE=$(stat -c%s "$BINARY" 2>/dev/null || stat -f%z "$BINARY" 2>/dev/null)
-    echo ""
-    echo "================================================================"
-    echo "  BUILD COMPLETE"
-    echo "  Binary: ${BINARY}"
-    echo "  Size:   ${SIZE} bytes"
-    echo ""
-    echo "  Run QEMU test:"
-    echo "    bash scripts/qemu-run.sh ${BINARY}"
-    echo "================================================================"
-else
+if [ ! -f "$BINARY" ]; then
     echo ""
     echo "[ERROR] Build failed — binary not found at ${BINARY}"
     exit 1
 fi
+
+MB_BINARY="${BINARY}.mb"
+
+OBJCOPY=""
+for candidate in \
+    "$(find "$HOME/.rustup" -name 'llvm-objcopy' -type f 2>/dev/null | head -1)" \
+    "x86_64-linux-gnu-objcopy" \
+    "llvm-objcopy" \
+    "rust-objcopy"; do
+    if [ -n "$candidate" ] && command -v "$candidate" &>/dev/null || [ -x "$candidate" ]; then
+        OBJCOPY="$candidate"
+        break
+    fi
+done
+
+if [ -z "$OBJCOPY" ]; then
+    echo "[WARN] No suitable objcopy found."
+    echo "  Fix: sudo apt install binutils-x86-64-linux-gnu"
+    echo "  QEMU requires ELF32 for multiboot. Cannot convert."
+    MB_BINARY="$BINARY"
+else
+    echo "[POST] Converting ELF64 → ELF32 (using $OBJCOPY)..."
+    if $OBJCOPY --output-target=elf32-i386 "$BINARY" "$MB_BINARY" 2>/dev/null || \
+       $OBJCOPY -O elf32-i386 "$BINARY" "$MB_BINARY" 2>/dev/null; then
+        echo "[POST] Created: ${MB_BINARY}"
+    else
+        echo "[WARN] objcopy conversion failed. Using ELF64."
+        MB_BINARY="$BINARY"
+    fi
+fi
+
+SIZE=$(stat -c%s "$MB_BINARY" 2>/dev/null || stat -f%z "$MB_BINARY" 2>/dev/null)
+echo ""
+echo "================================================================"
+echo "  BUILD COMPLETE"
+echo "  Binary: ${MB_BINARY}"
+echo "  Size:   ${SIZE} bytes"
+echo ""
+echo "  Run QEMU test:"
+echo "    bash scripts/qemu-run.sh ${MB_BINARY}"
+echo "================================================================"
