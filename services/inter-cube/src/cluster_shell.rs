@@ -21,6 +21,27 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
+const CLUSTER_CMD_ALLOWLIST: &[&str] = &[
+    "uname", "hostname", "uptime", "whoami", "date", "df", "free",
+    "cat /proc/cpuinfo", "cat /proc/meminfo", "ip addr", "ifconfig",
+    "systemctl status", "cargo --version", "rustc --version",
+    "echo", "env", "printenv", "id", "ps aux",
+];
+
+fn contains_shell_metachar(cmd: &str) -> bool {
+    cmd.chars().any(|c| matches!(c, ';' | '|' | '&' | '`' | '$' | '(' | ')' | '{' | '}' | '<' | '>' | '!' | '\\' | '\n' | '\r'))
+}
+
+fn is_command_allowed(cmd: &str) -> bool {
+    let trimmed = cmd.trim();
+    if contains_shell_metachar(trimmed) {
+        return false;
+    }
+    CLUSTER_CMD_ALLOWLIST.iter().any(|allowed| {
+        trimmed == *allowed || trimmed.starts_with(&format!("{} ", allowed))
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterExecRequest {
     pub command: String,
@@ -54,22 +75,51 @@ pub struct ClusterExecResponse {
 pub struct ClusterShellState {
     pub local_address: String,
     pub peer_terminal_ports: HashMap<String, u16>,
+    pub node_id: u8,
 }
 
 pub type SharedClusterShell = Arc<Mutex<ClusterShellState>>;
 
-pub fn new_cluster_shell(local_address: String) -> SharedClusterShell {
+pub fn new_cluster_shell(local_address: String, node_id: u8, peers: &[(String, u16)]) -> SharedClusterShell {
+    let mut peer_terminal_ports = HashMap::new();
+    for (addr, port) in peers {
+        peer_terminal_ports.insert(addr.clone(), *port);
+    }
     Arc::new(Mutex::new(ClusterShellState {
         local_address,
-        peer_terminal_ports: HashMap::new(),
+        peer_terminal_ports,
+        node_id,
     }))
+}
+
+pub fn register_peer(shell: &SharedClusterShell, address: String, terminal_port: u16) {
+    if let Ok(mut guard) = shell.lock() {
+        guard.peer_terminal_ports.insert(address, terminal_port);
+    }
+}
+
+pub fn remove_peer(shell: &SharedClusterShell, address: &str) {
+    if let Ok(mut guard) = shell.lock() {
+        guard.peer_terminal_ports.remove(address);
+    }
 }
 
 async fn handle_cluster_exec(
     State(shell): State<SharedClusterShell>,
     Json(req): Json<ClusterExecRequest>,
-) -> Json<ClusterExecResponse> {
-    let (peer_ports, local_address) = {
+) -> Json<serde_json::Value> {
+    if !is_command_allowed(&req.command) {
+        return Json(serde_json::json!({
+            "ok": false,
+            "error": format!(
+                "Command not allowed. Permitted commands: {}",
+                CLUSTER_CMD_ALLOWLIST.join(", ")
+            ),
+            "command": req.command,
+        }));
+    }
+
+    let (peer_ports, _local_address) = {
         let guard = shell.lock().unwrap_or_else(|e| e.into_inner());
         (guard.peer_terminal_ports.clone(), guard.local_address.clone())
     };
@@ -100,12 +150,15 @@ async fn handle_cluster_exec(
 
     let success_count = results.iter().filter(|r| r.reachable).count();
 
-    Json(ClusterExecResponse {
-        command: req.command,
-        node_count: results.len(),
-        success_count,
-        results,
-    })
+    Json(serde_json::json!({
+        "ok": true,
+        "result": ClusterExecResponse {
+            command: req.command,
+            node_count: results.len(),
+            success_count,
+            results,
+        },
+    }))
 }
 
 async fn handle_cluster_peers(
@@ -125,16 +178,54 @@ async fn handle_cluster_peers(
 
     Json(serde_json::json!({
         "local_address": guard.local_address,
+        "node_id": guard.node_id,
         "peer_count": peers.len(),
         "peers": peers,
     }))
+}
+
+fn is_valid_ternary_address(addr: &str) -> bool {
+    let parts: Vec<&str> = addr.split('.').collect();
+    if parts.len() != 5 { return false; }
+    parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c == '1' || c == '2' || c == '3'))
+}
+
+async fn handle_register_peer(
+    State(shell): State<SharedClusterShell>,
+    Json(req): Json<RegisterPeerRequest>,
+) -> Json<serde_json::Value> {
+    if !is_valid_ternary_address(&req.address) {
+        return Json(serde_json::json!({
+            "ok": false,
+            "error": "Invalid ternary address format (expected dot-separated Rep C trits, e.g. 111.111.111.111.1)",
+        }));
+    }
+    if req.terminal_port < 11111 || req.terminal_port > 11191 {
+        return Json(serde_json::json!({
+            "ok": false,
+            "error": "Terminal port must be in the 11111-11191 range",
+        }));
+    }
+    register_peer(&shell, req.address.clone(), req.terminal_port);
+    Json(serde_json::json!({
+        "ok": true,
+        "registered": req.address,
+        "terminal_port": req.terminal_port,
+    }))
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RegisterPeerRequest {
+    pub address: String,
+    pub terminal_port: u16,
 }
 
 pub fn cluster_shell_router(shell: SharedClusterShell) -> Router {
     Router::new()
         .route("/cluster/exec", post(handle_cluster_exec))
         .route("/cluster/peers", axum::routing::get(handle_cluster_peers))
+        .route("/cluster/register-peer", post(handle_register_peer))
         .with_state(shell)
 }
 
-pub const CLUSTER_ROUTE_COUNT: usize = 2;
+pub const CLUSTER_ROUTE_COUNT: usize = 3;

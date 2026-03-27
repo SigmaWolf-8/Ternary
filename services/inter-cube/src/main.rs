@@ -705,7 +705,19 @@ async fn run_crs_mode() {
     let vm = inter_cube::vm_service::new_shared_vm(65536);
     let vm_routes = inter_cube::vm_service::vm_router(vm);
 
-    let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted());
+    let nid = cube_node_id();
+    let a3_peers: Vec<(String, u16)> = cube_array3_peers()
+        .iter()
+        .filter_map(|p| {
+            let parts: Vec<&str> = p.splitn(2, ':').collect();
+            if parts.len() == 2 {
+                parts[1].parse::<u16>().ok().map(|port| (parts[0].to_string(), port))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted(), nid, &a3_peers);
     let cluster_routes = inter_cube::cluster_shell::cluster_shell_router(cluster_shell);
 
     let app = crs_router(shared_state)
@@ -1135,7 +1147,19 @@ async fn run_cube_mode() {
     let vm = inter_cube::vm_service::new_shared_vm(65536);
     let vm_routes = inter_cube::vm_service::vm_router(vm);
 
-    let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted());
+    let nid = cube_node_id();
+    let a3_peers_cube: Vec<(String, u16)> = cube_array3_peers()
+        .iter()
+        .filter_map(|p| {
+            let parts: Vec<&str> = p.splitn(2, ':').collect();
+            if parts.len() == 2 {
+                parts[1].parse::<u16>().ok().map(|port| (parts[0].to_string(), port))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted(), nid, &a3_peers_cube);
     let cluster_routes = inter_cube::cluster_shell::cluster_shell_router(cluster_shell);
 
     let app = cube_router(shared_state)

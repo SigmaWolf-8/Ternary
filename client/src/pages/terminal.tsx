@@ -7,7 +7,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -18,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TerminalSquare, Plus, X, Maximize2, Monitor, Layers, Server, ChevronRight, LogIn } from "lucide-react";
+import { TerminalSquare, Plus, X, Maximize2, Monitor, Layers, Server, LogIn } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 
 interface SessionInfo {
@@ -156,7 +155,7 @@ export default function TerminalPage() {
 
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: 14,
+      fontSize: 16,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       theme: {
         background: "#1a1410",
@@ -270,12 +269,6 @@ export default function TerminalPage() {
     <div className="min-h-screen bg-background flex flex-col" data-testid="terminal-page">
       <div className="px-4 py-3 border-b border-border">
         <div className="max-w-[1400px] mx-auto">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2" data-testid="text-breadcrumb">
-            <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-foreground">Node Terminal</span>
-          </div>
-
           <div className="flex flex-wrap items-center gap-4 justify-between">
             <div className="flex items-center gap-3">
               <TerminalSquare className="w-5 h-5 text-primary" />

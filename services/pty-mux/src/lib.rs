@@ -20,6 +20,17 @@ use serde::{Serialize, Deserialize};
 use portable_pty::{CommandBuilder, PtySize, native_pty_system, MasterPty};
 use tokio::sync::mpsc;
 
+const CLUSTER_CMD_ALLOWLIST: &[&str] = &[
+    "uname", "hostname", "uptime", "whoami", "date", "df", "free",
+    "cat /proc/cpuinfo", "cat /proc/meminfo", "ip addr", "ifconfig",
+    "systemctl status", "cargo --version", "rustc --version",
+    "echo", "env", "printenv", "id", "ps aux",
+];
+
+fn contains_shell_metachar(cmd: &str) -> bool {
+    cmd.chars().any(|c| matches!(c, ';' | '|' | '&' | '`' | '$' | '(' | ')' | '{' | '}' | '<' | '>' | '!' | '\\' | '\n' | '\r'))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionConfig {
     pub cols: u16,
@@ -313,6 +324,7 @@ async fn handle_ws_session(
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     let (stdout_tx, mut stdout_rx) = mpsc::channel::<Vec<u8>>(512);
+    let (ctrl_tx, mut ctrl_rx) = mpsc::channel::<Vec<u8>>(64);
 
     let config = SessionConfig::default();
     let create_result = {
@@ -336,13 +348,33 @@ async fn handle_ws_session(
     let sid = session_id;
 
     let write_task = tokio::spawn(async move {
-        while let Some(data) = stdout_rx.recv().await {
-            if ws_tx.send(Message::Binary(data)).await.is_err() {
-                break;
+        loop {
+            tokio::select! {
+                data = stdout_rx.recv() => {
+                    match data {
+                        Some(bytes) => {
+                            if ws_tx.send(Message::Binary(bytes)).await.is_err() {
+                                break;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+                ctrl = ctrl_rx.recv() => {
+                    match ctrl {
+                        Some(bytes) => {
+                            if ws_tx.send(Message::Text(String::from_utf8_lossy(&bytes).to_string())).await.is_err() {
+                                break;
+                            }
+                        }
+                        None => break,
+                    }
+                }
             }
         }
     });
 
+    let ws_resp_tx = ctrl_tx;
     let read_task = tokio::spawn(async move {
         while let Some(msg) = ws_rx.next().await {
             match msg {
@@ -371,25 +403,31 @@ async fn handle_ws_session(
                             }
                         } else if cmd["type"].as_str() == Some("cluster_exec") {
                             if let Some(command) = cmd["command"].as_str() {
-                                let output = match std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(command)
-                                    .output()
-                                {
-                                    Ok(out) => {
-                                        let stdout = String::from_utf8_lossy(&out.stdout);
-                                        let stderr = String::from_utf8_lossy(&out.stderr);
-                                        format!("{}{}", stdout, stderr)
+                                let allowed = !contains_shell_metachar(command.trim()) && CLUSTER_CMD_ALLOWLIST.iter().any(|a| {
+                                    command.trim() == *a || command.trim().starts_with(&format!("{} ", a))
+                                });
+                                let (output, exit_code) = if !allowed {
+                                    (format!("Command not allowed. Permitted: {}", CLUSTER_CMD_ALLOWLIST.join(", ")), -1i32)
+                                } else {
+                                    match std::process::Command::new("sh")
+                                        .arg("-c")
+                                        .arg(command)
+                                        .output()
+                                    {
+                                        Ok(out) => {
+                                            let stdout = String::from_utf8_lossy(&out.stdout);
+                                            let stderr = String::from_utf8_lossy(&out.stderr);
+                                            (format!("{}{}", stdout, stderr), out.status.code().unwrap_or(-1))
+                                        }
+                                        Err(e) => (format!("exec error: {}", e), -1),
                                     }
-                                    Err(e) => format!("exec error: {}", e),
                                 };
                                 let result_msg = serde_json::json!({
                                     "type": "cluster_result",
                                     "output": output,
+                                    "exit_code": exit_code,
                                 });
-                                let guard = mux_write.lock().unwrap_or_else(|e| e.into_inner());
-                                let _ = guard.write_to_session(sid, result_msg.to_string().into_bytes());
-                                drop(guard);
+                                let _ = ws_resp_tx.send(result_msg.to_string().into_bytes()).await;
                             }
                         }
                     } else {
@@ -467,6 +505,7 @@ pub async fn fan_out_command(
                     let _ = ws.send(Message::Text(input_msg.to_string())).await;
 
                     let mut output = String::new();
+                    let mut remote_exit_code: i32 = 0;
                     while let Some(Ok(msg)) = ws.next().await {
                         if msg.is_text() {
                             let text = msg.to_text().unwrap_or("");
@@ -476,6 +515,9 @@ pub async fn fan_out_command(
                                         .as_str()
                                         .unwrap_or("")
                                         .to_string();
+                                    remote_exit_code = resp["exit_code"]
+                                        .as_i64()
+                                        .unwrap_or(0) as i32;
                                     break;
                                 }
                             }
@@ -488,7 +530,7 @@ pub async fn fan_out_command(
                     ClusterResult {
                         node: target,
                         output,
-                        exit_code: 0,
+                        exit_code: remote_exit_code,
                         elapsed_ms: start.elapsed().as_millis() as u64,
                     }
                 }

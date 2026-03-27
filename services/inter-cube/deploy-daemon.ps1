@@ -10,8 +10,8 @@
       irm https://plenumnet.replit.app/api/deploy-daemon | iex
 
     Each run auto-detects existing daemon identities and creates the next one.
-    First run creates identity-1 (ports 8080/8081), second creates identity-2
-    (ports 8082/8083), and so on.
+    Node #1 uses gateway port 11124, Node #2 uses 11151, Node #3 uses 11178.
+    Port formula: gateway = 11111 + ((CUBE_NODE_ID - 1) × 27) + 13.
 
 .NOTES
     Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
@@ -23,9 +23,9 @@ $BinaryName = "inter-cube-daemon.exe"
 $BinaryPath = Join-Path $RepoDir "target\release\$BinaryName"
 $RepoUrl = "https://github.com/SigmaWolf-8/Ternary.git"
 $IdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
-$BasePeerPort = 8079
-$PortStep = 3
-$TerminalPortOffset = 2
+$BasePort = 11111
+$NodeSlotSize = 27
+$GatewayCenterOffset = 13
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -244,9 +244,10 @@ try {
         Write-Host "IDENTITY: Daemon #$nextId identity already exists." -ForegroundColor Green
     }
 
-    $peerPort = $BasePeerPort + (($nextId - 1) * $PortStep)
-    $enginePort = $peerPort + 1
-    $daemonPort = $peerPort + 2
+    $nodeSlotStart = $BasePort + (($nextId - 1) * $NodeSlotSize)
+    $gatewayPort = $nodeSlotStart + $GatewayCenterOffset
+    $peerPort = $gatewayPort - 1
+    $terminalPort = $gatewayPort - 2
 
     Write-Host ""
     Write-Host "==========================================================" -ForegroundColor Cyan
@@ -270,9 +271,10 @@ try {
     $daemonsArray = @()
 
     foreach ($id in $allIds) {
-        $pp = $BasePeerPort + (($id - 1) * $PortStep)
-        $ep = $pp + 1
-        $dp = $pp + 2
+        $ns = $BasePort + (($id - 1) * $NodeSlotSize)
+        $gw = $ns + $GatewayCenterOffset
+        $pp = $gw - 1
+        $tp = $gw - 2
 
         $idDir = Join-Path $IdentityBase "identity-$id"
         if (-not (Test-Path $idDir)) {
@@ -283,25 +285,25 @@ try {
         $pubKeyFile = Join-Path $idDir "public.key"
         $pubKey = if (Test-Path $pubKeyFile) { (Get-Content $pubKeyFile -Raw).Trim() } else { "" }
 
-        $tp = $pp - $TerminalPortOffset
-
         $daemonsArray += @{
             id = $id
-            port = $dp
+            port = $gw
             peerPort = $pp
             terminalPort = $tp
+            slotStart = $ns
+            slotEnd = $ns + $NodeSlotSize - 1
             address = ""
             publicKey = $pubKey
-            endpoint = "${ip}:${dp}"
+            endpoint = "${ip}:${gw}"
             identityDir = $idDir
             pid = 0
         }
 
-        Write-Host "  Start Daemon #$id (peer=$pp, app=$ep, node=$dp, terminal=$tp):" -ForegroundColor White
-        Write-Host "    Gateway API : http://localhost:$dp" -ForegroundColor DarkGray
+        Write-Host "  Start Daemon #$id (gateway=$gw, peer=$pp, terminal=$tp, slots=${ns}-$($ns+$NodeSlotSize-1)):" -ForegroundColor White
+        Write-Host "    Gateway API : http://localhost:$gw" -ForegroundColor DarkGray
         Write-Host "    Terminal WS : ws://localhost:$tp (WebSocket PTY)" -ForegroundColor DarkGray
-        Write-Host "    VM API      : http://localhost:$dp/vm/exec, /vm/status, /vm/registers, /vm/reset" -ForegroundColor DarkGray
-        Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$dp`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
+        Write-Host "    VM API      : http://localhost:$gw/vm/exec, /vm/status, /vm/registers, /vm/reset, /vm/isa" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$gw`"; `$env:CUBE_NODE_ID=`"$id`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_PEER_PORT=`"$pp`"; `$env:CUBE_TERMINAL_PORT=`"$tp`"; `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray
         Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
@@ -329,9 +331,10 @@ try {
         }
 
         foreach ($id in $allIds) {
-            $pp = $BasePeerPort + (($id - 1) * $PortStep)
-            $ep = $pp + 1
-            $dp = $pp + 2
+            $ns = $BasePort + (($id - 1) * $NodeSlotSize)
+            $gw = $ns + $GatewayCenterOffset
+            $pp = $gw - 1
+            $tp = $gw - 2
             $idDir = Join-Path $IdentityBase "identity-$id"
             if (-not (Test-Path $idDir)) {
                 $letterDir = Join-Path $IdentityBase ("identity-" + [char]([int][char]'a' + $id - 1))
@@ -345,13 +348,12 @@ try {
             if (-not (Test-Path $wrapperDir)) {
                 New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
             }
-            $tp = $pp - $TerminalPortOffset
             $wrapperBat = Join-Path $wrapperDir "cube-${id}-start.bat"
             @"
 @echo off
 set CUBE_MODE=cube
-set CUBE_API_PORT=$dp
-set LLM_PORT=$ep
+set CUBE_API_PORT=$gw
+set CUBE_NODE_ID=$id
 set CUBE_PEER_PORT=$pp
 set CUBE_TERMINAL_PORT=$tp
 set CUBE_CRS_URL=$CRS_URL
