@@ -19,6 +19,8 @@ if ! rustup component list --installed 2>/dev/null | grep -q rust-src; then
     rustup component add rust-src --toolchain nightly
 fi
 
+export RUSTFLAGS="${RUSTFLAGS:-} -Zjson-target-spec"
+
 if [ "$MODE" = "release" ]; then
     cargo build --release
     BINARY="target/x86_64-ternary-none/release/ternary-kernel"
