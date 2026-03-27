@@ -7,7 +7,8 @@
 #   bash scripts/build.sh release  # release build
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "${SCRIPT_DIR}/.."
 
 MODE="${1:-debug}"
 TARGET="x86_64-unknown-none"
@@ -29,7 +30,7 @@ if ! rustup component list --installed 2>/dev/null | grep -q rust-src; then
     rustup component add rust-src
 fi
 
-WRAPPER="$(cd "$(dirname "$0")" && pwd)/rustc-wrapper.sh"
+WRAPPER="${SCRIPT_DIR}/rustc-wrapper.sh"
 export RUSTC="$WRAPPER"
 
 echo ""
