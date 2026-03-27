@@ -33,6 +33,11 @@ fi
 WRAPPER="${SCRIPT_DIR}/rustc-wrapper.sh"
 export RUSTC="$WRAPPER"
 
+if [ "${CLEAN:-}" = "1" ] || [ "${2:-}" = "clean" ]; then
+    echo "[CLEAN] Removing previous build artifacts..."
+    cargo clean 2>/dev/null || true
+fi
+
 echo ""
 
 BUILD_CMD="cargo build -Zbuild-std=core,compiler_builtins,alloc -Zbuild-std-features=compiler-builtins-mem"

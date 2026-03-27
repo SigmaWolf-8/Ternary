@@ -18,7 +18,44 @@ mod serial;
 mod selftest;
 
 use core::panic::PanicInfo;
-use plenumnet_kernel::allocator::LinkedListAllocator;
+
+use core::alloc::{GlobalAlloc, Layout};
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+struct BumpAllocator {
+    next: AtomicUsize,
+}
+
+unsafe impl GlobalAlloc for BumpAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let heap_start = unsafe { &__heap_start as *const u8 as usize };
+        let heap_end = unsafe { &__heap_end as *const u8 as usize };
+
+        loop {
+            let current = self.next.load(Ordering::Relaxed);
+            let actual = if current == 0 { heap_start } else { current };
+            let aligned = (actual + layout.align() - 1) & !(layout.align() - 1);
+            let new_next = aligned + layout.size();
+
+            if new_next > heap_end {
+                return core::ptr::null_mut();
+            }
+
+            if self.next.compare_exchange(current, new_next, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
+                return aligned as *mut u8;
+            }
+        }
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        // Bump allocator doesn't free — acceptable for boot self-test
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: BumpAllocator = BumpAllocator {
+    next: AtomicUsize::new(0),
+};
 
 extern "C" {
     static __bss_start: u8;
@@ -28,8 +65,11 @@ extern "C" {
     static __heap_end: u8;
 }
 
-#[global_allocator]
-static ALLOCATOR: LinkedListAllocator = LinkedListAllocator::new();
+// ─────────────────────────────────────────────────────────────────────
+// MULTIBOOT1 HEADER + 32→64 BIT TRAMPOLINE
+// Multiboot boots in 32-bit protected mode. We must set up paging,
+// enable long mode, and far-jump to 64-bit code before calling Rust.
+// ─────────────────────────────────────────────────────────────────────
 
 core::arch::global_asm!(
     ".section .multiboot, \"a\"",
@@ -161,17 +201,14 @@ core::arch::global_asm!(
     ".long boot_gdt",
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// KERNEL MAIN — called from assembly after 64-bit mode is established
+// ─────────────────────────────────────────────────────────────────────
+
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
     zero_bss();
     serial::init();
-
-    unsafe {
-        let heap_start = &__heap_start as *const u8 as usize;
-        let heap_end = &__heap_end as *const u8 as usize;
-        let heap_size = heap_end - heap_start;
-        ALLOCATOR.init(heap_start, heap_size);
-    }
 
     serial::print_line("================================================================");
     serial::print_line("  PlenumNET Ternary Kernel — Bare-Metal Validation");
@@ -239,10 +276,7 @@ pub extern "C" fn kernel_main() -> ! {
 
     let boot_params = boot::x86_64_boot_config();
 
-    serial::print_str("[boot] Architecture: x86_64\n");
-    serial::print_str("[boot] Kernel physical base: 0x");
-    serial::print_hex_u64(boot_params.kernel_physical_base);
-    serial::print_line("");
+    serial::print_line("[boot] Architecture: x86_64");
 
     let mut seq = BootSequence::new(boot_params.arch_id);
     let stage_names = [
@@ -282,15 +316,6 @@ pub extern "C" fn kernel_main() -> ! {
 
     let fb_w: u32 = 1920;
     let fb_h: u32 = 1080;
-
-    serial::print_str("[boot] Heap allocator: linked-list, ");
-    let heap_size = unsafe {
-        let hs = &__heap_start as *const u8 as usize;
-        let he = &__heap_end as *const u8 as usize;
-        he - hs
-    };
-    serial::print_u64((heap_size / (1024 * 1024)) as u64);
-    serial::print_line("MB capacity");
 
     serial::print_line("[browser] Initializing PlenumBrowser subsystem...");
     let distributor = alloc::boxed::Box::new(plenumnet_kernel::distributor::Distributor::new());
@@ -369,14 +394,6 @@ pub extern "C" fn kernel_main() -> ! {
     serial::print_u64(browser.tab_count() as u64);
     serial::print_line("");
 
-    serial::print_str("[boot] Allocator stats: ");
-    serial::print_u64(ALLOCATOR.allocation_count() as u64);
-    serial::print_str(" allocs, ");
-    serial::print_u64(ALLOCATOR.deallocation_count() as u64);
-    serial::print_str(" deallocs, ");
-    serial::print_u64((ALLOCATOR.allocated_bytes() / 1024) as u64);
-    serial::print_line("KB used");
-
     serial::print_line("");
     serial::print_line("================================================================");
     serial::print_line("  PLENUMNET KERNEL BOOT OK");
@@ -386,6 +403,7 @@ pub extern "C" fn kernel_main() -> ! {
     serial::print_line("");
 
     exit_qemu(QemuExitCode::Success);
+
     halt_loop()
 }
 
