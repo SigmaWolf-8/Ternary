@@ -76,6 +76,14 @@ extern "C" {
 // ─────────────────────────────────────────────────────────────────────
 
 core::arch::global_asm!(
+    ".section .note.Xen, \"a\", @note",
+    ".align 4",
+    ".long 4",
+    ".long 4",
+    ".long 18",
+    ".asciz \"Xen\"",
+    ".long _start",
+    "",
     ".section .multiboot, \"a\"",
     ".align 4",
     "mb_header:",

@@ -63,10 +63,12 @@ SECTIONS
 
     __kernel_end = .;
 
+    .note : { *(.note.Xen) }
+
     /DISCARD/ :
     {
         *(.eh_frame)
         *(.comment)
-        *(.note.*)
+        *(.note.GNU-stack)
     }
 }
