@@ -53,16 +53,19 @@ fi
 MB_BINARY="${BINARY}.mb"
 
 OBJCOPY=""
-for candidate in \
-    "$(find "$HOME/.rustup" -name 'llvm-objcopy' -type f 2>/dev/null | head -1)" \
-    "x86_64-linux-gnu-objcopy" \
-    "llvm-objcopy" \
-    "rust-objcopy"; do
-    if [ -n "$candidate" ] && command -v "$candidate" &>/dev/null || [ -x "$candidate" ]; then
-        OBJCOPY="$candidate"
-        break
-    fi
-done
+find_objcopy() {
+    # 1. llvm-objcopy from Rust toolchain (works on all hosts)
+    local rustup_bin
+    rustup_bin="$(find "$HOME/.rustup" -name 'llvm-objcopy' -type f 2>/dev/null | head -1)"
+    if [ -n "$rustup_bin" ] && [ -x "$rustup_bin" ]; then echo "$rustup_bin"; return; fi
+    # 2. Cross-binutils (essential on ARM64 hosts)
+    if command -v x86_64-linux-gnu-objcopy &>/dev/null; then echo "x86_64-linux-gnu-objcopy"; return; fi
+    # 3. System llvm-objcopy
+    if command -v llvm-objcopy &>/dev/null; then echo "llvm-objcopy"; return; fi
+    # 4. cargo-binutils wrapper
+    if command -v rust-objcopy &>/dev/null; then echo "rust-objcopy"; return; fi
+}
+OBJCOPY="$(find_objcopy)"
 
 if [ -z "$OBJCOPY" ]; then
     echo "[WARN] No suitable objcopy found."
