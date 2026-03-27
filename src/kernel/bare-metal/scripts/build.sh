@@ -19,14 +19,12 @@ if ! rustup component list --installed 2>/dev/null | grep -q rust-src; then
     rustup component add rust-src --toolchain nightly
 fi
 
-CARGO_UNSTABLE="-Zjson-target-spec"
-
 if [ "$MODE" = "release" ]; then
-    cargo $CARGO_UNSTABLE build --release
-    BINARY="target/x86_64-ternary-none/release/ternary-kernel"
+    cargo build --release
+    BINARY="target/x86_64-unknown-none/release/ternary-kernel"
 else
-    cargo $CARGO_UNSTABLE build
-    BINARY="target/x86_64-ternary-none/debug/ternary-kernel"
+    cargo build
+    BINARY="target/x86_64-unknown-none/debug/ternary-kernel"
 fi
 
 if [ -f "$BINARY" ]; then

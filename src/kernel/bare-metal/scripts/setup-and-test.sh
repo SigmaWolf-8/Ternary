@@ -67,7 +67,7 @@ rustup override set nightly 2>/dev/null
 
 bash scripts/build.sh
 
-BINARY="target/x86_64-ternary-none/debug/ternary-kernel"
+BINARY="target/x86_64-unknown-none/debug/ternary-kernel"
 if [ -f "$BINARY" ]; then
     ok "Kernel built successfully"
     echo ""
