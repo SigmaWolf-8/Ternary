@@ -1,0 +1,79 @@
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$ cd ~/Ternary && git pull && cd src/kernel/bare-metal && bash scripts/diagnose.sh
+remote: Enumerating objects: 12, done.
+remote: Counting objects: 100% (12/12), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 7 (delta 4), reused 7 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (7/7), 2.00 KiB | 78.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   b3796d07..3a5224b2  main       -> origin/main
+Updating b3796d07..3a5224b2
+Fast-forward
+ src/kernel/bare-metal/scripts/diagnose.sh | 112 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 112 insertions(+)
+ create mode 100755 src/kernel/bare-metal/scripts/diagnose.sh
+================================================================
+  PlenumNET — Boot Diagnostics
+  Kernel: target/x86_64-unknown-none/debug/ternary-kernel.mb
+================================================================
+
+--- 1. File type ---
+target/x86_64-unknown-none/debug/ternary-kernel.mb: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, with debug_info, not stripped
+
+--- 2. ELF headers ---
+  Class:                             ELF32
+  Type:                              EXEC (Executable file)
+  Machine:                           Intel 80386
+  Entry point address:               0x101000
+
+--- 3. Program headers ---
+
+Elf file type is EXEC (Executable file)
+Entry point 0x101000
+There are 7 program headers, starting at offset 56
+
+Program Headers:
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  LOAD           0x001000 0x00100000 0x00100000 0x0000c 0x0000c R   0x1000
+  LOAD           0x002000 0x00101000 0x00101000 0x18be8 0x18be8 R E 0x1000
+  LOAD           0x01b000 0x0011a000 0x0011a000 0x06224 0x06224 R   0x1000
+  LOAD           0x021228 0x00120228 0x00120228 0x00028 0x00028 RW  0x1000
+  LOAD           0x022000 0x00121000 0x00121000 0x00000 0x04010 RW  0x1000
+  GNU_RELRO      0x021228 0x00120228 0x00120228 0x00028 0x00028 R   0x1
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x00000 RW  0
+
+ Section to Segment mapping:
+  Segment Sections...
+   00     .multiboot
+   01     .text.boot .text
+   02     .rodata .eh_frame_hdr
+   03     .got
+   04     .bss.boot .bss
+   05     .got
+   06
+
+--- 4. Multiboot header scan ---
+  Magic at file offset: 0x1000 (4096 bytes)
+  Flags: 0x3
+  Checksum: 0xE4524FFB
+  Checksum valid: True
+  Within 8KB limit: True
+
+--- 5. QEMU version ---
+QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.13)
+Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
+
+--- 6. QEMU boot test (10s, serial to file) ---
+
+--- 7. Serial output (expect '1234' if trampoline works) ---
+  Content:
+000000 31 32 33 34 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >1234============<
+000010 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >================<
+000020 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >================<
+000030 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d 3d  >================<
+000040 3d 3d 3d 3d 0d 0a 20 20 50 6c 65 6e 75 6d 4e 45  >====..  PlenumNE<
+000050 54 20 54 65 72 6e 61 72 79 20 4b 65 72 6e 65 6c  >T Ternary Kernel<
+000060 20 e2 80 94 20 42 61 72 65 2d 4d 65 74 61 6c 20  > ... Bare-Metal <
+000070 56 61 6c 69 64 61 74 69 6f 6e 0d 0a 20 20 53 61  >Validation..  Sa<
+000080 6c 76 69 20 46 72 61 6d 65 77 6f 72 6b 20 76 30  >lvi Framework v0<
+000090 2e 31 2e 30 0d 0a 20 20 43 61 70 6f 6d 61 73 74  >.1.0..  Capomast<
+librawolf@SSLaptopPMHU6JD:~/Ternary/src/kernel/bare-metal$
