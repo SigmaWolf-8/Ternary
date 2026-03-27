@@ -753,7 +753,8 @@ function startPqtiService(): ChildProcess | null {
         connected: ws.readyState === 1,
         endpoint: crsReg.get(addr)?.endpoint || null,
       }));
-      return res.json({ connectedNodes: nodes.length, nodes, pendingQueues: pendingRef?.size || 0 });
+      const actuallyConnected = nodes.filter(n => n.connected).length;
+      return res.json({ connectedNodes: actuallyConnected, nodes, pendingQueues: pendingRef?.size || 0 });
     }
     res.json({ connectedNodes: 0, nodes: [], pendingQueues: 0 });
   });
@@ -1764,6 +1765,9 @@ function startPqtiService(): ChildProcess | null {
 
   const RELAY_PING_INTERVAL = 30_000;
   const RELAY_DEAD_TIMEOUT = 90_000;
+  const RELAY_PONG_TIMEOUT = 60_000;
+  const relayLastPong = new Map<string, number>();
+  (globalThis as any).__relayLastPong = relayLastPong;
 
   let lastPeerCount = 0;
   const relayPingInterval = setInterval(() => {
@@ -1774,6 +1778,17 @@ function startPqtiService(): ChildProcess | null {
         console.log(`[ws-relay] Pruning dead socket for ${toDottedAddr(addr)} (readyState=${clientWs.readyState})`);
         relayClients.delete(addr);
         relayAddressByWs.delete(clientWs);
+        relayLastPong.delete(addr);
+        pruned++;
+        continue;
+      }
+      const lastPong = relayLastPong.get(addr) || 0;
+      if (lastPong > 0 && (now - lastPong) > RELAY_PONG_TIMEOUT) {
+        console.log(`[ws-relay] Node ${toDottedAddr(addr)} no pong for ${Math.round((now - lastPong) / 1000)}s — closing`);
+        clientWs.close(1000, "pong timeout");
+        relayClients.delete(addr);
+        relayAddressByWs.delete(clientWs);
+        relayLastPong.delete(addr);
         pruned++;
         continue;
       }
@@ -1783,6 +1798,7 @@ function startPqtiService(): ChildProcess | null {
         clientWs.close(1000, "ping timeout");
         relayClients.delete(addr);
         relayAddressByWs.delete(clientWs);
+        relayLastPong.delete(addr);
         pruned++;
         continue;
       }
@@ -1792,6 +1808,7 @@ function startPqtiService(): ChildProcess | null {
         console.log(`[ws-relay] Ping failed for ${toDottedAddr(addr)}: ${err.message}`);
         relayClients.delete(addr);
         relayAddressByWs.delete(clientWs);
+        relayLastPong.delete(addr);
         pruned++;
       }
     }
@@ -1811,8 +1828,10 @@ function startPqtiService(): ChildProcess | null {
 
     ws.on("pong", () => {
       if (nodeAddress) {
+        const now = Date.now();
         const entry = crsRegistry.get(nodeAddress);
-        if (entry) entry.lastSeen = Date.now();
+        if (entry) entry.lastSeen = now;
+        relayLastPong.set(nodeAddress, now);
       }
     });
 
@@ -1889,6 +1908,7 @@ function startPqtiService(): ChildProcess | null {
           }
           relayClients.set(nodeAddress, ws);
           relayAddressByWs.set(ws, nodeAddress);
+          relayLastPong.set(nodeAddress, Date.now());
           if (!isReconnect || !relayConnectedAt.has(nodeAddress)) {
             relayConnectedAt.set(nodeAddress, Date.now());
           }
@@ -2017,6 +2037,7 @@ function startPqtiService(): ChildProcess | null {
         relayClients.delete(nodeAddress);
         relayAddressByWs.delete(ws);
         relayConnectedAt.delete(nodeAddress);
+        relayLastPong.delete(nodeAddress);
         const reasonStr = reason.toString() || "none";
         const remaining = Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ");
         console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} DISCONNECTED (code=${code}, reason=${reasonStr}) — ${relayClients.size} peer(s) remain${remaining ? `: [${remaining}]` : ""}`);
