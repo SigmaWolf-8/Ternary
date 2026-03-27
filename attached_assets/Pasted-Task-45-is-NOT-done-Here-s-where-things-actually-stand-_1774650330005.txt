@@ -1,0 +1,26 @@
+Task #45 is NOT done. Here's where things actually stand:
+
+The task was broken into three sub-milestones (1A, 1B, 1C). Task #50 (Milestone 1C) was merged — that covered PlenumColor, sponge encryption, the distributor, the home page, and CI. The architecture documents are settled and the task breakdown exists.
+
+What's been built — honestly:
+
+Component	Status
+Allocator	Real — LinkedListAllocator with dealloc, replaces the old 1MB bump allocator
+plenum-std shim	Functional facade — sync, time, thread modules map to kernel primitives; fs/net/env are stubs (by design)
+HTML Parser	Real custom tokenizer + tree builder, hooks for html5ever
+Layout Engine	Real Flex/Grid/Block logic, hooks for Taffy
+CPU Renderer	Real software rasterizer with blending, gradients, SVG basics
+Tab Isolation	Real — kernel tasks with guard pages, crash recovery
+Mesh/Color	Real math — 540-node mesh, Bézier interpolation, sRGB mapping
+Distributor	Real — coprime walk, z-routing
+Scripting (Boa)	Hybrid — DOM bridge exists, but JS interpreter is simplified/stubbed
+Input (TIS-27)	Real — scancode → Unicode at last moment
+What's NOT done from the task description:
+
+Full Boa v0.21 integration — the JS engine is simplified, not the real Boa compiling against the shim
+Real html5ever/rust-cssparser compiling unmodified against plenum-std — the hooks exist but the actual crates aren't confirmed building through the shim sysroot
+Taffy layout compiling unmodified against plenum-std
+30 FPS benchmark verification at 1080p
+QEMU CI smoke test covering the full pipeline (boot → render → tab isolation → watchdog → exit)
+-Z build-std sysroot compilation — the custom targets and plenum-std exist, but the actual cargo build --target x86_64-plenum-none compiling all eight upstream crates in one pass hasn't been validated
+The structural work is real and substantial. But the "done looks like" criteria — upstream crates compiling unmodified, full pipeline rendering plenum://home at 1080p, CI smoke test passing — those aren't met yet.
