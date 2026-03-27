@@ -1054,36 +1054,53 @@ function ClusterReport() {
         </div>
       )}
 
-      <div className="space-y-2" data-testid="cluster-daemon-list">
-        {data.daemons.map((d, i) => (
-          <div key={`${d.address}-${i}`} className={`rounded-md border p-3 text-xs ${statusBg(d.status)}`} data-testid={`daemon-row-${i}`}>
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className={`inline-block w-2 h-2 rounded-full ${healthDot(d.healthState)}`} title={`Health: ${d.healthState}`} data-testid={`daemon-health-dot-${i}`} />
-                <span className="font-medium text-foreground">{d.hostname || "CRS-Discovered"} — Node #{i + 1}</span>
-                {d.source === "crs" && <Badge variant="outline" className="text-[8px] px-1 py-0 border-blue-500/50 text-blue-600 dark:text-blue-400">CRS</Badge>}
-                {d.isExpected && <Badge variant="outline" className="text-[8px] px-1 py-0">expected</Badge>}
+      <div className="space-y-3" data-testid="cluster-daemon-list">
+        {(() => {
+          const clusters = new Map<string, typeof data.daemons>();
+          data.daemons.forEach((d) => {
+            const key = d.hostname || d.endpoint?.split(":")[0] || "unknown";
+            if (!clusters.has(key)) clusters.set(key, []);
+            clusters.get(key)!.push(d);
+          });
+          return Array.from(clusters.entries()).map(([clusterName, nodes], ci) => (
+            <div key={clusterName} className="rounded-md border p-3" data-testid={`cluster-group-${ci}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`inline-block w-2 h-2 rounded-full ${nodes.every(n => n.healthState === "up") ? "bg-emerald-500" : nodes.some(n => n.healthState === "up") ? "bg-yellow-500" : "bg-red-500"}`} />
+                <span className="text-xs font-medium text-foreground">{clusterName}</span>
+                <Badge variant="outline" className="text-[8px] px-1 py-0">{nodes.length}-node Array3</Badge>
+                {nodes[0]?.source === "crs" && <Badge variant="outline" className="text-[8px] px-1 py-0 border-blue-500/50 text-blue-600 dark:text-blue-400">CRS</Badge>}
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] ${d.lastSeenAgeMs !== null ? (d.lastSeenAgeMs < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-black dark:text-white"}`} data-testid={`daemon-heartbeat-${i}`}>
-                  {formatTimeAgo(d.lastSeen)}
-                </span>
-                <span className={`inline-block w-2 h-2 rounded-full ${d.connectedViaRelay ? "bg-blue-500" : "bg-black dark:bg-white"}`} title={d.connectedViaRelay ? "WebSocket connected" : "WebSocket disconnected"} data-testid={`daemon-ws-indicator-${i}`} />
-                <Badge variant="outline" className={`text-[9px] uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${i}`}>{d.status}</Badge>
-                <Badge variant="outline" className={`text-[9px] uppercase ${healthLabel(d.healthState)}`} data-testid={`daemon-health-badge-${i}`}>{d.healthState}</Badge>
+              <div className="grid grid-cols-3 gap-2">
+                {nodes.map((d, ni) => {
+                  const globalIdx = data.daemons.indexOf(d);
+                  const resolvedPort = d.port || (() => { const m = d.endpoint?.match(/:(\d+)$/); return m ? parseInt(m[1]) : 0; })();
+                  return (
+                    <div key={`${d.address}-${ni}`} className={`rounded border p-2 text-[10px] ${statusBg(d.status)}`} data-testid={`daemon-row-${globalIdx}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1">
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${healthDot(d.healthState)}`} title={`Health: ${d.healthState}`} data-testid={`daemon-health-dot-${globalIdx}`} />
+                          <span className="font-medium text-foreground text-[11px]">Node #{ni + 1}</span>
+                          <Badge variant="outline" className={`text-[7px] px-0.5 py-0 uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${globalIdx}`}>{d.status}</Badge>
+                        </div>
+                        <span className={`text-[9px] ${d.lastSeenAgeMs !== null ? (d.lastSeenAgeMs < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-muted-foreground"}`} data-testid={`daemon-heartbeat-${globalIdx}`}>
+                          {formatTimeAgo(d.lastSeen)}
+                        </span>
+                      </div>
+                      <div className="space-y-0.5 text-muted-foreground">
+                        <div>Role: <strong className="text-foreground">{d.role === "crs" ? "CRS" : "Cube"}</strong></div>
+                        <div>Address: <strong className="text-foreground font-mono">{d.address}</strong></div>
+                        <div>Port: <strong className="text-foreground">{resolvedPort || "—"}</strong></div>
+                        <div>Registered: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></div>
+                        <div data-testid={`daemon-connection-mode-${globalIdx}`}>Connection: <strong className={d.connectedViaRelay ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>{d.connectedViaRelay ? "relay" : "offline"}</strong></div>
+                        <div data-testid={`daemon-node-uptime-${globalIdx}`}>Uptime: <strong className="text-foreground">{d.nodeUptimeMs != null ? formatUptime(d.nodeUptimeMs) : "—"}</strong></div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-muted-foreground">
-              <span>Address: <strong className="text-foreground font-mono text-[10px]">{d.address}</strong></span>
-              <span>Endpoint: <strong className="text-foreground font-mono text-[10px]">{d.endpoint}</strong></span>
-              <span>Port: <strong className="text-foreground">{d.port || (() => { const m = d.endpoint?.match(/:(\d+)$/); return m ? m[1] : "—"; })()}</strong>{d.peerPort ? <span className="text-muted-foreground"> / Peer {d.peerPort}</span> : null}</span>
-              <span>Role: <strong className="text-foreground">{d.role === "crs" ? "CRS" : "Cube"}</strong></span>
-              <span>Registered: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
-              <span data-testid={`daemon-connection-mode-${i}`}>Connection: <strong className={d.connectedViaRelay ? "text-emerald-600 dark:text-emerald-400" : d.directPeerCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>{d.connectedViaRelay ? (d.directPeerCount > 0 ? `relay + direct (${d.directPeerCount} peer${d.directPeerCount > 1 ? "s" : ""})` : "relay") : "offline"}</strong></span>
-              <span data-testid={`daemon-node-uptime-${i}`}>Node Uptime: <strong className="text-foreground">{d.nodeUptimeMs != null ? formatUptime(d.nodeUptimeMs) : "—"}</strong></span>
-            </div>
-          </div>
-        ))}
+          ));
+        })()}
       </div>
 
       {data.nodeHealth && data.nodeHealth.downCount > 0 && (
