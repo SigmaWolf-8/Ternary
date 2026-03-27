@@ -1113,7 +1113,65 @@ impl TernaryVmInstance {
                     let (d, s) = (opu(0, inst), opu(1, inst));
                     if d < 27 && s < 27 { self.set_reg(d, !(self.registers[d].value ^ self.registers[s].value)); }
                 }
-                0x5C..=0x5F => {}
+                0x5C => {
+                    let (d, s, pos) = (opu(0, inst), opu(1, inst), opu(2, inst));
+                    if d < 27 && s < 27 && pos < 27 {
+                        let val = self.registers[s].value;
+                        let mask = self.registers[pos].value;
+                        let mut result: u64 = 0;
+                        let mut bit = 0u32;
+                        for i in 0..64u32 {
+                            if (mask as u64) & (1u64 << i) != 0 {
+                                if (val as u64) & (1u64 << bit) != 0 {
+                                    result |= 1u64 << i;
+                                }
+                                bit += 1;
+                            }
+                        }
+                        self.set_reg(d, result as i64);
+                    }
+                }
+                0x5D => {
+                    let (d, s, mask_r) = (opu(0, inst), opu(1, inst), opu(2, inst));
+                    if d < 27 && s < 27 && mask_r < 27 {
+                        let val = self.registers[s].value as u64;
+                        let mask = self.registers[mask_r].value as u64;
+                        let mut result: u64 = 0;
+                        let mut bit = 0u32;
+                        for i in 0..64u32 {
+                            if mask & (1u64 << i) != 0 {
+                                if val & (1u64 << i) != 0 {
+                                    result |= 1u64 << bit;
+                                }
+                                bit += 1;
+                            }
+                        }
+                        self.set_reg(d, result as i64);
+                    }
+                }
+                0x5E => {
+                    let (d, start_bit, width) = (opu(0, inst), opu(1, inst), opu(2, inst));
+                    if d < 27 && start_bit < 64 && width > 0 && width <= 64 {
+                        let mask = if width >= 64 { u64::MAX } else { (1u64 << width) - 1 };
+                        let v = (self.registers[d].value as u64 >> start_bit) & mask;
+                        self.set_reg(d, v as i64);
+                    }
+                }
+                0x5F => {
+                    let d = opu(0, inst);
+                    if d < 27 {
+                        let data = self.registers[d].value as u32;
+                        let mut crc: u32 = 0xFFFFFFFF;
+                        for byte_idx in 0..4 {
+                            let b = ((data >> (byte_idx * 8)) & 0xFF) as u8;
+                            crc ^= b as u32;
+                            for _ in 0..8 {
+                                crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB88320 } else { crc >> 1 };
+                            }
+                        }
+                        self.set_reg(d, (crc ^ 0xFFFFFFFF) as i64);
+                    }
+                }
 
                 0x60..=0x6F => {
                     self.flags_ternary = true;
