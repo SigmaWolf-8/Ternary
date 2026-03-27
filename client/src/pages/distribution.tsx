@@ -1075,14 +1075,14 @@ function ClusterReport() {
                   const globalIdx = data.daemons.indexOf(d);
                   const resolvedPort = d.port || (() => { const m = d.endpoint?.match(/:(\d+)$/); return m ? parseInt(m[1]) : 0; })();
                   return (
-                    <div key={`${d.address}-${ni}`} className={`rounded border p-2 text-[10px] ${statusBg(d.status)}`} data-testid={`daemon-row-${globalIdx}`}>
+                    <div key={`${d.address}-${ni}`} className={`rounded border p-2 text-xs ${statusBg(d.status)}`} data-testid={`daemon-row-${globalIdx}`}>
                       <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-1">
-                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${healthDot(d.healthState)}`} title={`Health: ${d.healthState}`} data-testid={`daemon-health-dot-${globalIdx}`} />
-                          <span className="font-medium text-foreground text-[11px]">Node #{ni + 1}</span>
-                          <Badge variant="outline" className={`text-[7px] px-0.5 py-0 uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${globalIdx}`}>{d.status}</Badge>
+                          <span className={`inline-block w-2 h-2 rounded-full ${healthDot(d.healthState)}`} title={`Health: ${d.healthState}`} data-testid={`daemon-health-dot-${globalIdx}`} />
+                          <span className="font-medium text-foreground">Node #{ni + 1}</span>
+                          <Badge variant="outline" className={`text-[9px] px-1 py-0 uppercase ${statusColor(d.status)}`} data-testid={`daemon-status-${globalIdx}`}>{d.status}</Badge>
                         </div>
-                        <span className={`text-[9px] ${d.lastSeenAgeMs !== null ? (d.lastSeenAgeMs < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-muted-foreground"}`} data-testid={`daemon-heartbeat-${globalIdx}`}>
+                        <span className={`${d.lastSeenAgeMs !== null ? (d.lastSeenAgeMs < 120_000 ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400") : "text-muted-foreground"}`} data-testid={`daemon-heartbeat-${globalIdx}`}>
                           {formatTimeAgo(d.lastSeen)}
                         </span>
                       </div>
