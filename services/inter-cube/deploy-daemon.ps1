@@ -283,10 +283,13 @@ try {
         $pubKeyFile = Join-Path $idDir "public.key"
         $pubKey = if (Test-Path $pubKeyFile) { (Get-Content $pubKeyFile -Raw).Trim() } else { "" }
 
+        $tp = $pp - $TerminalPortOffset
+
         $daemonsArray += @{
             id = $id
             port = $dp
             peerPort = $pp
+            terminalPort = $tp
             address = ""
             publicKey = $pubKey
             endpoint = "${ip}:${dp}"
@@ -294,9 +297,10 @@ try {
             pid = 0
         }
 
-        $tp = $pp - $TerminalPortOffset
-
         Write-Host "  Start Daemon #$id (peer=$pp, app=$ep, node=$dp, terminal=$tp):" -ForegroundColor White
+        Write-Host "    Gateway API : http://localhost:$dp" -ForegroundColor DarkGray
+        Write-Host "    Terminal WS : ws://localhost:$tp (WebSocket PTY)" -ForegroundColor DarkGray
+        Write-Host "    VM API      : http://localhost:$dp/vm/exec, /vm/status, /vm/registers, /vm/reset" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$dp`"; `$env:LLM_PORT=`"$ep`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_PEER_PORT=`"$pp`"; `$env:CUBE_TERMINAL_PORT=`"$tp`"; `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray

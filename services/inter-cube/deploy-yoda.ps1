@@ -108,7 +108,9 @@ Write-Host ""
 Write-Host "  Nodes        : $DAEMON_COUNT instances (27 slots each)" -ForegroundColor White
 Write-Host "  Coordinator  : Node #1 (gateway $LOCAL_CRS_PORT)" -ForegroundColor White
 Write-Host "  Gateway Ports: $($BASE_PORT + $GATEWAY_OFFSET), $($BASE_PORT + $SLOTS_PER_NODE + $GATEWAY_OFFSET), $($BASE_PORT + 2 * $SLOTS_PER_NODE + $GATEWAY_OFFSET)" -ForegroundColor White
+Write-Host "  Terminal Ports: $($BASE_PORT + $GATEWAY_OFFSET - 2), $($BASE_PORT + $SLOTS_PER_NODE + $GATEWAY_OFFSET - 2), $($BASE_PORT + 2 * $SLOTS_PER_NODE + $GATEWAY_OFFSET - 2)" -ForegroundColor White
 Write-Host "  Port Ranges  : $BASE_PORT-$($BASE_PORT + $SLOTS_PER_NODE - 1), $($BASE_PORT + $SLOTS_PER_NODE)-$($BASE_PORT + 2 * $SLOTS_PER_NODE - 1), $($BASE_PORT + 2 * $SLOTS_PER_NODE)-$($BASE_PORT + 3 * $SLOTS_PER_NODE - 1)" -ForegroundColor White
+Write-Host "  VM API       : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway)" -ForegroundColor White
 Write-Host "  Relay        : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
 Write-Host "  Registry     : $REMOTE_CRS (monitoring only)" -ForegroundColor White
 Write-Host ""
@@ -394,10 +396,13 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
 
     $mode = if ($i -eq 1) { "crs" } else { "cube" }
 
+    $terminalPort = $gatewayPort - 2
+
     $daemonConfigs += @{
         Id = $i
         GatewayPort = $gatewayPort
         RangeStart = $rangeStart
+        TerminalPort = $terminalPort
         IdentityDir = $dir
         Endpoint = $endpoint
         PublicKey = $pubKey
@@ -445,6 +450,7 @@ setlocal enabledelayedexpansion
 set CUBE_MODE=crs
 set CUBE_NODE_ID=$($cfg.Id)
 set CUBE_API_PORT=$($cfg.GatewayPort)
+set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set RELAY_URL=$REMOTE_CRS
@@ -452,7 +458,7 @@ cd /d "$RepoDir"
 set RESTART_DELAY=5
 set RESTART_COUNT=0
 :loop
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) gateway=$($cfg.GatewayPort) [restart #!RESTART_COUNT!] >> "$logFile"
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) gateway=$($cfg.GatewayPort) terminal=$($cfg.TerminalPort) [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
 echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
@@ -473,6 +479,7 @@ setlocal enabledelayedexpansion
 set CUBE_MODE=cube
 set CUBE_NODE_ID=$($cfg.Id)
 set CUBE_API_PORT=$($cfg.GatewayPort)
+set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
@@ -481,7 +488,7 @@ cd /d "$RepoDir"
 set RESTART_DELAY=5
 set RESTART_COUNT=0
 :loop
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) gateway=$($cfg.GatewayPort) [restart #!RESTART_COUNT!] >> "$logFile"
+echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) gateway=$($cfg.GatewayPort) terminal=$($cfg.TerminalPort) [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
 echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
@@ -679,6 +686,7 @@ foreach ($cfg in $daemonConfigs) {
         id = $cfg.Id
         port = $cfg.GatewayPort
         gatewayPort = $cfg.GatewayPort
+        terminalPort = $cfg.TerminalPort
         rangeStart = $cfg.RangeStart
         address = if ($cfg.Address) { $cfg.Address } else { "" }
         publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }
@@ -755,13 +763,14 @@ $launchLines = @(
     "echo."
     "echo ========================================"
     "echo   PlenumNET Array3 Services Active"
-    "echo   Node #1 (coordinator) : http://localhost:$($crsCfg.GatewayPort)"
+    "echo   Node #1 (coordinator) : http://localhost:$($crsCfg.GatewayPort)  terminal=$($crsCfg.TerminalPort)"
 )
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    $launchLines += "echo   Node #$($cfg.Id) (worker)     : http://localhost:$($cfg.GatewayPort)"
+    $launchLines += "echo   Node #$($cfg.Id) (worker)     : http://localhost:$($cfg.GatewayPort)  terminal=$($cfg.TerminalPort)"
 }
 $launchLines += @(
+    "echo   VM API: /vm/exec, /vm/status (on gateway port)"
     "echo ========================================"
     "echo."
     "echo Services will continue running after this window closes."
@@ -807,11 +816,14 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  PlenumNET Array3 Deployment Complete" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Node #1 (coordinator): port $($crsCfg.GatewayPort), address $($crsCfg.Address)" -ForegroundColor White
+Write-Host "  Node #1 (coordinator): gateway $($crsCfg.GatewayPort), terminal $($crsCfg.TerminalPort), address $($crsCfg.Address)" -ForegroundColor White
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    Write-Host "  Node #$($cfg.Id) (worker)     : port $($cfg.GatewayPort), address $($cfg.Address)" -ForegroundColor White
+    Write-Host "  Node #$($cfg.Id) (worker)     : gateway $($cfg.GatewayPort), terminal $($cfg.TerminalPort), address $($cfg.Address)" -ForegroundColor White
 }
+Write-Host ""
+Write-Host "  VM API         : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway port)" -ForegroundColor White
+Write-Host "  Cluster Shell  : /cluster/exec, /cluster/peers (on gateway port)" -ForegroundColor White
 Write-Host ""
 Write-Host "  Services       : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3" -ForegroundColor White
 Write-Host "  Startup        : Automatic (survives reboots + terminal close)" -ForegroundColor White
