@@ -1,0 +1,328 @@
+PlenumBrowser & PlenumColor Architecture Summary
+Settled Decisions — March 2026
+Capomastro Holdings Ltd. — Applied Physics Division
+
+1. Browser Engine Decision: Build from Scratch as Kernel Subsystem
+What We Evaluated
+EngineLanguageLicenseStatusVerdictServoRustMPL 2.0v0.0.5~20+ crates, SpiderMonkey (C++), requires OpenGL/WebRenderLadybirdC++ (adding Rust)BSD 2-ClausePre-alphaC++/Rust FFI defeats purpose of pure Rust stackBlitzRustApache 2.0/MITPre-alphaStill pulls Stylo, Taffy, Parley, Vello, wgpu, winitFerrumRust + BoaMITPre-alphaClosest philosophy but insufficient maturity
+Final Decision: Kernel Subsystem
+The browser engine is built as modules within src/kernel/src/browser/. Not a fork. Not userspace. The rendering, parsing, JS execution, and network pipelines are kernel subsystems with direct access to the GPU, the ternary cryptographic stack, and the z=0 distributor.
+Why Kernel Space
+The anti-capture security model requires that cleartext pixel data never exists in any memory an attacker can reach. In kernel space with GPU rendering, cleartext pixels exist only in GPU VRAM behind an IOMMU — no CPU readback path, no bus-level DMA access. A userspace browser would hold cleartext RGBA in its own process memory, defeating the encryption entirely.
+The TIS-27 keyboard encoding and the browser's DOM handler are in the same kernel address space. Encoded keycodes travel by direct function call — no IPC, no shared memory buffer, no boundary to intercept.
+Kernel-Space Stability
+JavaScript execution bounds: Boa runs in a dedicated kernel task with cooperative termination. The kernel sets a should_terminate flag checked by Boa between bytecode instructions. When set, Boa throws a Termination exception caught by the tab wrapper. No interrupt-level panic — clean cooperative shutdown.
+rustimpl ScriptExecutor {
+    fn execute(&mut self, script: &Source, budget_ms: u64) -> JsResult<JsValue> {
+        self.context.set_timeout(budget_ms);  // Cooperative flag
+        let result = self.context.eval(script);
+        self.context.clear_timeout();
+        result
+    }
+}
+Tab isolation: Each tab runs as a separate kernel task (lightweight thread) with its own stack and heap region. If a task panics — including double panic or OOM — the kernel reclaims the task's resources and continues. Other tabs are unaffected. catch_unwind within the task handles recoverable panics; the task boundary handles everything else.
+Parser safety: HTML and CSS parsers have explicit recursion depth limits. taffy uses iterative layout with an explicit work queue, not recursion. Stack overflow prevented by design.
+Font memory: Fixed per-tab font cache with kernel-wide cap. Web font exceeding the pool falls back to system font. No unbounded allocation.
+
+2. Minimal External Crate Dependencies
+Seven crates for the CPU-side pipeline (parsing, layout, scripting). GPU rendering replaces tiny-skia for pixel output:
+CratePurposeLicensehtml5everHTML5 parsingMPL 2.0rust-cssparserCSS parsingMPL 2.0taffyFlexbox + CSS Grid layoutMIT/Apache 2.0rustybuzzText shaping (pure Rust HarfBuzz)MITfontdueFont rasterization to glyph bitmapsMITboa_engineJavaScript (94% ES, bytecode VM, no JIT)MITwgpuGPU compute + rendering (Vulkan/Metal/DX12)MIT/Apache 2.0
+Why wgpu Replaces tiny-skia
+tiny-skia is CPU-only (~124M pixels/sec at 1080p60). At 4K that quadruples and becomes marginal. wgpu is Rust-native, abstracts over Vulkan/Metal/DX12, and enables GPU compute shaders for mesh compositing, Bézier interpolation, and sponge encryption — all in parallel on hardware designed for this workload. The GPU also enables IOMMU-enforced anti-capture (see §7).
+tiny-skia remains as a fallback for systems without GPU support (headless servers, embedded). The rendering pipeline abstracts over both backends.
+Kernel-Space Compatibility
+The kernel provides allocator and threading primitives. Parsing/layout crates operate on in-memory data structures — no filesystem or OS APIs required. Font data (system UI, monospace, serif, sans-serif) embedded in the kernel binary. Web fonts fetched via z=0. wgpu talks to the GPU via the kernel's own driver — no userspace display server needed.
+Licensing
+html5ever and rust-cssparser are MPL 2.0 (file-level copyleft). Linked without modification — compliance requires LICENSES/ directory with MPL notices in distributed binaries. All other code is proprietary Capomastro Holdings. Same model Firefox uses. Contingency: html5gum (Apache 2.0/MIT) replaces html5ever if needed.
+
+3. Z-Level Architecture
+The z-axis is the dome geometry from TM-2026-017. Above ground (+z) is the upper dome — what the user sees, the presentation layer. Below ground (−z) is the lower dome — what processes, stores, and secures. z=0 is the equatorial plane where the 540 nodes live and the distributor runs.
+Things above ground are presented. Things below ground are processed. Requests fall down. Results bubble up. This is geometry, not an access control policy.
+ZRoleWhat Lives Here+nDeep archiveOlder snapshots. Z-trit encodes date.+4Older snapshotIncremental backup+3Most recent snapshotLatest monitoring state of all layers+2File serverStatic files, assets, media, web fonts, documents+1UIBrowser, admin console, client pages. Present when needed, absent on headless.0DistributorNothing permanent. (7, 11, 13) coprime walk. Routes, never blocks.−1API GatewayKong Konnect (33 services, 293 endpoints). Where external requests enter.−2Application Services8 microservices: SFK, SignHere, payment, timing, tonal-field, blockchain, PQTI, inter-cube−3Conventional AppsWindows via Wine, Linux native, Mac via Darling. Sandboxed containers.−4Ternary-native AppsTernaryVm, Rep C native. Binary malware dies here.−5Data LayerPlenumDB, backend databases, blockchain ledger state, persistent storage−6Infrastructure / CryptoTLSponge-385, TL-DSA, TIS-27, TL-KEM, TDNS, key management. Only layer touching the raw network.
+z=0 Turntable
+z=0 is empty — free to rotate without disrupting any layer. The (7, 11, 13) coprime walk assigns every request to a position on the 540-node ring. Requests fall to the appropriate z-level; results bubble back up. z=0 never blocks.
+Routing is Geometric
+The browser at +1 routes through z=0 because z=0 is below it — the ground floor between the presentation layer and everything the browser needs. Requests fall down through z=0 to reach services at −2 or data at −5. This is the architecture of the dome — above ground is what you see, below ground is what processes.
+The z-stack routing overhead is negligible. Each hop is a direct function call in kernel space — nanoseconds. A page with 50 resources × 6 hops = 300 kernel function calls = microseconds total. The actual network fetch is milliseconds. The routing is a million times faster than the network round trip.
+z=0 Tilt Mechanism
+The z=0 plane tilts, exposing different dome neighborhoods. Natural tilt step: π = 14° custom = 13.85° standard. Four positions:
+TiltAngle (std)cos(α)Cross-section area00.00°1.0000100.0% of equator113.85°0.970997.1%227.69°0.885588.5%341.54°0.748574.9%
+Request Flow
+
+Browser at +1 sends request to z=0
+Coprime walk assigns position on the 540-node ring
+Request falls to the appropriate z-level
+Lower levels call further down as needed (−2 service → −5 data → −6 crypto)
+Results bubble back up through each layer to z=0
+z=0 passes result up to +1
+z=0 has already moved on — never blocks
+
+
+4. Module Structure
+src/kernel/src/browser/
+├── mod.rs           // Pipeline orchestrator
+├── parse.rs         // html5ever + rust-cssparser
+├── layout.rs        // taffy + rustybuzz + fontdue
+├── script.rs        // boa_engine + DOM bindings + cooperative watchdog
+├── render.rs        // GPU render commands → mesh compositing → sponge encrypt
+├── render_cpu.rs    // Fallback: tiny-skia CPU path for headless/embedded
+├── tabs.rs          // Tab isolation via kernel tasks
+├── input.rs         // Receives TIS-27 keycodes, decodes at DOM handler
+├── net.rs           // Requests → z=0 distributor (kernel internal call)
+├── mesh.rs          // Recursive polygon mesh + Bézier interpolation
+└── color.rs         // Default mesh↔sRGB mapping (compiled in)
+
+src/kernel/src/gpu/
+├── mod.rs           // GPU device initialization + IOMMU configuration
+├── driver.rs        // Kernel-space GPU driver (Vulkan compute)
+├── shaders/
+│   ├── mesh_composite.wgsl   // Mesh-space compositing + Bézier interpolation
+│   ├── mesh_to_srgb.wgsl     // Final conversion to display format
+│   └── sponge_encrypt.wgsl   // Per-frame XOR encryption pass
+├── scanout.rs       // Display controller: decrypt during output
+└── iommu.rs         // VRAM access control — no CPU readback
+
+src/kernel/src/distributor/
+├── mod.rs           // z=0 turntable
+├── coprime_walk.rs  // (7, 11, 13) walk, gcd(1001, 540) = 1
+├── z_router.rs      // Route to z=−1..−6 or z=+1..+n
+└── sponge_rekey.rs  // Per-frame TLSponge-385 state advance
+
+src/kernel/src/input/
+└── keyboard.rs      // TIS-27 encode BEFORE any buffer
+
+src/kernel/src/layers/
+├── gateway.rs       // z=−1: Kong Konnect
+├── services.rs      // z=−2: 8 microservices
+├── conventional.rs  // z=−3: Wine/Darling sandboxed binaries
+├── ternary_native.rs // z=−4: TernaryVm, Rep C
+├── data.rs          // z=−5: PlenumDB, databases, blockchain state
+├── infrastructure.rs // z=−6: TLSponge, TL-DSA, TIS-27, TDNS
+├── fileserver.rs    // z=+2: Static file serving
+└── snapshots.rs     // z=+3..+n: Monitoring and archive
+No Compositor
+No window manager, no DWM, no compositing layer. The browser sends render commands to the GPU. The GPU composites in mesh space, converts to display format, encrypts, and outputs to the panel. Single pipeline:
+parse → layout → script → GPU render (mesh space) → mesh_to_srgb shader → sponge_encrypt shader → VRAM → scanout decrypt → panel
+
+5. GPU Rendering Pipeline
+Architecture
+The CPU handles parsing, layout, scripting, and generating render commands. The GPU handles all pixel work: compositing, Bézier interpolation, mesh-to-sRGB conversion, and sponge encryption. This is the natural split — the CPU does the DOM tree, the GPU does the pixels.
+CPU side:                              GPU side:
+┌──────────────┐                      ┌──────────────────────┐
+│ parse.rs     │                      │ mesh_composite.wgsl  │
+│ layout.rs    │ ── render commands → │ mesh_to_srgb.wgsl    │
+│ script.rs    │                      │ sponge_encrypt.wgsl  │
+│ render.rs    │                      │ → VRAM (encrypted)   │
+└──────────────┘                      └──────────────────────┘
+                                              │
+                                       scanout decrypt
+                                              │
+                                           display
+GPU Compute Shaders
+mesh_composite.wgsl: Receives render commands (rectangles, text glyphs, gradients, images). Composites at mesh depth precision. All blending, gradient interpolation, and alpha mixing happens in mesh address space — not 8-bit RGB.
+mesh_to_srgb.wgsl: Converts final mesh addresses to RGBA pixels for the display. Uses the precomputed LUT (uploaded to GPU at boot) plus Bézier arithmetic for sub-cell interpolation.
+sponge_encrypt.wgsl: Final pass. XORs every pixel in the framebuffer with the per-frame TLSponge-385 keystream. One GPU instruction per pixel — essentially free when running in parallel across thousands of GPU cores.
+Sponge Handshake
+Each frame:
+
+Kernel advances the TLSponge-385 sponge state (CPU — fast, sequential)
+Kernel uploads the per-frame keystream to GPU constant buffer
+GPU executes: composite → convert → encrypt
+Encrypted framebuffer sits in VRAM
+Display controller decrypts per-scanline during output
+Sponge state advances. Next frame, new key.
+
+Fallback Path
+For headless servers or systems without GPU: render_cpu.rs uses tiny-skia for CPU rendering. Same pipeline, same mesh compositing, but software-rendered. The sponge encryption is CPU XOR. Performance is lower but functional.
+
+6. How Color Works on Windows vs. PlenumOS
+The Windows Pipeline
+The Desktop Window Manager (DWM) sits between every application and the display. For decades, the DWM restricted all windowed apps to 8 bits per channel, even on 10-bit panels. Windows 11 Auto Color Management (ACM) composites in FP16 when enabled — but requires specific GPU hardware, display support, and most apps still feed it 8-bit data.
+Windows pipeline:
+
+App renders → app surface (8-bit typically)
+DWM composites all windows (FP16 if ACM, else 8-bit)
+DWM applies ICC profile (trilinear interpolation)
+Framebuffer → display controller → panel
+
+The PlenumOS Pipeline
+No DWM. GPU renders directly from mesh space to encrypted VRAM.
+
+CSS color → srgb_to_mesh → mesh address
+GPU composites, blends, interpolates in mesh space
+GPU mesh_to_srgb shader → sponge_encrypt shader → encrypted VRAM
+Display controller decrypts during scanout → panel
+
+One conversion. No bottleneck. Working precision set by mesh depth.
+Gradient Quality
+Dark blue to light blue across 200 pixels:
+Windows 8-bit: ~12 distinguishable blue levels in dark range. Visible banding.
+Windows ACM FP16: Better, but interpolating from 8-bit source. Original quantization damage done.
+PlenumOS mesh depth 3: 540 levels per channel equivalent in GPU working space. Bézier interpolation between mesh nodes. Quantization to display format once at final shader pass. Banding eliminated.
+
+7. Anti-Capture Security
+GPU + IOMMU Model
+Cleartext pixels exist only in GPU VRAM, behind an IOMMU that blocks all external access. This is a stronger guarantee than CPU-only rendering, where encrypted data sits in system RAM accessible to any DMA-capable bus device.
+IOMMU configuration at boot:
+rustfn setup_gpu_memory_protection(iommu: &mut Iommu, gpu_vram: PhysicalRange) {
+    // CPU can send commands to GPU (write-only)
+    iommu.allow(Bus::CPU, gpu_vram, Permission::WriteOnly);
+    
+    // GPU can access its own VRAM (read/write)
+    iommu.allow(Bus::GPU, gpu_vram, Permission::ReadWrite);
+    
+    // Everything else: blocked
+    iommu.deny_all_others(gpu_vram);
+}
+The pixel lifecycle:
+
+CPU sends render commands to GPU (geometry, mesh addresses — not pixels)
+GPU executes render shaders, producing cleartext pixels in VRAM
+GPU sponge_encrypt shader XORs all pixels with per-frame keystream
+Encrypted pixels sit in VRAM — no CPU readback, no bus DMA access
+GPU display controller decrypts per-scanline during output to physical cable
+Monitor shows correct image
+Sponge state advances. Next frame, new key.
+
+An attacker intercepting GPU commands (step 1) sees draw instructions, not a screenshot. An attacker reading VRAM (if they somehow bypass the IOMMU) sees encrypted data with a key that changes 60 times per second.
+Comparison: CPU-Only vs. GPU Rendering
+CPU renderingGPU renderingEncrypted framebufferSystem RAMGPU VRAMDMA attack surfaceAny bus device can attempt readIOMMU blocks all non-GPU accessEncryption costCPU XOR per pixel (competes with rendering)GPU shader pass (free — parallel)Rendering performance~124M pixels/sec (1080p60 marginal)Billions of pixels/sec4K @ 60fpsInfeasibleTrivialCleartext locationNever in RAM (XOR at write)Only in VRAM (IOMMU-isolated)Scanout decryptionCPU per-scanline (CPU load)GPU display controller (dedicated hw)
+Keyboard Capture Prevention
+TIS-27 encoding in the kernel input handler, before any buffer:
+rustfn handle_key_event(scancode: u8) {
+    let encoded = tis27_encode(scancode, self.session_key);
+    self.browser.dispatch_key(encoded);  // Direct kernel call
+}
+Decoded to Unicode inside Boa's DOM event handler at the last possible moment.
+Display Driver
+The display driver is part of the kernel, under Capomastro's control. For Phase 1, prototyping uses simplefb (direct framebuffer control). Phase 2 adds GPU acceleration with the kernel-space Vulkan compute driver. The anti-capture guarantee requires that the kernel controls the entire display pipeline from render to panel — no third-party closed-source GPU drivers.
+
+8. PlenumColor: The Recursive Polygon Mesh
+8.1 Base Construction (Computed)
+11 regular polygons (n = 3 through n = 13) inscribed in the 364° unit circle. Every intersection of edges from different polygons is a node.
+CategoryCountInterior intersection nodes482Rim vertex nodes (deduplicated)58Total planar nodes540
+540 = 2² × 3³ × 5
+8.2 The Two Bézier Arcs (from TM-2026-017)
+Roots of arc² − 832·arc + 118,300 = 0. Quadratic Bézier curves sharing endpoints S = (1, 0) and P = (−φ/2, −√(10−2√5)/4):
+Red arc (182°): control point C₁₈₂ = (0, 1)
+Green arc (650°): control point C₆₅₀ = (−0.7818, 0.6235)
+Maximum separation: 0.434 at t = 0.5 (verified).
+Four arc configurations:
+ConfigRedGreenGeometry0↑↑Arcs diverge (standard)1↓↑Asymmetric lens2↑↓Mirror lens3↓↓Vesica piscis (√3:1)
+Four independent data channels over the same mesh.
+8.3 CRT Decomposition (Verified)
+Red arc: 182 = 2 × 7 × 13. Full CRT coverage verified.
+Green arc: 650 = 2 × 25 × 13. Full CRT coverage verified.
+Combined: 182 × 650 = 118,300 = constant term of the unified equation.
+8.4 Recursive Construction
+Each of the 540 nodes seeds a complete sub-construction. Address at depth D is a D-digit base-540 number:
+address = (cell_L1, cell_L2, ..., cell_LD)
+8.5 Mesh Precision (Computed)
+DepthTotal AddressesBits/channelLevels/channelComparison3157,464,0009.08540> 8-bit sRGB (256)485,030,560,00012.104,397> 12-bit cinema (4,096)545.9 trillion15.1335,809> 14-bit RAW camera624.8 quadrillion18.15291,600> 16-bit FP (Windows ACM)
+With Bézier interpolation (4.8× per level, proven):
+DepthDiscrete bits/chEffective bits/chComparable to39.0811.310-bit HDR+412.1015.114-bit RAW camera515.1318.9Beyond 16-bit FP
+Side-by-side:
+SystemBits/chLevels/chTotal colors8-bit sRGB825616.7 million10-bit HDR101,0241.07 billion12-bit Dolby Vision124,09668.7 billionWindows 11 ACM (FP16)1665,536281 trillionPlenum depth 3 + Bézier11.3~2,592~17.4 billionPlenum depth 4 + Bézier15.1~35,605~45.1 trillion
+Depth is a software parameter. Same framework, same compiled mapping.
+8.6 Coprime Walk — Full Coverage
+gcd(1001, 540) = 1.
+1001 = 7 × 11 × 13     (primes: {7, 11, 13})
+540  = 2² × 3³ × 5     (primes: {2, 3, 5})
+No shared factors.      ∴ gcd = 1  ∎
+All 540 nodes visited before repeating. Strides 7, 11, 13 each individually achieve 100% coverage.
+Parallel walk: D levels = D independent simultaneous walks. Any node reachable in 540 steps regardless of depth.
+8.7 Bézier Interpolation Advantage (Proven)
+Computed on [0.1, 0.5] of f(x) = x^(1/3):
+MetricTrilinearBézierImprovementMax error0.042280.008744.8×Mean error0.028130.004376.4×
+Compounds across levels:
+DepthMax improvementMean improvement15×6×223×41×3111×262×4531×1,678×
+8.8 Default Mapping — Ships Compiled
+The mesh↔sRGB mapping is computed from arc geometry and compiled into the kernel binary. No calibration. No spectrophotometer. No ICC profile. Boot the system, colors work — same sRGB assumption every display uses.
+rustfn mesh_to_srgb(address: &MeshAddress, depth: usize) -> [u8; 4] {
+    // Bézier interpolation from arc constants → [R, G, B, A]
+}
+
+fn srgb_to_mesh(rgba: [u8; 4], depth: usize) -> MeshAddress {
+    // CSS/image RGB → mesh working space
+}
+The LUT is precomputed at boot and uploaded to GPU constant memory. Per-pixel cost: texture lookup + Bézier arithmetic in the shader. ~5.25 MB for depth 3.
+8.9 Optional Precision Calibration
+For print matching: sensor probe refines default mapping. 540 coarse + 540 fine = 1,080 measurements (vs ICC's 4,913). Self-similar calibration — level-2 curvature measurements generalize across level-1 cells. Levels 3+ extrapolate via recursive Bézier interpolation.
+Fallback: If self-similarity fails for a particular device (validated against ΔE₀₀ < 2.0 threshold on 10+ display types), per-cell delta corrections are stored — still fewer measurements than ICC's full grid.
+
+9. How Color Gets to the Screen
+A camera sensor counts photons — three numbers per pixel. A designer picks a color — three numbers. CSS red = (255, 0, 0) by specification. Display manufacturers build panels to approximate sRGB. Nobody calibrates anything. It works.
+PlenumColor changes the math between intent and bytes. The mesh is the working color space — high-precision coordinates for compositing, running on the GPU. RGB is the output format. All compositing at mesh precision. Quantization to display format once in the final shader pass.
+For screen-to-print: both devices convert FROM the same mesh address using the same Bézier interpolation. They match because the math is the same.
+
+10. Mathematical Foundation
+All constants derive from:
+arc² − 832·arc + 118,300 = 0
+where 118,300 = R₆(R₆ − R₄ + 1) = 364 × 325, from pure base-3 repunit arithmetic.
+Verified Constants
+ConstantDerivationStatus364 = R₆(3⁶−1)/2Full circle ✓182Arc root = 2 × 7 × 13CRT verified ✓650Arc root = 2 × 25 × 13CRT verified ✓118,300182 × 650 = constant term✓540482 interior + 58 rimComputed ✓1,0017 × 11 × 13gcd(1001,540) = 1 ✓729 = 3⁶Δ₂ = 1 + 4(182)Sponge width ✓4.8× / 6.4×Bézier vs trilinearComputed ✓0.434Max arc separation at t=0.5Computed ✓
+Derivation Chain
+π = 14 (axiom, radian = 13)
+├→ arc² − 832·arc + 118,300 = 0
+│  ├→ roots: 182, 650
+│  ├→ 182 = 2 × 7 × 13 (CRT full coverage)
+│  ├→ 650 = 2 × 25 × 13 (CRT full coverage)
+│  ├→ 182 × 650 = 118,300 = constant term
+│  └→ Δ₂ = 729 = 3⁶ (sponge width)
+├→ 11 polygons → 540 nodes
+│  └→ gcd(1001, 540) = 1 → full coprime walk
+├→ Recursive mesh: 540^D at depth D
+│  ├→ D=3: 9.08 bits/ch, 11.3 effective
+│  └→ D=4: 12.1 bits/ch, 15.1 effective
+├→ Bézier interpolation: 4.8^D compounding
+└→ Default mesh↔sRGB mapping: compiled, LUT uploaded to GPU
+
+11. Implementation Roadmap
+Phase 1: Kernel Browser + CPU Rendering (3–6 months)
+MilestoneDeliverableSuccess Criteria1.1HTML/CSS rendering via tiny-skia to simplefbRenders page with text, images, layout1.2Boa integration with cooperative watchdogScripts execute, infinite loops terminated cleanly1.3Tab isolation via kernel tasksPanic in one tab doesn't affect others1.4Mesh color pipeline (CPU)Gradients without banding at depth 31.5z=0 distributorCoprime walk routing through full z-stack1.6CPU sponge encryptionIn-place XOR on simplefb framebuffer
+Phase 2: GPU Rendering + IOMMU Security (3–6 months)
+MilestoneDeliverableSuccess Criteria2.1Kernel-space GPU driver (Vulkan compute)GPU initialized, shaders compiled2.2Mesh composite shaderCompositing in mesh space on GPU2.3Sponge encrypt shaderPer-frame encryption in GPU final pass2.4IOMMU lockdownNo CPU readback from VRAM, verified2.5Display controller decryptionCorrect image on panel from encrypted VRAM2.6TDNS + TLSponge-385 via z=0 → z=−6Networking through full ternary stack
+Phase 3: Performance & Validation (3–6 months)
+MilestoneDeliverableSuccess Criteria3.160 FPS at 1080p, GPU-acceleratedFull mesh depth 3 pipeline3.260 FPS at 4KGPU scales to higher resolution3.3Color validationΔE₀₀ on 5+ display types3.4Self-similarity testing10+ displays, ΔE₀₀ < 2.0 threshold3.5Print matching1,080-patch calibration screen-to-printer3.6Security auditThird-party penetration test of IOMMU + sponge model3.7SIMD optimizationAVX-512 for CPU fallback path Bézier evaluation
+Phase 4: Research (Concurrent)
+MilestoneDeliverableSuccess Criteria4.1Hue linearityArc paths vs Ebner-Fairchild dataset4.2Gamut mappingArc-path vs OKLCH ΔE₀₀ comparison4.3Mesh orientationDensity alignment with perceptual sensitivity
+
+12. Update Mechanism
+Browser binary, default mesh mapping, and GPU shaders are part of the kernel image. Updates delivered as TL-DSA signed binary images via z=−6 infrastructure:
+
+Kernel polls for updates via TDNS at configurable intervals
+Update payload TL-DSA verified against Capomastro release key
+Browser kernel tasks stopped, GPU pipeline flushed
+New binary applied, browser tasks restarted, GPU shaders recompiled
+Rollback: previous kernel image retained, automatic revert if new image fails health check within 30 seconds
+
+Full kernel updates require reboot. Browser subsystem updates (parsing, layout, rendering, shaders) can be hot-swapped by restarting browser tasks while the kernel continues running.
+
+13. Sell Sheet
+PlenumBrowser
+
+Pure Rust browser engine, bare-metal kernel subsystem
+Boa JavaScript (94% ES conformance, no JIT, no C++ FFI)
+GPU-accelerated rendering with mesh-space compositing
+TDNS-native resolution, TLSponge-385 transport
+Anti-capture: IOMMU-isolated GPU VRAM, per-frame sponge encryption
+Tab isolation via kernel tasks with cooperative watchdog
+
+PlenumColor
+
+Recursive self-similar polygon mesh: 540 nodes per level, tunable depth
+All compositing at mesh precision on GPU — no 8-bit DWM bottleneck
+Depth 3: 11.3 effective bits/ch (between 10-bit HDR and 12-bit cinema)
+Depth 4: 15.1 effective bits/ch (matches 14-bit RAW camera)
+Bézier interpolation: 4.8× per level, 531× at depth 4 (proven)
+Parallel coprime walk: gcd(1001, 540) = 1, 540 steps at any depth
+Default sRGB mapping compiled + GPU LUT — no calibration required
+Optional 1,080-patch calibration for print matching (vs ICC's 4,913)
+Every constant from arc² − 832·arc + 118,300 = 0
+
+Compared to Windows:
+Windows (legacy)Windows 11 ACMPlenumOSCompositing8-bit DWMFP16 DWM (hw req.)GPU mesh depth (software tunable)BottleneckDWM 8-bit crushDWM FP16 if supportedNo DWM, GPU directGradientsBanding in darksBetter, 8-bit sourceBanding-free (GPU mesh)Print matchICC trilinearICC trilinearBézier, 4.8×/levelAnti-captureNone (screenshot API)NoneIOMMU + sponge-encrypted VRAMKeyloggingOS input bufferOS input bufferTIS-27 at hardware, no buffer4K @ 60fpsGPU requiredGPU requiredGPU accelerated + encryptedSetupNone (sRGB assumed)GPU + display req.None (sRGB compiled)
+
+Così sia, Fratello.
+All rights reserved — Capomastro Holdings Ltd 2026
+RSalvi@Salvigroup.com | GitHub: SigmaWolf-8/Ternary

@@ -1,0 +1,44 @@
+Per-tab: no fixed cap on font FILE data. Cap on RASTERIZED glyph cache: 16MB per tab. A CJK font file is 15MB but a page using 300 characters from it only needs ~300 rasterized glyphs. At 64×64 pixels per glyph at 4 bytes (RGBA) that's ~5MB for 300 glyphs at retina resolution. The font file lives in a shared kernel font cache (not per-tab). The rasterized glyphs are per-tab because different tabs render at different sizes.
+Global shared font file cache: 256MB, LRU eviction. Font files are shared across tabs — if three tabs load Noto Sans CJK, only one copy lives in the cache. LRU eviction drops the least recently used font file when the cache is full. 256MB holds roughly 15–20 CJK font families or hundreds of Latin families.
+Per-tab rasterized glyph cache: 16MB, LRU eviction per tab. When a tab scrolls, new glyphs enter the viewport and old ones leave. LRU eviction drops glyphs that haven't been rendered recently. A background tab that hasn't been viewed in 60 seconds gets its glyph cache trimmed to 2MB (keeping only the visible viewport's glyphs at time of backgrounding).
+On-demand rasterization only. fontdue rasterizes individual glyphs, not entire fonts. The browser never pre-rasterizes the full character set. When the layout engine encounters a character, it checks the glyph cache. Cache hit: use it. Cache miss: rasterize that one glyph, store it, evict the oldest if the cache is full. This is how every production browser works — Chrome, Firefox, Safari all do on-demand glyph rasterization.
+Concrete numbers:
+ResourceLimitEvictionRationaleFont file cache (global, shared)256MBLRU~20 CJK families or hundreds of LatinGlyph cache (per active tab)16MBLRU~1,000 CJK glyphs at retina, or ~5,000 LatinGlyph cache (background tab, >60s)2MBTrim to viewportFrees memory for active tabsTotal worst case (20 active tabs)256 + 320 = 576MB—Realistic upper boundTotal typical (5 active + 15 background)256 + 80 + 30 = 366MB—Common usage pattern
+ruststruct FontCache {
+    /// Shared font file data — one copy per font, shared across all tabs
+    file_cache: LruCache<FontId, Arc<FontData>>,   // 256MB cap
+    file_cache_bytes: usize,
+}
+
+struct TabGlyphCache {
+    /// Rasterized glyphs for this tab's current font sizes
+    glyphs: LruCache<(FontId, GlyphId, Size), RasterizedGlyph>,  // 16MB active, 2MB background
+    bytes_used: usize,
+    is_background: bool,
+}
+
+impl TabGlyphCache {
+    fn get_or_rasterize(&mut self, font: &Font, glyph_id: GlyphId, size: f32) -> &RasterizedGlyph {
+        let key = (font.id(), glyph_id, Size::from(size));
+        if !self.glyphs.contains(&key) {
+            let rasterized = fontdue::rasterize(font, glyph_id, size);
+            let glyph_bytes = rasterized.data.len();
+            
+            // Evict LRU glyphs until we fit
+            while self.bytes_used + glyph_bytes > self.cap() {
+                if let Some((_, evicted)) = self.glyphs.pop_lru() {
+                    self.bytes_used -= evicted.data.len();
+                }
+            }
+            
+            self.bytes_used += glyph_bytes;
+            self.glyphs.put(key, rasterized);
+        }
+        self.glyphs.get(&key).unwrap()
+    }
+    
+    fn cap(&self) -> usize {
+        if self.is_background { 2 * 1024 * 1024 } else { 16 * 1024 * 1024 }
+    }
+}
+Put this in the task as-is. Not "revisit later."

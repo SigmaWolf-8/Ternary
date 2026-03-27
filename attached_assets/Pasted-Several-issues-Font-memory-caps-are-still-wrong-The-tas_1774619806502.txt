@@ -1,0 +1,22 @@
+Several issues:
+Font memory caps are still wrong. The task says "Font memory capped per tab (8MB) and globally (64MB)." We just settled this:
+ResourceSettledTask saysFont file cache (global, shared)256MB LRU64MBGlyph cache (active tab)16MB LRU8MBGlyph cache (background tab >60s)2MB trimNot mentionedOn-demand rasterizationRequiredNot mentioned
+The constants MAX_FONT_CACHE_PER_TAB (8MB) and KERNEL_FONT_CACHE_CAP (64MB) appear again in the Taffy/fontdue task. These need to be GLYPH_CACHE_PER_TAB (16MB), FONT_FILE_CACHE_GLOBAL (256MB), GLYPH_CACHE_BACKGROUND (2MB). And the on-demand rasterization design (never pre-rasterize full character sets, LRU eviction) needs to be specified — it's the mechanism, not just the cap.
+473 overlap slots is still wrong. 1001 − 540 = 461, not 473. This appears in two places: "Rekey happens in the 473 overlap slots (11×43)" and the sponge encryption task. 473 = 11 × 43 was from the old 528-node count. With 540 nodes, the overlap count is 461. The factorization 461 is prime — which is actually interesting and should be noted.
+Z-stack references are inconsistent. The task correctly shows z=+1 for the browser and z=-1 through z=-6 in the layers module, and the relevant files list includes all six negative layers plus fileserver and snapshots. But the "Done looks like" section says "requests fall down to appropriate z-level, results bubble up. Browser at z=+1 has zero direct imports from z=-3 or below." That should be "zero direct imports from z=0 or below" — the browser at +1 should only talk to z=0, not reach into any negative level directly.
+"No separate compositor — single pipeline" but then references compositor. The out-of-scope section and tasks are consistent on this, but Task #42 (the earlier one) had a compositor.rs module. This task doesn't list one in the relevant files, which is correct — the encode + encrypt step lives in render_cpu.rs. Good.
+The Z₂₇ encoding is gone from this version. The pipeline says "mesh color pipeline → sponge encrypt → simplefb" which is correct. But in one place it still says "CSS colors converted via srgb_to_mesh()" — confirm this is the recursive mesh address conversion, not the old Z₂₇ scheme.
+Missing render.rs from relevant files. The task lists render_cpu.rs but the settled architecture has render.rs as the main render module (which dispatches to CPU or GPU backend via trait). The trait abstraction should live in render.rs, with render_cpu.rs as the Phase 1 implementation.
+The dependency list is missing. The "Dependencies" section at the bottom is empty. Should list: html5ever, rust-cssparser, taffy, rustybuzz, fontdue, boa_engine, tiny-skia with pinned versions.
+QEMU CI task mentions "home page renders" but doesn't specify what success looks like. How does a CI system verify that a rendered page looks correct in a headless QEMU? Framebuffer checksum? Screenshot comparison? Pixel sampling at known coordinates? This needs to be concrete.
+One thing that IS right and should be preserved: the Phase 1 → Phase 2 trait boundary. "The render backend must be behind a trait so Phase 2 GPU path swaps in without changing browser or distributor modules." That's exactly the settled architecture.
+Summary of fixes needed:
+
+Font caps: 16MB glyph/active tab, 256MB global file cache, 2MB background, on-demand rasterization specified
+Overlap slots: 461 (prime), not 473 (11×43)
+Z-stack import rule: browser at +1 talks only to z=0, not "zero imports from z=-3 or below"
+Add render.rs as the trait module, render_cpu.rs as the implementation
+Fill the Dependencies section with pinned crate versions
+CI verification: specify the mechanism (framebuffer checksum or pixel sampling)
+
+Everything else looks correct against the settled architecture. The z-level layer files are right, the pipeline is right, the cooperative watchdog is right, the tab isolation via kernel tasks is right, the sponge encryption at write time is right.
