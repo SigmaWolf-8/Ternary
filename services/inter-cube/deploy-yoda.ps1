@@ -570,6 +570,24 @@ if (`$stopped) {
     `$running = (Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Measure-Object).Count
     Add-Content -Path `$wdLog -Value "[`$ts] All `$running node(s) healthy"
 }
+`$servicePids = @()
+Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -eq 'Running' } | ForEach-Object {
+    try {
+        `$wmiSvc = Get-WmiObject Win32_Service -Filter "Name='`$(`$_.Name)'" -ErrorAction SilentlyContinue
+        if (`$wmiSvc -and `$wmiSvc.ProcessId -gt 0) { `$servicePids += `$wmiSvc.ProcessId }
+    } catch {}
+}
+`$orphans = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Where-Object { `$_.Id -notin `$servicePids }
+if (`$orphans) {
+    foreach (`$p in `$orphans) {
+        try {
+            Stop-Process -Id `$p.Id -Force -ErrorAction Stop
+            Add-Content -Path `$wdLog -Value "[`$ts] Killed orphan daemon PID `$(`$p.Id)"
+        } catch {
+            Add-Content -Path `$wdLog -Value "[`$ts] FAILED to kill orphan PID `$(`$p.Id): `$_"
+        }
+    }
+}
 "@ | Set-Content -Path $watchdogScript -Encoding ASCII
 
 $taskName = "PlenumNET-Array3-Watchdog"

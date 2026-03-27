@@ -1048,8 +1048,8 @@ function ClusterReport() {
               <strong className="text-black dark:text-white">{data.relay.msgsFailed}</strong> failed
             </span>
           )}
-          <span className="ml-auto">
-            Uptime: <strong className="text-foreground">{formatUptime(data.relay.uptimeMs)}</strong>
+          <span className="ml-auto" title="Time since the CRS relay service started on this server">
+            Relay Uptime: <strong className="text-foreground">{formatUptime(data.relay.uptimeMs)}</strong>
           </span>
         </div>
       )}
@@ -1081,6 +1081,7 @@ function ClusterReport() {
               <span>Registered: <strong className="text-foreground">{d.registeredInCrs ? "yes" : "no"}</strong></span>
               <span>Relay: <strong className="text-foreground">{d.connectedViaRelay ? "yes" : "no"}</strong></span>
               <span data-testid={`daemon-connection-mode-${i}`}>Connection: <strong className={d.directPeerCount > 0 ? "text-green-600 dark:text-green-400" : "text-foreground"}>{d.directPeerCount > 0 ? `direct (${d.directPeerCount} peer${d.directPeerCount > 1 ? "s" : ""})` : "relay"}</strong></span>
+              <span data-testid={`daemon-node-uptime-${i}`}>Node Uptime: <strong className="text-foreground">{d.nodeUptimeMs != null ? formatUptime(d.nodeUptimeMs) : "—"}</strong></span>
             </div>
           </div>
         ))}

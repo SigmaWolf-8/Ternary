@@ -960,6 +960,7 @@ function startPqtiService(): ChildProcess | null {
       const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
 
       const now = Date.now();
+      const connectedAtRef = (globalThis as any).__relayConnectedAt as Map<string, number> | undefined;
       const daemonChecks: Array<{
         address: string;
         endpoint: string;
@@ -970,6 +971,7 @@ function startPqtiService(): ChildProcess | null {
         role: "crs" | "cube";
         registeredInCrs: boolean;
         connectedViaRelay: boolean;
+        nodeUptimeMs: number | null;
         directPeerCount: number;
         lastSeen: string | null;
         lastSeenAgeMs: number | null;
@@ -1024,6 +1026,7 @@ function startPqtiService(): ChildProcess | null {
             role: isCrs ? "crs" : "cube",
             registeredInCrs: isRegistered,
             connectedViaRelay: !!isRelayConnected,
+            nodeUptimeMs: isRelayConnected && connectedAtRef?.has(normalAddr) ? now - connectedAtRef.get(normalAddr)! : null,
             directPeerCount,
             lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
             lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
@@ -1112,6 +1115,7 @@ function startPqtiService(): ChildProcess | null {
           role: isCrs ? "crs" : "cube",
           registeredInCrs: true,
           connectedViaRelay: !!isRelayConnected,
+          nodeUptimeMs: isRelayConnected && connectedAtRef?.has(crsAddr) ? now - connectedAtRef.get(crsAddr)! : null,
           directPeerCount: crsDirectPeerCount,
           lastSeen: lastSeenTs ? new Date(lastSeenTs).toISOString() : null,
           lastSeenAgeMs: lastSeenTs ? now - lastSeenTs : null,
@@ -1372,8 +1376,10 @@ function startPqtiService(): ChildProcess | null {
 
   const relayClients = new Map<string, WebSocket>();
   const relayAddressByWs = new Map<WebSocket, string>();
+  const relayConnectedAt = new Map<string, number>();
   const pendingMessages = new Map<string, Array<{ from: string; type: string; payload: string; ts: number }>>();
   (globalThis as any).__relayClients = relayClients;
+  (globalThis as any).__relayConnectedAt = relayConnectedAt;
   (globalThis as any).__pendingMessages = pendingMessages;
 
   const relayThroughput = {
@@ -1871,6 +1877,9 @@ function startPqtiService(): ChildProcess | null {
           }
           relayClients.set(nodeAddress, ws);
           relayAddressByWs.set(ws, nodeAddress);
+          if (!isReconnect || !relayConnectedAt.has(nodeAddress)) {
+            relayConnectedAt.set(nodeAddress, Date.now());
+          }
           if (relayClients.size > relayThroughput.peakPeers) relayThroughput.peakPeers = relayClients.size;
           console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} ${isReconnect ? "re" : ""}authenticated and connected`);
           recordRelayAuditEvent({ eventType: "relay.auth_success", address: nodeAddress, timestamp: new Date().toISOString(), details: { hasTlDsa: !!msg.signature, reconnect: isReconnect } });
@@ -1995,6 +2004,7 @@ function startPqtiService(): ChildProcess | null {
       if (nodeAddress) {
         relayClients.delete(nodeAddress);
         relayAddressByWs.delete(ws);
+        relayConnectedAt.delete(nodeAddress);
         const reasonStr = reason.toString() || "none";
         const remaining = Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ");
         console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} DISCONNECTED (code=${code}, reason=${reasonStr}) — ${relayClients.size} peer(s) remain${remaining ? `: [${remaining}]` : ""}`);
