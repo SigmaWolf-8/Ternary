@@ -314,8 +314,8 @@ pub extern "C" fn kernel_main() -> ! {
     serial::print_u64(seq.elapsed_stages() as u64);
     serial::print_line(" stages)");
 
-    let fb_w: u32 = 1920;
-    let fb_h: u32 = 1080;
+    let fb_w: u32 = 64;
+    let fb_h: u32 = 64;
 
     serial::print_line("[browser] Initializing PlenumBrowser subsystem...");
     let distributor = alloc::boxed::Box::new(plenumnet_kernel::distributor::Distributor::new());
@@ -324,7 +324,7 @@ pub extern "C" fn kernel_main() -> ! {
     serial::print_u64(fb_w as u64);
     serial::print_str("x");
     serial::print_u64(fb_h as u64);
-    serial::print_line(" (CPU renderer)");
+    serial::print_line(" (CPU renderer, QEMU validation mode)");
 
     serial::print_line("[color] Initializing PlenumColor mesh pipeline (depth 3)...");
     let precision = plenumnet_kernel::browser::color::MeshPrecision::compute(3);
@@ -379,7 +379,7 @@ pub extern "C" fn kernel_main() -> ! {
         0x53, 0x41, 0x4C, 0x56, 0x49, 0x5F, 0x46, 0x52,
         0x41, 0x4D, 0x45, 0x57, 0x4F, 0x52, 0x4B, 0x21,
     ];
-    let resolution = FrameResolution::Hd1080;
+    let resolution = FrameResolution::Custom { width: fb_w, height: fb_h };
     let mut sponge_state = SpongeRekeyState::new(&initial_key, resolution);
     serial::print_line("[sponge] TLSponge-385: 729-trit state, 9 rounds, 385-bit security");
     serial::print_line("[sponge] Rekey interval: 461 overlap slots (prime)");
@@ -411,8 +411,10 @@ fn zero_bss() {
     unsafe {
         let start = &__bss_start as *const u8 as *mut u8;
         let end = &__bss_end as *const u8 as *mut u8;
-        let len = end as usize - start as usize;
-        core::ptr::write_bytes(start, 0, len);
+        if (end as usize) > (start as usize) {
+            let len = end as usize - start as usize;
+            core::ptr::write_bytes(start, 0, len);
+        }
     }
 }
 
