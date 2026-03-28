@@ -1,0 +1,97 @@
+
+==========================================================
+  PlenumNET MSI Installer
+  Capomastro Holdings Ltd. - Applied Physics Division
+==========================================================
+
+  This script builds and installs PlenumNET products
+  using the plenum-pack MSI framework.
+
+  Products: Launcher, Inter-Cube Daemon, NinjaExec
+  Log file: C:\Users\Sigma\AppData\Local\Temp\PlenumNET_MSI_Install.log
+
+  Architecture: ARM64 (Rust target: aarch64-pc-windows-msvc)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  Updating Rust toolchain to latest stable...
+  [OK] rustc 1.94.1 (e408947bf 2026-03-25)
+  [OK] cargo 1.94.1 (29ea6fb6a 2026-03-24)
+  cargo path: C:\Users\Sigma\.cargo\bin\cargo.exe
+  [OK] clang
+  [OK] .NET SDK
+  [OK] WiX v4
+
+STEP 2/8: Source code
+---
+  Updating source...
+  [OK] Source ready at C:\PlenumNET
+
+STEP 3/8: Building plenum-pack (MSI build tool)
+---
+    Downloaded thiserror-impl v1.0.57
+    Downloaded thiserror v1.0.57
+     Compiling proc-macro2 v1.0.106
+     Compiling unicode-ident v1.0.24
+     Compiling quote v1.0.44
+     Compiling syn v2.0.117
+     Compiling windows-link v0.2.1
+     Compiling windows-sys v0.61.2
+     Compiling serde_core v1.0.228
+     Compiling serde v1.0.228
+     Compiling serde_derive v1.0.228
+     Compiling memchr v2.8.0
+     Compiling utf8parse v0.2.2
+     Compiling anstyle v1.0.13
+     Compiling once_cell_polyfill v1.70.2
+     Compiling anstyle-wincon v3.0.11
+     Compiling anstyle-parse v0.2.7
+     Compiling anstyle-query v1.1.5
+     Compiling equivalent v1.0.2
+     Compiling zmij v1.0.21
+     Compiling hashbrown v0.16.1
+     Compiling is_terminal_polyfill v1.70.2
+     Compiling colorchoice v1.0.5
+     Compiling anstream v0.6.21
+     Compiling indexmap v2.13.0
+     Compiling aho-corasick v1.1.4
+     Compiling toml_datetime v0.6.11
+     Compiling serde_spanned v0.6.9
+     Compiling winapi-util v0.1.11
+     Compiling regex-syntax v0.8.9
+     Compiling winnow v0.7.15
+     Compiling thiserror v1.0.57
+     Compiling semver v1.0.22
+     Compiling cfg-if v1.0.4
+     Compiling serde_json v1.0.149
+     Compiling strsim v0.10.0
+     Compiling clap_lex v0.6.0
+     Compiling toml_write v0.1.2
+     Compiling heck v0.4.1
+     Compiling anyhow v1.0.80
+     Compiling clap_derive v4.4.7
+     Compiling toml_edit v0.22.27
+     Compiling clap_builder v4.4.18
+     Compiling getrandom v0.2.17
+     Compiling regex-automata v0.4.14
+     Compiling same-file v1.0.6
+     Compiling thiserror-impl v1.0.57
+     Compiling itoa v1.0.17
+     Compiling sha1_smol v1.0.1
+     Compiling uuid v1.6.1
+     Compiling walkdir v2.4.0
+     Compiling regex v1.10.3
+     Compiling clap v4.4.18
+     Compiling toml v0.8.12
+  error[E0599]: no method named `serialize_field` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+   821 |             self.inner.serialize_field(value).map_err(Error::wrap)
+  1683 |     fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+  error[E0599]: no method named `end` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+  error[E0599]: no method named `serialize_field` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+   990 |             self.inner.serialize_field(value).map_err(Error::wrap)
+  1683 |     fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+  error[E0599]: no method named `end` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+  For more information about this error, try `rustc --explain E0599`.
+  error: could not compile `toml` (lib) due to 4 previous errors
+  ERROR: plenum-pack build failed.
