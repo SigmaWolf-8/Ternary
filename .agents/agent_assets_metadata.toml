@@ -312,3 +312,27 @@ id = "8IawEllrbuxMrSqe0chq6"
 uri = "file://.local/tasks/qc-reviews/qc-r1-task45-consolidated.md"
 type = "text"
 title = "QC-R1 Consolidated Review — Task #45 (PlenumBrowser Phase 1 Remaining Gaps)"
+
+[[outputs]]
+id = "A_hBxvh4ThbXR758TxJN5"
+uri = "file://.local/qc-r2-task55/qc-r2-consolidated.md"
+type = "text"
+title = "QC-R2 Consolidated Report — Task #55 (Round 2)"
+
+[[outputs]]
+id = "Nri__6lNW-DlFat8RQvgQ"
+uri = "file://.local/qc-r2-task55/qc-r2-agent4-evidence-collector.md"
+type = "text"
+title = "Agent 4: Evidence Collector / QA Lead"
+
+[[outputs]]
+id = "4Exv9oVjySW4ycZHpr_Ch"
+uri = "file://.local/qc-r2-task55/qc-r2-agent5-senior-developer.md"
+type = "text"
+title = "Agent 5: Senior Developer"
+
+[[outputs]]
+id = "0ef-sc4cZ-OnvWdLwKzTs"
+uri = "file://.local/qc-r2-task55/qc-r2-agent6-infrastructure-maintainer.md"
+type = "text"
+title = "Agent 6: Infrastructure Maintainer"

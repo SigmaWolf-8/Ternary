@@ -126,6 +126,12 @@ if (-not (Test-Command "cargo")) {
 }
 Write-Log "  [OK] cargo" "Green"
 
+Write-Log "  Updating Rust toolchain to latest stable..." "White"
+& rustup update stable 2>&1 | Out-Null
+& rustup default stable 2>&1 | Out-Null
+$rustcVer = & rustc --version 2>&1
+Write-Log "  [OK] $rustcVer" "Green"
+
 # MSVC build tools
 $vsWhere = $null
 $progX86 = [System.Environment]::GetFolderPath("ProgramFilesX86")

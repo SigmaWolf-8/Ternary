@@ -1,0 +1,175 @@
+QC-R1 Consolidated Review — Task #45 (Milestone 1: PlenumBrowser Phase 1 Remaining Gaps)
+Capomastro Holdings Ltd. — Applied Physics Division Review Date: March 28, 2026 Specification Under Review: Task #45 description (Milestone 1 — PlenumBrowser Phase 1: Remaining Gaps) Template Version: QC-R1 v1.1.2
+
+Consolidation Summary Table
+#	Finding ID	Agent	Section	Severity	Finding (Summary)	Crypto Status
+1	R1-A1-1	Security Engineer	Done looks like / Tasks §1	CRITICAL	Sponge rekey uses Vec<u8> state with no memory zeroing — keystream material persists in heap after use	INCORRECT
+2	R1-A1-2	Security Engineer	Done looks like / Tasks §2	CRITICAL	Boa v0.21 GC roots in task-local storage create a side-channel: cross-tab heap inspection if guard pages are misconfigured	UNVERIFIED
+3	R1-A1-3	Security Engineer	Done looks like / Tasks §1	IMPORTANT	plenum-std std::sync::Mutex wraps a ticket spinlock — no priority inheritance, vulnerable to priority inversion deadlock under tab contention	N/A
+4	R1-A1-4	Security Engineer	Done looks like	IMPORTANT	Tab isolation relies on same-address-space guard pages, not separate page tables — a single wild pointer past a guard page breaches into adjacent tab heap	N/A
+5	R1-A1-5	Security Engineer	Done looks like	IMPORTANT	Cooperative watchdog (should_terminate) is voluntarily checked — a tight native loop (not bytecode) in any Boa host function bypasses the watchdog entirely	N/A
+6	R1-A1-6	Security Engineer	Out of scope	MINOR	Spec explicitly defers TLS for external connections but does not document the threat model boundary for plaintext plenum:// content loaded by the browser	N/A
+7	R1-A2-1	DevOps Automator	Tasks §1	CRITICAL	No CI workflow exists for browser-crates feature — build-kernel.yml is missing, build.sh compiles with -Zbuild-std=core,alloc only (no std), and the browser-crates feature is never enabled in any build script or CI pipeline	N/A
+8	R1-A2-2	DevOps Automator	Tasks §1	CRITICAL	Build script targets x86_64-unknown-none but the spec requires custom x86_64-plenum-none target — no JSON target spec files exist, no rust-toolchain.toml pins a nightly version, and the sysroot compilation path is untested	N/A
+9	R1-A2-3	DevOps Automator	Tasks §5	IMPORTANT	30 FPS benchmark has no defined environment — no target hardware spec, no QEMU machine type, no CPU/memory constraints. "30 FPS at 1080p" is unmeasurable without a reproducible test environment	N/A
+10	R1-A2-4	DevOps Automator	Tasks §6	IMPORTANT	QEMU CI smoke test spec lacks timeout, exit code convention, and failure-mode definition — "wait for sentinel output" without a timeout causes CI to hang indefinitely on regression	N/A
+11	R1-A2-5	DevOps Automator	Done looks like	IMPORTANT	aarch64 and riscv64 "build successfully" is a done-looks-like criterion but no CI job validates cross-compilation — only x86_64 is tested	N/A
+12	R1-A2-6	DevOps Automator	Tasks §1	MINOR	Eight upstream crate versions are pinned in Cargo.toml but not in a lockfile committed to the repo — Cargo.lock may drift between developers/CI	N/A
+13	R1-A3-1	PlenumNET Integration	Tasks §1 / Relevant files	CRITICAL	plenum-std shim maps std::alloc to the existing BumpAllocator (1MB, no dealloc) — the spec says "upgrade to linked-list or buddy allocator" but this is listed as a sub-task of §1, not a prerequisite. If the shim compiles before the allocator upgrade, every crate's alloc/free cycle will silently leak until OOM	INCORRECT
+14	R1-A3-2	PlenumNET Integration	Done looks like	IMPORTANT	Sponge rekey (sponge_rekey.rs) uses Vec<u8> byte operations on a 729-element state, not GF(3) trit operations — violates INVARIANT 8 (no raw binary integers into sponge absorb). The TLSponge-385 state should be 729 trits operated on in ternary, not 729 bytes XOR'd in binary	INCORRECT
+15	R1-A3-3	PlenumNET Integration	Done looks like	IMPORTANT	Framebuffer encryption uses "in-place XOR on simplefb" — this is a binary stream cipher, not T-AE-MAC authenticated encryption. No authentication tag, no integrity check, no Rep C domain separation. An attacker who can write to the framebuffer region can modify pixels without detection	INCORRECT
+16	R1-A3-4	PlenumNET Integration	Done looks like	IMPORTANT	TIS-27 keyboard encoding (input/keyboard.rs) uses a KeyboardHandler that XORs scancodes through a Tis27State — but the context string for this TIS-27 instance is not visible in the code. Missing or wrong context string produces wrong encoding (context strings are load-bearing per the canonical registry)	UNVERIFIED
+17	R1-A3-5	PlenumNET Integration	Done looks like	MINOR	PlenumColor mesh pipeline constants (540, 1001, 182, 650) are hardcoded in coprime_walk.rs — they should be imported from the canonical constant locations (shared/constants.ts, ternary-math) to prevent drift	N/A
+18	R1-A3-6	PlenumNET Integration	Relevant files	MINOR	The spec lists 20 relevant files but does not include src/plenum-std/ (18 files across 10 modules) — this is arguably the most critical component of the task	N/A
+Agent 1: Security Engineer
+Finding 1
+Finding ID: R1-A1-1
+Section: Done looks like / Tasks §1
+Severity: CRITICAL
+Finding: The SpongeRekeyState in sponge_rekey.rs stores per-frame cryptographic keystream material in a Vec<u8>. When the vector is dropped or reallocated, the old buffer is freed but never zeroed. The BumpAllocator doesn't deallocate at all (leaked), and even a proper allocator would return the memory to the free list with keystream bytes intact. A subsequent allocation by any tab could read stale keystream material from the heap. This is a classic key-material-in-freed-memory vulnerability.
+Recommendation: Implement Drop for SpongeRekeyState that zeroes the state vector before drop. Use core::ptr::write_volatile or a zeroize crate equivalent to prevent compiler elision. The plenum-std allocator should also support a SecureAllocator trait that zeroes on dealloc for all crypto-sensitive types.
+Verification: After dropping a SpongeRekeyState, read the memory region that contained the state vector and confirm all bytes are zero.
+Finding 2
+Finding ID: R1-A1-2
+Section: Done looks like / Tasks §2
+Severity: CRITICAL
+Finding: Boa v0.21's GC uses std::thread::LocalKey for per-thread root sets. The spec maps this to kernel task-local storage (TLS) via per-ProcessDescriptor storage slots. However, the spec does not define isolation guarantees for task-local storage. In a same-address-space model (no separate page tables), if one tab's kernel task can enumerate another task's TLS block (e.g., via PID iteration on the ProcessTable), it can read GC root pointers — which point into the other tab's heap. Combined with the lack of ASLR in the kernel's flat memory model, this is a cross-tab information leak.
+Recommendation: Task-local storage must be access-controlled: only the owning task (matching current PID from scheduler) can access its TLS block. The ProcessTable API must not expose other tasks' TLS. Add a test that attempts cross-task TLS access and confirms it returns an error.
+Verification: Write a kernel test where Task A stores a value in TLS, then Task B attempts to read Task A's TLS slot — must fail with PermissionDenied.
+Finding 3
+Finding ID: R1-A1-3
+Section: Done looks like / Tasks §1
+Severity: IMPORTANT
+Finding: The plenum-std std::sync::Mutex<T> wraps the kernel's ticket spinlock (sync/spinlock.rs). Ticket spinlocks guarantee fairness but not priority inheritance. If a low-priority background tab holds a shared mutex (e.g., the global font cache lock) and a high-priority foreground tab blocks on it, the high-priority tab spins until the low-priority tab is scheduled — classic priority inversion. With 20+ tabs and a single-core QEMU setup, this could starve the foreground tab.
+Recommendation: Document this as a known Phase 1 limitation. For Phase 2, implement priority inheritance or switch shared resources (font cache) to lock-free data structures. In the meantime, ensure the font cache lock is held for minimal duration (lookup only, not rasterization).
+Verification: Stress test with 20 tabs contending on the font cache; measure foreground tab frame latency.
+Finding 4
+Finding ID: R1-A1-4
+Section: Done looks like
+Severity: IMPORTANT
+Finding: Tab isolation uses "same-address-space isolation with hardware-assisted bounds checking" via guard pages (4KB). A guard page catches stack overflow and heap overrun at page-fault granularity, but a wild pointer that skips over the guard page (e.g., a buffer indexed at base + 8192) lands in the adjacent tab's memory without triggering a fault. The spec acknowledges this model but does not quantify the risk or define mitigations.
+Recommendation: Document the guard-page bypass risk as a known limitation. Consider multi-page guard zones (e.g., 64KB) to reduce skip probability. For Phase 2, evaluate separate page table entries per tab (heavyweight but provably isolated).
+Verification: Write a test that attempts to access guard_page_high + GUARD_PAGE_SIZE + 1 from a tab and confirm the behavior (should fault if guard zone is extended, silently succeeds with current 4KB guard).
+Finding 5
+Finding ID: R1-A1-5
+Section: Done looks like
+Severity: IMPORTANT
+Finding: The cooperative watchdog for Boa relies on should_terminate being checked "between bytecode instructions." This works for JS bytecode but not for native host functions registered in the Boa context (DOM operations, layout recalculation, font rasterization). A host function that enters an unexpectedly long computation (e.g., rasterizing a complex SVG via resvg) will not check should_terminate until it returns to the bytecode interpreter. The spec does not define a secondary watchdog mechanism (e.g., timer interrupt) for host function hangs.
+Recommendation: Add a hardware timer interrupt watchdog (separate from the cooperative one) that fires after MAX_BUDGET_MS and forcibly terminates the tab's kernel task. This is the last-resort mechanism. Document the two-tier watchdog: cooperative (soft, checks between instructions) and preemptive (hard, timer interrupt kills the task).
+Verification: Register a Boa host function that sleeps for 60 seconds. Verify the tab is terminated within MAX_BUDGET_MS + tolerance.
+Finding 6
+Finding ID: R1-A1-6
+Section: Out of scope
+Severity: MINOR
+Finding: The spec notes "embedded content only (plenum://home, plenum://settings, plenum://about)" and defers external HTTP fetch to Phase 1.5. However, there is no threat model boundary documented for plenum:// content. Since the content is embedded in the kernel binary, it is trusted by construction — but the spec does not state this explicitly. If a future phase adds dynamic content loading, the trust model changes fundamentally.
+Recommendation: Add a single sentence to the spec: "All plenum:// content is embedded in the kernel binary at compile time and is trusted by construction. Dynamic content loading in future phases requires a separate threat model review."
+Verification: Confirm no code path in the browser fetches content from outside the kernel binary.
+Summary Verdict: FAIL
+Two CRITICAL findings (R1-A1-1: keystream material in freed memory; R1-A1-2: cross-tab TLS information leak). Both are exploitable in the current same-address-space isolation model. The keystream leak is straightforward to fix (zeroing on drop). The TLS isolation requires access-control enforcement on the ProcessTable API. Neither is architecturally difficult but both must be resolved before implementation proceeds.
+
+Agent 2: DevOps Automator
+Finding 1
+Finding ID: R1-A2-1
+Section: Tasks §1
+Severity: CRITICAL
+Finding: The spec's primary deliverable — "all eight upstream crates compile in a single pass" — has no CI pipeline to verify it. The .github/workflows/build-kernel.yml file does not exist. The existing build.sh in src/kernel/bare-metal/scripts/ compiles with -Zbuild-std=core,compiler_builtins,alloc (no std) and does NOT enable the browser-crates feature. There is no build script, Makefile target, or CI job anywhere in the repository that attempts to build the kernel with --features browser-crates. The spec states this is "likely the majority of the work" but provides no CI definition for validating it.
+Recommendation: Define a CI workflow (build-kernel-browser.yml or equivalent) that: (1) installs a pinned nightly toolchain, (2) runs cargo build --target x86_64-plenum-none --features browser-crates -Zbuild-std=core,alloc,std, (3) fails the pipeline on any compilation error. This must be the FIRST task implemented, not the last.
+Verification: The CI pipeline runs on every PR touching src/kernel/ or src/plenum-std/ and produces a green/red status.
+Finding 2
+Finding ID: R1-A2-2
+Section: Tasks §1
+Severity: CRITICAL
+Finding: The spec requires custom Rust targets (x86_64-plenum-none, aarch64-plenum-none, riscv64gc-plenum-none) but no JSON target specification files exist in the repository. The build script uses x86_64-unknown-none (a standard target). There is no rust-toolchain.toml pinning a nightly version. The -Zbuild-std flag in build.sh compiles core and alloc but does not include std — the spec requires compiling a custom std (plenum-std) as the sysroot's std crate, which is a fundamentally different build configuration. The gap between "what the build system does today" and "what the spec requires" is the entire critical path of the task, and it is undocumented.
+Recommendation: Add to the spec: (1) exact nightly toolchain version to pin, (2) location and content structure of JSON target spec files, (3) the exact cargo invocation that compiles the kernel with plenum-std as the std sysroot, (4) how the CI verifies the sysroot compilation. Reference the Redox OS build system (redoxer) for the concrete implementation pattern.
+Verification: A developer can clone the repo and run one command to produce a bootable kernel image with all browser crates. The command is documented in a README or build script.
+Finding 3
+Finding ID: R1-A2-3
+Section: Tasks §5
+Severity: IMPORTANT
+Finding: The 30 FPS benchmark target is specified without a reproducible test environment. The spec says "renders plenum://home in a loop and reports frame time — must average ≤33ms (30 FPS) at 1920x1080" but does not define: which QEMU machine type, how many vCPUs, how much RAM, whether the benchmark runs on CI or developer hardware, what happens if CI hardware is slower than developer hardware, or whether the benchmark is a hard gate (block merge) or a soft metric (report only).
+Recommendation: Define the benchmark environment: QEMU -machine q35 -cpu host -smp 2 -m 4G (or similar). Define it as a CI reporting step, not a merge gate, since CI runner performance varies. Set the merge gate at a generous 100ms/frame (10 FPS) as a regression floor, with the 33ms target for developer-reported numbers on reference hardware.
+Verification: Benchmark runs in CI, reports frame time, and blocks merge only if frame time exceeds the regression floor.
+Finding 4
+Finding ID: R1-A2-4
+Section: Tasks §6
+Severity: IMPORTANT
+Finding: The QEMU CI smoke test spec says "boot, wait for sentinel output indicating home page rendered" but defines no timeout. A kernel that hangs during boot (e.g., allocator deadlock, shim compilation error that compiles but panics at runtime) will cause CI to hang indefinitely. The spec also does not define exit codes — "exits cleanly via ISA debug port" but what exit code means pass vs. fail? The existing main.rs writes 0x31 to port 0xF4 — is that the pass code? What code means fail?
+Recommendation: Define: (1) CI timeout (e.g., 120 seconds), (2) exit code convention (e.g., 0x31 on port 0xF4 = PASS, 0x00 = FAIL, timeout = FAIL), (3) QEMU -device isa-debug-exit,iobase=0xf4,iosize=0x04 with (exit_code << 1) | 1 mapping. Document the sentinel string that the test runner greps for in serial output.
+Verification: A deliberately broken kernel (e.g., one that panics during boot) causes the CI job to exit with a non-zero code within the timeout.
+Finding 5
+Finding ID: R1-A2-5
+Section: Done looks like
+Severity: IMPORTANT
+Finding: The spec states "aarch64 and riscv64 build successfully" as a done criterion but then says "QEMU smoke test on x86_64 is sufficient for CI." This means aarch64 and riscv64 builds are never validated in CI. Cross-compilation can break silently (e.g., a cfg(target_arch) gate that excludes critical code, an assembly block that doesn't compile for aarch64). A "builds successfully" criterion without CI verification is unenforceable.
+Recommendation: Add CI jobs for aarch64 and riscv64 cross-compilation (build only, no QEMU run). This catches compilation regressions without requiring multi-arch QEMU infrastructure.
+Verification: CI matrix includes {x86_64, aarch64, riscv64} × {build, [smoke test for x86_64 only]}.
+Finding 6
+Finding ID: R1-A2-6
+Section: Tasks §1
+Severity: MINOR
+Finding: Eight upstream crate versions are pinned in Cargo.toml (e.g., html5ever = "0.27", boa_engine = "0.21") but the spec does not mention committing Cargo.lock. Without a committed lockfile, cargo build may resolve different patch versions across machines and CI runs, leading to "works on my machine" failures.
+Recommendation: Commit Cargo.lock for the kernel crate. Pin exact versions if necessary (e.g., html5ever = "=0.27.2").
+Verification: Cargo.lock exists and is committed; CI runs with --locked.
+Summary Verdict: FAIL
+Two CRITICAL findings (R1-A2-1: no CI for browser-crates build; R1-A2-2: custom targets and sysroot build path don't exist). The spec describes the most complex build system change in the project's history (custom Rust targets, -Zbuild-std with custom std, eight upstream crates) but provides no CI definition, no target spec files, and no reproducible build command. The build system gap is the actual blocker — the spec should define the build before the features.
+
+Agent 3: PlenumNET Integration Specialist
+Finding 1
+Finding ID: R1-A3-1
+Section: Tasks §1 / Relevant files
+Severity: CRITICAL
+Finding: The spec lists src/kernel/src/memory/heap.rs as a relevant file and says "upgrade to linked-list or buddy allocator" as part of Task §1 (sysroot validation). However, the allocator upgrade is buried inside the sysroot work — it should be a prerequisite, not a sub-step. The current allocator (BumpAllocator in main.rs:19-44) has unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {} — it literally does nothing on dealloc. Every Vec::drop(), String::drop(), Box::drop() is a no-op memory leak. html5ever's tree builder creates and destroys thousands of temporary nodes during parsing. Boa's GC cycle frees objects. Taffy's layout pass allocates work queues. All of these will silently leak until the 1MB heap is exhausted, at which point the allocator returns null and the kernel panics. This is not a "fix during sysroot work" issue — it blocks all eight crates from functioning at all.
+Recommendation: Make the allocator upgrade Task §0 — a prerequisite that must be completed and verified before any sysroot or crate integration work begins. The new allocator must pass: (1) alloc/dealloc cycle test (allocate 10,000 objects, free all, allocate again — must not OOM), (2) fragmentation test (random-sized alloc/free for 1M cycles), (3) thread-safety test (concurrent alloc/free from multiple kernel tasks).
+Verification: cargo test for the allocator module passes all three tests. The heap size is configurable and defaults to at least 64MB for browser workloads.
+Finding 2
+Finding ID: R1-A3-2
+Section: Done looks like
+Severity: IMPORTANT
+Finding: sponge_rekey.rs implements the TLSponge-385 per-frame rekey as 729 bytes XOR'd in binary. The TLSponge-385 specification defines a 729-trit state with GF(3) operations (ternary addition, chi permutation, iota constants). The current implementation stores bytes (Vec<u8>) and performs binary XOR — this is not TLSponge-385, it is a binary stream cipher that uses 729 as a magic number. INVARIANT 8 states: "No raw binary integers may enter sponge absorb. All inputs must be properly encoded (Rep A/B/C trit encoding)." The sponge state itself must be in trit representation. Crypto Status: INCORRECT.
+Recommendation: The sponge rekey must use the actual TLSponge-385 implementation from ternary-math/src/sponge385.rs (or the kernel's crypto/sponge.rs). The state must be 729 trits in Rep A encoding. The keystream must be generated by squeezing the sponge and converting trits to bytes for the XOR pass. Do not reimplement the sponge — call the existing one.
+Verification: Verify the rekey state matches a known TLSponge-385 test vector after N rounds. Verify the keystream bytes match the same test vector's squeeze output converted to bytes.
+Finding 3
+Finding ID: R1-A3-3
+Section: Done looks like
+Severity: IMPORTANT
+Finding: The spec describes "CPU sponge encryption — per-frame TLSponge-385 rekey, in-place XOR on simplefb framebuffer." This is confidentiality-only encryption with no integrity protection. It is not T-AE-MAC (which provides IND-CPA + INT-CTXT). A framebuffer attacker (DMA, physical memory access, or a breached tab that writes to the framebuffer region) can flip arbitrary pixels without detection. The spec does not mention authentication tags, MACs, or integrity checks for the encrypted framebuffer. Crypto Status: INCORRECT — the spec claims TLSponge-385 encryption but implements unauthenticated XOR.
+Recommendation: Either: (a) upgrade to T-AE-MAC for authenticated encryption of the framebuffer (adds ~2KB per frame for the authentication tag, negligible at 1080p), or (b) document this as a known Phase 1 limitation with an explicit threat model statement: "Phase 1 framebuffer encryption provides confidentiality only. Integrity protection via T-AE-MAC is deferred to Phase 2. The threat model assumes the framebuffer memory region is not writable by untrusted code in Phase 1."
+Verification: If (a): verify authentication tag is generated and checked per frame. If (b): verify the threat model statement is in the spec.
+Finding 4
+Finding ID: R1-A3-4
+Section: Done looks like
+Severity: IMPORTANT
+Finding: The TIS-27 keyboard encoding in input/keyboard.rs uses a KeyboardHandler with a Tis27State. The code XORs scancodes through this state, but the context string used to initialize the TIS-27 sponge instance is not visible in the 50-line header of the file. TIS-27 context strings are load-bearing — the canonical registry in the repo guide defines specific strings for each use case (e.g., "HEARTBEAT-MAC" for FTS). Using the wrong context string (or none) produces wrong output that is cryptographically valid but semantically incorrect — the worst kind of bug. Crypto Status: UNVERIFIED.
+Recommendation: Verify the TIS-27 context string in keyboard.rs against the canonical registry. If no registry entry exists for keyboard encoding, define one (e.g., "PlenumNET-TIS27-KBD-v1") and add it to the registry.
+Verification: The context string is visible in the code, matches a canonical registry entry, and a unit test verifies the encoding output against a known test vector.
+Finding 5
+Finding ID: R1-A3-5
+Section: Done looks like
+Severity: MINOR
+Finding: The coprime walk constants in coprime_walk.rs are hardcoded: STRIDE_7 = 7, STRIDE_11 = 11, STRIDE_13 = 13, RING_SIZE = 540. These same constants exist in shared/constants.ts and derive from the arc equation (182, 650, 832). Hardcoding them in the kernel creates a drift risk — if the canonical values change (unlikely but architecturally possible), the kernel and the web platform diverge silently.
+Recommendation: Import these constants from ternary-math or define them in a shared kernel constants module that cross-validates against the canonical derivations (similar to the const_assert! pattern in Task #33).
+Verification: Constants in coprime_walk.rs are imported or validated at compile time against canonical sources.
+Finding 6
+Finding ID: R1-A3-6
+Section: Relevant files
+Severity: MINOR
+Finding: The spec's "Relevant files" section lists 20 files from src/kernel/src/ but omits the entire src/plenum-std/ directory (18 source files across 10 modules: io, fs, net, env, sync, thread, time, process, panic, collections). The plenum-std shim is the critical path of this task — omitting it from relevant files means an implementer might not discover the existing shim code until they start building from scratch.
+Recommendation: Add src/plenum-std/src/lib.rs and src/plenum-std/Cargo.toml to the relevant files list. Optionally list the key sub-modules (src/plenum-std/src/sync/mod.rs, src/plenum-std/src/thread/mod.rs, src/plenum-std/src/io/mod.rs).
+Verification: Relevant files section includes plenum-std paths.
+Summary Verdict: FAIL
+One CRITICAL finding (R1-A3-1: bump allocator with no-op dealloc blocks all crate integration). Two IMPORTANT findings involve cryptographic incorrectness (R1-A3-2: sponge rekey uses binary XOR not real TLSponge-385; R1-A3-3: unauthenticated framebuffer encryption). These are not spec ambiguities — they are implementation errors in existing code that the spec inherits by reference. The allocator must be upgraded before any crate integration work can begin.
+
+Consolidated Verdict
+ALL THREE AGENTS: FAIL
+
+Security Engineer: FAIL (2 CRITICAL — keystream in freed memory, cross-tab TLS leak)
+DevOps Automator: FAIL (2 CRITICAL — no CI for browser-crates, no custom target specs or sysroot build path)
+PlenumNET Integration: FAIL (1 CRITICAL — bump allocator blocks all crate integration)
+Total findings: 18 (5 CRITICAL, 8 IMPORTANT, 5 MINOR)
+
+Blocking items before this spec can proceed to QC-R2:
+R1-A3-1: Upgrade allocator from bump (no dealloc) to a real allocator — this is prerequisite zero
+R1-A1-1: Zero keystream material on drop in SpongeRekeyState
+R1-A1-2: Enforce TLS access control so only the owning task can read its storage
+R1-A2-1: Define and implement CI for browser-crates feature build
+R1-A2-2: Create custom target JSON specs, pin nightly toolchain, document the sysroot build command
