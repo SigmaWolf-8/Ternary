@@ -36,14 +36,13 @@
     <Property Id="CRS_ENDPOINT" Secure="yes" />
     <Property Id="PASSPHRASE_FILE" Secure="yes" Hidden="yes" />
     <Property Id="PASSPHRASE_TEMPFILE" Secure="yes" Hidden="yes" />
-    <Property Id="PASSPHRASE_REQUIRED" Value="{{PASSPHRASE_REQUIRED}}" />
+{{PASSPHRASE_REQUIRED_PROPERTY}}
     <Property Id="PASSPHRASE_MIN_LENGTH" Value="{{PASSPHRASE_MIN_LENGTH}}" />
-    <Property Id="SERVICE_CONFIG_REQUIRED" Value="{{SERVICE_CONFIG_REQUIRED}}" />
+{{SERVICE_CONFIG_REQUIRED_PROPERTY}}
     <Property Id="SERVICE_ACCOUNT_DISPLAY" Value="{{SERVICE_ACCOUNT_DISPLAY}}" />
     <Property Id="SERVICE_ACCOUNT_MODE" Value="{{SERVICE_ACCOUNT_MODE_DEFAULT}}" />
-    <Property Id="SERVICE_CUSTOM_ACCOUNT" Value="" />
+    <Property Id="SERVICE_CUSTOM_ACCOUNT" Secure="yes" />
     <Property Id="SERVICE_ACCOUNT_PASSWORD" Secure="yes" Hidden="yes" />
-    <Property Id="MsiHiddenProperties" Value="{{MSI_HIDDEN_PROPERTIES}}" />
     <Property Id="SERVICE_START_TYPE" Value="auto" />
     <Property Id="SERVICE_AUTOSTART" Value="1" />
 
@@ -81,8 +80,9 @@
       </Directory>
     </StandardDirectory>
 
-    <Component Id="PathEntry" Guid="*" Directory="INSTALLFOLDER">
-      <Condition>{{PATH_CONDITION}}</Condition>
+    <Component Id="PathEntry" Guid="*" Directory="INSTALLFOLDER" Condition="{{PATH_CONDITION}}">
+      <RegistryValue Root="HKLM" Key="Software\Capomastro\PlenumNET\{{PRODUCT_SHORT_NAME}}"
+                     Name="PathInstalled" Type="integer" Value="1" KeyPath="yes" />
       <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]"
                    Permanent="no" Part="last" Action="set" System="yes" />
     </Component>

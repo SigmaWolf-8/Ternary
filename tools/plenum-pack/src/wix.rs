@@ -157,9 +157,9 @@ impl<'a> WixGenerator<'a> {
                 self.arch.arch_mismatch_condition(),
             )
             .replace(
-                "{{PASSPHRASE_REQUIRED}}",
+                "{{PASSPHRASE_REQUIRED_PROPERTY}}",
                 if self.has_passphrase_actions() {
-                    "1"
+                    "    <Property Id=\"PASSPHRASE_REQUIRED\" Value=\"1\" />"
                 } else {
                     ""
                 },
@@ -169,12 +169,12 @@ impl<'a> WixGenerator<'a> {
                 &self.get_passphrase_min_length().to_string(),
             )
             .replace(
-                "{{SERVICE_CONFIG_REQUIRED}}",
+                "{{SERVICE_CONFIG_REQUIRED_PROPERTY}}",
                 if matches!(
                     self.manifest.app_type.kind,
                     AppKind::Service | AppKind::Hybrid
                 ) {
-                    "1"
+                    "    <Property Id=\"SERVICE_CONFIG_REQUIRED\" Value=\"1\" />"
                 } else {
                     ""
                 },
@@ -215,22 +215,9 @@ impl<'a> WixGenerator<'a> {
                     .as_ref()
                     .and_then(|u| u.preserve_message.as_deref())
                     .unwrap_or(""),
-            )
-            .replace(
-                "{{MSI_HIDDEN_PROPERTIES}}",
-                &self.compute_hidden_properties(),
             );
 
         Ok(result)
-    }
-
-    fn compute_hidden_properties(&self) -> String {
-        let mut props = vec!["SERVICE_ACCOUNT_PASSWORD"];
-        if self.has_passphrase_actions() {
-            props.push("PASSPHRASE_TEMPFILE");
-            props.push("PASSPHRASE_FILE");
-        }
-        props.join(";")
     }
 
     pub fn wix_build_args(
@@ -454,8 +441,7 @@ impl<'a> WixGenerator<'a> {
                 };
 
                 format!(
-                    r#"{pad}<Component Id="AutostartEntry" Guid="*">
-{pad}  <Condition>{cond}</Condition>
+                    r#"{pad}<Component Id="AutostartEntry" Guid="*" Condition="{cond}">
 {pad}  <RegistryValue Root="HKCU"
 {pad}                 Key="Software\Microsoft\Windows\CurrentVersion\Run"
 {pad}                 Name="{name}"
