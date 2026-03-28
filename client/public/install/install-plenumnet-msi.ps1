@@ -456,10 +456,13 @@ foreach ($crate in $allCrates) {
     Push-Location $RepoDir
     $crateOutput = & $cargoExe build --release -p $crate 2>&1
     $crateBuildExit = $LASTEXITCODE
-    $crateOutput | ForEach-Object {
-        $line = $_.ToString()
-        if ($line -match "error") { Write-Log "  $line" "Red" }
-        elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
+    if ($crateBuildExit -ne 0) {
+        $crateOutput | ForEach-Object { Write-Log "  $_" "Red" }
+    } else {
+        $crateOutput | ForEach-Object {
+            $line = $_.ToString()
+            if ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
+        }
     }
     Pop-Location
     if ($crateBuildExit -ne 0) {
