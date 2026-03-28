@@ -20,8 +20,6 @@
 
     <Media Id="1" Cabinet="product.cab" EmbedCab="yes" />
 
-    <Launch Condition="VersionNT64"
-            Message="PlenumNET products require 64-bit Windows. This machine is running a 32-bit operating system." />
     <Launch Condition="Privileged"
             Message="Administrator privileges are required to install PlenumNET products. Right-click the installer and select 'Run as administrator'." />
 
@@ -49,10 +47,10 @@
     <CustomAction Id="DetectArch_UI" Property="DETECTED_ARCH" Value="[%PROCESSOR_ARCHITECTURE]" Execute="immediate" />
     <CustomAction Id="DetectArch_Exec" Property="DETECTED_ARCH" Value="[%PROCESSOR_ARCHITECTURE]" Execute="immediate" />
     <InstallUISequence>
-      <Custom Action="DetectArch_UI" Before="LaunchConditions" Condition="1" />
+      <Custom Action="DetectArch_UI" Before="LaunchConditions" />
     </InstallUISequence>
     <InstallExecuteSequence>
-      <Custom Action="DetectArch_Exec" Before="LaunchConditions" Condition="1" />
+      <Custom Action="DetectArch_Exec" Before="LaunchConditions" />
     </InstallExecuteSequence>
     <Launch Condition="{{ARCH_LAUNCH_CONDITION}}"
             Message="{{ARCH_LAUNCH_MESSAGE}}" />
@@ -81,10 +79,10 @@
     </StandardDirectory>
 
     <Component Id="PathEntry" Guid="*" Directory="INSTALLFOLDER" Condition="{{PATH_CONDITION}}">
-      <RegistryValue Root="HKLM" Key="Software\Capomastro\PlenumNET\{{PRODUCT_SHORT_NAME}}"
-                     Name="PathInstalled" Type="integer" Value="1" KeyPath="yes" />
       <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]"
                    Permanent="no" Part="last" Action="set" System="yes" />
+      <RegistryValue Root="HKLM" Key="Software\Capomastro\PlenumNET\{{PRODUCT_SHORT_NAME}}"
+                     Name="PathEntryInstalled" Type="integer" Value="1" KeyPath="yes" />
     </Component>
 
     <Component Id="LauncherRegistryEntry" Guid="*" Directory="INSTALLFOLDER">
