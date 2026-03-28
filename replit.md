@@ -2,7 +2,7 @@
 
 ## Repository Scale
 **1,069,290 total LOC** | **393,892 source LOC** (excl. attached_assets) | **2,460 files** | **2,609 commits** | **80/80 milestones**
-Primary languages: Rust (142K), TypeScript (65K), TSX (40K), Markdown (76K). Full breakdown in `plenumnet-repo-guide/SKILL.md`.
+Rust 142K | TypeScript+TSX 105K | Markdown 76K | JSON 24K | HTML 8K | YAML 8K | Shell+PS1 9K | JS 3K | TOML/CSS/SQL/LD/SVG 2K. Full breakdown in `plenumnet-repo-guide/SKILL.md`.
 
 ## Overview
 PlenumNET is developing post-quantum internet solutions. This project creates a marketing website to showcase PlenumNET's quantum-resistant infrastructure, including the PlenumDB product with a compression demo and whitepaper management. It integrates payment processing and blockchain witnessing for secure, verifiable, and regulatory-compliant operations in quantum-resistant data and financial services. The project aims to position PlenumNET as a leader in next-generation internet solutions, offering unparalleled security and performance in the quantum-resistant internet domain.
