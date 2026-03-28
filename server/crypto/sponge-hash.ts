@@ -516,6 +516,13 @@ export function tritsToHex(trits: Int8Array): string {
   return bytes.toString('hex');
 }
 
+export function tis27Hash(input: Buffer | Uint8Array): string {
+  const inputTrits = bytesToBalancedTrits(Buffer.isBuffer(input) ? input : Buffer.from(input));
+  const outputTrits = spongeAbsorbAndSqueezeVersioned(inputTrits, 160, 2);
+  const bytes = tritsToBytes(outputTrits, 32);
+  return bytes.subarray(0, 16).toString('hex');
+}
+
 export const TL_SPONGE_HASH_BYTES = 49;
 export const TL_SPONGE_HASH_HEX_LEN = 98;
 export const TL_SPONGE_HASH_TRITS = 243;

@@ -36,6 +36,10 @@
     Applied Physics Division
 #>
 
+param(
+    [string]$AddOperator = ""
+)
+
 $DAEMON_COUNT   = 3
 $REMOTE_CRS     = "https://plenumnet.replit.app"
 $BASE_PORT      = 11111
@@ -341,6 +345,64 @@ Write-Host "---"
 
 New-Item -ItemType Directory -Force -Path $IdentityBase | Out-Null
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+
+$OpsBase = Join-Path $IdentityBase ".plenumnet"
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "ops") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "logs") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "configs") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "transfers") | Out-Null
+Write-Host "  [OK] Operations channel directories created" -ForegroundColor Green
+
+$opsConfigPath = Join-Path $OpsBase "ops-config.json"
+if (-not (Test-Path $opsConfigPath)) {
+    $opsConfig = @{
+        ops_enabled = $false
+        operators = @()
+        exec_timeout_seconds = 120
+        file_size_limit_bytes = 5242880
+        whitelisted_directories = @(".plenumnet/ops/", ".plenumnet/logs/", ".plenumnet/configs/", ".plenumnet/transfers/", ".plenumnet/models/")
+        blocked_extensions = @(".exe", ".dll", ".sys", ".bat", ".cmd", ".com", ".scr", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh", ".msi")
+        chunk_size_bytes = 524288
+        telemetry_interval_seconds = 60
+        audit_log_path = ".plenumnet/ops-audit.jsonl"
+        audit_log_max_size_mb = 50
+    } | ConvertTo-Json -Depth 3
+    Set-Content -Path $opsConfigPath -Value $opsConfig -Encoding UTF8
+    Write-Host "  [OK] Default ops-config.json created" -ForegroundColor Green
+}
+
+Write-Host "`n=== Ops Sandbox Hardening ===" -ForegroundColor Cyan
+try {
+    $aclOps = Get-Acl $OpsBase
+    $aclOps.SetAccessRuleProtection($true, $false)
+    $sysRule = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $admRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $aclOps.AddAccessRule($sysRule)
+    $aclOps.AddAccessRule($admRule)
+    Set-Acl -Path $OpsBase -AclObject $aclOps -ErrorAction SilentlyContinue
+    Write-Host "  [OK] ACL hardening applied to $OpsBase" -ForegroundColor Green
+} catch {
+    Write-Host "  [WARN] ACL hardening skipped: $_" -ForegroundColor Yellow
+}
+
+if ($AddOperator) {
+    Write-Host "`n=== Adding Operator ===" -ForegroundColor Cyan
+    try {
+        $opData = $AddOperator | ConvertFrom-Json
+        if (-not $opData.name -or -not $opData.public_key -or -not $opData.scope -or -not $opData.key_fingerprint) {
+            Write-Host "  [ERROR] -AddOperator JSON must include: name, public_key, scope, key_fingerprint" -ForegroundColor Red
+        } else {
+            $currentConfig = Get-Content $opsConfigPath -Raw | ConvertFrom-Json
+            $newOp = @{ name = $opData.name; public_key = $opData.public_key; scope = $opData.scope; key_fingerprint = $opData.key_fingerprint; registered_at = (Get-Date -Format 'o') }
+            $opsList = @($currentConfig.operators) + @($newOp)
+            $currentConfig.operators = $opsList
+            $currentConfig | ConvertTo-Json -Depth 5 | Set-Content -Path $opsConfigPath -Encoding UTF8
+            Write-Host "  [OK] Operator added: $($opData.name) (scope: $($opData.scope), fingerprint: $($opData.key_fingerprint))" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  [ERROR] Invalid -AddOperator JSON: $_" -ForegroundColor Red
+    }
+}
 
 $oldIdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
 if ((Test-Path $oldIdentityBase) -and ($oldIdentityBase -ne $IdentityBase)) {

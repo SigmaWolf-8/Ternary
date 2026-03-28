@@ -9,6 +9,10 @@
       irm https://plenumnet.replit.app/api/yoda-installer | iex
 #>
 
+param(
+    [string]$AddOperator = ""
+)
+
 $ErrorActionPreference = "Continue"
 
 function Test-Admin {
@@ -123,12 +127,14 @@ Write-Host ""
 Write-Host "STEP 7: Launching deployer..." -ForegroundColor Yellow
 Write-Host ""
 $deployScript = Join-Path $repoDir "services\inter-cube\deploy-yoda.ps1"
+$deployArgs = @()
+if ($AddOperator) { $deployArgs += "-AddOperator", $AddOperator }
 if (Test-Path $deployScript) {
-    & $deployScript
+    & $deployScript @deployArgs
 } else {
     Write-Host "  [!!] deploy-yoda.ps1 not found at $deployScript" -ForegroundColor Red
     Write-Host "  Downloading from API instead..." -ForegroundColor Yellow
     $tempDeploy = Join-Path $env:TEMP "deploy-yoda.ps1"
     (New-Object Net.WebClient).DownloadFile("https://plenumnet.replit.app/api/deploy-yoda", $tempDeploy)
-    & $tempDeploy
+    & $tempDeploy @deployArgs
 }

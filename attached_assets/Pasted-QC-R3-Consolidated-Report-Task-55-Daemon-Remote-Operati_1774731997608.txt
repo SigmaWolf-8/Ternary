@@ -1,0 +1,117 @@
+QC-R3 Consolidated Report — Task #55: Daemon Remote Operations Channel
+Capomastro Holdings Ltd. — Applied Physics Division Review Protocol Version: 1.2.0 Date: 2026-03-28 Source Document: Task #55 Rev. 4 (Post QC-R1 + QC-R2) QC-R1 Input: .local/qc-r1-task55/qc-r1-consolidated.md QC-R2 Input: .local/qc-r2-task55/qc-r2-consolidated.md
+
+Overall Verdict: PASS WITH CONDITIONS
+All three Round 3 agents issued PASS WITH CONDITIONS or better. No CRITICAL findings were raised — the specification has no user-facing surfaces that are broken or unimplementable from a brand/UX/content perspective.
+
+Partial Applicability: This specification describes a daemon operations channel, not an installer, launcher, or standalone application. Many R3 scope items (installer wizard, launcher panel, uninstall flow, icon system) are N/A. The applicable surfaces are: terminal ops console (Task 10), error messages (Task 1), deploy script output (Task 9), configuration management (Task 8), and approval gate UI (Task 6).
+
+Agent	Verdict	CRITICAL	IMPORTANT	MINOR	Brand Score
+Agent 7: Brand Guardian	PASS WITH CONDITIONS	0	1	3	6
+Agent 8: UX Designer	PASS WITH CONDITIONS	0	3	3	6
+Agent 9: Content Creator	PASS WITH CONDITIONS	0	1	4	7
+Totals (pre-dedup)		0	5	10	
+Totals (post-dedup)		0	5	9	
+Brand Readiness Index
+Brand Readiness Index: 6.3 / 10 (average of 6, 6, 7)
+
+This is above the 6.0 threshold — the spec is acceptable for implementation with IMPORTANT findings tracked as pre-release gates. No design sprint is triggered. This score reflects the spec's nature: it is a daemon/protocol specification with limited but well-designed user-facing surfaces. The terminal ops console design direction is strong; the gaps are in token-level visual detail and interaction state specifications.
+
+Consolidated Finding Table (Round 3 Only)
+Sorted by severity (IMPORTANT first), then by agent number.
+
+#	Finding ID	Agent(s)	Section	Severity	Finding (Summary)
+1	R3-A7-1	A7	Task 10 — Status Colors	IMPORTANT	Status indicator colors ("green," "yellow," "red") are generic names, not palette tokens. No hex values, no WCAG contrast verification against dark background.
+2	R3-A8-1	A8	Task 6 — Approval Gate	IMPORTANT	No specified visual feedback between "Approve" click and NinjaExec dialog appearance. The most critical UX moment has a gap with no loading state.
+3	R3-A8-2	A8	Task 10 — Model Hot-Swap	IMPORTANT	No intermediate progress states during model swap. LLM engine shows "down" (red) during the 120-second swap window — indistinguishable from failure.
+4	R3-A8-3	A8	Task 8/9 — Operator Registration	IMPORTANT	Manual JSON editing for operator registration is highest-friction config action. Should be scriptable via -AddOperator parameter.
+5	R3-A9-1	A9	Task 1 — Error Codes	IMPORTANT	Error code table has machine-readable codes but no display_message column defining what operators see in the UI.
+6	R3-A7-2	A7	Task 10 — Sandbox Level Display	MINOR	"Full (AppLocker)" / "Reduced (ACLs only)" — parenthetical technical terms add no value. Visual shield indicator + tooltip would be more scannable.
+7	R3-A7-3	A7	Task 10 — Panel Layout	MINOR	No visual framework specification (borders, gutters, header treatment). "tmux panels" is a mental model, not a visual spec.
+8	R3-A7-4 / R3-A8-5*	A7, A8	Task 10 — Operations Timeline	MINOR	Rep C addresses as primary operator identifiers are not human-scannable. Show operator name as primary, Rep C as secondary/tooltip. (Deduplicated: A8 Friction Map also notes this.)
+9	R3-A8-4	A8	Task 6 — NinjaExec Error Display	MINOR	NinjaExec error messages are well-written but display mechanism (inline vs. toast vs. modal) is unspecified for terminal context.
+10	R3-A8-5	A8	Task 10 — Log Viewer Warning	MINOR	"bandwidth cap" is jargon. Rewrite to "Some log lines were skipped — the log is updating faster than the streaming limit."
+11	R3-A8-6	A8	Task 9 — Readiness Summary	MINOR	Deploy script readiness summary format unspecified. Should be a structured checklist with visual indicators.
+12	R3-A9-2	A9	Task 7 — Telemetry Caveat	MINOR	Caveat reads like a legal disclaimer. Rewrite to be actionable or move to API docs. Terminal should not display it.
+13	R3-A9-3	A9	Task 8 — Config Error Tone	MINOR	"DISABLED" in all caps reads as shouting. Use "inactive" — same meaning, professional tone.
+14	R3-A9-4	A9	Task 9 — Privilege Message	MINOR	SeAssignPrimaryTokenPrivilege is jargon. Front-load the action ("reboot and re-run"), relegate technical name to parenthetical.
+15	R3-A9-5	A9	Task 8 — Key Fingerprint Error	MINOR	Error identifies the problem but doesn't include recovery instructions. Add "Remove the key_fingerprint field or re-export from NinjaExec."
+Conditions Summary
+IMPORTANT (Must resolve before first release)
+The five IMPORTANT findings fall into three categories:
+
+Visual Specification (resolve before implementing Task 10):
+
+Define palette tokens for status colors with hex values and WCAG 3:1 contrast against dark background (R3-A7-1)
+Interaction States (resolve before implementing Task 6): 2. Add "Requesting signature..." loading state after Approve click (R3-A8-1)
+
+Define "swapping" engine state distinct from "down" during model hot-swap (R3-A8-2)
+Operator Workflow (resolve before first deployment): 4. Add -AddOperator parameter to deploy scripts for scriptable operator registration (R3-A8-3)
+
+Add display_message column to error code table for operator-facing text (R3-A9-1)
+Appendix A: Readability Matrix (Agent 7)
+N/A — this specification does not define product icons. The terminal ops console uses text+color status indicators. No icon system is required.
+
+Appendix B: Friction Map (Agent 8)
+Phase	Action	Rating	Notes
+Configure	Export operator key	SMOOTH	Single command, structured output
+Configure	Paste operator key into config	ROUGH	Manual JSON editing — error-prone
+Configure	Run deploy script	SMOOTH	Single PowerShell command
+Configure	Deploy on domain-joined machine (GP)	ACCEPTABLE	Clear error with -ServiceAccount guidance
+Configure	Review readiness summary	ACCEPTABLE	Format unspecified
+Configure	Enable ops channel	ACCEPTABLE	Manual JSON edit
+Configure	Add second operator	ROUGH	Same manual JSON editing
+Configure	Fix JSON syntax error	ACCEPTABLE	verify-ops-config + line/column logging
+Operate	AI generates → operator reviews	SMOOTH	Syntax highlighting, clear actions
+Operate	Click Approve → wait for NinjaExec	ROUGH	No feedback during wait
+Operate	NinjaExec confirmation dialog	SMOOTH	Mandatory, clear
+Operate	View exec result	SMOOTH	Exit code prominent, output inline
+Operate	Terminal elevated execution	SMOOTH	Lighter confirmation, same sandbox
+Operate	Terminal cluster fan-out	SMOOTH	Results grouped by node
+Operate	View telemetry sidebar	SMOOTH	Live-updating, sparklines, thresholds
+Operate	Tail a log file	SMOOTH	Scoped file selector, real-time
+Operate	Push a config file	SMOOTH	File browser panel
+Operate	Pull/download a log	SMOOTH	File browser panel
+Operate	Initiate model hot-swap	ACCEPTABLE	Select → confirm → NinjaExec
+Operate	Monitor swap in progress	ROUGH	No intermediate state — shows "down"
+Operate	Handle swap failure/rollback	ACCEPTABLE	Auto-rollback, result message
+Operate	Monitor chunked transfer	SMOOTH	Progress %, throughput, ETA
+Operate	Cancel model transfer	SMOOTH	Immediate cleanup
+Operate	View operations timeline	ACCEPTABLE	Expandable but Rep C as primary ID
+Operate	NinjaExec not running	ACCEPTABLE	Clear message, display mechanism unspecified
+Operate	NinjaExec locked	ACCEPTABLE	Clear message
+Operate	Operation on disconnected node	SMOOTH	NODE_UNREACHABLE error
+Operate	Bandwidth-capped log viewer	ACCEPTABLE	Warning uses jargon
+Update	Detect outdated deploy version	ACCEPTABLE	Warning logged, operator re-runs script
+Update	Re-run deploy (reinstall)	SMOOTH	Preserves registry, logs cleanup
+action_count: 30
+
+Summary: 14 SMOOTH, 12 ACCEPTABLE, 4 ROUGH. The three ROUGH actions are: manual JSON editing for operator registration (×2) and missing feedback states (approval gate wait, model swap progress).
+
+Appendix C: Copy Audit Table (Agent 9)
+Location	Current Copy	Recommended Copy	Change Type	Priority
+Task 1 — Error codes	Machine-readable codes only	Add display_message column with operator-facing text	NEW	IMPORTANT
+Task 7 — Telemetry caveat	"Self-reported and unsigned. Informational only."	"Telemetry is self-reported. Use signed operations for authoritative health checks."	REVISED	MINOR
+Task 8 — Config parse error	"...Operations channel is DISABLED until config is fixed."	"...The operations channel will remain inactive until the config is corrected."	REVISED	MINOR
+Task 9 — Privilege message	"SeAssignPrimaryTokenPrivilege was assigned but..."	"A required Windows privilege has been configured but requires a reboot... (Technical detail: SeAssignPrimaryTokenPrivilege)"	REVISED	MINOR
+Task 8 — Key fingerprint error	"key_fingerprint for operator '{name}' does not match TIS-27(public_key)..."	Add recovery instructions before technical details	REVISED	MINOR
+Task 10 — Log bandwidth warning	"Log output is being generated faster than the bandwidth cap..."	"Some log lines were skipped — the log is updating faster than the streaming limit."	REVISED	MINOR
+9 additional text instances reviewed — no changes recommended.
+
+QC-R1 → QC-R2 → QC-R3 Combined Status
+Round	CRITICAL	IMPORTANT	MINOR	Verdict
+QC-R1 (3 agents)	6 (all RESOLVED)	11 (all RESOLVED)	7 (all RESOLVED)	RESOLVED
+QC-R2 (3 agents)	1 (RESOLVED in Rev. 4)	9 (all RESOLVED in Rev. 4)	9 (all RESOLVED in Rev. 4)	RESOLVED
+QC-R3 (3 agents)	0	5 (new)	10 (new, 9 post-dedup)	PASS WITH CONDITIONS
+Open	0	5	9	Brand Readiness: 6.3
+The specification has passed all three quality control rounds. Zero open CRITICAL findings. The 5 IMPORTANT findings from R3 are pre-release gates that can be resolved during implementation without architectural changes. The 9 MINOR findings are backlog polish items.
+
+Agent Reviews
+The full text of each agent's review is available in the individual files:
+
+.local/qc-r3-task55/qc-r3-agent7-brand-guardian.md
+.local/qc-r3-task55/qc-r3-agent8-ux-designer.md
+.local/qc-r3-task55/qc-r3-agent9-content-creator.md
+Capomastro Holdings Ltd. — Applied Physics Division Sherwood Park, Alberta, Canada
+
+Sed Quis Est Deus? Qui Commando IO.

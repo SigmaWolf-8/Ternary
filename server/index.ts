@@ -62,6 +62,8 @@ import { HederaWitnessingService, createHederaConfig } from "./services/hedera-w
 import { createHederaRoutes } from "./routes/hedera";
 import { SFKOperationsService } from "./services/sfk-operations-service";
 import { createSFKOperationsRoutes } from "./routes/sfk-operations";
+import { opsChannelService } from "./services/ops-channel";
+import { isOpsMessageType, type OpsMessageType, type OpsErrorCode, type OpsMessage, type TelemetryMessage } from "@shared/ops-protocol";
 
 const app = express();
 const httpServer = createServer(app);
@@ -486,6 +488,159 @@ function startPqtiService(): ChildProcess | null {
         : ['tsa-only', 'none'],
     });
   });
+
+  const OPS_ADMIN_SUBS = new Set((process.env.OPS_ADMIN_SUBS || '').split(',').filter(Boolean));
+  const requireOpsAuth = (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as Request & { user?: { claims?: { sub?: string; role?: string; is_admin?: boolean } }; isAuthenticated?: () => boolean };
+    const user = authReq.user;
+    const sub = user?.claims?.sub;
+    const isAuthed = authReq.isAuthenticated?.() && sub;
+    if (!isAuthed || !sub) {
+      return res.status(401).json({ error: "Authentication required for ops endpoints" });
+    }
+    const isAdmin = user?.claims?.role === 'admin' || user?.claims?.is_admin === true || OPS_ADMIN_SUBS.has(sub);
+    if (!isAdmin) {
+      return res.status(403).json({ error: "Ops endpoints require admin privileges" });
+    }
+    next();
+  };
+
+  app.post('/api/ops/tis27-hash', requireOpsAuth, (req, res) => {
+    try {
+      const { data_base64 } = req.body;
+      if (!data_base64 || typeof data_base64 !== 'string') {
+        return res.status(400).json({ error: 'data_base64 required' });
+      }
+      const { tis27Hash } = require('./crypto/sponge-hash');
+      const hash = tis27Hash(Buffer.from(data_base64, 'utf-8'));
+      res.json({ hash, algorithm: 'tis27', length: hash.length });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || 'Hash computation failed' });
+    }
+  });
+
+  app.get('/api/ops/status', requireOpsAuth, (_req, res) => {
+    const status = opsChannelService.getOpsStatus();
+    res.json(status);
+  });
+
+  app.get('/api/ops/audit', requireOpsAuth, (_req, res) => {
+    const limit = Math.min(parseInt(String(_req.query.limit || '20'), 10), 100);
+    const entries = opsChannelService.getRecentAuditEntries(limit);
+    res.json({ entries, count: entries.length });
+  });
+
+  app.get('/api/ops/operators', requireOpsAuth, (_req, res) => {
+    const operators = opsChannelService.listOperators().map(op => ({
+      name: op.name,
+      keyFingerprint: op.keyFingerprint,
+      scope: op.scope,
+      registeredAt: op.registeredAt,
+    }));
+    res.json({ operators, ops_enabled: opsChannelService.isOpsEnabled() });
+  });
+
+  app.post('/api/ops/enable', requireOpsAuth, (_req, res) => {
+    opsChannelService.setOpsEnabled(true);
+    for (const [, clientWs] of relayClients.entries()) {
+      if (clientWs.readyState === WebSocket.OPEN) {
+        clientWs.send(JSON.stringify({ type: "relay", msgType: "ops-config-update", payload: JSON.stringify({ ops_enabled: true }), from: "coordinator" }));
+      }
+    }
+    log('Operations channel ENABLED (propagated to connected nodes)', 'ops');
+    res.json({ ops_enabled: true });
+  });
+
+  app.post('/api/ops/disable', requireOpsAuth, (_req, res) => {
+    opsChannelService.setOpsEnabled(false);
+    for (const [, clientWs] of relayClients.entries()) {
+      if (clientWs.readyState === WebSocket.OPEN) {
+        clientWs.send(JSON.stringify({ type: "relay", msgType: "ops-config-update", payload: JSON.stringify({ ops_enabled: false }), from: "coordinator" }));
+      }
+    }
+    log('Operations channel DISABLED (propagated to connected nodes)', 'ops');
+    res.json({ ops_enabled: false });
+  });
+
+  app.post('/api/ops/operators', requireOpsAuth, (req: Request, res: Response) => {
+    const { name, keyFingerprint, publicKey, scope } = req.body;
+    if (!name || !keyFingerprint || !publicKey || !scope) {
+      res.status(400).json({ error: 'Missing required fields: name, keyFingerprint, publicKey, scope' });
+      return;
+    }
+    if (!['full', 'exec-only', 'read-only'].includes(scope)) {
+      res.status(400).json({ error: 'Invalid scope — must be: full, exec-only, or read-only' });
+      return;
+    }
+    opsChannelService.registerOperator({
+      name,
+      keyFingerprint,
+      publicKey,
+      scope,
+      registeredAt: new Date().toISOString(),
+    });
+    for (const [, clientWs] of relayClients.entries()) {
+      if (clientWs.readyState === WebSocket.OPEN) {
+        clientWs.send(JSON.stringify({ type: "relay", msgType: "ops-operator-sync", payload: JSON.stringify({ action: "add", name, key_fingerprint: keyFingerprint, public_key: publicKey, scope }), from: "coordinator" }));
+      }
+    }
+    log(`Operator registered: ${name} (${keyFingerprint}, scope: ${scope})`, 'ops');
+    res.json({ registered: true, name, keyFingerprint, scope });
+  });
+
+  app.delete('/api/ops/operators/:fingerprint', requireOpsAuth, (req: Request, res: Response) => {
+    const fp = String(req.params.fingerprint);
+    const removed = opsChannelService.removeOperator(fp);
+    if (removed) {
+      for (const [, clientWs] of relayClients.entries()) {
+        if (clientWs.readyState === WebSocket.OPEN) {
+          clientWs.send(JSON.stringify({ type: "relay", msgType: "ops-operator-sync", payload: JSON.stringify({ action: "remove", key_fingerprint: fp }), from: "coordinator" }));
+        }
+      }
+      log(`Operator removed: ${fp}`, 'ops');
+      res.json({ removed: true, fingerprint: fp });
+    } else {
+      res.status(404).json({ error: 'Operator not found' });
+    }
+  });
+
+  const bootstrapFingerprint = tldsaKeyId.substring(0, 16);
+  opsChannelService.registerOperator({
+    name: 'bootstrap-relay-verifier',
+    keyFingerprint: bootstrapFingerprint,
+    publicKey: tldsaKeypair.publicKey.toString('hex'),
+    scope: 'read-only',
+    registeredAt: new Date().toISOString(),
+  });
+  app.post('/api/ops/propose-exec', requireOpsAuth, (req: Request, res: Response) => {
+    const { proposed_script, rationale, target_node_id } = req.body;
+    if (!proposed_script || !target_node_id) {
+      return res.status(400).json({ error: 'proposed_script and target_node_id are required' });
+    }
+    const proposal = {
+      type: "propose-exec" as const,
+      source: "yoda-ai" as const,
+      proposed_script: String(proposed_script),
+      rationale: String(rationale || "AI-generated script"),
+      target_node_id: String(target_node_id),
+      proposal_id: `ai-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      proposed_at: new Date().toISOString(),
+    };
+    const clients = (globalThis as any).__opsTerminalClients as Set<WebSocket> | undefined;
+    let delivered = 0;
+    if (clients) {
+      for (const ws of clients) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(proposal));
+          delivered++;
+        }
+      }
+    }
+    log(`Propose-exec delivered to ${delivered} terminal client(s): ${rationale || 'no rationale'}`, 'ops');
+    res.json({ proposal_id: proposal.proposal_id, delivered });
+  });
+
+  log(`Ops Channel — 8 endpoints at /api/ops/* (bootstrap verifier: ${bootstrapFingerprint} [read-only], ops_enabled: false — register operators via POST /api/ops/operators, enable via POST /api/ops/enable)`, 'ops');
 
   await registerRoutes(httpServer, app);
 
@@ -1437,6 +1592,9 @@ function startPqtiService(): ChildProcess | null {
   const relayAddressByWs = new Map<WebSocket, string>();
   const relayConnectedAt = new Map<string, number>();
   const pendingMessages = new Map<string, Array<{ from: string; type: string; payload: string; ts: number }>>();
+  const opsRequestOriginators = new Map<string, WebSocket>();
+  const opsTerminalClients = new Set<WebSocket>();
+  (globalThis as any).__opsTerminalClients = opsTerminalClients;
   (globalThis as any).__relayClients = relayClients;
   (globalThis as any).__relayConnectedAt = relayConnectedAt;
   (globalThis as any).__pendingMessages = pendingMessages;
@@ -1562,6 +1720,8 @@ function startPqtiService(): ChildProcess | null {
     let msgWindowStart = Date.now();
     let remoteNodeAddress: string | null = null;
     const remoteSessionId = crypto.randomBytes(8).toString("hex");
+    const activeTailFollows: Map<string, string> = new Map();
+    opsTerminalClients.add(ws);
 
     function checkRateLimit(): boolean {
       const now = Date.now();
@@ -1751,6 +1911,65 @@ function startPqtiService(): ChildProcess | null {
           ws.send(JSON.stringify({ type: "session_list", sessions: listSessions(ownerId) }));
           break;
         }
+        case "exec":
+        case "tail":
+        case "tail-stop":
+        case "file-push":
+        case "file-pull":
+        case "chunk-init":
+        case "chunk-data":
+        case "chunk-complete":
+        case "transfer-cancel":
+        case "model-swap": {
+          const targetNodeId = msg.node_id;
+          if (!targetNodeId) {
+            ws.send(JSON.stringify({ type: "ops_message", data: { type: "ops-error", error_code: "NODE_NOT_FOUND", message: "Missing node_id" } }));
+            break;
+          }
+          const validation = opsChannelService.validateOpsMessage(msg);
+          if (!validation.valid) {
+            ws.send(JSON.stringify({ type: "ops_message", data: opsChannelService.makeOpsError(
+              targetNodeId, msg.request_id || '', (validation.errorCode || 'SIGNATURE_MISSING') as OpsErrorCode,
+              validation.errorMessage || 'Ops message validation failed', msg.type as OpsMessageType,
+            ) }));
+            break;
+          }
+
+          let opsTargetWs: WebSocket | undefined;
+          for (const [addr, clientWs] of relayClients.entries()) {
+            if (addr === targetNodeId) {
+              opsTargetWs = clientWs;
+              break;
+            }
+          }
+          if (!opsTargetWs || opsTargetWs.readyState !== WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "ops_message", data: opsChannelService.makeOpsError(targetNodeId, msg.request_id || '', 'NODE_DISCONNECTED', `Node ${targetNodeId} is not connected`, msg.type as OpsMessageType) }));
+            break;
+          }
+
+          opsChannelService.recordAuditEntry(opsChannelService.createAuditEntry(msg as OpsMessage, 'success'));
+
+          if (msg.type === 'tail' && msg.follow) {
+            activeTailFollows.set(msg.request_id, targetNodeId);
+          }
+          if (msg.type === 'tail-stop') {
+            const origId = msg.original_request_id || msg.request_id;
+            activeTailFollows.delete(origId);
+          }
+
+          if (msg.request_id) {
+            opsRequestOriginators.set(msg.request_id, ws);
+          }
+
+          opsTargetWs.send(JSON.stringify({
+            type: "relay",
+            msgType: msg.type,
+            payload: JSON.stringify(msg),
+            from: "coordinator",
+          }));
+          opsChannelService.updateNodeSeen(targetNodeId, targetNodeId);
+          break;
+        }
         case "cluster_exec": {
           const command = msg.command;
           if (!command) break;
@@ -1817,6 +2036,44 @@ function startPqtiService(): ChildProcess | null {
         const session = getSession(activeSessionId);
         if (session) {
           try { (session.ptyProcess as any).removeListener("data", dataListener); } catch {}
+        }
+      }
+      for (const [tailReqId, tailNodeId] of activeTailFollows.entries()) {
+        const nodeWs = relayClients.get(tailNodeId);
+        if (nodeWs && nodeWs.readyState === WebSocket.OPEN) {
+          try {
+            const stopPayload: Record<string, string> = {
+              type: "tail-stop",
+              node_id: tailNodeId,
+              request_id: `disconnect-stop-${Date.now()}`,
+              original_request_id: tailReqId,
+            };
+            const canonicalKeys = Object.keys(stopPayload).sort();
+            const canonical: Record<string, string> = {};
+            for (const k of canonicalKeys) canonical[k] = stopPayload[k];
+            const payloadBuf = Buffer.from(JSON.stringify(canonical));
+            const sig = signHex(tldsaKeypair.secretKey, payloadBuf.toString('hex'), tldsaKeypair.variant);
+            const fp = publicKeyHash(tldsaKeypair.publicKey).substring(0, 16);
+            nodeWs.send(JSON.stringify({
+              type: "relay",
+              msgType: "tail-stop",
+              payload: JSON.stringify({
+                ...stopPayload,
+                signature: sig,
+                operator_fingerprint: fp,
+              }),
+              from: "coordinator",
+            }));
+          } catch (e) {
+            console.error("[ws-relay] Failed to send disconnect tail-stop:", e);
+          }
+        }
+      }
+      activeTailFollows.clear();
+      opsTerminalClients.delete(ws);
+      for (const [reqId, origWs] of opsRequestOriginators.entries()) {
+        if (origWs === ws) {
+          opsRequestOriginators.delete(reqId);
         }
       }
     });
@@ -2060,6 +2317,14 @@ function startPqtiService(): ChildProcess | null {
           }
           recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: "connected", code: 0, eventType: "reconnect" });
 
+          const allOperators = opsChannelService.listOperators();
+          for (const op of allOperators) {
+            ws.send(JSON.stringify({ type: "relay", msgType: "ops-operator-sync", payload: JSON.stringify({ action: "add", name: op.name, key_fingerprint: op.keyFingerprint, public_key: op.publicKey, scope: op.scope }), from: "coordinator" }));
+          }
+          if (opsChannelService.isOpsEnabled()) {
+            ws.send(JSON.stringify({ type: "relay", msgType: "ops-config-update", payload: JSON.stringify({ ops_enabled: true }), from: "coordinator" }));
+          }
+
           const crsEntry = crsRegistry.get(nodeAddress);
           if (crsEntry) {
             crsEntry.lastSeen = Date.now();
@@ -2126,6 +2391,41 @@ function startPqtiService(): ChildProcess | null {
         return;
       }
 
+      if (msg.type === "relay" && msg.msgType && msg.payload && isOpsMessageType(msg.msgType)) {
+        try {
+          const opsPayload = JSON.parse(msg.payload);
+          opsPayload.type = opsPayload.type || msg.msgType;
+
+          if (opsPayload.type === "telemetry") {
+            opsChannelService.updateNodeTelemetry(
+              opsPayload.node_id || nodeAddress, nodeAddress, opsPayload as TelemetryMessage,
+            );
+          } else {
+            opsChannelService.updateNodeSeen(opsPayload.node_id || nodeAddress, nodeAddress);
+          }
+
+          if (terminalWss) {
+            const opsReqId = opsPayload.request_id as string | undefined;
+            const originWs = opsReqId ? opsRequestOriginators.get(opsReqId) : undefined;
+            const broadcast = JSON.stringify({ type: "ops_message", data: opsPayload });
+            if (originWs && originWs.readyState === WebSocket.OPEN) {
+              originWs.send(broadcast);
+              const isFinal = opsPayload.type !== "tail-data" && opsPayload.type !== "chunk-ack";
+              if (isFinal && opsReqId) {
+                opsRequestOriginators.delete(opsReqId);
+              }
+            } else if (!originWs && opsPayload.type === "telemetry") {
+              terminalWss.clients.forEach((termWs: WebSocket) => {
+                if (termWs.readyState === WebSocket.OPEN) {
+                  termWs.send(broadcast);
+                }
+              });
+            }
+          }
+        } catch {}
+        return;
+      }
+
       if (msg.type === "relay" && msg.to && msg.payload) {
         const targetWs = relayClients.get(normalizeTernaryAddr(msg.to));
         const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
@@ -2177,6 +2477,90 @@ function startPqtiService(): ChildProcess | null {
         return;
       }
 
+      if (isOpsMessageType(msg.type)) {
+        if (msg.type === "telemetry") {
+          opsChannelService.updateNodeTelemetry(
+            msg.node_id || nodeAddress,
+            nodeAddress,
+            msg as TelemetryMessage,
+          );
+          return;
+        }
+
+        if (msg.type === "exec-result" || msg.type === "tail-data" ||
+            msg.type === "file-push-ack" || msg.type === "file-data" ||
+            msg.type === "chunk-ack" || msg.type === "chunk-complete" ||
+            msg.type === "model-swap-result" || msg.type === "ops-error") {
+          opsChannelService.updateNodeSeen(msg.node_id || nodeAddress, nodeAddress);
+          const opsResponseMsg = JSON.stringify({ type: "ops-response", opsType: msg.type, ...msg, from: nodeAddress });
+          for (const [, clientWs] of relayClients.entries()) {
+            if (clientWs !== ws && clientWs.readyState === WebSocket.OPEN) {
+              clientWs.send(opsResponseMsg);
+            }
+          }
+
+          if (terminalWss) {
+            const reqId = msg.request_id as string | undefined;
+            const originatorWs = reqId ? opsRequestOriginators.get(reqId) : undefined;
+            if (originatorWs && originatorWs.readyState === WebSocket.OPEN) {
+              originatorWs.send(JSON.stringify({ type: "ops_message", data: msg }));
+              const isFinal = msg.type !== "tail-data" && msg.type !== "chunk-ack";
+              if (isFinal && reqId) {
+                opsRequestOriginators.delete(reqId);
+              }
+            } else if (!originatorWs) {
+              terminalWss.clients.forEach((termWs: WebSocket) => {
+                if (termWs.readyState === WebSocket.OPEN) {
+                  termWs.send(JSON.stringify({ type: "ops_message", data: msg }));
+                }
+              });
+            }
+          }
+          return;
+        }
+
+        const validation = opsChannelService.validateOpsMessage(msg);
+        if (!validation.valid) {
+          ws.send(JSON.stringify(opsChannelService.makeOpsError(
+            msg.node_id || '', msg.request_id || '',
+            (validation.errorCode || 'SIGNATURE_MISSING') as OpsErrorCode,
+            validation.errorMessage || 'Ops message validation failed',
+            msg.type as OpsMessageType,
+          )));
+          return;
+        }
+
+        const targetNodeId = msg.node_id;
+        if (!targetNodeId) {
+          ws.send(JSON.stringify(opsChannelService.makeOpsError('', msg.request_id || '', 'NODE_NOT_FOUND', 'Missing node_id', msg.type as OpsMessageType)));
+          return;
+        }
+
+        let targetWs: WebSocket | undefined;
+        for (const [addr, clientWs] of relayClients.entries()) {
+          if (addr === targetNodeId) {
+            targetWs = clientWs;
+            break;
+          }
+        }
+
+        if (!targetWs || targetWs.readyState !== WebSocket.OPEN) {
+          ws.send(JSON.stringify(opsChannelService.makeOpsError(targetNodeId, msg.request_id || '', 'NODE_DISCONNECTED', `Node ${targetNodeId} is not connected`, msg.type as OpsMessageType)));
+          return;
+        }
+
+        opsChannelService.recordAuditEntry(opsChannelService.createAuditEntry(msg as OpsMessage, 'success'));
+
+        targetWs.send(JSON.stringify({
+          type: "relay",
+          msgType: msg.type,
+          payload: JSON.stringify(msg),
+          from: nodeAddress || "coordinator",
+        }));
+        opsChannelService.updateNodeSeen(targetNodeId, targetNodeId);
+        return;
+      }
+
       ws.send(JSON.stringify(makeErrorResponse("ERR_UNKNOWN_MSG_TYPE", msg.type)));
       if (nodeAddress) {
         recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { code: "ERR_UNKNOWN_MSG_TYPE", msgType: msg.type } });
@@ -2189,6 +2573,7 @@ function startPqtiService(): ChildProcess | null {
         relayAddressByWs.delete(ws);
         relayConnectedAt.delete(nodeAddress);
         relayLastPong.delete(nodeAddress);
+        opsChannelService.markNodeDisconnected(nodeAddress);
         const reasonStr = reason.toString() || "none";
         const remaining = Array.from(relayClients.keys()).map(a => toDottedAddr(a)).join(", ");
         console.log(`[ws-relay] Node ${toDottedAddr(nodeAddress)} DISCONNECTED (code=${code}, reason=${reasonStr}) — ${relayClients.size} peer(s) remain${remaining ? `: [${remaining}]` : ""}`);

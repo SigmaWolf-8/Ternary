@@ -1301,11 +1301,23 @@ fn spawn_relay_client(
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
     let api_port_val = api_port();
     let endpoint_str = format!("0.0.0.0:{}", api_port_val);
+    let ops_address = address.clone();
     tokio::spawn(async move {
         let mut peer_msg_rx = peer_msg_rx;
         println!();
         println!("[ws-relay] Establishing relay connection to {}...", relay_url_str);
         println!("[ws-relay] Inference dispatch target: {}/v1/chat/completions", llm_base_url);
+
+        let ops_base_dir = std::path::PathBuf::from(
+            env::var("PLENUMNET_BASE_DIR").unwrap_or_else(|_| ".".to_string())
+        );
+        let ops_handler = std::sync::Arc::new(
+            inter_cube::ops_handler::OpsHandler::new(ops_address.clone(), ops_base_dir.clone())
+        );
+        let ops_config_path = ops_base_dir.join(".plenumnet/ops-config.json");
+        ops_handler.load_config(&ops_config_path).await;
+        ops_handler.load_persisted_transfers().await;
+        println!("[ops] Operations handler initialized for node {}", ops_address);
         let mut retry_delay = Duration::from_secs(5);
         let inference_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
@@ -1350,6 +1362,59 @@ fn spawn_relay_client(
                 Ok((client, mut incoming_rx)) => {
                     println!("[ws-relay] Relay tunnel active — NAT traversal established");
                     retry_delay = Duration::from_secs(5);
+
+                    let (ops_ws_tx, mut ops_ws_rx) = tokio::sync::mpsc::unbounded_channel::<serde_json::Value>();
+                    ops_handler.set_ws_sender(ops_ws_tx).await;
+                    let ops_stream_tx = client.outgoing_tx.clone();
+                    tokio::spawn(async move {
+                        while let Some(msg) = ops_ws_rx.recv().await {
+                            let msg_type = msg.get("type")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("ops-data")
+                                .to_string();
+                            let env = inter_cube::ws_relay::RelayEnvelope {
+                                msg_type: "relay".to_string(),
+                                to: Some("coordinator".to_string()),
+                                relay_msg_type: Some(msg_type),
+                                payload: Some(msg.to_string()),
+                                address: None, public_key: None, nonce: None,
+                                signature: None, from: None, error: None,
+                                delivered: None, connected_peers: None,
+                                ts: None, connected: None,
+                            };
+                            if let Err(e) = ops_stream_tx.send(env).await {
+                                println!("[ops] ws_sender relay forward failed: {}", e);
+                                break;
+                            }
+                        }
+                    });
+
+                    let ops_telem_handler = ops_handler.clone();
+                    let ops_telem_tx = client.outgoing_tx.clone();
+                    let ops_telem_connected = client.connected.clone();
+                    tokio::spawn(async move {
+                        let mut interval = tokio::time::interval(Duration::from_secs(60));
+                        interval.tick().await;
+                        loop {
+                            interval.tick().await;
+                            if !*ops_telem_connected.lock().await { break; }
+                            if !ops_telem_handler.is_enabled().await { continue; }
+                            let telemetry = ops_telem_handler.collect_telemetry().await;
+                            let env = inter_cube::ws_relay::RelayEnvelope {
+                                msg_type: "relay".to_string(),
+                                to: None,
+                                relay_msg_type: Some("telemetry".to_string()),
+                                payload: Some(telemetry.to_string()),
+                                address: None, public_key: None, nonce: None,
+                                signature: None, from: None, error: None,
+                                delivered: None, connected_peers: None,
+                                ts: None, connected: None,
+                            };
+                            if ops_telem_tx.send(env).await.is_err() { break; }
+                            ops_telem_handler.cleanup_stale_transfers().await;
+                        }
+                        println!("[ops] Telemetry background task ended");
+                    });
 
                     let client_ping = client.outgoing_tx.clone();
                     let connected_ping = client.connected.clone();
@@ -1681,6 +1746,82 @@ fn spawn_relay_client(
                             continue;
                         }
 
+                        if msg_type == "ops-config-update" {
+                            let oh = ops_handler.clone();
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
+                                if let Some(enabled) = parsed.get("ops_enabled").and_then(|v| v.as_bool()) {
+                                    oh.set_ops_enabled(enabled).await;
+                                    println!("[ops] Config updated from coordinator: ops_enabled={}", enabled);
+                                }
+                            });
+                            continue;
+                        }
+
+                        if msg_type == "ops-operator-sync" {
+                            let oh = ops_handler.clone();
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
+                                let action = parsed.get("action").and_then(|v| v.as_str()).unwrap_or("");
+                                match action {
+                                    "add" => {
+                                        let fp = parsed.get("key_fingerprint").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let name = parsed.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let pk = parsed.get("public_key").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let scope = parsed.get("scope").and_then(|v| v.as_str()).unwrap_or("read-only").to_string();
+                                        oh.add_operator(fp.clone(), name.clone(), pk, scope.clone()).await;
+                                        println!("[ops] Operator synced from coordinator: {} ({}, scope: {})", name, fp, scope);
+                                    }
+                                    "remove" => {
+                                        let fp = parsed.get("key_fingerprint").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        oh.remove_operator(&fp).await;
+                                        println!("[ops] Operator removed via coordinator sync: {}", fp);
+                                    }
+                                    _ => {}
+                                }
+                            });
+                            continue;
+                        }
+
+                        let ops_msg_types = [
+                            "exec", "tail", "tail-stop", "file-push", "file-pull",
+                            "chunk-init", "chunk-data", "chunk-complete", "transfer-cancel", "model-swap",
+                        ];
+                        if ops_msg_types.contains(&msg_type) {
+                            let oh = ops_handler.clone();
+                            let reply_tx = client.outgoing_tx.clone();
+                            let addr_ops = address.clone();
+                            let from_ops = from.clone();
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
+                                let mut msg_with_type = parsed.clone();
+                                if let Some(obj) = msg_with_type.as_object_mut() {
+                                    obj.insert("type".to_string(), serde_json::json!(msg_type));
+                                }
+                                println!("[ops] Handling {} from {}", msg_type, from_ops);
+                                if let Some(response) = oh.handle_ops_message(&msg_with_type).await {
+                                    let response_type = response.get("type")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("ops-error")
+                                        .to_string();
+                                    let env = inter_cube::ws_relay::RelayEnvelope {
+                                        msg_type: "relay".to_string(),
+                                        to: Some(from_ops),
+                                        relay_msg_type: Some(response_type),
+                                        payload: Some(response.to_string()),
+                                        address: None, public_key: None, nonce: None,
+                                        signature: None, from: None, error: None,
+                                        delivered: None, connected_peers: None,
+                                        ts: None, connected: None,
+                                    };
+                                    if let Err(e) = reply_tx.send(env).await {
+                                        println!("[ops] Failed to send response: {}", e);
+                                    }
+                                }
+                            });
+                            continue;
+                        }
+
                         if msg_type == "inference_request" {
                             let llm_url = format!("{}/v1/chat/completions", llm_base_url);
                             let http = inference_client.clone();
@@ -1811,6 +1952,7 @@ fn spawn_relay_client(
                     }
 
                     println!("[ws-relay] Relay connection lost");
+                    ops_handler.cancel_all_tails().await;
                 }
                 Err(e) => {
                     println!("[ws-relay] Connection failed: {}", e);

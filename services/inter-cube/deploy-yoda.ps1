@@ -56,7 +56,9 @@
 #>
 param(
     [switch]$Force,
-    [switch]$NoColor
+    [switch]$NoColor,
+    [string]$AddOperator = "",
+    [string]$ServiceAccount = ""
 )
 
 # Color semantics: Cyan=brand/header, Yellow=step/warn, Green=success,
@@ -592,6 +594,106 @@ Write-Host "---" -ForegroundColor DarkGray
 
 New-Item -ItemType Directory -Force -Path $IdentityBase | Out-Null
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+
+$OpsBase = Join-Path $IdentityBase ".plenumnet"
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "ops") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "logs") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "configs") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $OpsBase "transfers") | Out-Null
+Write-Host "  [OK] Operations channel directories created" -ForegroundColor Green
+
+$opsConfigPath = Join-Path $OpsBase "ops-config.json"
+if (-not (Test-Path $opsConfigPath)) {
+    $opsConfig = @{
+        ops_enabled = $false
+        operators = @()
+        exec_timeout_seconds = 120
+        file_size_limit_bytes = 5242880
+        whitelisted_directories = @(
+            ".plenumnet/ops/"
+            ".plenumnet/logs/"
+            ".plenumnet/configs/"
+            ".plenumnet/transfers/"
+            ".plenumnet/models/"
+        )
+        blocked_extensions = @(
+            ".exe", ".dll", ".sys", ".bat", ".cmd", ".com", ".scr",
+            ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh", ".msi"
+        )
+        chunk_size_bytes = 524288
+        telemetry_interval_seconds = 60
+        audit_log_path = ".plenumnet/ops-audit.jsonl"
+        audit_log_max_size_mb = 50
+    } | ConvertTo-Json -Depth 3
+    Set-Content -Path $opsConfigPath -Value $opsConfig -Encoding UTF8
+    Write-Host "  [OK] Default ops-config.json created (ops_enabled: false)" -ForegroundColor Green
+} else {
+    Write-Host "  [OK] Existing ops-config.json preserved" -ForegroundColor DarkGray
+}
+
+Write-Host "`n=== Ops Sandbox Hardening ===" -ForegroundColor Cyan
+try {
+    $aclOps = Get-Acl $OpsBase
+    $aclOps.SetAccessRuleProtection($true, $false)
+    $sysRule = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $admRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $aclOps.AddAccessRule($sysRule)
+    $aclOps.AddAccessRule($admRule)
+    Set-Acl -Path $OpsBase -AclObject $aclOps -ErrorAction SilentlyContinue
+    Write-Host "  [OK] ACL hardening applied to $OpsBase (SYSTEM + Administrators only)" -ForegroundColor Green
+} catch {
+    Write-Host "  [WARN] ACL hardening skipped: $_" -ForegroundColor Yellow
+}
+
+try {
+    $privExport = & secedit /export /cfg "$env:TEMP\plenumnet-secpol.cfg" 2>$null
+    if (Test-Path "$env:TEMP\plenumnet-secpol.cfg") {
+        $secContent = Get-Content "$env:TEMP\plenumnet-secpol.cfg" -Raw
+        if ($secContent -match "SeAssignPrimaryTokenPrivilege") {
+            Write-Host "  [OK] SeAssignPrimaryTokenPrivilege detected in security policy" -ForegroundColor Green
+        } else {
+            Write-Host "  [INFO] A required Windows privilege has been configured but requires a reboot to take effect" -ForegroundColor Yellow
+            Write-Host "         (Technical: SeAssignPrimaryTokenPrivilege — secpol.msc > Local Policies > User Rights)" -ForegroundColor DarkGray
+        }
+        Remove-Item "$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
+    }
+} catch {
+    Write-Host "  [INFO] Security policy check skipped" -ForegroundColor DarkGray
+}
+
+$appLockerAvail = $false
+try {
+    $appLockerSvc = Get-Service -Name "AppIDSvc" -ErrorAction SilentlyContinue
+    if ($appLockerSvc -and $appLockerSvc.Status -eq "Running") {
+        $appLockerAvail = $true
+        Write-Host "  [OK] AppLocker service detected and running — exec sandbox: Full (AppLocker)" -ForegroundColor Green
+    } else {
+        Write-Host "  [INFO] AppLocker not running — exec sandbox: Reduced (ACLs only)" -ForegroundColor DarkGray
+    }
+} catch {
+    Write-Host "  [INFO] AppLocker detection skipped" -ForegroundColor DarkGray
+}
+
+if ($AddOperator) {
+    Write-Host "`n=== Adding Operator ===" -ForegroundColor Cyan
+    try {
+        $opData = $AddOperator | ConvertFrom-Json
+        if (-not $opData.name -or -not $opData.public_key -or -not $opData.scope -or -not $opData.key_fingerprint) {
+            Write-Host "  [ERROR] -AddOperator JSON must include: name, public_key, scope, key_fingerprint" -ForegroundColor Red
+            Write-Host "  [HINT] Export the operator key from NinjaExec, then pass the full JSON here." -ForegroundColor Yellow
+            Write-Host "         If key_fingerprint is wrong, remove it and re-export from NinjaExec." -ForegroundColor Yellow
+        } else {
+            $currentConfig = Get-Content $opsConfigPath -Raw | ConvertFrom-Json
+            $newOp = @{ name = $opData.name; public_key = $opData.public_key; scope = $opData.scope; key_fingerprint = $opData.key_fingerprint; registered_at = (Get-Date -Format 'o') }
+            $opsList = @($currentConfig.operators) + @($newOp)
+            $currentConfig.operators = $opsList
+            $currentConfig | ConvertTo-Json -Depth 5 | Set-Content -Path $opsConfigPath -Encoding UTF8
+            Write-Host "  [OK] Operator added: $($opData.name) (scope: $($opData.scope), fingerprint: $($opData.key_fingerprint))" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  [ERROR] Invalid -AddOperator JSON: $_" -ForegroundColor Red
+    }
+}
 
 $oldIdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
 if ((Test-Path $oldIdentityBase) -and ($oldIdentityBase -ne $IdentityBase)) {
@@ -1511,6 +1613,12 @@ Write-Host "  Startup          : Automatic (survives reboots + terminal close)" 
 Write-Host "  Watchdog         : PlenumNET-Array3-Watchdog (every 2 min + on boot)" -ForegroundColor White
 Write-Host "  Start Launcher   : $startYodaPath" -ForegroundColor White
 Write-Host "  Stop Launcher    : $stopYodaPath" -ForegroundColor White
+Write-Host ""
+Write-Host "  Operations Channel" -ForegroundColor Cyan
+Write-Host "  Ops Config       : $opsConfigPath" -ForegroundColor White
+Write-Host "  Ops Enabled      : false (enable via dashboard or ops-config.json)" -ForegroundColor White
+Write-Host "  Audit Log        : $OpsBase\ops-audit.jsonl" -ForegroundColor White
+Write-Host "  Ops Directories  : ops/, logs/, configs/, transfers/" -ForegroundColor White
 Write-Host ""
 Write-Host "  Files and Logs" -ForegroundColor Cyan
 Write-Host "  Binary           : $BinaryPath ($fileSizeMB MB)" -ForegroundColor White
