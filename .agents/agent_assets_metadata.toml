@@ -288,3 +288,9 @@ id = "yxq2-oSwgCkZ9rI9KUe-v"
 uri = "file://.local/qc-r1-task55/qc-r1-agent3-plenumnet-integration.md"
 type = "text"
 title = "Agent 3: PlenumNET Integration Review"
+
+[[outputs]]
+id = "GaCjRlc5QtYS1ryS25WVS"
+uri = "file://hero-demo.zip"
+type = "unspecified"
+title = "Hero Demo Video (Zipped)"
