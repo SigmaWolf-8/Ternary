@@ -342,3 +342,27 @@ id = "J7qGbDYkIe3nBr7EKBp6K"
 uri = "file://.local/qc-r2-task55/task-55-rev4-post-qcr2.md"
 type = "text"
 title = "Task #55 — Rev. 4 (Post QC-R1 + QC-R2) — Final Spec"
+
+[[outputs]]
+id = "3m0mziubapA_TiRALQovr"
+uri = "file://.local/qc-r3-task55/qc-r3-consolidated.md"
+type = "text"
+title = "QC-R3 Consolidated Report — Task #55 (Round 3: Fit, Finish & Market Readiness)"
+
+[[outputs]]
+id = "HsPvx_b3d7OWAvc0xpXDr"
+uri = "file://.local/qc-r3-task55/qc-r3-agent7-brand-guardian.md"
+type = "text"
+title = "Agent 7: Brand Guardian"
+
+[[outputs]]
+id = "GXrQZz2G9dptCC91SOFRz"
+uri = "file://.local/qc-r3-task55/qc-r3-agent8-ux-designer.md"
+type = "text"
+title = "Agent 8: UX Designer"
+
+[[outputs]]
+id = "wTjMRl9fHpDrblGBB1GFc"
+uri = "file://.local/qc-r3-task55/qc-r3-agent9-content-creator.md"
+type = "text"
+title = "Agent 9: Content Creator"
