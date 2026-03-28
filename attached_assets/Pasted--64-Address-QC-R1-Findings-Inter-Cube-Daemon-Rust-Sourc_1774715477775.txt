@@ -1,0 +1,34 @@
+#64 - Address QC-R1 Findings: Inter-Cube Daemon (Rust Source)
+What & Why
+The daemon-wide QC-R1 review produced 44 findings (6 CRITICAL / 22 IMPORTANT / 12 MINOR / 4 positive verifications) against the Rust daemon source. All three agents issued FAIL. The CRITICAL findings include unsigned relay auth fallback, hostname-derived passphrase, cluster shell allowlist bypass, unauthenticated terminal-open (RCE), missing TIS-27 binary checksum, and unauthenticated cluster APIs. These must be resolved before the daemon can proceed to QC-R2.
+
+The findings are documented in:
+
+.local/qc-r1-inter-cube/qc-r1-consolidated.md — Consolidated report
+.local/qc-r1-inter-cube/qc-r1-agent1-security-engineer.md
+.local/qc-r1-inter-cube/qc-r1-agent2-devops-automator.md
+.local/qc-r1-inter-cube/qc-r1-agent3-plenumnet-integration.md
+Done looks like
+All 6 CRITICAL findings are resolved with code changes in Rust daemon source files.
+IMPORTANT findings are addressed or documented with rationale if deferred.
+MINOR findings are addressed where practical; remaining items documented as future work.
+A QC-R1 re-review passes with no remaining CRITICAL findings.
+The consolidated report is updated with resolution status for each finding.
+Out of scope
+Watchdog/deployer findings (those are in a separate task that should be completed first).
+Changes to the deployments/ folder.
+Changes to compress/decompress, server/ternary.ts, ternarydb.tsx, tunnel_auth.rs.
+Adding new ports outside 11111-11191.
+QC-R2 and QC-R3 reviews.
+Tasks
+Fix unsigned relay auth fallback — Remove plaintext fallback in ws_relay.rs. Require TL-DSA challenge-response for all relay connections.
+Fix hostname-derived passphrase — Replace hostname-based passphrase derivation with OS CSPRNG + DPAPI-protected storage in identity.rs.
+Fix cluster shell allowlist bypass + env/printenv leak — Enforce strict command allowlist in cluster_shell.rs. Block env, printenv, set, and all environment-leaking commands. Add metacharacter filtering.
+Fix unauthenticated terminal-open — Add TL-DSA authentication to the /terminal/open WebSocket endpoint.
+Fix unauthenticated cluster APIs — Add TL-DSA authentication to all cluster management endpoints (/cluster/exec, /cluster/peers, etc.).
+Add TIS-27 binary self-verification — Implement --verify-self mode or CUBE_MODE=hash-file for binary integrity checking.
+Address IMPORTANT findings — Work through the 22 IMPORTANT findings: relay auth hardening, cluster shell sanitization, terminal session limits, identity key protection, key rotation edge cases, etc.
+Address MINOR findings — Work through the 12 MINOR findings.
+Update consolidated report — Mark each finding's resolution status in .local/qc-r1-inter-cube/qc-r1-consolidated.md.
+Relevant files
+services/inter-cube/src/main.rs services/inter-cube/src/ws_relay.rs services/inter-cube/src/cluster_shell.rs services/inter-cube/src/identity.rs services/inter-cube/src/key_rotation.rs services/inter-cube/src/vm_service.rs .local/qc-r1-inter-cube/qc-r1-consolidated.md .local/qc-r1-inter-cube/qc-r1-agent1-security-engineer.md .local/qc-r1-inter-cube/qc-r1-agent2-devops-automator.md .local/qc-r1-inter-cube/qc-r1-agent3-plenumnet-integration.md
