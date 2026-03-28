@@ -72,3 +72,33 @@ id = "IxiymwDr03IcYZjatXE56"
 uri = "file://plenumnet-green-alternatives.svg"
 type = "image"
 title = "Purple Replacement — Darker Grays (A through D)"
+
+[[outputs]]
+id = "J3ZEEkB9JZ_bsi39tESeW"
+uri = "file://.agents/skills/qc-r2-review/SKILL.md"
+type = "text"
+title = "QC-R2 Main Template (v1.2.0)"
+
+[[outputs]]
+id = "0BXxBjkhj9jB3NtRWLKoU"
+uri = "file://.agents/skills/evidence-collector/SKILL.md"
+type = "text"
+title = "Agent 4: Evidence Collector (v1.2.0)"
+
+[[outputs]]
+id = "5jrHOpepqoW3F_ZDI5AuD"
+uri = "file://.agents/skills/senior-developer/SKILL.md"
+type = "text"
+title = "Agent 5: Senior Developer (v1.2.0)"
+
+[[outputs]]
+id = "TbZLsSBntTD3df99PwtZe"
+uri = "file://.agents/skills/infrastructure-maintainer/SKILL.md"
+type = "text"
+title = "Agent 6: Infrastructure Maintainer (v1.2.0)"
+
+[[outputs]]
+id = "4MTGC0JuG_HAQjKW7aq96"
+uri = "file://.local/qc-r1-fixes-traceability.md"
+type = "text"
+title = "QC-R1 Fixes Traceability Matrix (all 30 findings)"
