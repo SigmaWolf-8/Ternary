@@ -66,3 +66,9 @@ id = "4QajxbsTPIsX7yxmH_bSF"
 uri = "file://plenumnet-brand-colors.svg"
 type = "image"
 title = "PlenumNET Brand Colors (Visual Reference)"
+
+[[outputs]]
+id = "IxiymwDr03IcYZjatXE56"
+uri = "file://plenumnet-green-alternatives.svg"
+type = "image"
+title = "Green Replacement Options — A, B, C, or D"
