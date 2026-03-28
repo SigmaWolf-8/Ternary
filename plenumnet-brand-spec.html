@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlenumNET Brand Spec</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #0F0C0A; color: #ECE8DF; padding: 40px; max-width: 900px; margin: 0 auto; }
+  h1 { font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 28px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 40px; }
+  h2 { font-size: 20px; font-weight: 700; margin: 48px 0 20px; border-bottom: 1px solid #272220; padding-bottom: 8px; }
+  h3 { font-size: 14px; font-weight: 600; color: #BCB3A3; margin: 24px 0 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .swatch-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid #1D1915; }
+  .swatch { width: 48px; height: 48px; border-radius: 8px; border: 1px solid #272220; flex-shrink: 0; }
+  .swatch-info { flex: 1; }
+  .swatch-name { font-weight: 600; font-size: 14px; }
+  .swatch-hex { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A8173; }
+  .swatch-use { font-size: 12px; color: #5E5851; margin-top: 2px; }
+  .font-sample { padding: 16px 0; border-bottom: 1px solid #1D1915; }
+  .font-name { font-size: 12px; color: #8A8173; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .font-preview { margin-bottom: 4px; }
+  .font-detail { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5E5851; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .callout { background: #181411; border: 1px solid #272220; border-radius: 9px; padding: 20px; margin: 16px 0; }
+  .callout-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #4A9EF5; text-transform: uppercase; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>PlenumNET</h1>
+<p style="color: #BCB3A3; margin-top: -30px; margin-bottom: 40px;">Brand Specification &mdash; Capomastro Holdings Ltd.</p>
+
+<!-- ===================== MAIN BACKGROUND ===================== -->
+<div class="callout" style="background: #0F0C0A; border-color: #4A9EF5;">
+  <div class="callout-label">Main Background</div>
+  <div style="display: flex; align-items: center; gap: 16px;">
+    <div class="swatch" style="background: #0F0C0A; width: 64px; height: 64px; border-color: #4A9EF5;"></div>
+    <div>
+      <div class="swatch-name" style="font-size: 18px;">#0F0C0A</div>
+      <div class="swatch-hex">hsl(20, 14%, 4%)</div>
+      <div style="color: #BCB3A3; font-size: 13px; margin-top: 4px;">Near-black with warm brown undertone. Used for every page background.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== FONTS ===================== -->
+<h2>Fonts</h2>
+
+<div class="font-sample">
+  <div class="font-name">Header / Logo / Navigation</div>
+  <div class="font-preview" style="font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 0.12em; text-transform: uppercase;">
+    Orbitron ExtraBold
+  </div>
+  <div class="font-detail">Orbitron &bull; 800 &bull; UPPERCASE &bull; letter-spacing: 0.12em &bull; color: #E4DFD5</div>
+</div>
+
+<div class="font-sample">
+  <div class="font-name">Body / Headings / Labels</div>
+  <div class="font-preview" style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px;">
+    Inter &mdash; Four Services. Pure Geometry.
+  </div>
+  <div style="font-family: 'Inter', sans-serif; font-weight: 400; font-size: 15px; color: #BCB3A3; line-height: 1.7; margin: 6px 0;">
+    Body text at 15px/400. Labels at 13px/600. Section headings at 28px/700.
+  </div>
+  <div class="font-detail">Inter &bull; 400 / 600 / 700 &bull; fallback: system-ui, sans-serif</div>
+</div>
+
+<div class="font-sample">
+  <div class="font-name">Monospace / Data / Terminal</div>
+  <div class="font-preview" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 28px; color: #4A9EF5;">
+    2,541,865,828,329
+  </div>
+  <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8A8173; letter-spacing: 2px; text-transform: uppercase; margin: 6px 0;">
+    INTER-CUBE INFRASTRUCTURE
+  </div>
+  <div class="font-detail">JetBrains Mono &bull; 400 / 600 / 700 &bull; fallback: Fira Code, SF Mono, monospace</div>
+</div>
+
+<!-- ===================== COLORS ===================== -->
+<h2>Colors (Dark Mode)</h2>
+
+<h3>Backgrounds</h3>
+<div class="swatch-row">
+  <div class="swatch" style="background: #0F0C0A;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Page Background</div>
+    <div class="swatch-hex">#0F0C0A &mdash; hsl(20, 14%, 4%)</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #181411;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Card / Panel</div>
+    <div class="swatch-hex">#181411 &mdash; hsl(20, 14%, 8%)</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #1D1915;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Muted Surface</div>
+    <div class="swatch-hex">#1D1915 &mdash; hsl(20, 12%, 10%)</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #272220;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Border</div>
+    <div class="swatch-hex">#272220 &mdash; hsl(20, 10%, 14%)</div>
+  </div>
+</div>
+
+<h3>Text</h3>
+<div class="swatch-row">
+  <div class="swatch" style="background: #ECE8DF;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Headings</div>
+    <div class="swatch-hex">#ECE8DF &mdash; hsl(45, 25%, 91%)</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #E4DFD5;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Navigation Text</div>
+    <div class="swatch-hex">#E4DFD5</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #BCB3A3;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Body Text</div>
+    <div class="swatch-hex">#BCB3A3 &mdash; hsl(40, 15%, 70%)</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #8A8173;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Labels / Captions</div>
+    <div class="swatch-hex">#8A8173 &mdash; hsl(35, 10%, 50%)</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #5E5851;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Faint / Decorative</div>
+    <div class="swatch-hex">#5E5851 &mdash; hsl(30, 8%, 35%)</div>
+  </div>
+</div>
+
+<h3>Accent</h3>
+<div class="swatch-row">
+  <div class="swatch" style="background: #4A9EF5;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Primary Blue</div>
+    <div class="swatch-hex">#4A9EF5 &mdash; hsl(210, 80%, 55%)</div>
+    <div class="swatch-use">Stat values, accent text, highlights, section labels</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #38BDF8;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Nav Hover Blue</div>
+    <div class="swatch-hex">#38BDF8</div>
+    <div class="swatch-use">Navigation hover/active state</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #A87FD4;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Purple</div>
+    <div class="swatch-hex">#A87FD4 &mdash; hsl(270, 50%, 65%)</div>
+    <div class="swatch-use">Special/esoteric highlights</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #40BF6E;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Green</div>
+    <div class="swatch-hex">#40BF6E &mdash; hsl(145, 50%, 50%)</div>
+    <div class="swatch-use">Success, positive states</div>
+  </div>
+</div>
+<div class="swatch-row">
+  <div class="swatch" style="background: #D46B8A;"></div>
+  <div class="swatch-info">
+    <div class="swatch-name">Rose</div>
+    <div class="swatch-hex">#D46B8A &mdash; hsl(340, 55%, 60%)</div>
+    <div class="swatch-use">Warning, cosmic highlights</div>
+  </div>
+</div>
+
+<h2 style="margin-top: 48px;">Logo</h2>
+<div class="callout">
+  <div class="callout-label">Wordmark</div>
+  <div style="font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 32px; letter-spacing: 0.12em; text-transform: uppercase; color: #E4DFD5;">
+    PlenumNET
+  </div>
+  <div class="font-detail" style="margin-top: 8px;">Orbitron 800 &bull; #E4DFD5 on dark &bull; UPPERCASE &bull; 0.12em tracking</div>
+  <div style="margin-top: 12px; color: #BCB3A3; font-size: 13px;">
+    Logo file: <span style="font-family: 'JetBrains Mono', monospace; color: #4A9EF5;">plenumnet-logo.svg</span>
+  </div>
+</div>
+
+</body>
+</html>
