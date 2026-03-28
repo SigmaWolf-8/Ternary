@@ -84,6 +84,16 @@ if (-not (Test-Admin)) {
     }
 }
 
+# == Ensure user's cargo/bin is on PATH (critical when running as Admin) ========
+$userCargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+if (Test-Path $userCargoBin) {
+    $env:PATH = $userCargoBin + ";" + $env:PATH
+}
+$userDotnetTools = Join-Path $env:USERPROFILE ".dotnet\tools"
+if (Test-Path $userDotnetTools) {
+    $env:PATH = $userDotnetTools + ";" + $env:PATH
+}
+
 # == Detect architecture =======================================================
 $cpuArch = $env:PROCESSOR_ARCHITECTURE
 if (-not $cpuArch) { $cpuArch = "AMD64" }
