@@ -31,8 +31,7 @@ $LogFile        = Join-Path $env:TEMP "PlenumNET_MSI_Install.log"
 
 $Products = @(
     @{ Name = "PlenumNET-Launcher"; Crate = "plenum-launcher"; ManifestDir = "tools/plenum-launcher"; ExtraCrates = @("plenum-launcher-elevate") },
-    @{ Name = "InterCubeDaemon"; Crate = "inter-cube"; ManifestDir = "services/inter-cube"; ExtraCrates = @() },
-    @{ Name = "NinjaExec"; Crate = "ninja-exec"; ManifestDir = "ninja-exec"; ExtraCrates = @() }
+    @{ Name = "InterCubeDaemon"; Crate = "inter-cube"; ManifestDir = "services/inter-cube"; ExtraCrates = @() }
 )
 
 function Write-Log {
@@ -63,7 +62,7 @@ Write-Host ""
 Write-Host "  This script builds and installs PlenumNET products" -ForegroundColor White
 Write-Host "  using the plenum-pack MSI framework." -ForegroundColor White
 Write-Host ""
-Write-Host "  Products: Launcher, Inter-Cube Daemon, NinjaExec" -ForegroundColor White
+Write-Host "  Products: Launcher, Inter-Cube Daemon" -ForegroundColor White
 Write-Host "  Log file: $LogFile" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -419,12 +418,17 @@ Push-Location $RepoDir
 $env:CARGO_BUILD_JOBS = "1"
 Write-Log "  Updating dependency lock file..." "White"
 & $cargoExe update 2>&1 | Out-Null
-& $cargoExe build --release -p plenum-pack 2>&1 | ForEach-Object {
-    $line = $_.ToString()
-    if ($line -match "error") { Write-Log "  $line" "Red" }
-    elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
+$buildLog = Join-Path $env:TEMP "plenum-pack-build.log"
+$buildProc = Start-Process -FilePath $cargoExe -ArgumentList "build --release -p plenum-pack" -NoNewWindow -Wait -PassThru -RedirectStandardError $buildLog
+$buildExit = $buildProc.ExitCode
+if (Test-Path $buildLog) {
+    Get-Content $buildLog | ForEach-Object {
+        $line = $_.ToString()
+        if ($line -match "error") { Write-Log "  $line" "Red" }
+        elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
+    }
+    Remove-Item $buildLog -Force -ErrorAction SilentlyContinue
 }
-$buildExit = $LASTEXITCODE
 Pop-Location
 
 $plenumPackBin = Join-Path $RepoDir "target\release\plenum-pack.exe"
@@ -440,19 +444,27 @@ Write-Host ""
 Write-Log "STEP 4/8: Building product binaries" "Yellow"
 Write-Host "---"
 
-$allCrates = @("plenum-launcher", "plenum-launcher-elevate", "inter-cube", "ninja-exec")
+$allCrates = @("plenum-launcher", "plenum-launcher-elevate", "inter-cube")
 foreach ($crate in $allCrates) {
     Write-Log "  Building $crate..." "White"
     Push-Location $RepoDir
-    & $cargoExe build --release -p $crate 2>&1 | ForEach-Object {
-        $line = $_.ToString()
-        if ($line -match "error") { Write-Log "  $line" "Red" }
-        elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
+    $crateLog = Join-Path $env:TEMP "plenum-build-$crate.log"
+    $crateProc = Start-Process -FilePath $cargoExe -ArgumentList "build --release -p $crate" -NoNewWindow -Wait -PassThru -RedirectStandardError $crateLog
+    $crateBuildExit = $crateProc.ExitCode
+    if (Test-Path $crateLog) {
+        Get-Content $crateLog | ForEach-Object {
+            $line = $_.ToString()
+            if ($line -match "error") { Write-Log "  $line" "Red" }
+            elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
+        }
+        Remove-Item $crateLog -Force -ErrorAction SilentlyContinue
     }
-    $crateBuildExit = $LASTEXITCODE
     Pop-Location
     if ($crateBuildExit -ne 0) {
         Write-Log "  WARN: $crate build failed - skipping this product." "Yellow"
+        if ($crate -eq "inter-cube") {
+            Write-Log "    Note: portable-pty may not support ARM64 Windows yet." "DarkGray"
+        }
     } else {
         Write-Log "  [OK] $crate built" "Green"
     }
@@ -494,6 +506,10 @@ Write-Host "---"
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 $generatedMSIs = @()
 $releaseDir = Join-Path $RepoDir "target\release"
+$wixOnPath = Test-Command "wix"
+if (-not $wixOnPath) {
+    Write-Log "  WiX not on PATH - will generate .wxs source only (--dry-run)" "Yellow"
+}
 
 foreach ($product in $Products) {
     $manifestDir = Join-Path $RepoDir $product.ManifestDir
@@ -504,7 +520,6 @@ foreach ($product in $Products) {
     switch ($product.Crate) {
         "plenum-launcher" { $binaryName = "plenum-launcher.exe" }
         "inter-cube" { $binaryName = "inter-cube-daemon.exe" }
-        "ninja-exec" { $binaryName = "ninja-exec.exe" }
         default { $binaryName = $product.Crate + ".exe" }
     }
     $binaryPath = Join-Path $releaseDir $binaryName
@@ -515,9 +530,13 @@ foreach ($product in $Products) {
     }
 
     $pName = $product.Name
+    $dryRunFlag = ""
+    if (-not $wixOnPath) { $dryRunFlag = "--dry-run" }
     Write-Log "  Building MSI for $pName ($archFlag)..." "White"
     try {
-        $packOutput = & $plenumPackBin build --arch $archFlag --manifest-dir $manifestDir --binary-dir $releaseDir 2>&1
+        $packArgs = @("build", "--arch", $archFlag, "--manifest-dir", $manifestDir, "--binary-dir", $releaseDir)
+        if ($dryRunFlag) { $packArgs += $dryRunFlag }
+        $packOutput = & $plenumPackBin @packArgs 2>&1
         if ($LASTEXITCODE -eq 0) {
             $packOutputDir = Join-Path $manifestDir "plenum-pack-output"
             $msiFiles = Get-ChildItem -Path $packOutputDir -Filter "*.msi" -ErrorAction SilentlyContinue
@@ -614,7 +633,6 @@ if ($msiCount -gt 0) {
     Write-Log "    %ProgramFiles%\Capomastro\" "White"
     Write-Host ""
     Write-Log "  Data directories (preserved on uninstall):" "White"
-    Write-Log "    %APPDATA%\NinjaExec\" "White"
     Write-Log "    %APPDATA%\InterCubeDaemon\" "White"
     Write-Log "    %APPDATA%\PlenumNET-Launcher\" "White"
 } else {
