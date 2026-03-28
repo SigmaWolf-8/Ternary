@@ -306,27 +306,43 @@ Write-Host "---"
 
 if (-not (Test-Path $RepoDir)) {
     Write-Log "  Cloning PlenumNET repository..." "White"
-    & git clone --depth 1 $RepoUrl $RepoDir 2>&1 | Out-Null
+    & git clone $RepoUrl $RepoDir 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Write-Log "  ERROR: git clone failed." "Red"
         Read-Host "Press Enter to close"
         exit 1
     }
 } elseif (-not (Test-Path (Join-Path $RepoDir ".git"))) {
-    Write-Log "  Converting to git repo..." "Yellow"
+    Write-Log "  Directory exists but is not a git repo. Re-cloning..." "Yellow"
+    Remove-Item -Path $RepoDir -Recurse -Force -ErrorAction SilentlyContinue
+    & git clone $RepoUrl $RepoDir 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "  ERROR: git clone failed." "Red"
+        Read-Host "Press Enter to close"
+        exit 1
+    }
+} else {
+    Write-Log "  Updating source (fetch + reset to latest main)..." "White"
     Push-Location $RepoDir
-    & git init 2>&1 | Out-Null
-    & git remote add origin $RepoUrl 2>&1 | Out-Null
     & git fetch origin main 2>&1 | Out-Null
     & git reset --hard origin/main 2>&1 | Out-Null
+    $fetchExit = $LASTEXITCODE
     Pop-Location
-} else {
-    Write-Log "  Updating source..." "White"
-    Push-Location $RepoDir
-    & git pull origin main --ff-only 2>&1 | Out-Null
-    Pop-Location
+    if ($fetchExit -ne 0) {
+        Write-Log "  WARN: fetch/reset failed - re-cloning..." "Yellow"
+        Remove-Item -Path $RepoDir -Recurse -Force -ErrorAction SilentlyContinue
+        & git clone $RepoUrl $RepoDir 2>&1 | Out-Null
+    }
 }
 Write-Log "  [OK] Source ready at $RepoDir" "Green"
+
+$plenumPackToml = Join-Path $RepoDir "tools\plenum-pack\Cargo.toml"
+if (-not (Test-Path $plenumPackToml)) {
+    Write-Log "  ERROR: tools\plenum-pack not found in repo. The clone may be incomplete." "Red"
+    Write-Log "  Try deleting C:\PlenumNET and re-running this script." "Red"
+    Read-Host "Press Enter to close"
+    exit 1
+}
 
 # == STEP 3: Build plenum-pack ================================================
 Write-Host ""
