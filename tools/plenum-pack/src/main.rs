@@ -249,6 +249,13 @@ fn cmd_build(
         println!("Compiling MSI: {}", msi_path.display());
         println!("Binary source: {}", binary_source_dir.display());
 
+        let wix_version = std::process::Command::new("wix")
+            .args(["--version"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default();
+        println!("WiX version: {}", if wix_version.is_empty() { "unknown" } else { &wix_version });
+
         let mut required_exts = vec!["WixToolset.UI.wixext", "WixToolset.Util.wixext"];
         if matches!(
             manifest.app_type.kind,
@@ -257,9 +264,14 @@ fn cmd_build(
             required_exts.push("WixToolset.Firewall.wixext");
         }
         for ext in &required_exts {
-            println!("Ensuring WiX extension: {}", ext);
+            let ext_versioned = if wix_version.is_empty() {
+                ext.to_string()
+            } else {
+                format!("{}/{}", ext, wix_version)
+            };
+            println!("Ensuring WiX extension: {}", ext_versioned);
             let add_result = std::process::Command::new("wix")
-                .args(["extension", "add", "--global", ext])
+                .args(["extension", "add", "--global", &ext_versioned])
                 .output();
             match add_result {
                 Ok(output) => {
@@ -269,7 +281,7 @@ fn cmd_build(
                         if stderr.contains("already exists") || stdout.contains("already exists") {
                             println!("  [OK] {} (already installed)", ext);
                         } else {
-                            eprintln!("  WARN: wix extension add {} failed: {}", ext, stderr.trim());
+                            eprintln!("  WARN: wix extension add {} failed: {}", ext_versioned, stderr.trim());
                         }
                     } else {
                         println!("  [OK] {} installed", ext);

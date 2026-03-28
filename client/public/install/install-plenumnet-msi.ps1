@@ -341,29 +341,38 @@ if (-not $wixAvailable) {
 }
 
 if (Test-Command "wix") {
-    Write-Log "  [OK] WiX v4" "Green"
-    Write-Log "  Installing WiX extensions..." "DarkGray"
-    $extOut1 = & wix extension add --global WixToolset.UI.wixext 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $extStr1 = ($extOut1 | Out-String).Trim()
-        if ($extStr1 -match "already") {
-            Write-Log "  [OK] WixToolset.UI.wixext (already installed)" "Green"
-        } else {
-            Write-Log "  WARN: WixToolset.UI.wixext install: $extStr1" "Yellow"
-        }
+    $wixVerRaw = (& wix --version 2>$null) | Out-String
+    $wixVerRaw = $wixVerRaw.Trim()
+    if ($wixVerRaw -match "^(\d+)\.") {
+        $wixMajor = $Matches[1]
     } else {
-        Write-Log "  [OK] WixToolset.UI.wixext installed" "Green"
+        $wixMajor = "4"
     }
-    $extOut2 = & wix extension add --global WixToolset.Util.wixext 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $extStr2 = ($extOut2 | Out-String).Trim()
-        if ($extStr2 -match "already") {
-            Write-Log "  [OK] WixToolset.Util.wixext (already installed)" "Green"
+    Write-Log "  [OK] WiX v$wixMajor ($wixVerRaw)" "Green"
+
+    $wixExtensions = @("WixToolset.UI.wixext", "WixToolset.Util.wixext")
+    foreach ($ext in $wixExtensions) {
+        $extVersioned = "$ext/$wixVerRaw"
+        Write-Log "  Installing $extVersioned..." "DarkGray"
+        $extOut = & wix extension add --global $extVersioned 2>&1
+        $extStr = ($extOut | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) {
+            if ($extStr -match "already") {
+                Write-Log "  [OK] $ext (already installed)" "Green"
+            } else {
+                Write-Log "  WARN: $ext install failed: $extStr" "Yellow"
+                Write-Log "  Retrying without version pin..." "DarkGray"
+                $extOut2 = & wix extension add --global $ext 2>&1
+                $extStr2 = ($extOut2 | Out-String).Trim()
+                if ($LASTEXITCODE -ne 0 -and $extStr2 -notmatch "already") {
+                    Write-Log "  WARN: $ext retry failed: $extStr2" "Yellow"
+                } else {
+                    Write-Log "  [OK] $ext installed" "Green"
+                }
+            }
         } else {
-            Write-Log "  WARN: WixToolset.Util.wixext install: $extStr2" "Yellow"
+            Write-Log "  [OK] $ext v$wixVerRaw installed" "Green"
         }
-    } else {
-        Write-Log "  [OK] WixToolset.Util.wixext installed" "Green"
     }
 } else {
     Write-Log "  WARN: WiX not on PATH - MSI generation may produce .wxs only." "Yellow"
