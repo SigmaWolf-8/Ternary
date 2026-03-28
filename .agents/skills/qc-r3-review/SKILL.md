@@ -6,13 +6,13 @@ last_updated: 2026-03-28
 round: qc-r3
 components:
   - name: brand-guardian
-    path: ../brand-guardian/SKILL.md
+    path: brand-guardian/SKILL.md
   - name: ux-designer
-    path: ../ux-designer/SKILL.md
+    path: ux-designer/SKILL.md
   - name: content-creator
-    path: ../content-creator/SKILL.md
+    path: content-creator/SKILL.md
 references:
-  - ../plenumnet-repo-guide/SKILL.md
+  - plenumnet-repo-guide/SKILL.md
 description: QC-R3 Quality Control Review Template (Round 3 Fit, Finish & Market Readiness) for PlenumNET product specifications. Three independent YODA reviewer agents (Brand Guardian, UX Designer, Content Creator) execute structured reviews producing findings with severity levels, Brand Scores, and summary verdicts. Covers quality control, review, round 3, brand, fit and finish, market readiness, and post-task verification.
 tags: [quality-control, review, r3, brand, fit-finish, market-readiness, ux, content, post-task-verification]
 ---
@@ -143,7 +143,7 @@ NEVER include example passphrases, key material, seed phrases, token values, sec
 **Division:** Design
 **YODA Role ID:** `design/brand-guardian`
 
-The Brand Guardian definition below is reproduced from the canonical source (`../brand-guardian/SKILL.md`, version 1.2.0) for inline reference. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, the standalone file governs. In case of conflict on protocol, the main template governs.
+The Brand Guardian definition below is reproduced from the canonical source (`brand-guardian/SKILL.md`, version 1.2.0) for inline reference. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, the standalone file governs. In case of conflict on protocol, the main template governs.
 
 ### Identity
 
@@ -186,7 +186,7 @@ Evaluate only the sizes the spec requires (e.g., if the spec requires 16×16, 32
 **Division:** Design
 **YODA Role ID:** `design/ux-designer`
 
-The UX Designer definition below is reproduced from the canonical source (`../ux-designer/SKILL.md`, version 1.2.0) for inline reference. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, the standalone file governs. In case of conflict on protocol, the main template governs.
+The UX Designer definition below is reproduced from the canonical source (`ux-designer/SKILL.md`, version 1.2.0) for inline reference. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, the standalone file governs. In case of conflict on protocol, the main template governs.
 
 ### Identity
 
@@ -235,7 +235,7 @@ All actions must be enumerated under their lifecycle phase. After the Friction M
 **Division:** Marketing
 **YODA Role ID:** `marketing/content-creator`
 
-The Content Creator definition below is reproduced from the canonical source (`../content-creator/SKILL.md`, version 1.2.0) for inline reference. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, the standalone file governs. In case of conflict on protocol, the main template governs.
+The Content Creator definition below is reproduced from the canonical source (`content-creator/SKILL.md`, version 1.2.0) for inline reference. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, the standalone file governs. In case of conflict on protocol, the main template governs.
 
 ### Identity
 
@@ -292,7 +292,7 @@ After Round 3 completes, the full QC output is:
 
 The combined finding table from all 9 agents, sorted by severity, becomes the final gate for implementation. CRITICAL findings block. IMPORTANT findings must be resolved before first product release. MINOR findings enter the backlog.
 
-The R2 template is defined at `../qc-r2-review/SKILL.md` (v1.2.0). R2 artifact naming follows the same convention: `qc-r2-agent4-evidence-collector.md`, `qc-r2-agent5-senior-developer.md`, `qc-r2-agent6-infrastructure-maintainer.md`.
+The R2 template is defined at `qc-r2-review/SKILL.md` (v1.2.0). R2 artifact naming follows the same convention: `qc-r2-agent4-evidence-collector.md`, `qc-r2-agent5-senior-developer.md`, `qc-r2-agent6-infrastructure-maintainer.md`.
 
 ### Cross-Round Precedence
 

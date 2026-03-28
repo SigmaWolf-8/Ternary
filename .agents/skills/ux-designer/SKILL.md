@@ -4,9 +4,9 @@ version: "1.2.0"
 schema_version: "1"
 last_updated: 2026-03-28
 round: qc-r3
-parent: ../qc-r3-review/SKILL.md
 references:
-  - ../plenumnet-repo-guide/SKILL.md
+  - qc-r3-review/SKILL.md
+  - plenumnet-repo-guide/SKILL.md
 description: UX Designer YODA agent role for QC-R3 quality control reviews of PlenumNET product specifications. Senior UX designer specializing in installer wizard experiences, system tray applications, enterprise administration tools, accessibility, and microinteractions on Windows. Produces structured findings with severity levels (CRITICAL/IMPORTANT/MINOR), a Brand Score (1–10), and a Friction Map. Use for independent UX review, post-task verification, quality control round 3, fit and finish assessment, brand review, or as part of the full QC-R3 review protocol.
 tags: [quality-control, review, r3, brand, fit-finish, ux, accessibility, installer, microinteractions]
 ---
@@ -40,7 +40,7 @@ When invoked as part of the full QC-R3 suite, all parameters are provided by the
 
 Read all source documents before beginning your review. Every finding must reference a specific section number.
 
-The protocol text below is reproduced from the canonical source (`../qc-r3-review/SKILL.md` § Review Protocol, version 1.2.0) for standalone use. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, this file governs. In case of conflict on protocol, the main template governs.
+The protocol text below is reproduced from the canonical source (`qc-r3-review/SKILL.md` § Review Protocol, version 1.2.0) for standalone use. The standalone skill file is the canonical source for agent-specific content (Identity, Review Scope, Critical Rules, Deliverable). The main template is the canonical source for cross-agent protocol (finding format, severity definitions, consolidation procedure). In case of conflict on agent-specific scope, this file governs. In case of conflict on protocol, the main template governs.
 
 **Integrity Verification:** Before beginning review, verify the integrity of all source documents against their committed hashes in version control. If the specification under review is not yet committed to version control, record "UNCOMMITTED — hash verification deferred to post-commit review" and proceed. Do not halt the review for uncommitted specifications that are explicitly provided as the review target. If any other source document has uncommitted modifications, halt review and flag as CRITICAL. Record the git commit hash of each source document in your review output.
 
