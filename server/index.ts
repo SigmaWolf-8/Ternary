@@ -503,7 +503,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   app.get("/install/:filename", (req, res) => {
-    const allowed = new Set(["Install-PlenumNET.bat", "install-windows.ps1", "install.sh", "deploy-yoda.ps1", "deploy-daemon.ps1", "plenumnet-service.ps1"]);
+    const allowed = new Set(["Install-PlenumNET.bat", "install-windows.ps1", "install.sh", "deploy-yoda.ps1", "deploy-daemon.ps1", "plenumnet-service.ps1", "install-plenumnet-msi.ps1"]);
     const { filename } = req.params;
     if (!allowed.has(filename)) {
       return res.status(404).json({ error: "Not found" });
@@ -1381,6 +1381,54 @@ function startPqtiService(): ChildProcess | null {
     ].join("\r\n") + "\r\n";
     res.setHeader("Content-Type", "application/x-bat");
     res.setHeader("Content-Disposition", 'attachment; filename="deploy-yoda.bat"');
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.send(bat);
+  });
+
+  app.get("/api/install-msi", async (_req, res) => {
+    try {
+      const psPath = path.resolve(process.cwd(), "client", "public", "install", "install-plenumnet-msi.ps1");
+      if (fs.existsSync(psPath)) {
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Content-Disposition", 'attachment; filename="install-plenumnet-msi.ps1"');
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        res.sendFile(psPath);
+      } else {
+        res.status(404).send("# install-plenumnet-msi.ps1 not found");
+      }
+    } catch {
+      res.status(404).send("# install-plenumnet-msi.ps1 not found");
+    }
+  });
+
+  app.get("/api/install-msi.bat", async (_req, res) => {
+    const bat = [
+      "@echo off",
+      "title PlenumNET MSI Installer",
+      'echo.',
+      'echo  PlenumNET MSI Installer',
+      'echo  Capomastro Holdings Ltd. — Applied Physics Division',
+      'echo.',
+      'echo  Downloading installer script...',
+      'echo.',
+      "",
+      ':: Self-elevate to Administrator if not already elevated',
+      'net session >nul 2>&1',
+      'if %errorlevel% neq 0 (',
+      '    echo   Requesting administrator privileges...',
+      '    powershell.exe -NoProfile -Command "Start-Process cmd.exe -Verb RunAs -ArgumentList \'/c \\"%~f0\\"\'"',
+      '    exit /b',
+      ')',
+      "",
+      'set "PS_FILE=%TEMP%\\install-plenumnet-msi-%RANDOM%.ps1"',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri \'https://plenumnet.replit.app/api/install-msi\' -OutFile \'%PS_FILE%\' -UseBasicParsing"',
+      "",
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_FILE%"',
+      'del "%PS_FILE%" 2>nul',
+      "pause",
+    ].join("\r\n") + "\r\n";
+    res.setHeader("Content-Type", "application/x-bat");
+    res.setHeader("Content-Disposition", 'attachment; filename="install-plenumnet-msi.bat"');
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.send(bat);
   });

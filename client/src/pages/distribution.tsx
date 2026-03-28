@@ -537,9 +537,15 @@ function DeployerCard() {
             )}
 
             <div className="flex flex-wrap gap-3 mt-4">
+              <a href="/api/install-msi.bat" download data-testid="button-download-msi-installer">
+                <Button>
+                  <Download className="w-4 h-4 mr-2" />
+                  MSI Installer (.bat)
+                </Button>
+              </a>
               <Button data-testid="button-download-installer" onClick={(e) => { e.preventDefault(); window.open(config.installerUrl, "_blank"); }}>
                 <Download className="w-4 h-4 mr-2" />
-                Download Installer ({config.label})
+                Legacy Installer ({config.label})
               </Button>
               <Button variant="outline" data-testid="button-download-archive" onClick={(e) => { e.preventDefault(); window.open(GITHUB_DOWNLOAD, "_blank"); }}>
                 <Package className="w-4 h-4 mr-2" />
