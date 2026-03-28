@@ -282,12 +282,14 @@ async fn cluster_auth_middleware(
         let source_addr = req.extensions()
             .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
             .map(|ci| ci.0);
-        if let Some(addr) = source_addr {
-            if !addr.ip().is_loopback() {
+        match source_addr {
+            Some(addr) if addr.ip().is_loopback() => {
+                return Ok(next.run(req).await);
+            }
+            _ => {
                 return Err(StatusCode::FORBIDDEN);
             }
         }
-        return Ok(next.run(req).await);
     }
     let auth_header = req.headers()
         .get("x-cluster-token")
