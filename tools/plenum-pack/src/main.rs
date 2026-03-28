@@ -248,6 +248,25 @@ fn cmd_build(
 
         println!("Compiling MSI: {}", msi_path.display());
         println!("Binary source: {}", binary_source_dir.display());
+
+        for ext in &["WixToolset.UI.wixext", "WixToolset.Util.wixext"] {
+            let _ = std::process::Command::new("wix")
+                .args(["extension", "add", ext])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
+        if matches!(
+            manifest.app_type.kind,
+            manifest::AppKind::Service | manifest::AppKind::Hybrid
+        ) {
+            let _ = std::process::Command::new("wix")
+                .args(["extension", "add", "WixToolset.Firewall.wixext"])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
+
         let status = std::process::Command::new("wix")
             .args(&build_args)
             .status()
