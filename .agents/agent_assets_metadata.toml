@@ -264,3 +264,27 @@ id = "l984JgjQVgA1Uhkm0GF9s"
 uri = "file://.local/qc-reviews/task-56-full-review.md"
 type = "text"
 title = "Task #56 — Complete QC Review (R1 + R2) — All 6 Agents + Consolidated Summary"
+
+[[outputs]]
+id = "8QyG5INdmZJ7vDhnd-ADI"
+uri = "file://.local/qc-r1-task55/qc-r1-consolidated.md"
+type = "text"
+title = "QC-R1 Consolidated Report — Task #55"
+
+[[outputs]]
+id = "51sbaDJOMvDRSB2I6ns0g"
+uri = "file://.local/qc-r1-task55/qc-r1-agent1-security-engineer.md"
+type = "text"
+title = "Agent 1: Security Engineer Review"
+
+[[outputs]]
+id = "Jw1UrIDRtDSUA57Dir1yC"
+uri = "file://.local/qc-r1-task55/qc-r1-agent2-devops-automator.md"
+type = "text"
+title = "Agent 2: DevOps Automator Review"
+
+[[outputs]]
+id = "yxq2-oSwgCkZ9rI9KUe-v"
+uri = "file://.local/qc-r1-task55/qc-r1-agent3-plenumnet-integration.md"
+type = "text"
+title = "Agent 3: PlenumNET Integration Review"
