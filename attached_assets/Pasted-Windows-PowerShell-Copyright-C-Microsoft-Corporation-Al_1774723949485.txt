@@ -1,0 +1,90 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> rustup update stable; rustup default stable; rustc --version
+info: syncing channel updates for stable-aarch64-pc-windows-msvc
+info: latest update on 2026-03-26 for version 1.94.1 (e408947bf 2026-03-25)
+info: removing previous version of component rust-std for target riscv64gc-unknown-none-elf
+info: removing previous version of component rust-std for target aarch64-unknown-none-softfloat
+info: removing previous version of component rust-std for target x86_64-unknown-none
+info: removing previous version of component cargo
+info: removing previous version of component clippy
+info: removing previous version of component rust-docs
+info: removing previous version of component rust-std
+info: removing previous version of component rustc
+info: removing previous version of component rustfmt
+info: downloading 9 components
+     rust-std installed                       11.38 MiB
+     rust-std installed                       12.74 MiB
+     rust-std installed                       13.97 MiB
+        cargo installed                        9.40 MiB
+       clippy installed                        3.92 MiB
+    rust-docs installed                       20.62 MiB
+     rust-std installed                       19.93 MiB
+        rustc installed                       56.51 MiB
+      rustfmt installed                        2.56 MiB
+  stable-aarch64-pc-windows-msvc updated - rustc 1.94.1 (e408947bf 2026-03-25) (from rustc 1.94.0 (4a4ef493e 2026-03-02))
+
+info: checking for self-update (current version: 1.29.0)
+info: using existing install for stable-aarch64-pc-windows-msvc
+info: default toolchain set to stable-aarch64-pc-windows-msvc
+
+  stable-aarch64-pc-windows-msvc unchanged - rustc 1.94.1 (e408947bf 2026-03-25)
+
+rustc 1.94.1 (e408947bf 2026-03-25)
+PS C:\Users\Sigma> powershell -ExecutionPolicy Bypass -File "$env:TEMP\install-plenumnet-msi.ps1"
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:194 char:134
++ ... ) + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
++                                                             ~~~~~~~~~~~~~
+Unexpected token 'PATH","User")
+    $llvmBin = "C:\Program' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:196 char:91
++ ... alPath (Join-Path $llvmBin "clang.exe")) { $env:PATH += ";$llvmBin" }
++                                                                       ~~~
+Unexpected token '" }
+    if (Get-Command clang -ErrorAction SilentlyContinue) {
+        Write-Log "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:198 char:22
++         Write-Log "  [OK] clang installed" "Green"
++                      ~~~~
+Unexpected token '[OK]' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:198 char:27
++         Write-Log "  [OK] clang installed" "Green"
++                           ~~~~~
+Unexpected token 'clang' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:241 char:70
++ ...  if (Test-Path $dotnetToolsPath) { $env:PATH += ";$dotnetToolsPath" }
++                                                                       ~~~
+Unexpected token '" }
+}
+if (Test-Command "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:243 char:19
++ if (Test-Command "wix") {
++                   ~~~~~~~
+Unexpected token 'wix") {
+    Write-Log "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:247 char:70
++ ...  if (Test-Path $dotnetToolsPath) { $env:PATH += ";$dotnetToolsPath" }
++                                                                       ~~~
+Unexpected token '" }
+    if (Test-Command "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:248 char:23
++     if (Test-Command "wix") {
++                       ~~~~~~~
+Unexpected token 'wix") {
+        Write-Log "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:253 char:1
++ }
++ ~
+Unexpected token '}' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:393 char:57
++                 Write-Log "  [OK] $($msi.Name) ($sizeMB MB)" "Green"
++                                                         ~~
+Unexpected token 'MB' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma>
