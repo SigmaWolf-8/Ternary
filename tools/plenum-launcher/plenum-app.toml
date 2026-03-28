@@ -26,6 +26,14 @@ tray_tooltip = "PlenumNET Launcher — Application Hub"
 start_menu = [
     { name = "PlenumNET Launcher", target = "plenum-launcher.exe", icon = "assets/plenum-launcher.ico" },
 ]
+desktop = [
+    { name = "PlenumNET Launcher", target = "plenum-launcher.exe", icon = "assets/plenum-launcher.ico" },
+]
+
+[first_run]
+actions = [
+    { type = "launch", command = "[INSTALLFOLDER]plenum-launcher.exe" },
+]
 
 [uninstall]
 preserve_data = true

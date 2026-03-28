@@ -106,6 +106,7 @@ impl<'a> WixGenerator<'a> {
             .replace("{{DIRECTORY_STRUCTURE}}", &directory_structure)
             .replace("{{EXTRA_COMPONENT_REFS}}", &extra_refs)
             .replace("{{SHORTCUT_ENTRIES}}", &self.generate_shortcuts())
+            .replace("{{DESKTOP_SHORTCUT_ENTRIES}}", &self.generate_desktop_shortcuts())
             .replace("{{SHORTCUT_ICONS}}", &self.generate_shortcut_icons())
             .replace(
                 "{{SERVICE_ACCOUNT_RESOLVER}}",
@@ -465,6 +466,10 @@ impl<'a> WixGenerator<'a> {
             _ => {}
         }
 
+        if self.manifest.shortcuts.as_ref().map_or(false, |s| !s.desktop.is_empty()) {
+            refs.push_str("      <ComponentRef Id=\"DesktopShortcuts\" />\n");
+        }
+
         if self.has_passphrase_actions() {
             refs.push_str("      <ComponentRef Id=\"PassHelperBinary\" />\n");
         }
@@ -511,6 +516,51 @@ impl<'a> WixGenerator<'a> {
         entries
     }
 
+    fn generate_desktop_shortcuts(&self) -> String {
+        if let Some(ref shortcuts) = self.manifest.shortcuts {
+            if shortcuts.desktop.is_empty() {
+                return String::new();
+            }
+            let mut entries = String::new();
+            entries.push_str("    <StandardDirectory Id=\"DesktopFolder\">\n");
+            entries.push_str("      <Component Id=\"DesktopShortcuts\" Guid=\"*\">\n");
+            entries.push_str(&format!(
+                "        <RegistryValue Root=\"HKCU\" Key=\"Software\\Capomastro\\PlenumNET\\{}\" Name=\"DesktopShortcutInstalled\" Type=\"integer\" Value=\"1\" KeyPath=\"yes\" />\n",
+                self.manifest.app.name
+            ));
+            for (idx, shortcut) in shortcuts.desktop.iter().enumerate() {
+                let icon_ref = if shortcut.icon.is_some() {
+                    let icon_path = self.manifest_dir.join(shortcut.icon.as_ref().unwrap());
+                    if icon_path.exists() {
+                        format!("DesktopIcon_{}", idx)
+                    } else {
+                        "ProductIcon".to_string()
+                    }
+                } else {
+                    "ProductIcon".to_string()
+                };
+                entries.push_str(&format!(
+                    r#"        <Shortcut Id="desktop_{id}" Name="{name}" Target="[INSTALLFOLDER]{target}"{args} Icon="{icon}" WorkingDirectory="INSTALLFOLDER" />
+"#,
+                    id = wix_safe_id(&shortcut.name),
+                    name = shortcut.name,
+                    target = shortcut.target,
+                    args = shortcut
+                        .args
+                        .as_ref()
+                        .map(|a| format!(r#" Arguments="{}""#, a))
+                        .unwrap_or_default(),
+                    icon = icon_ref,
+                ));
+            }
+            entries.push_str("      </Component>\n");
+            entries.push_str("    </StandardDirectory>\n");
+            entries
+        } else {
+            String::new()
+        }
+    }
+
     fn generate_shortcut_icons(&self) -> String {
         let mut icons = String::new();
         if let Some(ref shortcuts) = self.manifest.shortcuts {
@@ -525,6 +575,22 @@ impl<'a> WixGenerator<'a> {
                             .to_string();
                         icons.push_str(&format!(
                             "    <Icon Id=\"ShortcutIcon_{}\" SourceFile=\"{}\" />\n",
+                            idx, resolved
+                        ));
+                    }
+                }
+            }
+            for (idx, shortcut) in shortcuts.desktop.iter().enumerate() {
+                if let Some(ref icon) = shortcut.icon {
+                    let icon_path = self.manifest_dir.join(icon);
+                    if icon_path.exists() {
+                        let resolved = icon_path
+                            .canonicalize()
+                            .unwrap_or(icon_path)
+                            .to_string_lossy()
+                            .to_string();
+                        icons.push_str(&format!(
+                            "    <Icon Id=\"DesktopIcon_{}\" SourceFile=\"{}\" />\n",
                             idx, resolved
                         ));
                     }
@@ -631,6 +697,18 @@ impl<'a> WixGenerator<'a> {
                             action_id = action_id,
                             exe_name = exe_name,
                             args = args,
+                        ));
+                        sequence_entries.push(action_id);
+                    }
+                    FirstRunAction::Launch { command } => {
+                        let cmd = self.interpolate_command(command);
+                        actions.push_str(&format!(
+                            r#"    <CustomAction Id="{action_id}" Directory="INSTALLFOLDER"
+                  ExeCommand="{cmd}"
+                  Execute="commit" Impersonate="yes" Return="asyncNoWait" />
+"#,
+                            action_id = action_id,
+                            cmd = cmd,
                         ));
                         sequence_entries.push(action_id);
                     }

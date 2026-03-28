@@ -78,6 +78,8 @@
       </Directory>
     </StandardDirectory>
 
+{{DESKTOP_SHORTCUT_ENTRIES}}
+
     <Component Id="PathEntry" Guid="*" Directory="INSTALLFOLDER" Condition="{{PATH_CONDITION}}">
       <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]"
                    Permanent="no" Part="last" Action="set" System="yes" />

@@ -164,12 +164,17 @@ pub enum FirstRunAction {
         command: String,
         message: String,
     },
+    Launch {
+        command: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShortcutsSection {
     #[serde(default)]
     pub start_menu: Vec<ShortcutEntry>,
+    #[serde(default)]
+    pub desktop: Vec<ShortcutEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
