@@ -541,6 +541,14 @@ impl RotationOrchestrator {
     }
 }
 
+impl Drop for RotationOrchestrator {
+    fn drop(&mut self) {
+        for b in self.enc_passphrase.iter_mut() {
+            unsafe { std::ptr::write_volatile(b as *mut u8, 0x00); }
+        }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // REKEY HELPERS
 // ═══════════════════════════════════════════════════════════════════════

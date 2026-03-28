@@ -2,7 +2,7 @@
 // Patent(s) Pending — All Rights Reserved
 // Applied Physics Division
 //
-// PlenumNET Inter-Cube Infrastructure Daemon v2.4.0
+// PlenumNET Inter-Cube Infrastructure Daemon v2.4.1
 //
 // MODES (controlled by CUBE_MODE env var):
 //   "crs"    — Central Registration Service. Allocates addresses,
@@ -39,6 +39,8 @@
 //   CUBE_ARRAY3_PEERS          — Comma-separated peer addresses for Array3 formation
 //   CUBE_IDENTITY_DIR          — Directory for master.key (default: ~/.plenumnet/identity/)
 //   CUBE_IDENTITY_PASSPHRASE   — Passphrase for master.key encryption
+//   CUBE_CLUSTER_TOKEN         — Shared secret for cluster API auth (required for cluster routes)
+//   CUBE_TERMINAL_BIND         — Terminal WebSocket bind address (default: 127.0.0.1)
 
 use inter_cube::*;
 use inter_cube::api::{
@@ -205,11 +207,11 @@ fn spawn_peer_listener(
                             let msg_tx = peer_msg_tx.clone();
                             let senders_for_conn = peer_senders.clone();
                             tokio::spawn(async move {
-                                println!("[PEER] Connection from {} (local address: {})", peer_addr, addr);
+                                println!("[PEER] Connection from [unannounced-peer] (local address: {})", addr);
                                 let ws_stream = match tokio_tungstenite::accept_async(stream).await {
                                     Ok(ws) => ws,
                                     Err(e) => {
-                                        println!("[PEER] WebSocket handshake failed from {}: {}", peer_addr, e);
+                                        println!("[PEER] WebSocket handshake failed from [unannounced-peer]: {}", e);
                                         return;
                                     }
                                 };
@@ -255,7 +257,7 @@ fn spawn_peer_listener(
                                                             });
                                                         }
                                                         inbound_peer_address = Some(remote_addr.clone());
-                                                        println!("[PEER] Registered inbound LAN peer {} at {}:{} (sender ready)", remote_addr, peer_addr.ip(), remote_peer_port);
+                                                        println!("[PEER] Registered inbound LAN peer {} (sender ready)", remote_addr);
                                                     }
                                                 } else if let Some(ref tx) = msg_tx {
                                                     let msg_type = json["type"].as_str().unwrap_or("relay").to_string();
@@ -281,25 +283,31 @@ fn spawn_peer_listener(
                                                         connected: None,
                                                     };
                                                     let rmt = envelope.relay_msg_type.as_deref().unwrap_or("unknown");
-                                                    println!("[PEER] Routing {} from {} into processing pipeline", rmt, peer_addr);
+                                                    let peer_label = inbound_peer_address.as_deref().unwrap_or("[unannounced-peer]");
+                                                    println!("[PEER] Routing {} from {} into processing pipeline", rmt, peer_label);
                                                     let _ = tx.send(envelope).await;
                                                 } else {
-                                                    println!("[PEER] Message from {}: {} bytes (no pipeline)", peer_addr, m.len());
+                                                    let peer_label2 = inbound_peer_address.as_deref().unwrap_or("[unannounced-peer]");
+                                                    println!("[PEER] Message from {}: {} bytes (no pipeline)", peer_label2, m.len());
                                                 }
                                             } else {
-                                                println!("[PEER] Non-JSON from {}: {} bytes", peer_addr, m.len());
+                                                let peer_label3 = inbound_peer_address.as_deref().unwrap_or("[unannounced-peer]");
+                                                println!("[PEER] Non-JSON from {}: {} bytes", peer_label3, m.len());
                                             }
                                         }
                                         Ok(m) if m.is_binary() => {
-                                            println!("[PEER] Binary from {}: {} bytes", peer_addr, m.len());
+                                            let peer_label4 = inbound_peer_address.as_deref().unwrap_or("[unannounced-peer]");
+                                            println!("[PEER] Binary from {}: {} bytes", peer_label4, m.len());
                                         }
                                         Ok(m) if m.is_close() => {
-                                            println!("[PEER] Peer {} disconnected", peer_addr);
+                                            let peer_label5 = inbound_peer_address.as_deref().unwrap_or("[unannounced-peer]");
+                                            println!("[PEER] Peer {} disconnected", peer_label5);
                                             break;
                                         }
                                         Ok(_) => {}
                                         Err(e) => {
-                                            println!("[PEER] Error from {}: {}", peer_addr, e);
+                                            let peer_label6 = inbound_peer_address.as_deref().unwrap_or("[unannounced-peer]");
+                                            println!("[PEER] Error from {}: {}", peer_label6, e);
                                             break;
                                         }
                                     }
@@ -400,7 +408,7 @@ fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_por
                                         if let Some(ref cs) = cluster_shell {
                                             let terminal_p = pp.saturating_sub(2);
                                             if terminal_p >= 11111 {
-                                                println!("[cluster-shell] Auto-registered peer {} (host={}, terminal={})", addr, ip_str, terminal_p);
+                                                println!("[cluster-shell] Auto-registered peer {} (terminal port={})", addr, terminal_p);
                                                 inter_cube::cluster_shell::register_peer(
                                                     cs,
                                                     addr.clone(),
@@ -439,7 +447,7 @@ fn connect_to_peer(
         let connect_result = tokio_tungstenite::connect_async(&ws_url).await;
         match connect_result {
             Ok((ws_stream, _)) => {
-                println!("[PEER] Direct connection established to {} ({}:{})", remote_address, ip, port);
+                println!("[PEER] Direct connection established to {}", remote_address);
 
                 {
                     let mut peers_guard = peers.lock().unwrap_or_else(|e| e.into_inner());
@@ -555,7 +563,7 @@ fn connect_to_peer(
                 }
             }
             Err(e) => {
-                println!("[PEER] Failed to connect to {} at {}:{} — {}", remote_address, ip, port, e);
+                println!("[PEER] Failed to connect to {} — {}", remote_address, e);
             }
         }
     });
@@ -809,6 +817,27 @@ async fn run_crs_mode() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// TERMINAL AUTHORIZATION
+// ═══════════════════════════════════════════════════════════════════════
+
+async fn is_terminal_authorized(
+    from: &str,
+    known_peers: &tokio::sync::Mutex<std::collections::HashSet<String>>,
+) -> (bool, String) {
+    if from == "?" || from.is_empty() {
+        return (false, "terminal command from unauthenticated source".to_string());
+    }
+    let is_known = {
+        let peers = known_peers.lock().await;
+        peers.contains(from)
+    };
+    if !is_known {
+        return (false, format!("terminal command from unknown peer {}", from));
+    }
+    (true, String::new())
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // CUBE MODE
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1013,12 +1042,33 @@ async fn run_cube_mode() {
     println!("  CON -> FTS -> GLB pipeline operational.");
     println!("  The geometry IS the routing protocol.");
 
-    let now_ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    let registration_timestamp = now_ts;
-    let passphrase = encryption_passphrase();
+    let registration_timestamp = {
+        let ts_path = inter_cube::daemon_identity::identity_dir().join("registration_ts");
+        if let Ok(contents) = std::fs::read_to_string(&ts_path) {
+            if let Ok(ts) = contents.trim().parse::<u64>() {
+                println!("[IDENTITY] Loaded persisted registration timestamp: {}", ts);
+                ts
+            } else {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let _ = std::fs::write(&ts_path, now.to_string());
+                println!("[IDENTITY] Persisted new registration timestamp: {}", now);
+                now
+            }
+        } else {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let _ = std::fs::write(&ts_path, now.to_string());
+            println!("[IDENTITY] Persisted new registration timestamp: {}", now);
+            now
+        }
+    };
+    let mut passphrase = encryption_passphrase();
+    let passphrase_hb = passphrase.clone();
     let orchestrator = RotationOrchestrator::new(
         local_address.clone(),
         registration_timestamp,
@@ -1026,6 +1076,8 @@ async fn run_cube_mode() {
         identity.current_radian_epoch(),
         passphrase.clone(),
     );
+    passphrase.iter_mut().for_each(|b| unsafe { std::ptr::write_volatile(b as *mut u8, 0) });
+    drop(passphrase);
     let orchestrator = Arc::new(Mutex::new(orchestrator));
 
     let crs_url_for_heartbeat = crs_url.clone();
@@ -1033,7 +1085,6 @@ async fn run_cube_mode() {
     let addr_trits: Vec<u8> = local_address.to_bytes().to_vec();
     let orchestrator_hb = orchestrator.clone();
     let local_addr_hb = local_address.clone();
-    let passphrase_hb = passphrase.clone();
     let key_hex_hb = key_hex.clone();
 
     tokio::spawn(async move {
@@ -1199,6 +1250,9 @@ async fn run_cube_mode() {
 
     let terminal_mux = pty_mux::new_shared_mux(16);
     let term_bind_addr = env::var("CUBE_TERMINAL_BIND").unwrap_or_else(|_| "127.0.0.1".to_string());
+    if term_bind_addr != "127.0.0.1" && term_bind_addr != "localhost" && term_bind_addr != "::1" {
+        eprintln!("[TERMINAL] WARNING: Terminal WebSocket bound to non-loopback address {}. This exposes the PTY to the network. Ensure firewall rules restrict access.", term_bind_addr);
+    }
     let terminal_bind: SocketAddr = format!("{}:{}", term_bind_addr, t_port).parse().unwrap();
     tokio::spawn(pty_mux::run_ws_terminal_server(terminal_bind, terminal_mux));
 
@@ -1266,13 +1320,15 @@ fn spawn_relay_client(
                 .replace("/ws/relay", "")
                 .to_string();
             let reg_url = format!(
-                "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint={}&tlDsaPk={}",
+                "{}/api/salvi/inter-cube/relay/register",
                 http_base,
-                &public_key_hex,
-                &endpoint_str,
-                &tl_dsa_pk_hex,
             );
-            match reqwest::get(&reg_url).await {
+            let reg_client = reqwest::Client::new();
+            match reg_client.post(&reg_url).json(&serde_json::json!({
+                "publicKey": &public_key_hex,
+                "endpoint": &endpoint_str,
+                "tlDsaPk": &tl_dsa_pk_hex,
+            })).send().await {
                 Ok(resp) if resp.status().is_success() => {
                     println!("[ws-relay] Pre-registered with relay (address: {})", address);
                 }
@@ -1422,16 +1478,9 @@ fn spawn_relay_client(
                         }
 
                         if msg_type == "terminal-open" || msg_type == "terminal-input" || msg_type == "terminal-resize" || msg_type == "terminal-close" {
-                            if from == "?" || from.is_empty() {
-                                println!("[terminal] REJECTED: terminal command from unauthenticated source");
-                                continue;
-                            }
-                            let is_known_peer = {
-                                let peers = client.peers.lock().await;
-                                peers.contains(&from)
-                            };
-                            if !is_known_peer {
-                                println!("[terminal] REJECTED: terminal command from unknown peer {}", from);
+                            let (authorized, reject_reason) = is_terminal_authorized(&from, &client.peers).await;
+                            if !authorized {
+                                println!("[terminal] REJECTED: {}", reject_reason);
                                 continue;
                             }
                             let reply_tx = client.outgoing_tx.clone();
@@ -1482,7 +1531,11 @@ fn spawn_relay_client(
                                             }
                                         };
                                         {
-                                            let mut sessions = terminal_sessions_clone.lock().unwrap();
+                                            let mut sessions = terminal_sessions_clone.lock().unwrap_or_else(|e| e.into_inner());
+                                            if sessions.len() >= 27 {
+                                                println!("[terminal] REJECTED: session limit reached (max 27)");
+                                                return;
+                                            }
                                             sessions.insert(session_id.clone(), TerminalSession {
                                                 writer: Arc::new(tokio::sync::Mutex::new(writer)),
                                                 master: Arc::new(tokio::sync::Mutex::new(pair.master)),
@@ -1524,7 +1577,7 @@ fn spawn_relay_client(
                                                     Err(_) => break,
                                                 }
                                             }
-                                            let mut sessions = sessions_for_reader.lock().unwrap();
+                                            let mut sessions = sessions_for_reader.lock().unwrap_or_else(|e| e.into_inner());
                                             sessions.remove(&sid);
                                             println!("[terminal] Session {} ended", sid);
                                         });
@@ -1532,7 +1585,7 @@ fn spawn_relay_client(
                                     }
                                     "terminal-input" => {
                                         let data = parsed.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                                        let sessions = terminal_sessions_clone.lock().unwrap();
+                                        let sessions = terminal_sessions_clone.lock().unwrap_or_else(|e| e.into_inner());
                                         if let Some(session) = sessions.get(&session_id) {
                                             let writer = session.writer.clone();
                                             tokio::spawn(async move {
@@ -1544,7 +1597,7 @@ fn spawn_relay_client(
                                     "terminal-resize" => {
                                         let cols = parsed.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
                                         let rows = parsed.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
-                                        let sessions = terminal_sessions_clone.lock().unwrap();
+                                        let sessions = terminal_sessions_clone.lock().unwrap_or_else(|e| e.into_inner());
                                         if let Some(session) = sessions.get(&session_id) {
                                             let master = session.master.clone();
                                             tokio::spawn(async move {
@@ -1554,7 +1607,7 @@ fn spawn_relay_client(
                                         }
                                     }
                                     "terminal-close" => {
-                                        let mut sessions = terminal_sessions_clone.lock().unwrap();
+                                        let mut sessions = terminal_sessions_clone.lock().unwrap_or_else(|e| e.into_inner());
                                         if sessions.remove(&session_id).is_some() {
                                             println!("[terminal] Session {} closed by coordinator", session_id);
                                         }

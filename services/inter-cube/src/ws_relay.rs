@@ -30,7 +30,10 @@
 // | Context String                    | Usage                          | Module            |
 // |-----------------------------------|--------------------------------|-------------------|
 // | `PlenumNET-ROT-JITTER`            | Rotation jitter derivation     | key_rotation.rs   |
-// | `PlenumNET-IDENTITY-PASSPHRASE`   | Master key passphrase domain   | daemon_identity.rs|
+// | `PlenumNET-MS-ENC`                | Master secret encryption KDF   | identity.rs       |
+// | `PlenumNET-MS-STREAM`             | Master secret keystream        | identity.rs       |
+// | `PlenumNET-MS-TAG`                | Master secret auth tag         | identity.rs       |
+// | `PlenumNET-MS-GEN`                | Master secret from seed        | identity.rs       |
 // | `{nonce}||{address}||{publicKey}` | Relay challenge payload        | ws_relay.rs       |
 
 use std::sync::Arc;

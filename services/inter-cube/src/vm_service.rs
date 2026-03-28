@@ -1520,6 +1520,7 @@ pub fn vm_router(vm: SharedVm) -> Router {
         .route("/vm/registers", get(handle_vm_registers))
         .route("/vm/reset", post(handle_vm_reset))
         .route("/vm/isa", get(handle_vm_isa))
+        .layer(axum::middleware::from_fn(crate::cluster_shell::cluster_auth_middleware_fn))
         .with_state(vm)
 }
 

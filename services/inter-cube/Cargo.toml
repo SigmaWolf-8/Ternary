@@ -53,9 +53,6 @@ url = "2"
 # Hex encoding for address persistence
 hex = "0.4"
 
-# Hostname detection for default passphrase derivation
-hostname = "0.4"
-
 # OS-level CSPRNG for master secret generation
 getrandom = "0.2"
 

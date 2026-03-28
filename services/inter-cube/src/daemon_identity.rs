@@ -40,7 +40,6 @@ use crate::key_rotation::ROTATION_PERIOD_SECS;
 
 const DEFAULT_IDENTITY_DIR: &str = ".plenumnet/identity";
 const MASTER_KEY_FILE: &str = "master.key";
-const PASSPHRASE_DOMAIN: &[u8] = b"PlenumNET-DAEMON-PASSPHRASE-v1";
 
 pub fn identity_dir() -> PathBuf {
     if let Ok(dir) = env::var("CUBE_IDENTITY_DIR") {
@@ -61,6 +60,9 @@ pub fn encryption_passphrase() -> Vec<u8> {
                  This environment variable is required to encrypt/decrypt the master secret.\n\
                  The deployer (deploy-yoda.ps1) generates and sets this automatically.\n\
                  For manual operation, set a strong passphrase (32+ random bytes recommended).\n\
+                 When running as a Windows service, set the variable in the service's\n\
+                 Environment registry key (HKLM\\SYSTEM\\CurrentControlSet\\Services\\<name>\\Environment)\n\
+                 or via sc.exe.\n\
                  Refusing to start with hostname-derived passphrase (insufficient entropy)."
             );
             std::process::exit(1);

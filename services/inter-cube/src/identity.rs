@@ -344,24 +344,13 @@ pub fn encrypt_master_secret(
         return Err(IdentityError::EmptyPassphrase);
     }
 
-    // Generate salt and nonce from entropy
-    let salt_seed = MasterSecret::collect_entropy_seed();
-    let salt_derived = ternary_math::sponge::derive_key(
-        b"PlenumNET-MS-SALT",
-        &salt_seed,
-        SALT_LEN,
-    );
     let mut salt = [0u8; SALT_LEN];
-    salt.copy_from_slice(&salt_derived);
+    getrandom::getrandom(&mut salt)
+        .map_err(|_| IdentityError::EntropyFailure)?;
 
-    let nonce_seed = MasterSecret::collect_entropy_seed();
-    let nonce_derived = ternary_math::sponge::derive_key(
-        b"PlenumNET-MS-NONCE",
-        &nonce_seed,
-        NONCE_LEN,
-    );
     let mut nonce = [0u8; NONCE_LEN];
-    nonce.copy_from_slice(&nonce_derived);
+    getrandom::getrandom(&mut nonce)
+        .map_err(|_| IdentityError::EntropyFailure)?;
 
     // Derive encryption key
     let enc_key = derive_enc_key(passphrase, &salt);

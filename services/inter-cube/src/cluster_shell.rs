@@ -40,7 +40,8 @@ const CLUSTER_CMD_ALLOWLIST: &[&str] = &[
 ];
 
 fn contains_shell_metachar(cmd: &str) -> bool {
-    cmd.chars().any(|c| matches!(c, ';' | '|' | '&' | '`' | '$' | '(' | ')' | '{' | '}' | '<' | '>' | '!' | '\\' | '\n' | '\r' | '"' | '\''))
+    cmd.bytes().any(|b| b == 0) ||
+    cmd.chars().any(|c| matches!(c, ';' | '|' | '&' | '`' | '$' | '(' | ')' | '{' | '}' | '<' | '>' | '!' | '\\' | '\n' | '\r' | '"' | '\'' | '~' | '#' | '%' | '[' | ']'))
 }
 
 pub fn is_command_allowed_public(cmd: &str) -> bool {
@@ -194,11 +195,9 @@ async fn handle_cluster_peers(
     let peers: Vec<serde_json::Value> = guard
         .peers
         .iter()
-        .map(|(addr, info)| {
+        .map(|(addr, _info)| {
             serde_json::json!({
                 "address": addr,
-                "host": info.host,
-                "terminal_port": info.terminal_port,
             })
         })
         .collect();
@@ -261,8 +260,6 @@ async fn handle_register_peer(
     Json(serde_json::json!({
         "ok": true,
         "registered": req.address,
-        "host": host,
-        "terminal_port": req.terminal_port,
     }))
 }
 
@@ -273,20 +270,29 @@ pub struct RegisterPeerRequest {
     pub terminal_port: u16,
 }
 
-async fn cluster_auth_middleware(
+pub async fn cluster_auth_middleware_fn(
     req: axum::http::Request<axum::body::Body>,
     next: middleware::Next,
 ) -> Result<axum::response::Response, StatusCode> {
     let expected_token = std::env::var("CUBE_CLUSTER_TOKEN").unwrap_or_default();
     if expected_token.is_empty() {
-        eprintln!("[cluster] WARNING: CUBE_CLUSTER_TOKEN not set — all cluster API requests denied. Set this token to enable cluster management.");
+        eprintln!("[cluster] WARNING: CUBE_CLUSTER_TOKEN not set — all cluster/VM API requests denied. Set this token to enable cluster management.");
         return Err(StatusCode::FORBIDDEN);
     }
     let auth_header = req.headers()
         .get("x-cluster-token")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
-    if auth_header != expected_token {
+    let expected_bytes = expected_token.as_bytes();
+    let header_bytes = auth_header.as_bytes();
+    if expected_bytes.len() != header_bytes.len() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let mut diff: u8 = 0;
+    for i in 0..expected_bytes.len() {
+        diff |= expected_bytes[i] ^ header_bytes[i];
+    }
+    if diff != 0 {
         return Err(StatusCode::UNAUTHORIZED);
     }
     Ok(next.run(req).await)
@@ -297,7 +303,7 @@ pub fn cluster_shell_router(shell: SharedClusterShell) -> Router {
         .route("/cluster/exec", post(handle_cluster_exec))
         .route("/cluster/peers", axum::routing::get(handle_cluster_peers))
         .route("/cluster/register-peer", post(handle_register_peer))
-        .layer(middleware::from_fn(cluster_auth_middleware))
+        .layer(middleware::from_fn(cluster_auth_middleware_fn))
         .with_state(shell)
 }
 
