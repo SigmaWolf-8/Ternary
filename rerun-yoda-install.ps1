@@ -85,6 +85,16 @@ if ($task) {
 }
 
 Write-Host ""
+Write-Host "STEP 4b: Cleaning stale LLM health counters..." -ForegroundColor Yellow
+$llmCounterFile = "C:\ProgramData\PlenumNET\llm-health-counters.json"
+if (Test-Path $llmCounterFile) {
+    Remove-Item $llmCounterFile -Force -ErrorAction SilentlyContinue
+    Write-Host "  [OK] Removed stale llm-health-counters.json" -ForegroundColor Green
+} else {
+    Write-Host "  [--] No stale counter file" -ForegroundColor DarkGray
+}
+
+Write-Host ""
 Write-Host "STEP 5: Cleaning old wrapper scripts..." -ForegroundColor Yellow
 $repoDir = "C:\PlenumNET"
 $wrapperDir = Join-Path $repoDir "services\wrappers"

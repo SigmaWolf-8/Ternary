@@ -74,6 +74,9 @@ Includes 4-tier rate limiting, CORS, Helmet.js security headers, AES-256-GCM tok
 ### Capability-Based Security
 Authorization uses unforgeable, self-contained, bearer-verified capability tokens signed with TL-DSA, implemented across six phases.
 
+### Array3 Watchdog (`array3-watchdog.ps1`)
+A Windows scheduled task running every 2 minutes + on boot. Monitors daemon services, LLM engines, and orphan processes. Features: recursive BFS process tree walk for orphan detection (fixes false kills from PID domain mismatch between `cmd.exe` service wrapper and `inter-cube-daemon.exe`), two-tier LLM health checks (port listener + `/v1/models` API), smart restart with 5-minute grace period for model loading, machine-parseable summary lines (`[OK]`/`[WARN]`/`[FAIL]` + JSON), and log rotation at 1MB. LLM engine config stored in `C:\ProgramData\PlenumNET\llm-engines.json` (written by deploy-yoda.ps1), health counters in `C:\ProgramData\PlenumNET\llm-health-counters.json`. Machine-wide path ensures both the deployer (interactive admin) and the watchdog (SYSTEM scheduled task) access the same files.
+
 ## External Dependencies
 
 -   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).

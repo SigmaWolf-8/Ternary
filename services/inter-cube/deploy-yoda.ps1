@@ -572,40 +572,327 @@ $watchdogScript = Join-Path $wrapperDir "array3-watchdog.ps1"
 `$logDir = Join-Path `$env:USERPROFILE '.plenumnet\logs'
 if (-not (Test-Path `$logDir)) { New-Item -ItemType Directory -Force -Path `$logDir | Out-Null }
 `$wdLog = Join-Path `$logDir 'watchdog.log'
+`$plenumDir = 'C:\ProgramData\PlenumNET'
+if (-not (Test-Path `$plenumDir)) { New-Item -ItemType Directory -Force -Path `$plenumDir | Out-Null }
+`$llmConfigPath = Join-Path `$plenumDir 'llm-engines.json'
+`$llmCounterPath = Join-Path `$plenumDir 'llm-health-counters.json'
+`$MAX_LOG_BYTES = 1048576
+
+function Rotate-WatchdogLog {
+    if (Test-Path `$wdLog) {
+        `$fi = Get-Item `$wdLog -ErrorAction SilentlyContinue
+        if (`$fi -and `$fi.Length -gt `$MAX_LOG_BYTES) {
+            `$rotated = "`$wdLog.1"
+            if (Test-Path `$rotated) { Remove-Item `$rotated -Force -ErrorAction SilentlyContinue }
+            Rename-Item -Path `$wdLog -NewName `$rotated -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Write-WdLog(`$msg) {
+    `$ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    Add-Content -Path `$wdLog -Value "[`$ts] `$msg"
+}
+
+function Get-DescendantPids([int]`$parentPid, [hashtable]`$childMap) {
+    `$descendants = [System.Collections.Generic.HashSet[int]]::new()
+    `$queue = [System.Collections.Generic.Queue[int]]::new()
+    `$queue.Enqueue(`$parentPid)
+    while (`$queue.Count -gt 0) {
+        `$current = `$queue.Dequeue()
+        if (`$childMap.ContainsKey(`$current)) {
+            foreach (`$childPid in `$childMap[`$current]) {
+                if (`$descendants.Add(`$childPid)) {
+                    `$queue.Enqueue(`$childPid)
+                }
+            }
+        }
+    }
+    return `$descendants
+}
+
+Rotate-WatchdogLog
+
 `$ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-`$stopped = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
+`$totalDaemons = 0
+`$healthyDaemons = 0
+`$totalLlms = 0
+`$healthyLlms = 0
+`$restartCount = 0
+`$orphansKilled = 0
+
+`$allServices = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue
+`$totalDaemons = (`$allServices | Measure-Object).Count
+
+`$stopped = `$allServices | Where-Object { `$_.Status -ne 'Running' }
 if (`$stopped) {
     foreach (`$svc in `$stopped) {
         try {
             Start-Service -Name `$svc.Name -ErrorAction Stop
-            Add-Content -Path `$wdLog -Value "[`$ts] Restarted `$(`$svc.Name)"
+            Write-WdLog "Restarted service `$(`$svc.Name)"
+            `$restartCount++
         } catch {
-            Add-Content -Path `$wdLog -Value "[`$ts] FAILED to restart `$(`$svc.Name): `$_"
+            Write-WdLog "FAILED to restart `$(`$svc.Name): `$_"
         }
     }
-} else {
-    `$running = (Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Measure-Object).Count
-    Add-Content -Path `$wdLog -Value "[`$ts] All `$running node(s) healthy"
 }
+`$runningServices = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -eq 'Running' }
+`$healthyDaemons = (`$runningServices | Measure-Object).Count
+
+`$allProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId, ParentProcessId, Name
+`$childMap = @{}
+foreach (`$p in `$allProcs) {
+    `$ppid = [int]`$p.ParentProcessId
+    if (-not `$childMap.ContainsKey(`$ppid)) { `$childMap[`$ppid] = @() }
+    `$childMap[`$ppid] += [int]`$p.ProcessId
+}
+
+`$legitimateDaemonPids = [System.Collections.Generic.HashSet[int]]::new()
 `$servicePids = @()
-Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -eq 'Running' } | ForEach-Object {
+foreach (`$svc in `$runningServices) {
     try {
-        `$wmiSvc = Get-WmiObject Win32_Service -Filter "Name='`$(`$_.Name)'" -ErrorAction SilentlyContinue
-        if (`$wmiSvc -and `$wmiSvc.ProcessId -gt 0) { `$servicePids += `$wmiSvc.ProcessId }
-    } catch {}
+        `$wmiSvc = Get-CimInstance Win32_Service -Filter "Name='`$(`$svc.Name)'" -ErrorAction SilentlyContinue
+        if (`$wmiSvc -and `$wmiSvc.ProcessId -gt 0) {
+            `$svcPid = [int]`$wmiSvc.ProcessId
+            `$servicePids += `$svcPid
+            `$descendants = Get-DescendantPids -parentPid `$svcPid -childMap `$childMap
+            foreach (`$dPid in `$descendants) {
+                `$proc = `$allProcs | Where-Object { `$_.ProcessId -eq `$dPid -and `$_.Name -eq 'inter-cube-daemon.exe' }
+                if (`$proc) {
+                    [void]`$legitimateDaemonPids.Add(`$dPid)
+                    Write-WdLog "  PID `$dPid (inter-cube-daemon.exe) -> LEGITIMATE (descendant of service `$(`$svc.Name) PID=`$svcPid)"
+                } else {
+                    `$procName = (`$allProcs | Where-Object { `$_.ProcessId -eq `$dPid } | Select-Object -First 1).Name
+                    Write-WdLog "  PID `$dPid (`$procName) -> SKIP (descendant of `$(`$svc.Name) but not daemon)"
+                }
+            }
+            Write-WdLog "Service `$(`$svc.Name) PID=`$svcPid total-descendants=`$(`$descendants.Count) daemon-descendants=`$(`$legitimateDaemonPids.Count)"
+        }
+    } catch {
+        Write-WdLog "WARN: Could not query service `$(`$svc.Name) PID: `$_"
+    }
 }
-`$orphans = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Where-Object { `$_.Id -notin `$servicePids }
-if (`$orphans) {
-    foreach (`$p in `$orphans) {
+
+`$daemonPorts = @($(($daemonConfigs | ForEach-Object { "$($_.GatewayPort), $($_.TerminalPort)" }) -join ', '))
+`$allDaemonProcs = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue
+if (`$allDaemonProcs) {
+    foreach (`$dp in `$allDaemonProcs) {
+        if (`$legitimateDaemonPids.Contains(`$dp.Id)) {
+            Write-WdLog "  PID `$(`$dp.Id) -> LEGITIMATE (in service descendant tree)"
+            continue
+        }
+        `$isListeningOnKnownPort = `$false
         try {
-            Stop-Process -Id `$p.Id -Force -ErrorAction Stop
-            Add-Content -Path `$wdLog -Value "[`$ts] Killed orphan daemon PID `$(`$p.Id)"
-        } catch {
-            Add-Content -Path `$wdLog -Value "[`$ts] FAILED to kill orphan PID `$(`$p.Id): `$_"
+            `$conns = Get-NetTCPConnection -OwningProcess `$dp.Id -State Listen -ErrorAction SilentlyContinue
+            if (`$conns) {
+                foreach (`$c in `$conns) {
+                    if (`$daemonPorts -contains `$c.LocalPort) {
+                        `$isListeningOnKnownPort = `$true
+                        break
+                    }
+                }
+            }
+        } catch {}
+        if (`$isListeningOnKnownPort) {
+            [void]`$legitimateDaemonPids.Add(`$dp.Id)
+            Write-WdLog "  PID `$(`$dp.Id) -> LEGITIMATE (wrapper may have died but daemon is listening on a known daemon port)"
+        } else {
+            try {
+                Stop-Process -Id `$dp.Id -Force -ErrorAction Stop
+                Write-WdLog "  PID `$(`$dp.Id) -> ORPHAN KILLED (not in any service tree, not on known daemon ports)"
+                `$orphansKilled++
+            } catch {
+                Write-WdLog "  PID `$(`$dp.Id) -> ORPHAN KILL FAILED: `$_"
+            }
         }
     }
 }
+
+if (Test-Path `$llmConfigPath) {
+    `$llmEngines = Get-Content `$llmConfigPath -Raw | ConvertFrom-Json
+    `$counters = @{}
+    if (Test-Path `$llmCounterPath) {
+        try {
+            `$jsonObj = Get-Content `$llmCounterPath -Raw | ConvertFrom-Json
+            `$counters = @{}
+            foreach (`$prop in `$jsonObj.PSObject.Properties) {
+                `$counters[`$prop.Name] = @{
+                    failures = [int]`$prop.Value.failures
+                    process_alive = [bool]`$prop.Value.process_alive
+                    last_restart = `$prop.Value.last_restart
+                    last_check = `$prop.Value.last_check
+                    grace_used = if (`$prop.Value.PSObject.Properties['grace_used']) { [bool]`$prop.Value.grace_used } else { `$false }
+                }
+            }
+        } catch { `$counters = @{} }
+    }
+    if (`$null -eq `$counters -or `$counters -isnot [hashtable]) { `$counters = @{} }
+
+    foreach (`$engine in `$llmEngines) {
+        `$port = [string]`$engine.port
+        `$totalLlms++
+        `$portKey = `$port
+
+        if (-not `$counters.ContainsKey(`$portKey)) {
+            `$counters[`$portKey] = @{ failures = 0; process_alive = `$false; last_restart = `$null; last_check = `$null; grace_used = `$false }
+        }
+        `$counters[`$portKey]['last_check'] = (Get-Date -Format 'o')
+
+        `$tcpConn = `$null
+        try { `$tcpConn = Get-NetTCPConnection -LocalPort ([int]`$port) -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 } catch {}
+
+        if (-not `$tcpConn) {
+            Write-WdLog "LLM engine on port `$port: NO process listening - restarting immediately"
+            `$counters[`$portKey]['process_alive'] = `$false
+            `$counters[`$portKey]['failures'] = [int]`$counters[`$portKey]['failures'] + 1
+            try {
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c `$(`$engine.restart_command)" -NoNewWindow
+                `$counters[`$portKey]['last_restart'] = (Get-Date -Format 'o')
+                `$counters[`$portKey]['grace_used'] = `$false
+                Write-WdLog "LLM engine on port `$port: restart command issued"
+                `$restartCount++
+            } catch {
+                Write-WdLog "LLM engine on port `$port: FAILED to restart: `$_"
+            }
+            continue
+        }
+
+        `$counters[`$portKey]['process_alive'] = `$true
+        `$llmOk = `$false
+        try {
+            `$resp = Invoke-RestMethod -Uri "http://127.0.0.1:`$port/v1/models" -TimeoutSec 5 -ErrorAction Stop
+            if (`$resp.data -and `$resp.data.Count -gt 0) { `$llmOk = `$true }
+        } catch {}
+
+        if (`$llmOk) {
+            `$counters[`$portKey]['failures'] = 0
+            `$counters[`$portKey]['grace_used'] = `$false
+            `$healthyLlms++
+            Write-WdLog "LLM engine on port `$port: healthy"
+        } else {
+            `$procStartTime = `$null
+            try {
+                `$ownerPid = `$tcpConn.OwningProcess
+                `$proc = Get-Process -Id `$ownerPid -ErrorAction SilentlyContinue
+                if (`$proc) { `$procStartTime = `$proc.StartTime }
+            } catch {}
+
+            `$upSeconds = 0
+            if (`$procStartTime) { `$upSeconds = ((Get-Date) - `$procStartTime).TotalSeconds }
+
+            `$lastRestart = `$counters[`$portKey]['last_restart']
+            `$recentRestart = `$false
+            if (`$lastRestart) {
+                try {
+                    `$sinceRestart = ((Get-Date) - [DateTime]::Parse(`$lastRestart)).TotalSeconds
+                    if (`$sinceRestart -lt 300) { `$recentRestart = `$true }
+                } catch {}
+            }
+
+            `$graceAlreadyUsed = `$false
+            if (`$counters[`$portKey].ContainsKey('grace_used')) { `$graceAlreadyUsed = [bool]`$counters[`$portKey]['grace_used'] }
+            `$isLoading = ((`$upSeconds -lt 300) -or `$recentRestart) -and (-not `$graceAlreadyUsed)
+
+            if (`$isLoading) {
+                Write-WdLog "LLM engine on port `$port: /v1/models not responding but process started `$([math]::Round(`$upSeconds))s ago - grace period (one cycle)"
+                `$counters[`$portKey]['failures'] = [int]`$counters[`$portKey]['failures'] + 1
+                `$counters[`$portKey]['grace_used'] = `$true
+            } else {
+                Write-WdLog "LLM engine on port `$port: /v1/models failing and process up `$([math]::Round(`$upSeconds))s - killing and restarting"
+                `$counters[`$portKey]['failures'] = [int]`$counters[`$portKey]['failures'] + 1
+                try {
+                    `$ownerPid = `$tcpConn.OwningProcess
+                    Stop-Process -Id `$ownerPid -Force -ErrorAction Stop
+                    Start-Sleep -Seconds 2
+                    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `$(`$engine.restart_command)" -NoNewWindow
+                    `$counters[`$portKey]['last_restart'] = (Get-Date -Format 'o')
+                    `$counters[`$portKey]['grace_used'] = `$false
+                    Write-WdLog "LLM engine on port `$port: killed stale process and restarted"
+                    `$restartCount++
+                } catch {
+                    Write-WdLog "LLM engine on port `$port: FAILED to kill/restart: `$_"
+                }
+            }
+        }
+    }
+
+    `$counters | ConvertTo-Json -Depth 3 | Set-Content -Path `$llmCounterPath -Encoding UTF8
+} else {
+    Write-WdLog "No LLM engine config found at `$llmConfigPath - skipping LLM checks"
+}
+
+`$allOk = (`$healthyDaemons -eq `$totalDaemons) -and (`$healthyLlms -eq `$totalLlms) -and (`$restartCount -eq 0) -and (`$orphansKilled -eq 0)
+`$prefix = if (`$allOk) { '[OK]' } elseif (`$restartCount -gt 0 -or `$orphansKilled -gt 0) { '[WARN]' } else { '[FAIL]' }
+Write-WdLog "`$prefix `$healthyDaemons/`$totalDaemons daemons | `$healthyLlms/`$totalLlms LLM engines | `$restartCount restarts | `$orphansKilled orphans killed"
+Write-WdLog "[SUMMARY] {`"daemons`":`"`$healthyDaemons/`$totalDaemons`",`"llms`":`"`$healthyLlms/`$totalLlms`",`"restarts`":`$restartCount,`"orphans_killed`":`$orphansKilled}"
 "@ | Set-Content -Path $watchdogScript -Encoding ASCII
+
+$llmEnginesConfig = @()
+$defaultModelPath = ""
+$modelSearchPaths = @(
+    (Join-Path $RepoDir "*.gguf"),
+    (Join-Path $RepoDir "models\*.gguf"),
+    (Join-Path $env:USERPROFILE ".plenumnet\models\*.gguf"),
+    (Join-Path $env:USERPROFILE "*.gguf")
+)
+foreach ($pattern in $modelSearchPaths) {
+    $found = Get-Item $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found) {
+        $defaultModelPath = $found.FullName
+        Write-Host "  [OK] Discovered LLM model: $defaultModelPath" -ForegroundColor Green
+        break
+    }
+}
+
+$llamaServerPath = "llama-server"
+$llamaExe = Get-Command "llama-server" -ErrorAction SilentlyContinue
+if ($llamaExe) {
+    $llamaServerPath = $llamaExe.Source
+    Write-Host "  [OK] llama-server found at: $llamaServerPath" -ForegroundColor Green
+} else {
+    $llamaSearchPaths = @(
+        "C:\llama.cpp\build\bin\Release\llama-server.exe",
+        "C:\llama.cpp\llama-server.exe",
+        (Join-Path $RepoDir "llama-server.exe"),
+        (Join-Path $env:LOCALAPPDATA "llama.cpp\llama-server.exe")
+    )
+    foreach ($p in $llamaSearchPaths) {
+        if (Test-Path $p) {
+            $llamaServerPath = $p
+            Write-Host "  [OK] llama-server found at: $llamaServerPath" -ForegroundColor Green
+            break
+        }
+    }
+}
+
+if (-not $defaultModelPath) {
+    Write-Host "  [WARN] No .gguf model file found -- LLM watchdog restarts will fail until model is configured" -ForegroundColor Yellow
+    Write-Host "         Edit C:\ProgramData\PlenumNET\llm-engines.json to set restart_command with --model flag" -ForegroundColor Yellow
+}
+foreach ($cfg in $daemonConfigs) {
+    $llmPort = $cfg.GatewayPort + 1
+    if ($defaultModelPath) {
+        $restartCmd = "`"$llamaServerPath`" --model `"$defaultModelPath`" --port $llmPort --host 127.0.0.1"
+    } else {
+        $restartCmd = "`"$llamaServerPath`" --port $llmPort --host 127.0.0.1"
+    }
+    $llmEnginesConfig += @{
+        node_id = $cfg.Id
+        port = $llmPort
+        restart_command = $restartCmd
+    }
+}
+$llmEnginesDir = "C:\ProgramData\PlenumNET"
+if (-not (Test-Path $llmEnginesDir)) { New-Item -ItemType Directory -Force -Path $llmEnginesDir | Out-Null }
+$llmEnginesPath = Join-Path $llmEnginesDir "llm-engines.json"
+$llmEnginesConfig | ConvertTo-Json -Depth 3 | Set-Content -Path $llmEnginesPath -Encoding UTF8
+Write-Host "  [OK] LLM engine config written to $llmEnginesPath" -ForegroundColor Green
+
+$llmCounterPath = Join-Path $llmEnginesDir "llm-health-counters.json"
+if (Test-Path $llmCounterPath) {
+    Remove-Item $llmCounterPath -Force -ErrorAction SilentlyContinue
+    Write-Host "  [OK] Stale LLM health counters removed" -ForegroundColor Green
+}
 
 $taskName = "PlenumNET-Array3-Watchdog"
 try {
@@ -622,12 +909,12 @@ try {
     $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 5 -RestartInterval (New-TimeSpan -Seconds 30)
 
-    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET Array3 watchdog - restarts stopped services every 2 minutes and on boot" | Out-Null
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET Array3 watchdog - monitors daemon services, LLM engines, and orphan processes every 2 minutes and on boot" | Out-Null
 
     $verify = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     if ($verify) {
         Write-Host "  [OK] Watchdog scheduled task registered: $taskName" -ForegroundColor Green
-        Write-Host "       Checks every 2 minutes + on boot - restarts any stopped nodes" -ForegroundColor DarkGray
+        Write-Host "       Checks every 2 minutes + on boot - monitors daemons, LLM engines, kills orphans" -ForegroundColor DarkGray
         Write-Host "       Watchdog log: $env:USERPROFILE\.plenumnet\logs\watchdog.log" -ForegroundColor DarkGray
     } else {
         Write-Host "  WARN: Watchdog task registered but verification failed" -ForegroundColor Yellow
