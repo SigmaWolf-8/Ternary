@@ -1,0 +1,122 @@
+remote: Enumerating objects: 838, done.
+remote: Counting objects: 100% (525/525), done.
+remote: Compressing objects: 100% (70/70), done.
+remote: Total 838 (delta 468), reused 501 (delta 452), pack-reused 313 (from 3)
+Receiving objects: 100% (838/838), 794.29 KiB | 2.29 MiB/s, done.
+Resolving deltas: 100% (630/630), completed with 38 local objects.
+From https://github.com/SigmaWolf-8/Ternary
+   7885bacb..5c6dec56  main       -> origin/main
+ * [new branch]        dependabot/cargo/libternary/criterion-0.8 -> origin/dependabot/cargo/libternary/criterion-0.8
+ * [new branch]        dependabot/cargo/libternary/rand-0.10 -> origin/dependabot/cargo/libternary/rand-0.10
+ * [new branch]        dependabot/github_actions/actions/download-artifact-7 -> origin/dependabot/github_actions/actions/download-artifact-7
+ * [new branch]        dependabot/github_actions/actions/setup-node-6 -> origin/dependabot/github_actions/actions/setup-node-6
+ * [new branch]        dependabot/github_actions/codecov/codecov-action-5 -> origin/dependabot/github_actions/codecov/codecov-action-5
+ * [new branch]        dependabot/github_actions/docker/build-push-action-6 -> origin/dependabot/github_actions/docker/build-push-action-6
+ * [new branch]        dependabot/github_actions/github/codeql-action-4 -> origin/dependabot/github_actions/github/codeql-action-4
+ * [new branch]        dependabot/npm_and_yarn/date-fns-4.1.0 -> origin/dependabot/npm_and_yarn/date-fns-4.1.0
+ * [new branch]        dependabot/npm_and_yarn/development-2c25b48037 -> origin/dependabot/npm_and_yarn/development-2c25b48037
+ * [new branch]        dependabot/npm_and_yarn/framer-motion-12.34.0 -> origin/dependabot/npm_and_yarn/framer-motion-12.34.0
+ * [new branch]        dependabot/npm_and_yarn/hookform/resolvers-5.2.2 -> origin/dependabot/npm_and_yarn/hookform/resolvers-5.2.2
+ * [new branch]        dependabot/npm_and_yarn/multi-d88693a43a -> origin/dependabot/npm_and_yarn/multi-d88693a43a
+ * [new branch]        dependabot/npm_and_yarn/production-1a3fa6023a -> origin/dependabot/npm_and_yarn/production-1a3fa6023a
+ * [new branch]        dependabot/npm_and_yarn/react-day-picker-9.13.2 -> origin/dependabot/npm_and_yarn/react-day-picker-9.13.2
+ * [new branch]        dependabot/npm_and_yarn/recharts-3.7.0 -> origin/dependabot/npm_and_yarn/recharts-3.7.0
+ * [new branch]        dependabot/npm_and_yarn/tailwind-merge-3.4.0 -> origin/dependabot/npm_and_yarn/tailwind-merge-3.4.0
+ * [new branch]        dependabot/npm_and_yarn/vitejs/plugin-react-5.1.4 -> origin/dependabot/npm_and_yarn/vitejs/plugin-react-5.1.4
+ * [new branch]        feature/isa-v2.1-quantum-ternary -> origin/feature/isa-v2.1-quantum-ternary
+ * [new branch]        tl-sponge-naming-standardization -> origin/tl-sponge-naming-standardization
+Updating 7885bacb..5c6dec56
+Fast-forward
+ ...ser-Phase-1-CPU-Rendering-at-_1774650169613.txt |  204 ++
+ ...ns-Channel-What-Why-Every-ope_1774662378358.txt |  449 +++
+ ...ns-Channel-What-Why-Every-ope_1774662939177.txt |  449 +++
+ ...ns-Channel-What-Why-Every-ope_1774663749749.txt |  485 +++
+ ...ks-The-2-minute-kill-restart-_1774659894442.txt |    7 +
+ ...o-bugs-Bug-1-orphan-killer-Sp_1774660556279.txt |   48 +
+ ...-where-things-actually-stand-_1774650330005.txt |   26 +
+ ...ht-C-Microsoft-Corporation-Al_1774638107491.txt | 3537 ++++++++++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774645188873.txt |   86 +
+ attached_assets/image_1774648303644.png            |  Bin 0 -> 118748 bytes
+ attached_assets/image_1774648356524.png            |  Bin 0 -> 118748 bytes
+ client/src/pages/terminal.tsx                      |  359 +-
+ client/src/pages/vm-demo.tsx                       |   16 +-
+ replit.md                                          |    3 +
+ rerun-yoda-install.ps1                             |   10 +
+ server/index.ts                                    |  143 +-
+ server/terminal.ts                                 |    5 +-
+ services/inter-cube/deploy-daemon.ps1              |   65 +-
+ services/inter-cube/deploy-yoda.ps1                |  337 +-
+ services/inter-cube/src/cluster_shell.rs           |  162 +-
+ services/inter-cube/src/main.rs                    |  274 +-
+ services/inter-cube/src/vm_service.rs              | 1297 ++++++-
+ services/pty-mux/src/lib.rs                        |  108 +-
+ terminal_page.png                                  |  Bin 0 -> 103724 bytes
+ 24 files changed, 7763 insertions(+), 307 deletions(-)
+ create mode 100644 attached_assets/Pasted--45-Milestone-1-PlenumBrowser-Phase-1-CPU-Rendering-at-_1774650169613.txt
+ create mode 100644 attached_assets/Pasted--52-Daemon-Remote-Operations-Channel-What-Why-Every-ope_1774662378358.txt
+ create mode 100644 attached_assets/Pasted--52-Daemon-Remote-Operations-Channel-What-Why-Every-ope_1774662939177.txt
+ create mode 100644 attached_assets/Pasted--52-Daemon-Remote-Operations-Channel-What-Why-Every-ope_1774663749749.txt
+ create mode 100644 attached_assets/Pasted-Bug-1-is-worse-than-it-looks-The-2-minute-kill-restart-_1774659894442.txt
+ create mode 100644 attached_assets/Pasted-Quick-validation-of-the-two-bugs-Bug-1-orphan-killer-Sp_1774660556279.txt
+ create mode 100644 attached_assets/Pasted-Task-45-is-NOT-done-Here-s-where-things-actually-stand-_1774650330005.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774638107491.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774645188873.txt
+ create mode 100644 attached_assets/image_1774648303644.png
+ create mode 100644 attached_assets/image_1774648356524.png
+ create mode 100644 terminal_page.png
+
+==========================================================
+  PlenumNET Cube Daemon Deployer
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+PULL: Updating source from GitHub...
+PULL: Already up to date (5c6dec56)
+STOP: Stopping running daemon(s)...
+STOP: Daemon(s) stopped.
+BUILD: Compiling inter-cube daemon (release)...
+       This may take a few minutes on first build.
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+          Compiling pty-mux v0.2.0 (C:\PlenumNET\services\pty-mux)
+          Compiling ternary-math v0.1.0 (C:\PlenumNET\ternary-math)
+       warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+       warning: unused variable: `adaptive_rep`
+       warning: unused variable: `mode`
+       warning: unused variable: `adaptive_rep`
+       warning: function `mod3_small` is never used
+       warning: function `mod3_med` is never used
+       warning: constant `TRIBONACCI_SEQ` is never used
+       warning: associated function `new` is never used
+       warning: method `is_exhausted` is never used
+       warning: function `deserialize_ternary_enhanced` is never used
+       warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+          Compiling inter-cube v2.4.1 (C:\PlenumNET\services\inter-cube)
+       warning: unused import: `RepCTrit`
+       warning: unused import: `Path`
+       warning: unused import: `DIMENSIONS`
+       warning: unused import: `TOTAL_VERTICES`
+       warning: unused import: `DimensionDensity`
+       warning: unused import: `std::collections::HashMap`
+       warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+       warning: unused variable: `destination`
+       warning: unused variable: `min_c`
+       warning: variable does not need to be mutable
+       warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+       warning: method `count` is never used
+       warning: field `heartbeat_interval` is never read
+       warning: associated function `entropy_seed` is never used
+       warning: constant `GRID_ROWS` is never used
+       warning: constant `OVERFLOW` is never used
+       warning: constant `ROW_SIZES` is never used
+       warning: method `reg` is never used
+       warning: `inter-cube` (lib) generated 18 warnings (run `cargo fix --lib -p inter-cube` to apply 10 suggestions)
+       error[E0432]: unresolved import `portable_pty`
+       error[E0433]: failed to resolve: use of unresolved module or unlinked crate `portable_pty`
+       error[E0433]: failed to resolve: use of unresolved module or unlinked crate `portable_pty`
+       error[E0433]: failed to resolve: use of unresolved module or unlinked crate `portable_pty`
+       Some errors have detailed explanations: E0432, E0433.
+       For more information about an error, try `rustc --explain E0432`.
+       error: could not compile `inter-cube` (bin "inter-cube-daemon") due to 4 previous errors
+ERROR: Build failed. See error messages above.
+PS C:\PlenumNET\services\inter-cube>

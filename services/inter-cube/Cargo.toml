@@ -21,6 +21,9 @@ ternary-math = { path = "../../ternary-math" }
 # PTY multiplexer for Node Terminal WebSocket sessions
 pty-mux = { path = "../pty-mux" }
 
+# Direct PTY spawning for remote terminal sessions
+portable-pty = "0.8"
+
 # Async runtime for CON tunnel management, CRS coordination, FTS heartbeats
 tokio = { version = "1", features = ["full"] }
 
