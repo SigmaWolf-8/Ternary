@@ -152,7 +152,7 @@ fn verify_own_integrity() -> Result<()> {
             );
         }
 
-        verify_authenticode_signature(exe_path)?;
+        verify_authenticode_signature(&exe_path)?;
     }
 
     #[cfg(not(windows))]
