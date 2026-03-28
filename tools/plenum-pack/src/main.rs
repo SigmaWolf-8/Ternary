@@ -249,22 +249,34 @@ fn cmd_build(
         println!("Compiling MSI: {}", msi_path.display());
         println!("Binary source: {}", binary_source_dir.display());
 
-        for ext in &["WixToolset.UI.wixext", "WixToolset.Util.wixext"] {
-            let _ = std::process::Command::new("wix")
-                .args(["extension", "add", ext])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
-        }
+        let mut required_exts = vec!["WixToolset.UI.wixext", "WixToolset.Util.wixext"];
         if matches!(
             manifest.app_type.kind,
             manifest::AppKind::Service | manifest::AppKind::Hybrid
         ) {
-            let _ = std::process::Command::new("wix")
-                .args(["extension", "add", "WixToolset.Firewall.wixext"])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
+            required_exts.push("WixToolset.Firewall.wixext");
+        }
+        for ext in &required_exts {
+            println!("Ensuring WiX extension: {}", ext);
+            let add_result = std::process::Command::new("wix")
+                .args(["extension", "add", "--global", ext])
+                .output();
+            match add_result {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    if !output.status.success() {
+                        if stderr.contains("already exists") || stdout.contains("already exists") {
+                            println!("  [OK] {} (already installed)", ext);
+                        } else {
+                            eprintln!("  WARN: wix extension add {} failed: {}", ext, stderr.trim());
+                        }
+                    } else {
+                        println!("  [OK] {} installed", ext);
+                    }
+                }
+                Err(e) => eprintln!("  WARN: Failed to run wix extension add: {}", e),
+            }
         }
 
         let status = std::process::Command::new("wix")

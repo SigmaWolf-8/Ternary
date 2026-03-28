@@ -343,9 +343,28 @@ if (-not $wixAvailable) {
 if (Test-Command "wix") {
     Write-Log "  [OK] WiX v4" "Green"
     Write-Log "  Installing WiX extensions..." "DarkGray"
-    & wix extension add WixToolset.UI.wixext 2>&1 | Out-Null
-    & wix extension add WixToolset.Util.wixext 2>&1 | Out-Null
-    Write-Log "  [OK] WiX extensions ready" "Green"
+    $extOut1 = & wix extension add --global WixToolset.UI.wixext 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $extStr1 = ($extOut1 | Out-String).Trim()
+        if ($extStr1 -match "already") {
+            Write-Log "  [OK] WixToolset.UI.wixext (already installed)" "Green"
+        } else {
+            Write-Log "  WARN: WixToolset.UI.wixext install: $extStr1" "Yellow"
+        }
+    } else {
+        Write-Log "  [OK] WixToolset.UI.wixext installed" "Green"
+    }
+    $extOut2 = & wix extension add --global WixToolset.Util.wixext 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $extStr2 = ($extOut2 | Out-String).Trim()
+        if ($extStr2 -match "already") {
+            Write-Log "  [OK] WixToolset.Util.wixext (already installed)" "Green"
+        } else {
+            Write-Log "  WARN: WixToolset.Util.wixext install: $extStr2" "Yellow"
+        }
+    } else {
+        Write-Log "  [OK] WixToolset.Util.wixext installed" "Green"
+    }
 } else {
     Write-Log "  WARN: WiX not on PATH - MSI generation may produce .wxs only." "Yellow"
     Write-Log "        To fix: dotnet tool install --global wix" "Yellow"
