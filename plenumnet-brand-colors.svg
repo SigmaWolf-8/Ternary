@@ -61,7 +61,7 @@
   <text x="92" y="826" fill="#ECE8DF" font-size="14" font-weight="bold">Purple</text>
   <text x="92" y="844" fill="#8A8173" font-size="13" font-family="monospace">#A87FD4  —  hsl(270, 50%, 65%)</text>
 
-  <rect x="30" y="862" width="48" height="48" fill="#40BF6E" stroke="#555" stroke-width="1" rx="4"/>
-  <text x="92" y="882" fill="#ECE8DF" font-size="14" font-weight="bold">Green</text>
-  <text x="92" y="900" fill="#8A8173" font-size="13" font-family="monospace">#40BF6E  —  hsl(145, 50%, 50%)</text>
+  <rect x="30" y="862" width="48" height="48" fill="#78828C" stroke="#555" stroke-width="1" rx="4"/>
+  <text x="92" y="882" fill="#ECE8DF" font-size="14" font-weight="bold">Cool Slate</text>
+  <text x="92" y="900" fill="#8A8173" font-size="13" font-family="monospace">#78828C  —  hsl(210, 8%, 51%)</text>
 </svg>

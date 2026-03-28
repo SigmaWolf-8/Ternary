@@ -53,7 +53,7 @@ title = "PlenumLAN Active Cubes — Connection Reference (MD)"
 id = "QMEgEFx3LJ92V8bBo5waF"
 uri = "file://plenumnet-brand-spec.md"
 type = "text"
-title = "PlenumNET Brand Specification"
+title = "Brand Spec (Markdown)"
 
 [[outputs]]
 id = "0CYX8x5nDAj3-zD0Vov1K"
@@ -65,7 +65,7 @@ title = "PlenumNET Logo (SVG)"
 id = "4QajxbsTPIsX7yxmH_bSF"
 uri = "file://plenumnet-brand-colors.svg"
 type = "image"
-title = "PlenumNET Brand Colors (Visual Reference)"
+title = "Updated Brand Colors (Cool Slate replaces Green)"
 
 [[outputs]]
 id = "IxiymwDr03IcYZjatXE56"

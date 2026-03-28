@@ -37,8 +37,8 @@ const LIGHT = {
   esotericBg: "hsla(270, 50%, 55%, 0.06)",
   cosmic: "hsl(340, 60%, 55%)",
   cosmicBg: "hsla(340, 60%, 55%, 0.06)",
-  green: "hsl(145, 55%, 42%)",
-  greenBg: "hsla(145, 55%, 42%, 0.06)",
+  green: "hsl(210, 8%, 51%)",
+  greenBg: "hsla(210, 8%, 51%, 0.06)",
 };
 
 const DARK = {
@@ -63,8 +63,8 @@ const DARK = {
   esotericBg: "hsla(270, 50%, 65%, 0.08)",
   cosmic: "hsl(340, 55%, 60%)",
   cosmicBg: "hsla(340, 55%, 60%, 0.07)",
-  green: "hsl(145, 50%, 50%)",
-  greenBg: "hsla(145, 50%, 50%, 0.08)",
+  green: "hsl(210, 8%, 51%)",
+  greenBg: "hsla(210, 8%, 51%, 0.08)",
 };
 
 const FONTS = {
@@ -574,8 +574,8 @@ function RoutingDemo() {
 
         {result && (
           <div style={{
-            padding: "16px 18px", background: dark ? "hsla(145, 50%, 50%, 0.06)" : "hsla(145, 55%, 42%, 0.04)",
-            border: `1px solid ${dark ? "hsla(145, 50%, 50%, 0.12)" : "hsla(145, 55%, 42%, 0.1)"}`,
+            padding: "16px 18px", background: dark ? "hsla(210, 8%, 51%, 0.06)" : "hsla(210, 8%, 51%, 0.04)",
+            border: `1px solid ${dark ? "hsla(210, 8%, 51%, 0.12)" : "hsla(210, 8%, 51%, 0.1)"}`,
             borderRadius: RADIUS.md, fontFamily: FONTS.mono, fontSize: 11,
           }} data-testid="routing-result">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1264,7 +1264,7 @@ export default function GeometricFoundations() {
               desc: "Round constants are derived at compile time from the circulant [111, 14, 208] mod 3. The build fails if any constant doesn't match — runtime is never reached.",
               color: t.green,
               bg: t.greenBg,
-              border: "hsla(145, 50%, 45%, 0.12)",
+              border: "hsla(210, 8%, 51%, 0.12)",
             },
             {
               icon: "⬡",
@@ -1318,7 +1318,7 @@ export default function GeometricFoundations() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           <RepCard name="Rep A" subtitle="Balanced Ternary · Computational" digits="{−1, 0, +1}"
-            color={t.green} bg={t.greenBg} border={`hsla(145, 50%, 45%, 0.12)`}
+            color={t.green} bg={t.greenBg} border={`hsla(210, 8%, 51%, 0.12)`}
             desc="Native arithmetic. Rust arrays, VM registers, sponge permutations. Zero is the balanced midpoint — valid here." />
           <RepCard name="Rep B" subtitle="Standard Ternary · Wire Encoding" digits="{0, 1, 2}"
             color={t.esoteric} bg={t.esotericBg} border={`hsla(270, 50%, 55%, 0.12)`}
