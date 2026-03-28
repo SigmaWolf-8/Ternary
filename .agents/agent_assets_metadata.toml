@@ -150,3 +150,27 @@ id = "BWjifkCP1BiOYoITaHFem"
 uri = "file://.agents/skills/plenumnet-integration/SKILL.md"
 type = "text"
 title = "Agent 3: PlenumNET Integration Specialist (v1.1.0)"
+
+[[outputs]]
+id = "LIsXV5Y7LVg9YLxQH4suz"
+uri = "file://.local/qc-r1-inter-cube/qc-r1-consolidated.md"
+type = "text"
+title = "QC-R1 Consolidated Review — Inter-Cube Daemon v2.4.1"
+
+[[outputs]]
+id = "y0HMnd_7qoh_KQsLl0IP_"
+uri = "file://.local/qc-r1-inter-cube/qc-r1-agent1-security-engineer.md"
+type = "text"
+title = "Agent 1: Security Engineer Review (4 CRITICAL, 9 IMPORTANT, 1 MINOR)"
+
+[[outputs]]
+id = "XyXWi4Mk9yKgM9iNDk5p0"
+uri = "file://.local/qc-r1-inter-cube/qc-r1-agent2-devops-automator.md"
+type = "text"
+title = "Agent 2: DevOps Automator Review (1 CRITICAL, 8 IMPORTANT, 5 MINOR)"
+
+[[outputs]]
+id = "4lRd3wVlnnzzIROyCsEh0"
+uri = "file://.local/qc-r1-inter-cube/qc-r1-agent3-plenumnet-integration.md"
+type = "text"
+title = "Agent 3: PlenumNET Integration Specialist Review (1 CRITICAL, 5 IMPORTANT, 6 MINOR)"
