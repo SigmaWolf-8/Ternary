@@ -209,28 +209,40 @@ function HeroSection() {
     const video = videoRef.current;
     if (!video) return;
 
+    let reversed = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const stepBackward = () => {
+      if (!video) return;
+      const step = 1 / 30;
+      const next = video.currentTime - step;
+      if (next <= 0.05) {
+        video.currentTime = 0;
+        reversed = false;
+        if (interval) { clearInterval(interval); interval = null; }
+        video.play();
+        return;
+      }
+      video.currentTime = next;
+    };
+
     const handleEnded = () => {
-      playbackDirection.current = -1;
+      reversed = true;
       video.pause();
-      const step = () => {
-        if (!video || playbackDirection.current !== -1) return;
-        video.currentTime = Math.max(0, video.currentTime - 0.04);
-        if (video.currentTime <= 0.05) {
-          playbackDirection.current = 1;
-          video.currentTime = 0;
-          video.play();
-          return;
-        }
-        rafRef.current = requestAnimationFrame(step);
-      };
-      rafRef.current = requestAnimationFrame(step);
+      interval = setInterval(stepBackward, 50);
+    };
+
+    const handleSeeked = () => {
+      if (!reversed) return;
     };
 
     video.removeAttribute("loop");
     video.addEventListener("ended", handleEnded);
+    video.addEventListener("seeked", handleSeeked);
     return () => {
       video.removeEventListener("ended", handleEnded);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      video.removeEventListener("seeked", handleSeeked);
+      if (interval) clearInterval(interval);
     };
   }, []);
 
