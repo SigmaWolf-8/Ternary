@@ -16,20 +16,31 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use axum::{
     extract::State,
+    http::StatusCode,
+    middleware,
     routing::post,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 
 const CLUSTER_CMD_ALLOWLIST: &[&str] = &[
-    "uname", "hostname", "uptime", "whoami", "date", "df", "free",
-    "cat /proc/cpuinfo", "cat /proc/meminfo", "ip addr", "ifconfig",
-    "systemctl status", "cargo --version", "rustc --version",
-    "echo", "env", "printenv", "id", "ps aux",
+    "uname", "uname -a",
+    "hostname",
+    "uptime",
+    "whoami",
+    "date",
+    "df", "df -h",
+    "free", "free -h", "free -m",
+    "cat /proc/cpuinfo", "cat /proc/meminfo",
+    "ip addr", "ifconfig",
+    "systemctl status",
+    "cargo --version", "rustc --version",
+    "id",
+    "ps aux",
 ];
 
 fn contains_shell_metachar(cmd: &str) -> bool {
-    cmd.chars().any(|c| matches!(c, ';' | '|' | '&' | '`' | '$' | '(' | ')' | '{' | '}' | '<' | '>' | '!' | '\\' | '\n' | '\r'))
+    cmd.chars().any(|c| matches!(c, ';' | '|' | '&' | '`' | '$' | '(' | ')' | '{' | '}' | '<' | '>' | '!' | '\\' | '\n' | '\r' | '"' | '\''))
 }
 
 pub fn is_command_allowed_public(cmd: &str) -> bool {
@@ -41,9 +52,7 @@ fn is_command_allowed(cmd: &str) -> bool {
     if contains_shell_metachar(trimmed) {
         return false;
     }
-    CLUSTER_CMD_ALLOWLIST.iter().any(|allowed| {
-        trimmed == *allowed || trimmed.starts_with(&format!("{} ", allowed))
-    })
+    CLUSTER_CMD_ALLOWLIST.iter().any(|allowed| trimmed == *allowed)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -231,6 +240,23 @@ async fn handle_register_peer(
             "error": "Invalid host",
         }));
     }
+    let blocked_hosts = ["169.254.169.254", "metadata.google.internal", "metadata.aws", "100.100.100.200"];
+    if blocked_hosts.iter().any(|b| host == *b) {
+        return Json(serde_json::json!({
+            "ok": false,
+            "error": "Blocked host (cloud metadata address)",
+        }));
+    }
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        if let std::net::IpAddr::V4(v4) = ip {
+            if v4.octets()[0] == 0 || v4.is_broadcast() {
+                return Json(serde_json::json!({
+                    "ok": false,
+                    "error": "Invalid IP address",
+                }));
+            }
+        }
+    }
     register_peer(&shell, req.address.clone(), host.clone(), req.terminal_port);
     Json(serde_json::json!({
         "ok": true,
@@ -247,11 +273,38 @@ pub struct RegisterPeerRequest {
     pub terminal_port: u16,
 }
 
+async fn cluster_auth_middleware(
+    req: axum::http::Request<axum::body::Body>,
+    next: middleware::Next,
+) -> Result<axum::response::Response, StatusCode> {
+    let expected_token = std::env::var("CUBE_CLUSTER_TOKEN").unwrap_or_default();
+    if expected_token.is_empty() {
+        let source_addr = req.extensions()
+            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+            .map(|ci| ci.0);
+        if let Some(addr) = source_addr {
+            if !addr.ip().is_loopback() {
+                return Err(StatusCode::FORBIDDEN);
+            }
+        }
+        return Ok(next.run(req).await);
+    }
+    let auth_header = req.headers()
+        .get("x-cluster-token")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if auth_header != expected_token {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    Ok(next.run(req).await)
+}
+
 pub fn cluster_shell_router(shell: SharedClusterShell) -> Router {
     Router::new()
         .route("/cluster/exec", post(handle_cluster_exec))
         .route("/cluster/peers", axum::routing::get(handle_cluster_peers))
         .route("/cluster/register-peer", post(handle_register_peer))
+        .layer(middleware::from_fn(cluster_auth_middleware))
         .with_state(shell)
 }
 

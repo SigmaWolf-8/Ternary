@@ -1165,6 +1165,9 @@ impl TernaryVmInstance {
                         self.set_reg(d, v as i64);
                     }
                 }
+                // CRC32 — non-cryptographic checksum for data integrity only.
+                // NOT suitable for security boundaries, authentication, or tamper detection.
+                // Use TLSponge-385 or TIS-27 for any security-critical hashing.
                 0x5F => {
                     let d = opu(0, inst);
                     if d < 27 {
@@ -1223,7 +1226,11 @@ impl TernaryVmInstance {
                     }
                 }
                 0x85 => {
-                    self.privilege = PrivilegeLevel::Ring0;
+                    if self.privilege == PrivilegeLevel::Ring0 {
+                        self.privilege = PrivilegeLevel::Ring0;
+                    } else {
+                        println!("[VM] PRIVESCALATE denied: current privilege {:?} insufficient", self.privilege);
+                    }
                 }
                 0x86 => {
                     self.privilege = PrivilegeLevel::Ring2;

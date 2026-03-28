@@ -4,6 +4,14 @@
 #
 # Inter-Cube Infrastructure Services for PlenumNET
 # GLB · CON · CRS · FTS
+#
+# Dependency Pinning Strategy:
+# - All dependencies use caret version constraints (e.g., "1" = "^1.0.0").
+# - Cargo.lock is committed and provides reproducible builds.
+# - No external crypto dependencies — all cryptographic operations use the
+#   workspace ternary-math crate (TLSponge-385, TL-DSA, TL-KEM, TIS-27).
+# - `cargo audit` should be run periodically against Cargo.lock.
+# - Major version bumps require manual review and testing.
 
 [package]
 name = "inter-cube"

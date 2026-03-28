@@ -96,6 +96,12 @@ pub const ARC_EPOCH_DURATION: Duration = Duration::from_secs(ARC_EPOCH_SECS);
 /// duration to cover in-flight messages signed under the old key.
 /// On HPTP-synchronized infrastructure, 1 second is generous.
 ///
+/// Design rationale: A longer window (e.g. 60s) would keep stale keying
+/// material in memory longer, widening the attack surface. The Inter-Cube
+/// relay heartbeat is 30s, so a 1s window ensures the old key is zeroized
+/// well before the next heartbeat. HPTP femtosecond clock synchronization
+/// makes 1s ample for any in-flight message to complete transit.
+///
 /// SYNC: Must equal `key_rotation::DUAL_ACCEPT_SECS`.
 pub const MAX_DUAL_ACCEPT_SECS: u64 = 1;
 
@@ -573,7 +579,7 @@ impl SecretRotation {
 
     /// Perform a rotation: new secret becomes current, old becomes previous.
     ///
-    /// The previous secret is kept for the dual-accept window (max 182 days).
+    /// The previous secret is kept for the dual-accept window (max 1 second).
     pub fn rotate(
         &mut self,
         new_secret: MasterSecret,
@@ -605,7 +611,7 @@ impl SecretRotation {
     /// Check and close the dual-accept window if expired.
     ///
     /// Call periodically (e.g., on each heartbeat cycle). If the window
-    /// has exceeded 182 days, zeroize the previous secret.
+    /// has exceeded MAX_DUAL_ACCEPT_SECS (1 second), zeroize the previous secret.
     pub fn check_dual_accept(&mut self, unix_timestamp: u64) {
         if let Some(rotated_at) = self.rotated_at {
             if unix_timestamp > rotated_at + MAX_DUAL_ACCEPT_SECS {

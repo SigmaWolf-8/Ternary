@@ -68,7 +68,7 @@ fn new_terminal_sessions() -> TerminalSessions {
     Arc::new(Mutex::new(HashMap::new()))
 }
 
-static mut CLI_PEER_PORT: Option<u16> = None;
+static CLI_PEER_PORT: std::sync::OnceLock<u16> = std::sync::OnceLock::new();
 
 fn parse_cli_args() {
     let args: Vec<String> = env::args().collect();
@@ -78,7 +78,7 @@ fn parse_cli_args() {
             "--peer-port" => {
                 if i + 1 < args.len() {
                     if let Ok(p) = args[i + 1].parse::<u16>() {
-                        unsafe { CLI_PEER_PORT = Some(p); }
+                        let _ = CLI_PEER_PORT.set(p);
                         println!("[CLI] --peer-port {}", p);
                     }
                     i += 2;
@@ -88,7 +88,7 @@ fn parse_cli_args() {
             }
             s if s.starts_with("--peer-port=") => {
                 if let Ok(p) = s[12..].parse::<u16>() {
-                    unsafe { CLI_PEER_PORT = Some(p); }
+                    let _ = CLI_PEER_PORT.set(p);
                     println!("[CLI] --peer-port {}", p);
                 }
                 i += 1;
@@ -113,10 +113,8 @@ fn api_port() -> u16 {
 }
 
 fn peer_port() -> u16 {
-    unsafe {
-        if let Some(p) = CLI_PEER_PORT {
-            return p;
-        }
+    if let Some(p) = CLI_PEER_PORT.get() {
+        return *p;
     }
     env::var("CUBE_PEER_PORT")
         .or_else(|_| env::var("PEER_PORT"))
@@ -349,7 +347,7 @@ fn spawn_peer_discovery(relay_url: String, local_address: String, local_peer_por
         .to_string();
     tokio::spawn(async move {
         let client = reqwest::Client::builder()
-            .user_agent("PlenumNET-InterCube/0.4.0")
+            .user_agent(format!("PlenumNET-InterCube/{}", env!("CARGO_PKG_VERSION")))
             .timeout(Duration::from_secs(10))
             .build()
             .unwrap();
@@ -793,9 +791,17 @@ async fn run_crs_mode() {
     println!("  Ready for cube registrations. Ctrl+C to stop.");
     println!();
 
-    let listener = tokio::net::TcpListener::bind(listen_addr)
-        .await
-        .expect(&format!("Failed to bind to port {}", port));
+    let listener = match tokio::net::TcpListener::bind(listen_addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!(
+                "[CRS] FATAL: Cannot bind to {} — {}. \
+                 Check that the port is not already in use and that you have permission to bind.",
+                listen_addr, e
+            );
+            std::process::exit(1);
+        }
+    };
 
     axum::serve(listener, app)
         .await
@@ -846,36 +852,26 @@ async fn run_cube_mode() {
     };
 
     let client = reqwest::Client::builder()
-        .user_agent("PlenumNET-InterCube/0.2.0")
+        .user_agent(format!("PlenumNET-InterCube/{}", env!("CARGO_PKG_VERSION")))
         .build()
         .expect("Failed to build HTTP client");
-    let endpoint_encoded = resolved_endpoint.replace(":", "%3A");
-    let register_url = format!(
-        "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint={}",
-        crs_url, key_hex, endpoint_encoded
-    );
-    let register_url_post = format!("{}/api/salvi/inter-cube/crs/register", crs_url);
+    let register_url = format!("{}/api/salvi/inter-cube/crs/register", crs_url);
 
     let mut response_body: Option<serde_json::Value> = None;
     for attempt in 1..=10 {
         println!(
             "[CUBE] Registration attempt {}/10 -> {}",
-            attempt,
-            if attempt <= 5 { &register_url } else { &register_url_post }
+            attempt, register_url
         );
 
-        let result = if attempt <= 5 {
-            client.get(&register_url).send().await
-        } else {
-            client
-                .post(&register_url_post)
-                .json(&serde_json::json!({
-                    "endpoint": resolved_endpoint,
-                    "publicKey": key_hex,
-                }))
-                .send()
-                .await
-        };
+        let result = client
+            .post(&register_url)
+            .json(&serde_json::json!({
+                "endpoint": resolved_endpoint,
+                "publicKey": key_hex,
+            }))
+            .send()
+            .await;
 
         match result {
             Ok(resp) if resp.status().is_success() => {
@@ -1042,7 +1038,7 @@ async fn run_cube_mode() {
 
     tokio::spawn(async move {
         let hb_client = reqwest::Client::builder()
-            .user_agent("PlenumNET-InterCube/0.2.0")
+            .user_agent(format!("PlenumNET-InterCube/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("Failed to build HTTP client");
         let hb_url_base = format!(
@@ -1132,12 +1128,12 @@ async fn run_cube_mode() {
             }
 
             let addr_str_hb: String = addr_trits.iter().map(|t| t.to_string()).collect();
-            let hb_url = format!(
-                "{}?address={}&publicKey={}",
-                hb_url_base, addr_str_hb, key_hex_hb
-            );
             let result = hb_client
-                .get(&hb_url)
+                .post(&hb_url_base)
+                .json(&serde_json::json!({
+                    "address": addr_str_hb,
+                    "publicKey": key_hex_hb,
+                }))
                 .send()
                 .await;
 
@@ -1220,9 +1216,17 @@ async fn run_cube_mode() {
     println!("  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.");
     println!();
 
-    let listener = tokio::net::TcpListener::bind(listen_addr)
-        .await
-        .expect(&format!("Failed to bind to port {}", port));
+    let listener = match tokio::net::TcpListener::bind(listen_addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!(
+                "[CUBE] FATAL: Cannot bind to {} — {}. \
+                 Check that the port is not already in use and that you have permission to bind.",
+                listen_addr, e
+            );
+            std::process::exit(1);
+        }
+    };
 
     axum::serve(listener, app)
         .await
@@ -1251,7 +1255,7 @@ fn spawn_relay_client(
         let mut retry_delay = Duration::from_secs(5);
         let inference_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
-            .user_agent("PlenumNET-InterCube/0.3.0")
+            .user_agent(format!("PlenumNET-InterCube/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("Failed to build inference HTTP client");
         loop {
@@ -1412,6 +1416,18 @@ fn spawn_relay_client(
                         }
 
                         if msg_type == "terminal-open" || msg_type == "terminal-input" || msg_type == "terminal-resize" || msg_type == "terminal-close" {
+                            if from == "?" || from.is_empty() {
+                                println!("[terminal] REJECTED: terminal command from unauthenticated source");
+                                continue;
+                            }
+                            let is_known_peer = {
+                                let peers = client.peers.lock().await;
+                                peers.contains(&from)
+                            };
+                            if !is_known_peer {
+                                println!("[terminal] REJECTED: terminal command from unknown peer {}", from);
+                                continue;
+                            }
                             let reply_tx = client.outgoing_tx.clone();
                             let from_addr = from.clone();
                             let addr_for_reply = address.clone();

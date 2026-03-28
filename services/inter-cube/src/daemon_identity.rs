@@ -22,10 +22,11 @@
 //!
 //! ## Passphrase
 //!
-//! The encryption passphrase defaults to `CUBE_IDENTITY_PASSPHRASE` env var.
-//! If absent, a deterministic passphrase is derived from the hostname +
-//! a hardcoded domain separator (suitable for unattended daemon operation;
-//! production deployments should set the env var or use TPM sealing).
+//! The encryption passphrase is read from `CUBE_IDENTITY_PASSPHRASE` env var.
+//! This variable is REQUIRED — the daemon will refuse to start if it is
+//! not set or empty. The deployer (`deploy-yoda.ps1`) generates and sets
+//! this automatically. For manual operation, set a strong passphrase
+//! (32+ random bytes recommended).
 
 use std::env;
 use std::fs;
@@ -52,39 +53,38 @@ pub fn identity_dir() -> PathBuf {
 }
 
 pub fn encryption_passphrase() -> Vec<u8> {
-    if let Ok(pp) = env::var("CUBE_IDENTITY_PASSPHRASE") {
-        return pp.into_bytes();
+    match env::var("CUBE_IDENTITY_PASSPHRASE") {
+        Ok(pp) if !pp.is_empty() => pp.into_bytes(),
+        _ => {
+            eprintln!(
+                "[IDENTITY] FATAL: CUBE_IDENTITY_PASSPHRASE is not set or empty.\n\
+                 This environment variable is required to encrypt/decrypt the master secret.\n\
+                 The deployer (deploy-yoda.ps1) generates and sets this automatically.\n\
+                 For manual operation, set a strong passphrase (32+ random bytes recommended).\n\
+                 Refusing to start with hostname-derived passphrase (insufficient entropy)."
+            );
+            std::process::exit(1);
+        }
     }
-    println!(
-        "[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. \
-         Using hostname-derived fallback passphrase. \
-         Set CUBE_IDENTITY_PASSPHRASE for production deployments."
-    );
-    let hostname = hostname::get()
-        .map(|h| h.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| "plenumnet-node".to_string());
-    let mut material = Vec::with_capacity(PASSPHRASE_DOMAIN.len() + hostname.len());
-    material.extend_from_slice(PASSPHRASE_DOMAIN);
-    material.extend_from_slice(hostname.as_bytes());
-    ternary_math::sponge::derive_key(PASSPHRASE_DOMAIN, &material, 32)
 }
 
 pub fn load_or_generate_master_secret() -> MasterSecret {
     let dir = identity_dir();
     let key_path = dir.join(MASTER_KEY_FILE);
-    let passphrase = encryption_passphrase();
+    let mut passphrase = encryption_passphrase();
 
-    if key_path.exists() {
+    let result = if key_path.exists() {
         match fs::read(&key_path) {
             Ok(blob) if blob.len() == ENCRYPTED_BLOB_LEN => {
                 match decrypt_master_secret(&blob, &passphrase) {
                     Ok(secret) => {
                         println!("[IDENTITY] Loaded master secret from {}", key_path.display());
-                        return secret;
+                        Some(secret)
                     }
                     Err(e) => {
                         println!("[IDENTITY] WARNING: Failed to decrypt {}: {}", key_path.display(), e);
                         println!("[IDENTITY] Generating fresh master secret");
+                        None
                     }
                 }
             }
@@ -93,15 +93,24 @@ pub fn load_or_generate_master_secret() -> MasterSecret {
                     "[IDENTITY] WARNING: Invalid blob size ({} bytes, expected {})",
                     blob.len(), ENCRYPTED_BLOB_LEN
                 );
+                None
             }
             Err(e) => {
                 println!("[IDENTITY] WARNING: Could not read {}: {}", key_path.display(), e);
+                None
             }
         }
-    }
+    } else {
+        None
+    };
 
-    let secret = MasterSecret::generate().expect("Failed to generate master secret");
-    save_master_secret(&secret, &passphrase, &dir, &key_path);
+    let secret = result.unwrap_or_else(|| {
+        let s = MasterSecret::generate().expect("Failed to generate master secret");
+        save_master_secret(&s, &passphrase, &dir, &key_path);
+        s
+    });
+
+    passphrase.iter_mut().for_each(|b| *b = 0);
     secret
 }
 
@@ -118,17 +127,37 @@ pub fn save_master_secret(
 
     match encrypt_master_secret(secret, passphrase) {
         Ok(blob) => {
-            match fs::write(key_path, &blob) {
+            let tmp_path = key_path.with_extension("key.tmp");
+            match fs::write(&tmp_path, &blob) {
                 Ok(_) => {
-                    println!("[IDENTITY] Master secret encrypted and saved to {}", key_path.display());
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
-                        let _ = fs::set_permissions(key_path, fs::Permissions::from_mode(0o600));
+                        let _ = fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600));
+                    }
+                    #[cfg(windows)]
+                    {
+                        let _ = std::process::Command::new("icacls")
+                            .args([
+                                tmp_path.to_str().unwrap_or(""),
+                                "/inheritance:r",
+                                "/grant:r", "SYSTEM:(R,W)",
+                                "/grant:r", "Administrators:(R,W)",
+                            ])
+                            .output();
+                    }
+                    match fs::rename(&tmp_path, key_path) {
+                        Ok(_) => {
+                            println!("[IDENTITY] Master secret encrypted and saved to {}", key_path.display());
+                        }
+                        Err(e) => {
+                            let _ = fs::remove_file(&tmp_path);
+                            println!("[IDENTITY] WARNING: Atomic rename failed for {}: {}", key_path.display(), e);
+                        }
                     }
                 }
                 Err(e) => {
-                    println!("[IDENTITY] WARNING: Could not write {}: {}", key_path.display(), e);
+                    println!("[IDENTITY] WARNING: Could not write {}: {}", tmp_path.display(), e);
                 }
             }
         }

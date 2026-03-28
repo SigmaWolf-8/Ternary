@@ -6,6 +6,33 @@
 // This file is part of the Salvi Framework / PlenumNET platform.
 // See LICENSE in the repository root for full terms.
 
+// ## Relay Authentication Protocol
+//
+// The relay uses challenge-response with TL-DSA-87 signatures:
+//   1. Server sends a random nonce
+//   2. Client constructs `challenge_payload = "{nonce}||{address}||{publicKey}"`
+//   3. Client signs the payload with its address-bound TL-DSA-87 secret key
+//   4. Server verifies signature via CRS `/crs/verify-challenge`
+//
+// ## Signing Context & Limitations
+//
+// - The signing context is the raw challenge payload string (no domain separator).
+//   This is acceptable because the nonce is fresh and server-generated.
+// - Relay-to-relay message forwarding is NOT signed — the relay server sets
+//   the `from` field based on the authenticated sender identity. Messages
+//   forwarded through the relay trust the relay server's integrity.
+// - For end-to-end message authentication (e.g., between two cubes via relay),
+//   an application-layer signature is required. This is out of scope for the
+//   relay transport layer.
+//
+// ## Sponge Context String Registry (relevant to this module)
+//
+// | Context String                    | Usage                          | Module            |
+// |-----------------------------------|--------------------------------|-------------------|
+// | `PlenumNET-ROT-JITTER`            | Rotation jitter derivation     | key_rotation.rs   |
+// | `PlenumNET-IDENTITY-PASSPHRASE`   | Master key passphrase domain   | daemon_identity.rs|
+// | `{nonce}||{address}||{publicKey}` | Relay challenge payload        | ws_relay.rs       |
+
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use futures_util::{SinkExt, StreamExt};
@@ -56,12 +83,13 @@ pub struct WsRelayClient {
 }
 
 impl WsRelayClient {
+    #[deprecated(note = "Use connect_signed() — unsigned relay auth removed per QC-R1 C1")]
     pub async fn connect(
-        crs_url: &str,
-        address: &str,
-        public_key: &str,
+        _crs_url: &str,
+        _address: &str,
+        _public_key: &str,
     ) -> Result<(Self, IncomingRx), String> {
-        Self::connect_signed(crs_url, address, public_key, None).await
+        Err("Unsigned relay auth removed. Use connect_signed() with TL-DSA secret key.".to_string())
     }
 
     pub async fn connect_signed(
@@ -70,6 +98,10 @@ impl WsRelayClient {
         public_key: &str,
         tl_dsa_secret_key: Option<&[u8]>,
     ) -> Result<(Self, IncomingRx), String> {
+        let tl_dsa_secret_key = tl_dsa_secret_key.ok_or(
+            "TL-DSA secret key is required for relay authentication (INVARIANT 7). \
+             Pass the address-bound secret key from derive_identity_keypair()."
+        )?;
         let ws_url = crs_url
             .replace("https://", "wss://")
             .replace("http://", "ws://");
@@ -111,30 +143,20 @@ impl WsRelayClient {
 
         let challenge_payload = format!("{}||{}||{}", nonce, address, public_key);
 
-        let auth_msg = if let Some(sk) = tl_dsa_secret_key {
-            let sig_bytes = ternary_math::tl_dsa::sign(
-                sk,
-                challenge_payload.as_bytes(),
-                ternary_math::tl_dsa::TlDsaVariant::TlDsa87,
-            );
-            let sig_hex: String = sig_bytes.iter().map(|b| format!("{:02x}", b)).collect();
-            println!("[ws-relay] Challenge signed with TL-DSA-87 ({} bytes)", sig_bytes.len());
-            serde_json::json!({
-                "type": "auth",
-                "address": address,
-                "publicKey": public_key,
-                "nonce": nonce,
-                "signature": sig_hex,
-            })
-        } else {
-            println!("[ws-relay] WARNING: No secret key — sending unsigned auth (legacy mode)");
-            serde_json::json!({
-                "type": "auth",
-                "address": address,
-                "publicKey": public_key,
-                "nonce": nonce,
-            })
-        };
+        let sig_bytes = ternary_math::tl_dsa::sign(
+            tl_dsa_secret_key,
+            challenge_payload.as_bytes(),
+            ternary_math::tl_dsa::TlDsaVariant::TlDsa87,
+        );
+        let sig_hex: String = sig_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+        println!("[ws-relay] Challenge signed with TL-DSA-87 ({} bytes)", sig_bytes.len());
+        let auth_msg = serde_json::json!({
+            "type": "auth",
+            "address": address,
+            "publicKey": public_key,
+            "nonce": nonce,
+            "signature": sig_hex,
+        });
 
         write
             .send(Message::Text(auth_msg.to_string()))
