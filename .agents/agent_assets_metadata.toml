@@ -60,3 +60,9 @@ id = "0CYX8x5nDAj3-zD0Vov1K"
 uri = "file://plenumnet-logo.svg"
 type = "image"
 title = "PlenumNET Logo (SVG)"
+
+[[outputs]]
+id = "4QajxbsTPIsX7yxmH_bSF"
+uri = "file://plenumnet-brand-colors.svg"
+type = "image"
+title = "PlenumNET Brand Colors (Visual Reference)"
