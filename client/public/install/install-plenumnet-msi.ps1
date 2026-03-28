@@ -357,21 +357,28 @@ Write-Host "---"
 
 if (-not (Test-Path $RepoDir)) {
     Write-Log "  Cloning PlenumNET repository..." "White"
-    & git clone $RepoUrl $RepoDir 2>&1 | Out-Null
+    $cloneOut = & git clone $RepoUrl $RepoDir 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Log "  ERROR: git clone failed." "Red"
+        $cloneOut | ForEach-Object { Write-Log "    $_" "DarkGray" }
         Read-Host "Press Enter to close"
         exit 1
     }
 } elseif (-not (Test-Path (Join-Path $RepoDir ".git"))) {
-    Write-Log "  Directory exists but is not a git repo. Re-cloning..." "Yellow"
-    Remove-Item -Path $RepoDir -Recurse -Force -ErrorAction SilentlyContinue
-    & git clone $RepoUrl $RepoDir 2>&1 | Out-Null
+    Write-Log "  Directory exists but is not a git repo. Initializing..." "Yellow"
+    Push-Location $RepoDir
+    & git init 2>&1 | Out-Null
+    & git remote add origin $RepoUrl 2>&1 | Out-Null
+    & git fetch origin main 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Write-Log "  ERROR: git clone failed." "Red"
+        Write-Log "  ERROR: git fetch failed." "Red"
+        Pop-Location
         Read-Host "Press Enter to close"
         exit 1
     }
+    & git checkout -B main origin/main --force 2>&1 | Out-Null
+    & git reset --hard origin/main 2>&1 | Out-Null
+    Pop-Location
 } else {
     Write-Log "  Updating source..." "White"
     Push-Location $RepoDir
