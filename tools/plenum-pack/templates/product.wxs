@@ -9,10 +9,8 @@
            ProductCode="{{PRODUCT_CODE}}"
            Language="1033"
            Codepage="1252"
-           Platform="{{PLATFORM}}"
            InstallerVersion="500"
-           Compressed="yes"
-           Comments="{{DESCRIPTION}}">
+           Compressed="yes">
 
     <SummaryInformation Description="{{PRODUCT_NAME}} Installer"
                         Manufacturer="{{MANUFACTURER}}" />

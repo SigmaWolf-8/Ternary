@@ -343,16 +343,22 @@ if (-not $wixAvailable) {
 if (Test-Command "wix") {
     $wixVerRaw = (& wix --version 2>$null) | Out-String
     $wixVerRaw = $wixVerRaw.Trim()
+    if ($wixVerRaw -match "^(\d+\.\d+\.\d+)") {
+        $wixVerClean = $Matches[1]
+    } else {
+        $wixVerClean = "6.0.2"
+    }
     if ($wixVerRaw -match "^(\d+)\.") {
         $wixMajor = $Matches[1]
     } else {
-        $wixMajor = "4"
+        $wixMajor = "6"
     }
-    Write-Log "  [OK] WiX v$wixMajor ($wixVerRaw)" "Green"
+    Write-Log "  [OK] WiX v$wixMajor ($wixVerClean)" "Green"
 
     $wixExtensions = @("WixToolset.UI.wixext", "WixToolset.Util.wixext")
     foreach ($ext in $wixExtensions) {
-        $extVersioned = "$ext/$wixVerRaw"
+        & wix extension remove --global $ext 2>&1 | Out-Null
+        $extVersioned = "$ext/$wixVerClean"
         Write-Log "  Installing $extVersioned..." "DarkGray"
         $extOut = & wix extension add --global $extVersioned 2>&1
         $extStr = ($extOut | Out-String).Trim()
@@ -361,17 +367,9 @@ if (Test-Command "wix") {
                 Write-Log "  [OK] $ext (already installed)" "Green"
             } else {
                 Write-Log "  WARN: $ext install failed: $extStr" "Yellow"
-                Write-Log "  Retrying without version pin..." "DarkGray"
-                $extOut2 = & wix extension add --global $ext 2>&1
-                $extStr2 = ($extOut2 | Out-String).Trim()
-                if ($LASTEXITCODE -ne 0 -and $extStr2 -notmatch "already") {
-                    Write-Log "  WARN: $ext retry failed: $extStr2" "Yellow"
-                } else {
-                    Write-Log "  [OK] $ext installed" "Green"
-                }
             }
         } else {
-            Write-Log "  [OK] $ext v$wixVerRaw installed" "Green"
+            Write-Log "  [OK] $ext v$wixVerClean installed" "Green"
         }
     }
 } else {

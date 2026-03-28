@@ -244,6 +244,8 @@ impl<'a> WixGenerator<'a> {
     ) -> Vec<String> {
         let mut args = vec![
             "build".to_string(),
+            "-arch".to_string(),
+            self.arch.wix_platform().to_string(),
             wxs_path.to_string(),
             dialogs_wxs_path.to_string(),
             "-o".to_string(),

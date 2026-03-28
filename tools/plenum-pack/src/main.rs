@@ -249,11 +249,12 @@ fn cmd_build(
         println!("Compiling MSI: {}", msi_path.display());
         println!("Binary source: {}", binary_source_dir.display());
 
-        let wix_version = std::process::Command::new("wix")
+        let wix_version_raw = std::process::Command::new("wix")
             .args(["--version"])
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_default();
+        let wix_version = wix_version_raw.split('+').next().unwrap_or("").to_string();
         println!("WiX version: {}", if wix_version.is_empty() { "unknown" } else { &wix_version });
 
         let mut required_exts = vec!["WixToolset.UI.wixext", "WixToolset.Util.wixext"];
