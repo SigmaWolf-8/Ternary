@@ -1,9 +1,5 @@
 # PlenumNET Framework Marketing Website
 
-## Repository Scale
-**1,069,290 total LOC** | **393,892 source LOC** (excl. attached_assets) | **2,460 files** | **2,609 commits** | **80/80 milestones**
-Rust 142K | TypeScript+TSX 105K | Markdown 76K | JSON 24K | HTML 8K | YAML 8K | Shell+PS1 9K | JS 3K | TOML/CSS/SQL/LD/SVG 2K. Full breakdown in `plenumnet-repo-guide/SKILL.md`.
-
 ## Overview
 PlenumNET is developing post-quantum internet solutions. This project creates a marketing website to showcase PlenumNET's quantum-resistant infrastructure, including the PlenumDB product with a compression demo and whitepaper management. It integrates payment processing and blockchain witnessing for secure, verifiable, and regulatory-compliant operations in quantum-resistant data and financial services. The project aims to position PlenumNET as a leader in next-generation internet solutions, offering unparalleled security and performance in the quantum-resistant internet domain.
 
@@ -13,49 +9,49 @@ I prefer iterative development with a focus on delivering working features incre
 ## System Architecture
 
 ### Frontend
-The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui`, and Wouter, supporting light/dark modes. Key pages include a Landing Page, About, Contact, HPTP Timing API Demo, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub, CNSA 2.0 Compliance, TSA Time-Stamping Authority, Node Terminal, and an Admin Dashboard. It features a quantum-ternary simulator and FIPS 140-3 compliance checks. The homepage performance section displays real benchmark data from `salvi-bench`. All API service definitions are managed in `shared/service-catalog.ts` as the single source of truth.
+The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui`, and Wouter, supporting light/dark modes. Key pages include a Landing Page, About, Contact, HPTP Timing API Demo, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub, CNSA 2.0 Compliance, TSA Time-Stamping Authority, Node Terminal, and an Admin Dashboard. It features a quantum-ternary simulator and FIPS 140-3 compliance checks.
 
 ### Node Terminal + Array3 Cluster Shell
-A browser-accessible PTY terminal at `/terminal` providing interactive shell access via WebSocket (`/ws/terminal`). Built with xterm.js (frontend) and node-pty (backend). Features include multiple concurrent sessions, terminal resize handling, and a Cluster Shell mode that fans out commands to all connected Array3 peers via the Inter-Cube relay. Session management is in `server/terminal.ts`. Rust source code for the syscall shim (`src/kernel/src/compat/syscall_shim.rs`), gateway router extension (`gateway.rs`), and PTY mux crate skeleton (`services/pty-mux/`) are committed as source-only (compiled externally).
+A browser-accessible PTY terminal at `/terminal` provides interactive shell access via WebSocket. It is built with xterm.js (frontend) and node-pty (backend), featuring multiple concurrent sessions and a Cluster Shell mode for fanning out commands to Array3 peers.
 
 ### Backend and Core Framework
 The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic, Femtosecond Timing, and Phase Encryption v3 (post-quantum, duplex-mode TL-Sponge-385-based GF(3) stream cipher). The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service. Security features include tiered rate limiting, CORS, Helmet.js, AES-256-GCM token encryption, input validation, hardened path sanitization, and API versioning.
 
 ### Inter-Cube Infrastructure Services
-A 4-service system provides geometric routing across the 13D ternary cube network: Geometric Load Balancer (GLB), Cube Overlay Network (CON), Cube Registration Service (CRS, 13 HTTP endpoints), and Fault Tolerance Service (FTS). Implemented as a Rust crate (18,649 LOC, 26 modules, 422 tests) with TypeScript API routes. Features PT26-DSA native daemon identity with persistent encrypted MasterSecret (`~/.plenumnet/identity/master.key`), OS CSPRNG generation (`getrandom`), address-bound TL-DSA-87 key derivation, and automatic radian-epoch key rotation (14-day intervals). Daemon modes: `CUBE_MODE=crs` (CRS node), `CUBE_MODE=cube` (cube node with heartbeat rotation), `CUBE_MODE=keygen` (generate and print identity). WebSocket relay auth uses challenge-response: server issues a random nonce, client signs `nonce||address||publicKey` with TL-DSA-87 (address-bound key), and the CRS daemon verifies via `/crs/verify-challenge`. Addresses are displayed in dot-separated format (e.g., `111.111.111.111.1`).
+A 4-service system provides geometric routing across the 13D ternary cube network: Geometric Load Balancer (GLB), Cube Overlay Network (CON), Cube Registration Service (CRS), and Fault Tolerance Service (FTS). It is implemented as a Rust crate with TypeScript API routes. It features PT26-DSA native daemon identity with persistent encrypted MasterSecret, OS CSPRNG generation, address-bound TL-DSA-87 key derivation, and automatic radian-epoch key rotation.
 
 ### Rust Kernel Architecture
 A Rust-based kernel provides core functionalities: Ternary Operations (GF(3) arithmetic), Femtosecond-precision Timing (HPTP), Phase Encryption, and a 3-Tier Security System. It includes Cryptographic Primitives (ternary hash, TL-KEM, TL-DSA, CNSA 2.0 compliance), a Torsion Network (N-dimensional torus topology, Ternary Transport/Transfer/DNS), and a Ternary Virtual Machine (176-opcode ISA, ternary addressing, three-ring privilege levels, quantum-ternary simulation, ternary-aware garbage collector). A Binary Compatibility Layer handles balanced ternary conversion and crypto interoperability.
 
 ### Kernel Boot Infrastructure
-The kernel boots as a bare-metal binary (`src/kernel/src/main.rs`) for three architectures: x86_64 (multiboot2 + 32→64 trampoline), aarch64 (QEMU virt, PL011 UART), and riscv64 (OpenSBI, SBI console). Uses a 512MB linked-list allocator (`src/kernel/src/allocator.rs`) with proper deallocation support for heap. Per-arch serial drivers walk 11 `BootSequence` stages from the `arch/boot.rs` infrastructure. After boot, initializes PlenumBrowser at full resolution (1920×1080 on x86_64/aarch64, 1280×720 on riscv64), exercises the z=0 distributor, prints allocator stats, and enters a main event loop (no halt). Linker scripts per-arch in `src/kernel/linker-{x86_64,aarch64,riscv64}.ld`. Custom Rust target specs in `src/kernel/targets/{x86_64,aarch64,riscv64gc}-plenum-none.json` with `-Z build-std` configured via `.cargo/config.toml` aliases. Nightly toolchain pinned in `src/kernel/rust-toolchain.toml`.
+The kernel boots as a bare-metal binary for three architectures: x86_64, aarch64, and riscv64. It uses a 512MB linked-list allocator and initializes PlenumBrowser at full resolution after booting.
 
-### Plenum-Std Shim (`src/plenum-std/`)
-A standalone `#![no_std]` crate providing the full Rust `std` API surface mapped to kernel primitives. Crates that require `std` compile against this shim transparently. Modules: `collections` (hashbrown HashMap/HashSet, alloc BTree*), `sync` (Mutex, RwLock, Once, OnceLock, Condvar, Barrier, mpsc, Arc/Weak, atomics), `thread` (spawn, JoinHandle, LocalKey/TLS, sleep, yield), `time` (Instant, SystemTime, Duration), `io` (Read, Write, Seek, BufRead, Cursor, BufReader, BufWriter, Error/ErrorKind), `net` (stub — Err(Unsupported)), `fs` (stub — Err(Unsupported)), `env` (stub defaults), `process` (stub), `panic` (catch_unwind passthrough), plus re-exports of core/alloc types (fmt, string, vec, boxed, rc, etc.).
+### Plenum-Std Shim
+A standalone `#![no_std]` crate provides the full Rust `std` API surface mapped to kernel primitives, allowing `std`-dependent crates to compile transparently against the kernel.
 
 ### PlenumBrowser Kernel Subsystem (Phase 1 — CPU Path)
-A browser engine built as kernel subsystem modules in `src/kernel/src/browser/`. Not a fork — parsing, layout, scripting, rendering, and networking are kernel-space with direct access to the GPU, ternary crypto stack, and z=0 distributor. Phase 1 implements CPU rendering via `render_cpu.rs` (tiny-skia fallback path). Modules: `parse.rs` (DOM/CSS types), `layout.rs` (iterative Flexbox layout), `script.rs` (cooperative JS executor with watchdog), `render_cpu.rs` (framebuffer + sponge XOR encryption), `tabs.rs` (tab isolation via kernel tasks, max 64), `input.rs` (TIS-27 encoded key dispatch), `net.rs` (resource requests to z=0), `mesh.rs` (540-node recursive polygon mesh with Bézier interpolation), `color.rs` (PlenumColor mesh↔sRGB mapping). 71 unit tests.
+A browser engine built as kernel subsystem modules, implementing CPU rendering. This includes parsing (DOM/CSS types), layout (iterative Flexbox), scripting (cooperative JS executor), CPU rendering (framebuffer + sponge XOR encryption), tabs (isolation via kernel tasks), input (TIS-27 encoded key dispatch), networking (resource requests to z=0), mesh (540-node recursive polygon mesh), and color (PlenumColor mesh↔sRGB mapping).
 
 ### z=0 Distributor
-The z-axis dome geometry from TM-2026-017. Above ground (+z) is presentation, below ground (−z) is processing, z=0 is the equatorial distributor plane. Implements (7, 11, 13) coprime walk over 540 nodes — gcd(1001, 540)=1, full coverage guaranteed. Modules in `src/kernel/src/distributor/`: `coprime_walk.rs` (parallel walkers with stride 7/11/13), `z_router.rs` (routes requests to z-levels −6 through +n), `sponge_rekey.rs` (per-frame TLSponge-385 keystream advance). Layer stubs in `src/kernel/src/layers/` for all z-levels: gateway (−1), services (−2), conventional (−3), ternary_native (−4), data (−5), infrastructure (−6), fileserver (+2), snapshots (+3..+n).
+This component implements the z-axis dome geometry, acting as an equatorial distributor plane. It uses a (7, 11, 13) coprime walk over 540 nodes for full coverage.
 
 ### TIS-27 Keyboard Input
-Kernel-space TIS-27 encoding in `src/kernel/src/input/keyboard.rs`. Scancodes encoded before any buffer using 54-trit sponge (4 rounds, 43-bit integrity). Decoded to Unicode inside browser DOM handler at last possible moment — direct kernel call, no IPC.
+Kernel-space TIS-27 encoding is used for keyboard input. Scancodes are encoded before buffering using a 54-trit sponge and decoded to Unicode inside the browser DOM handler.
 
 ### XPlenum RISC-V Hardware Extension
 A custom RISC-V extension integrated with CVA6 provides 21 custom instructions and 12 custom CSRs for ternary security operations, PQC acceleration, and compliance.
 
 ### TL-KEM — Ternary Lattice Key Encapsulation
-TL-KEM is a ternary-native equivalent of ML-KEM (FIPS 203) providing IND-CCA2 secure key encapsulation at three security levels: TL-KEM-512, TL-KEM-768, TL-KEM-1024. Built on Module-LWE over R_q = Z_3[X]/(X^256+1) with Fujisaki-Okamoto transform.
+TL-KEM is a ternary-native equivalent of ML-KEM, providing IND-CCA2 secure key encapsulation at three security levels (TL-KEM-512, TL-KEM-768, TL-KEM-1024) based on Module-LWE over R_q.
 
 ### Crypto Benchmark Suite
 A Criterion-based statistical benchmark suite covers all core cryptographic primitives: TIS-27, TLSponge-385, TL-DSA, TL-KEM, Phase Encryption v3, and raw sponge permutation.
 
 ### Sponge Architecture
-TL-Sponge-385 provides 385-bit post-quantum security for signing, key derivation, FIPS validation, and document hashing, including a chi layer over GF(27). Implementations exist in TypeScript, Rust kernel (scalar + AVX2 split-table), and Rust ternary-math (scalar + AVX2/NEON SIMD). A Rust N-API native addon provides compiled native permutation to Node.js with AVX2 SIMD. TL-Sponge-43 is used for TDNS identity derivation and TIS-27 for fast integrity checks.
+TL-Sponge-385 provides 385-bit post-quantum security for signing, key derivation, FIPS validation, and document hashing, with implementations in TypeScript, Rust kernel, and Rust ternary-math. TL-Sponge-43 is used for TDNS identity derivation and TIS-27 for fast integrity checks.
 
 ### TTC v4.2 Compression Pipeline
-File compression uses the TTC v4.2 native Rust engine via N-API. The pipeline includes domain analysis, ternary rANS, and GURFT fast-path. Frontend displays TTC metadata badges, with round-trip verification using CRC32.
+File compression uses the TTC v4.2 native Rust engine via N-API. The pipeline includes domain analysis, ternary rANS, and GURFT fast-path, with frontend display of TTC metadata badges and round-trip verification using CRC32.
 
 ### TDNS v2.5.0 — Ternary Domain Name System
 A standalone Rust crate implementing a 27-dimensional ontological addressing protocol with 54-trit dual-layer addressing. It uses TL-Sponge-43 for identity derivation and TIS-27 for wire packet integrity.
@@ -76,32 +72,16 @@ A comprehensive system handles API key generation, validation, rotation, per-key
 Includes 4-tier rate limiting, CORS, Helmet.js security headers, AES-256-GCM token encryption, null-byte stripping, double URL-decode protection, and `execFile()`-only subprocess execution.
 
 ### Capability-Based Security
-Authorization uses unforgeable, self-contained, bearer-verified capability tokens signed with TL-DSA, implemented across six phases.
+Authorization uses unforgeable, self-contained, bearer-verified capability tokens signed with TL-DSA.
 
-### Array3 Watchdog (`array3-watchdog.ps1`)
-A Windows scheduled task running every 2 minutes + on boot. Monitors daemon services, LLM engines, and orphan processes. Features: recursive BFS process tree walk for orphan detection (fixes false kills from PID domain mismatch between `cmd.exe` service wrapper and `inter-cube-daemon.exe`), two-tier LLM health checks (port listener + `/v1/models` API), smart restart with 5-minute grace period for model loading, machine-parseable summary lines (`[OK]`/`[WARN]`/`[FAIL]` + JSON), and log rotation at 1MB. LLM engine config stored in `C:\ProgramData\PlenumNET\llm-engines.json` (written by deploy-yoda.ps1), health counters in `C:\ProgramData\PlenumNET\llm-health-counters.json`. Machine-wide path ensures both the deployer (interactive admin) and the watchdog (SYSTEM scheduled task) access the same files.
+### Array3 Watchdog
+A Windows scheduled task monitors daemon services, LLM engines, and orphan processes, providing health checks, smart restarts, and log rotation.
 
-### PlenumNET App Installer Framework (Task #56)
-A manifest-driven MSI build system for packaging all PlenumNET Windows applications with consistent branding, system integration, and clean uninstall.
+### PlenumNET App Installer Framework
+A manifest-driven MSI build system for packaging all PlenumNET Windows applications with consistent branding, system integration, and clean uninstall. Core components include a Rust CLI tool (`plenum-pack`) for generating MSI installers, a system tray launcher (`plenum-launcher`), and a UAC elevation helper.
 
-**Core Components:**
-- `tools/plenum-pack/` — Rust CLI tool that reads `plenum-app.toml` manifests and generates WiX v4 MSI installers. Commands: `build`, `validate`, `inspect`, `new`, `verify`. Templates bundled via `include_str!`.
-- `tools/plenum-launcher/` — System tray hub showing all installed PlenumNET apps with status polling, theme support (System/Light/Dark), and quick actions.
-- `tools/plenum-launcher-elevate/` — UAC elevation helper for service start/stop operations requiring admin privileges.
-- `tools/plenum-pack/ci-tests/mock-crs/` — Mock Cube Registration Service for CI testing of Inter-Cube Daemon installation flow.
-
-**Product Manifests (`plenum-app.toml`):**
-- `ninja-exec/plenum-app.toml` — NinjaExec signing agent (tray_agent, TL-DSA keypair provisioning)
-- `services/inter-cube/plenum-app.toml` — Inter-Cube Daemon (service, CRS registration)
-- `scripts/array3-watchdog/plenum-app.toml` — Array3 Watchdog (service, TIS-27 heartbeat MAC)
-- `tools/plenum-launcher/plenum-app.toml` — PlenumNET Launcher (tray_agent, hub only)
-
-**WiX Templates:** `tools/plenum-pack/templates/` — product.wxs (main), service/service.wxs, tray/tray.wxs, ui/dialogs.wxs
-**Icon Assets:** `assets/icons/svg/` — SVG sources for all products; `assets/icons/installer/` — build-time BMP generation
-**CI Pipeline:** `.github/workflows/installer-build.yml` — validate → build × (4 products × 2 architectures) → checksum → test
-**CI Tests:** `tools/plenum-pack/ci-tests/` — Per-product PowerShell test scripts (9-step deployment validation)
-
-**Brand Palette:** Dark mode primary (#0F0C0A bg, #4A9EF5 accent), light mode (#FAF8F6 bg, #2D7DD2 accent). Status: Active=#4A9EF5, Warning=#78828C, Inactive=#3D444B.
+### Brand Palette
+Dark mode primary (#0F0C0A bg, #4A9EF5 accent), light mode (#FAF8F6 bg, #2D7DD2 accent). Status: Active=#4A9EF5, Warning=#78828C, Inactive=#3D444B.
 
 ## External Dependencies
 
