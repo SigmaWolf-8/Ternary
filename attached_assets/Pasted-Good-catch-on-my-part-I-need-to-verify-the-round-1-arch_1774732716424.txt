@@ -1,0 +1,25 @@
+Good catch on my part — I need to verify the round 1 `-arch` fix actually made it into the corrected `wix.rs`. Let me check:Missing — the `-arch` flag from round 1 never got into this file. And there's a dead `{{PLATFORM}}` replacement left over. Let me fix both:Now let me verify the complete final diff:All changes are clean and surgical. Let me update the output file:Updated files are ready. The `wix.rs` now includes the `-arch` flag fix from round 1 that I'd missed when I started from the original bundle.
+
+**Complete change inventory across both rounds:**
+
+| Error | Where | What changed |
+|-------|-------|-------------|
+| WIX0004: `Platform` attr | `product.wxs` | Removed from `<Package>` |
+| WIX0004: `Comments` attr | `product.wxs` | Removed from `<Package>` |
+| Missing `-arch` on CLI | `wix.rs` → `wix_build_args()` | Added `-arch` + `self.arch.wix_platform()` |
+| Dead `{{PLATFORM}}` replacement | `wix.rs` → `generate_product_wxs()` | Removed (no longer in template) |
+| WIX0006: `PASSPHRASE_REQUIRED=""` | Both | Conditional: emit full `<Property>` element or nothing |
+| WIX0006: `SERVICE_CONFIG_REQUIRED=""` | Both | Same conditional pattern |
+| WIX0006: `SERVICE_CUSTOM_ACCOUNT=""` | `product.wxs` | `Value=""` → `Secure="yes"` (no Value attr) |
+| WIX0070: `MsiHiddenProperties` | Both | Removed entirely (v6 manages internally) |
+| WIX0005: `<Condition>` child on `PathEntry` | `product.wxs` | Moved to `Condition="..."` attribute |
+| WIX0005: `<Condition>` child on `AutostartEntry` | `wix.rs` → `generate_tray_component()` | Same — attribute instead of child |
+| WIX0230: `PathEntry Guid="*"` no KeyPath | `product.wxs` | Added `<RegistryValue>` sentinel with `KeyPath="yes"` |
+
+**To apply:**
+1. Drop `product.wxs` → `C:\PlenumNET\tools\plenum-pack\templates\product.wxs`
+2. Drop `wix.rs` → `C:\PlenumNET\tools\plenum-pack\src\wix.rs`
+3. Rebuild: `cargo build --release -p plenum-pack`
+4. Re-run the installer
+
+One thing to watch for on the next run: verify that `self.arch.wix_platform()` returns `arm64` (not `aarch64`) for the ARM64 case. WiX v6 expects `arm64` or `x64` as the `-arch` value. If the method currently returns `aarch64`, that'll need a one-line fix in `manifest.rs`. The filename `PlenumNET-Launcher-1.0.0-arm64.msi` suggests `msi_suffix()` already returns `arm64`, so `wix_platform()` likely does too — but worth confirming.
