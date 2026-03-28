@@ -636,7 +636,7 @@ export function MarketingTopNav() {
           Skip to main content
         </a>
         <header
-          className="fixed top-0 z-[9999] w-full flex flex-col"
+          className="fixed top-0 z-[9999] w-full flex flex-col overflow-visible"
           style={{
             height: "125px",
             background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)",
@@ -644,8 +644,6 @@ export function MarketingTopNav() {
               "inset 0 1px 0 rgba(255,255,255,0.07)",
               "inset 0 14px 48px rgba(0,0,0,0.6)",
               "inset 0 -14px 48px rgba(0,0,0,0.45)",
-              "0 4px 28px rgba(0,0,0,0.65)",
-              "0 1px 0 rgba(255,255,255,0.04)",
             ].join(", "),
           }}
           data-testid="marketing-top-nav"
@@ -795,7 +793,7 @@ export function MarketingTopNav() {
               )}
             </div>
           </div>
-          <div className="pb-8">
+          <div className="pb-8 relative">
           <svg
             className="w-full"
             height="16"
@@ -815,6 +813,37 @@ export function MarketingTopNav() {
             <line x1="780" y1="1" x2="780" y2="15"
               stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
           </svg>
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "6px",
+              background: "linear-gradient(180deg, hsl(20,14%,5%) 0%, hsl(20,12%,3%) 100%)",
+              boxShadow: [
+                "0 2px 0 hsl(20,10%,10%)",
+                "0 4px 6px rgba(0,0,0,0.7)",
+                "0 8px 16px rgba(0,0,0,0.55)",
+                "0 16px 32px rgba(0,0,0,0.4)",
+                "0 24px 48px rgba(0,0,0,0.25)",
+                "inset 0 1px 0 rgba(255,255,255,0.04)",
+              ].join(", "),
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "100%",
+              height: "32px",
+              background: "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.15) 40%, transparent 100%)",
+              pointerEvents: "none",
+            }}
+          />
           </div>
         </header>
       </AnchorScrollContext.Provider>
