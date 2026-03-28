@@ -209,40 +209,41 @@ function HeroSection() {
     const video = videoRef.current;
     if (!video) return;
 
-    let reversed = false;
-    let interval: ReturnType<typeof setInterval> | null = null;
+    let reversing = false;
+    let cancelled = false;
 
-    const stepBackward = () => {
-      if (!video) return;
-      const step = 1 / 30;
+    const reverseStep = () => {
+      if (cancelled || !reversing) return;
+      const step = 1 / 15;
       const next = video.currentTime - step;
-      if (next <= 0.05) {
+      if (next <= 0.1) {
+        reversing = false;
         video.currentTime = 0;
-        reversed = false;
-        if (interval) { clearInterval(interval); interval = null; }
         video.play();
         return;
       }
       video.currentTime = next;
     };
 
-    const handleEnded = () => {
-      reversed = true;
-      video.pause();
-      interval = setInterval(stepBackward, 50);
+    const onSeeked = () => {
+      if (!reversing || cancelled) return;
+      setTimeout(reverseStep, 30);
     };
 
-    const handleSeeked = () => {
-      if (!reversed) return;
+    const onEnded = () => {
+      reversing = true;
+      video.pause();
+      video.addEventListener("seeked", onSeeked);
+      reverseStep();
     };
 
     video.removeAttribute("loop");
-    video.addEventListener("ended", handleEnded);
-    video.addEventListener("seeked", handleSeeked);
+    video.addEventListener("ended", onEnded);
     return () => {
-      video.removeEventListener("ended", handleEnded);
-      video.removeEventListener("seeked", handleSeeked);
-      if (interval) clearInterval(interval);
+      cancelled = true;
+      reversing = false;
+      video.removeEventListener("ended", onEnded);
+      video.removeEventListener("seeked", onSeeked);
     };
   }, []);
 
