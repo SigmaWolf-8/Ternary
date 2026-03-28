@@ -8,6 +8,15 @@
 .DESCRIPTION
     Served from https://plenumnet.replit.app/api/deploy-yoda
     Run with:  irm https://plenumnet.replit.app/api/deploy-yoda | iex
+
+    This command downloads and runs the PlenumNET deployer. It requires:
+    Windows 10+, Administrator privileges, internet access, and
+    approximately 2 GB disk space. The deployer will:
+      1. Install Rust and LLVM if not present (~750 MB total download)
+      2. Clone and build the PlenumNET daemon from source
+      3. Register 3 Windows Services and a watchdog scheduled task
+      4. Create desktop launchers for Start/Stop
+
     Or download the .bat wrapper from the Distribution page.
 
     Array3 27-slot cube topology (SLOTS_PER_NODE = 27, GATEWAY_OFFSET = 13):
@@ -31,24 +40,59 @@
     Application engines are NOT installed by this script. Application
     setup is handled separately by the consuming app (e.g. YODA).
 
+    Node IDs are Rep C ordinals {1,2,3} — NOT GF(3) {0,1,2}. Zero is
+    never used as a node ID. Key rotation follows radian-epoch intervals
+    (14-day periods).
+
+.PARAMETER Force
+    Skip confirmation prompts for automated/scripted invocation.
+
+.PARAMETER NoColor
+    Suppress terminal color output for piped or redirected output.
+
 .NOTES
     Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
     Applied Physics Division
 #>
+param(
+    [switch]$Force,
+    [switch]$NoColor
+)
 
-$DAEMON_COUNT   = 3
-$REMOTE_CRS     = "https://plenumnet.replit.app"
-$BASE_PORT      = 11111
-$SLOTS_PER_NODE = 27
-$GATEWAY_OFFSET = 13
-$LOCAL_CRS_PORT = $BASE_PORT + $GATEWAY_OFFSET
-$LOCAL_CRS_URL  = "http://localhost:$LOCAL_CRS_PORT"
-$RepoDir       = "C:\PlenumNET"
-$BinaryName    = "inter-cube-daemon.exe"
-$BinaryPath    = Join-Path $RepoDir "target\release\$BinaryName"
-$RepoUrl       = "https://github.com/SigmaWolf-8/Ternary.git"
-$IdentityBase  = Join-Path $RepoDir "plenumnet-data"
-$LOG_DIR       = Join-Path $IdentityBase "logs"
+# Color semantics: Cyan=brand/header, Yellow=step/warn, Green=success,
+#                  Red=error/fail, DarkGray=detail, White=data/info
+# Do not introduce additional colors without updating this key.
+
+$DEPLOYER_VERSION = "v0.5.0"
+$RELEASE_TAG      = "v0.5.0"
+$DAEMON_COUNT     = 3
+$REMOTE_CRS       = "https://plenumnet.replit.app"
+$BASE_PORT        = 11111
+$SLOTS_PER_NODE   = 27
+$GATEWAY_OFFSET   = 13
+$LOCAL_CRS_PORT   = $BASE_PORT + $GATEWAY_OFFSET
+$LOCAL_CRS_URL    = "http://localhost:$LOCAL_CRS_PORT"
+$RepoDir          = "C:\PlenumNET"
+$BinaryName       = "inter-cube-daemon.exe"
+$BinaryPath       = Join-Path $RepoDir "target\release\$BinaryName"
+$RepoUrl          = "https://github.com/SigmaWolf-8/Ternary.git"
+$IdentityBase     = Join-Path $RepoDir "plenumnet-data"
+$LOG_DIR          = Join-Path $IdentityBase "logs"
+
+function Write-Status {
+    param(
+        [string]$Message,
+        [string]$Color = "White",
+        [string]$Prefix = ""
+    )
+    if ($NoColor) {
+        if ($Prefix) { Write-Host "  $Prefix $Message" }
+        else { Write-Host "  $Message" }
+    } else {
+        if ($Prefix) { Write-Host "  $Prefix $Message" -ForegroundColor $Color }
+        else { Write-Host "  $Message" -ForegroundColor $Color }
+    }
+}
 
 function Test-Admin {
     $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -62,8 +106,15 @@ function Get-ServiceAccountName {
 
 function Grant-LogonAsService {
     param([string]$AccountName)
-    $tempDir = Join-Path $env:TEMP "plenumnet-secedit"
+    $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "plenumnet-secedit-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
     if (-not (Test-Path $tempDir)) { New-Item -ItemType Directory -Path $tempDir -Force | Out-Null }
+    $acl = Get-Acl $tempDir
+    $acl.SetAccessRuleProtection($true, $false)
+    $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "Allow")
+    $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "Allow")
+    $acl.AddAccessRule($systemRule)
+    $acl.AddAccessRule($adminRule)
+    Set-Acl -Path $tempDir -AclObject $acl -ErrorAction SilentlyContinue
     $exportFile = Join-Path $tempDir "secpol-export.inf"
     $importFile = Join-Path $tempDir "secpol-import.inf"
     $seceditDb = Join-Path $tempDir "secedit.sdb"
@@ -98,42 +149,156 @@ function Set-ServiceLogonAccount {
     & sc.exe config $ServiceName obj= $AccountName | Out-Null
 }
 
-Write-Host ""
-Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  PlenumNET Array3 Deployer" -ForegroundColor Cyan
-Write-Host "  PlenumNET Inter-Cube Infrastructure" -ForegroundColor Cyan
-Write-Host "  Applied Physics Division -- Capomastro Holdings Ltd." -ForegroundColor Cyan
-Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Nodes        : $DAEMON_COUNT instances (27 slots each)" -ForegroundColor White
-Write-Host "  Coordinator  : Node #1 (gateway $LOCAL_CRS_PORT)" -ForegroundColor White
-Write-Host "  Gateway Ports: $($BASE_PORT + $GATEWAY_OFFSET), $($BASE_PORT + $SLOTS_PER_NODE + $GATEWAY_OFFSET), $($BASE_PORT + 2 * $SLOTS_PER_NODE + $GATEWAY_OFFSET)" -ForegroundColor White
-Write-Host "  Terminal Ports: $($BASE_PORT + $GATEWAY_OFFSET - 2), $($BASE_PORT + $SLOTS_PER_NODE + $GATEWAY_OFFSET - 2), $($BASE_PORT + 2 * $SLOTS_PER_NODE + $GATEWAY_OFFSET - 2)" -ForegroundColor White
-Write-Host "  Port Ranges  : $BASE_PORT-$($BASE_PORT + $SLOTS_PER_NODE - 1), $($BASE_PORT + $SLOTS_PER_NODE)-$($BASE_PORT + 2 * $SLOTS_PER_NODE - 1), $($BASE_PORT + 2 * $SLOTS_PER_NODE)-$($BASE_PORT + 3 * $SLOTS_PER_NODE - 1)" -ForegroundColor White
-Write-Host "  VM API       : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway)" -ForegroundColor White
-Write-Host "  Relay        : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
-Write-Host "  Registry     : $REMOTE_CRS (monitoring only)" -ForegroundColor White
-Write-Host ""
+function Get-TlDsaSignature {
+    param([string]$IdentDir, [string]$PayloadToSign)
+    try {
+        $env:CUBE_MODE = "sign"
+        $env:CUBE_IDENTITY_DIR = $IdentDir
+        $env:CUBE_SIGN_PAYLOAD = $PayloadToSign
+        $signOutput = & $BinaryPath 2>&1
+        Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_SIGN_PAYLOAD -ErrorAction SilentlyContinue
+        $sigLine = $signOutput | Where-Object { $_ -match "signature|sig:" } | Select-Object -First 1
+        if ($sigLine -match ':\s*([0-9a-fA-F]+)\s*$') {
+            return $Matches[1]
+        }
+    } catch {
+        Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_SIGN_PAYLOAD -ErrorAction SilentlyContinue
+    }
+    return ""
+}
+
+function Restrict-FileAcl {
+    param([string]$FilePath)
+    try {
+        $acl = New-Object System.Security.AccessControl.FileSecurity
+        $acl.SetAccessRuleProtection($true, $false)
+        $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "Allow")
+        $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "Allow")
+        $acl.AddAccessRule($systemRule)
+        $acl.AddAccessRule($adminRule)
+        Set-Acl -Path $FilePath -AclObject $acl
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Restrict-DirAcl {
+    param([string]$DirPath)
+    try {
+        $acl = Get-Acl $DirPath
+        $acl.SetAccessRuleProtection($true, $false)
+        $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $acl.AddAccessRule($systemRule)
+        $acl.AddAccessRule($adminRule)
+        Set-Acl -Path $DirPath -AclObject $acl
+        return $true
+    } catch {
+        return $false
+    }
+}
 
 function Test-Command($cmd) {
     try { Get-Command $cmd -ErrorAction Stop | Out-Null; return $true }
     catch { return $false }
 }
 
-# ── 1. Prerequisites ──────────────────────────────────────────────────────────
-Write-Host "STEP 1/8: Checking prerequisites" -ForegroundColor Yellow
-Write-Host "---"
+# ── R3-C1 / R3-I18: Admin check FIRST — before any work ─────────────────
+if (-not (Test-Admin)) {
+    $scriptPath = $MyInvocation.MyCommand.Definition
+    if ($scriptPath) {
+        Write-Host "  Administrator privileges required. Elevating..." -ForegroundColor Yellow
+        Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+        Write-Host "  Re-launched as Administrator. This window can be closed." -ForegroundColor Green
+        exit 0
+    } else {
+        Write-Host ""
+        Write-Host "  [FAIL] Administrator privileges are required." -ForegroundColor Red
+        Write-Host "         This deployer was started via a web download command (irm | iex)" -ForegroundColor Red
+        Write-Host "         which cannot request admin privileges automatically." -ForegroundColor Red
+        Write-Host ""
+        Write-Host "         To fix: Open PowerShell as Administrator (right-click >" -ForegroundColor Yellow
+        Write-Host "         'Run as administrator') and run the command again." -ForegroundColor Yellow
+        Write-Host ""
+        Read-Host "Press Enter to close"
+        exit 1
+    }
+}
+
+# ── R3-I13: Detect existing deployment ───────────────────────────────────
+$isUpgrade = $false
+$existingServices = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue
+if ($existingServices -or (Test-Path $RepoDir)) {
+    $isUpgrade = $true
+}
+
+# ── Banner ───────────────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "  PlenumNET Array3 Deployer $DEPLOYER_VERSION" -ForegroundColor Cyan
+Write-Host "  Capomastro Holdings Ltd." -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host ""
+
+if ($isUpgrade) {
+    Write-Host "  Existing deployment detected. This will:" -ForegroundColor Yellow
+    Write-Host "    - Rebuild the daemon binary from release tag $RELEASE_TAG" -ForegroundColor White
+    Write-Host "    - Restart all 3 Windows Services" -ForegroundColor White
+    Write-Host "    - Preserve existing node identities" -ForegroundColor White
+    Write-Host "    - Overwrite desktop launchers and watchdog script" -ForegroundColor White
+    Write-Host ""
+} else {
+    Write-Host "  This deployer will:" -ForegroundColor White
+    Write-Host "    - Install Rust and LLVM if not present (~750 MB download)" -ForegroundColor White
+    Write-Host "    - Clone and build the PlenumNET daemon from source" -ForegroundColor White
+    Write-Host "    - Generate 3 node identities (PT26-DSA key pairs)" -ForegroundColor White
+    Write-Host "    - Register 3 Windows Services + watchdog scheduled task" -ForegroundColor White
+    Write-Host "    - Create desktop Start/Stop launchers" -ForegroundColor White
+    Write-Host ""
+}
+
+# ── R3-I6: Pre-flight consent prompt ─────────────────────────────────────
+if (-not $Force) {
+    $consent = Read-Host "  Continue? (Y/n)"
+    if ($consent -and $consent -notin @("y", "Y", "yes", "Yes", "YES", "")) {
+        Write-Host "  Deployment cancelled." -ForegroundColor Yellow
+        exit 0
+    }
+}
+
+# ── R3-I8: Cleanup on interruption ──────────────────────────────────────
+$partialServices = @()
+$cleanupNeeded = $false
+try {
+
+# ── STEP 1/10: Checking prerequisites ───────────────────────────────────
+Write-Host ""
+Write-Host "STEP 1/10: Checking prerequisites" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Command "git")) {
-    Write-Host 'ERROR: git is not installed or not in PATH.' -ForegroundColor Red
-    Write-Host '       Install from https://git-scm.com/download/win' -ForegroundColor Yellow
+    Write-Host "  [FAIL] git is not installed or not in PATH." -ForegroundColor Red
+    Write-Host "         Install from https://git-scm.com/download/win" -ForegroundColor Yellow
+    Write-Host "         then re-run the deployer." -ForegroundColor Yellow
     Read-Host "Press Enter to close"
-    return
+    exit 1
 }
 Write-Host "  [OK] git" -ForegroundColor Green
 
 if (-not (Test-Command "cargo")) {
-    Write-Host "  -> Rust not found -- installing rustup..." -ForegroundColor Yellow
+    Write-Host "  [INFO] Rust not found. Installing rustup (~250 MB download)..." -ForegroundColor Yellow
+    if (-not $Force) {
+        $rustConsent = Read-Host "         Proceed? (Y/n)"
+        if ($rustConsent -and $rustConsent -notin @("y", "Y", "yes", "Yes", "YES", "")) {
+            Write-Host "  [FAIL] Rust is required to build the daemon. Deployment cancelled." -ForegroundColor Red
+            exit 1
+        }
+    }
     $rustupExe = Join-Path $env:TEMP "rustup-init.exe"
     Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupExe -UseBasicParsing
     Start-Process -FilePath $rustupExe -ArgumentList "-y" -Wait -NoNewWindow
@@ -141,17 +306,18 @@ if (-not (Test-Command "cargo")) {
     $cargoBin = Join-Path (Join-Path $env:USERPROFILE ".cargo") "bin"
     $env:PATH += ";$cargoBin"
     if (-not (Test-Command "cargo")) {
-        Write-Host 'ERROR: cargo not found after install -- restart in a new terminal.' -ForegroundColor Red
+        Write-Host "  [FAIL] Rust was installed successfully, but this session cannot detect it." -ForegroundColor Red
+        Write-Host "         Please close this window and run the deployer again." -ForegroundColor Yellow
         Read-Host "Press Enter to close"
-        return
+        exit 1
     }
 }
 Write-Host "  [OK] cargo" -ForegroundColor Green
 
-# ── 2. Build environment (MSVC + clang for ring crate) ─────────────────────
+# ── STEP 2/10: Configuring build environment ────────────────────────────
 Write-Host ""
-Write-Host "STEP 2/8: Build environment" -ForegroundColor Yellow
-Write-Host "---"
+Write-Host "STEP 2/10: Configuring build environment" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 try {
     $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
@@ -159,7 +325,7 @@ try {
     $cpuArch = $env:PROCESSOR_ARCHITECTURE
     if (-not $cpuArch) { $cpuArch = "AMD64" }
 }
-Write-Host "  Architecture: $cpuArch"
+Write-Host "  [INFO] Architecture: $cpuArch" -ForegroundColor White
 
 $vsWhere = $null
 $searchPaths = @(
@@ -201,7 +367,14 @@ if ($hasClang) {
     $env:CC = "clang"
     $env:AR = "llvm-ar"
 } else {
-    Write-Host "  -> clang not found -- installing LLVM via winget..." -ForegroundColor Yellow
+    Write-Host "  [INFO] clang not found. Installing LLVM (~500 MB download)..." -ForegroundColor Yellow
+    if (-not $Force) {
+        $llvmConsent = Read-Host "         Proceed? (Y/n)"
+        if ($llvmConsent -and $llvmConsent -notin @("y", "Y", "yes", "Yes", "YES", "")) {
+            Write-Host "  [FAIL] LLVM/clang is required to build the daemon. Deployment cancelled." -ForegroundColor Red
+            exit 1
+        }
+    }
     $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
     if ($hasWinget) {
         winget install --id LLVM.LLVM --silent --accept-package-agreements --accept-source-agreements
@@ -226,87 +399,162 @@ if ($hasClang) {
         $env:CC = "clang"
         $env:AR = "llvm-ar"
     } else {
-        Write-Host "ERROR: clang not found after LLVM install -- restart in a new terminal." -ForegroundColor Red
+        Write-Host "  [FAIL] LLVM was installed successfully, but this session cannot detect clang." -ForegroundColor Red
+        Write-Host "         Please close this window and run the deployer again." -ForegroundColor Yellow
         Read-Host "Press Enter to close"
-        return
+        exit 1
     }
 }
 
-# ── 3. Clone/update and build daemon ──────────────────────────────────────
+# ── STEP 3/10: Cloning source from pinned release ──────────────────────
 Write-Host ""
-Write-Host "STEP 3/8: Source code + build" -ForegroundColor Yellow
-Write-Host "---"
+Write-Host "STEP 3/10: Cloning source (release $RELEASE_TAG)" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Path $RepoDir)) {
-    Write-Host "  Cloning PlenumNET repository..." -ForegroundColor White
-    $null = & git clone --depth 1 $RepoUrl $RepoDir 2>&1
+    Write-Host "  [INFO] Cloning PlenumNET repository (tag $RELEASE_TAG)..." -ForegroundColor White
+    $null = & git clone --branch $RELEASE_TAG --depth 1 $RepoUrl $RepoDir 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Host 'ERROR: git clone failed.' -ForegroundColor Red
-        Read-Host "Press Enter to close"
-        return
+        Write-Host "  [FAIL] Could not download PlenumNET source code." -ForegroundColor Red
+        Write-Host "         Check your internet connection and firewall settings, then try again." -ForegroundColor Yellow
+        Write-Host "         If the problem persists, visit https://plenumnet.com/support" -ForegroundColor Yellow
+        Read-Host "Press Enter to close. Re-run the deployer after resolving the issue above."
+        exit 1
     }
 } elseif (-not (Test-Path (Join-Path $RepoDir ".git"))) {
-    Write-Host "  Converting ZIP install to git repo..." -ForegroundColor Yellow
+    Write-Host "  [INFO] Converting ZIP install to git repo..." -ForegroundColor Yellow
     Push-Location $RepoDir
     $null = & git init 2>&1
     $null = & git remote add origin $RepoUrl 2>&1
-    $null = & git fetch origin main 2>&1
-    $null = & git reset --hard origin/main 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --depth 1 2>&1
+    $null = & git reset --hard $RELEASE_TAG 2>&1
     Pop-Location
 } else {
-    Write-Host "  Updating source..." -ForegroundColor White
+    Write-Host "  [INFO] Updating source to $RELEASE_TAG..." -ForegroundColor White
     Push-Location $RepoDir
-    $null = & git pull origin main --ff-only 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --force 2>&1
+    $null = & git checkout $RELEASE_TAG 2>&1
     Pop-Location
 }
-Write-Host "  [OK] Source ready" -ForegroundColor Green
+Write-Host "  [OK] Source ready (pinned to $RELEASE_TAG)" -ForegroundColor Green
+
+# ── STEP 4/10: Building inter-cube daemon ───────────────────────────────
+Write-Host ""
+Write-Host "STEP 4/10: Building inter-cube daemon" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 $runningDaemons = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue
 if ($runningDaemons) {
-    Write-Host "  Stopping running node(s)..." -ForegroundColor Yellow
+    Write-Host "  [WARN] Stopping $($runningDaemons.Count) running daemon process(es)..." -ForegroundColor Yellow
+    Write-Host "         Connected relay clients will be temporarily disconnected." -ForegroundColor Yellow
+    if (-not $Force) {
+        Start-Sleep -Seconds 3
+    }
     $runningDaemons | Stop-Process -Force
     Start-Sleep -Seconds 2
 }
 
-Write-Host "  Building inter-cube daemon (CARGO_BUILD_JOBS=1)..." -ForegroundColor White
+Write-Host "  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)..." -ForegroundColor White
+Write-Host "         This typically takes 10-30 minutes for a release build." -ForegroundColor DarkGray
 Push-Location $RepoDir
 $env:CARGO_BUILD_JOBS = "1"
+$buildStart = Get-Date
+$lastHeartbeat = $buildStart
+$compiledCount = 0
 & cargo build --release -p inter-cube 2>&1 | ForEach-Object {
     $line = $_.ToString()
-    if ($line -match "error") { Write-Host "  $line" -ForegroundColor Red }
-    elseif ($line -match "Compiling|Finished") { Write-Host "  $line" -ForegroundColor DarkGray }
+    $now = Get-Date
+    $elapsed = ($now - $buildStart).ToString("mm\:ss")
+    if ($line -match "error") {
+        Write-Host "  $line" -ForegroundColor Red
+    } elseif ($line -match "Compiling\s+(\S+)") {
+        $compiledCount++
+        Write-Host "  [$elapsed] Compiling $($Matches[1]) (#$compiledCount)" -ForegroundColor DarkGray
+        $lastHeartbeat = $now
+    } elseif ($line -match "Finished") {
+        Write-Host "  [$elapsed] $line" -ForegroundColor DarkGray
+    }
+    if (($now - $lastHeartbeat).TotalSeconds -ge 30) {
+        Write-Host "  [$elapsed] Still building... ($compiledCount crates compiled so far)" -ForegroundColor DarkGray
+        $lastHeartbeat = $now
+    }
 }
 $buildExit = $LASTEXITCODE
+$buildElapsed = ((Get-Date) - $buildStart).ToString("mm\:ss")
 Pop-Location
 if ($buildExit -ne 0) {
-    Write-Host 'ERROR: Build failed.' -ForegroundColor Red
-    Read-Host "Press Enter to close"
-    return
+    Write-Host "  [FAIL] The PlenumNET daemon could not be compiled ($buildElapsed elapsed)." -ForegroundColor Red
+    Write-Host "         Review the error output above for details." -ForegroundColor Yellow
+    Write-Host "         If a build tool is missing, install it and re-run the deployer." -ForegroundColor Yellow
+    Read-Host "Press Enter to close. Re-run the deployer after resolving the issue above."
+    exit 1
 }
 if (-not (Test-Path $BinaryPath)) {
-    Write-Host "ERROR: Binary not found at $BinaryPath" -ForegroundColor Red
-    Read-Host "Press Enter to close"
-    return
+    Write-Host "  [FAIL] Compilation appeared to succeed, but the expected output was not found." -ForegroundColor Red
+    Write-Host "         This may indicate an antivirus quarantine. Check your AV logs and try again." -ForegroundColor Yellow
+    Read-Host "Press Enter to close. Re-run the deployer after resolving the issue above."
+    exit 1
 }
 $fileSizeMB = [math]::Round((Get-Item $BinaryPath).Length / 1MB, 1)
-Write-Host "  [OK] Build successful ($fileSizeMB MB)" -ForegroundColor Green
+Write-Host "  [OK] Build successful ($fileSizeMB MB, $buildElapsed elapsed, $compiledCount crates)" -ForegroundColor Green
 
-# ── 4. Version check ─────────────────────────────────────────────────────
+# ── R1-C5: Compute binary integrity hash ────────────────────────────────
+$binarySha256 = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
+Write-Host "  [OK] Binary SHA-256: $binarySha256" -ForegroundColor DarkGray
+
+$tis27Hash = ""
+try {
+    $env:CUBE_MODE = "hash"
+    $env:CUBE_HASH_TARGET = $BinaryPath
+    $hashOutput = & $BinaryPath 2>&1
+    Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+    Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
+    $hashLine = $hashOutput | Where-Object { $_ -match "TIS-27|tis27|hash:" } | Select-Object -First 1
+    if ($hashLine -match ':\s*([0-9a-fA-F]+)\s*$') {
+        $tis27Hash = $Matches[1]
+        Write-Host "  [OK] Binary TIS-27: $tis27Hash" -ForegroundColor DarkGray
+    }
+} catch {
+    Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+    Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
+}
+if (-not $tis27Hash) {
+    $tis27Hash = "sha256:$binarySha256"
+    Write-Host "  [WARN] TIS-27 hash not available from daemon -- using SHA-256 as fallback" -ForegroundColor Yellow
+}
+
+# ── R1-C5: Re-verify binary integrity before service registration ───────
+$preStartHash = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
+if ($preStartHash -ne $binarySha256) {
+    Write-Host "  [FAIL] Binary integrity check failed. The file was modified after build." -ForegroundColor Red
+    Write-Host "         Expected SHA-256: $binarySha256" -ForegroundColor Red
+    Write-Host "         Got:              $preStartHash" -ForegroundColor Red
+    Write-Host "         This may indicate tampering or antivirus interference." -ForegroundColor Yellow
+    Read-Host "Press Enter to close"
+    exit 1
+}
+
+# ── STEP 5/10: Verifying version alignment ──────────────────────────────
 Write-Host ""
-Write-Host "STEP 4/8: Version check" -ForegroundColor Yellow
-Write-Host "---"
+Write-Host "STEP 5/10: Verifying version alignment" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 $localVersion = "unknown"
 try {
     $env:CUBE_MODE = "keygen"
-    $env:CUBE_IDENTITY_DIR = Join-Path $env:TEMP "plenumnet-version-probe"
+    $env:CUBE_IDENTITY_DIR = Join-Path $env:TEMP "plenumnet-version-probe-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
     New-Item -ItemType Directory -Force -Path $env:CUBE_IDENTITY_DIR | Out-Null
     $versionOutput = & $BinaryPath 2>&1
+    $probeDir = $env:CUBE_IDENTITY_DIR
     Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
     Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+    Remove-Item $probeDir -Recurse -Force -ErrorAction SilentlyContinue
     $vLine = $versionOutput | Where-Object { $_ -match "version|v\d+\.\d+" } | Select-Object -First 1
     if ($vLine -match '(\d+\.\d+\.\d+)') { $localVersion = $Matches[1] }
-} catch {}
+} catch {
+    Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+    Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+}
 
 $remoteVersion = "unknown"
 try {
@@ -314,45 +562,57 @@ try {
     $remoteVersion = $crsHealth.version
 } catch {}
 
-Write-Host "  Local node    : v$localVersion" -ForegroundColor White
-Write-Host "  CRS reference : v$remoteVersion" -ForegroundColor White
+Write-Host "  [INFO] Local node    : v$localVersion" -ForegroundColor White
+Write-Host "  [INFO] CRS reference : v$remoteVersion" -ForegroundColor White
 
 if ($localVersion -ne "unknown" -and $remoteVersion -ne "unknown" -and $localVersion -ne $remoteVersion) {
-    Write-Host "  NOTE: Version mismatch -- local v$localVersion vs CRS v$remoteVersion" -ForegroundColor Yellow
-    Write-Host "        Run the deployer again after 'git pull' to update." -ForegroundColor Yellow
+    Write-Host "  [WARN] Version mismatch -- local v$localVersion vs CRS v$remoteVersion" -ForegroundColor Yellow
+    Write-Host "         The deployer is pinned to $RELEASE_TAG. If you need a different version," -ForegroundColor Yellow
+    Write-Host "         update `$RELEASE_TAG in the script and re-run." -ForegroundColor Yellow
 } else {
     Write-Host "  [OK] Version aligned" -ForegroundColor Green
 }
 
-# ── 5. Detect local IP ────────────────────────────────────────────────────
+# ── STEP 6/10: Detecting local network ──────────────────────────────────
 Write-Host ""
-Write-Host "STEP 5/8: Network detection" -ForegroundColor Yellow
-Write-Host "---"
+Write-Host "STEP 6/10: Detecting local network" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 $ip = (Get-NetIPAddress -AddressFamily IPv4 |
     Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254' -and $_.PrefixOrigin -ne 'WellKnown' } |
     Sort-Object @{ Expression = { switch -Wildcard ($_.InterfaceAlias) { 'Wi-Fi*' { 0 } 'Ethernet*' { 1 } default { 2 } } } } |
     Select-Object -First 1).IPAddress
 if (-not $ip) { $ip = "0.0.0.0" }
-Write-Host "  Local IP: $ip" -ForegroundColor White
+Write-Host "  [OK] Local IP: $ip" -ForegroundColor Green
 
-# ── 6. Generate 3 identities ─────────────────────────────────────────────
+# ── STEP 7/10: Generating node identities ───────────────────────────────
 Write-Host ""
-Write-Host "STEP 6/8: Generating $DAEMON_COUNT node identities" -ForegroundColor Yellow
-Write-Host "---"
+Write-Host "STEP 7/10: Generating $DAEMON_COUNT node identities" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 New-Item -ItemType Directory -Force -Path $IdentityBase | Out-Null
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
 
 $oldIdentityBase = Join-Path $env:USERPROFILE ".plenumnet"
 if ((Test-Path $oldIdentityBase) -and ($oldIdentityBase -ne $IdentityBase)) {
-    Write-Host "  Migrating identities from $oldIdentityBase to $IdentityBase..." -ForegroundColor DarkGray
+    Write-Host "  [INFO] Migrating identities from $oldIdentityBase to $IdentityBase..." -ForegroundColor DarkGray
     for ($m = 1; $m -le $DAEMON_COUNT; $m++) {
         $oldDir = Join-Path $oldIdentityBase "identity-$m"
         $newDir = Join-Path $IdentityBase "identity-$m"
         if ((Test-Path $oldDir) -and -not (Test-Path (Join-Path $newDir "master.key"))) {
             Copy-Item -Path $oldDir -Destination $newDir -Recurse -Force
-            Write-Host "  [OK] Migrated identity-$m" -ForegroundColor Green
+            $migratedKey = Join-Path $newDir "master.key"
+            if (Test-Path $migratedKey) {
+                $srcHash = (Get-FileHash -Path (Join-Path $oldDir "master.key") -Algorithm SHA256).Hash
+                $dstHash = (Get-FileHash -Path $migratedKey -Algorithm SHA256).Hash
+                if ($srcHash -eq $dstHash) {
+                    Restrict-FileAcl -FilePath $migratedKey | Out-Null
+                    Write-Host "  [OK] Migrated identity-$m (integrity verified, ACL restricted)" -ForegroundColor Green
+                } else {
+                    Write-Host "  [FAIL] Migration integrity check failed for identity-$m" -ForegroundColor Red
+                    Remove-Item $newDir -Recurse -Force -ErrorAction SilentlyContinue
+                }
+            }
         }
     }
 }
@@ -368,16 +628,18 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
 
     if (-not (Test-Path $keyFile)) {
-        Write-Host "  Generating identity #$i..." -ForegroundColor White
+        Write-Host "  [INFO] Generating identity #$i..." -ForegroundColor White
         $env:CUBE_MODE = "keygen"
         $env:CUBE_IDENTITY_DIR = $dir
         $keygenOutput = & $BinaryPath 2>&1
         Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
         if (Test-Path $keyFile) {
-            Write-Host "  [OK] Node #$i identity created" -ForegroundColor Green
+            Restrict-FileAcl -FilePath $keyFile | Out-Null
+            Write-Host "  [OK] Node #$i identity created (ACL restricted)" -ForegroundColor Green
         } else {
-            Write-Host "  WARN: Node #$i keygen may have failed" -ForegroundColor Yellow
+            Write-Host "  [FAIL] Node #$i identity generation failed. The key file was not created." -ForegroundColor Red
+            Write-Host "         Re-run the deployer to retry." -ForegroundColor Yellow
         }
     } else {
         Write-Host "  [OK] Node #$i identity exists" -ForegroundColor Green
@@ -410,25 +672,10 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     }
 }
 
-# ── 7. Register and start daemons as Windows Services ──
+# ── STEP 8/10: Registering and starting Windows Services ────────────────
 Write-Host ""
-Write-Host "STEP 7/8: Registering Array3 as Windows Services" -ForegroundColor Yellow
-Write-Host "---"
-
-if (-not (Test-Admin)) {
-    Write-Host "  Administrator privileges required to register Windows Services." -ForegroundColor Yellow
-    Write-Host "  Elevating..." -ForegroundColor DarkGray
-    $scriptPath = $MyInvocation.MyCommand.Definition
-    if ($scriptPath) {
-        Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
-        Write-Host "  Re-launched as Administrator. This window can be closed." -ForegroundColor Green
-        exit 0
-    } else {
-        Write-Host "  ERROR: Cannot auto-elevate from piped input. Please run PowerShell as Administrator and re-run." -ForegroundColor Red
-        Read-Host "Press Enter to close"
-        exit 1
-    }
-}
+Write-Host "STEP 8/10: Registering and starting Windows Services" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 $wrapperDir = Join-Path $RepoDir "services\wrappers"
 if (-not (Test-Path $wrapperDir)) {
@@ -467,17 +714,19 @@ cd /d "$RepoDir"
 set RESTART_DELAY=5
 set RESTART_COUNT=0
 :loop
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (CRS) gateway=$($cfg.GatewayPort) terminal=$($cfg.TerminalPort) [restart #!RESTART_COUNT!] >> "$logFile"
+for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
+echo [%TS%] Starting PlenumNET Node #$($cfg.Id) (CRS) gateway=$($cfg.GatewayPort) terminal=$($cfg.TerminalPort) [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
-echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
+for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
+echo [%TS%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
 if !EXIT_CODE! equ 0 goto :eof
 set /a RESTART_COUNT+=1
 if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
 if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
 if !RESTART_COUNT! gtr 6 if !RESTART_COUNT! leq 10 set RESTART_DELAY=30
 if !RESTART_COUNT! gtr 10 set RESTART_DELAY=60
-echo [%date% %time%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
+echo [%TS%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
 timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
 goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
@@ -498,21 +747,25 @@ cd /d "$RepoDir"
 set RESTART_DELAY=5
 set RESTART_COUNT=0
 :loop
-echo [%date% %time%] Starting PlenumNET Node #$($cfg.Id) (Cube) gateway=$($cfg.GatewayPort) terminal=$($cfg.TerminalPort) [restart #!RESTART_COUNT!] >> "$logFile"
+for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
+echo [%TS%] Starting PlenumNET Node #$($cfg.Id) (Cube) gateway=$($cfg.GatewayPort) terminal=$($cfg.TerminalPort) [restart #!RESTART_COUNT!] >> "$logFile"
 "$BinaryPath" >> "$logFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
-echo [%date% %time%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
+for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
+echo [%TS%] Node #$($cfg.Id) exited with code !EXIT_CODE! >> "$logFile"
 if !EXIT_CODE! equ 0 goto :eof
 set /a RESTART_COUNT+=1
 if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
 if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
 if !RESTART_COUNT! gtr 6 if !RESTART_COUNT! leq 10 set RESTART_DELAY=30
 if !RESTART_COUNT! gtr 10 set RESTART_DELAY=60
-echo [%date% %time%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
+echo [%TS%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$logFile"
 timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
 goto :loop
 "@ | Set-Content -Path $wrapperBat -Encoding ASCII
     }
+
+    Restrict-FileAcl -FilePath $wrapperBat | Out-Null
 
     $existingSvc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
     if ($existingSvc) {
@@ -529,26 +782,30 @@ goto :loop
         New-Service -Name $svcName `
             -BinaryPathName $svcBinPath `
             -DisplayName $displayName `
-            -Description "PlenumNET Array3 daemon node #$($cfg.Id) ($modeLabel) - survives reboots and terminal close" `
+            -Description "PlenumNET Array3 daemon node #$($cfg.Id) ($modeLabel) - Capomastro Holdings Ltd." `
             -StartupType Automatic | Out-Null
 
         & sc.exe failure $svcName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
 
+        $partialServices += $svcName
         Write-Host "  [OK] Node #$($cfg.Id) registered as service '$svcName'" -ForegroundColor Green
     } catch {
-        Write-Host "  [WARN] Could not register node #$($cfg.Id) as service: $_" -ForegroundColor Yellow
+        Write-Host "  [WARN] Could not register Node #$($cfg.Id) as a Windows Service." -ForegroundColor Yellow
+        Write-Host "         This may require a reboot if a previous installation was not fully removed." -ForegroundColor Yellow
+        Write-Host "         Error details: $_" -ForegroundColor DarkGray
     }
 }
 
 Write-Host ""
-Write-Host "  Starting Node #1 (coordinator) first..." -ForegroundColor DarkGray
+Write-Host "  [INFO] Starting Node #1 (coordinator) first..." -ForegroundColor DarkGray
 $crsSvcName = "PlenumNET-Array3-1"
 Start-Service -Name $crsSvcName -ErrorAction SilentlyContinue
 
-Write-Host "  Waiting for coordinator to be ready..." -ForegroundColor DarkGray
+Write-Host "  [INFO] Waiting for coordinator to be ready..." -ForegroundColor DarkGray
 $crsReady = $false
 for ($w = 1; $w -le 15; $w++) {
     Start-Sleep -Seconds 2
+    Write-Host "         Waiting for coordinator... (attempt $w/15)" -ForegroundColor DarkGray
     try {
         $healthCheck = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/health" -TimeoutSec 5 -ErrorAction Stop
         if ($healthCheck.status -eq "ok") { $crsReady = $true; break }
@@ -557,19 +814,32 @@ for ($w = 1; $w -le 15; $w++) {
 if ($crsReady) {
     Write-Host "  [OK] Coordinator ready at $LOCAL_CRS_URL" -ForegroundColor Green
 } else {
-    Write-Host "  WARN: Coordinator health check did not respond -- continuing anyway" -ForegroundColor Yellow
+    Write-Host "  [WARN] The coordinator (Node #1) did not respond to health checks within 30 seconds." -ForegroundColor Yellow
+    Write-Host "         It may still be starting up. The deployer will proceed with worker registration." -ForegroundColor Yellow
+    Write-Host "         If workers fail to register, restart the coordinator service and re-run." -ForegroundColor Yellow
 }
 
 for ($i = 2; $i -le $DAEMON_COUNT; $i++) {
+    if (-not $crsReady) {
+        Write-Host "  [WARN] Skipping Node #$i service start -- coordinator not ready." -ForegroundColor Yellow
+        Write-Host "         Start manually after coordinator is healthy: Start-Service PlenumNET-Array3-$i" -ForegroundColor Yellow
+        continue
+    }
     $workerSvcName = "PlenumNET-Array3-$i"
     Start-Service -Name $workerSvcName -ErrorAction SilentlyContinue
     Write-Host "  [OK] Node #$i service started" -ForegroundColor Green
-    Start-Sleep -Seconds 1
+    Start-Sleep -Seconds 2
 }
 
+# ── STEP 9/10: Configuring watchdog and LLM engines ─────────────────────
+Write-Host ""
+Write-Host "STEP 9/10: Configuring watchdog and LLM engines" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
+
 $watchdogScript = Join-Path $wrapperDir "array3-watchdog.ps1"
+$watchdogPortList = ($daemonConfigs | ForEach-Object { $_.GatewayPort; $_.TerminalPort }) -join ', '
 @"
-`$logDir = Join-Path `$env:USERPROFILE '.plenumnet\logs'
+`$logDir = '$LOG_DIR'
 if (-not (Test-Path `$logDir)) { New-Item -ItemType Directory -Force -Path `$logDir | Out-Null }
 `$wdLog = Join-Path `$logDir 'watchdog.log'
 `$plenumDir = 'C:\ProgramData\PlenumNET'
@@ -580,18 +850,60 @@ if (-not (Test-Path `$plenumDir)) { New-Item -ItemType Directory -Force -Path `$
 
 function Rotate-WatchdogLog {
     if (Test-Path `$wdLog) {
-        `$fi = Get-Item `$wdLog -ErrorAction SilentlyContinue
-        if (`$fi -and `$fi.Length -gt `$MAX_LOG_BYTES) {
-            `$rotated = "`$wdLog.1"
-            if (Test-Path `$rotated) { Remove-Item `$rotated -Force -ErrorAction SilentlyContinue }
-            Rename-Item -Path `$wdLog -NewName `$rotated -Force -ErrorAction SilentlyContinue
-        }
+        try {
+            `$stream = [System.IO.File]::Open(`$wdLog, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+            `$fileLen = `$stream.Length
+            `$stream.Close()
+            if (`$fileLen -gt `$MAX_LOG_BYTES) {
+                `$rotated = "`$wdLog.1"
+                if (Test-Path `$rotated) { Remove-Item `$rotated -Force -ErrorAction SilentlyContinue }
+                Rename-Item -Path `$wdLog -NewName `$rotated -Force -ErrorAction SilentlyContinue
+            }
+        } catch {}
     }
 }
 
 function Write-WdLog(`$msg) {
-    `$ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    `$ts = Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'
     Add-Content -Path `$wdLog -Value "[`$ts] `$msg"
+}
+
+function Test-LlmExecutable(`$cmdStr) {
+    `$allowedNames = @('llama-server.exe', 'llama-server', 'ollama.exe', 'ollama', 'vllm.exe', 'koboldcpp.exe')
+    `$parts = `$cmdStr -split '\s+'
+    `$exePath = `$parts[0].Trim('"', "'")
+    `$exeName = [System.IO.Path]::GetFileName(`$exePath)
+    if (`$exeName -notin `$allowedNames) { return `$false }
+    if (Test-Path `$exePath) {
+        `$resolved = (Resolve-Path `$exePath).Path
+        `$blockedPrefixes = @('C:\Users', "`$env:PUBLIC", "`$env:TEMP", 'C:\Windows\Temp')
+        foreach (`$prefix in `$blockedPrefixes) {
+            `$expandedPrefix = [System.Environment]::ExpandEnvironmentVariables(`$prefix)
+            if (`$expandedPrefix -and `$resolved.StartsWith(`$expandedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                return `$false
+            }
+        }
+    }
+    return `$true
+}
+
+function Invoke-LlmRestart(`$cmdStr) {
+    if (-not (Test-LlmExecutable `$cmdStr)) {
+        Write-WdLog "[FAIL] BLOCKED: restart_command failed allowlist validation: `$cmdStr"
+        return `$false
+    }
+    `$parts = [System.Collections.Generic.List[string]]::new()
+    `$inQuote = `$false; `$current = ''
+    foreach (`$char in `$cmdStr.ToCharArray()) {
+        if (`$char -eq '"') { `$inQuote = -not `$inQuote; continue }
+        if (`$char -eq ' ' -and -not `$inQuote -and `$current) { `$parts.Add(`$current); `$current = ''; continue }
+        `$current += `$char
+    }
+    if (`$current) { `$parts.Add(`$current) }
+    `$exe = `$parts[0]
+    `$argsList = if (`$parts.Count -gt 1) { `$parts.GetRange(1, `$parts.Count - 1).ToArray() } else { @() }
+    Start-Process -FilePath `$exe -ArgumentList `$argsList -NoNewWindow
+    return `$true
 }
 
 function Get-DescendantPids([int]`$parentPid, [hashtable]`$childMap) {
@@ -613,7 +925,7 @@ function Get-DescendantPids([int]`$parentPid, [hashtable]`$childMap) {
 
 Rotate-WatchdogLog
 
-`$ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+`$ts = Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'
 `$totalDaemons = 0
 `$healthyDaemons = 0
 `$totalLlms = 0
@@ -629,10 +941,10 @@ if (`$stopped) {
     foreach (`$svc in `$stopped) {
         try {
             Start-Service -Name `$svc.Name -ErrorAction Stop
-            Write-WdLog "Restarted service `$(`$svc.Name)"
+            Write-WdLog "[WARN] Restarted stopped service `$(`$svc.Name)"
             `$restartCount++
         } catch {
-            Write-WdLog "FAILED to restart `$(`$svc.Name): `$_"
+            Write-WdLog "[FAIL] Could not restart `$(`$svc.Name): `$_"
         }
     }
 }
@@ -660,25 +972,20 @@ foreach (`$svc in `$runningServices) {
                 `$proc = `$allProcs | Where-Object { `$_.ProcessId -eq `$dPid -and `$_.Name -eq 'inter-cube-daemon.exe' }
                 if (`$proc) {
                     [void]`$legitimateDaemonPids.Add(`$dPid)
-                    Write-WdLog "  PID `$dPid (inter-cube-daemon.exe) -> LEGITIMATE (descendant of service `$(`$svc.Name) PID=`$svcPid)"
-                } else {
-                    `$procName = (`$allProcs | Where-Object { `$_.ProcessId -eq `$dPid } | Select-Object -First 1).Name
-                    Write-WdLog "  PID `$dPid (`$procName) -> SKIP (descendant of `$(`$svc.Name) but not daemon)"
                 }
             }
-            Write-WdLog "Service `$(`$svc.Name) PID=`$svcPid total-descendants=`$(`$descendants.Count) daemon-descendants=`$(`$legitimateDaemonPids.Count)"
+            Write-WdLog "[OK] Service `$(`$svc.Name) PID=`$svcPid descendants=`$(`$descendants.Count) daemons=`$(`$legitimateDaemonPids.Count)"
         }
     } catch {
-        Write-WdLog "WARN: Could not query service `$(`$svc.Name) PID: `$_"
+        Write-WdLog "[WARN] Could not query service `$(`$svc.Name) PID: `$_"
     }
 }
 
-`$daemonPorts = @($(($daemonConfigs | ForEach-Object { "$($_.GatewayPort), $($_.TerminalPort)" }) -join ', '))
+`$daemonPorts = @($watchdogPortList)
 `$allDaemonProcs = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue
 if (`$allDaemonProcs) {
     foreach (`$dp in `$allDaemonProcs) {
         if (`$legitimateDaemonPids.Contains(`$dp.Id)) {
-            Write-WdLog "  PID `$(`$dp.Id) -> LEGITIMATE (in service descendant tree)"
             continue
         }
         `$isListeningOnKnownPort = `$false
@@ -695,14 +1002,20 @@ if (`$allDaemonProcs) {
         } catch {}
         if (`$isListeningOnKnownPort) {
             [void]`$legitimateDaemonPids.Add(`$dp.Id)
-            Write-WdLog "  PID `$(`$dp.Id) -> LEGITIMATE (wrapper may have died but daemon is listening on a known daemon port)"
+            Write-WdLog "[OK] PID `$(`$dp.Id) -> legitimate (listening on known daemon port)"
         } else {
+            `$procUptime = 0
+            try { `$procUptime = ((Get-Date) - `$dp.StartTime).TotalSeconds } catch {}
+            if (`$procUptime -lt 30) {
+                Write-WdLog "[OK] PID `$(`$dp.Id) -> sparing (started `$([math]::Round(`$procUptime))s ago, under startup threshold)"
+                continue
+            }
             try {
                 Stop-Process -Id `$dp.Id -Force -ErrorAction Stop
-                Write-WdLog "  PID `$(`$dp.Id) -> ORPHAN KILLED (not in any service tree, not on known daemon ports)"
+                Write-WdLog "[WARN] PID `$(`$dp.Id) -> orphan killed (not in service tree, not on known ports, up `$([math]::Round(`$procUptime))s)"
                 `$orphansKilled++
             } catch {
-                Write-WdLog "  PID `$(`$dp.Id) -> ORPHAN KILL FAILED: `$_"
+                Write-WdLog "[FAIL] PID `$(`$dp.Id) -> orphan kill failed: `$_"
             }
         }
     }
@@ -742,17 +1055,18 @@ if (Test-Path `$llmConfigPath) {
         try { `$tcpConn = Get-NetTCPConnection -LocalPort ([int]`$port) -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 } catch {}
 
         if (-not `$tcpConn) {
-            Write-WdLog "LLM engine on port `$port: NO process listening - restarting immediately"
+            Write-WdLog "[WARN] LLM engine on port `$port: no process listening -- restarting"
             `$counters[`$portKey]['process_alive'] = `$false
             `$counters[`$portKey]['failures'] = [int]`$counters[`$portKey]['failures'] + 1
             try {
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c `$(`$engine.restart_command)" -NoNewWindow
-                `$counters[`$portKey]['last_restart'] = (Get-Date -Format 'o')
-                `$counters[`$portKey]['grace_used'] = `$false
-                Write-WdLog "LLM engine on port `$port: restart command issued"
-                `$restartCount++
+                if (Invoke-LlmRestart `$engine.restart_command) {
+                    `$counters[`$portKey]['last_restart'] = (Get-Date -Format 'o')
+                    `$counters[`$portKey]['grace_used'] = `$false
+                    Write-WdLog "[OK] LLM engine on port `$port: restart command issued"
+                    `$restartCount++
+                }
             } catch {
-                Write-WdLog "LLM engine on port `$port: FAILED to restart: `$_"
+                Write-WdLog "[FAIL] LLM engine on port `$port: restart failed: `$_"
             }
             continue
         }
@@ -768,7 +1082,7 @@ if (Test-Path `$llmConfigPath) {
             `$counters[`$portKey]['failures'] = 0
             `$counters[`$portKey]['grace_used'] = `$false
             `$healthyLlms++
-            Write-WdLog "LLM engine on port `$port: healthy"
+            Write-WdLog "[OK] LLM engine on port `$port: healthy"
         } else {
             `$procStartTime = `$null
             try {
@@ -794,23 +1108,24 @@ if (Test-Path `$llmConfigPath) {
             `$isLoading = ((`$upSeconds -lt 300) -or `$recentRestart) -and (-not `$graceAlreadyUsed)
 
             if (`$isLoading) {
-                Write-WdLog "LLM engine on port `$port: /v1/models not responding but process started `$([math]::Round(`$upSeconds))s ago - grace period (one cycle)"
+                Write-WdLog "[OK] LLM engine on port `$port: /v1/models not ready, process started `$([math]::Round(`$upSeconds))s ago -- grace period"
                 `$counters[`$portKey]['failures'] = [int]`$counters[`$portKey]['failures'] + 1
                 `$counters[`$portKey]['grace_used'] = `$true
             } else {
-                Write-WdLog "LLM engine on port `$port: /v1/models failing and process up `$([math]::Round(`$upSeconds))s - killing and restarting"
+                Write-WdLog "[WARN] LLM engine on port `$port: /v1/models failing, process up `$([math]::Round(`$upSeconds))s -- killing and restarting"
                 `$counters[`$portKey]['failures'] = [int]`$counters[`$portKey]['failures'] + 1
                 try {
                     `$ownerPid = `$tcpConn.OwningProcess
                     Stop-Process -Id `$ownerPid -Force -ErrorAction Stop
                     Start-Sleep -Seconds 2
-                    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `$(`$engine.restart_command)" -NoNewWindow
-                    `$counters[`$portKey]['last_restart'] = (Get-Date -Format 'o')
-                    `$counters[`$portKey]['grace_used'] = `$false
-                    Write-WdLog "LLM engine on port `$port: killed stale process and restarted"
-                    `$restartCount++
+                    if (Invoke-LlmRestart `$engine.restart_command) {
+                        `$counters[`$portKey]['last_restart'] = (Get-Date -Format 'o')
+                        `$counters[`$portKey]['grace_used'] = `$false
+                        Write-WdLog "[OK] LLM engine on port `$port: killed stale process and restarted"
+                        `$restartCount++
+                    }
                 } catch {
-                    Write-WdLog "LLM engine on port `$port: FAILED to kill/restart: `$_"
+                    Write-WdLog "[FAIL] LLM engine on port `$port: kill/restart failed: `$_"
                 }
             }
         }
@@ -818,13 +1133,13 @@ if (Test-Path `$llmConfigPath) {
 
     `$counters | ConvertTo-Json -Depth 3 | Set-Content -Path `$llmCounterPath -Encoding UTF8
 } else {
-    Write-WdLog "No LLM engine config found at `$llmConfigPath - skipping LLM checks"
+    Write-WdLog "[OK] No LLM engine config found at `$llmConfigPath -- skipping LLM checks"
 }
 
 `$allOk = (`$healthyDaemons -eq `$totalDaemons) -and (`$healthyLlms -eq `$totalLlms) -and (`$restartCount -eq 0) -and (`$orphansKilled -eq 0)
-`$prefix = if (`$allOk) { '[OK]' } elseif (`$restartCount -gt 0 -or `$orphansKilled -gt 0) { '[WARN]' } else { '[FAIL]' }
+`$prefix = if (`$allOk) { '[OK]' } elseif (`$restartCount -gt 0 -or `$orphansKilled -gt 0) { '[WARN]' } else { '[DEGRADED]' }
 Write-WdLog "`$prefix `$healthyDaemons/`$totalDaemons daemons | `$healthyLlms/`$totalLlms LLM engines | `$restartCount restarts | `$orphansKilled orphans killed"
-Write-WdLog "[SUMMARY] {`"daemons`":`"`$healthyDaemons/`$totalDaemons`",`"llms`":`"`$healthyLlms/`$totalLlms`",`"restarts`":`$restartCount,`"orphans_killed`":`$orphansKilled}"
+Write-WdLog "[SUMMARY] {`"daemons_healthy`":`$healthyDaemons,`"daemons_total`":`$totalDaemons,`"llms_healthy`":`$healthyLlms,`"llms_total`":`$totalLlms,`"restarts`":`$restartCount,`"orphans_killed`":`$orphansKilled}"
 "@ | Set-Content -Path $watchdogScript -Encoding ASCII
 
 $llmEnginesConfig = @()
@@ -832,8 +1147,7 @@ $defaultModelPath = ""
 $modelSearchPaths = @(
     (Join-Path $RepoDir "*.gguf"),
     (Join-Path $RepoDir "models\*.gguf"),
-    (Join-Path $env:USERPROFILE ".plenumnet\models\*.gguf"),
-    (Join-Path $env:USERPROFILE "*.gguf")
+    "C:\PlenumNET\models\*.gguf"
 )
 foreach ($pattern in $modelSearchPaths) {
     $found = Get-Item $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -853,8 +1167,7 @@ if ($llamaExe) {
     $llamaSearchPaths = @(
         "C:\llama.cpp\build\bin\Release\llama-server.exe",
         "C:\llama.cpp\llama-server.exe",
-        (Join-Path $RepoDir "llama-server.exe"),
-        (Join-Path $env:LOCALAPPDATA "llama.cpp\llama-server.exe")
+        (Join-Path $RepoDir "llama-server.exe")
     )
     foreach ($p in $llamaSearchPaths) {
         if (Test-Path $p) {
@@ -866,8 +1179,10 @@ if ($llamaExe) {
 }
 
 if (-not $defaultModelPath) {
-    Write-Host "  [WARN] No .gguf model file found -- LLM watchdog restarts will fail until model is configured" -ForegroundColor Yellow
-    Write-Host "         Edit C:\ProgramData\PlenumNET\llm-engines.json to set restart_command with --model flag" -ForegroundColor Yellow
+    Write-Host "  [WARN] No AI model file (.gguf) was found on this machine." -ForegroundColor Yellow
+    Write-Host "         To enable AI inference, download a compatible model file and place it" -ForegroundColor Yellow
+    Write-Host "         in C:\PlenumNET\models\. The watchdog will automatically configure it." -ForegroundColor Yellow
+    Write-Host "         For model recommendations, visit https://plenumnet.com/docs/models" -ForegroundColor Yellow
 }
 foreach ($cfg in $daemonConfigs) {
     $llmPort = $cfg.GatewayPort + 1
@@ -886,7 +1201,17 @@ $llmEnginesDir = "C:\ProgramData\PlenumNET"
 if (-not (Test-Path $llmEnginesDir)) { New-Item -ItemType Directory -Force -Path $llmEnginesDir | Out-Null }
 $llmEnginesPath = Join-Path $llmEnginesDir "llm-engines.json"
 $llmEnginesConfig | ConvertTo-Json -Depth 3 | Set-Content -Path $llmEnginesPath -Encoding UTF8
-Write-Host "  [OK] LLM engine config written to $llmEnginesPath" -ForegroundColor Green
+
+if (Restrict-FileAcl -FilePath $llmEnginesPath) {
+    Write-Host "  [OK] LLM engine config written to $llmEnginesPath (ACL: SYSTEM + Administrators only)" -ForegroundColor Green
+} else {
+    Write-Host "  [WARN] LLM engine config written but ACL restriction failed." -ForegroundColor Yellow
+    Write-Host "         Manually restrict $llmEnginesPath to SYSTEM and Administrators." -ForegroundColor Yellow
+}
+
+if (Restrict-DirAcl -DirPath $llmEnginesDir) {
+    Write-Host "  [OK] $llmEnginesDir ACL restricted (SYSTEM + Administrators)" -ForegroundColor Green
+}
 
 $llmCounterPath = Join-Path $llmEnginesDir "llm-health-counters.json"
 if (Test-Path $llmCounterPath) {
@@ -909,29 +1234,32 @@ try {
     $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest -LogonType ServiceAccount
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 5 -RestartInterval (New-TimeSpan -Seconds 30)
 
-    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET Array3 watchdog - monitors daemon services, LLM engines, and orphan processes every 2 minutes and on boot" | Out-Null
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($triggerBoot, $triggerRepeat) -Principal $principal -Settings $settings -Description "PlenumNET Array3 watchdog - monitors daemon services, LLM engines, and orphan processes every 2 minutes and on boot. Runs as SYSTEM. Capomastro Holdings Ltd." | Out-Null
 
     $verify = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     if ($verify) {
         Write-Host "  [OK] Watchdog scheduled task registered: $taskName" -ForegroundColor Green
-        Write-Host "       Checks every 2 minutes + on boot - monitors daemons, LLM engines, kills orphans" -ForegroundColor DarkGray
-        Write-Host "       Watchdog log: $env:USERPROFILE\.plenumnet\logs\watchdog.log" -ForegroundColor DarkGray
+        Write-Host "       Checks every 2 minutes + on boot" -ForegroundColor DarkGray
+        Write-Host "       Watchdog log: $LOG_DIR\watchdog.log" -ForegroundColor DarkGray
     } else {
-        Write-Host "  WARN: Watchdog task registered but verification failed" -ForegroundColor Yellow
+        Write-Host "  [WARN] Watchdog was registered but could not be verified." -ForegroundColor Yellow
+        Write-Host "         Check Task Scheduler manually for task '$taskName'." -ForegroundColor Yellow
     }
 } catch {
-    Write-Host "  WARN: Watchdog scheduled task registration failed: $_" -ForegroundColor Yellow
-    Write-Host "       Falling back to schtasks.exe..." -ForegroundColor Yellow
+    Write-Host "  [WARN] Watchdog scheduled task registration failed: $_" -ForegroundColor Yellow
+    Write-Host "         Falling back to schtasks.exe..." -ForegroundColor Yellow
     try {
         schtasks.exe /Create /TN $taskName /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$watchdogScript`"" /SC MINUTE /MO 2 /RU SYSTEM /RL HIGHEST /F 2>&1 | Out-Null
         $fallbackVerify = schtasks.exe /Query /TN $taskName 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  [OK] Watchdog registered via schtasks.exe fallback" -ForegroundColor Green
         } else {
-            Write-Host "  ERROR: Watchdog registration failed completely" -ForegroundColor Red
+            Write-Host "  [FAIL] Watchdog registration failed completely." -ForegroundColor Red
+            Write-Host "         Manually create a scheduled task named '$taskName' that runs" -ForegroundColor Yellow
+            Write-Host "         '$watchdogScript' every 2 minutes as SYSTEM." -ForegroundColor Yellow
         }
     } catch {
-        Write-Host "  ERROR: Watchdog registration failed on both paths: $_" -ForegroundColor Red
+        Write-Host "  [FAIL] Watchdog registration failed on both paths: $_" -ForegroundColor Red
     }
 }
 
@@ -946,19 +1274,31 @@ foreach ($cfg in $daemonConfigs) {
             $registeredAddresses += $crsInfo.address
             Write-Host "  [OK] Node #1 (coordinator) address: $($cfg.Address)" -ForegroundColor Green
         } catch {
-            Write-Host "  WARN: Could not read CRS address" -ForegroundColor Yellow
+            Write-Host "  [WARN] Could not read CRS address. The coordinator may still be starting." -ForegroundColor Yellow
         }
         continue
     }
+
     $regOk = $false
     for ($attempt = 1; $attempt -le 5; $attempt++) {
         try {
-            $regResult = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/api/salvi/inter-cube/crs/register" -Method Post -ContentType "application/json" -Body (@{ publicKey = $cfg.PublicKey; endpoint = $cfg.Endpoint } | ConvertTo-Json) -TimeoutSec 15 -ErrorAction Stop
+            $regTimestamp = (Get-Date -Format "o")
+            $signPayload = "CRS-REGISTER||$($cfg.PublicKey)||$($cfg.Endpoint)||$regTimestamp"
+            $signature = Get-TlDsaSignature -IdentDir $cfg.IdentityDir -PayloadToSign $signPayload
+
+            $regBody = @{
+                publicKey = $cfg.PublicKey
+                endpoint = $cfg.Endpoint
+                timestamp = $regTimestamp
+                signature = $signature
+            } | ConvertTo-Json
+
+            $regResult = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/api/salvi/inter-cube/crs/register" -Method Post -ContentType "application/json" -Body $regBody -TimeoutSec 15 -ErrorAction Stop
             $regOk = $true
             $cfg.Address = $regResult.address
             break
         } catch {
-            Write-Host "  Node #$($cfg.Id) registration attempt $attempt failed -- retrying in 3s..."
+            Write-Host "  [WARN] Node #$($cfg.Id) registration attempt $attempt/5 failed -- retrying in 3s..." -ForegroundColor Yellow
             Start-Sleep -Seconds 3
         }
     }
@@ -966,14 +1306,16 @@ foreach ($cfg in $daemonConfigs) {
         Write-Host "  [OK] Node #$($cfg.Id) registered -> address: $($cfg.Address)" -ForegroundColor Green
         $registeredAddresses += $cfg.Address
     } else {
-        Write-Host "  WARN: Node #$($cfg.Id) registration with coordinator failed" -ForegroundColor Yellow
+        Write-Host "  [WARN] Node #$($cfg.Id) registration with coordinator failed after 5 attempts." -ForegroundColor Yellow
+        Write-Host "         Check that Node #1 (coordinator) is running and healthy at $LOCAL_CRS_URL" -ForegroundColor Yellow
+        Write-Host "         You can re-run the deployer to retry registration." -ForegroundColor Yellow
     }
 }
 
-# ── 8. Post deployment summary to remote CRS + create launcher ───────────
+# ── STEP 10/10: Deployment summary and desktop launchers ────────────────
 Write-Host ""
-Write-Host "STEP 8/8: Deployment summary + desktop launcher" -ForegroundColor Yellow
-Write-Host "---"
+Write-Host "STEP 10/10: Deployment summary and desktop launchers" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
 
 $hostname = $env:COMPUTERNAME
 
@@ -981,61 +1323,74 @@ $daemonsArray = @()
 foreach ($cfg in $daemonConfigs) {
     $daemonsArray += @{
         id = $cfg.Id
+        address = if ($cfg.Address) { $cfg.Address } else { "" }
+        publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }
         port = $cfg.GatewayPort
         gatewayPort = $cfg.GatewayPort
         terminalPort = $cfg.TerminalPort
         rangeStart = $cfg.RangeStart
-        address = if ($cfg.Address) { $cfg.Address } else { "" }
-        publicKey = if ($cfg.PublicKey) { $cfg.PublicKey } else { "" }
         endpoint = $cfg.Endpoint
-        identityDir = $cfg.IdentityDir
         mode = $cfg.Mode
         pid = 0
     }
 }
 
+$deployTimestamp = (Get-Date -Format "o")
+$deploySignPayload = "DEPLOYMENT||$($registeredAddresses -join '||')||$deployTimestamp"
+$deploySignature = ""
+if ($daemonConfigs.Count -gt 0 -and $daemonConfigs[0].IdentityDir) {
+    $deploySignature = Get-TlDsaSignature -IdentDir $daemonConfigs[0].IdentityDir -PayloadToSign $deploySignPayload
+}
+
 $deploymentPayload = @{
-    hostname = $hostname
-    ip = $ip
-    architecture = $cpuArch
+    addresses = $registeredAddresses
     daemonCount = $DAEMON_COUNT
     daemons = $daemonsArray
-    localCrsUrl = $LOCAL_CRS_URL
     localCrsPort = $LOCAL_CRS_PORT
     crsUrl = $REMOTE_CRS
-    binaryPath = $BinaryPath
-    binarySizeMB = $fileSizeMB
-    logDir = $LOG_DIR
-    identityBase = $IdentityBase
+    binaryHash = $tis27Hash
+    releaseTag = $RELEASE_TAG
     localVersion = $localVersion
-    timestamp = (Get-Date -Format "o")
-    deployer = "deploy-yoda/v0.5.0"
+    timestamp = $deployTimestamp
+    deployer = "deploy-yoda/$DEPLOYER_VERSION"
+    signature = $deploySignature
+    metadata = @{
+        hostname = $hostname
+        ip = $ip
+        architecture = $cpuArch
+        localCrsUrl = $LOCAL_CRS_URL
+        binaryPath = $BinaryPath
+        binarySizeMB = $fileSizeMB
+        logDir = $LOG_DIR
+        identityBase = $IdentityBase
+    }
 } | ConvertTo-Json -Depth 3
 
 try {
     $notifyCrs = Invoke-RestMethod -Uri "$REMOTE_CRS/api/salvi/inter-cube/relay/deployment" -Method Post -Body $deploymentPayload -ContentType "application/json" -TimeoutSec 15 -ErrorAction Stop
-    Write-Host "  [OK] Deployment summary posted to PlenumNET Node Registry" -ForegroundColor Green
-    Write-Host "       Query: $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor DarkGray
+    Write-Host "  [OK] Deployment registered with the PlenumNET Node Registry." -ForegroundColor Green
+    Write-Host "       View your deployment at: $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor DarkGray
 } catch {
-    Write-Host "  WARN: Could not post deployment summary -- $_" -ForegroundColor Yellow
+    Write-Host "  [WARN] Could not register this deployment with the Node Registry." -ForegroundColor Yellow
+    Write-Host "         Your cluster is running normally -- registry notification can be retried later." -ForegroundColor Yellow
 }
 
-# ── Desktop launcher (service-based) ─────────────────────────────────────
-$startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start PlenumNET Array3.bat"
+# ── Desktop launchers ────────────────────────────────────────────────────
+$startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start PlenumNET Array3.cmd"
 $crsCfg = $daemonConfigs[0]
 $launchLines = @(
     "@echo off"
-    "title PlenumNET Array3 Service Manager"
-    "echo ========================================"
-    "echo   PlenumNET Array3 -- Service Manager"
-    "echo   Nodes run as Windows Services"
-    "echo ========================================"
+    "title PlenumNET Array3"
+    "echo =========================================================="
+    "echo   PlenumNET Array3 -- Start Services"
+    "echo   Capomastro Holdings Ltd."
+    "echo =========================================================="
     "echo."
     ""
     "net session >nul 2>&1"
     "if %errorlevel% neq 0 ("
-    "    echo ERROR: Administrator privileges required."
-    "    echo Right-click this file and select 'Run as administrator'."
+    "    echo [FAIL] Administrator privileges required."
+    "    echo        Right-click this file and select 'Run as administrator'."
     "    pause"
     "    exit /b 1"
     ")"
@@ -1045,95 +1400,144 @@ $launchLines = @(
     ""
     "echo Starting Node #1 (coordinator)..."
     "net start PlenumNET-Array3-1 2>nul"
-    "if %errorlevel% equ 0 (echo   [OK] Node #1 started) else (echo   Node #1 already running or failed to start)"
+    "if %errorlevel% equ 0 (echo   [OK] Node #1 started) else (echo   [WARN] Node #1 is already running, or could not be started. Check Event Viewer for details.)"
     "timeout /t 5 /nobreak >nul"
     ""
     "echo Starting Node #2 (worker)..."
     "net start PlenumNET-Array3-2 2>nul"
-    "if %errorlevel% equ 0 (echo   [OK] Node #2 started) else (echo   Node #2 already running or failed to start)"
+    "if %errorlevel% equ 0 (echo   [OK] Node #2 started) else (echo   [WARN] Node #2 is already running, or could not be started. Check Event Viewer for details.)"
     "timeout /t 1 /nobreak >nul"
     ""
     "echo Starting Node #3 (worker)..."
     "net start PlenumNET-Array3-3 2>nul"
-    "if %errorlevel% equ 0 (echo   [OK] Node #3 started) else (echo   Node #3 already running or failed to start)"
+    "if %errorlevel% equ 0 (echo   [OK] Node #3 started) else (echo   [WARN] Node #3 is already running, or could not be started. Check Event Viewer for details.)"
     ""
     "echo."
-    "echo ========================================"
+    "echo =========================================================="
     "echo   PlenumNET Array3 Services Active"
     "echo   Node #1 (coordinator) : http://localhost:$($crsCfg.GatewayPort)  terminal=$($crsCfg.TerminalPort)"
 )
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    $launchLines += "echo   Node #$($cfg.Id) (worker)     : http://localhost:$($cfg.GatewayPort)  terminal=$($cfg.TerminalPort)"
+    $launchLines += "echo   Node #$($cfg.Id) (worker)      : http://localhost:$($cfg.GatewayPort)  terminal=$($cfg.TerminalPort)"
 }
 $launchLines += @(
     "echo   VM API: /vm/exec, /vm/status (on gateway port)"
-    "echo ========================================"
+    "echo =========================================================="
     "echo."
     "echo Services will continue running after this window closes."
-    "echo To stop: net stop PlenumNET-Array3-1 /y"
-    "echo          net stop PlenumNET-Array3-2 /y"
-    "echo          net stop PlenumNET-Array3-3 /y"
-    "echo Or use: plenumnet-service.ps1 -Action stop"
     "echo."
     "pause"
 )
 $launchContent = $launchLines -join "`r`n"
 Set-Content -Path $startYodaPath -Value $launchContent -Encoding ASCII
+Restrict-FileAcl -FilePath $startYodaPath | Out-Null
 Write-Host ""
-Write-Host "  [OK] Desktop launcher created: $startYodaPath" -ForegroundColor Green
+Write-Host "  [OK] Start launcher created: $startYodaPath" -ForegroundColor Green
 
-$stopYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Stop PlenumNET Array3.bat"
+$stopYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Stop PlenumNET Array3.cmd"
 $stopLines = @(
     "@echo off"
-    "title PlenumNET Array3 -- Stop Services"
+    "title PlenumNET Array3"
+    "echo =========================================================="
+    "echo   PlenumNET Array3 -- Stop Services"
+    "echo   Capomastro Holdings Ltd."
+    "echo =========================================================="
+    "echo."
     "net session >nul 2>&1"
     "if %errorlevel% neq 0 ("
-    "    echo ERROR: Administrator privileges required."
-    "    echo Right-click this file and select 'Run as administrator'."
+    "    echo [FAIL] Administrator privileges required."
+    "    echo        Right-click this file and select 'Run as administrator'."
     "    pause"
     "    exit /b 1"
     ")"
     ""
+    "echo WARNING: Stopping services will disconnect all connected relay clients."
+    "echo."
+    "set /p confirm=Are you sure? (Y/n): "
+    "if /i not ""%confirm%""==""y"" if not ""%confirm%""=="""" ("
+    "    echo Cancelled."
+    "    pause"
+    "    exit /b 0"
+    ")"
+    ""
     "echo Stopping PlenumNET Array3 services..."
     "net stop PlenumNET-Array3-3 2>nul"
+    "echo   [OK] Node #3 stopped"
     "net stop PlenumNET-Array3-2 2>nul"
+    "echo   [OK] Node #2 stopped"
     "net stop PlenumNET-Array3-1 2>nul"
+    "echo   [OK] Node #1 stopped"
     "echo."
-    "echo All Array3 services stopped."
+    "echo =========================================================="
+    "echo   All Array3 services stopped."
+    "echo   Capomastro Holdings Ltd."
+    "echo =========================================================="
+    "echo."
     "pause"
 )
 $stopContent = $stopLines -join "`r`n"
 Set-Content -Path $stopYodaPath -Value $stopContent -Encoding ASCII
+Restrict-FileAcl -FilePath $stopYodaPath | Out-Null
 Write-Host "  [OK] Stop launcher created: $stopYodaPath" -ForegroundColor Green
 
-# ── Summary ──────────────────────────────────────────────────────────────
+# ── Completion summary ───────────────────────────────────────────────────
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host "  PlenumNET Array3 Deployment Complete" -ForegroundColor Green
+Write-Host "  Capomastro Holdings Ltd." -ForegroundColor Green
+Write-Host "  Deployer $DEPLOYER_VERSION | Release $RELEASE_TAG" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Node #1 (coordinator): gateway $($crsCfg.GatewayPort), terminal $($crsCfg.TerminalPort), address $($crsCfg.Address)" -ForegroundColor White
+Write-Host "  Cluster Status" -ForegroundColor Cyan
+$addrDisplay = if ($crsCfg.Address) { $crsCfg.Address } else { "(pending registration)" }
+Write-Host "  Node #1 (coordinator): gateway $($crsCfg.GatewayPort), terminal $($crsCfg.TerminalPort), address $addrDisplay" -ForegroundColor White
 for ($i = 1; $i -lt $DAEMON_COUNT; $i++) {
     $cfg = $daemonConfigs[$i]
-    Write-Host "  Node #$($cfg.Id) (worker)     : gateway $($cfg.GatewayPort), terminal $($cfg.TerminalPort), address $($cfg.Address)" -ForegroundColor White
+    $addrDisplay = if ($cfg.Address) { $cfg.Address } else { "(pending registration)" }
+    Write-Host "  Node #$($cfg.Id) (worker)      : gateway $($cfg.GatewayPort), terminal $($cfg.TerminalPort), address $addrDisplay" -ForegroundColor White
 }
 Write-Host ""
-Write-Host "  VM API         : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway port)" -ForegroundColor White
-Write-Host "  Cluster Shell  : /cluster/exec, /cluster/peers (on gateway port)" -ForegroundColor White
+Write-Host "  API Endpoints" -ForegroundColor Cyan
+Write-Host "  VM API           : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway port)" -ForegroundColor White
+Write-Host "  Cluster Shell    : /cluster/exec, /cluster/peers (on gateway port)" -ForegroundColor White
+Write-Host "  Coordinator      : $LOCAL_CRS_URL (Node #1)" -ForegroundColor White
+Write-Host "  Relay            : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
+Write-Host "  Node Registry    : $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
 Write-Host ""
-Write-Host "  Services       : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3" -ForegroundColor White
-Write-Host "  Startup        : Automatic (survives reboots + terminal close)" -ForegroundColor White
-Write-Host "  Watchdog       : PlenumNET-Array3-Watchdog (every 5 min + on boot)" -ForegroundColor White
-Write-Host "  Coordinator    : $LOCAL_CRS_URL (Node #1)" -ForegroundColor White
-Write-Host "  Relay          : $REMOTE_CRS (WebSocket NAT traversal)" -ForegroundColor White
-Write-Host "  Registry       : $REMOTE_CRS (monitoring dashboard)" -ForegroundColor White
-Write-Host "  Node Registry  : $REMOTE_CRS/api/salvi/inter-cube/relay/deployments" -ForegroundColor White
-Write-Host "  Start Launcher : $startYodaPath" -ForegroundColor White
-Write-Host "  Stop Launcher  : $stopYodaPath" -ForegroundColor White
-Write-Host "  Logs           : $LOG_DIR" -ForegroundColor White
+Write-Host "  Management" -ForegroundColor Cyan
+Write-Host "  Services         : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3" -ForegroundColor White
+Write-Host "  Startup          : Automatic (survives reboots + terminal close)" -ForegroundColor White
+Write-Host "  Watchdog         : PlenumNET-Array3-Watchdog (every 2 min + on boot)" -ForegroundColor White
+Write-Host "  Start Launcher   : $startYodaPath" -ForegroundColor White
+Write-Host "  Stop Launcher    : $stopYodaPath" -ForegroundColor White
+Write-Host ""
+Write-Host "  Files and Logs" -ForegroundColor Cyan
+Write-Host "  Binary           : $BinaryPath ($fileSizeMB MB)" -ForegroundColor White
+Write-Host "  Binary Hash      : $tis27Hash" -ForegroundColor White
+Write-Host "  Logs             : $LOG_DIR" -ForegroundColor White
+Write-Host "  Watchdog Log     : $LOG_DIR\watchdog.log" -ForegroundColor White
+Write-Host "  Release Tag      : $RELEASE_TAG" -ForegroundColor White
 Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
-Read-Host "Press Enter to close"
+
+} catch {
+    Write-Host ""
+    Write-Host "  [FAIL] Deployment interrupted or failed: $_" -ForegroundColor Red
+    if ($partialServices.Count -gt 0) {
+        Write-Host "  Cleaning up partially registered services..." -ForegroundColor Yellow
+        foreach ($svc in $partialServices) {
+            try {
+                Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
+                & sc.exe delete $svc | Out-Null
+                Write-Host "  [OK] Removed partial service: $svc" -ForegroundColor DarkGray
+            } catch {}
+        }
+    }
+    Write-Host "  Re-run the deployer after resolving the issue." -ForegroundColor Yellow
+    Write-Host ""
+}
+
+Read-Host "Press Enter to close this window. Your nodes are running as services and will continue."
