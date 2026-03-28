@@ -2,6 +2,8 @@ mod config;
 mod discovery;
 mod status;
 
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
 
@@ -15,14 +17,14 @@ fn main() -> Result<()> {
     }
 
     let resolved_theme = config.resolve_theme();
-    println!("PlenumNET Launcher v{}", env!("CARGO_PKG_VERSION"));
-    println!("Theme: {:?} (resolved: {:?})", config.theme, resolved_theme);
+    eprintln!("PlenumNET Launcher v{}", env!("CARGO_PKG_VERSION"));
+    eprintln!("Theme: {:?} (resolved: {:?})", config.theme, resolved_theme);
     {
         let registry = app_registry.lock().unwrap();
         let tooltip = status::format_tray_tooltip(registry.apps());
-        println!("{}", tooltip);
+        eprintln!("{}", tooltip);
         if registry.apps().is_empty() {
-            println!("  Visit plenumnet.com/products to get started.");
+            eprintln!("  Visit plenumnet.com/products to get started.");
         }
     }
 
