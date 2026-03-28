@@ -322,26 +322,40 @@ if (-not (Test-Path $RepoDir)) {
         exit 1
     }
 } else {
-    Write-Log "  Updating source (fetch + reset to latest main)..." "White"
+    Write-Log "  Updating source..." "White"
     Push-Location $RepoDir
-    & git fetch origin main 2>&1 | Out-Null
-    & git reset --hard origin/main 2>&1 | Out-Null
-    $fetchExit = $LASTEXITCODE
-    Pop-Location
-    if ($fetchExit -ne 0) {
-        Write-Log "  WARN: fetch/reset failed - re-cloning..." "Yellow"
-        Remove-Item -Path $RepoDir -Recurse -Force -ErrorAction SilentlyContinue
-        & git clone $RepoUrl $RepoDir 2>&1 | Out-Null
+    $shallowFile = Join-Path $RepoDir ".git\shallow"
+    if (Test-Path $shallowFile) {
+        Write-Log "  Detected shallow clone - unshallowing..." "Yellow"
+        & git fetch --unshallow origin 2>&1 | Out-Null
     }
+    & git fetch origin main 2>&1 | Out-Null
+    & git checkout main 2>&1 | Out-Null
+    & git reset --hard origin/main 2>&1 | Out-Null
+    Pop-Location
 }
 Write-Log "  [OK] Source ready at $RepoDir" "Green"
 
 $plenumPackToml = Join-Path $RepoDir "tools\plenum-pack\Cargo.toml"
 if (-not (Test-Path $plenumPackToml)) {
-    Write-Log "  ERROR: tools\plenum-pack not found in repo. The clone may be incomplete." "Red"
-    Write-Log "  Try deleting C:\PlenumNET and re-running this script." "Red"
-    Read-Host "Press Enter to close"
-    exit 1
+    Write-Log "  tools\plenum-pack not found - repo may be stale. Re-cloning..." "Yellow"
+    $backupDir = $RepoDir + "-backup-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+    Write-Log "  Backing up existing repo to $backupDir" "White"
+    Rename-Item -Path $RepoDir -NewName $backupDir -Force
+    & git clone $RepoUrl $RepoDir 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "  ERROR: Re-clone failed." "Red"
+        Read-Host "Press Enter to close"
+        exit 1
+    }
+    $plenumPackToml = Join-Path $RepoDir "tools\plenum-pack\Cargo.toml"
+    if (-not (Test-Path $plenumPackToml)) {
+        Write-Log "  ERROR: tools\plenum-pack still not found after fresh clone." "Red"
+        Write-Log "  The GitHub repo may not contain this package yet." "Red"
+        Read-Host "Press Enter to close"
+        exit 1
+    }
+    Write-Log "  [OK] Fresh clone has tools\plenum-pack" "Green"
 }
 
 # == STEP 3: Build plenum-pack ================================================
