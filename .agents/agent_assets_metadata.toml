@@ -102,3 +102,27 @@ id = "4MTGC0JuG_HAQjKW7aq96"
 uri = "file://.local/qc-r1-fixes-traceability.md"
 type = "text"
 title = "QC-R1 Fixes Traceability Matrix (all 30 findings)"
+
+[[outputs]]
+id = "vY3NMpTyxInM-264-a8H5"
+uri = "file://.agents/skills/qc-r3-review/SKILL.md"
+type = "text"
+title = "QC-R3 Review Template v1.2.0 (final)"
+
+[[outputs]]
+id = "GJUtGrrb7-n7CeHEzFUcQ"
+uri = "file://.agents/skills/brand-guardian/SKILL.md"
+type = "text"
+title = "Brand Guardian v1.2.0 (final)"
+
+[[outputs]]
+id = "IsxhVMRmwqbuWStMx--76"
+uri = "file://.agents/skills/ux-designer/SKILL.md"
+type = "text"
+title = "UX Designer v1.2.0 (final)"
+
+[[outputs]]
+id = "JsLf3YJQCbjZjqPmr5Krb"
+uri = "file://.agents/skills/content-creator/SKILL.md"
+type = "text"
+title = "Content Creator v1.2.0 (final)"
