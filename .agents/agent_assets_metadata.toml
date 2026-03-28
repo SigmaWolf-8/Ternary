@@ -378,3 +378,21 @@ id = "bVnTvzdJauqdJL-rQwPzJ"
 uri = "file://.local/installer-debug-bundle/REPORT.md"
 type = "text"
 title = "Debug Report — Root Cause & Fix"
+
+[[outputs]]
+id = "6txaJ2FN2rKOMREUqM9RC"
+uri = "file://ninja-exec/qc-r1-consolidated.md"
+type = "text"
+title = "QC-R1 Consolidated Review — NinjaExec (Task #54)"
+
+[[outputs]]
+id = "zDW_gxbnhe7SSSRM_DN2S"
+uri = "file://ninja-exec/qc-r2-consolidated.md"
+type = "text"
+title = "QC-R2 Consolidated Report — NinjaExec (Task #54) — 933 lines, all 40 findings"
+
+[[outputs]]
+id = "hqtVV1kK7dO9ss_A7XYtf"
+uri = "file://ninja-exec/task-54-full-qc-review.md"
+type = "text"
+title = "Task #54 — Full Quality Control Review (All Rounds)"

@@ -80,6 +80,9 @@ A Windows scheduled task monitors daemon services, LLM engines, and orphan proce
 ### PlenumNET App Installer Framework
 A manifest-driven MSI build system for packaging all PlenumNET Windows applications with consistent branding, system integration, and clean uninstall. Core components include a Rust CLI tool (`plenum-pack`) for generating MSI installers, a system tray launcher (`plenum-launcher`), and a UAC elevation helper.
 
+### NinjaExec — PlenumNET Local Signing Agent
+A standalone Rust binary (`ninja-exec`) that serves as the `ssh-agent` of PlenumNET. It holds the operator's TL-DSA-87 private key in an encrypted keystore and exposes a localhost-only HTTP signing API on `127.0.0.1:21027`. Core modules: signing engine (wraps TL-DSA from ternary-math), encrypted keystore (TLSponge-385-based passphrase encryption), HTTP API server (axum, `/sign`, `/verify`, `/pubkey`, `/status`, `/lock`, `/unlock`), confirmation system, audit log (JSONL), and CLI interface. Located in `ninja-exec/` with `plenum-app.toml` for the PlenumNET Installer Framework (#53).
+
 ### Brand Palette
 Dark mode primary (#0F0C0A bg, #4A9EF5 accent), light mode (#FAF8F6 bg, #2D7DD2 accent). Status: Active=#4A9EF5, Warning=#78828C, Inactive=#3D444B.
 

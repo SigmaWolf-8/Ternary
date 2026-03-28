@@ -1,0 +1,35 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division
+#
+# NinjaExec — PlenumNET Local Signing Agent
+#
+# The ssh-agent of PlenumNET: holds the operator's TL-DSA private key
+# in an encrypted keystore and exposes a localhost-only signing API.
+
+[package]
+name = "ninja-exec"
+version = "1.0.0"
+edition = "2021"
+description = "PlenumNET Local Signing Agent — localhost-only TL-DSA signing service"
+license = "LicenseRef-Proprietary"
+authors = ["Salvi — Capomastro Holdings Ltd."]
+repository = "https://github.com/SigmaWolf-8/Ternary"
+
+[dependencies]
+ternary-math = { path = "../ternary-math" }
+
+tokio = { version = "1", features = ["full"] }
+axum = "0.7.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+getrandom = "0.2"
+base64 = "0.22.1"
+tower-http = { version = "0.5.2", features = ["cors"] }
+http = "1"
+libc = "0.2.183"
+
+[[bin]]
+name = "ninja-exec"
+path = "src/main.rs"

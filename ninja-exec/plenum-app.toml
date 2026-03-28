@@ -21,7 +21,7 @@ autostart = true
 tray_icon = "assets/ninja-exec-tray.ico"
 tray_tooltip = "NinjaExec — PlenumNET Signing Agent"
 configure_command = ""
-status_port = 19750
+status_port = 21027
 
 [first_run]
 actions = [
