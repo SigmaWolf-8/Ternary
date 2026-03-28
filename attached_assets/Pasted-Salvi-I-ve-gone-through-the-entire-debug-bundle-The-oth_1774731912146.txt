@@ -1,0 +1,111 @@
+Salvi, I've gone through the entire debug bundle. The other agent's report is wrong — it identified an extension version mismatch as root cause, but that's only half the story, and the fix it suggested doesn't address the actual compiler errors. There are three distinct problems, layered on top of each other. Let me break them down.
+
+Problem 1 — The WiX Schema Error (the real blocker the error log shows)
+The actual WiX compiler errors from the last successful run attempt are:
+error WIX0004: The Package element contains an unexpected attribute 'Platform'.
+error WIX0004: The Package element contains an unexpected attribute 'Comments'.
+These have nothing to do with extension versions. Your product.wxs template uses the WiX v4 schema namespace (http://wixtoolset.org/schemas/v4/wxs) but includes two attributes that don't exist in the WiX v4+ <Package> element:
+
+Platform="{{PLATFORM}}" — In WiX v3, this was on <Product>. In v4+, platform is specified via the -arch flag on the wix build command line. Putting it on <Package> is a schema violation.
+Comments="{{DESCRIPTION}}" — Not a valid attribute on <Package>. You already have <SummaryInformation Description="..."> which is the correct v4 way to set this.
+
+Problem 2 — Extension Version Mismatch (the warning that blocks extensions from loading)
+The last-run log shows:
+WIX6101: Could not find expected package root folder wixext6.
+Ensure WixToolset.UI.wixext/7.0.0-rc.2 is compatible with WiX v6.
+The machine has WiX CLI v6.0.2, but wix extension add --global WixToolset.UI.wixext (without a version pin) pulls v7.0.0-rc.2 from NuGet. The v7 extension package doesn't contain the wixext6/ folder structure that the v6 CLI expects, so the extension silently fails to register. Then at build time: WIX0144: extension not found.
+The report got this part right but its fix is incomplete — it says "pin the version" but doesn't say where in the code.
+Problem 3 — Missing -arch argument in wix_build_args()
+Even after fixing the template and extensions, the build would still fail. Look at wix_build_args() in wix.rs — it constructs the wix build command but never passes -arch arm64 (or -arch x64). Since you're removing Platform from the template (Problem 1), the architecture now needs to come from the command line. Without it, WiX defaults to x86, which would produce a broken MSI for your ARM64 machine.
+
+The Fixes
+Here are the exact changes needed across three files:
+Fix 1 — product.wxs template: Remove Platform and Comments from <Package>
+xml<!-- BEFORE (broken) -->
+<Package Name="{{PRODUCT_NAME}}"
+         Version="{{PRODUCT_VERSION}}"
+         Manufacturer="{{MANUFACTURER}}"
+         UpgradeCode="{{UPGRADE_CODE}}"
+         ProductCode="{{PRODUCT_CODE}}"
+         Language="1033"
+         Codepage="1252"
+         Platform="{{PLATFORM}}"
+         InstallerVersion="500"
+         Compressed="yes"
+         Comments="{{DESCRIPTION}}">
+
+<!-- AFTER (correct for WiX v4/v5/v6) -->
+<Package Name="{{PRODUCT_NAME}}"
+         Version="{{PRODUCT_VERSION}}"
+         Manufacturer="{{MANUFACTURER}}"
+         UpgradeCode="{{UPGRADE_CODE}}"
+         ProductCode="{{PRODUCT_CODE}}"
+         Language="1033"
+         Codepage="1252"
+         InstallerVersion="500"
+         Compressed="yes">
+The Description is already set correctly via <SummaryInformation Description="{{PRODUCT_NAME}} Installer" /> — no data loss.
+Fix 2 — wix.rs: Add -arch to wix_build_args()
+rust// In wix_build_args(), add -arch as the first arguments after "build":
+pub fn wix_build_args(
+    &self,
+    wxs_path: &str,
+    dialogs_wxs_path: &str,
+    msi_path: &str,
+    binary_source_dir: &str,
+    manifest_dir: &str,
+    installer_assets_dir: &str,
+) -> Vec<String> {
+    let mut args = vec![
+        "build".to_string(),
+        "-arch".to_string(),              // ← NEW
+        self.arch.wix_platform().to_string(), // ← NEW (emits "arm64" or "x64")
+        wxs_path.to_string(),
+        dialogs_wxs_path.to_string(),
+        "-o".to_string(),
+        msi_path.to_string(),
+        // ... rest unchanged
+    ];
+Fix 3 — main.rs + install-plenumnet-msi.ps1: Pin extension versions to match installed WiX CLI
+In main.rs, the extension install block needs to detect the WiX version and pin:
+rust// Replace the extension install loop in cmd_build() with:
+let wix_version = {
+    let out = std::process::Command::new("wix")
+        .arg("--version")
+        .output()
+        .ok();
+    out.and_then(|o| {
+        let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+        // wix --version returns e.g. "6.0.2+b3f3403" — take up to '+'
+        s.split('+').next().map(|v| v.to_string())
+    })
+    .unwrap_or_else(|| "6.0.2".to_string())
+};
+
+for ext in &required_exts {
+    let pinned = format!("{}/{}", ext, wix_version);
+    println!("Ensuring WiX extension: {}", pinned);
+    let add_result = std::process::Command::new("wix")
+        .args(["extension", "add", "--global", &pinned])
+        .output();
+    // ... same error handling as before
+}
+In install-plenumnet-msi.ps1, same principle — replace the bare extension add calls:
+powershell# After confirming wix is on PATH, detect version and pin extensions:
+$wixVer = (& wix --version 2>$null)
+if ($wixVer -match '^(\d+\.\d+\.\d+)') {
+    $wixVerClean = $Matches[1]
+} else {
+    $wixVerClean = "6.0.2"
+}
+
+# Remove any existing mismatched extensions first
+& wix extension remove --global WixToolset.UI.wixext 2>&1 | Out-Null
+& wix extension remove --global WixToolset.Util.wixext 2>&1 | Out-Null
+
+# Add pinned versions
+$extOut1 = & wix extension add --global "WixToolset.UI.wixext/$wixVerClean" 2>&1
+$extOut2 = & wix extension add --global "WixToolset.Util.wixext/$wixVerClean" 2>&1
+
+Summary of what was wrong with the debug report:
+The report correctly identified the extension mismatch (Problem 2) but completely missed Problems 1 and 3. Even if you'd pinned the extension versions as suggested, the build would still fail on WIX0004: unexpected attribute 'Platform' because that's a schema error in the template itself. And even after fixing the template, you'd get an x86 MSI on an ARM64 machine because -arch was never being passed. Three bugs, stacked.
