@@ -686,6 +686,7 @@ interface DaemonHealth {
   status: "live" | "registered" | "deployed";
   healthState: "up" | "suspect" | "down";
   isExpected: boolean;
+  nodeUptimeMs: number | null;
   disconnectHistory: DisconnectEvent[];
   source?: "deployment" | "crs";
 }

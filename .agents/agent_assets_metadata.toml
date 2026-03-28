@@ -180,3 +180,21 @@ id = "HOtkrt4FCVPaz-JixJT_A"
 uri = "file://.local/qc-r2-watchdog/qc-r2-consolidated.md"
 type = "text"
 title = "QC-R2 Consolidated Report — Array3 Watchdog & Deployer"
+
+[[outputs]]
+id = "4wPmzt0M2im143QO2a3U1"
+uri = "file://.local/qc-reviews/qc-r1-consolidated.md"
+type = "text"
+title = "QC-R1 Consolidated Report — Task #61"
+
+[[outputs]]
+id = "I6biNn6ysY-8JSr78zaCV"
+uri = "file://.local/qc-reviews/qc-r1-r2-consolidated.md"
+type = "text"
+title = "QC-R1 + QC-R2 Consolidated Report — Task #61"
+
+[[outputs]]
+id = "Z_JE0vwK6aV2bLhmd-lww"
+uri = "file://.local/qc-reviews/task-61-qc-full-consolidated.md"
+type = "text"
+title = "Task #61 — Full QC Review (R1 + R2 + R3) Consolidated Report"

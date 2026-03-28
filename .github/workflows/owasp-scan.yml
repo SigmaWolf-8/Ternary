@@ -19,6 +19,12 @@ permissions:
   security-events: write
 
 jobs:
+  # AUTHORITATIVE GATE: Both npm-audit-strict and owasp-dependency-check fail
+  # on high-severity or critical vulnerabilities (exit 1). npm-audit-strict is
+  # the primary gate (runs npm audit --audit-level=high directly).
+  # owasp-dependency-check is the secondary gate (parses JSON counts) and also
+  # validates output integrity (empty/invalid JSON detection). Both jobs must
+  # pass for the pipeline to succeed.
   npm-audit-strict:
     name: npm Audit (Strict)
     runs-on: ubuntu-latest
@@ -28,7 +34,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.x'
           cache: 'npm'
 
       - name: Install dependencies
@@ -51,7 +57,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.x'
           cache: 'npm'
 
       - name: Install dependencies
@@ -79,7 +85,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.x'
           cache: 'npm'
 
       - name: Install dependencies
@@ -91,13 +97,24 @@ jobs:
           echo "  OWASP Dependency Vulnerability Report"
           echo "========================================"
 
-          AUDIT_OUTPUT=$(npm audit --json 2>/dev/null || true)
+          AUDIT_OUTPUT=$(npm audit --json 2>&1) || true
+
+          if [ -z "$AUDIT_OUTPUT" ]; then
+            echo "::error::npm audit produced no output — possible registry connectivity failure"
+            exit 1
+          fi
+
+          echo "$AUDIT_OUTPUT" | node -e "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'))" 2>/dev/null
+          if [ $? -ne 0 ]; then
+            echo "::error::npm audit produced invalid JSON — possible registry connectivity failure"
+            exit 1
+          fi
 
           TOTAL=$(echo "$AUDIT_OUTPUT" | node -e "
             const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
             const v=d.metadata?.vulnerabilities||{};
             console.log(JSON.stringify(v));
-          " 2>/dev/null || echo '{}')
+          ")
 
           echo "Vulnerability Summary: $TOTAL"
 
@@ -105,13 +122,13 @@ jobs:
             const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
             const v=d.metadata?.vulnerabilities||{};
             console.log(v.critical||0);
-          " 2>/dev/null || echo "0")
+          ")
 
           HIGH=$(echo "$AUDIT_OUTPUT" | node -e "
             const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
             const v=d.metadata?.vulnerabilities||{};
             console.log(v.high||0);
-          " 2>/dev/null || echo "0")
+          ")
 
           if [ "$CRITICAL" -gt "0" ]; then
             echo "::error::Found $CRITICAL critical vulnerabilities!"
@@ -119,7 +136,8 @@ jobs:
           fi
 
           if [ "$HIGH" -gt "0" ]; then
-            echo "::warning::Found $HIGH high-severity vulnerabilities. Review required."
+            echo "::error::Found $HIGH high-severity vulnerabilities!"
+            exit 1
           fi
 
           echo "::notice::OWASP dependency check complete."
@@ -228,11 +246,11 @@ jobs:
           echo "========================================"
 
           MISSING=""
-          for dir in server client/src shared; do
+          for dir in ternary-math/src src/kernel/src src/tsl/src src/thdl/src server client/src shared libternary/src services; do
             if [ -d "$dir" ]; then
               FOUND=$(find "$dir" \
                 -type f \
-                \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+                \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" \) \
                 -not -name "*.d.ts" \
                 -not -path "*/node_modules/*" \
                 -exec grep -L "Capomastro Holdings" {} \; 2>/dev/null)
@@ -252,9 +270,9 @@ jobs:
             exit 1
           fi
 
-          TOTAL=$(find server client/src shared \
+          TOTAL=$(find ternary-math/src src/kernel/src src/tsl/src src/thdl/src server client/src shared libternary/src services \
             -type f \
-            \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+            \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" \) \
             -not -name "*.d.ts" \
             -not -path "*/node_modules/*" 2>/dev/null | wc -l)
 
