@@ -22,7 +22,7 @@
     Applied Physics Division
 #>
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $REMOTE_CRS     = "https://plenumnet.replit.app"
 $RepoDir        = "C:\PlenumNET"
 $RepoUrl        = "https://github.com/SigmaWolf-8/Ternary.git"
@@ -48,12 +48,12 @@ function Test-Admin {
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Test-Command($cmd) {
-    try { Get-Command $cmd -ErrorAction Stop | Out-Null; return $true }
-    catch { return $false }
+function Test-Command {
+    param([string]$Name)
+    $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+    return ($null -ne $cmd)
 }
 
-# == Banner ====================================================================
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "  PlenumNET MSI Installer" -ForegroundColor Cyan
@@ -85,24 +85,18 @@ if (-not (Test-Admin)) {
 }
 
 # == Detect architecture =======================================================
-try {
-    $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-} catch {
-    $cpuArch = $env:PROCESSOR_ARCHITECTURE
-    if (-not $cpuArch) { $cpuArch = "AMD64" }
-}
+$cpuArch = $env:PROCESSOR_ARCHITECTURE
+if (-not $cpuArch) { $cpuArch = "AMD64" }
 
 $rustTarget = "x86_64-pc-windows-msvc"
 $archFlag = "x86_64"
-if ($cpuArch -eq "Arm64") {
+if ($cpuArch -eq "ARM64") {
     $rustTarget = "aarch64-pc-windows-msvc"
     $archFlag = "aarch64"
 }
 Write-Log "  Architecture: $cpuArch (Rust target: $rustTarget)" "White"
 
 # == STEP 1: Prerequisites =====================================================
-$totalSteps = 8
-$step = 1
 Write-Host ""
 Write-Log "STEP 1/8: Checking prerequisites" "Yellow"
 Write-Host "---"
@@ -123,7 +117,7 @@ if (-not (Test-Command "cargo")) {
     Start-Process -FilePath $rustupExe -ArgumentList "-y" -Wait -NoNewWindow
     Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
     $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
-    $env:PATH += ";$cargoBin"
+    $env:PATH = $env:PATH + ";" + $cargoBin
     if (-not (Test-Command "cargo")) {
         Write-Log "  ERROR: cargo not found after install - restart terminal and re-run." "Red"
         Read-Host "Press Enter to close"
@@ -134,9 +128,14 @@ Write-Log "  [OK] cargo" "Green"
 
 # MSVC build tools
 $vsWhere = $null
+$progX86 = [System.Environment]::GetFolderPath("ProgramFilesX86")
+if (-not $progX86) { $progX86 = "C:\Program Files (x86)" }
+$progFiles = $env:ProgramFiles
+if (-not $progFiles) { $progFiles = "C:\Program Files" }
+
 $searchPaths = @(
-    "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
-    "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe",
+    (Join-Path $progX86 "Microsoft Visual Studio\Installer\vswhere.exe"),
+    (Join-Path $progFiles "Microsoft Visual Studio\Installer\vswhere.exe"),
     "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe",
     "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
 )
@@ -144,35 +143,41 @@ foreach ($p in $searchPaths) {
     if (Test-Path -LiteralPath $p) { $vsWhere = $p; break }
 }
 if ($vsWhere) {
-    $vsPath = & $vsWhere -latest -products * -property installationPath 2>$null
-    if ($vsPath) {
-        $vcvarsName = "vcvars64.bat"
-        if ($cpuArch -eq "Arm64") { $vcvarsName = "vcvarsarm64.bat" }
-        $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\$vcvarsName"
-        if (Test-Path -LiteralPath $vcvars) {
-            $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
-            foreach ($line in $envLines) {
-                if ($line -match '^([^=\r\n]+)=(.*)$') {
-                    [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
+    try {
+        $vsPath = & $vsWhere -latest -products * -property installationPath 2>$null
+        if ($vsPath) {
+            $vcvarsName = "vcvars64.bat"
+            if ($cpuArch -eq "ARM64") { $vcvarsName = "vcvarsarm64.bat" }
+            $vcvars = Join-Path $vsPath "VC\Auxiliary\Build"
+            $vcvars = Join-Path $vcvars $vcvarsName
+            if (Test-Path -LiteralPath $vcvars) {
+                $cmdCall = "`"$vcvars`" > nul 2>&1 && set"
+                $envLines = cmd.exe /c $cmdCall
+                foreach ($line in $envLines) {
+                    if ($line -match '^([^=]+)=(.*)$') {
+                        [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
+                    }
                 }
+                Write-Log "  [OK] MSVC environment activated" "Green"
             }
-            Write-Log "  [OK] MSVC environment activated ($vcvarsName)" "Green"
         }
+    } catch {
+        Write-Log "  WARN: Could not activate MSVC environment." "Yellow"
     }
 } else {
     Write-Log "  WARN: Visual Studio / MSVC Build Tools not found." "Yellow"
-    Write-Log "        Install Desktop development with C++ from https://visualstudio.microsoft.com/downloads/" "Yellow"
+    Write-Log "        Install Desktop development with C++ workload." "Yellow"
     Write-Log "        Continuing - build may fail without MSVC linker." "Yellow"
 }
 
 # LLVM/clang
-$hasClang = Get-Command clang -ErrorAction SilentlyContinue
+$hasClang = Test-Command "clang"
 if (-not $hasClang) {
     $llvmBin = "C:\Program Files\LLVM\bin"
     $llvmClang = Join-Path $llvmBin "clang.exe"
     if (Test-Path -LiteralPath $llvmClang) {
-        $env:PATH += ";$llvmBin"
-        $hasClang = Get-Command clang -ErrorAction SilentlyContinue
+        $env:PATH = $env:PATH + ";" + $llvmBin
+        $hasClang = Test-Command "clang"
     }
 }
 if ($hasClang) {
@@ -180,39 +185,41 @@ if ($hasClang) {
     $env:CC = "clang"
     $env:AR = "llvm-ar"
 } else {
-    Write-Log "  -> clang not found - installing LLVM via winget..." "Yellow"
-    $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
+    Write-Log "  -> clang not found - installing LLVM..." "Yellow"
+    $hasWinget = Test-Command "winget"
     if ($hasWinget) {
-        winget install --id LLVM.LLVM --silent --accept-package-agreements --accept-source-agreements
-    } else {
-        $llvmRelease = (Invoke-RestMethod "https://api.github.com/repos/llvm/llvm-project/releases/latest").tag_name
-        $llvmVer = $llvmRelease -replace "llvmorg-",""
-        $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/$llvmRelease/LLVM-$llvmVer-win64.exe"
-        $llvmInstaller = Join-Path $env:TEMP "llvm-installer.exe"
-        $hasCurl = Get-Command curl.exe -ErrorAction SilentlyContinue
-        if ($hasCurl) {
-            curl.exe -fL $llvmUrl -o $llvmInstaller
-        } else {
-            Invoke-WebRequest -Uri $llvmUrl -OutFile $llvmInstaller -UseBasicParsing
+        try {
+            winget install --id LLVM.LLVM --silent --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
+        } catch {
+            Write-Log "  WARN: winget install failed, trying direct download..." "Yellow"
         }
-        Start-Process -FilePath $llvmInstaller -ArgumentList "/S" -Wait -NoNewWindow
-        Remove-Item $llvmInstaller -Force -ErrorAction SilentlyContinue
     }
-    $machinePath = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
-    $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
-    $env:PATH = $machinePath + ";" + $userPath
-    $llvmBin = "C:\Program Files\LLVM\bin"
-    $llvmClang = Join-Path $llvmBin "clang.exe"
-    if (Test-Path -LiteralPath $llvmClang) {
-        $env:PATH += ";$llvmBin"
+    $hasClang = Test-Command "clang"
+    if (-not $hasClang) {
+        $llvmBin = "C:\Program Files\LLVM\bin"
+        $llvmClang = Join-Path $llvmBin "clang.exe"
+        if (Test-Path -LiteralPath $llvmClang) {
+            $env:PATH = $env:PATH + ";" + $llvmBin
+            $hasClang = Test-Command "clang"
+        }
     }
-    $hasClang = Get-Command clang -ErrorAction SilentlyContinue
+    if (-not $hasClang) {
+        $machinePath = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
+        $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+        $env:PATH = $machinePath + ";" + $userPath
+        $llvmBin = "C:\Program Files\LLVM\bin"
+        $llvmClang = Join-Path $llvmBin "clang.exe"
+        if (Test-Path -LiteralPath $llvmClang) {
+            $env:PATH = $env:PATH + ";" + $llvmBin
+        }
+        $hasClang = Test-Command "clang"
+    }
     if ($hasClang) {
         Write-Log "  [OK] clang installed" "Green"
         $env:CC = "clang"
         $env:AR = "llvm-ar"
     } else {
-        Write-Log "  ERROR: clang not found after LLVM install. Restart terminal and re-run." "Red"
+        Write-Log "  ERROR: clang not found. Install LLVM from https://releases.llvm.org and re-run." "Red"
         Read-Host "Press Enter to close"
         exit 1
     }
@@ -221,22 +228,31 @@ if ($hasClang) {
 # .NET SDK (required for WiX v4)
 if (-not (Test-Command "dotnet")) {
     Write-Log "  -> .NET SDK not found - installing..." "Yellow"
-    $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
+    $hasWinget = Test-Command "winget"
     if ($hasWinget) {
-        winget install --id Microsoft.DotNet.SDK.8 --silent --accept-package-agreements --accept-source-agreements
-    } else {
+        try {
+            winget install --id Microsoft.DotNet.SDK.8 --silent --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
+        } catch {
+            Write-Log "  WARN: winget install of .NET failed." "Yellow"
+        }
+    }
+    if (-not (Test-Command "dotnet")) {
         $dotnetInstaller = Join-Path $env:TEMP "dotnet-install.ps1"
-        Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $dotnetInstaller -UseBasicParsing
-        & $dotnetInstaller -Channel 8.0 -InstallDir "$env:ProgramFiles\dotnet"
-        Remove-Item $dotnetInstaller -Force -ErrorAction SilentlyContinue
+        try {
+            Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $dotnetInstaller -UseBasicParsing
+            & $dotnetInstaller -Channel 8.0 -InstallDir (Join-Path $env:ProgramFiles "dotnet")
+            Remove-Item $dotnetInstaller -Force -ErrorAction SilentlyContinue
+        } catch {
+            Write-Log "  WARN: .NET installer download failed." "Yellow"
+        }
     }
     $machinePath = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
     $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
     $env:PATH = $machinePath + ";" + $userPath
-    $dotnetPath = "$env:ProgramFiles\dotnet"
-    $dotnetExe = Join-Path $dotnetPath "dotnet.exe"
+    $dotnetDir = Join-Path $env:ProgramFiles "dotnet"
+    $dotnetExe = Join-Path $dotnetDir "dotnet.exe"
     if (Test-Path $dotnetExe) {
-        $env:PATH += ";$dotnetPath"
+        $env:PATH = $env:PATH + ";" + $dotnetDir
     }
     if (-not (Test-Command "dotnet")) {
         Write-Log "  ERROR: .NET SDK not found after install. Restart terminal and re-run." "Red"
@@ -249,36 +265,48 @@ Write-Log "  [OK] .NET SDK" "Green"
 # WiX v4 (dotnet tool)
 $wixAvailable = $false
 try {
-    $wixCheck = & dotnet tool list --global 2>$null | Select-String "wix"
-    if ($wixCheck) { $wixAvailable = $true }
-} catch {}
-if (-not $wixAvailable) {
-    Write-Log "  -> WiX Toolset v4 not found - installing..." "Yellow"
-    & dotnet tool install --global wix 2>&1 | Out-Null
-    $dotnetToolsPath = Join-Path $env:USERPROFILE ".dotnet\tools"
-    if (Test-Path $dotnetToolsPath) {
-        $env:PATH += ";$dotnetToolsPath"
+    $wixList = & dotnet tool list --global 2>$null
+    if ($wixList) {
+        foreach ($wixLine in $wixList) {
+            if ($wixLine -match "^wix\s") { $wixAvailable = $true; break }
+        }
     }
-}
+} catch {}
+
 $dotnetToolsPath = Join-Path $env:USERPROFILE ".dotnet\tools"
 if (Test-Path $dotnetToolsPath) {
-    $env:PATH += ";$dotnetToolsPath"
+    $env:PATH = $env:PATH + ";" + $dotnetToolsPath
 }
+
+if (-not $wixAvailable) {
+    Write-Log "  -> WiX Toolset v4 not found - installing..." "Yellow"
+    try {
+        & dotnet tool install --global wix 2>&1 | Out-Null
+    } catch {
+        Write-Log "  WARN: WiX install command failed." "Yellow"
+    }
+    if (Test-Path $dotnetToolsPath) {
+        $env:PATH = $env:PATH + ";" + $dotnetToolsPath
+    }
+}
+
 if (Test-Command "wix") {
     Write-Log "  [OK] WiX v4" "Green"
 } else {
-    Write-Log "  WARN: WiX not on PATH - MSI generation may fail. Add $dotnetToolsPath to PATH." "Yellow"
+    Write-Log "  WARN: WiX not on PATH - MSI generation may produce .wxs only." "Yellow"
+    Write-Log "        To fix: dotnet tool install --global wix" "Yellow"
+    Write-Log "        Then add $dotnetToolsPath to your PATH." "Yellow"
+    Write-Log "        Continuing anyway..." "Yellow"
 }
 
 # == STEP 2: Clone/Update Source ===============================================
-$step = 2
 Write-Host ""
 Write-Log "STEP 2/8: Source code" "Yellow"
 Write-Host "---"
 
 if (-not (Test-Path $RepoDir)) {
     Write-Log "  Cloning PlenumNET repository..." "White"
-    $null = & git clone --depth 1 $RepoUrl $RepoDir 2>&1
+    & git clone --depth 1 $RepoUrl $RepoDir 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Write-Log "  ERROR: git clone failed." "Red"
         Read-Host "Press Enter to close"
@@ -287,21 +315,20 @@ if (-not (Test-Path $RepoDir)) {
 } elseif (-not (Test-Path (Join-Path $RepoDir ".git"))) {
     Write-Log "  Converting to git repo..." "Yellow"
     Push-Location $RepoDir
-    $null = & git init 2>&1
-    $null = & git remote add origin $RepoUrl 2>&1
-    $null = & git fetch origin main 2>&1
-    $null = & git reset --hard origin/main 2>&1
+    & git init 2>&1 | Out-Null
+    & git remote add origin $RepoUrl 2>&1 | Out-Null
+    & git fetch origin main 2>&1 | Out-Null
+    & git reset --hard origin/main 2>&1 | Out-Null
     Pop-Location
 } else {
     Write-Log "  Updating source..." "White"
     Push-Location $RepoDir
-    $null = & git pull origin main --ff-only 2>&1
+    & git pull origin main --ff-only 2>&1 | Out-Null
     Pop-Location
 }
 Write-Log "  [OK] Source ready at $RepoDir" "Green"
 
 # == STEP 3: Build plenum-pack ================================================
-$step = 3
 Write-Host ""
 Write-Log "STEP 3/8: Building plenum-pack (MSI build tool)" "Yellow"
 Write-Host "---"
@@ -325,7 +352,6 @@ if (($buildExit -ne 0) -or (-not (Test-Path $plenumPackBin))) {
 Write-Log "  [OK] plenum-pack built" "Green"
 
 # == STEP 4: Build product binaries ============================================
-$step = 4
 Write-Host ""
 Write-Log "STEP 4/8: Building product binaries" "Yellow"
 Write-Host "---"
@@ -342,14 +368,13 @@ foreach ($crate in $allCrates) {
     $crateBuildExit = $LASTEXITCODE
     Pop-Location
     if ($crateBuildExit -ne 0) {
-        Write-Log "  WARN: $crate build failed (exit $crateBuildExit) - skipping this product." "Yellow"
+        Write-Log "  WARN: $crate build failed - skipping this product." "Yellow"
     } else {
         Write-Log "  [OK] $crate built" "Green"
     }
 }
 
 # == STEP 5: Validate manifests ================================================
-$step = 5
 Write-Host ""
 Write-Log "STEP 5/8: Validating product manifests" "Yellow"
 Write-Host "---"
@@ -359,22 +384,25 @@ foreach ($product in $Products) {
     $manifestFile = Join-Path $manifestDir "plenum-app.toml"
     if (-not (Test-Path $manifestFile)) {
         $pName = $product.Name
-        Write-Log "  WARN: Manifest not found at $manifestFile - skipping $pName" "Yellow"
+        Write-Log "  WARN: Manifest not found - skipping $pName" "Yellow"
         continue
     }
     $pName = $product.Name
     Write-Log "  Validating $pName..." "White"
-    $validateOutput = & $plenumPackBin validate --manifest-dir $manifestDir 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Log "  [OK] $pName manifest valid" "Green"
-    } else {
-        Write-Log "  WARN: $pName validation issues:" "Yellow"
-        $validateOutput | ForEach-Object { Write-Log "    $_" "DarkGray" }
+    try {
+        $validateOutput = & $plenumPackBin validate --manifest-dir $manifestDir 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "  [OK] $pName manifest valid" "Green"
+        } else {
+            Write-Log "  WARN: $pName validation issues" "Yellow"
+            $validateOutput | ForEach-Object { Write-Log "    $_" "DarkGray" }
+        }
+    } catch {
+        Write-Log "  WARN: Could not validate $pName" "Yellow"
     }
 }
 
 # == STEP 6: Generate MSI installers ==========================================
-$step = 6
 Write-Host ""
 Write-Log "STEP 6/8: Generating MSI installers" "Yellow"
 Write-Host "---"
@@ -404,38 +432,42 @@ foreach ($product in $Products) {
 
     $pName = $product.Name
     Write-Log "  Building MSI for $pName ($archFlag)..." "White"
-    $packOutput = & $plenumPackBin build --arch $archFlag --manifest-dir $manifestDir --binary-dir $releaseDir 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        $packOutputDir = Join-Path $manifestDir "plenum-pack-output"
-        $msiFiles = Get-ChildItem -Path $packOutputDir -Filter "*.msi" -ErrorAction SilentlyContinue
-        if ($msiFiles) {
-            foreach ($msi in $msiFiles) {
-                $destMsi = Join-Path $OutputDir $msi.Name
-                Copy-Item -Path $msi.FullName -Destination $destMsi -Force
-                $generatedMSIs += $destMsi
-                $sizeMB = [math]::Round($msi.Length / 1MB, 1)
-                $msiName = $msi.Name
-                Write-Log "  [OK] $msiName ($sizeMB MB)" "Green"
-            }
-        } else {
-            Write-Log "  WARN: No MSI produced for $pName. WiX may have generated only .wxs files." "Yellow"
-            $wxsFiles = Get-ChildItem -Path $packOutputDir -Filter "*.wxs" -ErrorAction SilentlyContinue
-            if ($wxsFiles) {
-                Write-Log "  Generated WiX source files (MSI compilation requires WiX on PATH):" "DarkGray"
-                foreach ($wxs in $wxsFiles) {
-                    $wxsPath = $wxs.FullName
-                    Write-Log "    $wxsPath" "DarkGray"
+    try {
+        $packOutput = & $plenumPackBin build --arch $archFlag --manifest-dir $manifestDir --binary-dir $releaseDir 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $packOutputDir = Join-Path $manifestDir "plenum-pack-output"
+            $msiFiles = Get-ChildItem -Path $packOutputDir -Filter "*.msi" -ErrorAction SilentlyContinue
+            if ($msiFiles) {
+                foreach ($msi in $msiFiles) {
+                    $destMsi = Join-Path $OutputDir $msi.Name
+                    Copy-Item -Path $msi.FullName -Destination $destMsi -Force
+                    $generatedMSIs += $destMsi
+                    $sizeMB = [math]::Round($msi.Length / 1MB, 1)
+                    $msiName = $msi.Name
+                    Write-Log "  [OK] $msiName ($sizeMB MB)" "Green"
+                }
+            } else {
+                Write-Log "  WARN: No .msi produced for $pName (WiX may have generated .wxs only)." "Yellow"
+                $wxsFiles = Get-ChildItem -Path $packOutputDir -Filter "*.wxs" -ErrorAction SilentlyContinue
+                if ($wxsFiles) {
+                    Write-Log "  Generated WiX source files:" "DarkGray"
+                    foreach ($wxs in $wxsFiles) {
+                        $wxsPath = $wxs.FullName
+                        Write-Log "    $wxsPath" "DarkGray"
+                    }
                 }
             }
+        } else {
+            Write-Log "  WARN: plenum-pack build failed for $pName" "Yellow"
+            $packOutput | ForEach-Object { Write-Log "    $_" "DarkGray" }
         }
-    } else {
-        Write-Log "  WARN: plenum-pack build failed for $pName`:" "Yellow"
-        $packOutput | ForEach-Object { Write-Log "    $_" "DarkGray" }
+    } catch {
+        $errMsg = $_.Exception.Message
+        Write-Log "  WARN: Exception building MSI for $pName - $errMsg" "Yellow"
     }
 }
 
 # == STEP 7: Install MSIs =====================================================
-$step = 7
 Write-Host ""
 Write-Log "STEP 7/8: Installing PlenumNET products" "Yellow"
 Write-Host "---"
@@ -443,7 +475,7 @@ Write-Host "---"
 if ($generatedMSIs.Count -eq 0) {
     Write-Log "  No MSI files were generated. Skipping installation." "Yellow"
     Write-Log "  This may mean WiX could not compile the .wxs files." "Yellow"
-    Write-Log "  Check that wix is on your PATH: dotnet tool install --global wix" "Yellow"
+    Write-Log "  Fix: dotnet tool install --global wix" "Yellow"
 } else {
     $launcherMsi = $generatedMSIs | Where-Object { $_ -match "Launcher" } | Select-Object -First 1
     $otherMsis = $generatedMSIs | Where-Object { $_ -notmatch "Launcher" }
@@ -456,26 +488,25 @@ if ($generatedMSIs.Count -eq 0) {
             Write-Log "  [OK] PlenumNET Launcher installed" "Green"
         } else {
             $exitCode = $proc.ExitCode
-            Write-Log "  WARN: Launcher install exited with code $exitCode. Log: $msiLog" "Yellow"
+            Write-Log "  WARN: Launcher install exited with code $exitCode - see $msiLog" "Yellow"
         }
     }
 
     foreach ($msi in $otherMsis) {
         $msiBaseName = [System.IO.Path]::GetFileNameWithoutExtension($msi)
         Write-Log "  Installing $msiBaseName..." "White"
-        $msiLog = Join-Path $env:TEMP "PlenumNET_${msiBaseName}_install.log"
+        $msiLog = Join-Path $env:TEMP ("PlenumNET_" + $msiBaseName + "_install.log")
         $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$msi`" /qb /l*v `"$msiLog`"" -Wait -PassThru
         if ($proc.ExitCode -eq 0) {
             Write-Log "  [OK] $msiBaseName installed" "Green"
         } else {
             $exitCode = $proc.ExitCode
-            Write-Log "  WARN: $msiBaseName install exited with code $exitCode. Log: $msiLog" "Yellow"
+            Write-Log "  WARN: $msiBaseName install exited with code $exitCode - see $msiLog" "Yellow"
         }
     }
 }
 
 # == STEP 8: Summary ==========================================================
-$step = 8
 Write-Host ""
 Write-Log "STEP 8/8: Installation Summary" "Yellow"
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -495,7 +526,7 @@ if ($msiCount -gt 0) {
         Write-Log "    - $msiFileName" "Green"
     }
     Write-Host ""
-    Write-Log "  PlenumNET products are now installed under:" "White"
+    Write-Log "  PlenumNET products installed under:" "White"
     Write-Log "    %ProgramFiles%\Capomastro\" "White"
     Write-Host ""
     Write-Log "  Data directories (preserved on uninstall):" "White"
