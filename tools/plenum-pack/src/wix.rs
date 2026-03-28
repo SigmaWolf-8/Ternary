@@ -695,15 +695,15 @@ impl<'a> WixGenerator<'a> {
             for entry in &sequence_entries {
                 if entry == "PassphraseInit" {
                     seq.push_str(&format!(
-                        "      <Custom Action=\"FailSilentNoPassphrase\" After=\"{prev}\">\n        NOT Installed AND NOT PASSPHRASE_FILE AND UILevel &lt; 4\n      </Custom>\n",
+                        "      <Custom Action=\"FailSilentNoPassphrase\" After=\"{prev}\" Condition=\"NOT Installed AND NOT PASSPHRASE_FILE AND UILevel &lt; 4\" />\n",
                         prev = prev,
                     ));
                     seq.push_str(&format!(
-                        "      <Custom Action=\"RollbackCleanupPassphraseTempFile\" After=\"{prev}\">\n        NOT Installed AND UILevel >= 4\n      </Custom>\n",
+                        "      <Custom Action=\"RollbackCleanupPassphraseTempFile\" After=\"{prev}\" Condition=\"NOT Installed AND UILevel &gt;= 4\" />\n",
                         prev = prev,
                     ));
                     seq.push_str(&format!(
-                        "      <Custom Action=\"CollectAndWritePassphrase\" After=\"{prev}\">\n        NOT Installed AND UILevel >= 4\n      </Custom>\n",
+                        "      <Custom Action=\"CollectAndWritePassphrase\" After=\"{prev}\" Condition=\"NOT Installed AND UILevel &gt;= 4\" />\n",
                         prev = prev,
                     ));
                     prev = "CollectAndWritePassphrase".to_string();
@@ -711,19 +711,19 @@ impl<'a> WixGenerator<'a> {
                         let gui_id = format!("GuiPassExec_{}", idx);
                         let silent_id = format!("SilentPassExec_{}", idx);
                         seq.push_str(&format!(
-                            "      <Custom Action=\"{gui_id}\" After=\"{prev}\">\n        NOT Installed AND UILevel >= 4\n      </Custom>\n",
+                            "      <Custom Action=\"{gui_id}\" After=\"{prev}\" Condition=\"NOT Installed AND UILevel &gt;= 4\" />\n",
                             gui_id = gui_id,
                             prev = prev,
                         ));
                         seq.push_str(&format!(
-                            "      <Custom Action=\"{silent_id}\" After=\"{prev}\">\n        NOT Installed AND PASSPHRASE_FILE AND UILevel &lt; 4\n      </Custom>\n",
+                            "      <Custom Action=\"{silent_id}\" After=\"{prev}\" Condition=\"NOT Installed AND PASSPHRASE_FILE AND UILevel &lt; 4\" />\n",
                             silent_id = silent_id,
                             prev = prev,
                         ));
                         prev = silent_id;
                     }
                     seq.push_str(&format!(
-                        "      <Custom Action=\"CleanupGuiPassphraseTempFile\" After=\"{prev}\">\n        NOT Installed AND UILevel >= 4\n      </Custom>\n",
+                        "      <Custom Action=\"CleanupGuiPassphraseTempFile\" After=\"{prev}\" Condition=\"NOT Installed AND UILevel &gt;= 4\" />\n",
                         prev = prev,
                     ));
                     prev = "CleanupGuiPassphraseTempFile".to_string();
@@ -732,19 +732,19 @@ impl<'a> WixGenerator<'a> {
                     let gui_id = parts[0];
                     let silent_id = parts[1];
                     seq.push_str(&format!(
-                        "      <Custom Action=\"{gui_id}\" After=\"{prev}\">\n        NOT Installed AND UILevel >= 4\n      </Custom>\n",
+                        "      <Custom Action=\"{gui_id}\" After=\"{prev}\" Condition=\"NOT Installed AND UILevel &gt;= 4\" />\n",
                         gui_id = gui_id,
                         prev = prev,
                     ));
                     seq.push_str(&format!(
-                        "      <Custom Action=\"{silent_id}\" After=\"{prev}\">\n        NOT Installed AND UILevel &lt; 4\n      </Custom>\n",
+                        "      <Custom Action=\"{silent_id}\" After=\"{prev}\" Condition=\"NOT Installed AND UILevel &lt; 4\" />\n",
                         silent_id = silent_id,
                         prev = prev,
                     ));
                     prev = silent_id.to_string();
                 } else {
                     seq.push_str(&format!(
-                        "      <Custom Action=\"{action}\" After=\"{prev}\">\n        NOT Installed\n      </Custom>\n",
+                        "      <Custom Action=\"{action}\" After=\"{prev}\" Condition=\"NOT Installed\" />\n",
                         action = entry,
                         prev = prev,
                     ));

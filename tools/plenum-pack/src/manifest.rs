@@ -74,8 +74,8 @@ impl Architecture {
 
     pub fn arch_mismatch_condition(&self) -> &str {
         match self {
-            Architecture::X86_64 => r#"NOT DETECTED_ARCH = "ARM64""#,
-            Architecture::Aarch64 => r#"DETECTED_ARCH = "ARM64""#,
+            Architecture::X86_64 => "NOT DETECTED_ARCH = &quot;ARM64&quot;",
+            Architecture::Aarch64 => "DETECTED_ARCH = &quot;ARM64&quot;",
         }
     }
 

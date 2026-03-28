@@ -52,10 +52,10 @@
     <CustomAction Id="DetectArch_UI" Property="DETECTED_ARCH" Value="[%PROCESSOR_ARCHITECTURE]" Execute="immediate" />
     <CustomAction Id="DetectArch_Exec" Property="DETECTED_ARCH" Value="[%PROCESSOR_ARCHITECTURE]" Execute="immediate" />
     <InstallUISequence>
-      <Custom Action="DetectArch_UI" Before="LaunchConditions" />
+      <Custom Action="DetectArch_UI" Before="LaunchConditions" Condition="1" />
     </InstallUISequence>
     <InstallExecuteSequence>
-      <Custom Action="DetectArch_Exec" Before="LaunchConditions" />
+      <Custom Action="DetectArch_Exec" Before="LaunchConditions" Condition="1" />
     </InstallExecuteSequence>
     <Launch Condition="{{ARCH_LAUNCH_CONDITION}}"
             Message="{{ARCH_LAUNCH_MESSAGE}}" />
