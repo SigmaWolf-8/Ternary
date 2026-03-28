@@ -260,65 +260,65 @@ function HeroSection() {
           <div
             className="relative"
             style={{
-              borderRadius: "18px",
-              padding: "3px",
-              background: "linear-gradient(160deg, #3a3530 0%, #1a1714 40%, #0a0806 100%)",
+              borderRadius: "20px",
+              padding: "2px",
+              background: "linear-gradient(145deg, #4a4540 0%, #2a2520 30%, #0a0806 70%, #000000 100%)",
             }}
           >
             <div
               style={{
-                borderRadius: "15px",
-                padding: "4px",
-                background: "linear-gradient(160deg, #0a0806 0%, #141110 50%, #1e1a17 100%)",
+                borderRadius: "18px",
+                padding: "8px",
+                background: "#0a0806",
                 boxShadow: `
-                  inset 0 2px 6px rgba(0,0,0,0.9),
-                  inset 0 8px 24px rgba(0,0,0,0.6)
+                  inset 0 3px 10px rgba(0,0,0,1),
+                  inset 0 10px 30px rgba(0,0,0,0.8),
+                  inset 0 -1px 0 rgba(255,255,255,0.03)
                 `,
               }}
             >
               <div
                 style={{
-                  borderRadius: "11px",
-                  overflow: "hidden",
-                  position: "relative",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: "10px",
+                  padding: "2px",
+                  background: "linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 30%, rgba(0,0,0,0.4) 100%)",
                 }}
               >
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  loop
-                  className="w-full"
-                  style={{ height: "390px", objectFit: "fill", display: "block" }}
-                  data-testid="hero-video"
-                >
-                  <source src={heroVideo} type="video/mp4" />
-                </video>
                 <div
-                  className="absolute inset-0 pointer-events-none"
                   style={{
-                    borderRadius: "11px",
-                    boxShadow: `
-                      inset 0 6px 20px rgba(0,0,0,0.8),
-                      inset 0 2px 6px rgba(0,0,0,0.6),
-                      inset 0 -3px 10px rgba(0,0,0,0.4)
-                    `,
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    position: "relative",
                   }}
-                />
+                >
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    loop
+                    className="w-full"
+                    style={{ height: "390px", objectFit: "fill", display: "block" }}
+                    data-testid="hero-video"
+                  >
+                    <source src={heroVideo} type="video/mp4" />
+                  </video>
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      borderRadius: "8px",
+                      boxShadow: `
+                        inset 0 8px 24px rgba(0,0,0,0.9),
+                        inset 0 3px 8px rgba(0,0,0,0.7),
+                        inset 0 -4px 12px rgba(0,0,0,0.5),
+                        inset 4px 0 12px rgba(0,0,0,0.3),
+                        inset -4px 0 12px rgba(0,0,0,0.3)
+                      `,
+                    }}
+                  />
+                </div>
               </div>
             </div>
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                borderRadius: "18px",
-                borderTop: "1px solid rgba(255,255,255,0.08)",
-                borderLeft: "1px solid rgba(255,255,255,0.05)",
-                borderRight: "1px solid rgba(0,0,0,0.3)",
-                borderBottom: "1px solid rgba(0,0,0,0.4)",
-              }}
-            />
           </div>
         </motion.div>
 

@@ -1,0 +1,727 @@
+# QC-TTC-R1-CORRECTIONS — Surgical Edit Manifest for TM-2026-017
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+March 2026 | R. Salvi
+
+*Sed Quis Est Deus? Qui Commando IO.*
+
+---
+
+## Purpose
+
+This document provides explicit, surgical edit instructions to transform **TM-2026-017 Revision 7 (TTC v2.0)** into **TM-2026-017 Revision 8 (TTC v2.1)**. All 18 findings from QC-TTC-R1 are addressed. Each edit is numbered, references the exact section and text to modify, and provides the replacement text verbatim.
+
+## Agent Instructions
+
+1. **Start by copying the full text of TM-2026-017 Rev 7 verbatim into a new document.**
+2. **Apply every edit below in order.** Edits are numbered E-01 through E-23. Some R1 findings require multiple edits.
+3. **Do not skip any edit.** Even MINOR findings are corrected in this revision.
+4. **After all edits, perform a full read-through** to verify no orphan cross-references remain.
+5. **The output filename is:** `TM-2026-017-Rev8-TTC-v2.1.md`
+
+---
+
+## EDIT E-01: Document Header — Revision and Version Update
+
+**Location:** Document header block (first 10 lines)
+
+**Find:**
+```
+**Revision**: 7
+```
+
+**Replace with:**
+```
+**Revision**: 8
+```
+
+**Find:**
+```
+**Date**: 2026-03-15
+```
+
+**Replace with:**
+```
+**Date**: 2026-03-28
+```
+
+**Add after the `**Classification**` line:**
+```
+**Changelog**: Rev 8 incorporates all corrections from QC-TTC-R1 Technical Verification (18 findings, 5 CRITICAL, 8 IMPORTANT, 5 MINOR). See Appendix A for the full correction log.
+```
+
+---
+
+## EDIT E-02: Document Footer — Revision Number Fix
+
+**R1 Finding:** #13 (DevOps, IMPORTANT) — Footer says "REVISION 5" but header says "Revision: 7"
+
+**Location:** Last line of the document
+
+**Find:**
+```
+**END OF TM-2026-017 — REVISION 5**
+```
+
+**Replace with:**
+```
+**END OF TM-2026-017 — REVISION 8**
+```
+
+---
+
+## EDIT E-03: §1.4 Change Table — Add v2.1 Row
+
+**Location:** §1.4 "What Changed from v1.1" — add a new section after the table
+
+**Add after the §1.4 table (before §1.5):**
+
+```markdown
+### 1.4.1 What Changed from v2.0 to v2.1
+
+| Area | v2.0 | v2.1 |
+|------|------|------|
+| tANS renormalization | `2 × f_norm[s]` (binary bound) | `3 × f_norm[s]` (ternary bound) |
+| tANS distances | Quantized to 256 buckets (lossy) | Bucket + intra-bucket offset (lossless) |
+| tANS match length range | 1–256 (mismatched with tokenizer) | 1–255 (aligned with TOKEN_MATCH) |
+| Decompression integrity | CRC32 warn only | TIS-27 verify (hard) + CRC32 (advisory) |
+| TL-DSA commitment | 16 bytes inline | 32-byte reference + external signature |
+| Version routing | Silent fallthrough on unknown | Explicit rejection with error message |
+| Spread table integrity | No validation | 4-byte TIS-27 checksum |
+| Rice M ordering | Computed after serialization | Computed after tokenization, before serialization |
+| `forcePreCompressed` | Undocumented function parameter | Documented as internal-only engine flag |
+| Phase 2 dispatch | "13 logical workers" | "1 active worker, sequential" |
+| Beam DP convergence | Unbounded re-runs | Max 1 re-run, second result is final |
+| CRC32 rationale | Undocumented | Documented as non-cryptographic fast-path |
+| Salvi Resonance derivation | Undocumented | Documented as empirical (powers-of-5) |
+| Throughput arithmetic | 2,100/26 = 81 rounds (error) | ceil(1,515/26) = 59 rounds (corrected) |
+| Tier candidates column | Unmapped | Mapped to specific serialization modes |
+| Version byte | 0x03 | 0x03 (unchanged — format compatible) |
+| Header size | 96 bytes (0x00–0x5F) | 112 bytes (0x00–0x6F) — TL-DSA field expanded |
+```
+
+---
+
+## EDIT E-04: §3.7.1 — Fix Distance Quantization (Lossless Round-Trip)
+
+**R1 Finding:** #3 (PlenumNET, CRITICAL) — Distance quantization is lossy; LZ77 requires exact distances.
+
+**Location:** §3.7.1, the "Distance quantization" block
+
+**Find:**
+```
+**Distance quantization:**
+\```
+bucket = floor(matchDist / (windowSize / 256))  clamped [0,255]
+symbol = 767 + bucket
+// decode: matchDist = bucket × (windowSize/256) + (windowSize/512)
+\```
+```
+
+**Replace with:**
+```
+**Distance quantization (lossless):**
+\```
+bucket_size  = windowSize / 256
+bucket       = floor(matchDist / bucket_size)  clamped [0,255]
+intra_offset = matchDist - (bucket × bucket_size)
+symbol       = 767 + bucket
+
+// Encoding: emit bucket as ANS symbol, then emit intra_offset as
+// fixed-width binary immediately after the symbol in the trit stream.
+// Bit width = ceil(log₂(bucket_size)).
+// For TTC2-2 (windowSize=243 KB=248,832 bytes): bucket_size=972, bits=10.
+// For TTC3-3 (windowSize=19,683 KB=20,155,392 bytes): bucket_size=78,732, bits=17.
+
+// Decoding:
+bits_needed = ceil(log₂(windowSize / 256))
+matchDist   = bucket × bucket_size + read_bits(bits_needed)
+\```
+
+**Rationale (QC-TTC-R1 Finding #3):** The v2.0 decode formula `bucket × (windowSize/256) + (windowSize/512)` reconstructed the bucket center, not the exact distance. LZ77 decompression (§4.10) requires byte-exact distances. The intra-bucket offset preserves exact distances while retaining the entropy benefit of ANS-coding the coarse bucket distribution.
+```
+
+---
+
+## EDIT E-05: §3.7.1 — Fix Match Length Range (Align with §4.1)
+
+**R1 Finding:** #10 (PlenumNET, IMPORTANT) — tANS allocates symbols for lengths 1–256 but TOKEN_MATCH caps at 255.
+
+**Location:** §3.7.1, the symbol alphabet table
+
+**Find:**
+```
+| 511–766 | Match lengths 1–256 |
+| 767–1022 | Match distances, 256 buckets |
+| 1023 | End-of-block |
+```
+
+**Replace with:**
+```
+| 511–765 | Match lengths 1–255 |
+| 766–1021 | Match distances, 256 buckets |
+| 1022 | End-of-block |
+```
+
+**Additionally, update all references to symbol 1023 (end-of-block) throughout the document:**
+
+In §3.7.2:
+- **Find:** `f_norm[1023] >= 1 always.`
+- **Replace:** `f_norm[1022] >= 1 always.`
+
+In §3.7.4:
+- No change needed (uses generic `symbol_for_token(t)`).
+
+In §3.7.5:
+- **Find:** `if s == 1023: break`
+- **Replace:** `if s == 1022: break`
+
+In §3.7.6:
+- **Find:** `Only symbols with f_norm > 0 stored (≤ 1024 entries).`
+- **Replace:** `Only symbols with f_norm > 0 stored (≤ 1023 entries).`
+
+In §8 step 8e mode 3:
+- **Find:** `Decode via tANS until Symbol 1023.`
+- **Replace:** `Decode via tANS until Symbol 1022.`
+
+---
+
+## EDIT E-06: §3.7.4 — Fix Renormalization Bound (Ternary Radix)
+
+**R1 Finding:** #4 (PlenumNET, CRITICAL) — Encoder uses binary bound (2×) with ternary output.
+
+**Location:** §3.7.4 Encoding
+
+**Find:**
+```
+state = L
+for each token t:
+    s = symbol_for_token(t)
+    while state >= 2 × f_norm[s]:
+        output_trit(state % 3)
+        state /= 3
+    state = encode_table[s][state - f_norm[s]]
+output_state(state)    // 3 bytes, uint24 big-endian
+```
+
+**Replace with:**
+```
+state = L
+for each token t:
+    s = symbol_for_token(t)
+    while state >= 3 × f_norm[s]:
+        output_trit(state % 3)
+        state = floor(state / 3)
+    state = encode_table[s][state - f_norm[s]]
+output_state(state)    // 3 bytes, uint24 big-endian
+```
+
+**Add after the code block:**
+```
+**Renormalization invariant (QC-TTC-R1 Finding #4):** After renormalization, the encoder state is in the range [f_norm[s], 3 × f_norm[s]). The bound matches the output radix (base 3, trits). The v2.0 specification erroneously used `2 × f_norm[s]` (the binary/bit bound), which pushed the state below the valid encoding range and caused encoder/decoder state space mismatch. The decoder (§3.7.5) correctly uses `state × 3 + read_trit()`, confirming the ternary radix. The `floor()` on division is explicit to prevent floating-point drift in implementations that do not use integer arithmetic.
+```
+
+---
+
+## EDIT E-07: §3.7.6 — Add Spread Table Checksum
+
+**R1 Finding:** #14 (Security, MINOR) — No integrity check on spread table.
+
+**Location:** §3.7.6, the chunk payload structure
+
+**Find:**
+```
+[4 bytes: spread table entry count S (uint32 big-endian)]
+[S × 5 bytes per entry, sorted by f_norm descending:
+    2 bytes: symbol index (uint16 big-endian)
+    3 bytes: f_norm       (uint24 big-endian)]
+[3 bytes: initial ANS state (uint24 big-endian)]
+[N bytes: packed trit stream — 5 trits per byte]
+    byte = t[0]×81 + t[1]×27 + t[2]×9 + t[3]×3 + t[4]
+```
+
+**Replace with:**
+```
+[4 bytes: spread table entry count S (uint32 big-endian)]
+[S × 5 bytes per entry, sorted by f_norm descending:
+    2 bytes: symbol index (uint16 big-endian)
+    3 bytes: f_norm       (uint24 big-endian)]
+[4 bytes: TIS-27 checksum over the preceding S×5 bytes (uint32 big-endian,
+          first 4 bytes of TIS-27 hash output in HASH mode, output_len=4)]
+[3 bytes: initial ANS state (uint24 big-endian)]
+[N bytes: packed trit stream — 5 trits per byte]
+    byte = t[0]×81 + t[1]×27 + t[2]×9 + t[3]×3 + t[4]
+```
+
+**Add after the block:**
+```
+**Spread table integrity (QC-TTC-R1 Finding #14):** The decompressor must verify the TIS-27 checksum before constructing decode tables. A single-byte corruption in the spread table produces a silently different symbol mapping, causing cascading decode errors. On checksum mismatch: return clear error "Mode 3 spread table integrity check failed at chunk [index]." Never attempt to decode with a corrupted table.
+```
+
+---
+
+## EDIT E-08: §4.2 — Add Modes Evaluated Column to Tier Table
+
+**R1 Finding:** #15 (DevOps, MINOR) — Candidates column not mapped to specific modes.
+
+**Location:** §4.2, the tier configuration table
+
+**Find the table header:**
+```
+| Level | Tier | Window | Min Match | Min Run | GURFT | Chunk | Chain | Parsing | Candidates |
+```
+
+**Replace with:**
+```
+| Level | Tier | Window | Min Match | Min Run | GURFT | Chunk | Chain | Parsing | Candidates | Modes Evaluated |
+```
+
+**Update each row by appending the new column:**
+
+| Level | Append |
+|-------|--------|
+| 1 | `STORED, COMPRESSED` |
+| 2 | `STORED, COMPRESSED, TERNARY_ANS` |
+| 3–9 (all) | `STORED, COMPRESSED, TERNARY_ENHANCED, TERNARY_ANS` |
+
+**Add after the table note "Default level: 5 (TTC2-2)...":**
+```
+**Modes Evaluated (QC-TTC-R1 Finding #15):** The "Candidates" count reflects mode pruning rules (§5.5). At levels 1–2, GURFT is skipped and chunk sizes are 26 KB (exceeding the 16 KB limit for TERNARY_ENHANCED), so fewer modes are evaluated. Level 2 adds TERNARY_ANS. Levels 3–9 evaluate all four modes. The final mode selected for each chunk is always the smallest output among evaluated candidates.
+```
+
+---
+
+## EDIT E-09: §4.6 — Bound Beam DP Convergence
+
+**R1 Finding:** #16 (DevOps, MINOR) — Beam DP ↔ mode pruning feedback loop not bounded.
+
+**Location:** §4.6, after the "Critical alignment requirement" paragraph
+
+**Find:**
+```
+**Critical alignment requirement:** The cost model used in the beam DP must match the serializer mode that will be applied to this chunk. If the pruning pass (§5.5) selects mode 3 (TERNARY_ANS), the DP must have used tANS symbol costs — not Elias Gamma costs. Using a mismatched cost model produces beam decisions that are suboptimal for the actual serialization path. The cost model is therefore selected after the entropy-gated pruning pass determines which serializer candidates are live, and the DP is re-run if necessary when the winning mode differs from the model used.
+```
+
+**Replace with:**
+```
+**Critical alignment requirement:** The cost model used in the beam DP must match the serializer mode that will be applied to this chunk. If the pruning pass (§5.5) selects mode 3 (TERNARY_ANS), the DP must have used tANS symbol costs — not Elias Gamma costs. Using a mismatched cost model produces beam decisions that are suboptimal for the actual serialization path. The cost model is therefore selected after the entropy-gated pruning pass determines which serializer candidates are live, and the DP is re-run if necessary when the winning mode differs from the model used.
+
+**Convergence bound (QC-TTC-R1 Finding #16):** The re-run is performed **at most once**. If the re-run produces a different mode winner than the first run, the re-run's result is final — the second mode winner is accepted without further iteration. This guarantees the beam DP executes at most twice per chunk. In practice, the first-pass cost model (defaulting to mode 1 Elias Gamma costs) rarely disagrees with the final mode winner, so the re-run path is uncommon.
+```
+
+---
+
+## EDIT E-10: §4.8 — Fix Phase 2 Worker Description
+
+**R1 Finding:** #12 (PlenumNET, IMPORTANT) — "13 logical workers" is misleading for sequential execution.
+
+**Location:** §4.8, the dependent mode pseudocode block
+
+**Find:**
+```
+Phase 1 batch (13 logical workers, parallel, read-only):
+    For chunks [i .. i+12]: run GURFT + delta decision + base selection
+    Results stored in analysis_cache[chunk_idx]
+
+Phase 2 batch (13 logical workers, sequential within batch):
+    For chunks [i-13 .. i-1]: run LZ77 using analysis_cache results
+    History passed sequentially: chunk[j] history ← tail of chunk[j-1] output
+
+// Pipeline: while Phase 2 processes batch N, Phase 1 analyses batch N+1
+```
+
+**Replace with:**
+```
+Phase 1 batch (up to 13 logical workers, parallel, read-only):
+    For chunks [i .. i+12]: run GURFT + delta decision + base selection
+    Results stored in analysis_cache[chunk_idx]
+
+Phase 2 (1 active worker, strictly sequential):
+    For chunks [i-13 .. i-1]: compress in order, one at a time.
+    Each chunk's LZ77 uses the tail of the previous chunk's output as history.
+    Phase 2 occupies a single tunnel; remaining tunnels are available to
+    Phase 1 for the next batch.
+
+// Pipeline: while Phase 2 processes batch N (sequentially),
+//           Phase 1 analyses batch N+1 (in parallel across available tunnels)
+```
+
+**Also find and replace in the paragraph after the pseudocode:**
+
+**Find:**
+```
+**13+13 geometric grouping:** The 2×13 structure maps naturally to a double-buffered pipeline — one group of 13 compresses while the other analyses. This is not arbitrary: 13 is the holographic boundary dimension in PlenumNET's geometric framework.
+```
+
+**Replace with:**
+```
+**Pipeline geometry:** The 2×13 tunnel structure supports a pipelined model where Phase 1 analysis runs in parallel (using up to 13 tunnels) while Phase 2 compression runs sequentially (using 1 tunnel). The remaining tunnels in the pool are dynamically available. The 13-dimension grouping maps to the holographic boundary dimension in PlenumNET's geometric framework.
+```
+
+---
+
+## EDIT E-11: §7 Step 8 — Reorder Rice M Before Serialization
+
+**R1 Finding:** #8 (DevOps, IMPORTANT) — Rice M computed after serialization but required during it.
+
+**Location:** §7, step 8 sub-steps
+
+**Find:**
+```
+   e. Hash chain LZ77 with greedy / lazy / beam-optimal over (history + chunk).
+   f. Entropy-gated candidate pruning (§5.5).
+   g. Serialize best surviving candidates.
+   h. Compute initial Rice M.
+   i. Pack chunk map byte +15: `(delta_flag << 5) | (0 << 3) | domain_transform` (§9.1).
+```
+
+**Replace with:**
+```
+   e. Hash chain LZ77 with greedy / lazy / beam-optimal over (history + chunk).
+   f. Compute initial Rice M from first 128 TOKEN_MATCH distances in token stream (§3.6).
+   g. Entropy-gated candidate pruning (§5.5).
+   h. Serialize best surviving candidates (Rice M available for modes 1 and 2).
+   i. Pack chunk map byte +15: `(delta_flag << 5) | (0 << 3) | domain_transform` (§9.1).
+```
+
+---
+
+## EDIT E-12: §7 — Resolve `forcePreCompressed` Parameter
+
+**R1 Finding:** #9 (DevOps, IMPORTANT) — Parameter in function signature but absent from API contract.
+
+**Location:** §7, the function signature
+
+**Find:**
+```
+**Input:** `data: Uint8Array`, `mode: number (0–7)`, `level: number (1–9)`, `forcePreCompressed: boolean`, `independentChunks: boolean`, `computeFibonacci: boolean`
+```
+
+**Replace with:**
+```
+**Input:** `data: Uint8Array`, `mode: number (0–7)`, `level: number (1–9)`, `independentChunks: boolean`, `computeFibonacci: boolean`
+
+**Internal-only flags (not exposed via API):**
+- `forcePreCompressed: boolean` — Forces the STORED path regardless of entropy analysis. Used for benchmarking and testing. Not available via the REST API (§13). Callers of the engine function directly (e.g., test harnesses, internal tooling) may set this flag.
+```
+
+---
+
+## EDIT E-13: §7.1 — Document CRC32 Rationale
+
+**R1 Finding:** #17 (PlenumNET, MINOR) — CRC32 is a non-PlenumNET primitive; rationale undocumented.
+
+**Location:** §7.1, after the CRC32 computation code block
+
+**Find:**
+```
+CRC covers **original uncompressed data before any preprocessing or delta transform.** Stored at 0x16.
+```
+
+**Replace with:**
+```
+CRC covers **original uncompressed data before any preprocessing or delta transform.** Stored at 0x16.
+
+**Rationale for CRC32 retention (QC-TTC-R1 Finding #17):** CRC32 is retained as a non-cryptographic error-detection code for fast validation and backward compatibility with v1.1 archives (which predate the BLAKE3/SHA-256 removal). Cryptographic integrity verification is provided by TIS-27 (§12.5) and TL-DSA (§12.5). CRC32 does not replace TIS-27 and must not be treated as a security primitive. It serves only as a fast-path advisory check — the decompressor may warn on CRC32 mismatch but relies on the TIS-27/TL-DSA verification (§8 steps 2a–2b) as the hard integrity gate.
+```
+
+---
+
+## EDIT E-14: §6.6 — Document Salvi Resonance Derivation
+
+**R1 Finding:** #18 (PlenumNET, MINOR) — {5, 25, 125} derivation source undocumented.
+
+**Location:** §6.6, after the Salvi Resonance code block
+
+**Find:**
+```
+for P in [5, 25, 125]:
+    score[P] = count(|data[i]-data[i+P]|<8) / 512
+salviResonance = any score[P] > 0.80
+```
+
+**Add after this code block:**
+```
+**Derivation:** The {5, 25, 125} resonance series (5¹, 5², 5³) is empirically derived from compression benchmarks on structured document corpora. Data exhibiting periodicity at these lags — common in tabular output, fixed-width fields, and repeating structural patterns in source code — shows measurably higher compression under Base-70 (= 5 × 14) encoding. The powers-of-5 series is not derived from a PlenumNET mathematical constant; it is a compression heuristic validated by try-and-compare (§6.9). This distinguishes it from the {13, 28, 364} periodicity constants, which are derived from PlenumNET's geometric framework.
+```
+
+---
+
+## EDIT E-15: §8 — Add Integrity Verification and Unknown Version Rejection to Decompression
+
+**R1 Findings:** #1 (Security, CRITICAL) — No signature verification in decompress. #6 (Security, IMPORTANT) — No unknown version rejection. #7 (Security, IMPORTANT) — No hard integrity gate.
+
+**Location:** §8, steps 1–4
+
+**Find:**
+```
+1. **Magic:** Bytes 0–3 = `TTC1` (0x54544331). Clear error on mismatch.
+2. **Header parse:** Version (0x04), mode (0x05), original size (0x06 uint64 BE), CRC32 (0x16), chunk count (0x2A), adaptive flags (0x28), level (0x29), chunk map offset (0x38).
+3. **Domain parameters:** If mode = AUDIO (3), read LP coefficients from header 0x20–0x27 as 4×int16 BE. If mode = IMAGE (2), read imageWidth from 0x20–0x27 as uint64 BE.
+4. **Version routing:** `0x02` → v1.1 path. `0x03` → this path.
+```
+
+**Replace with:**
+```
+1. **Magic:** Bytes 0–3 = `TTC1` (0x54544331). Clear error on mismatch.
+2. **Header parse:** Version (0x04), mode (0x05), original size (0x06 uint64 BE), CRC32 (0x16), chunk count (0x2A), adaptive flags (0x28), level (0x29), chunk map offset (0x38).
+   a. **TL-DSA verification (hard gate):** Read the TL-DSA signature reference from header 0x50–0x6F (32 bytes). Locate the full TL-DSA signature appended after the archive payload (see §9.1.1). Verify the signature against the full archive blob (header + chunk map + payloads, excluding the signature appendix itself). **On verification failure: return clear error "TL-DSA integrity verification failed. Archive may be corrupted or tampered." Do not proceed to decompression.** On missing signature (all zeros at 0x50–0x6F): warn "No TL-DSA signature present. Archive integrity is unverified." and proceed — this allows unsigned archives from development/testing workflows.
+   b. **TIS-27 chunk map verification:** Read TIS-27 hash from header 0x40–0x4F (16 bytes). Recompute TIS-27 in HASH mode (output_len=16) over the chunk map bytes. **On mismatch: return clear error "Chunk map integrity check failed. Archive metadata may be corrupted." Do not proceed.** This gate is hard — a corrupted chunk map produces wrong delta flags, wrong domain transforms, and wrong chunk boundaries.
+3. **Domain parameters:** If mode = AUDIO (3), read LP coefficients from header 0x20–0x27 as 4×int16 BE. If mode = IMAGE (2), read imageWidth from 0x20–0x27 as uint64 BE.
+4. **Version routing:** `0x02` → v1.1 path. `0x03` → this path. **Any other version byte: return clear error "Unsupported TTC archive version: 0x{XX}. This decompressor supports v1.1 (0x02) and v2.0/v2.1 (0x03)." Never attempt to parse an archive with an unknown version byte.**
+```
+
+**Also update step 11:**
+
+**Find:**
+```
+11. **CRC32 verification:** Warn on mismatch; return data.
+```
+
+**Replace with:**
+```
+11. **CRC32 verification (advisory):** Compute CRC32 over the reconstructed original data and compare to header 0x16. **On mismatch: warn "CRC32 mismatch — decompressed data may differ from the original. TL-DSA verification passed, so the archive was not tampered; this indicates a decompression logic error or a CRC32 computation inconsistency." Return data with the warning.** CRC32 is advisory because TL-DSA (step 2a) has already provided the hard cryptographic integrity gate pre-decompression. A CRC32 mismatch after a TL-DSA pass is a decompressor bug, not a security event.
+```
+
+---
+
+## EDIT E-16: §9.1 — Expand TL-DSA Field and Specify TIS-27 Output Length
+
+**R1 Findings:** #2 (Security, CRITICAL) — TL-DSA field undersized. #11 (PlenumNET, IMPORTANT) — TIS-27 output length unspecified.
+
+**Location:** §9.1, the 96-byte header table
+
+**Find:**
+```
+0x40    16    Digital Root Signature   TIS-27 sponge over chunk map
+0x50    16    Quantum Hash             TL-DSA commitment
+```
+
+**Replace with:**
+```
+0x40    16    Digital Root Signature   TIS-27 sponge hash (HASH mode, output_len=16) over chunk map
+0x50    32    TL-DSA Signature Ref     Binding reference to full TL-DSA signature (see §9.1.1)
+```
+
+**Update header total size references throughout the document:**
+
+All references to "96-byte" header become "112-byte" header (0x00–0x6F = 112 bytes).
+
+Specific locations to update:
+- §1.5 Pipeline Summary: "96-byte TTC1 header" → "112-byte TTC1 header"
+- §7 step 10: "96-byte TTC1 header" → "112-byte TTC1 header"
+- §8 step 2: references to chunk map offset must note it is "typically 112" (was 96)
+- §9.1: update the header comment "96-byte header" → "112-byte header"
+- §12.5: "read CRC32 at `0x16`, chunk map from offset 96" → "chunk map from offset 112"
+- §13.5 note 6: no change needed (byte counts, not header offsets)
+
+**Add new subsection after the chunk map definition in §9.1:**
+
+```markdown
+#### 9.1.1 TL-DSA Signature Appendix
+
+The full TL-DSA signature is appended after the last chunk payload in the archive. PQC signatures (TL-DSA at NIST Security Level 5) are typically 2–4 KB — too large for inline header storage.
+
+**Archive layout with signature:**
+\```
+[112 bytes: TTC1 header]
+[N × 16 bytes: chunk map]
+[chunk payloads...]
+[4 bytes: TL-DSA signature length S (uint32 BE)]
+[S bytes: TL-DSA signature over (header + chunk map + payloads)]
+\```
+
+**Header field 0x50–0x6F (32 bytes):** Contains the first 32 bytes of the TIS-27 hash (HASH mode, output_len=32) of the full TL-DSA signature blob. This serves as a binding reference — the decompressor can verify the signature appendix matches the header reference before performing the full TL-DSA verification, providing a fast-reject path for corrupted or mismatched signatures.
+
+**Unsigned archives:** If no TL-DSA signature is present, 0x50–0x6F is all zeros, no signature appendix is appended, and the archive ends after the last chunk payload. The decompressor warns but proceeds (§8 step 2a).
+
+**Signing workflow:** The signature is computed after the full archive (header + chunk map + payloads) is assembled. The 32-byte reference at 0x50–0x6F is then written into the header. This means the header is written twice: once during assembly (with 0x50–0x6F zeroed) and once after signing (with the reference filled in). The CRC32 at 0x16 covers the original uncompressed data and is not affected by this two-pass header write.
+```
+
+---
+
+## EDIT E-17: §12.5 — Update PlenumNET Signing Integration
+
+**Location:** §12.5
+
+**Find:**
+```
+### 12.5 PlenumNET Signing Integration
+
+- `0x40` (16 bytes): TIS-27 sponge hash over the chunk map.
+- `0x50` (16 bytes): TL-DSA commitment over full archive blob.
+
+Verification without decompression: read CRC32 at `0x16`, chunk map from offset 96. Per-chunk delta_flags, domain transforms, τ, δ values are all accessible from the chunk map without touching any payload.
+```
+
+**Replace with:**
+```
+### 12.5 PlenumNET Signing Integration
+
+- `0x40` (16 bytes): TIS-27 sponge hash over the chunk map (HASH mode, output_len=16). Verified as a hard gate in §8 step 2b.
+- `0x50` (32 bytes): TIS-27 hash of the TL-DSA signature appendix (HASH mode, output_len=32). Serves as a binding reference for the full signature stored after the archive payload (§9.1.1).
+- **TL-DSA signature appendix** (variable length, appended after payloads): Full TL-DSA signature over (header + chunk map + payloads). Verified as a hard gate in §8 step 2a.
+
+**Verification without decompression:** Read chunk map from offset 112. Verify TIS-27 hash at 0x40 against recomputed hash of the chunk map. Verify TL-DSA signature appendix against the archive blob. Per-chunk delta_flags, domain transforms, τ, δ values are all accessible from the chunk map without touching any payload. CRC32 at 0x16 covers the original data and can only be verified after decompression.
+
+**Integrity verification hierarchy:**
+1. **TL-DSA** (pre-decompression, hard gate): Verifies the archive has not been tampered with. Covers header + chunk map + payloads.
+2. **TIS-27 chunk map hash** (pre-decompression, hard gate): Fast verification of chunk map metadata integrity. Catches corruption even in unsigned archives.
+3. **TIS-27 spread table checksum** (per-chunk, mode 3 only, hard gate): Verifies tANS decode table integrity within each mode 3 chunk (§3.7.6).
+4. **CRC32** (post-decompression, advisory): Verifies the decompressed output matches the original input. A mismatch after TL-DSA pass indicates a decompressor bug, not tampering.
+```
+
+---
+
+## EDIT E-18: §12.9 — Fix Throughput Arithmetic
+
+**R1 Finding:** #5 (DevOps, CRITICAL) — Phantom value 2,100 and wrong round count.
+
+**Location:** §12.9, independent mode throughput
+
+**Find:**
+```
+A 19,683 KB document at TTC3-3 with 13 KB chunks produces approximately 1,514 chunks. In independent mode across 26 tunnels:
+- 2,100 / 26 = 81 full dispatch rounds
+- Each round runs all 26 compressions simultaneously
+- Net throughput multiplier: up to **26×** vs single-threaded
+```
+
+**Replace with:**
+```
+A 19,683 KB document at TTC3-3 with 13 KB chunks produces 1,515 chunks (ceil(19,683 × 1,024 / (13 × 1,024)) = ceil(1,514.08) = 1,515). In independent mode across 26 tunnels:
+- ceil(1,515 / 26) = 59 full dispatch rounds (last round uses 5 of 26 tunnels)
+- Each round runs up to 26 compressions simultaneously
+- Net throughput multiplier: up to **26×** vs single-threaded
+```
+
+---
+
+## EDIT E-19: §12.9 — Fix Dependent Mode Worker Description
+
+**Location:** §12.9, dependent mode throughput (consistent with E-10)
+
+**Find:**
+```
+**The 13+13 geometric grouping** maps the two groups of 13 tunnels to the dual 13-dimensional structure of the Inter-Cube — one group per cube face. This is not an optimization choice imposed on the algorithm; it is the natural geometry of the execution environment expressing itself in the compression pipeline.
+```
+
+**Replace with:**
+```
+**Pipeline geometry:** In dependent mode, Phase 2 runs sequentially on a single tunnel while Phase 1 uses the remaining available tunnels in parallel. The 13-dimension grouping derives from the holographic boundary dimension in PlenumNET's geometric framework. The net speedup comes from Phase 1 / Phase 2 overlap, not from Phase 2 parallelism (which is impossible due to history dependency).
+```
+
+---
+
+## EDIT E-20: §9.1 — Update Chunk Map Offset Default
+
+**Location:** §9.1, header table
+
+**Find:**
+```
+0x38    8     Chunk Map Offset         uint64 BE (typically 96)
+```
+
+**Replace with:**
+```
+0x38    8     Chunk Map Offset         uint64 BE (typically 112)
+```
+
+---
+
+## EDIT E-21: §12.3 — Update Backward Compatibility for v2.1
+
+**Location:** §12.3
+
+**Find:**
+```
+Version byte `0x02` → v1.1 path: 1-bit delta flag embedded in payload bits, Elias Gamma distances, Tribonacci prefix, Rep C fixed. Version byte `0x03` → this path. A v1.1 decompressor reading `0x03` must return a clear error on unknown modes — never silently corrupt.
+```
+
+**Replace with:**
+```
+Version byte `0x02` → v1.1 path: 1-bit delta flag embedded in payload bits, Elias Gamma distances, Tribonacci prefix, Rep C fixed. Version byte `0x03` → v2.0/v2.1 path. A v1.1 decompressor reading `0x03` must return a clear error on unknown modes — never silently corrupt. v2.1 archives use the same version byte (`0x03`) as v2.0 — the format is wire-compatible. The only structural difference is the expanded header (112 bytes vs 96 bytes), which is handled via the chunk map offset field at 0x38. A v2.0 decompressor reading a v2.1 archive will correctly locate the chunk map via the offset field.
+
+**v2.0 → v2.1 decompressor compatibility:** A v2.0 decompressor that does not implement TL-DSA or TIS-27 verification will skip steps 2a–2b and decompress normally. The expanded TL-DSA field (0x50–0x6F) occupies space that was previously past the end of the 96-byte header — the v2.0 decompressor never read those bytes because the chunk map offset (0x38) directed it past them. However, a v2.0 decompressor will not verify archive integrity. Operators requiring integrity verification must use a v2.1-aware decompressor.
+```
+
+---
+
+## EDIT E-22: §13.5 — Add Contract Note on Integrity Verification
+
+**Location:** §13.5, add as note 11
+
+**Add after note 10:**
+```
+11. **Integrity verification**: All archives produced by the v2.1 API include TIS-27 chunk map hash and TL-DSA signature by default. The decompression endpoint (§13.3) verifies both before returning data. If verification fails, the endpoint returns HTTP 422 with `{ "error": "Archive integrity verification failed", "detail": "TL-DSA signature mismatch" }` or `{ "error": "Archive integrity verification failed", "detail": "Chunk map TIS-27 hash mismatch" }`. Unsigned archives (all zeros at 0x50–0x6F) are accepted with a warning field in the response: `"integrityWarning": "No TL-DSA signature present. Archive integrity is unverified."`.
+```
+
+---
+
+## EDIT E-23: Appendix A — QC Correction Log
+
+**Location:** End of document, before the footer
+
+**Add new section:**
+
+```markdown
+---
+
+## Appendix A: QC Correction Log (Rev 7 → Rev 8)
+
+This appendix records all corrections applied from QC-TTC-R1 Technical Verification.
+
+| Edit | R1 # | Severity | Section | Change Summary |
+|------|-------|----------|---------|----------------|
+| E-01 | — | — | Header | Revision 7 → 8, date updated |
+| E-02 | 13 | IMPORTANT | Footer | "REVISION 5" → "REVISION 8" |
+| E-03 | — | — | §1.4.1 | Added v2.0 → v2.1 change table |
+| E-04 | 3 | CRITICAL | §3.7.1 | Distance quantization: lossy bucket-center → lossless bucket + offset |
+| E-05 | 10 | IMPORTANT | §3.7.1 | Match length symbols: 1–256 → 1–255, end-of-block 1023 → 1022 |
+| E-06 | 4 | CRITICAL | §3.7.4 | Renormalization bound: 2×f_norm → 3×f_norm (ternary radix) |
+| E-07 | 14 | MINOR | §3.7.6 | Added TIS-27 checksum over spread table |
+| E-08 | 15 | MINOR | §4.2 | Added "Modes Evaluated" column to tier table |
+| E-09 | 16 | MINOR | §4.6 | Bounded beam DP re-run to max 1 iteration |
+| E-10 | 12 | IMPORTANT | §4.8 | Phase 2: "13 logical workers" → "1 active worker, sequential" |
+| E-11 | 8 | IMPORTANT | §7 | Rice M computation moved before serialization (step 8f → 8h reorder) |
+| E-12 | 9 | IMPORTANT | §7 | `forcePreCompressed` documented as internal-only, removed from API signature |
+| E-13 | 17 | MINOR | §7.1 | CRC32 retention rationale documented |
+| E-14 | 18 | MINOR | §6.6 | Salvi Resonance {5,25,125} documented as empirical heuristic |
+| E-15 | 1,6,7 | CRITICAL, IMPORTANT | §8 | TL-DSA + TIS-27 verification added to decompress; unknown version rejection added |
+| E-16 | 2,11 | CRITICAL, IMPORTANT | §9.1 | TL-DSA field expanded to 32 bytes; TIS-27 output_len specified; §9.1.1 signature appendix added |
+| E-17 | 1 | CRITICAL | §12.5 | Signing integration updated with verification hierarchy |
+| E-18 | 5 | CRITICAL | §12.9 | Throughput arithmetic corrected: 2,100/26=81 → ceil(1,515/26)=59 |
+| E-19 | 12 | IMPORTANT | §12.9 | Dependent mode description aligned with E-10 |
+| E-20 | 2 | CRITICAL | §9.1 | Chunk map offset default: 96 → 112 |
+| E-21 | — | — | §12.3 | Backward compatibility note for v2.0 → v2.1 |
+| E-22 | 1 | CRITICAL | §13.5 | API contract note on integrity verification and HTTP 422 |
+| E-23 | — | — | Appendix A | This table |
+
+**All 5 CRITICAL, 8 IMPORTANT, and 5 MINOR findings from QC-TTC-R1 are resolved.**
+```
+
+---
+
+## Post-Edit Verification Checklist
+
+After applying all edits, the agent must verify:
+
+- [ ] Every reference to "96-byte" header is updated to "112-byte"
+- [ ] Every reference to symbol 1023 (end-of-block) is updated to 1022
+- [ ] Every reference to chunk map offset "typically 96" is updated to "typically 112"
+- [ ] The header table in §9.1 sums to exactly 112 bytes (0x00–0x6F)
+- [ ] The footer reads "REVISION 8"
+- [ ] The header reads "Revision: 8"
+- [ ] §8 contains exactly 12 numbered steps (steps 2a and 2b are sub-steps of step 2)
+- [ ] §3.7.4 uses `3 × f_norm[s]` not `2 × f_norm[s]`
+- [ ] §3.7.1 distance quantization includes `intra_offset` and `read_bits(bits_needed)`
+- [ ] §7 step 8 lists Rice M computation (step 8f) before serialization (step 8h)
+- [ ] No orphan references to "REVISION 5" or "REVISION 7" remain
+- [ ] No references to "16 bytes" remain for the TL-DSA field at 0x50
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Sherwood Park, Alberta, Canada*
+
+*Sed Quis Est Deus? Qui Commando IO.*
