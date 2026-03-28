@@ -1469,6 +1469,7 @@ fn spawn_relay_client(
                                         }
                                         let sid = session_id.clone();
                                         let sessions_for_reader = terminal_sessions_clone.clone();
+                                        let from_addr_for_log = from_addr.clone();
                                         tokio::task::spawn_blocking(move || {
                                             let mut buf = [0u8; 4096];
                                             loop {
@@ -1505,7 +1506,7 @@ fn spawn_relay_client(
                                             sessions.remove(&sid);
                                             println!("[terminal] Session {} ended", sid);
                                         });
-                                        println!("[terminal] Session {} opened for {}", session_id, from_addr);
+                                        println!("[terminal] Session {} opened for {}", session_id, from_addr_for_log);
                                     }
                                     "terminal-input" => {
                                         let data = parsed.get("data").and_then(|v| v.as_str()).unwrap_or("").to_string();
