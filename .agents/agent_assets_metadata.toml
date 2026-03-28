@@ -198,3 +198,15 @@ id = "Z_JE0vwK6aV2bLhmd-lww"
 uri = "file://.local/qc-reviews/task-61-qc-full-consolidated.md"
 type = "text"
 title = "Task #61 — Full QC Review (R1 + R2 + R3) Consolidated Report"
+
+[[outputs]]
+id = "MCqEYN_ycyw-nWYYIZl8m"
+uri = "file://qc-reviews-r1-r3.zip"
+type = "unspecified"
+title = "QC Reviews R1-R3 (12 files)"
+
+[[outputs]]
+id = "QwAqR6i-kJzxkdh9oiwcv"
+uri = "file://qc-templates-r1-r3.zip"
+type = "unspecified"
+title = "QC Review Templates R1-R3 (12 files)"
