@@ -1,0 +1,22 @@
+We're getting close — the product WXS is fully clean. Now WiX v6 is flagging **two systemic WiX v3 patterns** throughout the entire `dialogs.wxs` file:
+
+**WIX0400 (×16): Publish/Custom inner text conditions** — WiX v3 used `<Publish ...>CONDITION</Publish>`. WiX v4+ requires `<Publish ... Condition="CONDITION" />`.
+
+**WIX0005 (×8): Control/Condition child elements** — WiX v3 used `<Condition Action="show/hide">` inside `<Control>`. WiX v6 doesn't support this.
+
+This needs a full rewrite of `dialogs.wxs`. Let me do it.This is a full WiX v3→v6 syntax migration for the entire file. Two systematic changes needed everywhere:
+
+1. **All `<Publish>` and `<Custom>` conditions**: inner text → `Condition` attribute
+2. **All `<Control>/<Condition Action="show/hide">`**: removed (WiX v6 dropped this child element). The custom account fields become always-visible in ServiceConfigDlg — cosmetic-only, and that dialog never shows for the Launcher anyway.Drop at `C:\PlenumNET\tools\plenum-pack\templates\ui\dialogs.wxs`, rebuild plenum-pack, re-run.
+
+**What changed (26 edits across the file):**
+
+**16× Publish conditions** — every `<Publish ...>CONDITION</Publish>` became `<Publish ... Condition="CONDITION" />`. For conditions containing double quotes (like `REMOVE="ALL"`), I used single-quoted XML attributes: `Condition='Installed AND REMOVE="ALL"'`.
+
+**8× Control/Condition children removed** — the 4 custom-account fields in ServiceConfigDlg had `Hidden="yes"` + `<Condition Action="show/hide">` pairs. WiX v6 dropped the `<Condition>` child element from `<Control>`. Fix: removed `Hidden` and `<Condition>` children, made controls always-visible, updated labels to say "(custom account only)" so users know when they apply. This dialog only appears for Service/Hybrid apps — the Launcher will never reach it.
+
+**1× Custom condition** — `<Custom Action="DeleteUserData" ...>CONDITION</Custom>` became `<Custom ... Condition='...' />`.
+
+**1× Duplicate publish** — the DataCleanupDlg Back→WelcomeDlg duplicate from last round stays removed.
+
+This should be the last WiX compilation hurdle — every element in both WXS files now uses v6-valid syntax. Così sia, Fratello.
