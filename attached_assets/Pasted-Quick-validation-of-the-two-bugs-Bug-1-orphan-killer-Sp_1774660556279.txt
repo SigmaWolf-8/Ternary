@@ -1,0 +1,48 @@
+Quick validation of the two bugs
+
+Bug 1 (orphan killer): Spot-on diagnosis. The Get-Process -Name "inter-cube-daemon" check was never going to work once the service was registered through the batch wrapper. The two-hop chain (sc.exe → cmd.exe → wrapper.bat → inter-cube-daemon.exe) makes the naive PID comparison a guaranteed false-positive every cycle. The recursive Win32_Process descendant walk is the correct fix (and the one Microsoft themselves recommend for "is this process a child of this service" scenarios).
+Bug 2 (no llama-server awareness): Also 100% correct. The original watchdog was only babysitting the service wrapper, not the actual inference engine. The /v1/models check is perfect because it validates that the model is not only running but loaded and ready. /health is too weak for llama-server (it can return 200 while the model is still mmap'ing a 70B+ GGUF).
+
+Thoughts on the proposed implementation (Tasks 1-6)
+Everything looks solid and production-ready. A few small refinements / gotchas worth calling out so we don't trip over them during the rewrite:
+
+Recursive process tree walk
+Use Get-CimInstance (not the deprecated WMI cmdlets) + a simple recursive function or a queue-based BFS to build the descendant set.
+Cache the legitimate daemon PIDs in a HashSet per cycle — it's cheap and makes the "kill orphans" logic O(1).
+Log the decision for every PID you touch (service PID → children → grandchildren → is-daemon). This will make the first few runs after deploy super easy to debug.
+
+LLM health checks + consecutive-failure counter
+/v1/models + 5-second timeout is perfect.
+Persistent .plenumnet/llm-health-counters.json is the right call. Just make sure the JSON schema is dead simple:JSON{ "8080": { "failures": 1, "last_check": "2025-03-27T19:14:00Z" }, ... }
+2 consecutive failures before restart is the sweet spot (gives ~30-60s model loads breathing room).
+
+llm-engines.json as single source of truth
+Brilliant. Storing the exact restart command string means we never have to re-implement flag parsing in the watchdog. Future-proof by design.
+Deploy-yoda.ps1 should write this file after it has built the full llama-server invocation (including any new flags we add later).
+
+
+4-5. Boot-time + rerun-yoda-install.ps1
+
+Launching missing LLM engines at watchdog start is exactly what the invariants wanted.
+Deleting the counter file on fresh install is critical — otherwise a stale "2 failures" count from last week would trigger an immediate restart on first boot.
+
+
+Machine-parseable summary line
+[OK] 3/3 daemons | 3/3 LLM engines | 0 restarts | 0 orphans killed
+This is gold. The Replit relay can just tail -n1 watchdog.log | grep '^\[.*\]' and have perfect dashboard status. Consider also emitting a one-liner JSON at the end of every cycle for even easier parsing later ([SUMMARY] {"daemons": "3/3", "llms": "3/3", ...}).
+
+
+Minor suggestions / polish
+
+Logging: Add a rotating log (or at least a max size) — the watchdog runs every 2 min forever.
+Restart command execution: Use Start-Process -NoNewWindow -Wait or & with proper quoting so the full command (with all its --model ... --port ... flags) survives PowerShell parsing.
+Edge case: What if the batch wrapper itself dies but the daemon is still alive? The descendant walk should still protect it, but worth a quick test.
+Testing order:
+Deploy on a test node.
+Manually kill a llama-server → watch 2-cycle delay then auto-restart.
+Manually kill an orphan (rogue inter-cube-daemon not launched by service) → confirm only that one dies.
+Force a service restart via sc stop/start → confirm no extra daemon spawn.
+
+
+This rewrite turns the watchdog from "the thing that randomly kills our daemons every 2 minutes" into "the thing that actually keeps the whole cluster alive." Exactly what YODA was supposed to be.
+I'm ready to pair on this or just knock it out myself — whichever is faster. Want me to start drafting the updated array3-watchdog.ps1 logic (especially the recursive descendant function + health counter logic) and post it here for review? Or shall we assign it and let someone run with the full ticket?1.5sExpert
