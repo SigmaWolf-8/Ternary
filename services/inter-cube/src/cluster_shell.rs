@@ -279,17 +279,8 @@ async fn cluster_auth_middleware(
 ) -> Result<axum::response::Response, StatusCode> {
     let expected_token = std::env::var("CUBE_CLUSTER_TOKEN").unwrap_or_default();
     if expected_token.is_empty() {
-        let source_addr = req.extensions()
-            .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
-            .map(|ci| ci.0);
-        match source_addr {
-            Some(addr) if addr.ip().is_loopback() => {
-                return Ok(next.run(req).await);
-            }
-            _ => {
-                return Err(StatusCode::FORBIDDEN);
-            }
-        }
+        eprintln!("[cluster] WARNING: CUBE_CLUSTER_TOKEN not set — all cluster API requests denied. Set this token to enable cluster management.");
+        return Err(StatusCode::FORBIDDEN);
     }
     let auth_header = req.headers()
         .get("x-cluster-token")

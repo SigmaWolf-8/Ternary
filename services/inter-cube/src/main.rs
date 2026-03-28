@@ -1387,8 +1387,14 @@ fn spawn_relay_client(
                             } => {
                                 match peer_msg {
                                     Some(e) => {
-                                        println!("[PEER->RELAY] Peer message injected into pipeline: {:?}",
-                                            e.relay_msg_type.as_deref().unwrap_or("unknown"));
+                                        let peer_msg_type = e.relay_msg_type.as_deref().unwrap_or("unknown");
+                                        if peer_msg_type == "terminal-open" || peer_msg_type == "terminal-input"
+                                            || peer_msg_type == "terminal-resize" || peer_msg_type == "terminal-close"
+                                            || peer_msg_type == "restart" {
+                                            println!("[PEER->RELAY] REJECTED: privileged message type '{}' from direct peer channel (requires relay auth)", peer_msg_type);
+                                            continue;
+                                        }
+                                        println!("[PEER->RELAY] Peer message injected into pipeline: {:?}", peer_msg_type);
                                         e
                                     }
                                     None => {
