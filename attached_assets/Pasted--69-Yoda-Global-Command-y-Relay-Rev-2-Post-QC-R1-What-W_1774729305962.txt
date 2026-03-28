@@ -1,0 +1,236 @@
+#69 - Yoda Global Command — y Relay (Rev. 2 — Post QC-R1)
+What & Why
+Today, reaching Yoda requires being inside a specific interface. This task introduces a universal y command prefix that lets the operator send natural-language messages to Yoda from anywhere — any terminal, the Node Terminal, or via a Ctrl+Y hotkey that launches a dedicated chat widget. Messages route through the Cube Daemon's existing WebSocket relay to the Yoda server at plenumnet.replit.app, and responses relay back the same way.
+
+Every message is NinjaExec-signed (TL-DSA) with a registered domain-separated signing context, replay protection, and Rep C address binding — maintaining the same security posture as exec and file-push operations from Task #55. Yoda can respond conversationally, dispatch parallel AI agents, or run basic commands — all through the same authenticated channel.
+
+This builds directly on Task #55's relay envelope infrastructure, adding a new yoda_chat / yoda_response message type pair alongside the existing exec, tail, inference_request types. The yoda_chat channel is conversational; inference_request is structured LLM API dispatch to local engines. They are independent — Yoda processes yoda_chat using its own cloud-side AI pipeline. If Yoda determines a task requires local LLM processing on the operator's nodes, it dispatches a separate inference_request through the existing relay path.
+
+Done looks like
+Operator types y Hey Yoda, are you still working on that Compression Protocol? from any terminal on their machine and the message reaches Yoda
+Yoda's response streams back to the terminal in real-time, formatted cleanly with a [YODA] prefix
+All messages are NinjaExec-signed with the registered PlenumNET-YODA-CHAT-v1 context string before leaving the machine — no unsigned messages ever hit the relay
+The y command works as a standalone code-signed binary (available in PATH after daemon install) and from within the Node Terminal
+Ctrl+Y system hotkey launches a dedicated Yoda chat widget window (lightweight, always-on-top) for quick back-and-forth without opening a full terminal
+The chat widget shows conversation history for the current session, connection status using palette tokens (--primary for connected, --muted for disconnected — no raw green/red), and a text input
+Yoda can respond with text, trigger parallel agent dispatches, or acknowledge command requests — all visible in the response stream
+When the daemon is offline or Yoda is unreachable, the y command fails immediately with a clear message and distinct exit code rather than hanging
+Replayed messages are rejected — every signed payload includes a timestamp and per-session sequence number
+Out of scope
+Voice input or speech-to-text for the y command
+Persistent conversation history across sessions (future work — conversations are session-scoped with defined lifetime)
+Yoda initiating conversations (push notifications from Yoda to operator) — this is operator-initiated only
+File attachments or image sharing through the y channel
+Mobile or phone-based access to the y command
+Changes to the existing inference_request/inference_response flow — that continues to work independently for LLM dispatch
+Cryptographic Specification
+Signing Context String
+Context string: PlenumNET-YODA-CHAT-v1
+
+This context string MUST be registered in the Sponge Context String Registry (ws_relay.rs header table) before implementation begins.
+
+Signing Payload Construction
+The TL-DSA signing payload for yoda_chat messages is constructed as follows:
+
+signing_payload = context_string_utf8
+               || signer_rep_c_54trit
+               || session_id_utf8
+               || timestamp_ms_rep_a
+               || sequence_number_rep_a
+               || message_text_utf8
+Field encodings (per INVARIANT 8 — no raw binary integers into sponge):
+
+Field	Encoding	Description
+context_string	UTF-8	Literal "PlenumNET-YODA-CHAT-v1"
+signer_rep_c	Rep C (54-trit, binary-encoded)	The daemon's Rep C address from the operator registry (see Identity Binding below)
+session_id	UTF-8	Session identifier (see Session Semantics below)
+timestamp_ms	Rep A trit encoding	Milliseconds since Unix epoch — NOT raw u64 bytes
+sequence_number	Rep A trit encoding	Monotonically increasing per session, starting at 0
+message_text	UTF-8	The operator's message content
+The || operator denotes concatenation. The concatenation order is load-bearing — reordering any field produces a different derived value and breaks verification.
+
+Identity Binding (INVARIANT 7 + INVARIANT 9)
+The operator's NinjaExec TL-DSA key is not address-bound — it is generated independently by ninja-exec init. To satisfy INVARIANT 9 (all identity-binding crypto must use Rep C addressing), the following binding applies:
+
+The operator registry in ops-config.json (Task #55) maps each NinjaExec public key to the daemon's Rep C address.
+The signing context binds the daemon's Rep C address (from the operator registry entry that matches the signer's NinjaExec public key).
+The yoda_chat payload carries both the operator's NinjaExec public key AND the daemon's Rep C address. The verifier confirms the public key is registered for that Rep C address.
+This satisfies INVARIANT 7 (signer's Rep C address bound into signing context) and INVARIANT 9 (Rep C for all identity-binding crypto) by using the daemon's address as the identity anchor, with the NinjaExec public key as the operator credential within that identity.
+
+Replay Protection
+Every yoda_chat message includes a timestamp (milliseconds since epoch, Rep A encoded) and a per-session monotonic sequence number (Rep A encoded), both covered by the TL-DSA signature.
+
+Rejection rules:
+
+The daemon rejects messages with timestamps older than 60 seconds from the current time.
+The daemon rejects messages with sequence numbers that have already been seen for a given session ID (duplicate detection via a bounded set — last 1000 sequence numbers per session).
+The server-side Yoda endpoint enforces the same timestamp and sequence number checks.
+Signature Location
+The yoda_chat TL-DSA signature is carried inside the payload JSON — not in the RelayEnvelope.signature field (which is reserved for relay auth challenge-response). This keeps the payload self-contained and independently verifiable.
+
+{
+  "sessionId": "abc-123",
+  "timestamp": 1711648800000,
+  "sequence": 42,
+  "message": "Hey Yoda, how's the Compression Protocol going?",
+  "operatorPubkey": "<base64>",
+  "daemonRepC": "211.111.111.111.1",
+  "signature": "<base64 TL-DSA signature over signing_payload>"
+}
+Response Authentication
+yoda_response messages are authenticated by the relay transport session, not by application-layer signatures. The trust model: the relay server sets the from field based on the authenticated sender identity. This is the same trust model used by inference_response messages today. The operator trusts that the relay server has not been compromised.
+
+This is explicitly documented as a trust assumption, not an oversight. Adding server-side TL-DSA signing for Yoda's identity is a future hardening step that requires establishing Yoda's cryptographic identity in the TDNS namespace.
+
+Message Size Limit
+Maximum yoda_chat message size: 32 KB of UTF-8 text. The daemon and server reject messages exceeding this limit with error code MESSAGE_TOO_LONG and display message: "Message too long — maximum 32,768 characters."
+
+Session Semantics
+A session ID is a UUID v4 generated when the operator first sends a message from a given entry point:
+
+y CLI: A new session is created on first invocation. The session ID is written to ~/.plenumnet/yoda-session.id. Subsequent y invocations within 30 minutes of the last message reuse the same session. After 30 minutes of inactivity, the next y invocation creates a new session.
+Ctrl+Y widget: A session is created when the widget opens and persists until the widget is dismissed or 30 minutes of inactivity elapses.
+y --session <id>: Resumes a specific session by ID (the sequence number continues from where it left off).
+y --session list: Lists recent session IDs with timestamps and message counts.
+The sequence number is monotonically increasing within a session, starting at 0. It resets when a new session is created.
+
+Logging and Confidentiality
+The daemon MUST NOT log the plaintext content of yoda_chat or yoda_response payloads. Only the following fields may appear in daemon logs:
+
+Session ID
+Timestamp
+Operator Rep C address (per INVARIANT 9 — Rep C as the identifier in all log entries)
+Payload TIS-27 hash (not the message text)
+Result status (sent/rejected/error)
+Example log line:
+
+[yoda-chat] Session abc-123 msg #42 from 211.111.111.111.1 hash=tis27:a1b2c3 — sent
+Audit Trail
+The y binary and daemon maintain a local audit log at ~/.plenumnet/yoda-audit.jsonl (complementing NinjaExec's signing audit):
+
+{
+  "timestamp": "2026-03-28T14:30:00Z",
+  "sessionId": "abc-123",
+  "sequence": 42,
+  "direction": "outbound",
+  "operatorRepC": "211.111.111.111.1",
+  "payloadHash": "tis27:a1b2c3",
+  "responseHash": "tis27:d4e5f6",
+  "result": "delivered"
+}
+The audit log is append-only. Rep C addresses are used as operator identifiers (INVARIANT 9).
+
+Local Authentication Threat Model
+The y binary connects to the local daemon's API port over unauthenticated HTTP on localhost. Any process on the local machine with network access can call NinjaExec (localhost:21027) and the daemon API to send messages as the operator.
+
+This is an accepted threat model equivalence: NinjaExec's localhost binding already exposes the /sign endpoint to all local processes. The y command does not expand the attack surface beyond what NinjaExec already permits. The mitigation is NinjaExec's confirmation dialog — high-stakes operations require physical operator approval via system tray notification (Task #54, confirmation policy). For yoda_chat messages, the default confirmation policy is auto_approve (chat messages are low-stakes). Operators who want confirmation for every Yoda message can add "yoda_chat" to the require_for list in ninja-exec.toml.
+
+Verification Steps (Daemon-Side)
+When the daemon receives a yoda_chat envelope from the local y command, it performs the following steps explicitly (not referencing unmerged code):
+
+Parse the payload JSON and extract operatorPubkey, daemonRepC, signature, sessionId, timestamp, sequence, and message.
+Look up operatorPubkey in the operator registry (ops-config.json). If not found, reject with OPERATOR_NOT_AUTHORIZED.
+Verify that daemonRepC matches the daemon's own Rep C address. If not, reject with ADDRESS_MISMATCH.
+Check timestamp — reject if older than 60 seconds from current time with MESSAGE_EXPIRED.
+Check sequence — reject if already seen for this sessionId with SEQUENCE_REPLAY.
+Reconstruct the canonical signing payload: "PlenumNET-YODA-CHAT-v1" || daemonRepC_rep_c_54trit || sessionId_utf8 || timestamp_rep_a || sequence_rep_a || message_utf8.
+Verify the TL-DSA signature using the operatorPubkey over the reconstructed payload. Use constant-time comparison. If invalid, reject with SIGNATURE_INVALID.
+Forward the verified envelope to the relay.
+Log the session ID, timestamp, operator Rep C address, and payload TIS-27 hash. Do NOT log the message text.
+Server-Side Endpoint
+Route
+The relay server handles yoda_chat messages via the existing WebSocket relay message dispatch (matching msgType: "yoda_chat"). This is not a separate HTTP endpoint — it rides the existing relay WebSocket connection.
+
+Public Key Trust Model
+The server trusts yoda_chat signatures by delegation: the message arrived through an authenticated daemon relay session (the daemon proved its identity via the relay challenge-response protocol). The daemon has already verified the operator's NinjaExec signature against its local operator registry. The server does not independently verify the NinjaExec signature — it trusts the daemon's verification. This is the same trust model used for exec operations in Task #55.
+
+Processing
+On receiving a yoda_chat message:
+
+Extract the message and session context.
+Dispatch to Yoda's AI processing pipeline (cloud-side).
+Yoda generates a response (text, agent dispatch acknowledgment, or command acknowledgment).
+Wrap the response in a yoda_response envelope and send back through the relay to the originating daemon.
+Rate Limiting
+10 messages per minute per operator (identified by the daemon's Rep C address). Exceeding the limit returns a yoda_response with error: "You're sending messages faster than Yoda can read them. Wait a moment and try again."
+
+Timeout
+If Yoda's AI pipeline does not respond within 30 seconds, the server sends a yoda_response with error: "Yoda is taking too long to respond. Try again in a moment." The operator's y CLI or widget displays this and does not hang.
+
+Failure Response
+If Yoda's AI pipeline is unavailable, the server sends a yoda_response with error: "Yoda is currently unavailable. Your message was received but could not be processed." This is never a silent drop — every yoda_chat message receives either a real response or an error response.
+
+Error Codes and Display Messages
+Error Code	Exit Code	Display Message
+DAEMON_NOT_RUNNING	1	"Daemon not running — start the PlenumNET daemon first."
+RELAY_DISCONNECTED	2	"Yoda is not reachable — the daemon is not connected to the relay."
+NINJAEXEC_LOCKED	3	"NinjaExec is locked. Run ninja-exec unlock or enter your passphrase in the NinjaExec system tray to resume."
+NINJAEXEC_NOT_RUNNING	4	"NinjaExec is not running. Start it from the system tray or run ninja-exec from a terminal."
+SIGNATURE_INVALID	5	"Message signature could not be verified. This may indicate a key mismatch — re-export your operator key with ninja-exec export-operator."
+MESSAGE_EXPIRED	6	"Message expired — your system clock may be out of sync. Check your clock and try again."
+SEQUENCE_REPLAY	7	"Duplicate message detected. This message was already sent."
+OPERATOR_NOT_AUTHORIZED	8	"Your operator key is not registered with this daemon. Register it in ops-config.json or run the deploy script with -AddOperator."
+MESSAGE_TOO_LONG	9	"Message too long — maximum 32,768 characters."
+YODA_TIMEOUT	10	"Yoda is taking too long to respond. Try again in a moment."
+YODA_UNAVAILABLE	11	"Yoda is currently unavailable. Your message was received but could not be processed."
+ADDRESS_MISMATCH	12	"The daemon address in your message does not match this daemon. Ensure you are connected to the correct node."
+RATE_LIMITED	13	"You're sending messages faster than Yoda can read them. Wait a moment and try again."
+All error messages follow QC-R3 guidelines: operator-facing display text with actionable recovery instructions where applicable.
+
+Status Indicator Palette (Ctrl+Y Widget)
+The chat widget MUST NOT use raw green/red/yellow for status indicators. Use the existing Capomastro palette tokens with WCAG 2.1 minimum 3:1 contrast against the dark background (--background: 20 14% 4%):
+
+State	Token	HSL Value	WCAG Ratio (vs dark bg)	Label
+Connected	--primary	210 80% 55%	5.2:1	"Connected"
+Disconnected	--muted-foreground	45 15% 46%	3.8:1	"Disconnected"
+Error	--destructive	356 91% 54%	4.9:1	"Error"
+Signing	--accent-foreground	210 20% 85%	9.1:1	"Signing..."
+Status indicators use both a colored dot AND a text label — never color alone (accessibility requirement). The text label is always present and provides the primary information; the dot is a secondary visual cue.
+
+Tasks
+Signing context registration and relay message types — Register PlenumNET-YODA-CHAT-v1 in the Sponge Context String Registry (ws_relay.rs header table). Add yoda_chat and yoda_response message type handling to the daemon's relay dispatch. Define the yoda_chat payload JSON schema with all fields (sessionId, timestamp, sequence, message, operatorPubkey, daemonRepC, signature). Define the yoda_response payload schema (sessionId, sequence, content, metadata, error).
+
+Daemon-side chat handler with explicit verification — Implement the 9-step verification path defined in the Verification Steps section above. Route verified messages to the relay. Route incoming yoda_response messages back to the originating y session via a local MPSC channel keyed by session ID. Show "Signing..." feedback (using --accent-foreground token) while waiting for NinjaExec to return the signature. Enforce the confidentiality logging policy — never log message plaintext, only session ID, timestamp, operator Rep C, and payload TIS-27 hash.
+
+Server-side Yoda endpoint — Handle yoda_chat in the relay server's WebSocket message dispatch. Trust the daemon's signature verification (delegation model). Dispatch to Yoda's AI pipeline. Enforce rate limiting (10 messages/minute per operator Rep C). Enforce 30-second processing timeout. Always respond — never silently drop. Wrap responses in yoda_response envelopes.
+
+Standalone y binary (code-signed) — A minimal Rust CLI binary. On invocation: resolve the daemon API port, call NinjaExec at localhost:21027 to sign the payload (constructed per the Signing Payload Construction spec above), send the signed yoda_chat envelope to the daemon, and stream yoda_response output to stdout with [YODA] prefix formatting. Support y --status, y --session list, and y --session <id>. Use distinct exit codes per the Error Codes table. The binary MUST be code-signed as part of the daemon installer build pipeline (same signing certificate). It ships alongside ninja-exec in the daemon install directory and is added to PATH by the installer. Build targets match the daemon's architecture matrix (x86_64 + ARM64 for Windows and Linux). Statically linked — no runtime dependency on daemon shared libraries.
+
+Node Terminal integration — Add the y command as a built-in in the Node Terminal. This integration requires Task #41's WebSocket bridge to expose a built-in command dispatch message type: { type: "builtin", command: "y", args: "..." }. The terminal bridge routes this to the daemon's yoda_chat handler. Response streaming uses the existing terminal WebSocket for output. If Task #41's interface changes during implementation, this step adapts to the merged interface.
+
+Ctrl+Y chat widget (optional component) — A separate binary (yoda-widget) using tao/wry. Registered to the Ctrl+Y global hotkey. Plain text rendering only — all Yoda responses are displayed as escaped text, no HTML rendering, no script execution. The widget's WebView CSP: default-src 'none'; style-src 'unsafe-inline'; script-src 'self'. Network access restricted to 127.0.0.1 only. Status indicators use the palette tokens defined in the Status Indicator Palette section — --primary dot + "Connected" label, --muted-foreground dot + "Disconnected" label. Always-on-top, dismisses with Escape or Ctrl+Y again. The widget is an optional component in the daemon installer — the daemon and y CLI work without it. On headless systems (no display server), the widget binary is not installed and the Ctrl+Y hotkey is not registered — this is a non-error condition, not a warning. Platform dependencies: WebView2 on Windows (minimum version 90), webkit2gtk-4.1 on Linux. Minimum versions documented in installer prerequisites.
+
+Error handling, exit codes, and audit trail — Implement all error codes from the Error Codes table with distinct exit codes. Implement the Yoda audit log at ~/.plenumnet/yoda-audit.jsonl per the Audit Trail specification. Implement session management per Session Semantics — session file at ~/.plenumnet/yoda-session.id, 30-minute inactivity timeout, session resume via --session.
+
+QC-R1 Findings Resolution Summary
+Finding	Resolution
+R1-A1-1 / R1-A3-1 (CRITICAL: missing signing context)	Defined PlenumNET-YODA-CHAT-v1 with full concatenation order and field encodings
+R1-A1-2 (CRITICAL: no replay protection)	Added timestamp + per-session sequence number, both Rep A encoded, both in signed payload
+R1-A3-2 (CRITICAL: ambiguous identity binding)	Resolved: daemon's Rep C address from operator registry, NinjaExec pubkey as credential
+R1-A1-3 (IMPORTANT: log confidentiality)	Added Logging and Confidentiality section — plaintext never logged
+R1-A1-4 (IMPORTANT: local auth model)	Added Local Authentication Threat Model section — accepted equivalence with NinjaExec
+R1-A1-5 (IMPORTANT: XSS in widget)	Plain text rendering only, CSP script-src 'none', no HTML rendering
+R1-A1-6 (IMPORTANT: server key trust)	Added Server-Side Public Key Trust Model — delegation through authenticated daemon session
+R1-A2-1 (IMPORTANT: build pipeline)	Defined: code-signed, same certificate as daemon, static linking, arch matrix, ships with daemon
+R1-A2-2 (IMPORTANT: widget platform deps)	Defined: optional component, minimum WebView versions, headless = not installed (non-error)
+R1-A2-3 (IMPORTANT: Task #41 interface)	Defined builtin command dispatch message type, noted adaptation if interface changes
+R1-A2-4 / R1-A3-4 (IMPORTANT: server endpoint)	Added full Server-Side Endpoint section with route, rate limiting, timeout, failure response
+R1-A3-3 (IMPORTANT: unmerged verification)	Added explicit 9-step Verification Steps section — no reference to unmerged code
+R1-A3-5 (IMPORTANT: signature location)	Defined: signature inside payload JSON, not RelayEnvelope.signature
+R1-A1-7 (MINOR: error recovery instructions)	All error messages include actionable recovery steps
+R1-A1-8 (MINOR: message size)	32 KB limit defined with error code
+R1-A2-5 (MINOR: exit codes)	13 distinct exit codes defined in Error Codes table
+R1-A2-6 (MINOR: audit trail)	Full audit log spec at ~/.plenumnet/yoda-audit.jsonl
+R1-A3-6 (MINOR: session semantics)	Session Semantics section — UUID v4, 30-min timeout, resume support
+R1-A3-7 (MINOR: channel boundary)	Clarified in What & Why — yoda_chat is conversational, inference_request is structured API dispatch
+Color violation (green/red status)	Replaced with palette tokens from existing Capomastro theme with WCAG ratios
+Relevant files
+services/inter-cube/src/ws_relay.rs
+services/inter-cube/src/ws_relay.rs:28-37
+services/inter-cube/src/main.rs:260-270,495-505,585-595,1621-1681,1684-1789
+services/inter-cube/src/api.rs
+services/inter-cube/src/config.rs
+client/src/index.css:84-153
+YODA-HANDOFF.md
+PLENUMNET_INVARIANTS_FOR_YODA.md
+PLENUMLAN_RELAY_REFERENCE.md
