@@ -1,0 +1,55 @@
+
+ PlenumNET MSI Installer
+ Capomastro Holdings Ltd. ΓÇö Applied Physics Division                                                                                                                                                                                           Downloading installer script...                                                                                                                                                                                                                At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:194 char:134
++ ... ) + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
++                                                             ~~~~~~~~~~~~~
+Unexpected token 'PATH","User")
+    $llvmBin = "C:\Program' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:196 char:91
++ ... alPath (Join-Path $llvmBin "clang.exe")) { $env:PATH += ";$llvmBin" }
++                                                                       ~~~
+Unexpected token '" }
+    if (Get-Command clang -ErrorAction SilentlyContinue) {
+        Write-Log "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:198 char:22
++         Write-Log "  [OK] clang installed" "Green"
++                      ~~~~
+Unexpected token '[OK]' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:198 char:27
++         Write-Log "  [OK] clang installed" "Green"
++                           ~~~~~
+Unexpected token 'clang' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:241 char:70
++ ...  if (Test-Path $dotnetToolsPath) { $env:PATH += ";$dotnetToolsPath" }
++                                                                       ~~~
+Unexpected token '" }
+}
+if (Test-Command "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:243 char:19
++ if (Test-Command "wix") {
++                   ~~~~~~~
+Unexpected token 'wix") {
+    Write-Log "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:247 char:70
++ ...  if (Test-Path $dotnetToolsPath) { $env:PATH += ";$dotnetToolsPath" }
++                                                                       ~~~
+Unexpected token '" }
+    if (Test-Command "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:248 char:23
++     if (Test-Command "wix") {
++                       ~~~~~~~
+Unexpected token 'wix") {
+        Write-Log "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:253 char:1
++ }
++ ~
+Unexpected token '}' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-16192.ps1:393 char:57
++                 Write-Log "  [OK] $($msi.Name) ($sizeMB MB)" "Green"
++                                                         ~~
+Unexpected token 'MB' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+Press any key to continue . . .

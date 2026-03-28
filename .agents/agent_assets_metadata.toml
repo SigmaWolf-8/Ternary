@@ -306,3 +306,9 @@ id = "S2q-4SRyWSIZKyIn5D6j-"
 uri = "file://.local/tasks/self-healing-platform-gaps.md"
 type = "text"
 title = "Task #26 — Self-Healing Platform Full Specification"
+
+[[outputs]]
+id = "8IawEllrbuxMrSqe0chq6"
+uri = "file://.local/tasks/qc-reviews/qc-r1-task45-consolidated.md"
+type = "text"
+title = "QC-R1 Consolidated Review — Task #45 (PlenumBrowser Phase 1 Remaining Gaps)"
