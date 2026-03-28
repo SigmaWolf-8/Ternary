@@ -257,20 +257,80 @@ function HeroSection() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mb-8 mt-2"
         >
-          <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-2xl">
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              loop
-              className="w-full"
-              style={{ height: "390px", objectFit: "fill" }}
-              data-testid="hero-video"
+          <div
+            className="relative overflow-hidden"
+            style={{
+              borderRadius: "16px",
+              background: "linear-gradient(145deg, #0a0806, #1a1613)",
+              padding: "6px",
+              boxShadow: `
+                inset 0 2px 4px rgba(0,0,0,0.8),
+                inset 0 4px 12px rgba(0,0,0,0.6),
+                inset 0 1px 0 rgba(255,255,255,0.04),
+                0 1px 0 rgba(255,255,255,0.03),
+                0 -1px 0 rgba(0,0,0,0.5)
+              `,
+            }}
+          >
+            <div
+              style={{
+                borderRadius: "11px",
+                overflow: "hidden",
+                boxShadow: `
+                  inset 0 3px 8px rgba(0,0,0,0.9),
+                  inset 0 1px 2px rgba(0,0,0,0.7),
+                  inset 0 -1px 0 rgba(255,255,255,0.02)
+                `,
+                border: "1px solid rgba(0,0,0,0.6)",
+              }}
             >
-              <source src={heroVideo} type="video/mp4" />
-            </video>
-            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 pointer-events-none" />
+              <div
+                style={{
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  position: "relative",
+                  boxShadow: "inset 0 0 20px rgba(0,0,0,0.5)",
+                }}
+              >
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  loop
+                  className="w-full"
+                  style={{ height: "390px", objectFit: "fill", display: "block" }}
+                  data-testid="hero-video"
+                >
+                  <source src={heroVideo} type="video/mp4" />
+                </video>
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    borderRadius: "10px",
+                    boxShadow: `
+                      inset 0 4px 16px rgba(0,0,0,0.7),
+                      inset 0 2px 4px rgba(0,0,0,0.5),
+                      inset 0 -2px 8px rgba(0,0,0,0.3)
+                    `,
+                  }}
+                />
+              </div>
+            </div>
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                borderRadius: "16px",
+                background: `
+                  linear-gradient(180deg,
+                    rgba(255,255,255,0.03) 0%,
+                    transparent 8%,
+                    transparent 92%,
+                    rgba(0,0,0,0.2) 100%
+                  )
+                `,
+              }}
+            />
           </div>
         </motion.div>
 
