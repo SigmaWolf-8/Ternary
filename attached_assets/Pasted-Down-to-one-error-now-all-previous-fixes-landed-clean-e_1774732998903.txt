@@ -1,0 +1,26 @@
+Down to one error now — all previous fixes landed clean.
+
+```
+error WIX0130: The primary key 'VersionNT64' is duplicated in table 'LaunchCondition'.
+```
+
+The WiX `LaunchCondition` table uses the condition expression itself as the primary key. Your template has:
+
+```xml
+<!-- Line 25: generic 64-bit check -->
+<Launch Condition="VersionNT64" Message="...require 64-bit Windows..." />
+
+<!-- Lines 60-63: arch-specific checks -->
+<Launch Condition="{{ARCH_LAUNCH_CONDITION}}" Message="..." />
+<Launch Condition="{{ARCH_MISMATCH_CONDITION}}" Message="..." />
+```
+
+For ARM64, `{{ARCH_LAUNCH_CONDITION}}` resolves to `VersionNT64` — which collides with the hardcoded one above it. Same primary key, two rows, WiX rejects it.
+
+The fix is simple: remove the standalone `VersionNT64` launch condition. It's redundant — PlenumNET only targets aarch64 and x86_64, both of which are 64-bit, and the arch-specific conditions already cover the 64-bit requirement.Only `product.wxs` changed this round — the `wix.rs` from last time is still current.
+
+**This round's fix:** Removed the hardcoded `<Launch Condition="VersionNT64" .../>` that collided with `{{ARCH_LAUNCH_CONDITION}}` (which also resolves to `VersionNT64` for ARM64). The arch-specific conditions already enforce 64-bit, so the standalone check was pure duplication.
+
+Drop the updated `product.wxs` → `C:\PlenumNET\tools\plenum-pack\templates\product.wxs`, rebuild plenum-pack, re-run. The `wix.rs` from the previous round doesn't need changing.
+
+We're peeling this onion one layer at a time — each run is now getting further before failing, which means we're converging. The previous errors were all in the template; this one should be the last template-level issue since we've now addressed every property, every component condition, every launch condition, every special MSI property, and the architecture flag. If the next run surfaces anything, it'll likely be in `dialogs.wxs` (the custom UI), which hasn't been exercised yet because WiX fails on the product WXS first.
