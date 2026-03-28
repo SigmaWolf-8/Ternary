@@ -17,10 +17,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 const LIGHT = {
   bg: "hsl(0, 0%, 100%)",
-  fg: "hsl(220, 20%, 15%)",
-  fgSoft: "hsl(220, 15%, 35%)",
-  fgMuted: "hsl(220, 10%, 55%)",
-  fgFaint: "hsl(220, 8%, 72%)",
+  fg: "hsl(220, 20%, 12%)",
+  fgSoft: "hsl(220, 15%, 30%)",
+  fgMuted: "hsl(220, 10%, 48%)",
+  fgFaint: "hsl(220, 8%, 65%)",
   primary: "hsl(210, 100%, 45%)",
   primarySoft: "hsl(210, 80%, 55%)",
   primaryDim: "hsla(210, 100%, 45%, 0.08)",
@@ -33,8 +33,8 @@ const LIGHT = {
   shadow: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
   balance: "hsl(210, 100%, 45%)",
   balanceBg: "hsla(210, 100%, 45%, 0.06)",
-  esoteric: "hsl(270, 50%, 55%)",
-  esotericBg: "hsla(270, 50%, 55%, 0.06)",
+  esoteric: "hsl(210, 10%, 30%)",
+  esotericBg: "hsla(210, 10%, 30%, 0.06)",
   cosmic: "hsl(340, 60%, 55%)",
   cosmicBg: "hsla(340, 60%, 55%, 0.06)",
   green: "hsl(210, 8%, 51%)",
@@ -43,10 +43,10 @@ const LIGHT = {
 
 const DARK = {
   bg: "hsl(20, 14%, 4%)",
-  fg: "hsl(45, 25%, 91%)",
-  fgSoft: "hsl(40, 15%, 70%)",
-  fgMuted: "hsl(35, 10%, 50%)",
-  fgFaint: "hsl(30, 8%, 35%)",
+  fg: "hsl(40, 20%, 95%)",
+  fgSoft: "hsl(38, 12%, 78%)",
+  fgMuted: "hsl(35, 8%, 60%)",
+  fgFaint: "hsl(30, 6%, 42%)",
   primary: "hsl(210, 80%, 55%)",
   primarySoft: "hsl(210, 70%, 65%)",
   primaryDim: "hsla(210, 80%, 55%, 0.1)",
@@ -59,8 +59,8 @@ const DARK = {
   shadow: "none",
   balance: "hsl(210, 80%, 55%)",
   balanceBg: "hsla(210, 80%, 55%, 0.08)",
-  esoteric: "hsl(270, 50%, 65%)",
-  esotericBg: "hsla(270, 50%, 65%, 0.08)",
+  esoteric: "hsl(210, 10%, 30%)",
+  esotericBg: "hsla(210, 10%, 30%, 0.08)",
   cosmic: "hsl(340, 55%, 60%)",
   cosmicBg: "hsla(340, 55%, 60%, 0.07)",
   green: "hsl(210, 8%, 51%)",
@@ -336,7 +336,7 @@ function MagicSquare() {
   const lb = [["identity", "shift-2", "shift-1"], ["shift-1", "identity", "shift-2"], ["shift-2", "shift-1", "identity"]];
   const colorMap: Record<number, { bg: string; border: string; text: string }> = {
     111: { bg: t.balanceBg, border: t.primaryBorder, text: t.balance },
-    14:  { bg: t.esotericBg, border: `hsla(270, 50%, 55%, 0.15)`, text: t.esoteric },
+    14:  { bg: t.esotericBg, border: `hsla(210, 10%, 30%, 0.15)`, text: t.esoteric },
     208: { bg: t.cosmicBg, border: `hsla(340, 55%, 55%, 0.12)`, text: t.cosmic },
   };
 
@@ -1321,7 +1321,7 @@ export default function GeometricFoundations() {
             color={t.green} bg={t.greenBg} border={`hsla(210, 8%, 51%, 0.12)`}
             desc="Native arithmetic. Rust arrays, VM registers, sponge permutations. Zero is the balanced midpoint — valid here." />
           <RepCard name="Rep B" subtitle="Standard Ternary · Wire Encoding" digits="{0, 1, 2}"
-            color={t.esoteric} bg={t.esotericBg} border={`hsla(270, 50%, 55%, 0.12)`}
+            color={t.esoteric} bg={t.esotericBg} border={`hsla(210, 10%, 30%, 0.12)`}
             desc="Unsigned encoding for flat index computation and network wire format. Maps directly to base-3 digits." />
           <RepCard name="Rep C" subtitle="Bijective Ternary · Trust Boundary" digits="{1, 2, 3}"
             color={t.primary} bg={t.primaryDim} border={t.primaryBorder} highlight
