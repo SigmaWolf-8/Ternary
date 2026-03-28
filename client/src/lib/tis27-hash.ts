@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
+ * See LICENSE in the repository root for full terms.
+ */
+
 const STATE_SIZE = 729;
 const RATE = 243;
 const ROUNDS = 9;
