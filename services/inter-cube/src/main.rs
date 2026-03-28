@@ -1634,7 +1634,7 @@ fn spawn_relay_client(
                                 let temperature = parsed.get("temperature").and_then(|v| v.as_f64()).unwrap_or(0.7);
 
                                 println!("[inference] Processing request {} from {} (model={}, maxTokens={})",
-                                    request_id, from_addr, model, max_tokens);
+                                    request_id, &from_addr, model, max_tokens);
 
                                 let llm_body = serde_json::json!({
                                     "model": model,

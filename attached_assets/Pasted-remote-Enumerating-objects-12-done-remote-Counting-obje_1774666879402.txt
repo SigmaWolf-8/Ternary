@@ -1,0 +1,67 @@
+remote: Enumerating objects: 12, done.
+remote: Counting objects: 100% (12/12), done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 7 (delta 5), reused 7 (delta 5), pack-reused 0 (from 0)
+Unpacking objects: 100% (7/7), 3.10 KiB | 186.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   5c6dec56..b41b57ec  main       -> origin/main
+Updating 5c6dec56..b41b57ec
+Fast-forward
+ ...-838-done-remote-Counting-obj_1774664148839.txt | 122 +++++++++++++++++++++
+ services/inter-cube/Cargo.toml                     |   3 +
+ 2 files changed, 125 insertions(+)
+ create mode 100644 attached_assets/Pasted-remote-Enumerating-objects-838-done-remote-Counting-obj_1774664148839.txt
+
+==========================================================
+  PlenumNET Cube Daemon Deployer
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+PULL: Updating source from GitHub...
+PULL: Already up to date (b41b57ec)
+STOP: Stopping running daemon(s)...
+STOP: Daemon(s) stopped.
+BUILD: Compiling inter-cube daemon (release)...
+       This may take a few minutes on first build.
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+       warning: unused variable: `adaptive_rep`
+       warning: unused variable: `mode`
+       warning: unused variable: `adaptive_rep`
+       warning: function `mod3_small` is never used
+       warning: function `mod3_med` is never used
+       warning: constant `TRIBONACCI_SEQ` is never used
+       warning: associated function `new` is never used
+       warning: method `is_exhausted` is never used
+       warning: function `deserialize_ternary_enhanced` is never used
+       warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+          Compiling inter-cube v2.4.1 (C:\PlenumNET\services\inter-cube)
+       warning: unused import: `RepCTrit`
+       warning: unused import: `Path`
+       warning: unused import: `DIMENSIONS`
+       warning: unused import: `TOTAL_VERTICES`
+       warning: unused import: `DimensionDensity`
+       warning: unused import: `std::collections::HashMap`
+       warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+       warning: unused variable: `destination`
+       warning: unused variable: `min_c`
+       warning: variable does not need to be mutable
+       warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+       warning: method `count` is never used
+       warning: field `heartbeat_interval` is never read
+       warning: associated function `entropy_seed` is never used
+       warning: constant `GRID_ROWS` is never used
+       warning: constant `OVERFLOW` is never used
+       warning: constant `ROW_SIZES` is never used
+       warning: method `reg` is never used
+       warning: `inter-cube` (lib) generated 18 warnings (run `cargo fix --lib -p inter-cube` to apply 10 suggestions)
+       warning: unused variable: `endpoint_for_heartbeat`
+       error[E0382]: borrow of moved value: `from_addr`
+            = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+       warning: unused variable: `addr_for_reply`
+       For more information about this error, try `rustc --explain E0382`.
+       warning: `inter-cube` (bin "inter-cube-daemon") generated 2 warnings
+       error: could not compile `inter-cube` (bin "inter-cube-daemon") due to 1 previous error; 2 warnings emitted
+ERROR: Build failed. See error messages above.
+PS C:\PlenumNET\services\inter-cube>
