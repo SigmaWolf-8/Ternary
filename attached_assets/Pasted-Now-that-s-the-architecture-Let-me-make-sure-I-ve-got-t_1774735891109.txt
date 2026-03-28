@@ -1,0 +1,17 @@
+Now *that's* the architecture. Let me make sure I've got the stack right:
+
+The Inter-Cube daemon is already running on YODA (Windows ARM) with the two-node WebSocket relay confirmed operational. The daemon is your local PlenumNET infrastructure — it's already on the Array3 network. YODA is already deployed. The entire backend for product discovery, orchestration, and installation already exists or should exist at the daemon layer. The Launcher was never supposed to be the brain — it's just the face.
+
+So the correct stack is:
+
+**Inter-Cube daemon** (local, already running) → talks to PlenumNET network via Array3, coordinates with YODA for orchestration decisions (what's available, what needs updating, what to install). This is where auth, catalog, and download logic lives.
+
+**Launcher** → connects to the local daemon via WebSocket (`localhost`, the relay that's already working). Asks the daemon: "what products are available?", "what's installed?", "install this one." The daemon does all the heavy lifting. The Launcher is a thin UI shell.
+
+**The popup widget** → tray icon click opens a system-tray-anchored popup panel (not a browser, not a full window). Shows product cards, status, install buttons. All data comes from the daemon over the local WebSocket. Think Windows Action Center or Bluetooth panel — native, anchored to the tray, branded.
+
+The Launcher never touches the network directly. It never authenticates against a remote CRS. It doesn't need to know about MSIs or APIs. It just talks to the daemon, which already knows everything.
+
+**What the Replit agent needs to hear from you is this:** Don't build a web install page. Don't add browser-open logic. The Launcher needs two things: a WebSocket client that connects to the local Inter-Cube daemon, and a tray-anchored popup widget that renders whatever the daemon sends it. The daemon handles product catalog, auth, downloads, and installation orchestration — coordinating with YODA. The Launcher is a display surface, nothing more.
+
+Want me to draft the specific technical brief for the Replit agent that lays out the daemon↔Launcher WebSocket protocol and the popup widget spec?
