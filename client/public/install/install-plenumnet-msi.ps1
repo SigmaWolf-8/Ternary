@@ -342,6 +342,10 @@ if (-not $wixAvailable) {
 
 if (Test-Command "wix") {
     Write-Log "  [OK] WiX v4" "Green"
+    Write-Log "  Installing WiX extensions..." "DarkGray"
+    & wix extension add WixToolset.UI.wixext 2>&1 | Out-Null
+    & wix extension add WixToolset.Util.wixext 2>&1 | Out-Null
+    Write-Log "  [OK] WiX extensions ready" "Green"
 } else {
     Write-Log "  WARN: WiX not on PATH - MSI generation may produce .wxs only." "Yellow"
     Write-Log "        To fix: dotnet tool install --global wix" "Yellow"
