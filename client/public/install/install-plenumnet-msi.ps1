@@ -30,8 +30,7 @@ $OutputDir      = Join-Path $RepoDir "installer-output"
 $LogFile        = Join-Path $env:TEMP "PlenumNET_MSI_Install.log"
 
 $Products = @(
-    @{ Name = "PlenumNET-Launcher"; Crate = "plenum-launcher"; ManifestDir = "tools/plenum-launcher"; ExtraCrates = @("plenum-launcher-elevate") },
-    @{ Name = "InterCubeDaemon"; Crate = "inter-cube"; ManifestDir = "services/inter-cube"; ExtraCrates = @() }
+    @{ Name = "PlenumNET-Launcher"; Crate = "plenum-launcher"; ManifestDir = "tools/plenum-launcher"; ExtraCrates = @("plenum-launcher-elevate") }
 )
 
 function Write-Log {
@@ -62,7 +61,7 @@ Write-Host ""
 Write-Host "  This script builds and installs PlenumNET products" -ForegroundColor White
 Write-Host "  using the plenum-pack MSI framework." -ForegroundColor White
 Write-Host ""
-Write-Host "  Products: Launcher, Inter-Cube Daemon" -ForegroundColor White
+Write-Host "  Products: Launcher" -ForegroundColor White
 Write-Host "  Log file: $LogFile" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -428,16 +427,13 @@ Write-Log "  Updating dependency lock file (this may take a few minutes)..." "Wh
     if ($line -match "Updating|Adding|Removing") { Write-Log "    $line" "DarkGray" }
 }
 $env:CARGO_BUILD_JOBS = "1"
-$buildLog = Join-Path $env:TEMP "plenum-pack-build.log"
-$buildProc = Start-Process -FilePath $cargoExe -ArgumentList "build --release -p plenum-pack" -NoNewWindow -Wait -PassThru -RedirectStandardError $buildLog
-$buildExit = $buildProc.ExitCode
-if (Test-Path $buildLog) {
-    Get-Content $buildLog | ForEach-Object {
-        $line = $_.ToString()
-        if ($line -match "error") { Write-Log "  $line" "Red" }
-        elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
-    }
-    Remove-Item $buildLog -Force -ErrorAction SilentlyContinue
+Write-Log "  Compiling plenum-pack (release)..." "White"
+$buildOutput = & $cargoExe build --release -p plenum-pack 2>&1
+$buildExit = $LASTEXITCODE
+$buildOutput | ForEach-Object {
+    $line = $_.ToString()
+    if ($line -match "error") { Write-Log "  $line" "Red" }
+    elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
 }
 Pop-Location
 
@@ -454,27 +450,20 @@ Write-Host ""
 Write-Log "STEP 4/8: Building product binaries" "Yellow"
 Write-Host "---"
 
-$allCrates = @("plenum-launcher", "plenum-launcher-elevate", "inter-cube")
+$allCrates = @("plenum-launcher", "plenum-launcher-elevate")
 foreach ($crate in $allCrates) {
     Write-Log "  Building $crate..." "White"
     Push-Location $RepoDir
-    $crateLog = Join-Path $env:TEMP "plenum-build-$crate.log"
-    $crateProc = Start-Process -FilePath $cargoExe -ArgumentList "build --release -p $crate" -NoNewWindow -Wait -PassThru -RedirectStandardError $crateLog
-    $crateBuildExit = $crateProc.ExitCode
-    if (Test-Path $crateLog) {
-        Get-Content $crateLog | ForEach-Object {
-            $line = $_.ToString()
-            if ($line -match "error") { Write-Log "  $line" "Red" }
-            elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
-        }
-        Remove-Item $crateLog -Force -ErrorAction SilentlyContinue
+    $crateOutput = & $cargoExe build --release -p $crate 2>&1
+    $crateBuildExit = $LASTEXITCODE
+    $crateOutput | ForEach-Object {
+        $line = $_.ToString()
+        if ($line -match "error") { Write-Log "  $line" "Red" }
+        elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
     }
     Pop-Location
     if ($crateBuildExit -ne 0) {
         Write-Log "  WARN: $crate build failed - skipping this product." "Yellow"
-        if ($crate -eq "inter-cube") {
-            Write-Log "    Note: portable-pty may not support ARM64 Windows yet." "DarkGray"
-        }
     } else {
         Write-Log "  [OK] $crate built" "Green"
     }
@@ -643,7 +632,6 @@ if ($msiCount -gt 0) {
     Write-Log "    %ProgramFiles%\Capomastro\" "White"
     Write-Host ""
     Write-Log "  Data directories (preserved on uninstall):" "White"
-    Write-Log "    %APPDATA%\InterCubeDaemon\" "White"
     Write-Log "    %APPDATA%\PlenumNET-Launcher\" "White"
 } else {
     Write-Log "  No MSIs were installed." "Yellow"
