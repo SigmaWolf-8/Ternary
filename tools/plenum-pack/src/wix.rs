@@ -96,11 +96,6 @@ impl<'a> WixGenerator<'a> {
             .replace("{{UPGRADE_CODE}}", &self.manifest.app.upgrade_code)
             .replace("{{PRODUCT_CODE}}", &self.product_code)
             .replace("{{MANUFACTURER}}", &self.manifest.app.publisher)
-            .replace(
-                "{{DESCRIPTION}}",
-                self.manifest.app.description.as_deref().unwrap_or(""),
-            )
-            .replace("{{PLATFORM}}", self.arch.wix_platform())
             .replace("{{DATA_DIRECTORY}}", &data_directory)
             .replace("{{BINARY_NAME}}", binary_name)
             .replace("{{ICON_PATH}}", &self.manifest.app.icon)
