@@ -201,51 +201,7 @@ function HeroSection() {
   const [email, setEmail] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playbackDirection = useRef<1 | -1>(1);
-  const rafRef = useRef<number>(0);
   const { toast } = useToast();
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    let reversing = false;
-    let cancelled = false;
-
-    const reverseStep = () => {
-      if (cancelled || !reversing) return;
-      const step = 1 / 15;
-      const next = video.currentTime - step;
-      if (next <= 0.1) {
-        reversing = false;
-        video.currentTime = 0;
-        video.play();
-        return;
-      }
-      video.currentTime = next;
-    };
-
-    const onSeeked = () => {
-      if (!reversing || cancelled) return;
-      setTimeout(reverseStep, 30);
-    };
-
-    const onEnded = () => {
-      reversing = true;
-      video.pause();
-      video.addEventListener("seeked", onSeeked);
-      reverseStep();
-    };
-
-    video.removeAttribute("loop");
-    video.addEventListener("ended", onEnded);
-    return () => {
-      cancelled = true;
-      reversing = false;
-      video.removeEventListener("ended", onEnded);
-      video.removeEventListener("seeked", onSeeked);
-    };
-  }, []);
 
   const signupMutation = useMutation({
     mutationFn: async (data: { email: string }) => {
@@ -339,6 +295,7 @@ function HeroSection() {
                     ref={videoRef}
                     autoPlay
                     muted
+                    loop
                     playsInline
                     className="w-full"
                     style={{ height: "390px", objectFit: "fill", display: "block" }}
