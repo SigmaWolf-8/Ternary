@@ -366,3 +366,15 @@ id = "wTjMRl9fHpDrblGBB1GFc"
 uri = "file://.local/qc-r3-task55/qc-r3-agent9-content-creator.md"
 type = "text"
 title = "Agent 9: Content Creator"
+
+[[outputs]]
+id = "-6dnQCmYYVwW_SUb1jUL3"
+uri = "file://.local/installer-debug-bundle.tar.gz"
+type = "unspecified"
+title = "PlenumNET Installer Debug Bundle"
+
+[[outputs]]
+id = "bVnTvzdJauqdJL-rQwPzJ"
+uri = "file://.local/installer-debug-bundle/REPORT.md"
+type = "text"
+title = "Debug Report — Root Cause & Fix"
