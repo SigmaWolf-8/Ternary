@@ -1,0 +1,9 @@
+          <Component Id="AutostartEntry" Guid="*">
+            <Condition>{{AUTOSTART_CONDITION}}</Condition>
+            <RegistryValue Root="HKCU"
+                           Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                           Name="{{PRODUCT_SHORT_NAME}}"
+                           Type="string"
+                           Value="[INSTALLFOLDER]{{BINARY_NAME}}"
+                           KeyPath="yes" />
+          </Component>

@@ -1,0 +1,37 @@
+[app]
+name = "InterCubeDaemon"
+display_name = "Inter-Cube Daemon — PlenumNET Network Service"
+description = "Provides geometric routing and secure communication across the PlenumNET cube network"
+version = "1.0.0"
+publisher = "Capomastro Holdings Ltd."
+binary = "inter-cube-daemon.exe"
+icon = "assets/inter-cube.ico"
+license = "Proprietary"
+upgrade_code = "B2C3D4E5-F6A7-8901-BCDE-F12345678901"
+
+[install]
+directory = "Capomastro\\InterCubeDaemon"
+data_directory = "InterCubeDaemon"
+add_to_path = false
+architecture = ["aarch64", "x86_64"]
+
+[app_type]
+kind = "service"
+autostart = true
+service_account = "NT SERVICE\\InterCubeDaemon"
+
+[first_run]
+actions = [
+    { type = "run_command",
+      command = "inter-cube-daemon init --crs-endpoint {{CRS_ENDPOINT}}",
+      env_passphrase = "" },
+]
+
+[shortcuts]
+start_menu = [
+    { name = "Inter-Cube Daemon", target = "inter-cube-daemon.exe", icon = "assets/inter-cube.ico" },
+]
+
+[uninstall]
+preserve_data = true
+preserve_message = "Your Inter-Cube Daemon node keypair and configuration have been preserved in %APPDATA%\\InterCubeDaemon. If you plan to reinstall, these will be automatically detected."

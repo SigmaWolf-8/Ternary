@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="{{PRODUCT_NAME}}"
+           Version="{{PRODUCT_VERSION}}"
+           Manufacturer="{{MANUFACTURER}}"
+           UpgradeCode="{{UPGRADE_CODE}}"
+           ProductCode="{{PRODUCT_CODE}}"
+           Language="1033"
+           Codepage="1252"
+           Platform="{{PLATFORM}}"
+           InstallerVersion="500"
+           Compressed="yes"
+           Comments="{{DESCRIPTION}}">
+
+    <SummaryInformation Description="{{PRODUCT_NAME}} Installer"
+                        Manufacturer="{{MANUFACTURER}}" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+                  Schedule="afterInstallInitialize" />
+
+    <Media Id="1" Cabinet="product.cab" EmbedCab="yes" />
+
+    <Launch Condition="VersionNT64"
+            Message="PlenumNET products require 64-bit Windows. This machine is running a 32-bit operating system." />
+    <Launch Condition="Privileged"
+            Message="Administrator privileges are required to install PlenumNET products. Right-click the installer and select 'Run as administrator'." />
+
+    <Property Id="ARPURLINFOABOUT" Value="https://plenumnet.com" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://plenumnet.com/downloads" />
+    <Property Id="ARPCOMMENTS" Value="{{DESCRIPTION}}" />
+    <Property Id="ARPHELPLINK" Value="https://plenumnet.com/support" />
+
+    <Icon Id="ProductIcon" SourceFile="$(var.ManifestDir)\{{ICON_PATH}}" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+
+    <Property Id="CRS_ENDPOINT" Secure="yes" />
+    <Property Id="PASSPHRASE_FILE" Secure="yes" Hidden="yes" />
+    <Property Id="PASSPHRASE_TEMPFILE" Secure="yes" Hidden="yes" />
+    <Property Id="PASSPHRASE_REQUIRED" Value="{{PASSPHRASE_REQUIRED}}" />
+    <Property Id="PASSPHRASE_MIN_LENGTH" Value="{{PASSPHRASE_MIN_LENGTH}}" />
+    <Property Id="SERVICE_CONFIG_REQUIRED" Value="{{SERVICE_CONFIG_REQUIRED}}" />
+    <Property Id="SERVICE_ACCOUNT_DISPLAY" Value="{{SERVICE_ACCOUNT_DISPLAY}}" />
+    <Property Id="SERVICE_ACCOUNT_MODE" Value="{{SERVICE_ACCOUNT_MODE_DEFAULT}}" />
+    <Property Id="SERVICE_CUSTOM_ACCOUNT" Value="" />
+    <Property Id="SERVICE_ACCOUNT_PASSWORD" Secure="yes" Hidden="yes" />
+    <Property Id="MsiHiddenProperties" Value="{{MSI_HIDDEN_PROPERTIES}}" />
+    <Property Id="SERVICE_START_TYPE" Value="auto" />
+    <Property Id="SERVICE_AUTOSTART" Value="1" />
+
+    <CustomAction Id="DetectArch_UI" Property="DETECTED_ARCH" Value="[%PROCESSOR_ARCHITECTURE]" Execute="immediate" />
+    <CustomAction Id="DetectArch_Exec" Property="DETECTED_ARCH" Value="[%PROCESSOR_ARCHITECTURE]" Execute="immediate" />
+    <InstallUISequence>
+      <Custom Action="DetectArch_UI" Before="LaunchConditions" />
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action="DetectArch_Exec" Before="LaunchConditions" />
+    </InstallExecuteSequence>
+    <Launch Condition="{{ARCH_LAUNCH_CONDITION}}"
+            Message="{{ARCH_LAUNCH_MESSAGE}}" />
+    <Launch Condition="{{ARCH_MISMATCH_CONDITION}}"
+            Message="{{ARCH_LAUNCH_MESSAGE}}" />
+
+    <Property Id="DATA_DIRECTORY" Value="{{DATA_DIRECTORY}}" />
+
+    <CustomAction Id="DeleteUserData" Directory="INSTALLFOLDER"
+                  ExeCommand="cmd.exe /c &quot;rmdir /s /q [AppDataFolder]{{DATA_DIRECTORY}} 2>nul&quot;"
+                  Execute="deferred" Impersonate="yes" Return="ignore" />
+
+{{DIRECTORY_STRUCTURE}}
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="PlenumNetStartMenuFolder" Name="PlenumNET">
+        <Directory Id="ProductStartMenuFolder" Name="{{PRODUCT_SHORT_NAME}}">
+          <Component Id="StartMenuShortcuts" Guid="*">
+            <RegistryValue Root="HKCU" Key="Software\Capomastro\PlenumNET\{{PRODUCT_SHORT_NAME}}"
+                           Name="StartMenuInstalled" Type="integer" Value="1" KeyPath="yes" />
+{{SHORTCUT_ENTRIES}}
+            <RemoveFolder Id="RemoveProductMenuFolder" On="uninstall" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Component Id="PathEntry" Guid="*" Directory="INSTALLFOLDER">
+      <Condition>{{PATH_CONDITION}}</Condition>
+      <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]"
+                   Permanent="no" Part="last" Action="set" System="yes" />
+    </Component>
+
+    <Component Id="LauncherRegistryEntry" Guid="*" Directory="INSTALLFOLDER">
+      <RegistryKey Root="HKLM" Key="Software\Capomastro\PlenumNET\Apps\{{PRODUCT_SHORT_NAME}}">
+        <RegistryValue Name="InstallPath" Type="string" Value="[INSTALLFOLDER]" />
+        <RegistryValue Name="Version" Type="string" Value="{{PRODUCT_VERSION}}" />
+        <RegistryValue Name="AppType" Type="string" Value="{{APP_TYPE}}" />
+        <RegistryValue Name="DisplayName" Type="string" Value="{{PRODUCT_NAME}}" />
+        <RegistryValue Name="DataDirectory" Type="string" Value="{{DATA_DIRECTORY}}" />
+        <RegistryValue Name="Binary" Type="string" Value="{{BINARY_NAME}}" />
+{{STATUS_PORT_REGISTRY}}{{CONFIGURE_COMMAND_REGISTRY}}
+      </RegistryKey>
+    </Component>
+
+    <Feature Id="ProductFeature" Title="{{PRODUCT_NAME}}" Level="1">
+      <ComponentRef Id="MainBinary" />
+      <ComponentRef Id="IconFile" />
+      <ComponentRef Id="StartMenuShortcuts" />
+      <ComponentRef Id="LauncherRegistryEntry" />
+      <ComponentRef Id="PathEntry" />
+{{EXTRA_COMPONENT_REFS}}
+    </Feature>
+
+{{SHORTCUT_ICONS}}
+{{SERVICE_ACCOUNT_RESOLVER}}
+{{FIRST_RUN_ACTIONS}}
+{{FIRST_RUN_SEQUENCE}}
+
+    <UIRef Id="WixUI_PlenumNET" />
+
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.InstallerAssetsDir)\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.InstallerAssetsDir)\dialog.bmp" />
+    <WixVariable Id="WixUILicenseRtf" Value="{{LICENSE_RTF_PATH}}" />
+
+  </Package>
+</Wix>

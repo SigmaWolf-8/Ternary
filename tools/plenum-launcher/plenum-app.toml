@@ -1,0 +1,32 @@
+[app]
+name = "PlenumNET-Launcher"
+display_name = "PlenumNET Launcher"
+description = "Central hub for managing all installed PlenumNET applications"
+version = "1.0.0"
+publisher = "Capomastro Holdings Ltd."
+binary = "plenum-launcher.exe"
+icon = "assets/plenum-launcher.ico"
+license = "Proprietary"
+upgrade_code = "C3D4E5F6-A7B8-9012-CDEF-123456789012"
+
+[install]
+directory = "Capomastro\\PlenumNET-Launcher"
+data_directory = "PlenumNET-Launcher"
+add_to_path = false
+architecture = ["aarch64", "x86_64"]
+extra_binaries = ["plenum-launcher-elevate.exe"]
+
+[app_type]
+kind = "tray_agent"
+autostart = true
+tray_icon = "assets/plenum-launcher-tray.ico"
+tray_tooltip = "PlenumNET Launcher — Application Hub"
+
+[shortcuts]
+start_menu = [
+    { name = "PlenumNET Launcher", target = "plenum-launcher.exe", icon = "assets/plenum-launcher.ico" },
+]
+
+[uninstall]
+preserve_data = true
+preserve_message = "Your PlenumNET Launcher settings have been preserved in %APPDATA%\\PlenumNET-Launcher."

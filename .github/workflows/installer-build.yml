@@ -1,0 +1,326 @@
+name: PlenumNET Installer Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/plenum-pack/**'
+      - 'tools/plenum-launcher/**'
+      - 'tools/plenum-launcher-elevate/**'
+      - '**/plenum-app.toml'
+      - '.github/workflows/installer-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/plenum-pack/**'
+      - 'tools/plenum-launcher/**'
+      - 'tools/plenum-launcher-elevate/**'
+      - '**/plenum-app.toml'
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: 'Sign MSI packages'
+        type: boolean
+        default: false
+
+env:
+  WIX_VERSION: "4.0.4"
+  DOTNET_VERSION: "8.0.x"
+
+jobs:
+  validate-manifests:
+    name: Validate All Manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build plenum-pack
+        run: cargo build --release -p plenum-pack
+
+      - name: Validate workspace manifests
+        run: ./target/release/plenum-pack validate --workspace --manifest-dir .
+
+  build-installers:
+    name: Build MSI (${{ matrix.product.name }} / ${{ matrix.arch }})
+    needs: validate-manifests
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: true
+      matrix:
+        product:
+          - { name: "NinjaExec", dir: "ninja-exec", cargo_pkg: "" }
+          - { name: "PlenumNET-Launcher", dir: "tools/plenum-launcher", cargo_pkg: "plenum-launcher" }
+          - { name: "InterCubeDaemon", dir: "services/inter-cube", cargo_pkg: "inter-cube" }
+          - { name: "Array3Watchdog", dir: "scripts/array3-watchdog", cargo_pkg: "" }
+        arch: [x86_64, aarch64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install WiX Toolset
+        run: |
+          dotnet tool install --global wix --version ${{ env.WIX_VERSION }}
+          wix --version
+
+      - name: Verify WiX version
+        run: |
+          $expected = Get-Content tools/plenum-pack/wix-version.txt -Raw
+          $expected = $expected.Trim()
+          $actual = wix --version
+          if ($actual -notlike "*$expected*") {
+            Write-Error "WiX version mismatch: expected $expected, got $actual"
+            exit 1
+          }
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.arch == 'aarch64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc' }}
+
+      - name: Build plenum-pack, pass-helper, pass-ca, and elevate helper
+        run: |
+          cargo build --release -p plenum-pack
+          $target = if ("${{ matrix.arch }}" -eq "aarch64") { "aarch64-pc-windows-msvc" } else { "x86_64-pc-windows-msvc" }
+          cargo build --release -p plenum-pass-helper --target $target
+          cargo build --release -p plenum-pass-ca --target $target
+          cargo build --release -p plenum-launcher-elevate --target $target
+
+      - name: Build product binary (Rust crates)
+        if: matrix.product.cargo_pkg != ''
+        run: |
+          cargo build --release -p ${{ matrix.product.cargo_pkg }} --target ${{ matrix.arch == 'aarch64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc' }}
+
+      - name: Fetch pre-built binaries (non-Rust products)
+        if: matrix.product.cargo_pkg == ''
+        run: |
+          $target = if ("${{ matrix.arch }}" -eq "aarch64") { "aarch64-pc-windows-msvc" } else { "x86_64-pc-windows-msvc" }
+          $binDir = "target/$target/release"
+          New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+          $manifest = Get-Content "${{ matrix.product.dir }}/plenum-app.toml" -Raw
+          if ($manifest -match 'binary\s*=\s*"([^"]+)"') {
+            $binaryName = $Matches[1]
+          } else {
+            Write-Error "Could not extract binary name from manifest"
+            exit 1
+          }
+
+          $artifactName = "${{ matrix.product.name }}-${{ matrix.arch }}"
+          Write-Host "Attempting to download pre-built binary artifact: $artifactName"
+          $downloaded = $false
+          try {
+            gh run download --name $artifactName --dir $binDir 2>$null
+            if (Test-Path "$binDir/$binaryName") {
+              $downloaded = $true
+              Write-Host "Downloaded pre-built binary: $binaryName"
+            }
+          } catch {
+            Write-Host "No artifact found from prior workflow runs."
+          }
+
+          if (-not $downloaded) {
+            if ("${{ github.event_name }}" -eq "pull_request") {
+              Write-Host "PR build: creating stub binary for MSI structure validation (dry-run only)."
+              [System.IO.File]::WriteAllBytes("$binDir/$binaryName", [byte[]]@(0x4D, 0x5A))
+              if ($manifest -match 'extra_binaries\s*=\s*\[([^\]]*)\]') {
+                $extras = $Matches[1] -split ',' | ForEach-Object { $_.Trim().Trim('"') } | Where-Object { $_ }
+                foreach ($extra in $extras) {
+                  [System.IO.File]::WriteAllBytes("$binDir/$extra", [byte[]]@(0x4D, 0x5A))
+                  Write-Host "Created stub extra binary: $extra"
+                }
+              }
+            } else {
+              Write-Error @"
+${{ matrix.product.name }} binary '$binaryName' not found at $binDir/$binaryName.
+Non-Rust products require a prior workflow to build and upload the binary as
+artifact '$artifactName'. Ensure the upstream build pipeline runs before this workflow.
+"@
+              exit 1
+            }
+          }
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Build MSI (dry-run for PRs)
+        if: github.event_name == 'pull_request'
+        run: |
+          $target = if ("${{ matrix.arch }}" -eq "aarch64") { "aarch64-pc-windows-msvc" } else { "x86_64-pc-windows-msvc" }
+          $binDir = "target/$target/release"
+          ./target/release/plenum-pack build --dry-run --arch ${{ matrix.arch }} --manifest-dir ${{ matrix.product.dir }} --binary-dir $binDir
+
+      - name: Decode signing certificate
+        if: github.event_name != 'pull_request' && (github.event.inputs.sign == 'true' || github.ref == 'refs/heads/main')
+        run: |
+          $pfxBytes = [System.Convert]::FromBase64String("${{ secrets.CODE_SIGNING_CERT }}")
+          $pfxPath = "${{ runner.temp }}\signing-cert.pfx"
+          [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+          echo "PLENUM_SIGN_CERT=$pfxPath" >> $env:GITHUB_ENV
+
+      - name: Build MSI
+        if: github.event_name != 'pull_request'
+        run: |
+          $target = if ("${{ matrix.arch }}" -eq "aarch64") { "aarch64-pc-windows-msvc" } else { "x86_64-pc-windows-msvc" }
+          $binDir = "target/$target/release"
+          $signFlag = ""
+          if ("${{ github.event.inputs.sign }}" -eq "true" -or "${{ github.ref }}" -eq "refs/heads/main") {
+            $signFlag = "--sign"
+          }
+          ./target/release/plenum-pack build $signFlag --arch ${{ matrix.arch }} --manifest-dir ${{ matrix.product.dir }} --binary-dir $binDir
+        env:
+          PLENUM_SIGN_CERT: ${{ env.PLENUM_SIGN_CERT }}
+          PLENUM_SIGN_PASS: ${{ secrets.CODE_SIGNING_PASS }}
+          PLENUM_TIMESTAMP_URL: "http://timestamp.digicert.com"
+
+      - name: Inspect MSI metadata
+        if: github.event_name != 'pull_request'
+        run: |
+          $msiFiles = Get-ChildItem -Path "${{ matrix.product.dir }}/plenum-pack-output" -Filter "*.msi" -ErrorAction SilentlyContinue
+          foreach ($msi in $msiFiles) {
+            ./target/release/plenum-pack inspect $msi.FullName --manifest-dir ${{ matrix.product.dir }}
+          }
+
+      - name: Verify signatures
+        if: github.event_name != 'pull_request' && (github.event.inputs.sign == 'true' || github.ref == 'refs/heads/main')
+        run: |
+          $msiFiles = Get-ChildItem -Path "${{ matrix.product.dir }}/plenum-pack-output" -Filter "*.msi" -ErrorAction SilentlyContinue
+          foreach ($msi in $msiFiles) {
+            signtool verify /pa /tw $msi.FullName
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Signature verification failed for $($msi.Name)"
+              exit 1
+            }
+          }
+
+      - name: Cleanup signing certificate
+        if: always()
+        run: |
+          $pfxPath = "${{ runner.temp }}\signing-cert.pfx"
+          if (Test-Path $pfxPath) {
+            Remove-Item -Force $pfxPath
+            Write-Host "Signing certificate cleaned up."
+          }
+
+      - name: Upload MSI artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: msi-${{ matrix.product.name }}-${{ matrix.arch }}
+          path: ${{ matrix.product.dir }}/plenum-pack-output/*.msi
+          if-no-files-found: error
+
+  deployment-tests:
+    name: Deployment Test (${{ matrix.product.name }})
+    needs: build-installers
+    runs-on: windows-latest
+    timeout-minutes: 30
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        product:
+          - { name: "NinjaExec", test_script: "test-ninja-exec" }
+          - { name: "PlenumNET-Launcher", test_script: "test-plenum-launcher" }
+          - { name: "InterCubeDaemon", test_script: "test-inter-cube" }
+          - { name: "Array3Watchdog", test_script: "test-array3-watchdog" }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download MSI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msi-${{ matrix.product.name }}-x86_64
+          path: test-msi/
+
+      - name: Build mock-crs (for InterCube tests)
+        if: matrix.product.name == 'InterCubeDaemon'
+        run: cargo build --release -p mock-crs
+
+      - name: Start mock-crs server
+        if: matrix.product.name == 'InterCubeDaemon'
+        run: |
+          Start-Process -FilePath "./target/release/mock-crs.exe" -NoNewWindow -PassThru | Out-Null
+          Start-Sleep -Seconds 3
+          try {
+            $health = Invoke-WebRequest -Uri "http://127.0.0.1:18080/health" -UseBasicParsing -TimeoutSec 5
+            Write-Host "Mock CRS healthy: $($health.Content)"
+          } catch {
+            Write-Error "Mock CRS failed to start"
+            exit 1
+          }
+
+      - name: Run deployment test suite
+        run: |
+          $testScript = "tools/plenum-pack/ci-tests/${{ matrix.product.test_script }}.ps1"
+          if (Test-Path $testScript) {
+            & $testScript -MsiPath "test-msi/"
+          } else {
+            Write-Error "Test script not found: $testScript — deployment tests cannot be skipped."
+            exit 1
+          }
+
+      - name: Stop mock-crs server
+        if: matrix.product.name == 'InterCubeDaemon' && always()
+        run: |
+          Get-Process -Name "mock-crs" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+  generate-checksums:
+    name: Generate TIS-27 Checksums
+    needs: [build-installers, deployment-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build plenum-pack
+        run: cargo build --release -p plenum-pack
+
+      - name: Download all MSI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: releases/
+          pattern: msi-*
+          merge-multiple: true
+
+      - name: Generate TIS-27 checksums
+        run: |
+          cd releases
+          found=false
+          for f in *.msi; do
+            if [ -f "$f" ]; then
+              found=true
+              ../target/release/plenum-pack checksum "$f" >> checksums.txt
+              echo "TIS-27 checksum generated for $f"
+            fi
+          done
+          if [ "$found" = true ] && [ -f checksums.txt ]; then
+            cat checksums.txt
+          else
+            echo "ERROR: No MSI files found to checksum"
+            exit 1
+          fi
+
+      - name: Verify checksums
+        run: |
+          cd releases
+          ../target/release/plenum-pack verify checksums.txt
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: plenumnet-installers
+          path: releases/
+          if-no-files-found: error

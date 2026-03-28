@@ -1,0 +1,17 @@
+[package]
+name = "plenum-launcher-elevate"
+version = "1.0.0"
+edition = "2021"
+description = "UAC elevation helper for PlenumNET Launcher service control operations"
+license = "Proprietary"
+publish = false
+
+[dependencies]
+anyhow = "=1.0.80"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.52", features = [
+    "Win32_System_Services",
+    "Win32_Foundation",
+] }
+winreg = "0.52"

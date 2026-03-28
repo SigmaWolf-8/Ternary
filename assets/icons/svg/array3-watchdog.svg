@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="eye-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#181411;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0F0C0A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#eye-grad)" stroke="#272220" stroke-width="2"/>
+  <!-- Stylized eye / shield with P element -->
+  <g transform="translate(40, 55)" fill="none" stroke="#F0EDE8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Shield outline -->
+    <path d="M 88 10 L 160 30 L 160 90 Q 160 140 88 160 Q 16 140 16 90 L 16 30 Z"/>
+    <!-- Eye shape inside shield -->
+    <ellipse cx="88" cy="80" rx="45" ry="28" fill="none" stroke-width="4"/>
+    <!-- Iris -->
+    <circle cx="88" cy="80" r="14" fill="none" stroke="#4A9EF5" stroke-width="4"/>
+    <!-- Pupil -->
+    <circle cx="88" cy="80" r="5" fill="#4A9EF5"/>
+    <!-- P lattice subtle watermark -->
+    <line x1="75" y1="45" x2="75" y2="55" stroke-width="2" opacity="0.3"/>
+    <path d="M 75 45 L 90 45 Q 95 45 95 50 Q 95 55 90 55 L 75 55" stroke-width="2" opacity="0.3"/>
+  </g>
+</svg>

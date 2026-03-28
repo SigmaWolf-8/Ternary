@@ -1,0 +1,37 @@
+[app]
+name = "Array3Watchdog"
+display_name = "Array3 Watchdog — PlenumNET Monitoring Service"
+description = "Monitors PlenumNET daemon services and ensures continuous operation of Array3 nodes"
+version = "1.0.0"
+publisher = "Capomastro Holdings Ltd."
+binary = "array3-watchdog.exe"
+icon = "assets/array3-watchdog.ico"
+license = "Proprietary"
+upgrade_code = "D4E5F6A7-B8C9-0123-DEFA-234567890123"
+
+[install]
+directory = "Capomastro\\Array3Watchdog"
+data_directory = "Array3Watchdog"
+add_to_path = false
+architecture = ["aarch64", "x86_64"]
+
+[app_type]
+kind = "service"
+autostart = true
+service_account = "NT SERVICE\\Array3Watchdog"
+
+[first_run]
+actions = [
+    { type = "run_command",
+      command = "array3-watchdog init",
+      env_passphrase = "" },
+]
+
+[shortcuts]
+start_menu = [
+    { name = "Array3 Watchdog", target = "array3-watchdog.exe", icon = "assets/array3-watchdog.ico" },
+]
+
+[uninstall]
+preserve_data = true
+preserve_message = "Your Array3 Watchdog configuration and heartbeat keys have been preserved in %APPDATA%\\Array3Watchdog. If you plan to reinstall, these will be automatically detected."

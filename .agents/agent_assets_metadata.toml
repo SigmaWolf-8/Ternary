@@ -210,3 +210,57 @@ id = "QwAqR6i-kJzxkdh9oiwcv"
 uri = "file://qc-templates-r1-r3.zip"
 type = "unspecified"
 title = "QC Review Templates R1-R3 (12 files)"
+
+[[outputs]]
+id = "TyCco7L9SCGZ4-bumkf1N"
+uri = "file://.local/qc-reviews/qc-r1-consolidated.md"
+type = "text"
+title = "QC-R1 Consolidated Review — Task #56"
+
+[[outputs]]
+id = "rQ1gwS3bXk8DwYQvhpTV5"
+uri = "file://.local/qc-reviews/qc-r1-agent1-security-engineer.md"
+type = "text"
+title = "R1 Agent 1: Security Engineer"
+
+[[outputs]]
+id = "knyAt5OYbqjg95Bx3sxyV"
+uri = "file://.local/qc-reviews/qc-r1-agent2-devops-automator.md"
+type = "text"
+title = "R1 Agent 2: DevOps Automator"
+
+[[outputs]]
+id = "PpwFsBC0et6O3wg8YRELC"
+uri = "file://.local/qc-reviews/qc-r1-agent3-plenumnet-integration.md"
+type = "text"
+title = "R1 Agent 3: PlenumNET Integration Specialist"
+
+[[outputs]]
+id = "h27r-gzLT6fEBPLQZEYQf"
+uri = "file://.local/qc-reviews/qc-r1-r2-consolidated.md"
+type = "text"
+title = "Task #56 — QC-R1 + QC-R2 Consolidated Review (6 Agents)"
+
+[[outputs]]
+id = "xpEgggRsbq2YmhckqWGDd"
+uri = "file://.local/qc-reviews/qc-r2-agent4-evidence-collector.md"
+type = "text"
+title = "R2 Agent 4: Evidence Collector / QA Lead"
+
+[[outputs]]
+id = "1obTJcCCfKgg8UpOiqMbe"
+uri = "file://.local/qc-reviews/qc-r2-agent5-senior-developer.md"
+type = "text"
+title = "R2 Agent 5: Senior Developer"
+
+[[outputs]]
+id = "uML5zdcxUXEFNUW7lVlqN"
+uri = "file://.local/qc-reviews/qc-r2-agent6-infrastructure-maintainer.md"
+type = "text"
+title = "R2 Agent 6: Infrastructure Maintainer"
+
+[[outputs]]
+id = "l984JgjQVgA1Uhkm0GF9s"
+uri = "file://.local/qc-reviews/task-56-full-review.md"
+type = "text"
+title = "Task #56 — Complete QC Review (R1 + R2) — All 6 Agents + Consolidated Summary"

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="key-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#181411;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0F0C0A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#key-grad)" stroke="#272220" stroke-width="2"/>
+  <!-- Key glyph with P element -->
+  <g transform="translate(48, 60)" fill="none" stroke="#F0EDE8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Key bow (circle) -->
+    <circle cx="50" cy="50" r="35" fill="none"/>
+    <!-- P lattice inside key bow -->
+    <line x1="35" y1="30" x2="35" y2="70" stroke-width="4"/>
+    <path d="M 35 30 L 58 30 Q 68 30 68 42 Q 68 54 58 54 L 35 54" stroke-width="4"/>
+    <!-- Key shaft -->
+    <line x1="85" y1="50" x2="160" y2="50"/>
+    <!-- Key teeth -->
+    <line x1="130" y1="50" x2="130" y2="70"/>
+    <line x1="145" y1="50" x2="145" y2="65"/>
+    <line x1="155" y1="50" x2="155" y2="70"/>
+  </g>
+  <!-- Accent dot -->
+  <circle cx="200" cy="200" r="10" fill="#4A9EF5"/>
+</svg>

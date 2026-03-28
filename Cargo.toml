@@ -8,6 +8,12 @@ members = [
     "services/inter-cube",
     "services/tdns-v2",
     "plenumlan",
+    "tools/plenum-pack",
+    "tools/plenum-launcher",
+    "tools/plenum-launcher-elevate",
+    "tools/plenum-pass-helper",
+    "tools/plenum-pass-ca",
+    "tools/plenum-pack/ci-tests/mock-crs",
 ]
 exclude = [
     "libternary",

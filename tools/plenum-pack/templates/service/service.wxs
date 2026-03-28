@@ -1,0 +1,27 @@
+          <Component Id="ServiceComponent" Guid="*">
+            <RegistryValue Root="HKLM" Key="Software\Capomastro\PlenumNET\Services\{{SERVICE_NAME}}"
+                           Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+            <ServiceInstall Id="{{SERVICE_NAME}}Service"
+                            Type="ownProcess"
+                            Name="{{SERVICE_NAME}}"
+                            DisplayName="{{SERVICE_DISPLAY_NAME}}"
+                            Description="{{SERVICE_DESCRIPTION}}"
+                            Start="auto"
+                            Account="{{SERVICE_ACCOUNT}}"
+                            ErrorControl="normal"
+                            Vital="yes">
+              <util:ServiceConfig
+                FirstFailureActionType="restart"
+                SecondFailureActionType="restart"
+                ThirdFailureActionType="none"
+                RestartServiceDelayInSeconds="5"
+                ResetPeriodInDays="1" />
+            </ServiceInstall>
+
+            <ServiceControl Id="{{SERVICE_NAME}}ServiceControl"
+                            Name="{{SERVICE_NAME}}"
+                            Start="install"
+                            Stop="both"
+                            Remove="both"
+                            Wait="yes" />
+          </Component>

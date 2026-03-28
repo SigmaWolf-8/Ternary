@@ -81,6 +81,28 @@ Authorization uses unforgeable, self-contained, bearer-verified capability token
 ### Array3 Watchdog (`array3-watchdog.ps1`)
 A Windows scheduled task running every 2 minutes + on boot. Monitors daemon services, LLM engines, and orphan processes. Features: recursive BFS process tree walk for orphan detection (fixes false kills from PID domain mismatch between `cmd.exe` service wrapper and `inter-cube-daemon.exe`), two-tier LLM health checks (port listener + `/v1/models` API), smart restart with 5-minute grace period for model loading, machine-parseable summary lines (`[OK]`/`[WARN]`/`[FAIL]` + JSON), and log rotation at 1MB. LLM engine config stored in `C:\ProgramData\PlenumNET\llm-engines.json` (written by deploy-yoda.ps1), health counters in `C:\ProgramData\PlenumNET\llm-health-counters.json`. Machine-wide path ensures both the deployer (interactive admin) and the watchdog (SYSTEM scheduled task) access the same files.
 
+### PlenumNET App Installer Framework (Task #56)
+A manifest-driven MSI build system for packaging all PlenumNET Windows applications with consistent branding, system integration, and clean uninstall.
+
+**Core Components:**
+- `tools/plenum-pack/` — Rust CLI tool that reads `plenum-app.toml` manifests and generates WiX v4 MSI installers. Commands: `build`, `validate`, `inspect`, `new`, `verify`. Templates bundled via `include_str!`.
+- `tools/plenum-launcher/` — System tray hub showing all installed PlenumNET apps with status polling, theme support (System/Light/Dark), and quick actions.
+- `tools/plenum-launcher-elevate/` — UAC elevation helper for service start/stop operations requiring admin privileges.
+- `tools/plenum-pack/ci-tests/mock-crs/` — Mock Cube Registration Service for CI testing of Inter-Cube Daemon installation flow.
+
+**Product Manifests (`plenum-app.toml`):**
+- `ninja-exec/plenum-app.toml` — NinjaExec signing agent (tray_agent, TL-DSA keypair provisioning)
+- `services/inter-cube/plenum-app.toml` — Inter-Cube Daemon (service, CRS registration)
+- `scripts/array3-watchdog/plenum-app.toml` — Array3 Watchdog (service, TIS-27 heartbeat MAC)
+- `tools/plenum-launcher/plenum-app.toml` — PlenumNET Launcher (tray_agent, hub only)
+
+**WiX Templates:** `tools/plenum-pack/templates/` — product.wxs (main), service/service.wxs, tray/tray.wxs, ui/dialogs.wxs
+**Icon Assets:** `assets/icons/svg/` — SVG sources for all products; `assets/icons/installer/` — build-time BMP generation
+**CI Pipeline:** `.github/workflows/installer-build.yml` — validate → build × (4 products × 2 architectures) → checksum → test
+**CI Tests:** `tools/plenum-pack/ci-tests/` — Per-product PowerShell test scripts (9-step deployment validation)
+
+**Brand Palette:** Dark mode primary (#0F0C0A bg, #4A9EF5 accent), light mode (#FAF8F6 bg, #2D7DD2 accent). Status: Active=#4A9EF5, Warning=#78828C, Inactive=#3D444B.
+
 ## External Dependencies
 
 -   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).
