@@ -1,6 +1,6 @@
 ---
 name: plenumnet-repo-guide
-description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository (SigmaWolf-8/Ternary, 1,252+ commits, 80/80 milestones). Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS v2.5 ontological addressing (19 Rust modules), Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure (8-constraint system, 20.7M PQ tunnels, d! structural resilience, Cubes-of-Cubes scaling, Sybil resistance, topology-derived TLSponge-385 keys), quantum ternary modules, XPlenum RISC-V extension, Rust kernel subsystems (176-opcode ISA v2.1), bare-metal validation (Kani/MIRI), TL-DSA/TL-KEM post-quantum crypto (34 crypto modules), Kong Konnect gateway (33 services, 293 endpoints), PlenumDB, SignHere e-signature integration, SFK Operations Pipeline, kernel sponge (729-trit, 9 rounds, 385-bit PQ security) for key derivation and signing, T-AE-MAC dual-phase authenticated encryption (bulk rate 486, trit-native MAC, IND-CPA + INT-CTXT, auto-gated rayon parallelism, v1/v2/v3 version dispatch), TIS-27 wire integrity sponge (54-trit, 4 rounds, 43-bit), TIS-81 benchmark variant (243-trit, 4 rounds, 257-bit), 42 calendar systems, and all codebase conventions. Use this skill when working on ANY PlenumNET feature, reviewing architecture, onboarding, writing code that touches the Salvi Framework, modifying the Ternary repo, debugging crypto or TDNS issues, building frontend pages, or discussing any Capomastro Holdings technical product. Always consult this skill before making changes — the invariants are load-bearing and violations break mathematical consistency across the entire framework.
+description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository (SigmaWolf-8/Ternary, 2,600+ commits, 80/80 milestones, 1M+ total LOC). Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS v2.5 ontological addressing (19 Rust modules), Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure (8-constraint system, 20.7M PQ tunnels, d! structural resilience, Cubes-of-Cubes scaling, Sybil resistance, topology-derived TLSponge-385 keys), quantum ternary modules, XPlenum RISC-V extension, Rust kernel subsystems (176-opcode ISA v2.1), bare-metal validation (Kani/MIRI), TL-DSA/TL-KEM post-quantum crypto (34 crypto modules), Kong Konnect gateway (33 services, 293 endpoints), PlenumDB, SignHere e-signature integration, SFK Operations Pipeline, kernel sponge (729-trit, 9 rounds, 385-bit PQ security) for key derivation and signing, T-AE-MAC dual-phase authenticated encryption (bulk rate 486, trit-native MAC, IND-CPA + INT-CTXT, auto-gated rayon parallelism, v1/v2/v3 version dispatch), TIS-27 wire integrity sponge (54-trit, 4 rounds, 43-bit), TIS-81 benchmark variant (243-trit, 4 rounds, 257-bit), 42 calendar systems, and all codebase conventions. Use this skill when working on ANY PlenumNET feature, reviewing architecture, onboarding, writing code that touches the Salvi Framework, modifying the Ternary repo, debugging crypto or TDNS issues, building frontend pages, or discussing any Capomastro Holdings technical product. Always consult this skill before making changes — the invariants are load-bearing and violations break mathematical consistency across the entire framework.
 ---
 
 # PlenumNET Repository — Complete A-Z Guide
@@ -8,7 +8,72 @@ description: Complete A-Z structural guide to the PlenumNET / Salvi Framework re
 Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 Patent(s) Pending — All Rights Reserved — Applied Physics Division
 Author: RSalvi@Salvigroup.com | OWNER: SigmaWolf-8 | REPO: Ternary
-Verified against live repo: March 2026 | Commits: 1,252+ | Milestones: 80/80
+Verified against live repo: March 2026 | Commits: 2,600+ | Milestones: 80/80
+
+### Repository Size (as of March 28, 2026)
+
+| Metric | Count |
+|---|---|
+| **Total LOC (all tracked files)** | **1,069,290** |
+| **Source code LOC (excl. attached_assets)** | **393,892** |
+| **Total tracked files** | **2,460** |
+| **Git commits** | **2,609** |
+
+**By Language:**
+
+| Language | Lines | Files |
+|---|---|---|
+| Rust (.rs) | 142,653 | 325 |
+| TypeScript (.ts) | 65,066 | 236 |
+| TSX (.tsx) | 40,177 | 146 |
+| Markdown (.md) | 76,183 | 260 |
+| HTML (.html) | 8,382 | 19 |
+| YAML (.yml/.yaml) | 7,753 | 51 |
+| Shell (.sh) | 5,366 | 27 |
+| PowerShell (.ps1) | 3,591 | 8 |
+| JavaScript (.js) | 3,336 | 16 |
+| JSON (.json) | 24,107 | 42 |
+| TOML (.toml) | 913 | 25 |
+| CSS (.css) | 428 | 2 |
+| SQL (.sql) | 273 | 2 |
+| Linker scripts (.ld) | 213 | 4 |
+| SVG (.svg) | 212 | 5 |
+
+**By Directory (source code, excl. attached_assets):**
+
+| Directory | Lines | Files | Description |
+|---|---|---|---|
+| `src/` | 83,997 | 245 | Rust kernel (browser, crypto, VM, boot, distributor) |
+| `client/` | 63,327 | 117 | React/TypeScript frontend |
+| `services/` | 53,079 | 179 | Inter-Cube infrastructure, blockchain, PTY mux |
+| `server/` | 39,560 | 94 | Express.js backend, API routes, middleware |
+| `ternary-math/` | 32,034 | 69 | Standalone Rust math crate (GF(3), TIS, sponge) |
+| `docs/` | 31,921 | 102 | Technical documentation, specs, compliance |
+| `XPlenum/` | 24,960 | 89 | RISC-V hardware extension (Verilog, C bench) |
+| `artifacts/` | 12,516 | 73 | Mockup sandbox, component previews |
+| `salvi_docs/` | 8,947 | 21 | Salvi Framework documentation |
+| `shared/` | 8,203 | 34 | TypeScript schemas, types, service catalog |
+| `libternary/` | 7,224 | 28 | Ternary N-API native addon |
+| `.agents/` | 6,566 | 36 | QC review skills (R1/R2/R3) |
+| `tests/` | 6,262 | 23 | Integration and E2E tests |
+| `scripts/` | 5,501 | 24 | Build, deploy, and utility scripts |
+| `.github/` | 4,065 | 33 | CI/CD workflows |
+| `plenumlan/` | 2,165 | 14 | PlenumLAN Rust crate |
+| `benchmarks/` | 1,771 | 8 | Criterion benchmark suite |
+| `kong/` | 1,721 | 10 | Kong Konnect gateway config |
+| `github-push/` | 1,175 | 14 | GitHub integration scripts |
+| `libternary-improvements/` | 1,100 | 6 | N-API addon improvements |
+| Root-level files | 38,216 | 88 | Config, specs, reference docs |
+
+**Rust Subsystem Detail:**
+
+| Crate / Directory | Total Lines | Rust (.rs) Lines |
+|---|---|---|
+| `src/kernel/` | 76,927 | 73,848 |
+| `ternary-math/` | 32,034 | 18,842 |
+| `services/inter-cube/` | 25,088 | 22,769 |
+| `libternary/` | 7,224 | 4,126 |
+| `benchmarks/` | 1,771 | 686 |
 
 ---
 
