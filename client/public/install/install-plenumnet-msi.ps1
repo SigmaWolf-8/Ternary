@@ -417,6 +417,8 @@ Write-Host "---"
 
 Push-Location $RepoDir
 $env:CARGO_BUILD_JOBS = "1"
+Write-Log "  Updating dependency lock file..." "White"
+& $cargoExe update 2>&1 | Out-Null
 & $cargoExe build --release -p plenum-pack 2>&1 | ForEach-Object {
     $line = $_.ToString()
     if ($line -match "error") { Write-Log "  $line" "Red" }

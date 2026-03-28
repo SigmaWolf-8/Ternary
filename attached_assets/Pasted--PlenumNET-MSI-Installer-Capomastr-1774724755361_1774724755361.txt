@@ -1,0 +1,46 @@
+
+==========================================================
+  PlenumNET MSI Installer
+  Capomastro Holdings Ltd. - Applied Physics Division
+==========================================================
+
+  This script builds and installs PlenumNET products
+  using the plenum-pack MSI framework.
+
+  Products: Launcher, Inter-Cube Daemon, NinjaExec
+  Log file: C:\Users\Sigma\AppData\Local\Temp\PlenumNET_MSI_Install.log
+
+  Architecture: ARM64 (Rust target: aarch64-pc-windows-msvc)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  Updating Rust toolchain to latest stable...
+  [OK] rustc 1.94.1 (e408947bf 2026-03-25)
+  [OK] cargo 1.94.1 (29ea6fb6a 2026-03-24)
+  cargo path: C:\Users\Sigma\.cargo\bin\cargo.exe
+  [OK] clang
+  [OK] .NET SDK
+  [OK] WiX v4
+
+STEP 2/8: Source code
+---
+  Updating source...
+  [OK] Source ready at C:\PlenumNET
+
+STEP 3/8: Building plenum-pack (MSI build tool)
+---
+     Compiling anyhow v1.0.80
+     Compiling toml v0.8.12
+  error[E0599]: no method named `serialize_field` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+   821 |             self.inner.serialize_field(value).map_err(Error::wrap)
+  1683 |     fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+  error[E0599]: no method named `end` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+  error[E0599]: no method named `serialize_field` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+   990 |             self.inner.serialize_field(value).map_err(Error::wrap)
+  1683 |     fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+  error[E0599]: no method named `end` found for struct `toml_edit::ser::array::SerializeValueArray` in the current scope
+  For more information about this error, try `rustc --explain E0599`.
+  error: could not compile `toml` (lib) due to 4 previous errors
+  ERROR: plenum-pack build failed.
+Press Enter to close:
