@@ -60,12 +60,9 @@ fn build_tray_menu(
     tx: &std::sync::mpsc::Sender<String>,
 ) -> Result<()> {
     tray.add_label("PlenumNET Launcher")?;
-    tray.add_separator()?;
 
     {
         let reg = registry.lock().unwrap();
-        let tooltip = status::format_tray_tooltip(reg.apps());
-        tray.set_tooltip(&tooltip)?;
 
         for app in reg.apps() {
             let label = format!(
@@ -111,7 +108,6 @@ fn build_tray_menu(
                 let _ = logs_tx.send(format!("logs:{}", logs_name));
             })?;
 
-            tray.add_separator()?;
         }
     }
 
@@ -132,8 +128,6 @@ fn build_tray_menu(
         let _ = theme_dark_tx.send("theme:dark".to_string());
     })?;
 
-    tray.add_separator()?;
-
     let about_tx = tx.clone();
     tray.add_menu_item("About PlenumNET", move || {
         let _ = about_tx.send("about".to_string());
@@ -152,9 +146,9 @@ fn run_tray_app(
     config: config::LauncherConfig,
     registry: Arc<Mutex<discovery::AppRegistry>>,
 ) -> Result<()> {
-    use tray_item::TrayItem;
+    use tray_item::{IconSource, TrayItem};
 
-    let mut tray = TrayItem::new("PlenumNET Launcher", "plenumnet-launcher")?;
+    let mut tray = TrayItem::new("PlenumNET Launcher", IconSource::Resource("plenumnet-launcher"))?;
     let (tx, rx) = std::sync::mpsc::channel();
 
     build_tray_menu(&mut tray, &registry, &tx)?;
@@ -194,7 +188,7 @@ fn run_tray_app(
                 if msg == "quit" {
                     break;
                 } else if msg == "rebuild_menu" {
-                    let mut new_tray = TrayItem::new("PlenumNET Launcher", "plenumnet-launcher")
+                    let mut new_tray = TrayItem::new("PlenumNET Launcher", IconSource::Resource("plenumnet-launcher"))
                         .unwrap_or_else(|_| {
                             eprintln!("Failed to rebuild tray menu");
                             std::process::exit(1);

@@ -203,13 +203,13 @@ fn verify_authenticode_signature(file_path: &std::path::Path) -> Result<()> {
     #[link(name = "wintrust")]
     extern "system" {
         fn WinVerifyTrust(
-            hwnd: usize,
+            hwnd: isize,
             action_id: *const GuidWinTrust,
             data: *mut WinTrustData,
         ) -> i32;
     }
 
-    const INVALID_HANDLE_VALUE: usize = usize::MAX;
+    const INVALID_HANDLE_VALUE: isize = -1;
     const WTD_UI_NONE: u32 = 2;
     const WTD_REVOKE_NONE: u32 = 0;
     const WTD_CHOICE_FILE: u32 = 1;
