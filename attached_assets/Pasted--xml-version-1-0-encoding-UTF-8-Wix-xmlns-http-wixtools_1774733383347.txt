@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Fragment>
+    <UI Id="WixUI_PlenumNET">
+      <UIRef Id="WixUI_Common" />
+
+      <DialogRef Id="WelcomeDlg" />
+      <DialogRef Id="LicenseAgreementDlg" />
+      <DialogRef Id="InstallDirDlg" />
+      <DialogRef Id="VerifyReadyDlg" />
+
+      <Dialog Id="PassphraseInfoDlg" Width="370" Height="270" Title="[ProductName] — First-Run Setup">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44"
+                 TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes"
+                 NoPrefix="yes" Text="{\WixUI_Font_Title}Passphrase Required" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="50"
+                 Text="[ProductName] requires a passphrase to protect your signing key. After clicking Next, a secure passphrase dialog will appear. Your passphrase will be collected securely and never stored in installer logs or property tables." />
+
+        <Control Id="RequirementsText" Type="Text" X="20" Y="115" Width="330" Height="30"
+                 Text="Requirements:&#13;&#10;  - Minimum [PASSPHRASE_MIN_LENGTH] characters&#13;&#10;  - You must enter the passphrase twice to confirm" />
+
+        <Control Id="WarningText" Type="Text" X="20" Y="155" Width="330" Height="30"
+                 Text="{\WixUI_Font_Normal}WARNING: If you lose your passphrase, your signing key cannot be recovered. Store your passphrase in a secure location." />
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="InstallDirDlg" />
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+          <Publish Event="NewDialog" Value="ServiceConfigDlg">SERVICE_CONFIG_REQUIRED</Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">NOT SERVICE_CONFIG_REQUIRED</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="ServiceConfigDlg" Width="370" Height="270" Title="[ProductName] — Service Configuration">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44"
+                 TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes"
+                 NoPrefix="yes" Text="{\WixUI_Font_Title}Service Configuration" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <Control Id="ServiceDesc" Type="Text" X="20" Y="55" Width="330" Height="30"
+                 Text="[ProductName] runs as a Windows service. The service will be configured to start automatically when your computer starts." />
+
+        <Control Id="AccountLabel" Type="Text" X="20" Y="90" Width="330" Height="12"
+                 Text="Service account:" />
+        <Control Id="AccountCombo" Type="ComboBox" X="20" Y="103" Width="200" Height="60"
+                 Property="SERVICE_ACCOUNT_MODE" Sorted="yes">
+          <ComboBox Property="SERVICE_ACCOUNT_MODE">
+            <ListItem Value="virtual" Text="Virtual account (recommended)" />
+            <ListItem Value="localsystem" Text="Local System" />
+            <ListItem Value="custom" Text="Dedicated local account" />
+          </ComboBox>
+        </Control>
+
+        <Control Id="CustomAccountLabel" Type="Text" X="20" Y="122" Width="200" Height="12" Hidden="yes"
+                 Text="Account name:">
+          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
+          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
+        </Control>
+        <Control Id="CustomAccountEdit" Type="Edit" X="20" Y="134" Width="200" Height="18" Hidden="yes"
+                 Property="SERVICE_CUSTOM_ACCOUNT">
+          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
+          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
+        </Control>
+
+        <Control Id="CustomPasswordLabel" Type="Text" X="20" Y="154" Width="200" Height="12" Hidden="yes"
+                 Text="Account password:">
+          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
+          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
+        </Control>
+        <Control Id="CustomPasswordEdit" Type="MaskedEdit" X="20" Y="166" Width="200" Height="18" Hidden="yes"
+                 Property="SERVICE_ACCOUNT_PASSWORD">
+          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
+          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
+        </Control>
+
+        <Control Id="StartupLabel" Type="Text" X="20" Y="190" Width="200" Height="12"
+                 Text="Startup type:" />
+        <Control Id="StartupCombo" Type="ComboBox" X="20" Y="203" Width="200" Height="60"
+                 Property="SERVICE_START_TYPE" Sorted="yes">
+          <ComboBox Property="SERVICE_START_TYPE">
+            <ListItem Value="auto" Text="Automatic" />
+            <ListItem Value="demand" Text="Manual" />
+          </ComboBox>
+        </Control>
+
+        <Control Id="AutostartCheck" Type="CheckBox" X="20" Y="196" Width="330" Height="18"
+                 Property="SERVICE_AUTOSTART" CheckBoxValue="1"
+                 Text="Start service immediately after installation" />
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="PassphraseInfoDlg">PASSPHRASE_REQUIRED</Publish>
+          <Publish Event="NewDialog" Value="InstallDirDlg">NOT PASSPHRASE_REQUIRED</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="DataCleanupDlg" Width="370" Height="270" Title="[ProductName] — Remove All Data">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44"
+                 TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes"
+                 NoPrefix="yes" Text="{\WixUI_Font_Title}Remove All Data" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <Control Id="WarningText" Type="Text" X="20" Y="55" Width="330" Height="60"
+                 Text="This will permanently delete your [ProductName] signing key, audit log, and all configuration. This cannot be undone. If you haven't exported your public key, you will need to re-register with your PlenumNET administrator after deletion." />
+
+        <Control Id="ConfirmLabel" Type="Text" X="20" Y="125" Width="330" Height="15"
+                 Text="Type DELETE to confirm:" />
+        <Control Id="ConfirmEdit" Type="Edit" X="20" Y="143" Width="200" Height="18"
+                 Property="DELETE_CONFIRMATION" />
+
+        <Control Id="DataPath" Type="Text" X="20" Y="170" Width="330" Height="30"
+                 Text="Data to be deleted: [AppDataFolder][DATA_DIRECTORY]" />
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="WelcomeDlg" />
+        </Control>
+        <Control Id="Delete" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Delete">
+          <Publish Event="DoAction" Value="DeleteUserData">
+            <![CDATA[DELETE_CONFIRMATION = "DELETE"]]>
+          </Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">NOT Installed</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="DataCleanupDlg">Installed AND REMOVE="ALL"</Publish>
+      <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="PassphraseInfoDlg">PASSPHRASE_REQUIRED AND NOT Installed</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ServiceConfigDlg">NOT PASSPHRASE_REQUIRED AND SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">NOT PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServiceConfigDlg">SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="PassphraseInfoDlg">PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg">NOT PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DataCleanupDlg">Installed AND REMOVE="ALL"</Publish>
+
+    </UI>
+  </Fragment>
+
+  <Fragment>
+    <InstallExecuteSequence>
+      <Custom Action="DeleteUserData" Before="RemoveFiles">
+        Installed AND REMOVE="ALL" AND DELETE_CONFIRMATION="DELETE"
+      </Custom>
+    </InstallExecuteSequence>
+  </Fragment>
+
+</Wix>
