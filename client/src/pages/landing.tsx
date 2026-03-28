@@ -258,38 +258,30 @@ function HeroSection() {
           className="mb-8 mt-2"
         >
           <div
-            className="relative overflow-hidden"
+            className="relative"
             style={{
-              borderRadius: "16px",
-              background: "linear-gradient(145deg, #0a0806, #1a1613)",
-              padding: "6px",
-              boxShadow: `
-                inset 0 2px 4px rgba(0,0,0,0.8),
-                inset 0 4px 12px rgba(0,0,0,0.6),
-                inset 0 1px 0 rgba(255,255,255,0.04),
-                0 1px 0 rgba(255,255,255,0.03),
-                0 -1px 0 rgba(0,0,0,0.5)
-              `,
+              borderRadius: "18px",
+              padding: "3px",
+              background: "linear-gradient(160deg, #3a3530 0%, #1a1714 40%, #0a0806 100%)",
             }}
           >
             <div
               style={{
-                borderRadius: "11px",
-                overflow: "hidden",
+                borderRadius: "15px",
+                padding: "4px",
+                background: "linear-gradient(160deg, #0a0806 0%, #141110 50%, #1e1a17 100%)",
                 boxShadow: `
-                  inset 0 3px 8px rgba(0,0,0,0.9),
-                  inset 0 1px 2px rgba(0,0,0,0.7),
-                  inset 0 -1px 0 rgba(255,255,255,0.02)
+                  inset 0 2px 6px rgba(0,0,0,0.9),
+                  inset 0 8px 24px rgba(0,0,0,0.6)
                 `,
-                border: "1px solid rgba(0,0,0,0.6)",
               }}
             >
               <div
                 style={{
-                  borderRadius: "10px",
+                  borderRadius: "11px",
                   overflow: "hidden",
                   position: "relative",
-                  boxShadow: "inset 0 0 20px rgba(0,0,0,0.5)",
+                  border: "1px solid rgba(255,255,255,0.06)",
                 }}
               >
                 <video
@@ -307,11 +299,11 @@ function HeroSection() {
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
-                    borderRadius: "10px",
+                    borderRadius: "11px",
                     boxShadow: `
-                      inset 0 4px 16px rgba(0,0,0,0.7),
-                      inset 0 2px 4px rgba(0,0,0,0.5),
-                      inset 0 -2px 8px rgba(0,0,0,0.3)
+                      inset 0 6px 20px rgba(0,0,0,0.8),
+                      inset 0 2px 6px rgba(0,0,0,0.6),
+                      inset 0 -3px 10px rgba(0,0,0,0.4)
                     `,
                   }}
                 />
@@ -320,15 +312,11 @@ function HeroSection() {
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
-                borderRadius: "16px",
-                background: `
-                  linear-gradient(180deg,
-                    rgba(255,255,255,0.03) 0%,
-                    transparent 8%,
-                    transparent 92%,
-                    rgba(0,0,0,0.2) 100%
-                  )
-                `,
+                borderRadius: "18px",
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                borderLeft: "1px solid rgba(255,255,255,0.05)",
+                borderRight: "1px solid rgba(0,0,0,0.3)",
+                borderBottom: "1px solid rgba(0,0,0,0.4)",
               }}
             />
           </div>
