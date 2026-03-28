@@ -300,3 +300,9 @@ id = "JkXzkcZN7LqierVPuWN_Q"
 uri = "file://.local/qc-r1-task55/task-55-rev3-post-qcr1.md"
 type = "text"
 title = "Task #55 Rev. 3 — Daemon Remote Operations Channel (Post QC-R1, All Findings Resolved)"
+
+[[outputs]]
+id = "S2q-4SRyWSIZKyIn5D6j-"
+uri = "file://.local/tasks/self-healing-platform-gaps.md"
+type = "text"
+title = "Task #26 — Self-Healing Platform Full Specification"
