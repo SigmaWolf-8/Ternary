@@ -31,8 +31,8 @@
           <Publish Event="NewDialog" Value="InstallDirDlg" />
         </Control>
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
-          <Publish Event="NewDialog" Value="ServiceConfigDlg">SERVICE_CONFIG_REQUIRED</Publish>
-          <Publish Event="NewDialog" Value="VerifyReadyDlg">NOT SERVICE_CONFIG_REQUIRED</Publish>
+          <Publish Event="NewDialog" Value="ServiceConfigDlg" Condition="SERVICE_CONFIG_REQUIRED" />
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="NOT SERVICE_CONFIG_REQUIRED" />
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
           <Publish Event="SpawnDialog" Value="CancelDlg" />
@@ -60,27 +60,15 @@
           </ComboBox>
         </Control>
 
-        <Control Id="CustomAccountLabel" Type="Text" X="20" Y="122" Width="200" Height="12" Hidden="yes"
-                 Text="Account name:">
-          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
-          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
-        </Control>
-        <Control Id="CustomAccountEdit" Type="Edit" X="20" Y="134" Width="200" Height="18" Hidden="yes"
-                 Property="SERVICE_CUSTOM_ACCOUNT">
-          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
-          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
-        </Control>
+        <Control Id="CustomAccountLabel" Type="Text" X="20" Y="122" Width="200" Height="12"
+                 Text="Account name (custom account only):" />
+        <Control Id="CustomAccountEdit" Type="Edit" X="20" Y="134" Width="200" Height="18"
+                 Property="SERVICE_CUSTOM_ACCOUNT" />
 
-        <Control Id="CustomPasswordLabel" Type="Text" X="20" Y="154" Width="200" Height="12" Hidden="yes"
-                 Text="Account password:">
-          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
-          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
-        </Control>
-        <Control Id="CustomPasswordEdit" Type="MaskedEdit" X="20" Y="166" Width="200" Height="18" Hidden="yes"
-                 Property="SERVICE_ACCOUNT_PASSWORD">
-          <Condition Action="show"><![CDATA[SERVICE_ACCOUNT_MODE = "custom"]]></Condition>
-          <Condition Action="hide"><![CDATA[SERVICE_ACCOUNT_MODE <> "custom"]]></Condition>
-        </Control>
+        <Control Id="CustomPasswordLabel" Type="Text" X="20" Y="154" Width="200" Height="12"
+                 Text="Account password (custom account only):" />
+        <Control Id="CustomPasswordEdit" Type="MaskedEdit" X="20" Y="166" Width="200" Height="18"
+                 Property="SERVICE_ACCOUNT_PASSWORD" />
 
         <Control Id="StartupLabel" Type="Text" X="20" Y="190" Width="200" Height="12"
                  Text="Startup type:" />
@@ -98,11 +86,11 @@
 
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
-          <Publish Event="NewDialog" Value="PassphraseInfoDlg">PASSPHRASE_REQUIRED</Publish>
-          <Publish Event="NewDialog" Value="InstallDirDlg">NOT PASSPHRASE_REQUIRED</Publish>
+          <Publish Event="NewDialog" Value="PassphraseInfoDlg" Condition="PASSPHRASE_REQUIRED" />
+          <Publish Event="NewDialog" Value="InstallDirDlg" Condition="NOT PASSPHRASE_REQUIRED" />
         </Control>
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
-          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="1" />
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
           <Publish Event="SpawnDialog" Value="CancelDlg" />
@@ -132,37 +120,33 @@
           <Publish Event="NewDialog" Value="WelcomeDlg" />
         </Control>
         <Control Id="Delete" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Delete">
-          <Publish Event="DoAction" Value="DeleteUserData">
-            <![CDATA[DELETE_CONFIRMATION = "DELETE"]]>
-          </Publish>
-          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+          <Publish Event="DoAction" Value="DeleteUserData" Condition='DELETE_CONFIRMATION = "DELETE"' />
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="1" />
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
           <Publish Event="SpawnDialog" Value="CancelDlg" />
         </Control>
       </Dialog>
 
-      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">NOT Installed</Publish>
-      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="DataCleanupDlg">Installed AND REMOVE="ALL"</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="DataCleanupDlg" Condition='Installed AND REMOVE="ALL"' />
       <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
       <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" />
       <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
-      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="PassphraseInfoDlg">PASSPHRASE_REQUIRED AND NOT Installed</Publish>
-      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ServiceConfigDlg">NOT PASSPHRASE_REQUIRED AND SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
-      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">NOT PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServiceConfigDlg">SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="PassphraseInfoDlg">PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg">NOT PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED AND NOT Installed</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DataCleanupDlg">Installed AND REMOVE="ALL"</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="PassphraseInfoDlg" Condition="PASSPHRASE_REQUIRED AND NOT Installed" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ServiceConfigDlg" Condition="NOT PASSPHRASE_REQUIRED AND SERVICE_CONFIG_REQUIRED AND NOT Installed" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="NOT PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServiceConfigDlg" Condition="SERVICE_CONFIG_REQUIRED AND NOT Installed" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="PassphraseInfoDlg" Condition="PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED AND NOT Installed" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Condition="NOT PASSPHRASE_REQUIRED AND NOT SERVICE_CONFIG_REQUIRED AND NOT Installed" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DataCleanupDlg" Condition='Installed AND REMOVE="ALL"' />
 
     </UI>
   </Fragment>
 
   <Fragment>
     <InstallExecuteSequence>
-      <Custom Action="DeleteUserData" Before="RemoveFiles">
-        Installed AND REMOVE="ALL" AND DELETE_CONFIRMATION="DELETE"
-      </Custom>
+      <Custom Action="DeleteUserData" Before="RemoveFiles" Condition='Installed AND REMOVE="ALL" AND DELETE_CONFIRMATION="DELETE"' />
     </InstallExecuteSequence>
   </Fragment>
 
