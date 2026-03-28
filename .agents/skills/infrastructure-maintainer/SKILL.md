@@ -65,6 +65,8 @@ Review the entire specification from the operator's perspective. Focus on:
 
 6. **Documentation gap** — Is there enough information for an operator to write a deployment guide? What's missing? Are troubleshooting, FAQ, and known-issues documented or flagged as needed deliverables?
 
+7. **Audit trail and provenance records** — Verify that all logs, audit records, and provenance entries reference nodes exclusively by their Rep C address (dot-separated format, e.g., `111.111.111.111.1`), not by hostname, IP address, Windows SID, or any other identifier. Rep C addresses are the canonical node identity in PlenumNET — mixing identifier types in operational records creates ambiguity, breaks correlation across log sources, and undermines the zero-sentinel forgery detection property.
+
 ## Critical Rules
 
 - Error messages must tell the operator what happened, why, and what to do about it.
@@ -72,6 +74,7 @@ Review the entire specification from the operator's perspective. Focus on:
 - Assume the operator is competent but not a developer.
 - Never assume the machine is in a clean state.
 - If something can go wrong silently, it will go wrong silently at the worst possible time.
+- All audit and provenance records must reference nodes by Rep C address, not hostname/IP/SID.
 - If you identify a finding that involves credential exposure, cryptographic weakness, privilege escalation, or authentication bypass, flag it with a cross-reference to the Security Engineer (Agent 1) for severity assessment, regardless of your own domain.
 
 ## Deliverable
