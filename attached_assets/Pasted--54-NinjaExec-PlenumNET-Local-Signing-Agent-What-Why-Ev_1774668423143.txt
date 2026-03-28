@@ -1,0 +1,282 @@
+# #54 — NinjaExec: PlenumNET Local Signing Agent
+
+## What & Why
+
+Every security-critical operation in the PlenumNET stack requires TL-DSA signatures: Task #55's remote execution channel, config integrity verification, build artifact provenance, TDNS record signing, SignHere e-signatures, Kong gateway request authentication. None of these can ship without an answer to the question: *where does the private key live, and how does it sign?*
+
+Storing the private key on the Replit server is unacceptable — the server is a multi-tenant cloud environment and the key would be exposed to the hosting platform. Storing it on the Array3 daemon nodes means a compromised node can impersonate the operator. Browser-resident keys via WebCrypto would require a JavaScript/WASM TL-DSA implementation and leave the key in software memory with no hardware isolation.
+
+NinjaExec is the answer: a minimal Rust binary that runs on the operator's local machine, holds the TL-DSA private key in an encrypted keystore, and exposes a localhost-only signing API. It is the `ssh-agent` of PlenumNET — the process that materializes the operator's cryptographic identity. The key never leaves the process. The process never leaves the operator's machine. Everything in the stack trusts it because it trusts TL-DSA.
+
+This is a standalone product that Task #55 consumes. It must ship first.
+
+---
+
+## Done Looks Like
+
+* A signed MSI installer for Windows (ARM64 and x86_64 variants) that handles key generation, passphrase setup, autostart registration, and PATH configuration — the operator double-clicks, sets a passphrase, and NinjaExec is running in the system tray
+* A single compiled Rust binary (`ninja-exec.exe` on Windows, `ninja-exec` on Linux) with zero runtime dependencies
+* On first run (via installer or `ninja-exec init` on Linux), generates a TL-DSA key pair and writes the private key to an encrypted keystore file, protected by a passphrase the operator provides
+* On subsequent runs, decrypts the keystore on startup with the operator's passphrase
+* Launches automatically on login and runs in the system tray — the operator enters their passphrase once per session
+* Listens on `127.0.0.1` only (never binds to `0.0.0.0` or any network interface) on a configurable port (default `21027` — derived from PlenumNET's ternary convention)
+* Exposes a minimal HTTP API: `/sign`, `/verify`, `/pubkey`, `/status`
+* The browser-based YODA terminal and chat interface can call NinjaExec via `fetch('http://localhost:21027/sign', ...)` to sign payloads for Task #55 operations
+* A system tray icon on Windows shows NinjaExec's status (running/locked), pending signing request count, and allows the operator to lock (re-encrypt the key without shutting down) or quit
+* Every signing operation is logged to a local append-only audit trail with timestamp, payload hash, and calling context
+* The public key can be exported in a format directly consumable by the daemon's `ops-config.json` operator registry (#55 Task 8) — the installer copies this to clipboard at the end of setup
+* NinjaExec is built from the same TL-DSA code the daemon uses — no reimplementation, no algorithm drift
+
+---
+
+## Out of Scope
+
+* HSM or hardware token integration (YubiKey, TPM) — future hardening, not required for initial deployment
+* Network-accessible signing (never — NinjaExec is localhost-only by architectural constraint, not by configuration)
+* Key management UI beyond basic tray icon operations — command-line tools for key rotation, export, and backup are sufficient
+* Multi-key support (multiple identities in one agent) — single operator identity for now
+* Browser extension or native messaging integration — plain HTTP fetch from the browser is sufficient
+
+---
+
+## Security Model
+
+**Keystore encryption:** The private key is stored on disk encrypted with AES-256 (or TIS-27-derived symmetric encryption if preferred for stack purity) keyed from the operator's passphrase via a key derivation function with high iteration count. The passphrase is never stored. The decrypted key exists only in process memory while NinjaExec is running.
+
+**Localhost binding:** NinjaExec binds exclusively to `127.0.0.1`. This is a compile-time constraint, not a runtime configuration option. There is no flag, no environment variable, no config file entry that can make it listen on a network interface. The bind address is a constant in the source code.
+
+**CORS headers:** The API returns `Access-Control-Allow-Origin: *` for localhost requests so the browser's YODA tab (served from Replit's domain) can call it via fetch. This is safe because the API is only reachable from the local machine — CORS is the browser's concern, not a network security boundary. If the Replit origin is known and stable, restricting to that specific origin is a minor hardening improvement but not required.
+
+**Rate limiting:** The `/sign` endpoint is rate-limited to 30 requests per minute. A compromised browser tab or malicious script on the operator's machine could otherwise flood signing requests. Exceeding the limit returns HTTP 429 and logs a `RATE_LIMITED` event. The rate limit is configurable in `ninja-exec.toml` but defaults to a conservative value.
+
+**Request confirmation:** For high-stakes operations (configurable — `exec` payloads by default), NinjaExec can require physical confirmation before signing. The system tray shows a notification with the payload summary, and the operator clicks approve or reject. For lower-stakes operations (status checks, public key export), signing proceeds automatically. The confirmation policy is configurable per-operation-type.
+
+**Memory protection:** On supported platforms, the decrypted key memory is locked (mlock/VirtualLock) to prevent it from being swapped to disk. On process exit or lock command, the key memory is zeroed before deallocation.
+
+**Audit log:** Every signing operation is appended to `ninja-exec-audit.jsonl` in the NinjaExec data directory. Each entry includes: ISO timestamp, operation type (sign/verify/pubkey), payload TIS-27 hash (not the payload itself — NinjaExec doesn't store what it signs, only the hash), requesting origin (HTTP Referer/Origin header if present), and result (signed/rejected/error). The audit log is append-only and never truncated by NinjaExec.
+
+---
+
+## Tasks
+
+### 1. Build the core signing engine
+
+Implement the core module that wraps the existing TL-DSA code from the Salvi Framework into a self-contained signing engine. This is not a reimplementation — it imports and calls the same Rust functions the daemon uses.
+
+Functions:
+- `generate_keypair() → (PublicKey, PrivateKey)`
+- `sign(private_key, payload_bytes) → Signature`
+- `verify(public_key, payload_bytes, signature) → bool`
+- `export_pubkey(public_key) → base64_string` (format matches `ops-config.json` operator registry)
+
+The signing engine is a pure library with no I/O, no network, no filesystem access. It takes bytes in and returns bytes out. All I/O lives in the layers above.
+
+**Relevant files:** TL-DSA implementation in the Salvi Framework (`services/inter-cube/src/` — the existing post-quantum crypto modules)
+
+### 2. Implement the encrypted keystore
+
+Build the on-disk key storage with passphrase-based encryption.
+
+**Keystore file format:** A single file (`ninja-exec.keystore` in the NinjaExec data directory) containing:
+- Magic bytes identifying the file format
+- KDF parameters (algorithm, salt, iteration count)
+- Encrypted private key blob
+- Public key in cleartext (not sensitive — needed for export without decryption)
+
+**Operations:**
+- `create_keystore(passphrase) → keystore_file` — generate a new key pair, encrypt the private key, write to disk
+- `open_keystore(passphrase) → PrivateKey` — read file, derive encryption key from passphrase, decrypt private key into memory
+- `lock()` — zero the in-memory private key, retain the public key. NinjaExec stays running but refuses to sign until unlocked.
+- `unlock(passphrase)` — re-derive and decrypt, resume signing operations
+- `export_pubkey()` — return the public key (works even when locked)
+
+**Data directory:** Default `%APPDATA%\NinjaExec\` on Windows, `~/.ninja-exec/` on Linux.
+
+**Relevant files:** New crate, potentially `ninja-exec/src/keystore.rs`
+
+### 3. Implement the HTTP API server
+
+Build the localhost HTTP server using `axum` (same framework as YODA's backend — no new dependencies).
+
+**Endpoints:**
+
+| Method | Path | Request Body | Response | Auth |
+|--------|------|-------------|----------|------|
+| POST | `/sign` | `{ payload_b64: string, context: string }` | `{ signature_b64: string, pubkey_b64: string }` | None (localhost only) |
+| POST | `/verify` | `{ payload_b64: string, signature_b64: string, pubkey_b64: string }` | `{ valid: bool }` | None |
+| GET | `/pubkey` | — | `{ pubkey_b64: string, fingerprint: string }` | None |
+| GET | `/status` | — | `{ running: bool, locked: bool, uptime_secs: u64, signs_this_session: u64 }` | None |
+| POST | `/lock` | — | `{ locked: bool }` | None |
+| POST | `/unlock` | `{ passphrase: string }` | `{ unlocked: bool }` | None |
+
+**CORS:** All responses include `Access-Control-Allow-Origin: *` and appropriate preflight handling so browser fetch works from any origin.
+
+**Bind address:** `127.0.0.1:21027` — hardcoded constant, not configurable. The port is configurable via environment variable `NINJA_EXEC_PORT` or command-line flag `--port` only if the default conflicts with something. The bind address is never configurable.
+
+**Error responses:** HTTP 400 for malformed requests, HTTP 423 (Locked) when the keystore is locked and `/sign` is called, HTTP 500 for internal errors. All errors return JSON with a `code` and `error` field consistent with #55's structured error pattern.
+
+**The `context` field** in `/sign` requests is a human-readable string describing what is being signed (e.g., "exec: Get-Service on node-1", "file-push: .plenumnet/config.json"). This is displayed in the confirmation dialog (if enabled) and logged in the audit trail. The daemon doesn't use it — it's for the operator's benefit.
+
+**Relevant files:** New crate, `ninja-exec/src/server.rs`
+
+### 4. Implement the confirmation dialog
+
+For operations where physical confirmation is required, NinjaExec queues the signing request and presents a confirmation to the operator.
+
+**Windows:** System tray notification via the `tray-item` or `winrt-notification` crate. The notification shows:
+- The `context` string from the signing request
+- The payload hash (truncated for display)
+- "Approve" and "Reject" actions
+
+**Linux:** Desktop notification via `notify-rust` or equivalent. Same content.
+
+**Headless mode:** If no display is available (running as a service or over SSH), confirmation is disabled and all requests are auto-approved. This mode requires an explicit `--headless` flag — NinjaExec never silently falls back to headless. On startup with `--headless`, NinjaExec prints a prominent warning: `WARNING: Headless mode — all signing requests will be auto-approved. Do not use in environments where browser tabs may be compromised.` This warning is also logged as the first entry in the audit log for the session.
+
+**Configuration:** The confirmation policy lives in `ninja-exec.toml`:
+
+```toml
+[confirmation]
+require_for = ["exec", "model-swap", "file-push"]
+auto_approve = ["verify", "pubkey", "status", "tail", "file-pull"]
+timeout_secs = 60  # reject if not confirmed within this window
+```
+
+If a request is not confirmed within the timeout, it is rejected and logged as `CONFIRMATION_TIMEOUT`.
+
+**Relevant files:** New crate, `ninja-exec/src/tray.rs`, `ninja-exec/src/confirm.rs`
+
+### 5. Implement the audit log
+
+Every operation through NinjaExec is logged to `ninja-exec-audit.jsonl` in the data directory.
+
+**Entry format:**
+```json
+{
+  "timestamp": "2026-03-27T14:30:00Z",
+  "operation": "sign",
+  "context": "exec: Get-Service on node-1",
+  "payload_hash": "tis27:abc123...",
+  "origin": "http://yoda.replit.app",
+  "result": "signed",
+  "confirmation": "auto",
+  "duration_ms": 12
+}
+```
+
+**Result values:** `signed`, `rejected` (operator rejected confirmation), `timeout` (confirmation window expired), `locked` (keystore was locked), `error` (internal failure).
+
+**Confirmation values:** `auto` (no confirmation required for this operation type), `approved` (operator explicitly approved), `rejected`, `timeout`.
+
+The audit log is append-only. NinjaExec never truncates or deletes it. The operator can rotate manually.
+
+**Relevant files:** New crate, `ninja-exec/src/audit.rs`
+
+### 6. Build the CLI interface
+
+NinjaExec is primarily a long-running agent, but it also needs command-line operations for setup and management.
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `ninja-exec` | Start the agent (default — launch, decrypt keystore, begin serving) |
+| `ninja-exec init` | First-time setup — generate key pair, create encrypted keystore, prompt for passphrase. On Windows, the MSI installer runs this automatically during install. On Linux, the operator runs it manually. |
+| `ninja-exec pubkey` | Print the public key in base64 (works without starting the agent) |
+| `ninja-exec fingerprint` | Print the key fingerprint |
+| `ninja-exec export-operator` | Print a JSON snippet ready to paste into `ops-config.json`'s operator registry |
+| `ninja-exec status` | Query a running agent's `/status` endpoint |
+| `ninja-exec lock` | Lock a running agent (zero the key, refuse to sign until unlocked) |
+| `ninja-exec sign <file>` | One-shot: sign a file and print the signature (for scripting, build pipelines, git hooks) |
+| `ninja-exec verify <file> <sig>` | One-shot: verify a signature |
+
+The `sign` and `verify` one-shot commands do not require the agent to be running — they prompt for the passphrase, decrypt the key, perform the operation, and exit. This enables non-interactive signing in build scripts and CI/CD without a long-running process.
+
+**Relevant files:** New crate, `ninja-exec/src/main.rs`, `ninja-exec/src/cli.rs`
+
+### 7. Integration testing with Task #55 message flow
+
+Validate the end-to-end signing flow that Task #55 depends on:
+
+1. NinjaExec is running on the operator's machine.
+2. The operator clicks "Approve" on an `exec` payload in the YODA terminal.
+3. The browser calls `fetch('http://localhost:21027/sign', { body: { payload_b64: ..., context: "exec: ..." } })`.
+4. NinjaExec shows the confirmation dialog (if configured for exec).
+5. Operator approves.
+6. NinjaExec signs the payload and returns the signature.
+7. The browser sends the signed message to the Replit server.
+8. The Replit server forwards it through the relay to the daemon.
+9. The daemon verifies the signature using the public key from `ops-config.json`.
+10. The daemon executes the script.
+11. The result flows back through the relay to the browser.
+
+**Test that the public key exported by `ninja-exec export-operator` is directly consumable by the daemon's operator registry** without any format conversion or manual editing.
+
+**Test that a tampered payload (signature valid for different bytes) is rejected by the daemon** with `SIGNATURE_INVALID`.
+
+**Relevant files:** Integration tests spanning NinjaExec, the YODA server, and the daemon
+
+### 8. Package via PlenumNET Installer Framework (#53)
+
+NinjaExec is the first consumer of the PlenumNET App Installer Framework (#53). Rather than building a bespoke installer, NinjaExec provides a `plenum-app.toml` manifest that the framework reads to produce signed MSI installers for ARM64 and x86_64 Windows.
+
+**NinjaExec's `plenum-app.toml` defines:**
+- App type: `tray_agent` with autostart
+- First-run actions: passphrase prompt (minimum 12 characters, confirmed), `ninja-exec init` key generation, `export-operator` output copied to clipboard
+- Start Menu shortcuts: "NinjaExec" (launch/unlock), "Export Public Key" (clipboard export)
+- Uninstall behavior: preserve `%APPDATA%\NinjaExec\` (keystore and audit log are never deleted by the uninstaller)
+
+**This task is blocked by #53 Tasks 1-3** (icon system, `plenum-pack` build tool, installer GUI wizard). Once those are complete, producing NinjaExec's MSI is a single `plenum-pack build --sign` invocation.
+
+**Relevant files:** `ninja-exec/plenum-app.toml`, `ninja-exec/assets/` (icons)
+
+---
+
+## Relevant Files
+
+* TL-DSA implementation in the Salvi Framework — the signing primitives (imported, not reimplemented)
+* `services/inter-cube/src/main.rs` — daemon-side signature verification (consumer of NinjaExec's output)
+* `services/inter-cube/Cargo.toml` — shared dependencies
+* New crate: `ninja-exec/` at the repository root or under `tools/ninja-exec/`
+* `ninja-exec/plenum-app.toml` — product manifest consumed by the PlenumNET Installer Framework (#53)
+
+---
+
+## Dependencies
+
+* **#51 must be complete first** — NinjaExec doesn't depend on the watchdog rewrite technically, but the deployment order matters: stabilize daemons → establish signing identity → enable operations channel.
+* **#53 (PlenumNET Installer Framework) is required for Task 8** — NinjaExec's MSI installer is produced by the shared framework, not built bespoke. Tasks 1-7 of NinjaExec can proceed independently; only Task 8 (packaging) is blocked by #53.
+* **No new external crate families.** `axum` is already in the stack (YODA backend). `serde`/`serde_json` are already everywhere. System tray requires one small crate (`tray-item` or platform equivalent). TL-DSA is internal.
+* **Task #55 depends on this task.** NinjaExec must be operational on the operator's machine before any #55 operations can be signed. Specifically, #55 Task 6 (approval gate), Task 9 (deploy scripts — export-operator generates the config entry), and Task 12 (multi-operator — each operator runs their own NinjaExec instance with their own key).
+
+---
+
+## Build & Distribution
+
+NinjaExec is distributed via the PlenumNET Installer Framework (#53). The framework produces signed MSI installers from NinjaExec's `plenum-app.toml` manifest — the operator double-clicks, sets a passphrase, and NinjaExec is running in the system tray. No PowerShell, no GitHub, no terminal.
+
+**Compilation Targets**
+
+| Target | Priority | Use Case |
+|--------|----------|----------|
+| `aarch64-pc-windows-msvc` | **Primary** | Operator's Windows ARM64 machine |
+| `x86_64-pc-windows-msvc` | Secondary | x86 Windows workstations |
+| `x86_64-unknown-linux-gnu` | Tertiary | Linux workstations |
+| `aarch64-unknown-linux-gnu` | Future | ARM Linux (when relevant) |
+
+Linux distribution is a `.tar.gz` with a shell script that handles binary placement, PATH setup, and systemd user service registration for autostart.
+
+**Binary Size:** Target < 10 MB. NinjaExec includes only TL-DSA (from the Salvi Framework), axum, serde, and the tray notification crate. No bundled runtimes, no embedded interpreters.
+
+**Versioning:** NinjaExec follows the Salvi Framework version scheme. The binary reports it via `ninja-exec --version` and the `/status` endpoint. The MSI embeds it in Windows metadata.
+
+---
+
+## Future Extensions (Out of Scope for #54)
+
+* **YubiKey / TPM integration:** Store the private key in hardware rather than an encrypted file. NinjaExec becomes a bridge between hardware tokens and the TL-DSA signing flow.
+* **Multi-identity support:** Multiple key pairs managed by one agent, switchable via CLI or tray menu. Enables development vs. production identities.
+* **Key rotation ceremony:** Automated key rotation with re-signing of all dependent configs and re-registration across all daemon operator registries.
+* **Remote attestation:** NinjaExec signs a statement about its own integrity (binary hash, OS version, uptime) that the daemon can verify — proof that the signing environment itself hasn't been tampered with.
+* **Git hook integration:** Automatic TL-DSA commit signing via a git hook that calls the running agent. Every commit to the Salvi Framework carries post-quantum provenance.
+* **SignHere integration:** NinjaExec as the local signing backend for the SignHere e-signature product. The private key stays local, the signature travels to the server.
+* **Kong gateway request signing:** Middleware that intercepts outgoing API requests, calls NinjaExec to sign them, and attaches the signature header. Replaces bearer tokens with cryptographic proof.

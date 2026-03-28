@@ -1,0 +1,308 @@
+# #53 — PlenumNET App Installer Framework
+
+## What & Why
+
+Every PlenumNET product that ships to a Windows machine currently has its own ad-hoc deployment story: PowerShell scripts, batch file wrappers, manual service registration, copy-paste from GitHub. This works for development but fails for production. Real deployment means proper installers with branding, system integration, clean uninstall, and zero terminal interaction for the operator.
+
+NinjaExec (#54) needs an installer. The inter-cube daemon needs one. The watchdog needs one. Future PlenumNET apps will need one. Building a bespoke installer for each product is redundant work that diverges over time — different icon styles, different install paths, different registry keys, different uninstall behaviors.
+
+This task builds a shared installer framework that any PlenumNET application plugs into. The framework reads a product manifest, produces a signed MSI with proper Windows integration (icons, Start Menu, system tray, autostart, PATH, services), and handles clean uninstall. It also provides a unified PlenumNET Launcher — a system tray hub that shows all installed PlenumNET apps, their status, and quick actions.
+
+The result: every PlenumNET product ships with the same professional install experience, the same Capomastro branding, and the same operational polish.
+
+---
+
+## Done Looks Like
+
+* A manifest-driven build tool (`plenum-pack`) that reads a product definition file and produces a signed MSI installer for Windows ARM64 and x86_64
+* Every PlenumNET app defines a single `plenum-app.toml` manifest — name, version, binary path, icon, install type (service, tray agent, CLI tool), autostart behavior, and any first-run actions
+* Generated MSIs carry Capomastro Holdings branding: professional installer wizard with logo, consistent color palette (navy/gold/accent-blue), and product-specific icon
+* Each installed app gets proper Windows integration: Start Menu shortcuts with custom icons, Add/Remove Programs entry with product icon and publisher info, optional system tray presence, optional Windows Service registration
+* A shared **PlenumNET Launcher** lives in the system tray and acts as the hub for all installed PlenumNET apps — shows which apps are installed, their running/stopped/error status, and offers start/stop/configure actions
+* Clean uninstall per app removes binaries, shortcuts, registry entries, PATH modifications, and service registrations — but never touches user data directories (keystores, configs, logs, audit trails)
+* A single `plenum-pack build` command in CI produces MSIs for all target architectures
+* All MSIs and binaries are Authenticode code-signed with a Capomastro Holdings certificate to avoid Windows SmartScreen friction
+
+---
+
+## Out of Scope
+
+* macOS or Linux GUI installers (Linux uses shell scripts or `.deb`/`.rpm` packaging — a future extension)
+* Auto-update / self-update mechanism (future — requires an update server)
+* Microsoft Store distribution (future — requires store submission and review)
+* Application sandboxing via MSIX (future — MSI is the pragmatic starting point)
+* Bundling multiple products into a single MSI (each product gets its own installer; the Launcher is a separate product)
+
+---
+
+## Product Manifest Format
+
+Every PlenumNET application provides a `plenum-app.toml` in its crate root:
+
+```toml
+[app]
+name = "NinjaExec"
+display_name = "NinjaExec — PlenumNET Signing Agent"
+description = "Local TL-DSA signing agent for PlenumNET operations"
+version = "1.0.0"
+publisher = "Capomastro Holdings Ltd."
+binary = "ninja-exec.exe"
+icon = "assets/ninja-exec.ico"
+license = "Proprietary"
+
+[install]
+directory = "Capomastro\\NinjaExec"          # under %ProgramFiles%
+data_directory = "NinjaExec"                  # under %APPDATA%
+add_to_path = true
+architecture = ["aarch64", "x86_64"]
+
+[app_type]
+kind = "tray_agent"                           # options: tray_agent, service, cli_tool, hybrid
+autostart = true                              # register in HKCU\...\Run
+tray_icon = "assets/ninja-exec-tray.ico"
+tray_tooltip = "NinjaExec — PlenumNET Signing Agent"
+
+[first_run]
+# Optional actions executed after install, before the app launches
+actions = [
+    { type = "prompt_passphrase", min_length = 12, confirm = true },
+    { type = "run_command", command = "ninja-exec init --passphrase {{passphrase}}" },
+    { type = "copy_to_clipboard", command = "ninja-exec export-operator", message = "Your public key has been copied to clipboard. Provide this to the Array3 administrator." },
+]
+
+[shortcuts]
+start_menu = [
+    { name = "NinjaExec", target = "ninja-exec.exe", icon = "assets/ninja-exec.ico" },
+    { name = "Export Public Key", target = "ninja-exec.exe", args = "export-operator --clipboard", icon = "assets/export-key.ico" },
+]
+
+[uninstall]
+preserve_data = true                          # never delete %APPDATA% data directory
+preserve_message = "Your signing key and audit log are preserved in %APPDATA%\\NinjaExec. Delete manually if no longer needed."
+```
+
+**Additional `app_type.kind` values and their behavior:**
+
+| Kind | Behavior |
+|------|----------|
+| `tray_agent` | Runs as a user-mode process with system tray icon. Autostart via Run registry key. Example: NinjaExec. |
+| `service` | Registers as a Windows Service via `sc.exe create`. Starts automatically on boot. The installer creates a dedicated service account if `service_account` is specified. Example: inter-cube daemon, watchdog. |
+| `cli_tool` | No autostart, no tray, no service. Just installs the binary and adds to PATH. Example: one-shot utilities. |
+| `hybrid` | Both a Windows Service (for the daemon) and a tray agent (for monitoring/control). The installer registers both. Example: future combined daemon+monitor packages. |
+
+---
+
+## Tasks
+
+### 1. Design the icon system
+
+Create a professional icon set for the PlenumNET product family. Every product needs icons at multiple resolutions for different Windows contexts.
+
+**Required icon assets per product:**
+- Application icon: 16×16, 32×32, 48×48, 256×256 in a single `.ico` file (Windows requires multi-resolution ICO)
+- System tray icon: 16×16 and 32×32 (for standard and high-DPI displays), with status variants: normal (running), warning (degraded), error (stopped), locked (for NinjaExec)
+- Installer wizard banner: 493×58 pixels (WiX standard)
+- Installer dialog background: 493×312 pixels (WiX standard)
+
+**Brand identity:**
+- All icons use the Capomastro/PlenumNET color palette: navy (#1B2A4A), gold (#C4A35A), accent blue (#4A90D9), white
+- The PlenumNET "P" mark or a derivative should be recognizable at 16×16
+- Each product has a distinct icon that still reads as part of the same family — consistent style, different symbol (key for NinjaExec, shield for the daemon, eye for the watchdog, etc.)
+- The Launcher gets the primary PlenumNET mark
+
+**Deliverables:** `.ico` files for each current product (NinjaExec, Launcher, inter-cube daemon, watchdog), installer banner and background images, SVG source files for all icons.
+
+**Relevant files:** New `assets/icons/` directory in the framework
+
+### 2. Build the `plenum-pack` CLI tool
+
+The core build tool that reads `plenum-app.toml` and produces MSI installers.
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `plenum-pack build` | Read `plenum-app.toml` in current directory, produce MSI for all configured architectures |
+| `plenum-pack build --arch aarch64` | Build MSI for a specific architecture only |
+| `plenum-pack build --sign` | Build and Authenticode-sign the MSI and contained binary |
+| `plenum-pack validate` | Validate the manifest without building — check for missing icons, invalid config, etc. |
+| `plenum-pack new <name>` | Scaffold a new `plenum-app.toml` with sensible defaults |
+
+**Implementation:** `plenum-pack` generates WiX v4 source files from the manifest template, invokes the WiX toolchain to compile the MSI, and optionally signs the output. The WiX templates are bundled inside `plenum-pack` — app developers never touch WiX XML directly.
+
+**Architecture detection:** The MSI includes a launch condition that checks the processor architecture and refuses to install the wrong variant with a clear error: "This installer is for ARM64 Windows. Download the x86_64 version for your machine."
+
+**Silent install:** Every generated MSI supports `msiexec /i Product.msi /qn` with optional properties exposed from the manifest's `[first_run]` section (e.g., `PASSPHRASE` for NinjaExec). If required properties are missing in silent mode, the installer exits with a descriptive error — it never proceeds with unsafe defaults.
+
+**Relevant files:** New crate `tools/plenum-pack/`, WiX templates in `tools/plenum-pack/templates/`
+
+### 3. Implement the installer GUI wizard
+
+Build the WiX installer UI sequence that all PlenumNET products share.
+
+**Wizard steps (standard flow):**
+
+1. **Welcome** — Product name, version, Capomastro logo, brief description from manifest. "Install" and "Cancel" buttons.
+2. **License** — License text from the manifest's `license` field or a `LICENSE.txt` file. Accept checkbox.
+3. **Install directory** — Pre-filled from manifest, editable. Disk space indicator.
+4. **First-run actions** — Dynamically generated from the `[first_run]` section. Passphrase prompts render as password fields with confirmation. Command actions run silently with a progress indicator.
+5. **Completion** — Success message, any `copy_to_clipboard` output displayed with a "Copy" button, "Launch now" checkbox (default checked for tray agents), product-specific `preserve_message` for future reference.
+
+**For `service` type apps:** The wizard includes a "Service Configuration" step between steps 3 and 4: service name, startup type (Automatic/Manual), service account selection (Local System, dedicated account, or existing account with credential prompt).
+
+**Error handling:** If any first-run action fails, the wizard shows the error and offers "Retry" or "Skip" (where safe). Failed key generation is not skippable — the installer rolls back.
+
+**Relevant files:** WiX UI extension customization in `tools/plenum-pack/templates/ui/`
+
+### 4. Implement Windows Service registration
+
+For products with `app_type.kind = "service"` or `"hybrid"`, the installer handles Windows Service lifecycle.
+
+**Install:**
+- Register the service via `sc.exe create` with the binary path, display name, and description from the manifest
+- Configure startup type (default: Automatic for daemons, Manual for optional services)
+- If the manifest specifies `service_account`, create the dedicated local account (using the same pattern as `PlenumNET-Ops` from #55) with minimal privileges, and configure the service to run as that account
+- Set service recovery options: restart on first failure (delay 5s), restart on second failure (delay 30s), no action on subsequent failures (prevents restart loops)
+- Start the service immediately after registration
+
+**Uninstall:**
+- Stop the service gracefully (Ctrl+C event, then `TerminateProcess` after 10 seconds)
+- Delete the service registration
+- Optionally remove the dedicated service account (prompt in the uninstall wizard: "Remove the PlenumNET-[Product] service account? This account was created during installation.")
+
+**Upgrade:**
+- Stop the service, replace the binary, restart. Preserve the service account and its permissions.
+
+**Relevant files:** WiX ServiceInstall/ServiceControl elements, custom actions in `tools/plenum-pack/templates/service/`
+
+### 5. Implement system tray integration
+
+For products with `app_type.kind = "tray_agent"` or `"hybrid"`, the installer configures system tray presence and autostart.
+
+**Autostart:** Write a registry entry to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` with the binary path. The user can disable this via the Launcher settings or Windows Startup Apps settings — the installer does not use `HKLM` (which would require admin for removal).
+
+**Tray icon:** The application binary is responsible for its own tray icon rendering (using `tray-item` or equivalent Rust crate). The installer's role is to ensure the binary launches on login and the icon assets are in the install directory.
+
+**Relevant files:** WiX registry entries in `tools/plenum-pack/templates/tray/`
+
+### 6. Build the PlenumNET Launcher
+
+A standalone system tray application that acts as the hub for all installed PlenumNET apps.
+
+**The Launcher itself is a PlenumNET app** — it has its own `plenum-app.toml`, its own MSI, and its own icon. It is the first product installed and the last removed.
+
+**Tray icon behavior:**
+- Left-click opens the Launcher panel
+- Right-click shows a context menu: list of installed apps with status, "Open Launcher", "Settings", "About PlenumNET", "Quit"
+
+**Launcher panel (compact window, not full-screen):**
+
+A clean panel showing all installed PlenumNET apps with:
+- **Per-app row:** Product icon, name, version, status indicator (running/stopped/error/locked), and action buttons (Start, Stop, Configure, Uninstall)
+- **Status indicators:** Green dot = running, red dot = stopped, yellow dot = degraded/warning, lock icon = locked (NinjaExec-specific)
+- **Quick actions:** Start/Stop buttons for services and tray agents. "Configure" opens the app's config file location or settings UI. "Uninstall" launches the MSI uninstaller.
+- **NinjaExec special handling:** Shows key fingerprint, lock/unlock button, signing request count for the current session
+
+**App discovery:** The Launcher finds installed apps by scanning `HKLM\Software\Capomastro\PlenumNET\Apps` — each product's MSI writes a registry key with install path, version, app type, and status endpoints. The Launcher polls status periodically (every 10 seconds for tray agents via HTTP, every 30 seconds for services via `sc.exe query`).
+
+**Settings:**
+- Enable/disable autostart per app
+- NinjaExec confirmation policy (mirrors `ninja-exec.toml` but with a GUI)
+- Telemetry display preferences (for future integration with #55's heartbeats)
+
+**Design:** Navy/gold/white palette matching the PlenumNET brand. Compact, information-dense, no wasted space. The mental model is a macOS menu bar app or Windows system tray utility — not a full application window.
+
+**Relevant files:** New crate `tools/plenum-launcher/`, its own `plenum-app.toml`
+
+### 7. Implement uninstall and cleanup
+
+Every MSI generated by `plenum-pack` must handle clean removal.
+
+**Standard uninstall removes:**
+- Binary and all files in the install directory
+- Start Menu shortcuts
+- PATH modifications (remove the install directory from system or user PATH)
+- Autostart registry entries
+- Windows Service registration (if applicable)
+- Launcher registry entry (`HKLM\Software\Capomastro\PlenumNET\Apps\{product}`)
+
+**Standard uninstall preserves:**
+- The `%APPDATA%` data directory (keystores, configs, audit logs, user data)
+- A clear message in the uninstall completion screen explaining what was preserved and where
+
+**Full cleanup option:** An "Advanced" button in the uninstall wizard offers "Remove all data including configuration and logs." This requires explicit confirmation: "This will permanently delete your NinjaExec signing key, audit log, and all configuration. This cannot be undone. Type DELETE to confirm." The confirmation is deliberately friction-heavy — accidental key deletion is catastrophic.
+
+**Launcher uninstall:** If the Launcher is the last PlenumNET product remaining, its uninstaller also removes the shared registry root (`HKLM\Software\Capomastro\PlenumNET`). If other products are still installed, the Launcher uninstaller warns: "Other PlenumNET applications are still installed. Removing the Launcher will remove the status hub but will not affect other applications."
+
+**Relevant files:** WiX RemoveFile/RemoveFolder/RemoveRegistryKey elements, custom action for data cleanup prompt
+
+### 8. Build the CI/CD pipeline for MSI generation
+
+Automate MSI production so every release builds installers for all products and architectures.
+
+**Pipeline steps:**
+1. Compile all PlenumNET binaries for all target architectures (`aarch64-pc-windows-msvc`, `x86_64-pc-windows-msvc`)
+2. Run `plenum-pack validate` on every `plenum-app.toml` — fail the build on any manifest error
+3. Run `plenum-pack build --sign` for each product × architecture combination
+4. Produce a release artifact directory:
+   ```
+   releases/
+     NinjaExec-1.0.0-arm64.msi
+     NinjaExec-1.0.0-x64.msi
+     PlenumNET-Launcher-1.0.0-arm64.msi
+     PlenumNET-Launcher-1.0.0-x64.msi
+     InterCubeDaemon-1.0.0-arm64.msi
+     InterCubeDaemon-1.0.0-x64.msi
+     Array3Watchdog-1.0.0-arm64.msi
+     Array3Watchdog-1.0.0-x64.msi
+   ```
+5. Checksums (TIS-27) for all MSI files
+
+**Code signing:** The CI pipeline holds the Authenticode code signing certificate (or calls an external signing service). Both the binary inside the MSI and the MSI itself are signed. Unsigned builds are permitted for development (`plenum-pack build` without `--sign`) but the CI release pipeline always signs.
+
+**Relevant files:** CI configuration (GitHub Actions or equivalent), `tools/plenum-pack/` build scripts
+
+---
+
+## Relevant Files
+
+* New crate: `tools/plenum-pack/` — the manifest-driven MSI build tool
+* New crate: `tools/plenum-launcher/` — the system tray hub application
+* New directory: `assets/icons/` — shared icon assets and SVG sources
+* `ninja-exec/plenum-app.toml` — NinjaExec's product manifest (first consumer)
+* `services/inter-cube/plenum-app.toml` — inter-cube daemon's product manifest
+* CI pipeline configuration for automated MSI builds
+
+---
+
+## Dependencies
+
+* **WiX Toolset v4** — build-time dependency for MSI generation. Not shipped, not required on target machines.
+* **Authenticode code signing certificate** — required for production MSIs. A Capomastro Holdings certificate must be obtained from a certificate authority (DigiCert, Sectigo, etc.) before the first signed release. Self-signed certificates are acceptable for internal testing but will trigger SmartScreen warnings.
+* **#54 (NinjaExec) is the first consumer** of this framework. NinjaExec's Task 8 (Build the Windows installer) is replaced by: "Package NinjaExec using the PlenumNET Installer Framework (#53)."
+* **No runtime dependencies on target machines.** The framework produces standard MSI packages that use only Windows-native installation infrastructure.
+
+---
+
+## Products to Package (Initial Set)
+
+| Product | App Type | Autostart | First-Run Actions |
+|---------|----------|-----------|-------------------|
+| **PlenumNET Launcher** | `tray_agent` | Yes | None (pure hub) |
+| **NinjaExec** | `tray_agent` | Yes | Passphrase prompt, key generation, clipboard export |
+| **Inter-Cube Daemon** | `service` | Yes (service) | Service account creation, config file generation |
+| **Array3 Watchdog** | `service` | Yes (scheduled task) | Config validation |
+
+The Launcher is installed first. Other products register themselves with the Launcher on install and deregister on uninstall.
+
+---
+
+## Future Extensions (Out of Scope for #53)
+
+* **Auto-update mechanism:** The Launcher checks for new versions and offers one-click upgrades. Requires an update server or GitHub Releases integration.
+* **MSIX packaging:** Modern Windows app packaging with better sandboxing and Microsoft Store compatibility.
+* **Linux packaging:** `.deb` and `.rpm` generation from the same `plenum-app.toml` manifest using `cargo-deb` and `cargo-rpm`.
+* **macOS packaging:** `.dmg` and `.pkg` generation for macOS targets.
+* **Launcher telemetry dashboard:** The Launcher panel shows #55 telemetry heartbeats from connected Array3 nodes — a local mirror of the terminal ops console for operators who want a desktop-native view.
+* **Installer localization:** Multi-language installer wizard text for international deployments.
+* **Bundle installer:** A single "PlenumNET Suite" MSI that installs all products in one wizard, with checkboxes for each component.

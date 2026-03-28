@@ -1,0 +1,499 @@
+# #52 — Daemon Remote Operations Channel
+
+## What & Why
+
+Every operational task on the Array3 Windows nodes currently requires either RDP access or physical presence at the machine. Checking logs, verifying disk space, restarting a stuck process, pushing a config change, inspecting GPU utilization — all require a human to remote in, open a terminal, and type commands. This is the single biggest bottleneck in YODA's operational velocity.
+
+The WebSocket relay between the Replit server and the local daemons already exists and is confirmed operational (#51 stabilizes it). The YODA terminal page already has interactive PTY sessions and cluster-exec via this relay, but cluster-exec is limited to a hardcoded allowlist of safe commands. The relay is otherwise a dumb pipe — it carries inference traffic and nothing else.
+
+This task turns the relay into a full operations channel and the terminal page into a production ops console. Seven capabilities are added: remote script execution (replacing the cluster-exec allowlist limitation), live log tailing, system telemetry heartbeats, small-file transfer, a terminal-integrated ops console, remote model management for GGUF hot-swapping, and multi-operator role-based access control. Together, these eliminate RDP for all routine operations and give YODA the infrastructure awareness to eventually self-manage its own nodes.
+
+### The workflows this enables
+
+**AI-initiated:** YODA generates a PowerShell script → presents it to the operator for review → operator approves → YODA sends it through the relay to the target daemon → daemon executes it → result streams back through the relay → YODA displays the output. No copy-paste. No RDP. No context switching.
+
+**Operator-initiated:** The operator types a command in the terminal → selects "Elevated Execute" → confirms the target node and sandbox constraints → the command is signed, sent through the exec channel, and runs in the sandboxed environment → results display inline in the terminal. Full PowerShell capability without the cluster-exec allowlist limitation, with all the same security protections.
+
+---
+
+## Done Looks Like
+
+* The daemon accepts a new `exec` message type over the WebSocket relay containing a signed PowerShell script payload
+* Scripts are only executed if they carry a valid PlenumNET cryptographic signature from an authorized key — unsigned or tampered payloads are rejected and logged
+* An approval gate exists in the YODA UI: the AI proposes a script, the operator reviews it, and only explicit approval triggers transmission to the daemon
+* The terminal page supports "elevated execution" — the operator can run any PowerShell command through the signed `exec` channel with sandbox protections, replacing the limited cluster-exec allowlist for operations that need full shell capability
+* The daemon accepts a `tail` message type that streams the last N lines of a specified log file back through the relay, with an optional follow mode for real-time streaming
+* The daemon emits a telemetry heartbeat every 60 seconds containing CPU %, RAM %, disk %, GPU utilization (if available), and process uptime — pushed through the relay without polling
+* The daemon accepts `file-push` and `file-pull` message types for transferring files under 5 MB through the relay (configs, logs, crash dumps — not model files)
+* All file transfers are restricted to a configurable whitelist of directories (e.g., `.plenumnet/`, `logs/`, `config/`) — the daemon never serves files outside the sandbox
+* Every remote operation is logged verbatim in a persistent audit trail: timestamp, source identity, operation type, payload hash, execution result, and exit code
+* The Replit server's node-watchdog service routes operations messages to the correct daemon based on node ID
+* All seven capabilities work across all three Array3 nodes simultaneously
+* The terminal page serves as the primary ops console: telemetry sidebar with per-node health, log viewer tabs with live streaming, file browser panel for `.plenumnet/` contents, model management section with hot-swap, and an operations timeline — all integrated into the existing terminal UX *(YODA frontend work — completable by YODA, not PlenumNET)*
+* GGUF model files can be pushed to or pulled from nodes via a chunked transfer protocol that supports files larger than 5 MB, with integrity verification (TIS-27 hash of the complete file checked after reassembly)
+* Models can be hot-swapped on a running node: the operator selects a model, the system stops the current llama-server, replaces the model path in the LLM engine config, and restarts — all through the relay without RDP
+* Multiple operators can be registered with independent TL-DSA key pairs, each assigned a permission scope (full, exec-only, read-only) that the daemon enforces per-request
+* The audit log records which operator (by key fingerprint) performed each operation, enabling accountability across multiple authorized users
+
+---
+
+## Out of Scope
+
+* Changes to the relay protocol framing (uses existing WebSocket message structure with new type fields)
+* Ollama, cloud LLM, or non-local engine management (covered by future tasks)
+* Modifying the PlenumNET cryptographic primitives — this task *uses* them, doesn't change them
+* Autonomous mode / unattended script execution — the approval gate is always enforced in this task
+* Scheduled/cron-like recurring script execution via the relay
+
+---
+
+## Security Model
+
+This is a remote code execution channel. The security design is non-negotiable and not deferrable.
+
+**Transport:** The relay must use WSS (WebSocket Secure / TLS) in production. This channel now carries executable scripts, operator credentials, and model files — unencrypted WebSocket is not acceptable even on an internal network. Origin validation during handshake is required if the Replit side is browser-facing. Message size limits and rate limiting on the relay mitigate DoS.
+
+**Signing:** Every `exec` payload must be signed using PlenumNET's existing TL-DSA infrastructure via NinjaExec (#51.9), the operator's local signing agent. When the operator approves an operation (in chat or terminal), the browser calls NinjaExec on `localhost:21027/sign` to produce the TL-DSA signature. The signed payload is then sent to the Replit server, which forwards it through the relay. The daemon holds a registry of authorized operator public keys, each with an associated permission scope. No signature = no execution, no exceptions, no override flag. The private key never touches the Replit server — it exists only inside NinjaExec on the operator's machine.
+
+**Multi-operator authorization:** Each registered operator has a permission scope:
+- **full:** All operations — exec, tail, file-push, file-pull, model management.
+- **exec-only:** Script execution and tail only. No file transfers, no model management.
+- **read-only:** Tail and file-pull only. No writes, no execution, no model changes.
+
+The daemon checks the signer's key fingerprint against the operator registry and verifies the requested operation falls within their scope. Scope violations are rejected with `ops-error` and logged as security events.
+
+**Approval gate:** The AI never sends a script directly. The flow is: AI generates → AI presents to operator in chat → operator reviews the script text → operator explicitly approves (button click or confirmation message) → only then does the system transmit. This is a hard architectural constraint, not a UI preference.
+
+**Sandbox:** The daemon itself runs under its own service account (or SYSTEM) with the filesystem and network access it needs for relay communication, logging, and config management. Script execution is isolated: the daemon spawns `powershell.exe` *as the `PlenumNET-Ops` account* using `CreateProcessAsUser` (the daemon requires `SeAssignPrimaryTokenPrivilege` to impersonate). This means the daemon retains its own broad access while scripts run in a restricted context — the two never share a security token.
+
+The `PlenumNET-Ops` account is configured by the deploy script with:
+- **PowerShell Constrained Language Mode enforced via AppLocker or WDAC** (Windows Defender Application Control). `__PSLockdownPolicy` is explicitly *not* relied upon — Microsoft designed it as a debugging/testing aid, and it can be bypassed by the child process (e.g., removing the env var and re-spawning). Real enforcement requires an AppLocker policy applied at the system level that restricts the `PlenumNET-Ops` account to approved scripts and executables only. This is Microsoft's production recommendation for delegated execution. If AppLocker/WDAC is unavailable or too heavy for the initial deployment environment, the sandbox is honest about its constraints: it relies on NTFS ACLs, no network access, and timeout enforcement — not language-mode enforcement. The spec does not claim strong CLM without a proper policy engine backing it.
+- **NTFS ACLs:** Read+Write+Execute on `.plenumnet/ops/`, Read-only on `.plenumnet/logs/`. No permissions on the daemon binary directory, config files, key material, or anywhere else. The daemon's own directories are explicitly not writable by this account.
+- **No network logon rights, no interactive logon.** Password set with `PasswordNeverExpires` and `UserMayNotChangePassword`.
+- **Empty user profile.** The account's PowerShell profile files are deleted by the deploy script (`Microsoft.PowerShell_profile.ps1` and variants) to prevent any profile-based execution.
+- No network access beyond localhost. Working directory locked to `.plenumnet/ops/`. Execution timeout of 120 seconds (configurable). File transfer paths restricted to a whitelist.
+
+**Audit:** Every operation is appended to an append-only audit log (`ops-audit.jsonl` in `.plenumnet/`). Each entry includes: ISO timestamp, operation type, operator name and key fingerprint, payload TIS-27 hash, full script text (for exec), exit code, stdout/stderr truncated to 10 KB, and execution duration. The daemon supports optional size-based rotation: when `audit_max_size_bytes` is set in config, the log is rotated to `ops-audit.{timestamp}.jsonl` and a fresh file is started. If unset, no rotation — the operator manages it manually. Rotated files are never deleted by the daemon.
+
+---
+
+## Tasks
+
+### 1. Define the operations message protocol
+
+Extend the existing WebSocket message schema with the following message types. Each message includes a `type` field, a `node_id` target, a `request_id` for correlation, and a `signature` field for authenticated operations.
+
+**Message types:**
+
+| Type | Direction | Payload | Auth Required |
+|------|-----------|---------|---------------|
+| `exec` | Server → Daemon | `{ script: string, timeout_secs: u32 }` | Yes (TL-DSA signature) |
+| `exec-result` | Daemon → Server | `{ request_id: string, exit_code: i32, stdout: string, stderr: string, duration_ms: u64 }` | No (response to authenticated request) |
+| `tail` | Server → Daemon | `{ file: string, lines: u32, follow: bool }` | Yes |
+| `tail-data` | Daemon → Server | `{ request_id: string, file: string, lines: string[] }` | No |
+| `tail-stop` | Server → Daemon | `{ request_id: string }` | No (stops an active follow) |
+| `telemetry` | Daemon → Server | `{ cpu_pct: f32, ram_pct: f32, disk_pct: f32, gpu_pct: Option<f32>, uptime_secs: u64, timestamp: string }` | No (daemon-initiated, periodic) |
+| `file-push` | Server → Daemon | `{ path: string, content_b64: string, overwrite: bool }` | Yes |
+| `file-push-ack` | Daemon → Server | `{ request_id: string, path: string, bytes_written: u64 }` | No |
+| `file-pull` | Server → Daemon | `{ path: string }` | Yes |
+| `file-data` | Daemon → Server | `{ request_id: string, path: string, content_b64: string, size_bytes: u64 }` | No |
+| `chunk-init` | Server → Daemon | `{ transfer_id: string, path: string, total_bytes: u64, tis27_hash: string, chunk_size: u32 }` | Yes |
+| `chunk-data` | Server → Daemon | `{ transfer_id: string, index: u32, content_b64: string, chunk_hash: string }` | No (authenticated by chunk-init) |
+| `chunk-ack` | Daemon → Server | `{ transfer_id: string, index: u32, received_bytes: u64 }` | No |
+| `chunk-complete` | Daemon → Server | `{ transfer_id: string, verified: bool, hash_match: bool }` | No |
+| `transfer-cancel` | Server → Daemon | `{ transfer_id: string }` | Yes |
+| `model-swap` | Server → Daemon | `{ node_id: string, model_path: string, port: u16, host: string }` | Yes |
+| `model-swap-result` | Daemon → Server | `{ request_id: string, node_id: string, success: bool, old_model: string, new_model: string, error: Option<string> }` | No |
+| `ops-error` | Daemon → Server | `{ request_id: string, code: string, error: string }` | No |
+
+All messages are JSON. Every server→daemon message includes a `request_id` for correlation; every daemon→server response echoes it back. The `signature` field covers the TIS-27 hash of the payload bytes (excluding the signature field itself). The daemon validates before processing. Telemetry is the sole exception — it is daemon-initiated with no request to correlate against.
+
+**Structured error codes for `ops-error`:**
+
+| Code | Meaning |
+|------|---------|
+| `SIGNATURE_INVALID` | TL-DSA signature verification failed |
+| `SIGNATURE_MISSING` | No signature field present on an authenticated message type |
+| `SCOPE_VIOLATION` | Operator authenticated but lacks permission for this operation |
+| `PATH_NOT_WHITELISTED` | Requested file path is outside allowed directories |
+| `EXTENSION_BLOCKED` | Target file has a blocked extension (.exe, .dll, etc.) |
+| `FILE_TOO_LARGE` | File exceeds the configured size limit |
+| `OVERWRITE_REQUIRED` | Target file already exists and `overwrite: true` was not set |
+| `EXEC_TIMEOUT` | Script execution exceeded the configured timeout |
+| `EXEC_FAILED` | PowerShell process failed to start |
+| `TRANSFER_HASH_MISMATCH` | Reassembled file hash does not match the declared hash |
+| `TRANSFER_STALE` | Chunk transfer was abandoned and cleaned up |
+| `MODEL_NOT_FOUND` | Target model file does not exist on the node |
+| `MODEL_SWAP_FAILED` | llama-server failed to start with the new model |
+| `OPS_DISABLED` | ops_enabled is false in daemon config |
+
+**Relevant file:** `services/inter-cube/src/main.rs` — extend the message handler match block.
+
+### 2. Implement remote script execution in the daemon
+
+Add a handler for `exec` messages. On receipt:
+
+1. Verify the TL-DSA signature against the stored operator public key. Reject and log if invalid.
+2. Write the script to a temporary `.ps1` file in the operations sandbox directory.
+3. Spawn `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <temp_script>` as the `PlenumNET-Ops` account via `CreateProcessAsUser` with:
+   - Constrained Language Mode enforced by AppLocker/WDAC policy (not `__PSLockdownPolicy` — see Security Model). If AppLocker is not deployed, the sandbox relies on NTFS ACLs and timeout enforcement only.
+   - Working directory locked to `.plenumnet/ops/`
+   - Environment variables stripped to a safe minimum (only PATH and TEMP)
+   - A timeout enforced via `tokio::time::timeout` wrapping the child process
+4. Capture stdout and stderr (truncated to 10 KB each if larger).
+5. Send `exec-result` back through the relay with exit code, output, and wall-clock duration.
+6. Delete the temporary script file.
+7. Append the full operation to `ops-audit.jsonl`.
+
+**Failure modes:** Signature verification failure → `ops-error` with code `SIGNATURE_INVALID`, timeout exceeded → kill the child process and return exit code -1 with code `EXEC_TIMEOUT`, PowerShell not found → `ops-error` with code `EXEC_FAILED`.
+
+**This is Rust work.** Minimal — one new match arm in the message handler, one async function for the execution pipeline. Estimated ~150-200 lines (excluding `CreateProcessAsUser` Windows API interop, which may add complexity).
+
+**Serialization:** The daemon must serialize `exec` operations per node — two concurrent exec requests must not interleave their stdout/stderr. The WebSocket handler likely processes messages sequentially per connection already, but if the handler is async and non-blocking, a per-node `tokio::sync::Mutex` on the execution pipeline ensures output isolation. The testing matrix requires this explicitly.
+
+**Relevant files:** `services/inter-cube/src/main.rs:1722-1730` (message handler)
+
+### 3. Implement live log tailing
+
+Add a handler for `tail` messages. On receipt:
+
+1. Verify signature.
+2. Validate the requested file path is within the allowed directories whitelist.
+3. If `follow: false` — read the last N lines, send a single `tail-data` response.
+4. If `follow: true` — read the last N lines, send them, then spawn a background task that watches the file for appends (polling every 2 seconds, not filesystem events — simpler and portable) and sends incremental `tail-data` messages. The follow stops when the client sends a `tail-stop` message or the WebSocket disconnects.
+
+**Allowed log files:** Watchdog log, daemon stdout/stderr logs, ops-audit.jsonl, any file under `.plenumnet/logs/`.
+
+**Known limitation:** If a log file is rotated (renamed/replaced) during an active `follow`, the daemon continues reading the old file descriptor. It does not detect inode changes or re-open the file. This is acceptable for the initial release — log rotation during a follow session is an edge case, and the operator can simply re-issue the `tail` command. A future enhancement could detect file truncation or inode change and re-open automatically.
+
+**Relevant files:** `services/inter-cube/src/main.rs`
+
+### 4. Implement system telemetry heartbeat
+
+Add a background task to the daemon that runs every 60 seconds and emits a `telemetry` message through the relay. Collected metrics:
+
+- **CPU %:** Via `sysinfo` crate (already available or trivially addable via Cargo)
+- **RAM %:** Used / total from `sysinfo`
+- **Disk %:** Usage of the drive containing `.plenumnet/`
+- **GPU %:** Best-effort via `nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits`. The daemon checks common install paths (`C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe`, then `PATH`) and caches the resolved path on first successful call. If not available (no NVIDIA GPU, no nvidia-smi), send `null` — never fail the heartbeat over missing GPU data.
+- **Uptime:** Daemon process uptime in seconds (tracked internally from startup)
+- **Timestamp:** ISO 8601 UTC
+
+The heartbeat runs regardless of whether anyone is listening. The relay buffers or drops if no consumer is connected — the daemon doesn't care. **Implementation note:** `sysinfo` on Windows uses WMI queries which can block for hundreds of milliseconds. Run telemetry collection in a dedicated `tokio::task::spawn_blocking` call to avoid stalling the WebSocket event loop.
+
+**Relevant files:** `services/inter-cube/src/main.rs`, `Cargo.toml` (add `sysinfo` dependency)
+
+### 5. Implement file push/pull
+
+Add handlers for `file-push` and `file-pull` messages.
+
+**file-pull:** Verify signature → validate path is in whitelist → read file → base64 encode → send `file-data`. Reject files over 5 MB with `ops-error`.
+
+**file-push:** Verify signature → validate target path is in whitelist → decode base64 → write to path → send acknowledgment. Reject payloads over 5 MB. Create parent directories if needed. Never overwrite without the `overwrite: true` flag in the payload.
+
+**Whitelist directories (configurable in daemon config):**
+- `.plenumnet/` (configs, counters, engine configs)
+- `.plenumnet/logs/` (log files)
+- `.plenumnet/ops/` (operational scripts and outputs)
+
+**Explicitly blocked:** Anything outside `.plenumnet/`, any executable (`.exe`, `.dll`, `.sys`), the daemon binary itself.
+
+**Relevant files:** `services/inter-cube/src/main.rs`
+
+### 6. Add the approval gate and terminal elevated execution
+
+The operations channel has two consumer surfaces: the YODA chat interface (AI-initiated) and the terminal page (operator-initiated). Both use the same signed `exec` protocol and approval flow.
+
+**Chat interface flow (AI-initiated):**
+
+1. YODA's inference engine generates a script recommendation.
+2. The server presents the script in the chat interface with syntax-highlighted code and a clear "Review & Approve" / "Reject" action. For the initial release, syntax highlighting and the approval action are required; a diff view showing what changes the script will make is a desirable enhancement but not a launch blocker. The review must be *easy*, not just possible. If reviewing is harder than just RDP'ing in and doing it manually, operators will bypass the channel entirely.
+3. On approval, the browser calls NinjaExec (`localhost:21027/sign`) with the payload and context string. NinjaExec may present its own confirmation dialog depending on configuration. The signature is returned to the browser.
+4. The browser sends the signed payload to the Replit server, which wraps it in the `exec` message format and routes it to the correct daemon via the relay. The Replit server never sees the private key — it only forwards the already-signed message.
+5. The server receives `exec-result` and displays the output in chat with the exit code prominently shown.
+
+**Terminal elevated execution (operator-initiated):**
+
+The terminal already has cluster-exec, but it's limited to a hardcoded allowlist of safe commands (`echo`, `hostname`, `uptime`, etc.) and blocks shell metacharacters. The `exec` channel replaces this limitation with a signed, sandboxed alternative.
+
+1. The operator types a command in the terminal and selects "Elevated Execute" (or uses a hotkey/prefix like `!` to distinguish from the standard PTY session).
+2. The terminal presents a confirmation step showing the full command that will execute, the target node(s), and the sandbox constraints. For cluster-exec fan-out, show all target nodes.
+3. On confirmation, the command is wrapped in a PowerShell script. The browser calls NinjaExec (`localhost:21027/sign`) to sign the payload — NinjaExec may show its own confirmation dialog if configured for `exec` operations. The signed message is sent through the `exec` channel. It runs in the `PlenumNET-Ops` sandbox with full Constrained Language Mode protections — unlike the allowlisted cluster-exec, this can run any PowerShell command within the sandbox constraints.
+4. Results stream back to the terminal pane with exit code, stdout, and stderr displayed inline. For cluster fan-out, results are grouped by node.
+
+**The AI never bypasses the gate.** Even if the operator says "just do it without asking," the system architecture enforces the review step. This is not configurable. The terminal's elevated execution has a lighter confirmation step (the operator wrote the command themselves), but the signing and sandbox enforcement are identical.
+
+**Relevant files:** `server/services/node-watchdog.ts`, potentially new `server/services/node-ops.ts`, terminal frontend components
+
+### 7. Route operations through the relay
+
+Extend the WebSocket relay on the Replit server to recognize operations message types and route them to the correct daemon based on `node_id`. This is straightforward — the relay already routes by node, it just needs to pass through the new message types without interfering.
+
+Add a `/ops/status` endpoint to the server that returns the latest telemetry heartbeat from each connected daemon, including a `last_seen` ISO timestamp per node so the UI can determine staleness without client-side clock math. The endpoint also reports connection state (connected/disconnected) per node.
+
+**Relevant files:** `server/services/node-watchdog.ts`, relay handler code
+
+### 8. Update daemon configuration
+
+Add an `[ops]` section to the daemon's configuration (or a separate `ops-config.json` in `.plenumnet/`):
+
+```json
+{
+  "ops_enabled": false,
+  "ops_service_account": "PlenumNET-Ops",
+  "operators": [
+    {
+      "name": "salvi",
+      "public_key": "<base64-encoded TL-DSA public key>",
+      "scope": "full"
+    }
+  ],
+  "exec_timeout_secs": 120,
+  "telemetry_interval_secs": 60,
+  "allowed_tail_paths": [".plenumnet/logs/", ".plenumnet/"],
+  "allowed_file_paths": [".plenumnet/"],
+  "model_storage_path": ".plenumnet/models/",
+  "blocked_extensions": [".exe", ".dll", ".sys", ".bat", ".cmd"],
+  "max_file_size_bytes": 5242880,
+  "max_chunk_transfer_bytes": null,
+  "chunk_size_bytes": 1048576,
+  "stale_transfer_timeout_mins": 60,
+  "audit_log_path": ".plenumnet/ops-audit.jsonl",
+  "audit_max_size_bytes": null
+}
+```
+
+Deploy writes this config with `ops_enabled` defaulting to `false`. The operator explicitly enables it after verifying the key bootstrap and service account setup are correct — the operations channel is never live by accident. The daemon reads config on startup. If `ops_enabled` is false, all operations messages are rejected with `ops-error` (code `OPS_DISABLED`). The `operators` array replaces the single-key model — each entry maps a key to a permission scope. The `max_chunk_transfer_bytes` field is `null` for unlimited (model files can be multi-GB); set it to cap transfer sizes if needed.
+
+**Relevant files:** `services/inter-cube/deploy-yoda.ps1`, daemon config handling in `main.rs`
+
+### 9. Update deploy scripts
+
+Modify `deploy-yoda.ps1` and `rerun-yoda-install.ps1` to:
+
+1. **Register the operator's public key:** The operator runs `ninja-exec export-operator` (#51.9) on their local machine, which prints a JSON snippet. The deploy script accepts this snippet (via paste or file) and writes it into the `ops-config.json` operator registry. The private key never touches the deployment target — only the public key is registered.
+2. Write the `ops-config.json` with the multi-operator registry and `ops_enabled: false`.
+3. **Create the `PlenumNET-Ops` service account** using `New-LocalUser` with `PasswordNeverExpires` and `UserMayNotChangePassword`. Disable interactive logon and network logon rights. **Explicitly delete any existing PowerShell profile files** for this account (`$env:USERPROFILE\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1` and the `profile.ps1` variants).
+4. **Configure AppLocker policy** (if supported by the Windows edition) to enforce Constrained Language Mode for the `PlenumNET-Ops` account. Create script rules that restrict execution to the `.plenumnet/ops/` directory only. If AppLocker is not available (e.g., Windows Home edition), skip this step — the sandbox will rely on NTFS ACLs and timeout enforcement only, and the deploy script should log a warning that language-mode enforcement is not active.
+5. **Set NTFS ACLs** using `icacls` or `Set-Acl`:
+   - `PlenumNET-Ops` gets Read+Write+Execute on `.plenumnet/ops/`
+   - `PlenumNET-Ops` gets Read on `.plenumnet/logs/`
+   - `PlenumNET-Ops` is explicitly denied access to the daemon binary directory, `ops-config.json` (contains the operator public key registry), and all other directories
+6. **Grant the daemon's service account** `SeAssignPrimaryTokenPrivilege` so it can spawn PowerShell processes as `PlenumNET-Ops` via `CreateProcessAsUser`. This requires administrative privileges and is applied via `secedit` or `ntrights.exe`. **A reboot may be required** for the privilege assignment to take effect — the deploy script should warn the operator and verify the privilege is active before proceeding.
+7. Create the `.plenumnet/ops/`, `.plenumnet/logs/`, `.plenumnet/models/`, and `.plenumnet/transfers/` directories.
+8. Ensure the audit log file exists (empty JSONL).
+9. Delete any stale health counter files and transfer manifests from previous deployments.
+
+**Relevant files:** `services/inter-cube/deploy-yoda.ps1`, `rerun-yoda-install.ps1`
+
+### 10. Build the terminal ops console *(YODA — not PlenumNET)*
+
+**Ownership: This task is YODA frontend work, completable by the YODA platform, not PlenumNET.**
+
+The terminal page already has node selection, PTY sessions, and cluster-exec via the WebSocket relay. Rather than building a separate dashboard, extend the terminal page into the primary ops console — a single pane of glass for all node management. The terminal consumes the `/ops/status` endpoint (Task 7) and the operations message types.
+
+**Telemetry sidebar:**
+- **Per-node status bars** showing CPU, RAM, disk, and GPU utilization inline with the node selector, updated live as heartbeats arrive
+- **Trend sparklines** showing the last 30 heartbeats (~30 minutes) for each metric per node, so the operator can see whether resource usage is climbing or stable at a glance
+- **Alert thresholds:** disk >90% renders yellow, >95% red. CPU sustained >90% for 5+ heartbeats renders yellow. RAM >85% yellow, >95% red. Thresholds are visual only — no automated actions
+- **Connection status** per node: connected (green), last heartbeat stale >3 minutes (yellow), disconnected (red)
+- **LLM engine status** per node: model loaded and responding (green), health check failing (yellow), down (red) — sourced from the watchdog summary line (#51 Task 6)
+
+**Log viewer tabs:**
+- Each node can have a "Log Viewer" tab alongside its PTY shell tab
+- Uses the `tail` message type with `follow: true` for real-time streaming
+- File selector scoped to the whitelisted log paths (watchdog log, daemon log, ops-audit.jsonl)
+- This is a natural fit for the terminal UX — it's just another session type
+
+**File browser panel:**
+- A collapsible sidebar panel showing a simple file tree scoped to the `.plenumnet/` whitelist
+- Powered by `file-pull` for viewing/downloading and `file-push` for uploading
+- View configs, download logs, push updated config files — all within the terminal page
+- Not a full file manager — just the operational files the operator actually needs
+
+**Model management section:**
+- Shows the currently loaded model per node (from LLM engine status)
+- Offers hot-swap via the `model-swap` message type: select a model file (from the node's `.plenumnet/models/` directory or upload a new one via chunked transfer), confirm, execute
+- **Active transfers:** if any chunked transfer is in progress, show transfer ID, target node, percentage complete, and current throughput
+
+**Operations timeline:**
+- A collapsible footer showing the last 10-20 operations from the audit log (type, operator, timestamp, success/failure, exit code)
+- Clicking an entry expands to show the full script text and output
+
+The console is a set of YODA React components integrated into the existing terminal page. It does not require any additional daemon or PlenumNET backend work beyond what Tasks 4-7 already provide — it is a consumer of existing data and message types.
+
+**Design:** Clean, information-dense, no decorative elements. The mental model is a production ops console — tmux panels with monitoring, not a marketing dashboard. Dark background, high-contrast status colors, monospaced values throughout.
+
+**Relevant files:** YODA frontend codebase (Replit), `server/services/node-watchdog.ts` (data source), existing terminal page components
+
+### 11. Implement remote model management
+
+Add the capability to push GGUF model files to nodes and hot-swap the active model on a running LLM engine, all through the relay.
+
+**Chunked transfer protocol:** Model files are multi-GB, far beyond the 5 MB small-file limit. The transfer uses a chunked protocol:
+
+1. Server sends `chunk-init` with total file size, TIS-27 hash of the complete file, and chunk size (default 1 MB).
+2. Server sends sequential `chunk-data` messages, each containing one base64-encoded chunk and a `chunk_hash` field (TIS-27 of the raw chunk bytes before base64 encoding). The daemon verifies each chunk's integrity on receipt — a mismatch triggers an immediate `ops-error` with code `TRANSFER_HASH_MISMATCH` and the chunk is discarded (the server can re-send that index).
+3. Daemon acknowledges each verified chunk with `chunk-ack` (enables flow control and resume-on-disconnect).
+4. After the last chunk, daemon reassembles the file, computes the TIS-27 hash of the complete file, and sends `chunk-complete` with verification result.
+5. If the final hash matches, the daemon atomically moves the temporary file from `.plenumnet/transfers/{transfer_id}.partial` to the final target path (rename, not copy). If it doesn't match, the daemon deletes the partial file and reports failure.
+
+**Temporary file isolation:** Chunks are always written to a temporary file under `.plenumnet/transfers/`, never directly to the target path. The final file only appears at its destination after full hash verification. This prevents corrupted partial files from being visible at the target location.
+
+**Resume on disconnect:** The daemon tracks received chunk indices in a manifest file (`.plenumnet/transfers/{transfer_id}.json`). If the WebSocket drops mid-transfer, the server can query which chunks were acknowledged and resume from the last gap. Completed transfers clean up their manifest.
+
+**Stale transfer cleanup:** A background sweep runs every 30 minutes (or on each watchdog cycle). Any transfer manifest that has not received a new chunk in 60 minutes is considered abandoned — the partial file and manifest are deleted, and a `TRANSFER_STALE` event is logged. This prevents orphaned multi-GB partial files from accumulating on disk.
+
+**Explicit cancellation:** A `transfer-cancel` message immediately stops the transfer, deletes the partial file and manifest, and logs the cancellation. This is operator-initiated (requires auth) and provides clean abort without waiting for the 60-minute stale timeout.
+
+**Model hot-swap:** The `model-swap` message triggers:
+
+1. Verify the target model file exists on the node (either already present or just transferred).
+2. Back up the current `llm-engines.json` entry for this node before making any changes.
+3. Stop the current `llama-server` process for that node (graceful shutdown via Ctrl+C console event, then `TerminateProcess` after 10 seconds if still running).
+4. Update `llm-engines.json` (from #51 Task 3) with the new model path.
+5. Start `llama-server` with the updated config.
+6. Wait for `/v1/models` to respond with a non-empty model list (up to 120 seconds for large model loads).
+7. If `/v1/models` responds successfully → send `model-swap-result` with success.
+8. If `/v1/models` times out or returns empty → **rollback**: kill the new server, restore the backed-up config, restart with the old model, send `model-swap-result` with `MODEL_SWAP_FAILED`. The node should never be left in a state where no LLM engine is running.
+
+**The approval gate applies to model swaps.** The operator must explicitly approve before YODA sends the `model-swap` message. Swapping a model on a production node is a significant operational action.
+
+**Relevant files:** `services/inter-cube/src/main.rs`, `services/inter-cube/deploy-yoda.ps1` (for `llm-engines.json` integration)
+
+### 12. Implement multi-operator access control
+
+Replace the single-operator key model with a multi-operator registry. Each operator is identified by their TL-DSA key fingerprint and assigned a permission scope.
+
+**Permission scopes:**
+
+| Scope | exec | tail | file-pull | file-push | model-swap | chunk-transfer |
+|-------|------|------|-----------|-----------|------------|----------------|
+| `full` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `exec-only` | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| `read-only` | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ |
+
+**Operator registry management:** Operators are added and removed via the `ops-config.json` file. For now, this file is managed manually (pushed via `file-push` by the `full`-scope operator or edited locally). A future task could add `operator-add` / `operator-remove` message types, but that's unnecessary complexity for the initial deployment.
+
+**Enforcement:** The daemon's signature verification function is extended to:
+1. Verify the signature is valid against *any* registered public key.
+2. Identify which operator signed (by matching key fingerprint).
+3. Check that the requested operation falls within that operator's scope.
+4. Reject with `ops-error` (scope violation) if unauthorized, logging the attempt as a security event.
+
+**Audit integration:** Every audit log entry includes the operator name and key fingerprint, so operations are attributable to specific individuals even with multiple authorized users.
+
+**Relevant files:** `services/inter-cube/src/main.rs`, `ops-config.json` schema
+
+---
+
+## Relevant Files
+
+* `services/inter-cube/src/main.rs:1242-1243,1722-1730` — message handler, WebSocket processing
+* `server/services/node-watchdog.ts` — server-side relay and node monitoring
+* `services/inter-cube/deploy-yoda.ps1` — deployment script
+* `rerun-yoda-install.ps1` — reinstallation script
+* `services/inter-cube/Cargo.toml` — Rust dependencies (add `sysinfo`, `base64`)
+* `YODA-HANDOFF.md` — architecture reference
+* `PLENUMNET_INVARIANTS_FOR_YODA.md` — invariants (no-stubs, no-fallbacks)
+* YODA frontend codebase (Replit) — terminal ops console, existing terminal/PTY components (Task 10)
+
+---
+
+## Dependencies
+
+* **#51 must be complete first.** The watchdog rewrite stabilizes the daemon processes and ensures they stay running. Building a remote operations channel on top of daemons that die every 2 minutes is pointless.
+* **#51.9 (NinjaExec) must be operational** on the operator's machine before any #52 task that involves signing can be tested. Specifically, Tasks 2, 5, 6, 11, and 12 all depend on NinjaExec to produce signatures. Task 9 (deploy) consumes `ninja-exec export-operator` output to register the operator's public key.
+* No external crate additions beyond `sysinfo` (system telemetry) and `base64` (file/chunk transfer encoding) — both are lightweight and well-maintained. Integrity verification and payload signing use TIS-27, which is already in the codebase.
+* **Task 10 (terminal ops console) can be built in parallel** once Tasks 4 and 7 are done. It extends the existing terminal page and has no dependency on the remaining tasks. The terminal already has node selection and PTY sessions — this adds panels that consume the ops channel.
+* **Task 11 (model management) depends on Task 5 (file push/pull)** — the chunked protocol extends the same transfer infrastructure.
+* **Task 12 (multi-operator) should be implemented early** (after Task 1) since the signature verification logic is touched by every subsequent task. Retrofitting multi-operator onto a single-operator implementation means rewriting every auth check.
+
+---
+
+## Testing Matrix
+
+Every capability must be validated against these scenarios before the task is considered complete. This is not optional — remote code execution tolerates zero ambiguity in failure behavior.
+
+**Authentication & Authorization:**
+- Invalid signature → `SIGNATURE_INVALID`, operation rejected, security event logged
+- Missing signature on authenticated message type → `SIGNATURE_MISSING`
+- Valid signature but operator scope insufficient → `SCOPE_VIOLATION`
+- Unknown key fingerprint (not in registry) → `SIGNATURE_INVALID`
+
+**Script Execution:**
+- Successful script → correct exit code, stdout/stderr captured, audit entry written
+- Script exceeds timeout → process killed, `EXEC_TIMEOUT` returned
+- Script attempts network access → blocked by service account restrictions
+- Script attempts to write outside sandbox → fails with OS-level permission denial
+- Terminal elevated execution → command wrapped in script, signed, executed in sandbox, results displayed inline
+- Terminal cluster fan-out via elevated execution → results grouped by node, each with independent exit code
+
+**File Operations:**
+- Path outside whitelist → `PATH_NOT_WHITELISTED`
+- Blocked extension (.exe, .dll) → `EXTENSION_BLOCKED`
+- File exceeds 5 MB → `FILE_TOO_LARGE`
+- file-push without `overwrite: true` on existing file → `OVERWRITE_REQUIRED`
+- file-push with `overwrite: true` → file replaced, `file-push-ack` returned, audit logged
+
+**Chunked Transfer:**
+- Complete transfer → file reassembled, TIS-27 hash verified, manifest cleaned up
+- Single chunk hash mismatch → chunk rejected, `TRANSFER_HASH_MISMATCH`, server re-sends
+- Final hash mismatch → partial file deleted, failure reported
+- WebSocket disconnect mid-transfer → manifest preserved, resume from last ack on reconnect
+- Transfer abandoned (no chunks for 60 minutes) → partial file + manifest deleted, `TRANSFER_STALE` logged
+- `transfer-cancel` received → immediate cleanup
+
+**Model Hot-Swap:**
+- Target model exists → llama-server stopped, config updated, new server started, `/v1/models` confirms load
+- Target model does not exist → `MODEL_NOT_FOUND`, no changes made
+- New llama-server fails to start → `MODEL_SWAP_FAILED`, old config preserved (rollback)
+- Model load exceeds 120-second wait → `MODEL_SWAP_FAILED` with timeout indication
+
+**Telemetry:**
+- Node with NVIDIA GPU → `gpu_pct` populated
+- Node without NVIDIA GPU → `gpu_pct` is null, heartbeat still emits successfully
+- `sysinfo` WMI call blocks → `spawn_blocking` prevents WebSocket stall
+
+**Log Tailing:**
+- `follow: false` → last N lines returned, single response
+- `follow: true` → initial lines + incremental updates every 2 seconds
+- `tail-stop` → follow stream terminates cleanly
+- WebSocket disconnect during follow → follow task cancelled automatically
+- Path outside whitelist → `PATH_NOT_WHITELISTED`
+
+**Multi-Node:**
+- All three Array3 nodes connected → operations routed to correct node by `node_id`
+- One node disconnected → operations to that node return error, other nodes unaffected
+- Telemetry from all three nodes → `/ops/status` returns per-node data with `last_seen` timestamps
+
+**Concurrency:**
+- Two `exec` messages to the same node in rapid succession → daemon processes them sequentially, stdout/stderr never mixed between requests
+- `exec` running while `tail` follow is active on the same node → both operate independently
+- Chunked transfer in progress while `exec` fires → transfer continues, exec completes, no interference
+
+**Deploy & Bootstrap:**
+- Fresh install → `ninja-exec export-operator` output accepted by deploy script, `ops-config.json` written with `ops_enabled: false`, all directories created, `PlenumNET-Ops` account created with correct NTFS ACLs
+- Reinstall over existing → existing operator registry preserved, stale counters/manifests cleaned, service account permissions verified
+- Operator enables `ops_enabled` → channel goes live, first operation succeeds
+- `PlenumNET-Ops` account cannot write to daemon binary directory, config files, or key material
+
+**NinjaExec Integration:**
+- NinjaExec running + browser calls `/sign` → signature returned, payload accepted by daemon
+- NinjaExec locked → browser gets HTTP 423, operation blocked, operator informed
+- NinjaExec not running → browser fetch fails, UI displays clear "NinjaExec not available" message
+- Signature produced by NinjaExec on payload A, sent with payload B → daemon rejects with `SIGNATURE_INVALID`
+- `ninja-exec export-operator` output pasted into `ops-config.json` → daemon accepts signatures from that key without format conversion
+
+---
+
+## Future Extensions (Out of Scope for #52)
+
+* **Streaming script output:** For long-running scripts, send incremental `exec-data` messages as stdout/stderr arrives rather than buffering until completion. Improves UX for operations that take minutes.
+* **Scheduled scripts:** Cron-like execution of recurring maintenance scripts via the relay.
+* **Autonomous mode:** After sufficient trust calibration, allow YODA to execute pre-approved script *categories* without per-execution approval (e.g., "restart llama-server" is always allowed, "modify firewall rules" always requires review).
+* **Operator management via relay:** `operator-add` / `operator-remove` message types so the primary operator can manage the registry remotely without editing `ops-config.json` directly.
+* **Ollama / cloud proxy support:** Extend model management to cover non-llama-server inference backends.
+* **Transfer resume UI:** Expose the chunk manifest to the YODA dashboard so partially-completed model transfers show progress and can be manually resumed or cancelled.
+* **Signed telemetry:** Currently telemetry heartbeats are unsigned — on an internal network this is acceptable, but for hardened deployments, signing heartbeats would prevent telemetry injection by an attacker with network access.
+* **Binary WebSocket frames:** Replace base64-encoded chunk payloads with raw binary WebSocket frames to eliminate the ~33% encoding overhead on multi-GB model transfers. Requires relay support for binary frame passthrough.

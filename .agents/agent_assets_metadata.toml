@@ -48,3 +48,15 @@ id = "QesdqI-zyONBth0Z_bIxI"
 uri = "file://.local/tasks/plenumlan-connection-reference.md"
 type = "text"
 title = "PlenumLAN Active Cubes — Connection Reference (MD)"
+
+[[outputs]]
+id = "QMEgEFx3LJ92V8bBo5waF"
+uri = "file://plenumnet-brand-spec.md"
+type = "text"
+title = "PlenumNET Brand Specification"
+
+[[outputs]]
+id = "0CYX8x5nDAj3-zD0Vov1K"
+uri = "file://plenumnet-logo.svg"
+type = "image"
+title = "PlenumNET Logo (SVG)"
