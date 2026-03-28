@@ -1,6 +1,6 @@
 ---
 name: infrastructure-maintainer
-version: 1.2.0
+version: 1.2.1
 last_updated: 2026-03-28
 round: qc-r2
 references:
@@ -65,7 +65,7 @@ Review the entire specification from the operator's perspective. Focus on:
 
 6. **Documentation gap** — Is there enough information for an operator to write a deployment guide? What's missing? Are troubleshooting, FAQ, and known-issues documented or flagged as needed deliverables?
 
-7. **Audit trail and provenance records** — Verify that all logs, audit records, and provenance entries reference nodes exclusively by their Rep C address (dot-separated format, e.g., `111.111.111.111.1`), not by hostname, IP address, Windows SID, or any other identifier. Rep C addresses are the canonical node identity in PlenumNET — mixing identifier types in operational records creates ambiguity, breaks correlation across log sources, and undermines the zero-sentinel forgery detection property.
+7. **Audit trail and provenance records** — Verify that all logs, audit records, and provenance entries reference nodes exclusively by their Rep C address (dot-separated format, e.g., `111.111.111.111.1`) as required by INVARIANT 9, not by hostname, IP address, Windows SID, or any other identifier. Rep C addresses are the canonical node identity in PlenumNET — mixing identifier types in operational records creates ambiguity, breaks correlation across log sources, and undermines the zero-sentinel forgery detection property.
 
 ## Critical Rules
 

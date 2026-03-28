@@ -126,3 +126,27 @@ id = "JsLf3YJQCbjZjqPmr5Krb"
 uri = "file://.agents/skills/content-creator/SKILL.md"
 type = "text"
 title = "Content Creator v1.2.0 (final)"
+
+[[outputs]]
+id = "5oDvYkyIcNjn8L5_d8XW-"
+uri = "file://.agents/skills/qc-r1-review/SKILL.md"
+type = "text"
+title = "QC-R1 Main Template (v1.1.0)"
+
+[[outputs]]
+id = "NI0CPf0ssGRGoZpFoYgPU"
+uri = "file://.agents/skills/security-engineer/SKILL.md"
+type = "text"
+title = "Agent 1: Security Engineer (v1.1.0)"
+
+[[outputs]]
+id = "8gmpH8z4Q5T0FHkChqwKX"
+uri = "file://.agents/skills/devops-automator/SKILL.md"
+type = "text"
+title = "Agent 2: DevOps Automator (v1.1.0)"
+
+[[outputs]]
+id = "BWjifkCP1BiOYoITaHFem"
+uri = "file://.agents/skills/plenumnet-integration/SKILL.md"
+type = "text"
+title = "Agent 3: PlenumNET Integration Specialist (v1.1.0)"
