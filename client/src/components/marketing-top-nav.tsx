@@ -638,7 +638,7 @@ export function MarketingTopNav() {
         <header
           className="fixed top-0 z-[9999] w-full flex flex-col overflow-visible"
           style={{
-            height: "125px",
+            height: "140px",
             background: "linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)",
             boxShadow: [
               "inset 0 1px 0 rgba(255,255,255,0.07)",
@@ -793,57 +793,63 @@ export function MarketingTopNav() {
               )}
             </div>
           </div>
-          <div className="pb-8 relative">
-          <svg
-            className="w-full"
-            height="16"
-            viewBox="0 0 1000 16"
-            preserveAspectRatio="none"
-            fill="none"
-            style={{ color: "#38BDF8" }}
-          >
-            <line x1="0" y1="8" x2="1000" y2="8"
-              stroke="currentColor" strokeWidth="1" opacity="0.3" />
-            <line x1="80" y1="1" x2="80" y2="15"
-              stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
-            <line x1="92" y1="1" x2="92" y2="15"
-              stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
-            <line x1="420" y1="3" x2="420" y2="13"
-              stroke="currentColor" strokeWidth="1" opacity="0.35" />
-            <line x1="780" y1="1" x2="780" y2="15"
-              stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
-          </svg>
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: "6px",
-              background: "linear-gradient(180deg, hsl(20,14%,5%) 0%, hsl(20,12%,3%) 100%)",
-              boxShadow: [
-                "0 2px 0 hsl(20,10%,10%)",
-                "0 4px 6px rgba(0,0,0,0.7)",
-                "0 8px 16px rgba(0,0,0,0.55)",
-                "0 16px 32px rgba(0,0,0,0.4)",
-                "0 24px 48px rgba(0,0,0,0.25)",
-                "inset 0 1px 0 rgba(255,255,255,0.04)",
-              ].join(", "),
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: "100%",
-              height: "32px",
-              background: "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.15) 40%, transparent 100%)",
-              pointerEvents: "none",
-            }}
-          />
+          <div className="relative" style={{ marginTop: "auto" }}>
+            <svg
+              className="w-full"
+              height="16"
+              viewBox="0 0 1000 16"
+              preserveAspectRatio="none"
+              fill="none"
+              style={{ color: "#38BDF8", position: "relative", zIndex: 2 }}
+            >
+              <line x1="0" y1="8" x2="1000" y2="8"
+                stroke="currentColor" strokeWidth="1" opacity="0.3" />
+              <line x1="80" y1="1" x2="80" y2="15"
+                stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+              <line x1="92" y1="1" x2="92" y2="15"
+                stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+              <line x1="420" y1="3" x2="420" y2="13"
+                stroke="currentColor" strokeWidth="1" opacity="0.35" />
+              <line x1="780" y1="1" x2="780" y2="15"
+                stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
+            </svg>
+
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                width: "100%",
+                height: "18px",
+                background: "linear-gradient(180deg, hsl(20,12%,14%) 0%, hsl(20,12%,10%) 35%, hsl(20,14%,7%) 70%, hsl(20,14%,4%) 100%)",
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                borderBottom: "1px solid rgba(0,0,0,0.9)",
+                boxShadow: [
+                  "inset 0 1px 0 rgba(255,255,255,0.06)",
+                  "inset 0 2px 4px rgba(255,255,255,0.03)",
+                  "inset 0 -2px 6px rgba(0,0,0,0.5)",
+                  "inset 0 -6px 12px rgba(0,0,0,0.3)",
+                  "0 2px 2px rgba(0,0,0,0.8)",
+                  "0 4px 4px rgba(0,0,0,0.6)",
+                  "0 8px 12px rgba(0,0,0,0.5)",
+                  "0 16px 24px rgba(0,0,0,0.4)",
+                  "0 32px 48px rgba(0,0,0,0.3)",
+                  "0 48px 80px rgba(0,0,0,0.2)",
+                ].join(", "),
+                pointerEvents: "none",
+              }}
+            />
+
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: "-40px",
+                height: "40px",
+                background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 30%, rgba(0,0,0,0.08) 60%, transparent 100%)",
+                pointerEvents: "none",
+              }}
+            />
           </div>
         </header>
       </AnchorScrollContext.Provider>
