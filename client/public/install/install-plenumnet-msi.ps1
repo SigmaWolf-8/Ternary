@@ -422,9 +422,12 @@ Write-Log "STEP 3/8: Building plenum-pack (MSI build tool)" "Yellow"
 Write-Host "---"
 
 Push-Location $RepoDir
+Write-Log "  Updating dependency lock file (this may take a few minutes)..." "White"
+& $cargoExe update 2>&1 | ForEach-Object {
+    $line = $_.ToString()
+    if ($line -match "Updating|Adding|Removing") { Write-Log "    $line" "DarkGray" }
+}
 $env:CARGO_BUILD_JOBS = "1"
-Write-Log "  Updating dependency lock file..." "White"
-& $cargoExe update 2>&1 | Out-Null
 $buildLog = Join-Path $env:TEMP "plenum-pack-build.log"
 $buildProc = Start-Process -FilePath $cargoExe -ArgumentList "build --release -p plenum-pack" -NoNewWindow -Wait -PassThru -RedirectStandardError $buildLog
 $buildExit = $buildProc.ExitCode
