@@ -201,7 +201,38 @@ function HeroSection() {
   const [email, setEmail] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playbackDirection = useRef<1 | -1>(1);
+  const rafRef = useRef<number>(0);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleEnded = () => {
+      playbackDirection.current = -1;
+      video.pause();
+      const step = () => {
+        if (!video || playbackDirection.current !== -1) return;
+        video.currentTime = Math.max(0, video.currentTime - 0.04);
+        if (video.currentTime <= 0.05) {
+          playbackDirection.current = 1;
+          video.currentTime = 0;
+          video.play();
+          return;
+        }
+        rafRef.current = requestAnimationFrame(step);
+      };
+      rafRef.current = requestAnimationFrame(step);
+    };
+
+    video.removeAttribute("loop");
+    video.addEventListener("ended", handleEnded);
+    return () => {
+      video.removeEventListener("ended", handleEnded);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   const signupMutation = useMutation({
     mutationFn: async (data: { email: string }) => {
@@ -296,7 +327,6 @@ function HeroSection() {
                     autoPlay
                     muted
                     playsInline
-                    loop
                     className="w-full"
                     style={{ height: "390px", objectFit: "fill", display: "block" }}
                     data-testid="hero-video"
