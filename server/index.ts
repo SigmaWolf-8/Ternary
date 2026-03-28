@@ -753,7 +753,6 @@ function startPqtiService(): ChildProcess | null {
       const entries: [string, any][] = Array.from(relayClientsRef.entries());
       const nodes = entries.map(([addr, ws]) => ({
         address: toDottedAddr(addr),
-        addressDotted: toDottedAddr(addr),
         connected: ws.readyState === 1,
         endpoint: crsReg.get(addr)?.endpoint || null,
       }));

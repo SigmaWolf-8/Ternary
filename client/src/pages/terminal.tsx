@@ -38,7 +38,6 @@ interface ClusterResult {
 
 interface CrsNode {
   address: string;
-  addressDotted: string;
   connected: boolean;
   endpoint: string | null;
 }
@@ -265,6 +264,9 @@ export default function TerminalPage() {
     if (selectedNode === "local") {
       wsRef.current.send(JSON.stringify({ type: "connect_local" }));
     } else {
+      terminalRef.current?.reset();
+      terminalRef.current?.writeln(`\x1b[38;2;96;165;250m[Connecting to ${selectedNode}...]\x1b[0m`);
+      terminalRef.current?.writeln(`\x1b[38;2;150;150;150m[Remote shell requires daemon recompile — input will work once PTY is available on the target node]\x1b[0m\r\n`);
       wsRef.current.send(JSON.stringify({ type: "connect_remote", address: selectedNode }));
     }
   }, [selectedNode]);
@@ -277,13 +279,13 @@ export default function TerminalPage() {
 
   const handleSwitchSession = (sid: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "switch_session", sessionId: sid }));
+      wsRef.current.send(JSON.stringify({ type: "attach", sessionId: sid }));
     }
   };
 
   const handleDestroySession = (sid: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "destroy_session", sessionId: sid }));
+      wsRef.current.send(JSON.stringify({ type: "destroy", sessionId: sid }));
     }
   };
 
@@ -320,9 +322,9 @@ export default function TerminalPage() {
   const allNodes = [
     { id: "local", label: "CRS (Local)", address: "this-node", connected: true },
     ...crsNodes.map(n => ({
-      id: n.addressDotted,
-      label: `Node ${n.addressDotted}`,
-      address: n.addressDotted,
+      id: n.address,
+      label: `Node ${n.address}`,
+      address: n.address,
       connected: n.connected,
     })),
   ];
@@ -362,10 +364,13 @@ export default function TerminalPage() {
                   <span className="font-medium">CRS (Local)</span>
                 </SelectItem>
                 {crsNodes.map(node => (
-                  <SelectItem key={node.addressDotted} value={node.addressDotted} data-testid={`node-option-${node.addressDotted}`}>
+                  <SelectItem key={node.address} value={node.address} data-testid={`node-option-${node.address}`}>
                     <span className="flex items-center gap-2">
-                      <span className={`inline-block w-2 h-2 rounded-full ${node.connected ? "bg-blue-500" : "bg-red-500"}`} />
-                      <span className="font-mono font-medium">{node.addressDotted}</span>
+                      <span
+                        className={`inline-block w-2.5 h-2.5 rounded-full ${node.connected ? "bg-blue-400" : "bg-red-500"}`}
+                        style={node.connected ? { boxShadow: "0 0 6px 2px rgba(96, 165, 250, 0.7)" } : {}}
+                      />
+                      <span className="font-mono font-medium">{node.address}</span>
                       {node.endpoint && <span className="text-muted-foreground">{node.endpoint}</span>}
                     </span>
                   </SelectItem>
@@ -443,18 +448,21 @@ export default function TerminalPage() {
           <div className="flex gap-2 flex-wrap" data-testid="node-status-bar">
             {crsNodes.map(node => (
               <Badge
-                key={node.addressDotted}
+                key={node.address}
                 variant="outline"
                 className={`text-xs font-mono cursor-pointer ${
                   node.connected
                     ? "border-blue-500/30 text-blue-400"
                     : "border-red-500/30 text-red-400"
-                } ${selectedNode === node.addressDotted ? "bg-primary/10 border-primary" : ""}`}
-                onClick={() => setSelectedNode(node.addressDotted)}
-                data-testid={`node-badge-${node.addressDotted}`}
+                } ${selectedNode === node.address ? "bg-primary/10 border-primary" : ""}`}
+                onClick={() => setSelectedNode(node.address)}
+                data-testid={`node-badge-${node.address}`}
               >
-                <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${node.connected ? "bg-blue-500" : "bg-red-500"}`} />
-                {node.addressDotted} {node.endpoint || ""}
+                <span
+                  className={`inline-block w-2.5 h-2.5 rounded-full mr-1.5 ${node.connected ? "bg-blue-400" : "bg-red-500"}`}
+                  style={node.connected ? { boxShadow: "0 0 6px 2px rgba(96, 165, 250, 0.7)" } : {}}
+                />
+                {node.address} {node.endpoint || ""}
               </Badge>
             ))}
           </div>
