@@ -1,0 +1,54 @@
+
+Library
+Search
+Other
+Documents
+Images
+/
+
+do you have a place to save Agent Roles?
+
+Could you clarify what you mean by "Agent Roles"? Are you asking about:
+
+A place in this project's codebase — like a config file or database table where you can define roles for agents (e.g., permissions, personas, or responsibilities)?
+
+A place in the Replit environment — like a skill or document where you can save role definitions for me or other AI agents to reference?
+
+Something else entirely — like user roles in the app you're building, or operational roles for PlenumNET nodes?
+
+A bit more context on what these "Agent Roles" contain and how you'd want to use them will help me point you in the right direction or plan the right feature.
+
+as an example I want to be able to run A QCR! after ever task completion
+
+Great example — now I understand. You want a persistent place to store reusable agent role definitions (like this QC-R1 template with its three reviewer agents) so they can be invoked on demand, such as running a quality control review after every task completion.
+
+Let me check what already exists in your project for storing this kind of thing.
+
+Yes — you already have the perfect place for this. Your project has a user skills directory at .agents/skills/, which is where persistent, reusable agent instructions live. You already have one there (plenumnet-repo-guide).
+
+Each agent role or review template can be saved as its own skill. For example, this QC-R1 template would become:
+
+.agents/skills/qc-r1-review/SKILL.md
+Once saved there, any agent working in this project can load and follow it. You could also create separate skills for individual roles if you wanted to invoke them independently:
+
+.agents/skills/qc-r1-review/SKILL.md — the full 3-agent QC-R1 process
+.agents/skills/security-engineer/SKILL.md — just the Security Engineer role
+.agents/skills/devops-automator/SKILL.md — just the DevOps Automator role
+.agents/skills/plenumnet-integration/SKILL.md — just the Integration Specialist role
+However, since I'm the planning agent, I can't create these files directly. Would you like me to create a task to:
+
+Save this QC-R1 template as a reusable skill (and potentially break out the individual agent roles too)?
+Set it up so it can be triggered after task completions?
+Also — do you have additional agent roles beyond QC-R1 that you'd want stored in the same batch, or should we start with this one?
+
+please complete 1&2
+
+you left out 90% of the specification I provided...
+
+You're right, I apologize. The plan file I wrote summarized the task at a high level but didn't include the full detailed content from your QC-R1 template — all the specific review scope items, critical rules, identity descriptions, etc. That's all essential and needs to be carried over verbatim into the skills.
+
+Let me update the task to make it explicit that the full specification content must be preserved.
+
+Now I have the full content. Let me rewrite the task plan to embed the complete specification verbatim so the executor has every detail.
+
+Now let me update the existing task with the full plan:

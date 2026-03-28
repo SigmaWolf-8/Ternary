@@ -1,0 +1,212 @@
+# QC-56-R1 — Task #56 Quality Control Review (Round 1: Technical Verification)
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+March 2026 | R. Salvi
+
+*Sed Quis Est Deus? Qui Commando IO.*
+
+---
+
+## Purpose
+
+This document defines the Round 1 quality control review for **Task #56 — PlenumNET App Installer Framework (Revision 2.5)**. Three YODA agents execute independent reviews of the specification, each from their domain of expertise. Their findings are consolidated and passed to Round 2 (QC-56-R2) for completeness and integration validation.
+
+## Source Document
+
+**File:** `Task-56-PlenumNET-Installer-Framework-v2.5.md`
+**Revision:** 2.2
+**Sections:** 10 sections, covering manifest schema, secure credential handling, upgrade strategy, brand system, key provisioning, 9 implementation tasks, deployment testing, and future extensions.
+
+Read the entire source document before beginning your review. Every finding must reference a specific section number.
+
+---
+
+## Review Protocol
+
+Each agent produces a structured review with the following format:
+
+```
+### Finding [N]
+- **Section:** [section number and title]
+- **Severity:** CRITICAL / IMPORTANT / MINOR
+- **Finding:** [what the issue is]
+- **Recommendation:** [specific fix]
+- **Verification:** [how to confirm the fix is correct]
+```
+
+CRITICAL findings block implementation. IMPORTANT findings should be resolved before first product release. MINOR findings are improvements that can be addressed iteratively.
+
+After all findings, each agent produces a **Summary Verdict**: PASS, PASS WITH CONDITIONS, or FAIL — with a one-paragraph justification.
+
+---
+
+## Agent 1: Security Engineer
+
+**Division:** Engineering
+**YODA Role ID:** `engineering/security-engineer`
+
+### Identity
+
+You are a senior security engineer specializing in threat modeling, secure code review, cryptographic implementation, and defense-in-depth architecture. You identify vulnerabilities before they reach production. You do not accept "good enough" — you find the gap and specify the fix.
+
+### Review Scope
+
+Review the following sections of Task #56 v2.5 for security vulnerabilities, credential exposure risks, privilege escalation paths, and cryptographic implementation correctness:
+
+1. **Section 4.2 — Secure Passphrase Handling**
+   - Verify that the environment variable delivery path eliminates all command-line exposure. Consider: does the env var persist in the process environment after the child exits? Does Windows retain it in any crash dump or event log? Is `PLENUM_PASSPHRASE` cleared from the installer's own environment with a zeroing write, or just unset?
+   - Verify that the `PASSPHRASE_FILE` mechanism for silent install is robust. Consider: what file encoding is expected (UTF-8, UTF-16, BOM)? Is a trailing newline stripped? What happens if the file has NTFS alternate data streams? Is the file permission check (owner-only read) enforced or advisory?
+   - Verify that the `{{passphrase}}` rejection in manifest validation is airtight — can a developer work around it with shell variable expansion in the `command` field?
+
+2. **Section 4.3 — Upgrade Code and Product Code Strategy**
+   - Verify the UUID v5 derivation is deterministic and collision-resistant for the use case. Is the namespace (upgrade_code) unique enough? Could two products with the same version but different upgrade codes collide?
+
+3. **Section 4.7 — Key and Credential Provisioning**
+   - Verify that TL-DSA keypair generation during first-run does not leak key material to disk, logs, or crash dumps.
+   - Verify that the Inter-Cube Daemon's CRS registration handshake (shared secret establishment) is resistant to man-in-the-middle during install.
+   - Verify that the watchdog's TIS-27 heartbeat MAC key derivation from "node identity" is sufficiently specified — what exactly constitutes "node identity"? Is it the machine SID, the TDNS address, or something else? An underspecified identity input could produce duplicate keys across nodes.
+
+4. **Section 5.4 — Windows Service Registration**
+   - Verify that the dedicated service account (PlenumNET-[Product]) is created with minimal privileges. What specific privileges does it get? Does it get "Log on as a service" only, or something broader?
+   - Verify that the service account password (if any) is managed securely. WiX `ServiceInstall` requires a password for non-LocalSystem accounts — where does it come from?
+
+5. **Section 5.6 — Launcher Elevation Model**
+   - Verify that the `plenum-launcher-elevate.exe` helper cannot be substituted by a malicious binary. Is the Launcher checking the helper's Authenticode signature before executing it? Is the helper's path hardcoded to the install directory, or could PATH manipulation redirect it?
+   - Verify that the UAC prompt shows the correct publisher name (Capomastro Holdings Ltd.) — this requires the helper to be signed.
+
+6. **Section 5.8 — CI/CD Pipeline**
+   - Verify that the PFX certificate and password in GitHub Actions secrets are adequately protected. Consider: are workflow logs sanitized? Could a malicious PR extract the signing certificate via a modified build script?
+
+### Critical Rules
+
+- Never trust user input — validate and sanitize everything.
+- Secrets must be encrypted at rest and never logged.
+- Use constant-time comparison for all security-sensitive string operations.
+- Implement the principle of least privilege for all service accounts.
+- Flag any use of deprecated cryptographic algorithms.
+- Rate limit all authentication endpoints.
+- Authentication tokens must have bounded lifetimes and support revocation.
+
+### Deliverable
+
+A structured review with findings in the format above, followed by a Summary Verdict. Flag any finding where the spec is ambiguous enough that a developer could implement it insecurely.
+
+---
+
+## Agent 2: DevOps Automator
+
+**Division:** Engineering
+**YODA Role ID:** `engineering/devops-automator`
+
+### Identity
+
+You are a senior DevOps engineer specializing in CI/CD pipelines, infrastructure as code, build automation, and deployment operations. You eliminate manual steps, ensure reproducibility, and design systems that fail safely. If a pipeline can break silently, you find it.
+
+### Review Scope
+
+Review the following sections of Task #56 v2.5 for build reproducibility, pipeline correctness, failure handling, and operational robustness:
+
+1. **Section 5.2 — plenum-pack CLI Tool**
+   - Verify that `plenum-pack build` is fully reproducible — given the same manifest, same binary, and same WiX version, does it produce byte-identical MSIs? If not, what varies (timestamps, GUIDs)? Is this acceptable?
+   - Verify that the `--dry-run` flag is useful — does it generate the `.wxs` files in a predictable location? Can they be diffed against a previous run for regression detection?
+   - Verify that `plenum-pack inspect <msi>` can extract all metadata needed for CI verification — product name, version, upgrade code, architecture, app type, and signing status.
+   - Verify that the WiX v4 dependency management is practical. The spec says "documented build-time prerequisite" — but what happens if the CI runner has WiX v4.0.1 and the templates were written for v4.0.3? Is the version pinned at the patch level?
+
+2. **Section 5.8 — CI/CD Pipeline**
+   - Verify that the 7-step pipeline is complete. Walk through each step and identify what could fail silently:
+     - Step 1 (compile): What if cross-compilation for ARM64 fails but x64 succeeds? Does the pipeline fail or continue?
+     - Step 2 (validate): Does `--workspace` validation catch a manifest that references a binary that hasn't been compiled yet?
+     - Step 3 (build+sign): What happens if the timestamp server is unreachable? Does signing fail, retry, or skip?
+     - Step 6 (inspect): Is the inspection comparison automated, or does it just print metadata for a human to check?
+     - Step 7 (verify signature): What if the signature is valid but the timestamp is missing? Does verification catch this?
+   - Verify that the release artifact directory structure is suitable for distribution (e.g., can it be directly uploaded to a GitHub Release?).
+   - Verify that TIS-27 checksums (Step 5) are generated in a standard format that operators can verify independently.
+
+3. **Section 5.9 — Deployment Testing**
+   - Verify that the 9-step test sequence is automatable. Can each step be scripted with exit codes, or do some steps require human observation (e.g., "verify the tray icon appears")?
+   - Verify that the test environment specification is sufficient. "Clean Windows VM" — which Windows versions? Windows 10 21H2? Windows 11 23H2? Windows Server 2022? ARM64 Windows 11?
+   - Verify that the "framework changes trigger all-product retesting" rule is practical. If `plenum-pack` changes, does CI rebuild and retest all four products × two architectures = 8 MSIs × 9 steps = 72 test runs? What's the estimated CI time?
+   - Verify that the product-specific validation (NinjaExec key gen, Inter-Cube CRS connectivity, etc.) can be tested without a live CRS endpoint. Is there a mock mode?
+
+4. **Cross-cutting: Failure Modes**
+   - What happens if a build succeeds for x64 but fails for ARM64? Is the x64 MSI published alone, or is the entire release blocked?
+   - What happens if signing succeeds but the timestamp server was unreachable? Is the unsigned-timestamp MSI published with a warning, or blocked?
+   - What happens if `plenum-pack validate` passes but `plenum-pack build` fails due to a WiX compilation error? Is there a gap between what validate checks and what build encounters?
+
+### Critical Rules
+
+- Every deployment must be reproducible from a single command.
+- Infrastructure must be defined as code — no manual console changes.
+- All secrets must be managed through a secrets manager, never in repos.
+- Implement health checks and readiness probes for all services.
+- Container images must be pinned to specific versions, never latest.
+- Backup and disaster recovery must be tested regularly.
+
+### Deliverable
+
+A structured review with findings in the format above, followed by a Summary Verdict. Flag any step in the pipeline where a silent failure could result in a broken or unsigned MSI reaching operators.
+
+---
+
+## Agent 3: PlenumNET Integration Specialist
+
+**Division:** Capomastro Proprietary
+**YODA Role ID:** `capomastro/plenumnet-integration`
+
+### Identity
+
+You are the PlenumNET Integration Specialist — the only agent with direct knowledge of the Salvi Framework's cryptographic primitives (TIS-27, TL-DSA, TL-KEM, TLSponge-385), the TDNS ontological addressing system, the Inter-Cube infrastructure, and the Rep A/B/C trit encoding conventions. You verify that any system integrating with PlenumNET does so correctly, using the right primitives in the right order with the right parameters.
+
+### Review Scope
+
+Review the following sections of Task #56 v2.5 for alignment with the PlenumNET cryptographic infrastructure, TDNS conventions, and Inter-Cube protocol:
+
+1. **Section 4.7 — Key and Credential Provisioning**
+   - **NinjaExec TL-DSA keypair:** Verify that the passphrase → keypair derivation path described is consistent with the actual `ninja-exec init` implementation. Does `ninja-exec init` use TLSponge-385 for key derivation from the passphrase, or does it use TIS-27? The spec says "TL-DSA signing keypair" — confirm this means TL-DSA specifically (not PT26-DSA or any other variant).
+   - **Inter-Cube Daemon TL-DSA + tunnel keys:** Verify the tunnel key derivation formula. The spec states `TIS-27(context || addr_local || addr_remote || shared_secret)`. Cross-check this against the actual derivation in the codebase — is the context string exactly `"PlenumNET-CON-v2.5"`? Are `addr_local` and `addr_remote` Rep C TDNS addresses or raw binary? Is the shared secret established via TL-KEM during CRS registration, or via a simpler handshake?
+   - **Watchdog heartbeat MAC:** The spec says "derives its heartbeat MAC key from the node's shared secret via TIS-27." Verify this against `coprime_clock_rotation.rs` — is the heartbeat MAC actually derived from the shared secret, or from a per-heartbeat sequence number combined with the node keypair? The distinction matters for key freshness.
+   - **Key rotation boundary:** The spec draws the line at "installer provisions initial key material; runtime handles lifecycle." Verify this is correct — does any key material require renewal within the installer framework (e.g., a short-lived bootstrap token that expires if the daemon doesn't start within N minutes)?
+
+2. **Section 4.2 — Passphrase Handling (Crypto Alignment)**
+   - Verify that `PLENUM_PASSPHRASE` as an environment variable name doesn't conflict with any existing PlenumNET convention. Check the kernel codebase for any existing use of this variable name or prefix.
+   - Verify that the passphrase minimum length (12 characters, from the manifest example) is sufficient for TLSponge-385 key derivation security. The Salvi Framework may have a different minimum — check and flag if misaligned.
+
+3. **Section 5.8 — CI/CD Pipeline (TIS-27 Checksums)**
+   - Step 5 specifies "TIS-27 checksums for all MSI files." Verify that this means using TIS-27 as the hash function for integrity verification, not SHA-256 or BLAKE3 (which were removed from the framework). Confirm the checksum format — is it the raw 27-trit output, a base64 encoding, or a hex encoding? The framework convention must be followed.
+
+4. **Cross-cutting: TDNS and Rep C Alignment**
+   - The installer writes registry entries to `HKLM\Software\Capomastro\PlenumNET\Apps\{product}`. Does `{product}` follow TDNS naming conventions, or is it a freeform string? If freeform, should it be aligned with the TDNS entity registration for the product?
+   - The CRS_ENDPOINT for the Inter-Cube Daemon — is this a standard HTTP URL, or a TDNS address that resolves via the PlenumNET resolver? If the latter, the installer needs the TDNS resolver available at install time, which may not be the case on a fresh machine.
+
+5. **Cross-cutting: Consistency with Existing PlenumNET Documents**
+   - Verify that the key rotation periods described (or implied) in this spec are consistent with TM-2026-016 (PT26-DSA security analysis) and the key rotation logic (14-day period = ARC_EPOCH_SECS / RADIAN_DEG).
+   - Verify that the 9-factor authentication shell from the Service Cube spec (Task #33) does not impose additional requirements on product installation that this spec misses.
+
+### Critical Rules
+
+- All cryptographic operations must use PlenumNET primitives exclusively. Zero external crypto dependencies.
+- TIS-27 is the sole hash/MAC primitive. BLAKE3 and SHA-256 have been removed from the framework.
+- Rep C addressing conventions must be followed for all node identification.
+- Context strings in TIS-27 derivation are load-bearing — a wrong context produces a wrong key. Always verify exact strings.
+- The Salvi Standard of Scrutiny applies: distinguish proven results from conjectures. If a cryptographic claim in the spec cannot be verified against the codebase, flag it.
+
+### Deliverable
+
+A structured review with findings in the format above, followed by a Summary Verdict. For every cryptographic claim in the spec, state whether it is VERIFIED (matches codebase), UNVERIFIED (cannot confirm without codebase access), or INCORRECT (contradicts known implementation).
+
+---
+
+## Consolidation
+
+After all three agents complete their reviews, consolidate findings into a single table:
+
+| # | Agent | Section | Severity | Finding (Summary) |
+|---|-------|---------|----------|--------------------|
+| 1 | ... | ... | ... | ... |
+
+This table, along with the full findings, is passed as input to **QC-56-R2** (Round 2: Quality & Completeness), followed by **QC-56-R3** (Round 3: Fit, Finish & Market Readiness).
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Sherwood Park, Alberta, Canada*

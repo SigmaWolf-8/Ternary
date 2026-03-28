@@ -1,0 +1,696 @@
+# Task #56 — PlenumNET App Installer Framework
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+Revision 2.5 | March 2026 | R. Salvi
+
+---
+
+## 1. What & Why
+
+Every PlenumNET product that ships to a Windows machine currently has its own ad-hoc deployment story: PowerShell scripts, batch file wrappers, manual service registration, copy-paste from GitHub. This works for development but fails for production. Real deployment means proper installers with branding, system integration, clean uninstall, and zero terminal interaction for the operator.
+
+NinjaExec (#54) needs an installer. The inter-cube daemon needs one. The watchdog needs one. Future PlenumNET apps will need one. Building a bespoke installer for each product is redundant work that diverges over time — different icon styles, different install paths, different registry keys, different uninstall behaviors.
+
+This task builds a shared installer framework that any PlenumNET application plugs into. The framework reads a product manifest, produces a signed MSI with proper Windows integration (icons, Start Menu, system tray, autostart, PATH, services), and handles clean uninstall. It also provides a unified PlenumNET Launcher — a system tray hub that shows all installed PlenumNET apps, their status, and quick actions.
+
+The result: every PlenumNET product ships with the same professional install experience, the same Capomastro branding, and the same operational polish.
+
+---
+
+## 2. Done Looks Like
+
+- A manifest-driven build tool (`plenum-pack`) that reads a product definition file and produces a signed MSI installer for Windows ARM64 and x86_64
+- Every PlenumNET app defines a single `plenum-app.toml` manifest — name, version, binary path, icon, install type (service, tray agent, CLI tool), autostart behavior, and any first-run actions
+- Generated MSIs carry Capomastro Holdings branding: professional installer wizard with logo, consistent color palette (PlenumNET brand — see Section 4.6), and product-specific icon
+- Each installed app gets proper Windows integration: Start Menu shortcuts with custom icons, Add/Remove Programs entry with product icon and publisher info, optional system tray presence, optional Windows Service registration via WiX native `ServiceInstall`/`ServiceControl` elements
+- A shared **PlenumNET Launcher** lives in the system tray and acts as the hub for all installed PlenumNET apps — shows which apps are installed, their running/stopped/error status, and offers start/stop/configure actions. The Launcher supports both light and dark mode, respecting the Windows system theme. Service control actions that require elevation launch a UAC-prompted helper process
+- Clean uninstall per app removes binaries, shortcuts, registry entries, PATH modifications, and service registrations — but never touches user data directories (keystores, configs, logs, audit trails)
+- A single `plenum-pack build` command in CI produces MSIs for all target architectures
+- All MSIs and binaries are Authenticode code-signed with a Capomastro Holdings certificate, using a timestamp server to ensure signatures survive certificate expiry
+- Passphrase and sensitive credential handling uses environment variables (interactive install) or file-based input (silent install) — never command-line arguments or MSI property tables
+- Each product carries a fixed upgrade code; `plenum-pack` derives product codes deterministically and generates WiX `MajorUpgrade` elements to prevent side-by-side installations
+
+---
+
+## 3. Out of Scope
+
+- macOS or Linux GUI installers (Linux uses shell scripts or `.deb`/`.rpm` packaging — a future extension)
+- Auto-update / self-update mechanism (future — requires an update server)
+- Microsoft Store distribution (future — requires store submission and review)
+- Application sandboxing via MSIX (future — MSI is the pragmatic starting point)
+- Bundling multiple products into a single MSI (each product gets its own installer; the Launcher is a separate product)
+
+---
+
+## 4. Product Manifest Format
+
+Every PlenumNET application provides a `plenum-app.toml` in its crate root.
+
+### 4.1 Example Manifest (NinjaExec)
+
+```toml
+[app]
+name = "NinjaExec"
+display_name = "NinjaExec — PlenumNET Signing Agent"
+description = "Securely signs and authenticates PlenumNET operations with post-quantum cryptography"
+version = "1.0.0"
+publisher = "Capomastro Holdings Ltd."
+binary = "ninja-exec.exe"
+icon = "assets/ninja-exec.ico"
+license = "Proprietary"
+upgrade_code = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
+
+[install]
+directory = "Capomastro\\NinjaExec"          # under %ProgramFiles%
+data_directory = "NinjaExec"                  # under %APPDATA%
+add_to_path = true
+architecture = ["aarch64", "x86_64"]
+
+[app_type]
+kind = "tray_agent"                           # options: tray_agent, service, cli_tool, hybrid
+autostart = true                              # register in HKCU\...\Run
+tray_icon = "assets/ninja-exec-tray.ico"
+tray_tooltip = "NinjaExec — PlenumNET Signing Agent"
+configure_command = ""                        # optional; Launcher falls back to opening data_directory
+
+[first_run]
+actions = [
+    { type = "prompt_passphrase", min_length = 12, confirm = true },
+    { type = "run_command",
+      command = "ninja-exec init",
+      env_passphrase = "PLENUM_PASSPHRASE" },
+    { type = "copy_to_clipboard",
+      command = "ninja-exec export-operator",
+      message = "Your public signing key has been copied. Provide it to your PlenumNET administrator to authorize this machine for signing operations." },
+]
+
+[shortcuts]
+start_menu = [
+    { name = "NinjaExec", target = "ninja-exec.exe", icon = "assets/ninja-exec.ico" },
+    { name = "Export Public Key", target = "ninja-exec.exe", args = "export-operator --clipboard", icon = "assets/export-key.ico" },
+]
+
+[uninstall]
+preserve_data = true                          # never delete %APPDATA% data directory
+preserve_message = "Your signing key and audit log are preserved in %APPDATA%\\NinjaExec. Delete manually if no longer needed."
+```
+
+**Field clarifications:**
+
+**Required vs optional fields:** In the `[app]` section, `name`, `display_name`, `version`, `publisher`, `binary`, `icon`, and `upgrade_code` are required — `plenum-pack validate` fails if any is missing. `description`, `license`, and `tray_tooltip` are optional with sensible defaults (empty description, "Proprietary" license, display_name as tooltip). In `[install]`, `directory` and `architecture` are required; `data_directory` and `add_to_path` default to the app `name` and `false` respectively. In `[app_type]`, `kind` is required; all other fields are optional and validated for cross-field consistency (see Section 5.2).
+
+**`license`** — Either a path to a `LICENSE.txt` file (relative to the manifest) or a short identifier like `"Proprietary"`. If a file path is provided and the file exists, the installer wizard displays the file content on the License step. If a short identifier is provided, the wizard displays a standard text derived from the identifier. `plenum-pack validate` verifies that file paths resolve to an existing file.
+
+**`architecture`** — Lists the target architectures for MSI generation. Valid values are `"aarch64"` and `"x86_64"`. 32-bit x86 Windows is not supported. Every generated MSI includes a launch condition that blocks installation on 32-bit systems with a clear error: "PlenumNET products require 64-bit Windows. This machine is running a 32-bit operating system." A second launch condition blocks non-admin users: "Administrator privileges are required to install PlenumNET products. Right-click the installer and select 'Run as administrator'."
+
+**`upgrade_code`** — A GUID string in standard format (`A1B2C3D4-E5F6-7890-ABCD-EF1234567890`). Validated against a regex during `plenum-pack validate`. The `plenum-pack new` command auto-generates a cryptographically random upgrade code so developers never need to produce one manually.
+
+**`service_account`** — (optional, `service` and `hybrid` types only) When present in `[app_type]`, specifies the name of a dedicated local Windows account to run the service under (e.g., `"PlenumNET-InterCube"`). When absent, the service runs as Local System. Not shown in the NinjaExec example manifest because NinjaExec is a `tray_agent`, not a `service`. The Inter-Cube Daemon manifest would include:
+
+```toml
+[app_type]
+kind = "service"
+service_account = "PlenumNET-InterCube"
+```
+
+**`status_port`** — (optional, `tray_agent` and `hybrid` types only) The localhost HTTP port the tray agent exposes for status queries. Defaults to a product-specific port assigned during install and written to the Launcher registry entry at `HKLM\Software\Capomastro\PlenumNET\Apps\{product}\StatusPort`. The Launcher reads this registry value to discover which port to poll for each tray agent. Each product must use a distinct port — `plenum-pack validate --workspace` checks for port collisions.
+
+**`[first_run]` execution order** — Actions execute sequentially in the order they appear in the array. Each action runs to completion before the next begins. A `copy_to_clipboard` action depends on the preceding `run_command` succeeding — if the command fails, the clipboard action is skipped and the installer shows the error. The ordering is fixed by the manifest and cannot be overridden per-install.
+
+**`copy_to_clipboard` behavior** — The installer executes the specified command, captures its stdout, and places the captured text on the system clipboard. The `message` field is displayed to the operator alongside a "Copy" button (for manual re-copy). In silent install mode, the clipboard may not be available — the captured stdout is written to a file at `%APPDATA%\{data_directory}\export.txt` instead, and the file path is recorded in the install log.
+
+**`configure_command` failure handling** — When `configure_command` is empty or absent, the Launcher opens the data directory in Explorer. If `data_directory` is also absent (e.g., for a `cli_tool` with no persistent data), the Launcher falls back to opening the installation directory under `%ProgramFiles%`. If the configure command fails (non-zero exit code), the Launcher shows a brief inline error in the product's row ("Configuration failed — check product logs") and does not retry. There is no timeout on the configure command — it runs in a separate process and the Launcher remains responsive.
+
+**Passphrase character encoding** — The passphrase may contain any valid UTF-8 characters, including non-ASCII Unicode. The environment variable delivery mechanism preserves the full UTF-8 byte sequence. The child binary is responsible for interpreting the passphrase correctly. `plenum-pack validate` does not restrict passphrase character sets — that is the child binary's domain.
+
+### 4.2 Secure Passphrase Handling
+
+Passphrases and other sensitive credentials must never appear on the command line, in MSI property tables, or in installer logs. The framework enforces two secure delivery mechanisms.
+
+**Interactive Install (GUI Wizard)**
+
+The `prompt_passphrase` first-run action collects the passphrase via a masked password field in the installer UI. The passphrase is passed to the child process exclusively via an environment variable specified in `env_passphrase` (e.g., `PLENUM_PASSPHRASE`). The installer sets the environment variable, spawns the child process, and clears the variable from its own environment immediately after the child exits. The child binary (e.g., `ninja-exec init`) reads the passphrase from the environment variable and immediately clears it from its own process environment upon ingestion.
+
+The `{{passphrase}}` command-line interpolation syntax that appeared in earlier drafts is removed from the manifest schema. Any manifest using it fails validation with a clear error directing the developer to use `env_passphrase` instead.
+
+**Silent Install (msiexec /qn)**
+
+For automated deployments, passphrases are provided via file-based input, following the pattern established by HashiCorp Vault and similar tools:
+
+```
+msiexec /i NinjaExec.msi /qn PASSPHRASE_FILE=C:\secure\passphrase.txt
+```
+
+The installer reads the passphrase from the file specified by `PASSPHRASE_FILE`, passes it to the child process via the environment variable, and never records it in the MSI log or property table. The file must be readable only by the installing user (the installer verifies file permissions on NTFS and rejects files readable by other users). If the file is missing, unreadable, or has overly permissive ACLs, the installer exits with error code 1603 and a descriptive error identifying the specific problem. If a product requires a passphrase and neither the GUI prompt nor `PASSPHRASE_FILE` is provided in silent mode, the installer exits with error code 1603 and writes a descriptive error to `%TEMP%\PlenumNET_[ProductName]_install.log` explaining the missing requirement. Products that do not require a passphrase proceed normally in silent mode.
+
+**Passphrase file format:** The file must contain the passphrase as a plain UTF-8 string with no BOM. A single trailing newline (LF or CRLF) is stripped if present. The installer rejects files with NTFS alternate data streams (the file path must not contain a colon after the drive letter). The installer does not modify or delete the file. It is the operator's responsibility to create the file with appropriate permissions before running the installer (e.g., `icacls passphrase.txt /inheritance:r /grant:r %USERNAME%:R`).
+
+**Environment variable lifecycle:** The installer sets the `PLENUM_PASSPHRASE` environment variable, spawns the child process, waits for it to exit, and then overwrites the variable's memory with zeros before unsetting it. The child binary must likewise zero and clear the variable from its own process environment immediately upon reading it. This prevents the passphrase from persisting in process memory or appearing in crash dumps. The variable is set only in the spawned child's environment block — it is never set in the system or user environment, and is not visible to other processes running on the machine.
+
+**Manifest Schema for Secure Credentials**
+
+```toml
+# Correct — passphrase delivered via environment variable:
+{ type = "run_command",
+  command = "ninja-exec init",
+  env_passphrase = "PLENUM_PASSPHRASE" }
+```
+
+The `env_passphrase` field is optional. When present, the installer collects the passphrase (via GUI prompt or `PASSPHRASE_FILE`) and sets it as the named environment variable before executing the command. When absent, no passphrase handling occurs for that action.
+
+### 4.3 Upgrade Code and Product Code Strategy
+
+Every PlenumNET product must include a fixed `upgrade_code` in its manifest. This GUID never changes across versions and identifies the product family for the Windows Installer upgrade mechanism.
+
+**Upgrade Code** — Defined in the manifest's `[app]` section as a GUID string. Must be unique per product. The `plenum-pack validate` command checks for duplicate upgrade codes across all manifests in the workspace. Once assigned, the upgrade code is permanent. Changing it creates a new product family and causes side-by-side installations.
+
+**Product Code** — Derived deterministically by `plenum-pack` from the upgrade code and version string using a UUID v5 hash (namespace = upgrade code, name = version string). UUID v5 uses SHA-1 internally — this is acceptable here because the product code is a Windows Installer identifier, not a cryptographic commitment. It must be a valid UUID per the MSI specification, which rules out using TIS-27 for derivation. The SHA-1 usage is confined to deterministic GUID generation and does not weaken any security boundary. Changes automatically with every version bump, which is correct behavior — each version is a distinct product code. App developers never set the product code manually. UUID v5 is collision-resistant for this use case: two products with different upgrade codes (different namespaces) will never produce the same product code even with identical version strings.
+
+**WiX MajorUpgrade Element** — `plenum-pack` generates a `MajorUpgrade` element in every WiX source file:
+
+```xml
+<MajorUpgrade
+  DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+  Schedule="afterInstallInitialize" />
+```
+
+This ensures that installing a new version automatically removes the previous version, preventing side-by-side installations and orphaned registry keys. Downgrade attempts are blocked with a clear error message.
+
+### 4.4 App Type Behaviors
+
+| Kind | Behavior |
+|------|----------|
+| `tray_agent` | Runs as a user-mode process with system tray icon. Autostart via Run registry key. Example: NinjaExec. |
+| `service` | Registered as a Windows Service via WiX `ServiceInstall` element. Starts automatically on boot. Dedicated service account if specified. Example: inter-cube daemon. |
+| `cli_tool` | No autostart, no tray, no service. Installs binary and adds to PATH. Example: one-shot utilities. |
+| `hybrid` | Both a Windows Service (daemon) and a tray agent (monitor/control). The installer registers both components. |
+
+### 4.5 Configure Command Convention
+
+The manifest supports an optional `configure_command` field in the `[app_type]` section:
+
+```toml
+[app_type]
+configure_command = "ninja-exec --open-config"
+```
+
+When set, the Launcher executes this command when the user clicks "Configure" for the product. When empty or absent, the Launcher falls back to opening the data directory in Explorer: `explorer %APPDATA%\{data_directory}`. This gives operators access to edit config files manually while allowing products to provide richer configuration UIs in the future.
+
+### 4.6 Brand Color System
+
+All PlenumNET UI surfaces — the Launcher panel, installer wizard, icons, and marketing assets — use the canonical PlenumNET brand palette. The palette is defined for both dark and light modes, with the dark palette as the primary reference.
+
+**Dark Mode (Primary)**
+
+| Role | Token | Hex | HSL |
+|------|-------|-----|-----|
+| Page Background | `bg-page` | `#0F0C0A` | hsl(20, 14%, 4%) |
+| Card / Panel | `bg-card` | `#181411` | hsl(20, 14%, 8%) |
+| Muted Surface | `bg-muted` | `#1D1915` | hsl(20, 12%, 10%) |
+| Border | `border` | `#272220` | hsl(20, 10%, 14%) |
+| Headings | `text-heading` | `#F0EDE8` | hsl(40, 20%, 95%) |
+| Nav Text | `text-nav` | `#E4DFD5` | — |
+| Body Text | `text-body` | `#C9C1B4` | hsl(38, 12%, 78%) |
+| Labels / Captions | `text-label` | `#998F82` | hsl(35, 8%, 60%) |
+| Faint / Decorative | `text-faint` | `#6B655E` | hsl(30, 6%, 42%) |
+| Primary Blue | `accent-primary` | `#4A9EF5` | hsl(210, 80%, 55%) |
+| Nav Hover Blue | `accent-hover` | `#38BDF8` | — |
+| Iron | `surface-iron` | `#3D444B` | hsl(210, 10%, 27%) |
+| Cool Slate | `surface-slate` | `#78828C` | hsl(210, 8%, 51%) |
+
+**Light Mode**
+
+The light palette inverts the luminance hierarchy while preserving the warm neutral character and blue accent identity:
+
+| Role | Token | Hex | Notes |
+|------|-------|-----|-------|
+| Page Background | `bg-page` | `#FAF8F6` | Warm off-white |
+| Card / Panel | `bg-card` | `#FFFFFF` | Pure white cards on warm ground |
+| Muted Surface | `bg-muted` | `#F0ECE8` | Warm light grey |
+| Border | `border` | `#D9D3CC` | Warm border, same hue family |
+| Headings | `text-heading` | `#1A1614` | Near-black, warm |
+| Nav Text | `text-nav` | `#2C2722` | Dark warm brown |
+| Body Text | `text-body` | `#4A4440` | Warm dark grey |
+| Labels / Captions | `text-label` | `#7A7168` | Mid warm grey |
+| Faint / Decorative | `text-faint` | `#A89E94` | Light warm grey |
+| Primary Blue | `accent-primary` | `#2D7DD2` | Slightly deeper for contrast on white |
+| Nav Hover Blue | `accent-hover` | `#1A6FC2` | Deeper hover state |
+| Iron | `surface-iron` | `#C8CDD2` | Light cool grey |
+| Cool Slate | `surface-slate` | `#8E959C` | Mid cool grey |
+
+**Status Indicators (Consistent Across Modes)**
+
+Status indication follows the PlenumNET visual language — no traffic-light colors. Status reads through intensity and presence, not through color-coding. All status values are fixed and do not change between light and dark mode:
+
+| Status | Hex | Treatment |
+|--------|-----|-----------|
+| Running / OK | `#4A9EF5` | Accent-primary blue. Lit, active, alive. |
+| Warning / Degraded | `#78828C` | Cool slate. Present but diminished — desaturated, muted. |
+| Error / Stopped | `#3D444B` | Iron. Blackout — the indicator goes dark and inert, as if the power is off. |
+| Locked | `#4A9EF5` | Accent-primary blue with lock icon. Same visual weight as running — locked is a deliberate state, not an error. |
+
+**Mode Selection**
+
+The Launcher and any future PlenumNET desktop UI detect the Windows app mode preference (`HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\AppsUseLightTheme`). When the value is `0`, dark mode is applied; when `1`, light mode. If the registry key is absent, the Launcher defaults to dark mode. The user can override the system preference in Launcher settings with a three-way toggle: System / Light / Dark.
+
+The MSI installer wizard uses the WiX standard UI chrome and is not themed to dark mode — it follows the Windows system installer appearance, with brand-colored banner and background images that work on both light and dark Windows surfaces.
+
+**Icon Rendering**
+
+Product icons must render cleanly on both dark and light backgrounds. The PlenumNET "P" lattice mark uses `#F0EDE8` (heading white) on dark backgrounds and `#1A1614` (heading dark) on light backgrounds, with `#4A9EF5` accent highlights in both modes. System tray icons follow the same dual-mode rendering, using Windows 10/11 tray icon contrast detection where available.
+
+**Typography**
+
+The Launcher uses Segoe UI (the Windows system font) for all panel text — this ensures native rendering, proper ClearType hinting, and consistency with Windows system UI. The Launcher does not embed or require Century Gothic. The type hierarchy maps to palette tokens: headings in `text-heading` at Segoe UI Semibold, body text in `text-body` at Segoe UI Regular, labels in `text-label` at Segoe UI Regular (smaller size). The installer wizard uses WiX standard chrome fonts (Segoe UI on modern Windows) — the product name on the welcome screen renders in the banner image, which uses Century Gothic for the product name text (baked into the bitmap at build time by `plenum-pack`).
+
+**Tray Icon Status Rendering**
+
+Status variants are rendered as a colored overlay dot in the bottom-right corner of the base product icon — not a full icon swap or tint. The base icon stays recognizable at all times; only the 4×4 pixel (16×16 icons) or 8×8 pixel (32×32 icons) corner dot changes color. This approach preserves product identity (the key, the cube, the eye) while communicating status at a glance. The dot colors are the fixed status values from the table above. The "locked" variant uses a miniature lock glyph instead of a dot, rendered in accent-primary.
+
+**Animation Policy**
+
+The Launcher uses minimal, purposeful animation — no gratuitous transitions. Specifically: the panel opens/closes with a 150ms fade (not a slide). Status indicator dots pulse once (200ms ease-in-out opacity cycle from 0.5 to 1.0) when a status change is detected, drawing the operator's eye without being distracting. Action buttons show a brief loading state ("Starting..." / "Stopping...") after click and before the UAC prompt appears, preventing the "did my click register?" uncertainty. The installer wizard uses no custom animations — it follows WiX standard UI transitions. The absence of other animations is an intentional design choice, not an omission.
+
+**Accessibility**
+
+The Launcher supports full keyboard navigation: Tab cycles through app rows and action buttons in reading order, Enter activates the focused button, Escape closes the panel. Status indicators are accompanied by screen-reader-accessible text labels (e.g., "Running", "Stopped", "Locked") via UI Automation properties — the colored dots are visual-only and never the sole indicator of status. The Launcher detects Windows high-contrast mode and falls back to system high-contrast colors when enabled, overriding the brand palette. The installer wizard inherits WiX's built-in accessibility support (keyboard navigation, screen reader compatibility).
+
+### 4.7 Key and Credential Provisioning
+
+PlenumNET products authenticate using the platform's own cryptographic infrastructure — TL-DSA keypairs, TIS-27 sponge-derived tunnel keys, and SFK operation keys. The installer framework is responsible for provisioning these credentials during first-run so that each product is operationally live immediately after install, with no manual key wrangling.
+
+**Per-product key provisioning:**
+
+| Product | Key Material | Provisioned During | Mechanism |
+|---------|-------------|-------------------|-----------|
+| **NinjaExec** | TL-DSA signing keypair (not PT26-DSA — TL-DSA is the production signing primitive) | First-run (passphrase prompt) | `ninja-exec init` reads `PLENUM_PASSPHRASE` env var, derives key material via TLSponge-385 (the passphrase is the seed input to the sponge, not a raw key), generates the TL-DSA keypair, and stores it in `%APPDATA%\NinjaExec\keystore`. The private key never touches disk in plaintext — it is encrypted at rest in the keystore using a key derived from the passphrase. Public key exported to clipboard for Array3 registration. |
+| **Inter-Cube Daemon** | TL-DSA node keypair + shared secret for tunnel key derivation | First-run (service account context) | `inter-cube-daemon init` generates a node TL-DSA keypair and registers with the CRS (Cube Registration Service) over HTTPS with TL-DSA mutual authentication. The shared secret is established via TL-KEM key encapsulation during CRS registration — not a plaintext handshake. Tunnel keys are not stored — they are derived on demand via `TIS-27(context \|\| addr_local \|\| addr_remote \|\| shared_secret)` where the context string is `"PlenumNET-CON-v2.5"`, and `addr_local`/`addr_remote` are Rep C TDNS addresses (54-trit, binary-encoded). Tunnel keys rotate automatically on any topology change. |
+| **Array3 Watchdog** | TIS-27 heartbeat MAC key + capability token | First-run (config validation) | The watchdog derives its heartbeat MAC key via `TIS-27(context="HEARTBEAT-MAC" \|\| node_tdns_address \|\| shared_secret \|\| sequence_epoch)` where `node_tdns_address` is the node's Rep C TDNS address (the unique identifier — not the machine SID, not the hostname). The sequence epoch resets on each key rotation cycle (14-day period = ARC_EPOCH_SECS / RADIAN_DEG, consistent with TM-2026-016). The capability token is issued by the CRS during registration and stored in `%APPDATA%\Array3Watchdog\`. No passphrase required — key material derives deterministically from the node's TDNS address and shared secret. |
+| **PlenumNET Launcher** | None (hub only) | N/A | The Launcher holds no key material. It queries tray agents via their local HTTP status API (unauthenticated localhost) and queries services via the Service Control Manager. It reads status, not secrets. |
+
+**Key generation safety:** During first-run key generation, the private key exists in process memory only. It is never written to a temporary file, never logged, and the process clears key material from memory (zeroing write) before exiting. If the process crashes during key generation (before the keystore is sealed), no partial key material remains on disk — the keystore is written atomically (write-to-temp, rename). Windows crash dumps are a risk only if the operator has kernel debugging enabled; the spec does not attempt to mitigate kernel-level memory capture, as this is outside the installer's threat model.
+
+**Key storage:**
+
+All key material is stored under the product's `%APPDATA%\{data_directory}` and is explicitly preserved during standard uninstall (Section 5.7). The "full cleanup" option is the only path that deletes key material, gated by the "Type DELETE" confirmation. This is why that friction exists — a lost TL-DSA keypair means the node must be re-registered with the Array3.
+
+**Manifest schema for key provisioning:**
+
+The `[first_run]` actions handle key provisioning. Products that derive keys from node identity (watchdog) or generate keys from a passphrase (NinjaExec) use the existing `prompt_passphrase` and `run_command` actions. Products that need network registration (inter-cube daemon) use `run_command` with the daemon's init subcommand, which handles the CRS handshake internally.
+
+```toml
+# Inter-Cube Daemon — no passphrase, but needs CRS endpoint
+[first_run]
+actions = [
+    { type = "run_command",
+      command = "inter-cube-daemon init --crs-endpoint {{CRS_ENDPOINT}}",
+      env_passphrase = "" },
+]
+```
+
+The `CRS_ENDPOINT` is provided during install (interactive: wizard prompt; silent: MSI property `CRS_ENDPOINT=https://...`). This is a standard HTTPS URL, not a TDNS address — the PlenumNET TDNS resolver may not be available on a fresh machine at install time. The CRS_ENDPOINT is not a secret — it is the network address of the Cube Registration Service that the daemon registers with. The CRS handshake itself is secured via TL-KEM and TL-DSA mutual authentication (see key provisioning table above).
+
+**Key rotation:**
+
+Key rotation is not an installer concern. PlenumNET's tunnel keys rotate automatically on topology change (this is a mathematical consequence of the TIS-27 derivation formula, not a scheduled event). Node TL-DSA keypairs rotate via the rotation daemon on a 14-day cycle (ARC_EPOCH_SECS / RADIAN_DEG, per TM-2026-016). The installer provisions the initial key material; the runtime handles the lifecycle. No key material provisioned during install has a short-lived expiry — there is no bootstrap token that expires if the daemon doesn't start within N minutes. The initial keypair and shared secret remain valid until the first scheduled rotation.
+
+---
+
+## 5. Tasks
+
+### 5.1 Design the Icon System
+
+Create a professional icon set for the PlenumNET product family. Every product needs icons at multiple resolutions for different Windows contexts. The existing PlenumNET "P" lattice mark (the cross-and-arc monogram) serves as the family brand foundation.
+
+**Required icon assets per product:**
+- Application icon: 16×16, 32×32, 48×48, 256×256 in a single `.ico` file (Windows requires multi-resolution ICO)
+- System tray icon: 16×16 and 32×32 (for standard and high-DPI displays), with status variants: running (accent-primary blue `#4A9EF5`), warning/degraded (cool slate `#78828C`), stopped (iron blackout `#3D444B`), locked (for NinjaExec). Status colors are fixed across light and dark taskbar backgrounds.
+- Installer wizard banner: 493×58 pixels (WiX standard)
+- Installer dialog background: 493×312 pixels (WiX standard)
+
+**Brand identity:**
+- All icons use the PlenumNET brand palette (Section 4.6). The "P" lattice mark transitions across sizes: at 256×256, the full 3D-beveled lattice mark with all crosshatch detail. At 48×48, the bevel is simplified but the lattice structure is preserved. At 32×32 and 16×16, a flat rendering with essential strokes only — the crosshatch is removed, leaving a clean geometric "P" silhouette that reads at small scale. There is no intermediate rendering between 48×48 and 32×32 — the switch to flat is deliberate at the 32px boundary.
+- Each product has a distinct icon that still reads as part of the same family — consistent style, different symbol:
+  - **NinjaExec**: Key glyph with subtle "P" lattice element or signing motif
+  - **Inter-Cube Daemon**: Interlocking cubes or network node motif
+  - **Array3 Watchdog**: Stylized eye or shield with "P" element
+  - **Launcher**: Primary PlenumNET "P" lattice mark (full detail)
+- Installer banner and background images use the brand palette with a subtle "P" lattice watermark. The **banner** (493×58) contains: left-aligned Capomastro "P" mark at 48×48 (padded), right-aligned product name in Century Gothic Bold at 18pt in `text-heading` color, on a `bg-muted` background with the "P" lattice watermark at 5% opacity. The **dialog background** (493×312) uses `bg-page` as the base color, the "P" lattice watermark at 3% opacity centered, and a footer bar (full width, 24px height, `bg-muted` background) reading "Capomastro Holdings Ltd. — Applied Physics Division" in Century Gothic Regular at 9pt, right-aligned in `text-label` color.
+
+**Deliverables:** `.ico` files for each current product (NinjaExec, Launcher, inter-cube daemon, watchdog), installer banner and background images, SVG source files for all icons. Each `.ico` and SVG source includes both light-background and dark-background variants where the rendering differs.
+
+**Relevant files:** New `assets/icons/` directory in the framework.
+
+### 5.2 Build the `plenum-pack` CLI Tool
+
+The core build tool that reads `plenum-app.toml` and produces MSI installers.
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `plenum-pack build` | Read `plenum-app.toml` in current directory, produce MSI for all configured architectures |
+| `plenum-pack build --arch aarch64` | Build MSI for a specific architecture only |
+| `plenum-pack build --sign` | Build and Authenticode-sign the MSI and contained binary |
+| `plenum-pack build --dry-run` | Generate the WiX `.wxs` source files to `./plenum-pack-output/` without compiling or signing. Output location is deterministic and can be diffed against a previous run for regression detection. |
+| `plenum-pack validate` | Validate the manifest without building |
+| `plenum-pack validate --workspace` | Validate all manifests in the workspace, including cross-manifest checks |
+| `plenum-pack inspect <msi>` | Display manifest-derived metadata from a built MSI — product name, version, upgrade code, architecture, app type. Useful in CI and support diagnostics. |
+| `plenum-pack new <n>` | Scaffold a new `plenum-app.toml` with sensible defaults |
+
+**Implementation:** `plenum-pack` generates WiX v4 source files from the manifest template, invokes the WiX toolchain to compile the MSI, and optionally signs the output. The WiX templates are bundled inside `plenum-pack` (compiled into the Rust binary via `include_str!`) — app developers never touch WiX XML directly. WiX v4 is a dotnet tool (`dotnet tool install wix`). `plenum-pack` treats it as a documented build-time prerequisite, requires .NET 8.0 SDK or later, and checks for WiX availability at invocation, providing a clear error message with installation instructions if missing. The exact WiX version is pinned at the patch level in CI (e.g., `4.0.4`) and recorded in `tools/plenum-pack/wix-version.txt` — a version mismatch between the CI runner and the pinned version fails the build.
+
+**Build reproducibility:** Given the same manifest, same binary, and same WiX version, `plenum-pack build` produces MSIs that are functionally identical but not byte-identical — MSI files contain embedded timestamps and GUIDs that vary between runs. This is acceptable because integrity is verified via TIS-27 checksums and Authenticode signatures, not byte-level comparison. The `--dry-run` output (`.wxs` files) is fully deterministic and suitable for diff-based regression testing.
+
+**Architecture detection:** Each MSI targets a single architecture. `plenum-pack` generates separate MSIs per architecture listed in the manifest, using WiX `Package/@Platform` to restrict each MSI to its target. The MSI includes a launch condition that checks the processor architecture and refuses to install the wrong variant with a clear error: "This installer is for ARM64 Windows. Download the x86_64 version at plenumnet.com/downloads."
+
+**Silent install:** Every generated MSI supports `msiexec /i Product.msi /qn`. Sensitive properties like passphrases are provided via `PASSPHRASE_FILE` (see Section 4.2). If required first-run actions cannot be completed in silent mode, the installer exits with error code 1603 and writes a descriptive error to `%TEMP%\PlenumNET_[ProductName]_install.log`.
+
+**Manifest validation (`plenum-pack validate`):** The validate command performs comprehensive checks:
+
+- **File existence:** Verifies that binary, icon, license, and all referenced asset files exist at the paths specified in the manifest
+- **Semver compliance:** The `version` field must be a valid semantic version string
+- **Cross-field consistency:** `tray_agent` kind must not specify `service_account`; `service` kind must not specify `tray_icon` without also being `hybrid`; `autostart = true` requires a valid `app_type.kind` that supports autostart
+- **Upgrade code uniqueness:** When run with `--workspace`, checks that no two manifests share the same `upgrade_code`
+- **Icon resolution:** Validates that `.ico` files contain the required resolutions (16, 32, 48, 256)
+- **Passphrase security:** Rejects manifests that use the legacy `{{passphrase}}` interpolation syntax in `run_command` actions. Also rejects `command` fields containing shell variable expansion patterns (`%VAR%`, `$VAR`, `$(...)`, backticks) that could be used to smuggle credentials onto the command line — the only permitted interpolation token is `{{CRS_ENDPOINT}}` for the Inter-Cube Daemon's init command
+
+**Relevant files:** New crate `tools/plenum-pack/`, WiX templates in `tools/plenum-pack/templates/`.
+
+### 5.3 Implement the Installer GUI Wizard
+
+Build the WiX installer UI sequence that all PlenumNET products share.
+
+**Wizard steps (standard flow):**
+
+The step sequence is fixed and consistent across all products. Steps that do not apply to a product's `app_type.kind` are skipped automatically — the operator never sees them. Clicking Cancel at any step triggers a confirmation dialog ("Are you sure you want to cancel installation?") and, if confirmed, rolls back any partial changes (files copied, registry entries written) before exiting cleanly.
+
+1. **Welcome** — Product name, version, Capomastro logo, brief description from manifest. "Install" and "Cancel" buttons.
+2. **License** — License text from the manifest's `license` field or a `LICENSE.txt` file (see field clarifications in Section 4.1). Accept checkbox.
+3. **Install directory** — Pre-filled from manifest, editable. Disk space indicator.
+4. **Service Configuration** — Shown only for `service` and `hybrid` types; skipped for `tray_agent` and `cli_tool`. Service name, startup type (Automatic/Manual), service account selection (Local System, dedicated account, or existing account with credential prompt).
+5. **First-run actions** — Dynamically generated from the `[first_run]` section. Passphrase prompts render as masked password fields with confirmation and a "Show passphrase" toggle (with a visible warning: "Passphrase is visible"). The field label reads "Protect your [ProductName] signing key" (not "Enter a passphrase" — the label communicates value, not obligation). A real-time character counter below the field shows "{n} of 12 characters minimum" and turns from `text-label` to `accent-primary` once the minimum is met. If the user clicks Next with a too-short passphrase, the field border highlights in `accent-primary` with an inline message: "Passphrase must be at least 12 characters." The passphrase is passed to child processes via the environment variable specified in `env_passphrase` — it is never written to the installer log or MSI property table. A progress spinner with status text ("Generating signing key...") shows during long-running actions. Key generation typically takes 2–5 seconds on modern hardware — the spinner prevents "is it frozen?" anxiety.
+6. **Completion** — Visual hierarchy: the primary action is "Launch now" (large button, `accent-primary` background). Secondary elements below: the `copy_to_clipboard` output displayed in a read-only text field (selectable, copyable) with a "Copy" button beside it (changes to "Copied!" for 3 seconds). Below that, the product-specific `preserve_message` displaying the expanded path in a selectable read-only field (e.g., `C:\Users\jsmith\AppData\Roaming\NinjaExec`). An "Open data folder" button is aligned right at the bottom. The hierarchy ensures the operator launches the app first and deals with key export and data paths second.
+
+**Start Menu hierarchy:** All PlenumNET products install their shortcuts under `Start Menu\Programs\PlenumNET\`. Each product creates a subfolder: `PlenumNET\NinjaExec\`, `PlenumNET\Inter-Cube Daemon\`, etc. The Launcher's shortcut sits directly in the `PlenumNET\` folder (not in a subfolder). This groups all products under a single "PlenumNET" entry in the Start Menu, making the suite discoverable as a family.
+
+**Add/Remove Programs integration:** Each MSI populates the following Windows Installer properties, which appear in the Add/Remove Programs detail view:
+
+- **DisplayName:** The manifest's `display_name` (e.g., "NinjaExec — PlenumNET Signing Agent")
+- **Publisher:** "Capomastro Holdings Ltd."
+- **URLInfoAbout:** `https://plenumnet.com` (the PlenumNET product page — operators can click through from Add/Remove Programs)
+- **URLUpdateInfo:** `https://plenumnet.com/downloads` (directs operators to the latest version)
+- **Comments:** The manifest's `description` field, rewritten for a non-technical audience. For NinjaExec: "Securely signs and authenticates PlenumNET operations with post-quantum cryptography." (Not "Local TL-DSA signing agent" — operators don't know what TL-DSA is.)
+
+**Branding:** The installer banner uses the PlenumNET brand palette with a subtle "P" lattice watermark. The dialog background carries a footer: "Capomastro Holdings Ltd. — Applied Physics Division." The installer follows standard WiX UI chrome and does not attempt dark-mode theming — it uses brand-colored banner and background images designed to work on both light and dark Windows surfaces.
+
+**Pre-framework conflict detection:** If the install directory already exists (e.g., from a previous manual installation using PowerShell scripts), the installer detects the existing files and offers two choices: "Upgrade — replace existing files and integrate with the PlenumNET Launcher" or "Cancel." The installer does not silently overwrite. If a Windows Service with the same name is already registered (from a pre-framework `sc.exe create`), the installer stops the existing service, removes the old registration, and re-registers via WiX — this is handled by the `MajorUpgrade` pattern, but pre-framework installs have no upgrade code, so the installer must detect the service by name and prompt the operator to confirm replacement.
+
+**Error handling:** If any first-run action fails, the wizard shows the error with actionable detail and offers "Retry" or "Skip" (where safe). Failed key generation is not skippable — the installer rolls back. If the CRS endpoint is unreachable during Inter-Cube Daemon first-run, the wizard shows: "Cannot reach the Cube Registration Service at [endpoint URL]. Check that the CRS is running and the URL is correct." with "Retry" and "Skip" buttons — skipping means the daemon installs but starts in offline mode, logging the registration failure and retrying on next service restart. In silent mode, errors are written to `%TEMP%\PlenumNET_[ProductName]_install.log` with the standard MSI error code 1603. Log entries are machine-parseable: each error line begins with `[ERROR]` followed by a structured message identifying the failing action, the error detail, and a remediation hint.
+
+**Relevant files:** WiX UI extension customization in `tools/plenum-pack/templates/ui/`.
+
+### 5.4 Implement Windows Service Registration
+
+For products with `app_type.kind = "service"` or `"hybrid"`, the installer handles Windows Service lifecycle using WiX's built-in `ServiceInstall` and `ServiceControl` elements. No `sc.exe` custom actions are used — WiX's native service management handles rollback, recovery options, and account configuration with better error handling than custom actions could provide.
+
+**Install:**
+- Register the service via a WiX `ServiceInstall` element, with the binary path, display name, description, and startup type drawn from the manifest
+- Configure startup type: Automatic for daemons (default), Manual for optional services
+- If the manifest specifies `service_account`, create the dedicated local account (using the same pattern as `PlenumNET-Ops` from #55) with minimal privileges, and configure the `ServiceInstall` element to run as that account. The account receives only the "Log on as a service" privilege — no interactive logon, no network access, no membership in privileged groups. The account password is generated randomly by the installer (64-character cryptographic random string), set via the WiX `ServiceInstall/@Account` and `@Password` attributes, and never recorded anywhere — the password is ephemeral because the account is managed exclusively by the service infrastructure and never requires interactive logon
+- Set service recovery options via the WiX `Util:ServiceConfig` extension: restart on first failure (delay 5s), restart on second failure (delay 30s), no action on subsequent failures (prevents restart loops)
+- Start the service immediately after registration via a `ServiceControl` element with `Start="install"`
+
+**Group policy compatibility:** If local account creation is blocked by domain group policy (common in enterprise environments), the installer detects the failure and falls back to the Service Configuration wizard step, prompting the operator to select an existing domain account with "Log on as a service" rights. In silent mode, the installer logs the group policy restriction and exits with error code 1603 — the operator must either provide a pre-existing service account via MSI property (`SERVICE_ACCOUNT=DOMAIN\account SERVICE_PASSWORD=...`) or adjust group policy before retrying.
+
+**Uninstall:**
+- Stop the service gracefully via a `ServiceControl` element with `Stop="both"` (fires on both uninstall and upgrade)
+- Delete the service registration via the `ServiceInstall` element's removal behavior
+- Optionally remove the dedicated service account (prompt in the uninstall wizard: "Remove the PlenumNET-[Product] service account? This account was created during installation."). Implemented as a WiX deferred custom action with rollback support, scheduled after the service is fully uninstalled. The custom action checks that no other installed PlenumNET product shares the same account before removing it. The "full cleanup" option in Section 5.7 also includes service account removal.
+
+**Upgrade:**
+- The `MajorUpgrade` element (Section 4.3) handles the sequence: stop the running service, remove the old version, install the new binary, restart the service
+- The service account and its permissions are preserved across upgrades — only the binary is replaced
+
+**Relevant files:** WiX `ServiceInstall`/`ServiceControl` elements in `tools/plenum-pack/templates/service/`.
+
+### 5.5 Implement System Tray Integration
+
+For products with `app_type.kind = "tray_agent"` or `"hybrid"`, the installer configures system tray presence and autostart.
+
+**Autostart:** Write a registry entry to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` with the binary path. The user can disable this via the Launcher settings or Windows Startup Apps settings — the installer does not use `HKLM` (which would require admin for removal).
+
+**Tray icon:** The application binary is responsible for its own tray icon rendering (using `tray-item` or equivalent Rust crate). The installer's role is to ensure the binary launches on login and the icon assets are in the install directory.
+
+**Relevant files:** WiX registry entries in `tools/plenum-pack/templates/tray/`.
+
+### 5.6 Build the PlenumNET Launcher
+
+A standalone system tray application that acts as the hub for all installed PlenumNET apps. The Launcher itself is a PlenumNET app — it has its own `plenum-app.toml`, its own MSI, and its own icon. It is the first product installed and the last removed.
+
+**Tray icon behavior:**
+- Left-click opens the Launcher panel
+- Right-click shows a context menu: list of installed apps with status, "Open Launcher", "Settings", "About PlenumNET", "Quit"
+
+**Launcher panel (compact window, not full-screen):**
+
+A clean panel showing all installed PlenumNET apps with:
+- **Global status bar:** A summary row at the top of the panel showing the count of active services and the PlenumNET "P" mark. Example: "3 active · 1 inactive" (not "stopped" — "inactive" reads as a neutral state rather than a failure). Status indicators match the per-app row treatment.
+- **Per-app row:** Product icon, name, version, status indicator with text label, and primary action buttons (Start/Stop, Configure). Rarely-used actions (Uninstall, View Logs) are accessed via a "⋯" overflow menu on each row — they are not always-visible buttons. This keeps the panel clean at 4 products without 32+ visible buttons competing for attention.
+- **Status indicators:** Blue dot (`#4A9EF5`) + text "Active" = running, slate dot (`#78828C`) + text "Warning" = degraded, iron dot (`#3D444B`) + text "Inactive" = stopped, lock icon in accent-primary + text "Locked" = locked. The text labels ensure status is never communicated by color alone (accessibility). Tooltips on hover show extended detail: "NinjaExec v1.0.0 — Active since 3:42 PM, 47 signatures this session."
+- **Quick actions:** Start/Stop buttons for services and tray agents. Service Start/Stop buttons display a custom SVG shield glyph in `accent-primary` (not the Unicode 🛡 emoji, which renders inconsistently across Windows versions). "Configure" executes the product's `configure_command` if defined, or opens the data directory in Explorer as a fallback. Uninstall is in the overflow menu.
+- **NinjaExec special handling:** The NinjaExec row is a standard-height row by default. Clicking the row (or a disclosure chevron) expands an inline detail section showing key fingerprint, lock/unlock button, and signing count. This preserves the grid rhythm — the expanded state is an opt-in detail view, not a permanently taller row.
+- **Immediate status refresh:** After the operator clicks Start or Stop (and completes the UAC prompt if applicable), the Launcher immediately polls the product's status rather than waiting for the next polling cycle. This eliminates the 10–30 second delay and provides instant visual feedback — the button shows "Starting..." during the action, then the status updates on completion.
+- **Empty state:** If the Launcher is the only product installed, the panel shows: "No PlenumNET applications installed. Visit plenumnet.com/products to get started." with the PlenumNET "P" mark centered above the message.
+- **Error state after failed start:** If a service fails to start after the operator clicks Start, the Launcher shows an inline error in the product row: "Service failed to start — [brief reason from Event Viewer if available, or 'check Event Viewer for details']." The "View Logs" action in the overflow menu opens the product's log directory.
+- **About PlenumNET:** The "About PlenumNET" menu item opens a small dialog showing: the PlenumNET "P" mark, "PlenumNET — Post-Quantum Infrastructure by Capomastro Holdings Ltd.", the Launcher version, a "Visit plenumnet.com" hyperlink, and "Applied Physics Division — Sherwood Park, Alberta, Canada." This is the one marketing surface in the Launcher — it should feel polished and intentional.
+
+**Light and dark mode:**
+
+The Launcher panel renders in both light and dark modes using the PlenumNET brand palette (Section 4.6). On startup, the Launcher reads the Windows app mode preference (`AppsUseLightTheme` registry value) and applies the corresponding palette. A three-way toggle in Launcher settings (System / Light / Dark) allows the user to override the system preference. The selected mode is persisted in the Launcher's own config file (`%APPDATA%\PlenumNET-Launcher\launcher.toml`) and applied on next launch.
+
+Dark mode is the default when the system preference is absent. All UI elements — the panel background, card surfaces, text, borders, status indicators, and action buttons — use the palette tokens defined in Section 4.6 so that switching modes is a token swap, not a redesign.
+
+**Service control with UAC elevation:**
+
+The Launcher runs as a standard user-mode process — it does not run elevated. Service control actions are handled as follows:
+
+- **Status queries:** The Launcher queries service status using the Service Control Manager API, which does not require elevation. Status is polled every 30 seconds for services and every 10 seconds for tray agents via HTTP.
+- **Start/Stop actions for services:** When the user clicks Start or Stop for a Windows Service, the Launcher spawns a UAC-elevated helper process (`plenum-launcher-elevate.exe`) that performs the service control action. The UAC prompt is shown to the user (displaying "Capomastro Holdings Ltd." as the publisher, which requires the helper to be Authenticode-signed with the same certificate as the Launcher). If the user declines elevation, the action is cancelled gracefully. The Launcher resolves the helper's path relative to its own install directory (never via PATH lookup) and verifies the helper's Authenticode signature before execution — if the signature is missing, invalid, or issued by a different publisher, the Launcher refuses to launch it and shows an integrity error. The helper itself is minimal: it accepts a service name and an action (start/stop) as command-line arguments, validates that the service name matches a registered PlenumNET service in `HKLM\Software\Capomastro\PlenumNET\Apps`, and refuses to operate on arbitrary service names.
+- **Visual indication:** Start/Stop buttons for services display a shield icon (🛡) indicating that elevation is required. Tray agent Start/Stop buttons have no shield — they operate in the user session without elevation.
+- **Tray agents:** Start/Stop and lock/unlock actions for tray agents (like NinjaExec) use the HTTP API and require no elevation.
+
+**App discovery:** The Launcher finds installed apps by scanning `HKLM\Software\Capomastro\PlenumNET\Apps` — each product's MSI writes a registry key with install path, version, app type, and status endpoints. Both the installer and the Launcher are built for the native architecture (ARM64 or x64) and always access the 64-bit registry view using the `KEY_WOW64_64KEY` flag, ensuring consistent registry access regardless of process bitness. The Launcher scans on startup and on its status polling timer — newly installed products are discovered within 30 seconds without requiring a Launcher restart. The Launcher gracefully handles missing or corrupted registry entries (e.g., after manual deletion) by removing the product from the panel and logging the anomaly.
+
+**Settings:**
+- Theme: System / Light / Dark toggle
+- Enable/disable autostart per app
+- NinjaExec confirmation policy (mirrors `ninja-exec.toml` but with a GUI)
+- Telemetry display preferences (for future integration with #55's heartbeats)
+
+**Launcher configuration file:** Settings persist to `%APPDATA%\PlenumNET-Launcher\launcher.toml` — this is the Launcher's `data_directory` from its own manifest. The file stores the theme override, per-app autostart preferences, and NinjaExec policy. The Launcher creates this file with defaults on first run if it doesn't exist.
+
+**Crash recovery:** The Launcher registers itself in `HKCU\...\Run` (same autostart mechanism as any tray agent), so if it crashes or is killed, it restarts automatically on the next user login. It is also available via the Start Menu shortcut for manual relaunch. The Launcher does not implement a watchdog or self-restart loop — the next login is sufficient, and a restart loop on crash would be worse than a brief absence.
+
+**Status port discovery:** The Launcher reads each tray agent's HTTP status port from `HKLM\Software\Capomastro\PlenumNET\Apps\{product}\StatusPort` (a DWORD registry value written by the product's MSI). Each product uses a distinct port. The Launcher polls `http://localhost:{port}/status` and expects a JSON response with at minimum `{ "status": "running" | "locked" | "error", "version": "..." }`. If the port is unreachable, the Launcher marks the product as stopped (iron blackout indicator).
+
+**Design:** The Launcher uses the PlenumNET brand palette in both modes (Section 4.6). Compact, information-dense, no wasted space. The mental model is a macOS menu bar app or Windows system tray utility — not a full application window.
+
+**Relevant files:** New crate `tools/plenum-launcher/`, new crate `tools/plenum-launcher-elevate/` (UAC helper), their own `plenum-app.toml` files.
+
+### 5.7 Implement Uninstall and Cleanup
+
+Every MSI generated by `plenum-pack` must handle clean removal.
+
+**Standard uninstall removes:**
+- Binary and all files in the install directory
+- Start Menu shortcuts
+- PATH modifications (remove the install directory from system or user PATH)
+- Autostart registry entries
+- Windows Service registration (if applicable) via WiX `ServiceControl` elements
+- Launcher registry entry (`HKLM\Software\Capomastro\PlenumNET\Apps\{product}`)
+
+**Standard uninstall preserves:**
+- The `%APPDATA%` data directory (keystores, configs, audit logs, user data)
+- A clear message in the uninstall completion screen explaining what was preserved and displaying the exact path
+- An "Open data folder" button in the completion screen so the operator can easily back up or inspect data before deciding whether to delete it manually
+
+**Full cleanup option:** An "Advanced" button in the uninstall wizard offers "Remove all data including configuration and logs." This requires explicit confirmation: "This will permanently delete your NinjaExec signing key, audit log, and all configuration. This cannot be undone. If you haven't exported your public key, you will need to re-register with your PlenumNET administrator after deletion." Below this text, a text input field with the label "Type DELETE to confirm:" and placeholder text "DELETE" in `text-faint`. The confirmation is implemented as a WiX custom dialog with a text input field and a custom action that validates the input. The check accepts "DELETE" exactly — case-sensitive, no leading or trailing whitespace (the field trims whitespace before comparison). Typing "delete" or "Delete" does not pass. This is intentional — the friction must be unambiguous. The confirmation dialog displays the exact expanded path that will be deleted. The confirmation is deliberately friction-heavy — accidental key deletion is catastrophic.
+
+**Preserve message display:** On the standard uninstall completion screen, the preserve message displays in a read-only text field (selectable, copyable — the operator can Ctrl+C the path) rather than static dialog text. The expanded path (e.g., `C:\Users\jsmith\AppData\Roaming\NinjaExec`) is shown, not the `%APPDATA%` variable. The message reads: "Your NinjaExec signing key and audit history have been preserved at [expanded path]. If you plan to reinstall, these will be automatically detected."
+
+**Launcher uninstall:** If the Launcher is the last PlenumNET product remaining, its uninstaller also removes the shared registry root (`HKLM\Software\Capomastro\PlenumNET`). If other products are still installed, the Launcher uninstaller shows a blocking warning dialog (must click "I understand" before proceeding): "Other PlenumNET applications are still installed. Removing the Launcher will remove the status hub but will not affect other applications. All installed products will continue to function normally."
+
+**Relevant files:** WiX `RemoveFile`/`RemoveFolder`/`RemoveRegistryKey` elements, custom action for data cleanup prompt.
+
+### 5.8 Build the CI/CD Pipeline for MSI Generation
+
+Automate MSI production so every release builds installers for all products and architectures.
+
+**Pipeline steps:**
+
+1. Compile all PlenumNET binaries for all target architectures (`aarch64-pc-windows-msvc`, `x86_64-pc-windows-msvc`)
+2. Run `plenum-pack validate --workspace` on every `plenum-app.toml` — fail the build on any manifest error
+3. Run `plenum-pack build --sign` for each product × architecture combination
+4. Produce a release artifact directory:
+   ```
+   releases/
+     NinjaExec-1.0.0-arm64.msi
+     NinjaExec-1.0.0-x64.msi
+     PlenumNET-Launcher-1.0.0-arm64.msi
+     PlenumNET-Launcher-1.0.0-x64.msi
+     InterCubeDaemon-1.0.0-arm64.msi
+     InterCubeDaemon-1.0.0-x64.msi
+     Array3Watchdog-1.0.0-arm64.msi
+     Array3Watchdog-1.0.0-x64.msi
+   ```
+5. Generate TIS-27 checksums for all MSI files. Checksums are output as hex-encoded strings in a `checksums.txt` file (one line per file: `<hex-hash>  <filename>`) following the BSD checksum format. Operators can verify independently using the `plenum-pack verify <checksums.txt>` command.
+6. Run `plenum-pack inspect` on each MSI to verify embedded metadata matches the source manifest — this comparison is automated (exit code 1 on mismatch), not a human-readable printout
+7. Verify all signatures: `signtool verify /pa /tw Product.msi` (the `/tw` flag also verifies the timestamp is present) — a failed verification or missing timestamp fails the build
+
+**Pipeline failure policy:** The pipeline treats all products and architectures as a single atomic release. If any step fails for any product or architecture, the entire release is blocked — no partial publishing. Specifically: if ARM64 compilation fails but x64 succeeds, the release is blocked. If the timestamp server is unreachable after 3 retries (30-second intervals), the signing step fails and the release is blocked. If `plenum-pack validate` passes but `plenum-pack build` fails due to a WiX compilation error, the build fails (validate checks manifest correctness; build can still fail on WiX template errors, which indicates a framework bug, not a manifest error).
+
+**Code signing:** The CI pipeline accesses the Authenticode code signing certificate via the CI system's secrets manager (e.g., GitHub Actions encrypted secrets). The PFX file is stored as a base64-encoded secret and decoded at build time into a temporary file that is deleted after signing. The PFX password is stored as a separate secret. Workflow logs must be reviewed to ensure neither secret appears in output — `signtool` should be invoked with output suppression for the password argument. For EV certificates, the certificate may reside in a hardware security module (HSM) or a cloud signing service (e.g., Azure Key Vault, AWS CloudHSM) rather than a PFX file — `plenum-pack build --sign` should support both modes. Both the binary inside the MSI and the MSI itself are signed. All signatures use a timestamp server (e.g., `http://timestamp.digicert.com`) to ensure signatures remain valid after the certificate expires. Unsigned builds are permitted for development (`plenum-pack build` without `--sign`) but the CI release pipeline always signs. Pull requests from forks must never have access to signing secrets — the signing step runs only on protected branches.
+
+**Relevant files:** CI configuration (GitHub Actions or equivalent), `tools/plenum-pack/` build scripts.
+
+### 5.9 Deployment Testing
+
+Every product MSI is tested on a clean Windows environment before it ships. No MSI is published without passing the full deployment test sequence. This is not framework testing with dummy products — it is real deployment validation of each individual application.
+
+**Test environment:** A clean Windows VM (or Windows container) with no prior PlenumNET installation. The VM is reset to a clean snapshot before each product's test run. Minimum supported Windows versions: Windows 10 21H2 (x64), Windows 11 22H2 (ARM64), Windows Server 2022 (x64). Tests run on at least one version per architecture. The CI test matrix is: {Windows 10 x64, Windows 11 ARM64} × {4 products} × {9 steps}.
+
+**Mock services for testing:** Product-specific validation that requires network services (e.g., Inter-Cube Daemon's CRS registration) uses a mock CRS endpoint running on localhost within the test VM. The mock CRS accepts registration, returns a test shared secret, and validates the TL-KEM handshake. This allows testing the full first-run flow without a live production CRS. The mock is a minimal Rust binary in `tools/plenum-pack/ci-tests/mock-crs/`.
+
+**Per-product test sequence:**
+
+Each product in the initial set (Launcher, NinjaExec, Inter-Cube Daemon, Array3 Watchdog) runs through the following sequence independently. A failure at any step blocks the release of that product.
+
+1. **Clean install (interactive):** Run the MSI through the GUI wizard on a clean VM. Verify the wizard completes without errors, all first-run actions execute (passphrase prompt, key generation, CRS registration, config validation as applicable), and the product reaches a running state.
+
+2. **Clean install (silent):** Reset the VM. Run `msiexec /i Product.msi /qn` with all required properties (`PASSPHRASE_FILE`, `CRS_ENDPOINT`, etc. as applicable). Verify exit code 0. Verify the product is running and operational.
+
+3. **System integration checks:**
+   - Registry: `HKLM\Software\Capomastro\PlenumNET\Apps\{product}` exists with correct install path, version, and app type
+   - File system: binary exists under `%ProgramFiles%\Capomastro\{product}`, Start Menu shortcuts are present, PATH contains install directory (where applicable)
+   - Service registration (service types): service is registered, running, correct startup type, correct recovery options, correct service account
+   - Autostart (tray agent types): `HKCU\...\Run` entry exists with correct binary path
+   - Key material: `%APPDATA%\{data_directory}\keystore` exists and is non-empty (where applicable)
+
+4. **Launcher discovery:** With the Launcher already installed, install the product and verify the Launcher discovers it within 30 seconds, displays correct status, and can execute start/stop/configure actions.
+
+5. **Upgrade:** Install a v2 MSI over the v1 installation. Verify the old version is cleanly removed (no side-by-side), the new binary is in place, services are running with the new version, key material is preserved, and registry entries reflect the new version.
+
+6. **Downgrade rejection:** Attempt to install v1 over v2. Verify the installer exits with the downgrade error message and makes no changes to the system.
+
+7. **Uninstall (standard):** Uninstall the product. Verify all binaries, shortcuts, registry entries, PATH modifications, service registrations, and Launcher registry keys are removed. Verify the `%APPDATA%` data directory and key material are preserved.
+
+8. **Uninstall (full cleanup):** Reinstall, then uninstall with the full data removal option. Verify the data directory and key material are deleted.
+
+9. **Silent install failure modes:** For products requiring credentials, attempt silent install without the required properties. Verify exit code 1603 and confirm the error log at `%TEMP%\PlenumNET_[ProductName]_install.log` identifies the missing requirement.
+
+**Product-specific validation:**
+
+All validation steps are automated via scripted checks with machine-verifiable exit codes. No step requires human observation.
+
+- **NinjaExec:** After install, verify the signing key is generated (`%APPDATA%\NinjaExec\keystore` exists and is non-empty), the public key export works (`ninja-exec export-operator` exits 0 and produces output), the tray process is running (`tasklist /fi "imagename eq ninja-exec.exe"` returns a match), and the HTTP status API responds on localhost (HTTP GET to the status port returns 200).
+- **Inter-Cube Daemon:** After install, verify the TL-DSA node keypair is generated (keystore exists), the service is registered and running (`sc.exe query` returns STATE=RUNNING), and the daemon connects to the mock CRS endpoint (or fails gracefully if the CRS is unreachable, logging the error without crashing — verified by checking the service is still running after 30 seconds and the log contains a CRS connection error, not a crash).
+- **Array3 Watchdog:** After install, verify the config file is generated (`%APPDATA%\Array3Watchdog\config.toml` exists), the heartbeat MAC key is derived (keystore is non-empty), and the service starts monitoring (`sc.exe query` returns STATE=RUNNING).
+- **Launcher:** After install with at least one other product already present, verify discovery (registry scan finds the product within 30 seconds — poll the Launcher's status API or check its log), status polling is active, and that the UAC elevation helper exists at the expected path with a valid Authenticode signature (`signtool verify /pa`).
+
+**When tests run:**
+
+- **Every product release:** Before any MSI is published, that product's full test sequence runs. A product at v1.2.0 does not ship until its v1.2.0 MSI passes all 9 steps.
+- **Every new product onboarded:** When a new product is added to the framework, its MSI runs the full test sequence before its first release.
+- **Framework changes:** When `plenum-pack` or its templates change, every product's MSI is rebuilt and retested. A change to the framework is a change to every installer.
+
+**Relevant files:** CI test scripts in `tools/plenum-pack/ci-tests/`, per-product test configurations.
+
+### 5.10 Day-Two Operations
+
+After install, operators need to verify health, back up key material, and troubleshoot failures without digging through developer documentation. The installer framework defines these operational conventions for all PlenumNET products.
+
+**Health verification:** Every PlenumNET product supports a `--health` command-line flag that exits 0 if the product is operational and non-zero with a diagnostic message if not. Operators can run `ninja-exec --health` or `inter-cube-daemon --health` at any time. The Launcher's status polling uses the HTTP API equivalent, but the CLI flag works without the Launcher and is suitable for use in monitoring scripts and SCCM compliance checks. Example output on success: `NinjaExec 1.0.0: OK (key loaded, 47 signatures this session)`. Example output on failure: `NinjaExec 1.0.0: ERROR (keystore locked — unlock via Launcher or restart with passphrase)`.
+
+**Key material backup:** Before upgrading, operators should back up the product's data directory. The recommended procedure is to copy `%APPDATA%\{data_directory}\` to a secure location. The upgrade process preserves this directory automatically, but a manual backup provides a safety net. The Launcher's "Open data folder" button (available on both the main panel and the uninstall completion screen) makes this directory easily accessible. Future versions may add a `plenum-pack backup` command to automate this.
+
+**Service failure diagnostics:** When a Windows Service stops unexpectedly, the Launcher shows the iron (stopped) indicator. The Launcher does not show why the service stopped — that level of detail lives in the Windows Event Viewer (Application log, source: the service name) and the product's own log file at `%APPDATA%\{data_directory}\logs\`. The Launcher provides a "View logs" action (available via right-click on the product row) that opens the product's log directory in Explorer.
+
+**Launcher absence:** If the Launcher is not installed or is not running, all PlenumNET products continue to function normally. The Launcher is a monitoring and management convenience — it is not a runtime dependency. Services run via the Windows Service Control Manager. Tray agents run via their autostart registry entry. The Launcher's absence means the operator loses the central status panel and quick actions, but no product functionality is degraded.
+
+**Silent install documentation:** For enterprise deployment via SCCM, Intune, or similar tools, each product's MSI supports the following properties (documented in a `DEPLOYMENT.md` file generated by `plenum-pack` alongside each MSI):
+
+```
+msiexec /i NinjaExec-1.0.0-x64.msi /qn PASSPHRASE_FILE=C:\deploy\ninja-passphrase.txt
+msiexec /i InterCubeDaemon-1.0.0-x64.msi /qn CRS_ENDPOINT=https://crs.example.com
+msiexec /i Array3Watchdog-1.0.0-x64.msi /qn
+msiexec /i PlenumNET-Launcher-1.0.0-x64.msi /qn
+```
+
+---
+
+## 6. Relevant Files
+
+| Path | Description |
+|------|-------------|
+| `tools/plenum-pack/` | Manifest-driven MSI build tool (new crate) |
+| `tools/plenum-pack/templates/` | WiX templates for installer generation |
+| `tools/plenum-pack/templates/ui/` | Installer wizard UI customization |
+| `tools/plenum-pack/templates/service/` | WiX `ServiceInstall`/`ServiceControl` templates |
+| `tools/plenum-pack/templates/tray/` | Registry entries for autostart and tray integration |
+| `tools/plenum-launcher/` | PlenumNET Launcher system tray hub (new crate) |
+| `tools/plenum-launcher-elevate/` | UAC elevation helper for service control (new crate) |
+| `assets/icons/` | Shared icon assets and SVG sources |
+| `tools/plenum-pack/ci-tests/` | Per-product deployment test scripts and configurations |
+| `tools/plenum-pack/ci-tests/mock-crs/` | Mock CRS endpoint for testing Inter-Cube Daemon registration without a live server |
+| `ninja-exec/plenum-app.toml` | NinjaExec product manifest (first consumer) |
+| `services/inter-cube/plenum-app.toml` | Inter-cube daemon product manifest |
+
+---
+
+## 7. Dependencies
+
+- **WiX Toolset v4** — build-time dependency for MSI generation. Installed as a dotnet tool. Not shipped, not required on target machines. Exact version pinned in CI.
+- **Authenticode code signing certificate** — required for production MSIs. A Capomastro Holdings EV code signing certificate is recommended (DigiCert or Sectigo) for least SmartScreen friction. Self-signed certificates are acceptable for internal testing but will trigger SmartScreen warnings. Begin the certificate acquisition process early — EV validation can take 1–2 weeks.
+- **#54 (NinjaExec) is the first consumer** of this framework. NinjaExec's original Task 8 ("Build the Windows installer") is superseded by this task. NinjaExec's `ninja-exec init` command must be updated to accept `PLENUM_PASSPHRASE` as an environment variable input.
+- **No runtime dependencies on target machines.** The framework produces standard MSI packages that use only Windows-native installation infrastructure.
+
+---
+
+## 8. Products to Package (Initial Set)
+
+| Product | App Type | Autostart | First-Run Actions |
+|---------|----------|-----------|-------------------|
+| **PlenumNET Launcher** | `tray_agent` | Yes | None (pure hub — no key material) |
+| **NinjaExec** | `tray_agent` | Yes | Passphrase prompt (env var), TL-DSA keypair generation, public key clipboard export |
+| **Inter-Cube Daemon** | `service` | Yes (service) | Service account creation, TL-DSA node keypair generation, CRS registration (requires `CRS_ENDPOINT`) |
+| **Array3 Watchdog** | `service` | Yes (scheduled task) | Config validation, TIS-27 heartbeat MAC key derivation from node identity |
+
+The Launcher is installed first. Other products register themselves with the Launcher on install and deregister on uninstall.
+
+---
+
+## 9. Change Log
+
+| Rev | Date | Changes |
+|-----|------|---------|
+| 2.5 | Mar 2026 | R3 agent pre-emption (fit, finish, market readiness): Typography specified — Segoe UI for Launcher (system-native), Century Gothic baked into installer banner bitmap. Tray icon status rendering defined as corner overlay dot (not full-swap or tint). Animation policy documented — 150ms panel fade, 200ms status pulse, button loading states, no gratuitous transitions. Accessibility: keyboard navigation, screen reader labels via UI Automation, high-contrast mode fallback. Icon size transition boundary at 32px (3D→flat). Installer banner and dialog background fully specified (dimensions, watermark opacity, footer layout, product name font). Passphrase field UX: "Protect your signing key" label, real-time character counter, inline validation. Completion screen visual hierarchy (primary Launch button, secondary copy/path fields). Start Menu hierarchy under `PlenumNET\` folder. Add/Remove Programs fields populated (publisher URL, update URL, non-technical description). Launcher: status text labels alongside dots, tooltips with extended detail, overflow menu for Uninstall/View Logs, NinjaExec as expandable row, immediate status refresh after actions, empty state, error state after failed start, About PlenumNET dialog content. Custom SVG shield glyph replaces Unicode emoji. Launcher uninstall warning made blocking. Type DELETE field: label, placeholder text, re-registration warning. Preserve message as copyable read-only field with expanded path. Status bar wording changed from "stopped" to "inactive". Operator-facing copy improved throughout (descriptions, error messages, clipboard export). Architecture error includes download URL. |
+| 2.4 | Mar 2026 | R2 agent pre-emption: Manifest schema completeness — required vs optional fields documented, `service_account` field specified, `status_port` field for tray agent HTTP discovery, `upgrade_code` auto-generation in `plenum-pack new`, `configure_command` failure handling (inline error, no retry, no timeout). Non-admin launch condition added. Passphrase Unicode support confirmed. Pre-framework conflict detection (existing manual installs). Group policy fallback for service account creation (domain account prompt, `SERVICE_ACCOUNT` MSI property). CRS unreachable UX (actionable error dialog, offline mode fallback). Launcher operational details: `launcher.toml` location confirmed (`%APPDATA%\PlenumNET-Launcher\`), crash recovery via autostart (no watchdog loop), status port registry discovery (`StatusPort` DWORD), "View logs" right-click action, HTTP status API contract defined. Type DELETE confirmation: case-sensitive, whitespace-trimmed, WiX custom dialog implementation. Day-two operations section added (5.10): `--health` CLI flag, key material backup procedure, service failure diagnostics, Launcher absence guarantee, silent install documentation (`DEPLOYMENT.md`). |
+| 2.3 | Mar 2026 | R1 agent pre-emption: Confirmed TL-DSA (not PT26-DSA) as signing primitive, TLSponge-385 as passphrase derivation function. Specified TIS-27 context strings, Rep C address encoding, and TL-KEM for CRS shared secret establishment. Defined "node identity" as Rep C TDNS address (not machine SID). Added key generation safety (atomic keystore write, zeroing, crash dump scope). Specified heartbeat MAC derivation formula with sequence epoch and 14-day rotation cycle (TM-2026-016). CRS_ENDPOINT confirmed as HTTPS URL (not TDNS — resolver may not exist at install time). Clarified UUID v5 SHA-1 usage is acceptable (MSI identifier, not security boundary). PASSPHRASE_FILE rejects NTFS alternate data streams. Command field validation blocks shell variable expansion. TIS-27 checksum format specified (hex, BSD format, `plenum-pack verify` command). Pipeline failure policy defined (atomic release, no partial publishing, timestamp retry). Build reproducibility documented (not byte-identical, but .wxs dry-run is deterministic). WiX version pinned at patch level in `wix-version.txt`. .NET 8.0 SDK prerequisite. WiX templates bundled via `include_str!`. Minimum Windows versions specified (10 21H2, 11 22H2, Server 2022). Mock CRS for CI testing. All test validation steps scripted with machine-verifiable exit codes. `plenum-pack inspect` comparison automated. |
+| 2.2 | Mar 2026 | Pre-QC hardening from review and R1 agent analysis: PASSPHRASE_FILE format spec (UTF-8, no BOM, newline stripping, permission enforcement). Product-specific install log naming (`PlenumNET_[ProductName]_install.log`). Env var zeroing write lifecycle. License field clarified (file path vs identifier). copy_to_clipboard stdout capture + silent mode file fallback. 32-bit Windows explicitly unsupported with launch condition. Wizard cancel behavior and conditional step display documented. Show-passphrase toggle added. Completion screen shows expanded paths. Service account password management (random, ephemeral, "Log on as a service" only). Service account removal via deferred WiX custom action. Elevation helper integrity (signature verification, hardcoded path, service name validation). 64-bit registry view (KEY_WOW64_64KEY) documented. CI signing hardened (PFX temp file, log sanitization, HSM/cloud signing support, fork protection). configure_command fallback chain (data_directory → install directory). |
+| 2.1 | Mar 2026 | Corrected brand palette to canonical PlenumNET colors (Section 4.6). Added light and dark mode specification for the Launcher. Replaced traffic-light status indicators with PlenumNET visual language (bright blue / muted slate / blackout). Added `--dry-run` and `inspect` commands to `plenum-pack`. Added global status bar and "Open data folder" button. EV certificate recommendation. Added key and credential provisioning spec (Section 4.7) covering TL-DSA, TIS-27 tunnel keys, and SFK per product. Replaced dummy-product testing with per-product deployment testing against real apps (Section 5.9). |
+| 2.0 | Mar 2026 | Incorporated critical review recommendations: secure passphrase handling (env var + PASSPHRASE_FILE), WiX native service registration, upgrade code strategy (MajorUpgrade), Launcher UAC elevation, configure_command convention, timestamp server for code signing, enhanced manifest validation. |
+| 1.0 | Mar 2026 | Initial specification. |
+
+---
+
+## 10. Future Extensions (Out of Scope for #56)
+
+- **Auto-update mechanism:** The Launcher checks for new versions and offers one-click upgrades. Requires an update server or GitHub Releases integration.
+- **MSIX packaging:** Modern Windows app packaging with better sandboxing and Microsoft Store compatibility.
+- **Linux packaging:** `.deb` and `.rpm` generation from the same `plenum-app.toml` manifest using `cargo-deb` and `cargo-rpm`.
+- **macOS packaging:** `.dmg` and `.pkg` generation for macOS targets.
+- **Launcher telemetry dashboard:** The Launcher panel shows #55 telemetry heartbeats from connected Array3 nodes — a local mirror of the terminal ops console for operators who want a desktop-native view.
+- **Installer localization:** Multi-language installer wizard text via WiX `.wxl` files for international deployments.
+- **Bundle installer:** A single "PlenumNET Suite" MSI that installs all products in one wizard, with checkboxes for each component.
+- **Custom first-run action types:** `type = "custom_dll"` or `type = "powershell"` for complex first-run logic beyond the current prompt/run/clipboard primitives.

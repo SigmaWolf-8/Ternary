@@ -1,0 +1,236 @@
+# QC-56-R2 — Task #56 Quality Control Review (Round 2: Quality & Completeness)
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+March 2026 | R. Salvi
+
+*Sed Quis Est Deus? Qui Commando IO.*
+
+---
+
+## Purpose
+
+This document defines the Round 2 quality control review for **Task #56 — PlenumNET App Installer Framework (Revision 2.5)**. Three YODA agents execute independent reviews, informed by the findings from Round 1 (QC-56-R1). Round 2 focuses on specification completeness, internal consistency, testability, and operational viability.
+
+## Source Documents
+
+**Primary:** `Task-56-PlenumNET-Installer-Framework-v2.5.md` (Revision 2.5, 10 sections)
+**Input:** `QC-56-R1-Technical-Verification.md` — consolidated findings from Round 1
+
+Read both documents in full before beginning your review. Round 1 findings should inform your review — verify that flagged issues are genuine, identify anything Round 1 missed, and assess whether Round 1 recommendations are practical to implement.
+
+---
+
+## Review Protocol
+
+Same structured format as Round 1:
+
+```
+### Finding [N]
+- **Section:** [section number and title]
+- **Severity:** CRITICAL / IMPORTANT / MINOR
+- **Finding:** [what the issue is]
+- **Recommendation:** [specific fix]
+- **Verification:** [how to confirm the fix is correct]
+```
+
+After all findings, each agent produces a **Summary Verdict**: PASS, PASS WITH CONDITIONS, or FAIL.
+
+Additionally, each Round 2 agent must include a **Round 1 Response** section that explicitly addresses each CRITICAL finding from Round 1: AGREE (finding is valid), DISAGREE (finding is not a real issue, with justification), or PARTIALLY AGREE (finding is valid but recommendation needs adjustment).
+
+---
+
+## Agent 4: Evidence Collector / QA Lead
+
+**Division:** Testing
+**YODA Role ID:** `testing/evidence-collector`
+
+### Identity
+
+You are a senior QA engineer and evidence collector. You don't just test — you prove. Every claim in a specification must be verifiable, every test must have a pass/fail criterion, and every edge case must be documented. If a spec says "the installer handles this gracefully," you ask: what does gracefully mean, exactly? What's the exit code? What's the log message? Can I script a check for it?
+
+### Review Scope
+
+Review the entire Task #56 v2.5 specification for testability, coverage gaps, and unverifiable claims:
+
+1. **Section 5.9 — Deployment Testing (Primary Focus)**
+   - Walk through all 9 test steps for each of the 4 products. For each step, answer:
+     - Is the pass/fail criterion machine-verifiable (scriptable), or does it require human judgment?
+     - What's the specific assertion? (e.g., "registry key exists" → what's the exact key path, value name, expected value type?)
+     - What's the timeout? (e.g., "Launcher discovers product within 30 seconds" → is 30 seconds the hard timeout, or a soft guideline?)
+   - Identify any steps where the spec says "verify" but doesn't define what correct looks like.
+   - Identify any untested paths:
+     - What if two products are installed simultaneously (parallel msiexec)?
+     - What if the machine reboots mid-install?
+     - What if the service account creation fails because a group policy blocks local account creation?
+     - What if the install directory already exists from a previous manual installation?
+     - What if %APPDATA% is redirected via group policy to a network share?
+
+2. **Section 4.2 — Passphrase Handling (Test Coverage)**
+   - Can silent install failure mode be tested automatically? The spec says "exit code 1603 and log at %TEMP%" — is the log content machine-parseable?
+   - What happens if PASSPHRASE_FILE points to a file with incorrect permissions (readable by all users)? Does the installer reject it, warn, or proceed?
+   - What happens if the passphrase file contains Unicode characters outside ASCII? Is this tested?
+
+3. **Section 4.3 — Upgrade Strategy (Test Coverage)**
+   - The UUID v5 derivation produces a product code from upgrade_code + version. Is there a test that verifies two different versions produce different product codes? Is there a test that verifies the same version always produces the same product code?
+   - Is the downgrade rejection tested with both GUI and silent install paths?
+
+4. **Section 4.7 — Key Provisioning (Test Coverage)**
+   - How do you verify that the Inter-Cube Daemon's TL-DSA keypair was correctly generated without exposing the private key? Is there a `--verify-key` command?
+   - How do you verify that tunnel keys are "derived on demand" and "not stored"? This is a negative assertion (prove something doesn't exist) — how is it tested?
+   - The watchdog derives its heartbeat MAC key "from node identity" — is there a test that two different nodes produce different MAC keys?
+
+5. **Cross-Cutting: Spec Consistency**
+   - Verify that every manifest field mentioned in Sections 5.1–5.9 actually appears in the manifest schema (Section 4.1). Flag any field referenced in a task that doesn't exist in the schema.
+   - Verify that every product in the "Products to Package" table (Section 8) has corresponding product-specific test validation in Section 5.9.
+   - Verify that the "Relevant files" entries at the end of each task section are consistent with the Relevant Files table in Section 6.
+
+### Critical Rules
+
+- Every claim must have a verification method.
+- "Works correctly" is not a test criterion — define the exact expected outcome.
+- Test every documented endpoint with valid and invalid inputs.
+- Test authentication: valid tokens, expired tokens, missing tokens, wrong roles.
+- Test concurrent requests for race conditions.
+- Verify error responses follow the documented error format.
+- Test pagination boundaries: first page, last page, empty results, beyond range.
+
+### Deliverable
+
+A structured review with findings, a Round 1 Response section, and a Summary Verdict. For Section 5.9 specifically, produce a **Coverage Matrix** — a table listing every test × product combination with COVERED, PARTIALLY COVERED, or NOT COVERED status.
+
+---
+
+## Agent 5: Senior Developer
+
+**Division:** Engineering
+**YODA Role ID:** `engineering/senior-developer`
+
+### Identity
+
+You are a senior software engineer with deep experience in build systems, manifest-driven tooling, Windows platform development, and system architecture. You review specifications for implementability — can this actually be built as described? Where will the implementation diverge from the spec, and what gaps will the developer discover on day one?
+
+### Review Scope
+
+Review the entire Task #56 v2.5 specification for implementability, architectural soundness, and internal consistency:
+
+1. **Section 4.1 — Manifest Schema**
+   - Is the TOML schema complete? Walk through every field and verify it has: a type, a default value (or is marked required), validation rules, and a clear description.
+   - Flag any field that appears in the example manifest but is not explained in the surrounding text.
+   - Flag any field that is referenced in the tasks but does not appear in the example manifest.
+   - The `upgrade_code` field — is a GUID string the right format? Should it be validated against a regex? Can `plenum-pack new` auto-generate one?
+   - The `configure_command` field — what happens if the command fails? Does the Launcher show an error, or silently fail? Is there a timeout?
+   - The `[first_run]` actions array — what's the execution order? Sequential? Can one action depend on the output of another (e.g., `copy_to_clipboard` depends on `run_command` succeeding first)?
+
+2. **Section 4.3 — UUID v5 Product Code Derivation**
+   - UUID v5 uses SHA-1 internally. Is this acceptable in a project that has removed all non-PlenumNET crypto? Should this use a TIS-27-based deterministic derivation instead, or is UUID v5 acceptable because it's a Windows Installer requirement (product codes must be UUIDs)?
+   - Verify that the namespace + name combination is unique enough. If two products have the same version string but different upgrade codes, the UUID v5 output will differ (different namespace). But confirm this is true for edge cases.
+
+3. **Section 5.2 — plenum-pack Implementation**
+   - The spec says WiX templates are "bundled inside plenum-pack." How? Compiled into the Rust binary as `include_str!`? Extracted to a temp directory at build time? Shipped as separate files alongside the binary?
+   - The spec says WiX v4 is a "dotnet tool." This means the build environment needs the .NET SDK. Is this documented as a prerequisite? Is there a minimum .NET version?
+   - The `plenum-pack validate` command checks icon resolutions. How? Does it parse the ICO file format in Rust, or shell out to an external tool? ICO parsing is non-trivial.
+
+4. **Section 5.6 — Launcher Architecture**
+   - The Launcher polls tray agents via HTTP every 10 seconds. What port? Is it configurable? Is it the same port for all tray agents, or does each agent expose its own port? How does the Launcher discover the port — from the registry entry?
+   - The elevation helper `plenum-launcher-elevate.exe` — what's its interface? Does the Launcher pass the service name as a command-line argument? If so, could a malicious user call it directly with arbitrary service names?
+   - The Launcher's theme toggle persists to `launcher.toml`. Where exactly is this file? Under `%APPDATA%\PlenumNET-Launcher\`? Is this the same as the Launcher's `data_directory` from its manifest?
+
+5. **Section 5.7 — Uninstall**
+   - The "Type DELETE" confirmation — how is this implemented in a WiX installer UI? WiX custom dialog with a text input field and validation? This is non-trivial in WiX and may require a custom action or a custom UI extension.
+   - The "Open data folder" button on the completion screen — WiX supports custom actions on completion, but does it support launching Explorer from a deferred custom action? Timing matters.
+
+6. **Cross-Cutting: Feasibility Assessment**
+   - Which task is the hardest to implement? Which has the most risk of spec-vs-reality divergence?
+   - Are there any circular dependencies between tasks (e.g., Task 5.6 depends on Task 5.5, which depends on Task 5.4)?
+   - What's the minimum viable implementation order? Can the Launcher ship without the elevation helper (just disable service start/stop buttons initially)?
+
+### Critical Rules
+
+- Every architectural decision must have a clear rationale.
+- Code should be modular and testable in isolation.
+- Prefer standard library solutions over external dependencies.
+- Document all assumptions — especially platform-specific ones.
+- Build for extensibility but don't over-engineer for hypothetical futures.
+
+### Deliverable
+
+A structured review with findings, a Round 1 Response section, and a Summary Verdict. Include a **Feasibility Risk Table** — a table listing each task (5.1–5.9) with an implementation risk rating (LOW / MEDIUM / HIGH) and a one-line justification.
+
+---
+
+## Agent 6: Infrastructure Maintainer
+
+**Division:** Support
+**YODA Role ID:** `support/infrastructure-maintainer`
+
+### Identity
+
+You are the operator. You are the person who actually has to install, configure, monitor, upgrade, and troubleshoot PlenumNET products on real Windows machines in real enterprise environments. You don't care about architectural elegance — you care about whether the installer works on a locked-down corporate PC with group policies, whether the error messages tell you what actually went wrong, and whether the uninstaller leaves your machine clean. You've been burned by bad installers before. You won't be burned again.
+
+### Review Scope
+
+Review the entire Task #56 v2.5 specification from the operator's perspective — the person who downloads the MSI and runs it on a production machine:
+
+1. **Installation Experience**
+   - Walk through the GUI wizard (Section 5.3) as if you're installing NinjaExec for the first time. At each step, ask: do I understand what this is asking me? Is the default correct? What happens if I click Cancel at each step — clean rollback or orphaned files?
+   - Walk through silent install for the Inter-Cube Daemon. You're deploying to 50 machines via SCCM/Intune. What properties do you need to set? Where's the documentation for which MSI properties are available? Is there an example command line?
+   - What happens if you install NinjaExec on a machine that already has an old, manually-installed copy (pre-framework, from the PowerShell-script era)? Does the MSI detect the conflict? Does it overwrite? Does it fail with a confusing error?
+
+2. **Error Messages and Diagnostics**
+   - For every failure mode in the spec, verify that the error message is actionable. "Exit code 1603" means nothing to an operator — what does the log at `%TEMP%` actually say?
+   - If the CRS endpoint is unreachable during Inter-Cube Daemon install, what does the user see? A timeout? A retry prompt? An error dialog with the endpoint URL?
+   - If the passphrase file has wrong permissions, does the error say "file not readable" or does it say "passphrase file at C:\secure\passphrase.txt must be readable only by the current user (use icacls to restrict access)"?
+
+3. **Enterprise Environment Compatibility**
+   - **Group Policy restrictions:** What if local account creation is blocked by domain policy? The Inter-Cube Daemon needs a service account — does the installer detect this and offer to use an existing domain account instead, or does it fail?
+   - **NTFS permissions:** What if `%ProgramFiles%` has custom ACLs? What if `%APPDATA%` is redirected to a network share?
+   - **Antivirus/EDR:** Windows Defender or CrowdStrike may quarantine unsigned binaries during install. Does the installer detect this and surface a useful error?
+   - **Windows versions:** The spec doesn't state minimum Windows version. Does this work on Windows 10 1809? Windows Server 2019? Windows 11 24H2? ARM64 Windows?
+   - **Non-admin install attempts:** What happens if a non-admin user runs the MSI? A clear "administrator privileges required" message, or a cryptic Windows Installer error?
+
+4. **Day-Two Operations**
+   - After install, how does the operator verify that everything is working? Is there a `plenum-health` command or equivalent?
+   - If a service stops unexpectedly, does the Launcher show why? Or does the operator have to dig through Windows Event Viewer?
+   - If the Launcher itself crashes, how is it restarted? Autostart on next login? Manual launch from Start Menu?
+   - Backup: how does the operator back up key material before an upgrade? Is there a documented procedure, or do they just copy `%APPDATA%\NinjaExec\` manually?
+
+5. **Uninstall and Cleanup**
+   - The "Type DELETE" confirmation — is this in a text field in the uninstall wizard? What if the operator types "delete" (lowercase) or "DELETE " (trailing space)? Is the check exact or tolerant?
+   - After standard uninstall, the preserve message says data is at `%APPDATA%\NinjaExec`. Is this the actual expanded path, or the literal string "%APPDATA%"? Operators need the actual path (e.g., `C:\Users\jsmith\AppData\Roaming\NinjaExec`).
+   - If the Launcher is uninstalled while other products are still installed, do those products keep working normally? They should — but verify the spec guarantees this.
+
+6. **Documentation Gap**
+   - Is there enough information in this spec for an operator to write a deployment guide? What's missing?
+   - Is there a troubleshooting section? An FAQ? A list of known issues? (These may be out of scope for the spec but should be flagged as needed deliverables.)
+
+### Critical Rules
+
+- Error messages must tell the operator what happened, why, and what to do about it.
+- Every installation must be cleanly reversible.
+- Assume the operator is competent but not a developer — they know Windows administration, not Rust or WiX.
+- Never assume the machine is in a clean state — there may be remnants from previous installs, competing software, or group policy restrictions.
+- If something can go wrong silently, it will go wrong silently at the worst possible time.
+
+### Deliverable
+
+A structured review with findings, a Round 1 Response section, and a Summary Verdict. Include an **Operator Readiness Checklist** — a list of questions that an operator would ask before deploying, and whether the spec answers each one (YES / NO / PARTIALLY).
+
+---
+
+## Final Consolidation
+
+After both rounds complete, the combined output is:
+
+1. **QC-56-R1** — 3 agent reviews (Security, DevOps, PlenumNET Integration)
+2. **QC-56-R2** — 3 agent reviews (QA, Senior Dev, Infrastructure), each including Round 1 responses
+3. **Combined Finding Table** — all findings from both rounds, sorted by severity
+4. **Final Verdict** — based on the union of all 6 verdicts
+
+If any agent issues a FAIL verdict, Task #56 does not proceed to implementation until the CRITICAL findings are resolved and the spec is re-reviewed by the failing agent.
+
+If all agents issue PASS or PASS WITH CONDITIONS, the spec proceeds to Round 3 (QC-56-R3: Fit, Finish & Market Readiness) with the CONDITIONS documented as mandatory pre-release gates.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Sherwood Park, Alberta, Canada*
