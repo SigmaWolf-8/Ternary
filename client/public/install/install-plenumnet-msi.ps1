@@ -84,11 +84,16 @@ if (-not (Test-Admin)) {
     }
 }
 
-# == Ensure user's cargo/bin is on PATH (critical when running as Admin) ========
+# == Fix PATH for Admin elevation =============================================
+# When running as Admin, the shell may not inherit user-level PATH entries.
+# We prepend the user's cargo, dotnet tools, and LLVM paths so the correct
+# versions of rustc, cargo, wix, and clang are found.
 $userCargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
 if (Test-Path $userCargoBin) {
     $env:PATH = $userCargoBin + ";" + $env:PATH
 }
+$env:RUSTUP_HOME = Join-Path $env:USERPROFILE ".rustup"
+$env:CARGO_HOME = Join-Path $env:USERPROFILE ".cargo"
 $userDotnetTools = Join-Path $env:USERPROFILE ".dotnet\tools"
 if (Test-Path $userDotnetTools) {
     $env:PATH = $userDotnetTools + ";" + $env:PATH
@@ -119,7 +124,7 @@ if (-not (Test-Command "git")) {
 }
 Write-Log "  [OK] git" "Green"
 
-# Rust
+# Rust — find it, update it, verify the version is new enough
 if (-not (Test-Command "cargo")) {
     Write-Log "  -> Rust not found - installing rustup..." "Yellow"
     $rustupExe = Join-Path $env:TEMP "rustup-init.exe"
@@ -127,20 +132,51 @@ if (-not (Test-Command "cargo")) {
     Start-Process -FilePath $rustupExe -ArgumentList "-y" -Wait -NoNewWindow
     Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
     $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
-    $env:PATH = $env:PATH + ";" + $cargoBin
+    $env:PATH = $cargoBin + ";" + $env:PATH
     if (-not (Test-Command "cargo")) {
         Write-Log "  ERROR: cargo not found after install - restart terminal and re-run." "Red"
         Read-Host "Press Enter to close"
         exit 1
     }
 }
-Write-Log "  [OK] cargo" "Green"
 
 Write-Log "  Updating Rust toolchain to latest stable..." "White"
-& rustup update stable 2>&1 | Out-Null
-& rustup default stable 2>&1 | Out-Null
-$rustcVer = & rustc --version 2>&1
+$rustupBin = Join-Path $userCargoBin "rustup.exe"
+if (Test-Path $rustupBin) {
+    & $rustupBin update stable 2>&1 | Out-Null
+    & $rustupBin default stable 2>&1 | Out-Null
+} else {
+    & rustup update stable 2>&1 | Out-Null
+    & rustup default stable 2>&1 | Out-Null
+}
+
+$cargoExe = Join-Path $userCargoBin "cargo.exe"
+if (-not (Test-Path $cargoExe)) {
+    $cargoExe = "cargo"
+}
+$rustcExe = Join-Path $userCargoBin "rustc.exe"
+if (-not (Test-Path $rustcExe)) {
+    $rustcExe = "rustc"
+}
+
+$rustcVer = & $rustcExe --version 2>&1
 Write-Log "  [OK] $rustcVer" "Green"
+$cargoVer = & $cargoExe --version 2>&1
+Write-Log "  [OK] $cargoVer" "Green"
+Write-Log "  cargo path: $cargoExe" "DarkGray"
+
+# Verify rustc is new enough (need >= 1.82)
+$verMatch = [regex]::Match("$rustcVer", "(\d+)\.(\d+)")
+if ($verMatch.Success) {
+    $major = [int]$verMatch.Groups[1].Value
+    $minor = [int]$verMatch.Groups[2].Value
+    if ($major -eq 1 -and $minor -lt 82) {
+        Write-Log "  ERROR: rustc $major.$minor is too old. Need 1.82+. Update failed." "Red"
+        Write-Log "  Try running: rustup update stable" "Yellow"
+        Read-Host "Press Enter to close"
+        exit 1
+    }
+}
 
 # MSVC build tools
 $vsWhere = $null
@@ -381,7 +417,7 @@ Write-Host "---"
 
 Push-Location $RepoDir
 $env:CARGO_BUILD_JOBS = "1"
-& cargo build --release -p plenum-pack 2>&1 | ForEach-Object {
+& $cargoExe build --release -p plenum-pack 2>&1 | ForEach-Object {
     $line = $_.ToString()
     if ($line -match "error") { Write-Log "  $line" "Red" }
     elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
@@ -406,7 +442,7 @@ $allCrates = @("plenum-launcher", "plenum-launcher-elevate", "inter-cube", "ninj
 foreach ($crate in $allCrates) {
     Write-Log "  Building $crate..." "White"
     Push-Location $RepoDir
-    & cargo build --release -p $crate 2>&1 | ForEach-Object {
+    & $cargoExe build --release -p $crate 2>&1 | ForEach-Object {
         $line = $_.ToString()
         if ($line -match "error") { Write-Log "  $line" "Red" }
         elseif ($line -match "Compiling|Finished") { Write-Log "  $line" "DarkGray" }
