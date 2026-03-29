@@ -20,7 +20,7 @@
  * Admin pages use an in-page AdminNav tab bar.
  */
 
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -89,6 +89,7 @@ const ApiKeysPage = lazyRetry(() => import("@/pages/api-keys"));
 const FPGABenchmarks = lazyRetry(() => import("@/pages/fpga-benchmarks"));
 const TsaPage = lazyRetry(() => import("@/pages/tsa"));
 const TerminalPage = lazyRetry(() => import("@/pages/terminal"));
+const Widget = lazyRetry(() => import("@/pages/widget"));
 import { LauncherProvider } from "@/components/LauncherPanel";
 
 function LoadingSpinner() {
@@ -164,6 +165,20 @@ function AppRouter() {
 }
 
 function App() {
+  const [location] = useLocation();
+
+  if (location === "/widget") {
+    return (
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Widget />
+          </Suspense>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
