@@ -388,14 +388,14 @@ fn run_popup_panel() -> Result<()> {
         .build(&event_loop)
         .map_err(|e| anyhow::anyhow!("Failed to create window: {}", e))?;
 
-    let _webview = WebViewBuilder::new(&window)
+    let _webview = WebViewBuilder::new()
         .with_url("https://plenumnet.replit.app")
         .with_initialization_script(
             r#"document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') { window.close(); }
             });"#,
         )
-        .build()
+        .build(&window)
         .map_err(|e| anyhow::anyhow!("Failed to create webview: {}", e))?;
 
     event_loop.run(move |event, _, control_flow| {
