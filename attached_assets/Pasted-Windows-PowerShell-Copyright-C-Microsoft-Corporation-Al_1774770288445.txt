@@ -1,0 +1,91 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET; git pull; cargo build --release -p plenum-launcher
+remote: Enumerating objects: 653, done.
+remote: Counting objects: 100% (349/349), done.
+remote: Compressing objects: 100% (24/24), done.
+remote: Total 653 (delta 336), reused 327 (delta 325), pack-reused 304 (from 2)
+Receiving objects: 100% (653/653), 280.01 KiB | 1.13 MiB/s, done.
+Resolving deltas: 100% (492/492), completed with 36 local objects.
+From https://github.com/SigmaWolf-8/Ternary
+   2f3c30a3..298d92d1  main       -> origin/main
+ * [new branch]        dependabot/cargo/libternary/criterion-0.8 -> origin/dependabot/cargo/libternary/criterion-0.8
+ * [new branch]        dependabot/cargo/libternary/rand-0.10 -> origin/dependabot/cargo/libternary/rand-0.10
+ * [new branch]        dependabot/github_actions/actions/download-artifact-7 -> origin/dependabot/github_actions/actions/download-artifact-7
+ * [new branch]        dependabot/github_actions/actions/setup-node-6 -> origin/dependabot/github_actions/actions/setup-node-6
+ * [new branch]        dependabot/github_actions/codecov/codecov-action-5 -> origin/dependabot/github_actions/codecov/codecov-action-5
+ * [new branch]        dependabot/github_actions/docker/build-push-action-6 -> origin/dependabot/github_actions/docker/build-push-action-6
+ * [new branch]        dependabot/github_actions/github/codeql-action-4 -> origin/dependabot/github_actions/github/codeql-action-4
+ * [new branch]        dependabot/npm_and_yarn/date-fns-4.1.0 -> origin/dependabot/npm_and_yarn/date-fns-4.1.0
+ * [new branch]        dependabot/npm_and_yarn/development-2c25b48037 -> origin/dependabot/npm_and_yarn/development-2c25b48037
+ * [new branch]        dependabot/npm_and_yarn/framer-motion-12.34.0 -> origin/dependabot/npm_and_yarn/framer-motion-12.34.0
+ * [new branch]        dependabot/npm_and_yarn/hookform/resolvers-5.2.2 -> origin/dependabot/npm_and_yarn/hookform/resolvers-5.2.2
+ * [new branch]        dependabot/npm_and_yarn/multi-d88693a43a -> origin/dependabot/npm_and_yarn/multi-d88693a43a
+ * [new branch]        dependabot/npm_and_yarn/production-1a3fa6023a -> origin/dependabot/npm_and_yarn/production-1a3fa6023a
+ * [new branch]        dependabot/npm_and_yarn/react-day-picker-9.13.2 -> origin/dependabot/npm_and_yarn/react-day-picker-9.13.2
+ * [new branch]        dependabot/npm_and_yarn/recharts-3.7.0 -> origin/dependabot/npm_and_yarn/recharts-3.7.0
+ * [new branch]        dependabot/npm_and_yarn/tailwind-merge-3.4.0 -> origin/dependabot/npm_and_yarn/tailwind-merge-3.4.0
+ * [new branch]        dependabot/npm_and_yarn/vitejs/plugin-react-5.1.4 -> origin/dependabot/npm_and_yarn/vitejs/plugin-react-5.1.4
+ * [new branch]        feature/isa-v2.1-quantum-ternary -> origin/feature/isa-v2.1-quantum-ternary
+ * [new branch]        tl-sponge-naming-standardization -> origin/tl-sponge-naming-standardization
+Updating 2f3c30a3..298d92d1
+error: Your local changes to the following files would be overwritten by merge:
+        Cargo.lock
+Please commit your changes or stash them before you merge.
+Aborting
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+   Compiling plenum-launcher v1.0.0 (C:\PlenumNET\tools\plenum-launcher)
+error[E0061]: this function takes 0 arguments but 1 argument was supplied
+   --> tools\plenum-launcher\src\main.rs:391:20
+    |
+391 |     let _webview = WebViewBuilder::new(&window)
+    |                    ^^^^^^^^^^^^^^^^^^^ ------- unexpected argument of type `&Window`
+    |
+note: associated function defined here
+   --> C:\Users\Sigma\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.47.2\src\lib.rs:584:10
+    |
+584 |   pub fn new() -> Self {
+    |          ^^^
+help: remove the extra argument
+    |
+391 -     let _webview = WebViewBuilder::new(&window)
+391 +     let _webview = WebViewBuilder::new()
+    |
+
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+    --> tools\plenum-launcher\src\main.rs:398:10
+     |
+ 398 |         .build()
+     |          ^^^^^-- argument #1 of type `&_` is missing
+     |
+note: method defined here
+    --> C:\Users\Sigma\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.47.2\src\lib.rs:1157:10
+     |
+1157 |   pub fn build<W: HasWindowHandle>(self, window: &'a W) -> Result<WebView> {
+     |          ^^^^^
+help: provide the argument
+     |
+ 398 |         .build(/* window */)
+     |                ++++++++++++
+
+warning: value assigned to `tray` is never read
+   --> tools\plenum-launcher\src\main.rs:211:21
+    |
+211 |                     tray = new_tray;
+    |                     ^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0061`.
+warning: `plenum-launcher` (bin "plenum-launcher") generated 1 warning
+error: could not compile `plenum-launcher` (bin "plenum-launcher") due to 2 previous errors; 1 warning emitted
+PS C:\PlenumNET>
