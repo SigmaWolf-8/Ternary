@@ -23,6 +23,21 @@
 #>
 
 $ErrorActionPreference = "Continue"
+
+trap {
+    Write-Host ""
+    Write-Host "==========================================================" -ForegroundColor Red
+    Write-Host "  FATAL ERROR — installer crashed" -ForegroundColor Red
+    Write-Host "==========================================================" -ForegroundColor Red
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  At: $($_.InvocationInfo.ScriptName):$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Log file: $LogFile" -ForegroundColor White
+    Write-Host ""
+    Read-Host "Press Enter to close"
+    exit 1
+}
+
 $REMOTE_CRS     = "https://plenumnet.replit.app"
 $RepoDir        = "C:\PlenumNET"
 $RepoUrl        = "https://github.com/SigmaWolf-8/Ternary.git"
