@@ -59,6 +59,10 @@ getrandom = "0.2"
 # Logging
 tracing = "0.1"
 
+# UUID v4 for Yoda chat session IDs (non-security-boundary identifier,
+# exempt from zero-external-crypto rule — opaque label only)
+uuid = { version = "1.6", features = ["v4"] }
+
 # Platform-specific TLS: rustls on Linux (no C compiler), native-tls on Windows (SChannel, no C compiler)
 [target.'cfg(not(windows))'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

@@ -44,7 +44,7 @@
 //! - T-27: Adds telemetry/metrics endpoints
 
 use axum::{
-    extract::State,
+    extract::{Extension, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -700,6 +700,106 @@ pub fn cube_router(state: Arc<AppState>) -> Router {
             post(address_validate),
         )
         .with_state(state)
+}
+
+pub type SharedYodaVerifier = Arc<tokio::sync::Mutex<crate::yoda_chat::YodaChatVerifier>>;
+pub type YodaRelaySender = Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::Sender<crate::ws_relay::RelayEnvelope>>>>;
+pub type YodaResponseWaiters = Arc<tokio::sync::Mutex<std::collections::HashMap<String, tokio::sync::oneshot::Sender<String>>>>;
+
+pub async fn yoda_submit(
+    Extension(verifier): Extension<SharedYodaVerifier>,
+    Extension(relay_tx): Extension<YodaRelaySender>,
+    Extension(waiters): Extension<YodaResponseWaiters>,
+    body: String,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (session_id, envelope) = {
+        let mut v = verifier.lock().await;
+        match v.verify_and_forward(&body) {
+            Ok((payload, _hash)) => {
+                let forward_payload = serde_json::json!({
+                    "sessionId": payload.session_id,
+                    "timestamp": payload.timestamp,
+                    "sequence": payload.sequence,
+                    "message": payload.message,
+                    "operatorPubkey": payload.operator_pubkey,
+                    "daemonRepC": payload.daemon_rep_c,
+                    "signature": payload.signature,
+                });
+                let env = crate::ws_relay::RelayEnvelope {
+                    msg_type: "relay".to_string(),
+                    to: Some("yoda-server".to_string()),
+                    relay_msg_type: Some("yoda_chat".to_string()),
+                    payload: Some(forward_payload.to_string()),
+                    address: None, public_key: None, nonce: None,
+                    signature: None, from: None, error: None,
+                    delivered: None, connected_peers: None,
+                    ts: None, connected: None,
+                };
+                (payload.session_id.clone(), env)
+            }
+            Err(api_err) => {
+                let status = match api_err.exit_code {
+                    13 => StatusCode::TOO_MANY_REQUESTS,
+                    _ => StatusCode::BAD_REQUEST,
+                };
+                return (status, Json(serde_json::json!({
+                    "code": api_err.code,
+                    "message": api_err.message,
+                    "exitCode": api_err.exit_code,
+                })));
+            }
+        }
+    };
+
+    let (resp_tx, resp_rx) = tokio::sync::oneshot::channel::<String>();
+    {
+        let mut w = waiters.lock().await;
+        w.insert(session_id.clone(), resp_tx);
+    }
+
+    let send_result = {
+        let tx_guard = relay_tx.lock().await;
+        if let Some(ref tx) = *tx_guard {
+            tx.send(envelope).await.map_err(|_| "send failed")
+        } else {
+            Err("no relay")
+        }
+    };
+
+    if send_result.is_err() {
+        let mut w = waiters.lock().await;
+        w.remove(&session_id);
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({
+            "code": "RELAY_DISCONNECTED",
+            "message": "Relay connection is not available. Try again shortly.",
+            "exitCode": 2,
+        })));
+    }
+
+    match tokio::time::timeout(std::time::Duration::from_secs(30), resp_rx).await {
+        Ok(Ok(response_payload)) => {
+            let parsed: serde_json::Value = serde_json::from_str(&response_payload).unwrap_or_default();
+            (StatusCode::OK, Json(parsed))
+        }
+        Ok(Err(_)) | Err(_) => {
+            let mut w = waiters.lock().await;
+            w.remove(&session_id);
+            (StatusCode::GATEWAY_TIMEOUT, Json(serde_json::json!({
+                "error": {
+                    "code": "YODA_TIMEOUT",
+                    "message": "Yoda is taking too long to respond. Try again in a moment."
+                }
+            })))
+        }
+    }
+}
+
+pub fn yoda_router(verifier: SharedYodaVerifier, relay_tx: YodaRelaySender, waiters: YodaResponseWaiters) -> Router {
+    Router::new()
+        .route("/yoda/submit", post(yoda_submit))
+        .layer(Extension(verifier))
+        .layer(Extension(relay_tx))
+        .layer(Extension(waiters))
 }
 
 // ═══════════════════════════════════════════════════════════════════════

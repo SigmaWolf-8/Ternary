@@ -1,0 +1,50 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division
+#
+# Yoda Widget — Ctrl+Y chat widget for PlenumNET
+#
+# Separate crate from the daemon — NOT feature-gated within the daemon crate.
+# Prevents wry/WebView dependencies from infecting headless daemon builds.
+# Optional component in the daemon installer.
+#
+# Platform dependencies:
+#   - Windows: WebView2 (minimum version 90)
+#   - Linux: webkit2gtk-4.1
+#
+# Build with desktop WebView support:
+#   cargo build -p yoda-widget --features desktop
+#
+# Build headless (validation / CI):
+#   cargo build -p yoda-widget
+
+[package]
+name = "yoda-widget"
+version = "1.0.0"
+edition = "2021"
+description = "PlenumNET Yoda Chat Widget — Ctrl+Y system hotkey chat interface"
+license = "LicenseRef-Proprietary"
+authors = ["Salvi — Capomastro Holdings Ltd."]
+repository = "https://github.com/SigmaWolf-8/Ternary"
+
+[features]
+default = []
+desktop = ["tao", "wry"]
+
+[dependencies]
+ternary-math = { path = "../ternary-math" }
+inter-cube = { path = "../services/inter-cube" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# UUID v4 for session IDs
+uuid = { version = "1.6", features = ["v4"] }
+
+# Desktop WebView — optional, only for desktop installs
+tao = { version = "0.30", optional = true }
+wry = { version = "0.44", optional = true }
+
+[[bin]]
+name = "yoda-widget"
+path = "src/main.rs"

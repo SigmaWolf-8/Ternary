@@ -35,6 +35,7 @@
 // | `PlenumNET-MS-TAG`                | Master secret auth tag         | identity.rs       |
 // | `PlenumNET-MS-GEN`                | Master secret from seed        | identity.rs       |
 // | `{nonce}||{address}||{publicKey}` | Relay challenge payload        | ws_relay.rs       |
+// | `PlenumNET-YODA-CHAT-v1`          | Yoda chat signing context      | yoda_chat.rs      |
 
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};

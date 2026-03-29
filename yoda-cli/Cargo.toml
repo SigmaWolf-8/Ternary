@@ -1,0 +1,36 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division
+#
+# Yoda CLI — `y` command for PlenumNET operator-to-Yoda communication
+#
+# Standalone code-signed binary. Statically linked — no runtime dependency
+# on daemon shared libraries. Ships alongside ninja-exec in the daemon
+# install directory and is added to PATH by the installer.
+
+[package]
+name = "yoda-cli"
+version = "1.0.0"
+edition = "2021"
+description = "PlenumNET Yoda CLI — universal `y` command for operator-to-Yoda communication"
+license = "LicenseRef-Proprietary"
+authors = ["Salvi — Capomastro Holdings Ltd."]
+repository = "https://github.com/SigmaWolf-8/Ternary"
+
+[dependencies]
+ternary-math = { path = "../ternary-math" }
+inter-cube = { path = "../services/inter-cube" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID v4 for session IDs (non-security-boundary, exempt from zero-external-crypto rule)
+uuid = { version = "1.6", features = ["v4"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "y"
+path = "src/main.rs"

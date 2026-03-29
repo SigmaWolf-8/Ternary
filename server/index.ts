@@ -18,6 +18,11 @@ import crypto from "crypto";
 
 process.on("SIGHUP", () => {});
 
+type YodaPipelineHandler = (msg: string, session: string, seq: number, repC: string) => Promise<string>;
+let yodaReplayGuard: Map<string, Set<number>> | null = null;
+let yodaRateWindows: Map<string, number[]> | null = null;
+let yodaPipelineHandler: YodaPipelineHandler | null = null;
+
 const _originalProcessExit = process.exit.bind(process);
 let _serverListening = false;
 (process as any).exit = ((code?: number) => {
@@ -1911,6 +1916,28 @@ function startPqtiService(): ChildProcess | null {
           ws.send(JSON.stringify({ type: "session_list", sessions: listSessions(ownerId) }));
           break;
         }
+        case "plenumnet-builtin": {
+          if (!remoteNodeAddress) {
+            ws.send(JSON.stringify({ type: "error", message: "Not connected to a remote node" }));
+            break;
+          }
+          const nodeWsBuiltin = relayClients.get(remoteNodeAddress);
+          if (!nodeWsBuiltin || nodeWsBuiltin.readyState !== WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "error", message: "Remote node disconnected" }));
+            break;
+          }
+          nodeWsBuiltin.send(JSON.stringify({
+            type: "relay",
+            msgType: "plenumnet-builtin",
+            payload: JSON.stringify({
+              sessionId: remoteSessionId,
+              command: msg.command || "",
+              args: msg.args || msg.payload || "",
+            }),
+            from: "coordinator",
+          }));
+          break;
+        }
         case "exec":
         case "tail":
         case "tail-stop":
@@ -2388,6 +2415,137 @@ function startPqtiService(): ChildProcess | null {
             termWs.send(JSON.stringify({ type: "output", data: payload.data }));
           }
         } catch {}
+        return;
+      }
+
+      if (msg.type === "relay" && msg.msgType === "yoda_chat" && msg.payload) {
+        if (!yodaReplayGuard) yodaReplayGuard = new Map<string, Set<number>>();
+        if (!yodaRateWindows) yodaRateWindows = new Map<string, number[]>();
+
+        try {
+          const yodaPayload = JSON.parse(msg.payload);
+          const daemonRepC = yodaPayload.daemonRepC || nodeAddress;
+          const sessionId = yodaPayload.sessionId || "unknown";
+          const sequence = yodaPayload.sequence ?? 0;
+          const messageText = yodaPayload.message || "";
+          const timestamp = yodaPayload.timestamp ?? 0;
+
+          const MAX_MESSAGE_BYTES = 32_768;
+          const messageByteLength = Buffer.byteLength(messageText, "utf8");
+          if (messageByteLength > MAX_MESSAGE_BYTES) {
+            const sizeResp = JSON.stringify({
+              type: "relay", from: "yoda-server", msgType: "yoda_response",
+              payload: JSON.stringify({
+                sessionId, sequence, content: null,
+                error: { code: "MESSAGE_TOO_LONG", message: "Message exceeds the 32KB size limit." }
+              })
+            });
+            ws.send(sizeResp);
+            return;
+          }
+
+          const now = Date.now();
+          const TIMESTAMP_MAX_AGE_MS = 60_000;
+          const timestampAge = Math.abs(now - timestamp);
+          if (timestampAge >= TIMESTAMP_MAX_AGE_MS) {
+            const expiredResp = JSON.stringify({
+              type: "relay", from: "yoda-server", msgType: "yoda_response",
+              payload: JSON.stringify({
+                sessionId, sequence, content: null,
+                error: { code: "MESSAGE_EXPIRED", message: "Message timestamp is too old. Check your system clock." }
+              })
+            });
+            ws.send(expiredResp);
+            return;
+          }
+
+          const sessionSeqs = yodaReplayGuard!.get(sessionId) || new Set<number>();
+          if (sessionSeqs.has(sequence)) {
+            const replayResp = JSON.stringify({
+              type: "relay", from: "yoda-server", msgType: "yoda_response",
+              payload: JSON.stringify({
+                sessionId, sequence, content: null,
+                error: { code: "SEQUENCE_REPLAY", message: "This message has already been processed." }
+              })
+            });
+            ws.send(replayResp);
+            return;
+          }
+          sessionSeqs.add(sequence);
+          if (sessionSeqs.size > 1000) {
+            const oldest = sessionSeqs.values().next().value;
+            if (oldest !== undefined) sessionSeqs.delete(oldest);
+          }
+          yodaReplayGuard!.set(sessionId, sessionSeqs);
+
+          const yodaRateKey = `yoda:${daemonRepC}`;
+          const rateWindow = yodaRateWindows!.get(yodaRateKey) || [];
+          const windowStart = now - 60_000;
+          const filtered = rateWindow.filter((ts: number) => ts > windowStart);
+          if (filtered.length >= 10) {
+            const rateLimitResp = JSON.stringify({
+              type: "relay", from: "yoda-server", msgType: "yoda_response",
+              payload: JSON.stringify({
+                sessionId, sequence, content: null,
+                error: { code: "RATE_LIMITED", message: "You're sending messages faster than Yoda can read them. Wait a moment and try again." }
+              })
+            });
+            ws.send(rateLimitResp);
+            return;
+          }
+          filtered.push(now);
+          yodaRateWindows!.set(yodaRateKey, filtered);
+
+          const yodaTimeoutMs = 30_000;
+          const yodaResponsePromise = new Promise<string>(async (resolve) => {
+            const timer = setTimeout(() => {
+              resolve(JSON.stringify({
+                sessionId, sequence, content: null,
+                error: { code: "YODA_TIMEOUT", message: "Yoda is taking too long to respond. Try again in a moment." }
+              }));
+            }, yodaTimeoutMs);
+
+            try {
+              let responseContent: string;
+              if (yodaPipelineHandler) {
+                responseContent = await yodaPipelineHandler(messageText, sessionId, sequence, daemonRepC);
+              } else {
+                responseContent = `Message received in session ${sessionId} (seq #${sequence}). Yoda relay is active — AI pipeline integration pending cloud-side deployment.`;
+              }
+              clearTimeout(timer);
+              resolve(JSON.stringify({
+                sessionId, sequence, content: responseContent,
+                metadata: { processedAt: new Date().toISOString(), source: "yoda-relay" }
+              }));
+            } catch (pipelineError) {
+              clearTimeout(timer);
+              resolve(JSON.stringify({
+                sessionId, sequence, content: null,
+                error: { code: "YODA_UNAVAILABLE", message: "Yoda is currently unavailable. Your message was received but could not be processed." }
+              }));
+            }
+          });
+
+          const yodaResult = await yodaResponsePromise;
+          const responseEnvelope = JSON.stringify({
+            type: "relay", from: "yoda-server", msgType: "yoda_response",
+            payload: yodaResult
+          });
+          ws.send(responseEnvelope);
+        } catch (e) {
+          console.error("[yoda-chat] Error processing yoda_chat:", e);
+          try {
+            const errEnvelope = JSON.stringify({
+              type: "relay", from: "yoda-server", msgType: "yoda_response",
+              to: msg.from || nodeAddress,
+              payload: JSON.stringify({
+                sessionId: "unknown", sequence: 0, content: null,
+                error: { code: "YODA_UNAVAILABLE", message: "Internal error processing your message. Please try again." }
+              })
+            });
+            ws.send(errEnvelope);
+          } catch {}
+        }
         return;
       }
 

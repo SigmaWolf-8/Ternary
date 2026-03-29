@@ -44,7 +44,8 @@
 
 use inter_cube::*;
 use inter_cube::api::{
-    AppState, crs_router, cube_router, parse_address_string,
+    AppState, crs_router, cube_router, parse_address_string, yoda_router,
+    YodaRelaySender, YodaResponseWaiters,
     CRS_ROUTE_COUNT, CUBE_ROUTE_COUNT,
 };
 use inter_cube::daemon_identity::{DaemonIdentity, encryption_passphrase, identity_dir, save_master_secret};
@@ -754,9 +755,21 @@ async fn run_crs_mode() {
         .collect();
     let cluster_shell = inter_cube::cluster_shell::new_cluster_shell(local_address.to_dotted(), nid, &a3_peers);
 
+    let addr_str: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
+    let crs_yoda_verifier: inter_cube::api::SharedYodaVerifier = std::sync::Arc::new(
+        tokio::sync::Mutex::new(
+            inter_cube::yoda_chat::YodaChatVerifier::new(addr_str.clone())
+        )
+    );
+    let crs_yoda_session_origins: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, String>>> =
+        std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    let crs_yoda_relay_tx: YodaRelaySender = std::sync::Arc::new(tokio::sync::Mutex::new(None));
+    let crs_yoda_waiters: YodaResponseWaiters = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+
     let app = crs_router(shared_state)
         .merge(vm_routes)
-        .merge(inter_cube::cluster_shell::cluster_shell_router(cluster_shell.clone()));
+        .merge(inter_cube::cluster_shell::cluster_shell_router(cluster_shell.clone()))
+        .merge(yoda_router(crs_yoda_verifier.clone(), crs_yoda_relay_tx.clone(), crs_yoda_waiters.clone()));
 
     let port = api_port();
     let p_port = peer_port();
@@ -766,13 +779,12 @@ async fn run_crs_mode() {
         println!("  Role:          {}", role);
     }
 
-    let addr_str: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     if let Some(rurl) = relay_url(None) {
         println!("  Relay:         {} (WebSocket, TL-DSA-87 challenge-response)", rurl);
         let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
         let tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
         let crs_relay_url = rurl.clone();
-        spawn_relay_client(rurl, addr_str.clone(), identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None, None, new_terminal_sessions());
+        spawn_relay_client(rurl, addr_str.clone(), identity.pk_hex.clone(), relay_kp.secret_key.clone(), tl_dsa_pk_hex, None, None, new_terminal_sessions(), crs_yoda_verifier, crs_yoda_session_origins, crs_yoda_relay_tx, crs_yoda_waiters);
         spawn_peer_discovery(crs_relay_url, addr_str, p_port, new_peer_registry(), new_peer_senders(), None, Some(cluster_shell.clone()));
     } else {
         println!("  Relay:         none (set RELAY_URL to enable remote relay)");
@@ -1206,12 +1218,22 @@ async fn run_cube_mode() {
     let peers = new_peer_registry();
     let peer_senders = new_peer_senders();
 
+    let yoda_verifier: inter_cube::api::SharedYodaVerifier = std::sync::Arc::new(
+        tokio::sync::Mutex::new(
+            inter_cube::yoda_chat::YodaChatVerifier::new(addr_str_for_relay.clone())
+        )
+    );
+    let yoda_session_origins: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, String>>> =
+        std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    let yoda_relay_tx: YodaRelaySender = std::sync::Arc::new(tokio::sync::Mutex::new(None));
+    let yoda_waiters: YodaResponseWaiters = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+
     println!("[ws-relay] Relay target: {}", relay_target);
     let relay_kp = derive_identity_keypair(&local_address, &identity.master_secret);
     let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
     let (peer_msg_tx, peer_msg_rx) = tokio::sync::mpsc::channel::<inter_cube::ws_relay::RelayEnvelope>(64);
     let relay_target_for_discovery = relay_target.clone();
-    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx), new_terminal_sessions());
+    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx), new_terminal_sessions(), yoda_verifier.clone(), yoda_session_origins.clone(), yoda_relay_tx.clone(), yoda_waiters.clone());
 
     let peer_msg_tx_discovery = peer_msg_tx.clone();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));
@@ -1242,7 +1264,8 @@ async fn run_cube_mode() {
 
     let app = cube_router(shared_state)
         .merge(vm_routes)
-        .merge(cluster_routes);
+        .merge(cluster_routes)
+        .merge(yoda_router(yoda_verifier, yoda_relay_tx, yoda_waiters));
 
     let port = api_port();
     let t_port = terminal_port();
@@ -1296,6 +1319,10 @@ fn spawn_relay_client(
     peer_senders: Option<PeerSenders>,
     peer_msg_rx: Option<tokio::sync::mpsc::Receiver<inter_cube::ws_relay::RelayEnvelope>>,
     terminal_sessions: TerminalSessions,
+    yoda_verifier: inter_cube::api::SharedYodaVerifier,
+    yoda_session_origins: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, String>>>,
+    yoda_relay_tx: YodaRelaySender,
+    yoda_response_waiters: YodaResponseWaiters,
 ) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| format!("{}", api_port() + 1));
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
@@ -1318,6 +1345,13 @@ fn spawn_relay_client(
         ops_handler.load_config(&ops_config_path).await;
         ops_handler.load_persisted_transfers().await;
         println!("[ops] Operations handler initialized for node {}", ops_address);
+
+        {
+            let ops_operators = ops_handler.get_operators().await;
+            let mut yv = yoda_verifier.lock().await;
+            yv.set_operators(ops_operators.clone());
+            println!("[yoda-chat] Verifier initialized for daemon {} with {} authorized operators", address, ops_operators.len());
+        }
         let mut retry_delay = Duration::from_secs(5);
         let inference_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
@@ -1362,6 +1396,11 @@ fn spawn_relay_client(
                 Ok((client, mut incoming_rx)) => {
                     println!("[ws-relay] Relay tunnel active — NAT traversal established");
                     retry_delay = Duration::from_secs(5);
+
+                    {
+                        let mut yrt = yoda_relay_tx.lock().await;
+                        *yrt = Some(client.outgoing_tx.clone());
+                    }
 
                     let (ops_ws_tx, mut ops_ws_rx) = tokio::sync::mpsc::unbounded_channel::<serde_json::Value>();
                     ops_handler.set_ws_sender(ops_ws_tx).await;
@@ -1531,18 +1570,29 @@ fn spawn_relay_client(
                         let from = envelope.from.as_deref().unwrap_or("?").to_string();
                         let payload_str = envelope.payload.as_deref().unwrap_or("{}").to_string();
 
-                        println!(
-                            "[ws-relay] Received {} from {} — {}",
-                            msg_type, from,
-                            payload_str.chars().take(80).collect::<String>()
-                        );
+                        if msg_type == "yoda_chat" || msg_type == "yoda_response" {
+                            let session_hint = serde_json::from_str::<serde_json::Value>(&payload_str)
+                                .ok()
+                                .and_then(|v| v.get("sessionId").and_then(|s| s.as_str()).map(|s| s.to_string()))
+                                .unwrap_or_else(|| "unknown".to_string());
+                            println!(
+                                "[ws-relay] Received {} from {} — session={} (content redacted)",
+                                msg_type, from, session_hint
+                            );
+                        } else {
+                            println!(
+                                "[ws-relay] Received {} from {} — {}",
+                                msg_type, from,
+                                payload_str.chars().take(80).collect::<String>()
+                            );
+                        }
 
                         if msg_type == "restart" || envelope.msg_type == "restart" {
                             println!("[ws-relay] Restart command received — closing relay for reconnect");
                             break;
                         }
 
-                        if msg_type == "terminal-open" || msg_type == "terminal-input" || msg_type == "terminal-resize" || msg_type == "terminal-close" {
+                        if msg_type == "terminal-open" || msg_type == "terminal-input" || msg_type == "terminal-resize" || msg_type == "terminal-close" || msg_type == "plenumnet-builtin" {
                             let (authorized, reject_reason) = is_terminal_authorized(&from, &client.peers).await;
                             if !authorized {
                                 println!("[terminal] REJECTED: {}", reject_reason);
@@ -1553,6 +1603,7 @@ fn spawn_relay_client(
                             let addr_for_reply = address.clone();
                             let terminal_sessions_clone = terminal_sessions.clone();
                             let msg_type_owned = msg_type.to_string();
+                            let yoda_verifier = yoda_verifier.clone();
 
                             tokio::spawn(async move {
                                 let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
@@ -1677,6 +1728,87 @@ fn spawn_relay_client(
                                             println!("[terminal] Session {} closed by coordinator", session_id);
                                         }
                                     }
+                                    "plenumnet-builtin" => {
+                                        let command = parsed.get("command").and_then(|v| v.as_str()).unwrap_or("");
+                                        if command == "yoda-chat" {
+                                            let payload_json = parsed.get("args").and_then(|v| v.as_str())
+                                                .or_else(|| parsed.get("payload").and_then(|v| v.as_str()))
+                                                .unwrap_or("").to_string();
+                                            let reply_tx_builtin = reply_tx.clone();
+                                            let from_addr_builtin = from_addr.clone();
+                                            let yoda_v = yoda_verifier.clone();
+                                            let sid = session_id.clone();
+                                            let yso_builtin = yoda_session_origins.clone();
+                                            tokio::spawn(async move {
+                                                if payload_json.is_empty() {
+                                                    println!("[terminal] plenumnet-builtin yoda-chat: missing payload");
+                                                    return;
+                                                }
+                                                let verify_result = {
+                                                    let mut v = yoda_v.lock().await;
+                                                    v.verify_and_forward(&payload_json)
+                                                };
+                                                match verify_result {
+                                                    Ok((payload, hash)) => {
+                                                        yso_builtin.lock().await.insert(payload.session_id.clone(), from_addr_builtin.clone());
+                                                        println!(
+                                                            "[terminal] plenumnet-builtin yoda-chat verified: session={} hash={}",
+                                                            payload.session_id, hash
+                                                        );
+                                                        let env = inter_cube::ws_relay::RelayEnvelope {
+                                                            msg_type: "relay".to_string(),
+                                                            to: Some("yoda-server".to_string()),
+                                                            relay_msg_type: Some("yoda_chat".to_string()),
+                                                            payload: Some(payload_json),
+                                                            address: None, public_key: None, nonce: None,
+                                                            signature: None, from: None, error: None,
+                                                            delivered: None, connected_peers: None,
+                                                            ts: None, connected: None,
+                                                        };
+                                                        if let Err(e) = reply_tx_builtin.send(env).await {
+                                                            println!("[terminal] yoda-chat forward failed: {}", e);
+                                                        }
+                                                        let ack_env = inter_cube::ws_relay::RelayEnvelope {
+                                                            msg_type: "relay".to_string(),
+                                                            to: Some(from_addr_builtin),
+                                                            relay_msg_type: Some("terminal-output".to_string()),
+                                                            payload: Some(serde_json::json!({
+                                                                "sessionId": sid,
+                                                                "data": format!("[YODA] Message verified and forwarded (hash={}). Waiting for response...\r\n", hash),
+                                                            }).to_string()),
+                                                            address: None, public_key: None, nonce: None,
+                                                            signature: None, from: None, error: None,
+                                                            delivered: None, connected_peers: None,
+                                                            ts: None, connected: None,
+                                                        };
+                                                        let _ = reply_tx_builtin.send(ack_env).await;
+                                                    }
+                                                    Err(api_err) => {
+                                                        println!(
+                                                            "[terminal] plenumnet-builtin yoda-chat rejected: {}",
+                                                            api_err.code
+                                                        );
+                                                        let err_env = inter_cube::ws_relay::RelayEnvelope {
+                                                            msg_type: "relay".to_string(),
+                                                            to: Some(from_addr_builtin),
+                                                            relay_msg_type: Some("terminal-output".to_string()),
+                                                            payload: Some(serde_json::json!({
+                                                                "sessionId": sid,
+                                                                "data": format!("[YODA] Error: {} (code: {})\r\n", api_err.message, api_err.code),
+                                                            }).to_string()),
+                                                            address: None, public_key: None, nonce: None,
+                                                            signature: None, from: None, error: None,
+                                                            delivered: None, connected_peers: None,
+                                                            ts: None, connected: None,
+                                                        };
+                                                        let _ = reply_tx_builtin.send(err_env).await;
+                                                    }
+                                                }
+                                            });
+                                        } else {
+                                            println!("[terminal] Unknown plenumnet-builtin command: {}", command);
+                                        }
+                                    }
                                     _ => {}
                                 }
                             });
@@ -1760,6 +1892,7 @@ fn spawn_relay_client(
 
                         if msg_type == "ops-operator-sync" {
                             let oh = ops_handler.clone();
+                            let yoda_v = yoda_verifier.clone();
                             tokio::spawn(async move {
                                 let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
                                 let action = parsed.get("action").and_then(|v| v.as_str()).unwrap_or("");
@@ -1769,12 +1902,28 @@ fn spawn_relay_client(
                                         let name = parsed.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                         let pk = parsed.get("public_key").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                         let scope = parsed.get("scope").and_then(|v| v.as_str()).unwrap_or("read-only").to_string();
-                                        oh.add_operator(fp.clone(), name.clone(), pk, scope.clone()).await;
+                                        oh.add_operator(fp.clone(), name.clone(), pk.clone(), scope.clone()).await;
+                                        let now_secs = std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .unwrap_or_default()
+                                            .as_secs();
+                                        let entry = crate::ops_handler::OperatorEntry {
+                                            name: name.clone(),
+                                            key_fingerprint: fp.clone(),
+                                            public_key: pk.clone(),
+                                            scope: scope.clone(),
+                                            registered_at: format!("{}Z", now_secs),
+                                        };
+                                        yoda_v.lock().await.add_operator(pk, entry);
                                         println!("[ops] Operator synced from coordinator: {} ({}, scope: {})", name, fp, scope);
                                     }
                                     "remove" => {
                                         let fp = parsed.get("key_fingerprint").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                        let pk = parsed.get("public_key").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                         oh.remove_operator(&fp).await;
+                                        if !pk.is_empty() {
+                                            yoda_v.lock().await.remove_operator(&pk);
+                                        }
                                         println!("[ops] Operator removed via coordinator sync: {}", fp);
                                     }
                                     _ => {}
@@ -1817,6 +1966,148 @@ fn spawn_relay_client(
                                     if let Err(e) = reply_tx.send(env).await {
                                         println!("[ops] Failed to send response: {}", e);
                                     }
+                                }
+                            });
+                            continue;
+                        }
+
+                        if msg_type == "yoda_chat" {
+                            let reply_tx = client.outgoing_tx.clone();
+                            let from_addr = from.clone();
+                            let yoda_verifier = yoda_verifier.clone();
+                            let yso = yoda_session_origins.clone();
+
+                            tokio::spawn(async move {
+                                let mut verifier = yoda_verifier.lock().await;
+                                match verifier.verify_and_forward(&payload_str) {
+                                    Ok((verified_payload, payload_hash)) => {
+                                        yso.lock().await.insert(verified_payload.session_id.clone(), from_addr.clone());
+                                        let forward_payload = serde_json::json!({
+                                            "sessionId": verified_payload.session_id,
+                                            "timestamp": verified_payload.timestamp,
+                                            "sequence": verified_payload.sequence,
+                                            "message": verified_payload.message,
+                                            "operatorPubkey": verified_payload.operator_pubkey,
+                                            "daemonRepC": verified_payload.daemon_rep_c,
+                                            "signature": verified_payload.signature,
+                                        });
+                                        let env = inter_cube::ws_relay::RelayEnvelope {
+                                            msg_type: "relay".to_string(),
+                                            to: Some("yoda-server".to_string()),
+                                            relay_msg_type: Some("yoda_chat".to_string()),
+                                            payload: Some(forward_payload.to_string()),
+                                            address: None, public_key: None, nonce: None,
+                                            signature: None, from: None, error: None,
+                                            delivered: None, connected_peers: None,
+                                            ts: None, connected: None,
+                                        };
+                                        if let Err(e) = reply_tx.send(env).await {
+                                            println!("[yoda-chat] Failed to forward to relay: {}", e);
+                                        }
+                                    }
+                                    Err(api_err) => {
+                                        println!(
+                                            "[yoda-chat] rejected: {} from {}",
+                                            api_err.code, from_addr
+                                        );
+                                        let err_response = serde_json::json!({
+                                            "code": api_err.code,
+                                            "message": api_err.message,
+                                            "exitCode": api_err.exit_code,
+                                        });
+                                        let env = inter_cube::ws_relay::RelayEnvelope {
+                                            msg_type: "relay".to_string(),
+                                            to: Some(from_addr),
+                                            relay_msg_type: Some("yoda_response".to_string()),
+                                            payload: Some(err_response.to_string()),
+                                            address: None, public_key: None, nonce: None,
+                                            signature: None, from: None, error: None,
+                                            delivered: None, connected_peers: None,
+                                            ts: None, connected: None,
+                                        };
+                                        let _ = reply_tx.send(env).await;
+                                    }
+                                }
+                            });
+                            continue;
+                        }
+
+                        if msg_type == "yoda_response" {
+                            if from != "yoda-server" {
+                                println!(
+                                    "[yoda-chat] Rejected yoda_response from untrusted source: {}",
+                                    from
+                                );
+                                continue;
+                            }
+                            let reply_tx = client.outgoing_tx.clone();
+                            let from_addr = from.clone();
+                            let yso = yoda_session_origins.clone();
+                            let yw = yoda_response_waiters.clone();
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
+                                let session_id = parsed.get("sessionId")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown")
+                                    .to_string();
+                                let has_error = parsed.get("error").is_some();
+                                let response_sequence = parsed.get("sequence")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+
+                                let response_hash = inter_cube::yoda_chat::compute_payload_hash(
+                                    payload_str.as_bytes()
+                                );
+
+                                let origin_addr = yso.lock().await.get(&session_id).cloned();
+
+                                println!(
+                                    "[yoda-chat] Response session={} error={} hash={} origin={:?}",
+                                    session_id, has_error, response_hash, origin_addr
+                                );
+
+                                let audit_path = format!(
+                                    "{}/.plenumnet/yoda-audit.jsonl",
+                                    std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string())
+                                );
+                                let now_ms = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_millis() as u64;
+                                inter_cube::yoda_chat::write_audit_entry(&audit_path, &inter_cube::yoda_chat::YodaAuditEntry {
+                                    timestamp: inter_cube::yoda_chat::format_timestamp_rfc3339(now_ms),
+                                    session_id: session_id.clone(),
+                                    sequence: response_sequence,
+                                    operator_rep_c: origin_addr.as_deref().unwrap_or(&from_addr).to_string(),
+                                    payload_hash: Some(response_hash.clone()),
+                                    direction: "inbound".to_string(),
+                                    response_hash: Some(response_hash),
+                                    result: if has_error { "error".to_string() } else { "delivered".to_string() },
+                                });
+
+                                let waiter = {
+                                    let mut w = yw.lock().await;
+                                    w.remove(&session_id)
+                                };
+                                if let Some(waiter_tx) = waiter {
+                                    let _ = waiter_tx.send(payload_str.clone());
+                                    println!("[yoda-chat] Response delivered to HTTP waiter for session {}", session_id);
+                                } else if let Some(target) = origin_addr {
+                                    let response_env = inter_cube::ws_relay::RelayEnvelope {
+                                        msg_type: "relay".to_string(),
+                                        to: Some(target),
+                                        relay_msg_type: Some("yoda_response".to_string()),
+                                        payload: Some(payload_str),
+                                        address: None, public_key: None, nonce: None,
+                                        signature: None, from: None, error: None,
+                                        delivered: None, connected_peers: None,
+                                        ts: None, connected: None,
+                                    };
+                                    if let Err(e) = reply_tx.send(response_env).await {
+                                        println!("[yoda-chat] Failed to deliver response: {}", e);
+                                    }
+                                } else {
+                                    println!("[yoda-chat] No origin found for session {} — response dropped", session_id);
                                 }
                             });
                             continue;
@@ -1953,6 +2244,7 @@ fn spawn_relay_client(
 
                     println!("[ws-relay] Relay connection lost");
                     ops_handler.cancel_all_tails().await;
+                    { let mut yrt = yoda_relay_tx.lock().await; *yrt = None; }
                 }
                 Err(e) => {
                     println!("[ws-relay] Connection failed: {}", e);

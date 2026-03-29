@@ -223,6 +223,10 @@ impl OpsHandler {
         self.operators.lock().await.remove(fingerprint);
     }
 
+    pub async fn get_operators(&self) -> HashMap<String, OperatorEntry> {
+        self.operators.lock().await.clone()
+    }
+
     async fn audit_error(&self, msg: &serde_json::Value, operation: &str, request_id: &str, error_code: &str, error_message: &str) {
         let fp = msg.get("operator_fingerprint").and_then(|v| v.as_str()).unwrap_or("");
         self.write_audit_entry(&OpsAuditEntry {
