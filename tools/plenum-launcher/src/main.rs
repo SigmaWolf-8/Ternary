@@ -63,6 +63,11 @@ fn build_tray_menu(
 ) -> Result<()> {
     tray.add_label("PlenumNET Launcher")?;
 
+    let dashboard_tx = tx.clone();
+    tray.add_menu_item("Open Dashboard", move || {
+        let _ = dashboard_tx.send("dashboard".to_string());
+    })?;
+
     {
         let reg = registry.lock().unwrap();
 
@@ -197,6 +202,10 @@ fn run_tray_app(
                         });
                     let _ = build_tray_menu(&mut new_tray, &registry, &tx);
                     tray = new_tray;
+                } else if msg == "dashboard" {
+                    let _ = std::process::Command::new("cmd")
+                        .args(["/c", "start", "https://plenumnet.replit.app"])
+                        .spawn();
                 } else if msg == "about" {
                     show_notification(
                         &format!(
