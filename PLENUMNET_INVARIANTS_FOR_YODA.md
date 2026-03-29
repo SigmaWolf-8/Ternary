@@ -890,7 +890,7 @@ The Rust code in `port.rs` accepts Rep C inputs and subtracts 1 internally: `(no
 | +11 | 102 | 213 | 11122 | Control / Primary / 3 |
 | +12 | 110 | 221 | 11123 | Control / Secondary / 1 |
 | +13 | 111 | 222 | 11124 | THE CENTER — Gateway · Shell · Key Rotation Pivot |
-| +14 | 112 | 223 | 11125 | Control / Secondary / 3 |
+| +14 | 112 | 223 | 11125 | Control / Secondary / 3 — **LLM Engine Port** (gateway+1) |
 | +15 | 120 | 231 | 11126 | Control / Tertiary / 1 |
 | +16 | 121 | 232 | 11127 | Control / Tertiary / 2 |
 | +17 | 122 | 233 | 11128 | Control / Tertiary / 3 |
@@ -917,6 +917,8 @@ Three nodes. 81 slots = 3⁴. Each node owns a complete 3³ cube of 27 slots. Th
 | Node 3 | 3 | 11165–11191 | 54–80 | 11178 (offset +67) |
 
 Each node's gateway is at its own offset +13 (the center of its local 3³ cube). The Array3 has three gateways — one per node. Node 1 is the primary gateway for external traffic; nodes 2 and 3 are HA replicas. `CUBE_NODE_ID` uses Rep C {1,2,3} — zero is rejected (zero-sentinel).
+
+**LLM Engine Port Convention:** The LLM engine always occupies slot +14 (gateway+1). For Node 1 this is port 11125, Node 2 is 11152, Node 3 is 11179. The daemon defaults `LLM_PORT` to `api_port() + 1` (i.e. gateway+1). Override with the `LLM_PORT` env var to point at a different engine port.
 
 A single node is Array3 with CUBE_NODE_ID=1 and no peers — scalability is structural, not an upgrade. Adding a second node later = set its CUBE_NODE_ID to 2, point it at node 1, formation protocol runs, Array3 begins forming. No reinstallation. No reconfiguration of node 1.
 

@@ -132,8 +132,8 @@ The coordinator will:
 ```bash
 export CUBE_MODE=cube
 export CUBE_CRS_URL="http://localhost:8081"
-export CUBE_API_PORT=8083   # 8085 for Node #3
-export LLM_PORT=8082        # 8084 for Node #3
+export CUBE_API_PORT=11151   # 11178 for Node #3
+export LLM_PORT=11152        # 11179 for Node #3
 export RELAY_URL="https://plenumnet.replit.app"
 export CUBE_IDENTITY_PASSPHRASE="<strong-passphrase>"
 cargo run --package inter-cube
@@ -165,11 +165,11 @@ cargo run --package inter-cube
 
 Each daemon in the Array3 forwards inference requests to its own local OpenAI-compatible LLM endpoint. The engines are fully independent — any mix of local models and cloud API proxies works.
 
-| Node | Address | LLM Port | Env Var | Engine Options |
-|------|---------|----------|---------|----------------|
-| CRS (Coordinator) | `111.111.111.111.1` | `8080` | `LLM_PORT=8080` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
-| Cube 2 (Worker) | `211.111.111.111.1` | `8082` | `LLM_PORT=8082` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
-| Cube 3 (Worker) | `311.111.111.111.1` | `8084` | `LLM_PORT=8084` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
+| Node | Address | Gateway Port | LLM Port (gateway+1) | Env Var | Engine Options |
+|------|---------|-------------|----------------------|---------|----------------|
+| CRS (Coordinator) | `111.111.111.111.1` | `11124` | `11125` | `LLM_PORT=11125` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
+| Cube 2 (Worker) | `211.111.111.111.1` | `11151` | `11152` | `LLM_PORT=11152` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
+| Cube 3 (Worker) | `311.111.111.111.1` | `11178` | `11179` | `LLM_PORT=11179` | llama.cpp, LM Studio, Ollama, or cloud API proxy |
 
 ### Inference Relay Protocol
 
@@ -260,7 +260,7 @@ The daemon sends back:
 The `rerun-yoda-install.ps1` installer downloads llama.cpp and the DeepSeek-R1-Distill-Qwen-7B model automatically. To run manually:
 
 ```bash
-llama-server --model deepseek-r1-distill-qwen-7b.Q4_K_M.gguf --port 8080 --host 127.0.0.1
+llama-server --model deepseek-r1-distill-qwen-7b.Q4_K_M.gguf --port 11125 --host 127.0.0.1
 ```
 
 #### Option B: Ollama
@@ -286,9 +286,9 @@ Example: Point `LLM_PORT` to a Groq-compatible proxy:
 
 ```bash
 # Any OpenAI-compatible endpoint works — set the base URL in LLM_PORT
-export LLM_PORT=8080
+export LLM_PORT=11125
 # Run a proxy that adds the API key header and forwards to Groq:
-# POST http://127.0.0.1:8080/v1/chat/completions → https://api.groq.com/openai/v1/chat/completions
+# POST http://127.0.0.1:11125/v1/chat/completions → https://api.groq.com/openai/v1/chat/completions
 ```
 
 ### Monitoring & Metrics
@@ -318,9 +318,9 @@ The cluster health endpoint at `GET /api/salvi/inter-cube/relay/cluster-health` 
 1. **Verify 3 nodes are LIVE**: `GET https://plenumnet.replit.app/api/salvi/inter-cube/relay/cluster-health` — all 3 daemons should show `status: "live"`
 2. **Verify LLM engine responds on each node**: From the Windows machine, test each port:
    ```bash
-   curl http://127.0.0.1:8080/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
-   curl http://127.0.0.1:8082/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
-   curl http://127.0.0.1:8084/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
+   curl http://127.0.0.1:11125/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
+   curl http://127.0.0.1:11152/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
+   curl http://127.0.0.1:11179/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"test","messages":[{"role":"user","content":"hello"}],"max_tokens":10}'
    ```
 3. **Send a test inference through the relay**: Connect to `wss://plenumnet.replit.app/ws/relay`, authenticate, then send an `inference_request` to any node address
 4. **Check metrics**: After a successful inference, `relay.inferenceRequests` and `relay.inferenceResponses` should increment
@@ -457,11 +457,11 @@ The file `yoda-installer-fix.ts` in the PlenumNET repo root contains corrected v
 | **`Join-Path` 3-arg crash** | Windows PowerShell 5.1 only takes 2 args | Chained nested `Join-Path` calls |
 | **Cargo warnings kill script** | `$ErrorActionPreference = "Stop"` treats stderr as terminating | Wrap cargo/keygen with `$ErrorActionPreference = "Continue"`, check `$LASTEXITCODE` |
 | **PubKey shows hint text** | Script grabbed last stdout line (a hint), not the hex key line | Parse line matching `PT26-DSA Public Key` and extract hex via regex |
-| **Wrong port env var** | `CUBE_CRS_PORT` doesn't exist in the daemon | Use `CUBE_API_PORT` (default: 8080) for HTTP API |
+| **Wrong port env var** | `CUBE_CRS_PORT` doesn't exist in the daemon | Use `CUBE_API_PORT` (default: 11124) for HTTP API |
 | **`/crs/cubes` 404** | Route doesn't exist | Use `/api/salvi/inter-cube/crs/stats` or `/health` |
 | **`ring` build fails on ARM** | No C compiler for `aarch64-pc-windows-msvc` | Script auto-detects vcvars or falls back to `winget install LLVM.LLVM` |
 
-### Correct CRS API Endpoints (on port 8080)
+### Correct CRS API Endpoints (on port 11124)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -482,7 +482,7 @@ The file `yoda-installer-fix.ts` in the PlenumNET repo root contains corrected v
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `CUBE_MODE` | `crs`, `cube`, or `keygen` | Required |
-| `CUBE_API_PORT` | HTTP API bind port | `8080` |
+| `CUBE_API_PORT` | HTTP API bind port | `11124` |
 | `CUBE_CRS_URL` | CRS base URL (cube mode only) | Required (cube mode) |
 | `CUBE_ENDPOINT` | Wire protocol endpoint | `0.0.0.0:51820` |
 | `CUBE_IDENTITY_PASSPHRASE` | Master key encryption passphrase | Hostname fallback (warns) |

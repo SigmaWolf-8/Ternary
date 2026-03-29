@@ -167,20 +167,20 @@ YODA talks to the local cube daemon over HTTP on localhost.
   "addressDotted": "111.111.111.111.2",
   "mode": "cube",
   "crsUrl": "https://plenumnet.replit.app",
-  "ports": { "engine": "8080", "node": "8081" }
+  "ports": { "engine": "11125", "node": "11124" }
 }
 ```
 
 ---
 
-## LLM Inference (via llama-server on the laptop, port 8080)
+## LLM Inference (via llama-server on the laptop, port 11125)
 
-The LLM engine runs on the same machine as the cube daemon, on a separate port.
+The LLM engine runs on the same machine as the cube daemon, on the gateway+1 port (offset +14 in the 27-slot cube geometry). For Node 1 with gateway 11124, the LLM port defaults to 11125.
 
 ### Direct local call
 
 ```
-POST http://localhost:8080/v1/chat/completions
+POST http://localhost:11125/v1/chat/completions
 Content-Type: application/json
 
 {
@@ -193,9 +193,9 @@ Content-Type: application/json
 
 ### Remote call via relay
 
-YODA (on Replit) cannot call localhost:8080 directly. Instead, it sends an inference request through the relay to the cube node. The cube node's daemon receives the relay message, calls llama-server locally, and relays the response back.
+YODA (on Replit) cannot call localhost:11125 directly. Instead, it sends an inference request through the relay to the cube node. The cube node's daemon receives the relay message, calls llama-server locally, and relays the response back.
 
-The cube daemon dispatches `inference_request` messages to llama-server automatically. Each request is handled in a separate async task so the relay stays responsive during long completions. The LLM endpoint defaults to `http://127.0.0.1:8080/v1/chat/completions` (override with `LLM_PORT` env var). Timeout is 120 seconds.
+The cube daemon dispatches `inference_request` messages to llama-server automatically. Each request is handled in a separate async task so the relay stays responsive during long completions. The LLM endpoint defaults to `http://127.0.0.1:{gateway+1}/v1/chat/completions` (e.g. port 11125 for Node 1; override with `LLM_PORT` env var). Timeout is 120 seconds.
 
 **Inference request (YODA → CRS → Cube):**
 ```json
@@ -223,7 +223,7 @@ The cube daemon dispatches `inference_request` messages to llama-server automati
   "type": "relay",
   "from": "1111111111112",
   "msgType": "inference_error",
-  "payload": "{\"requestId\":\"abc-123\",\"error\":\"LLM server unreachable at http://127.0.0.1:8080/v1/chat/completions — is llama-server running?\"}"
+  "payload": "{\"requestId\":\"abc-123\",\"error\":\"LLM server unreachable at http://127.0.0.1:11125/v1/chat/completions — is llama-server running?\"}"
 }
 ```
 
@@ -238,13 +238,13 @@ Payload fields in `inference_request`:
 
 ## Multi-Agent Addressing
 
-Each agent gets unique ports: Agent N uses engine port `8080 + 2N` and node port `8081 + 2N`. Each agent has its own ternary address. The relay routes by ternary address, not by port.
+Each agent gets unique ports following the cube slot convention: Agent N uses gateway port `11124 + 27N` and engine (LLM) port `gateway + 1`. Each agent has its own ternary address. The relay routes by ternary address, not by port.
 
-| Agent | Engine Port | Node Port | Address (assigned by CRS) |
-|-------|------------|-----------|---------------------------|
-| Agent 0 | 8080 | 8081 | `1111111111112` |
-| Agent 1 | 8082 | 8083 | `1111111111113` |
-| Agent 2 | 8084 | 8085 | `1111111111121` |
+| Agent | Gateway Port | Engine Port (gateway+1) | Address (assigned by CRS) |
+|-------|-------------|------------------------|---------------------------|
+| Agent 0 | 11124 | 11125 | `1111111111112` |
+| Agent 1 | 11151 | 11152 | `1111111111113` |
+| Agent 2 | 11178 | 11179 | `1111111111121` |
 
 ---
 

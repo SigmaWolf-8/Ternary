@@ -245,10 +245,13 @@ pub async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResp
 pub async fn node_info(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let addr_flat = format!("{}", state.local_address);
     let addr_dotted = state.local_address.to_dotted();
-    let llm_port = std::env::var("LLM_PORT").unwrap_or_else(|_| "8080".to_string());
-    let node_port = std::env::var("CUBE_API_PORT")
+    let node_port: u16 = std::env::var("CUBE_API_PORT")
         .or_else(|_| std::env::var("API_PORT"))
-        .unwrap_or_else(|_| "8081".to_string());
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(11124);
+    let llm_port = std::env::var("LLM_PORT")
+        .unwrap_or_else(|_| format!("{}", node_port + 1));
     let crs_url = std::env::var("CUBE_CRS_URL").unwrap_or_else(|_| "unknown".to_string());
 
     Json(serde_json::json!({
@@ -258,7 +261,7 @@ pub async fn node_info(State(state): State<Arc<AppState>>) -> Json<serde_json::V
         "crsUrl": crs_url,
         "ports": {
             "engine": llm_port,
-            "node": node_port
+            "node": format!("{}", node_port)
         }
     }))
 }
