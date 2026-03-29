@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     PlenumNET MSI Installer - One-Click Setup
     Downloads, builds, and installs PlenumNET products via the
