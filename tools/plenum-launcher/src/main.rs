@@ -379,10 +379,10 @@ fn run_popup_panel() -> Result<()> {
     };
 
     let window = WindowBuilder::new()
-        .with_title("PlenumNET")
+        .with_title("PlenumNET Dashboard")
         .with_inner_size(LogicalSize::new(panel_width, panel_height))
         .with_position(LogicalPosition::new(pos_x, pos_y))
-        .with_decorations(false)
+        .with_decorations(true)
         .with_always_on_top(true)
         .with_resizable(false)
         .build(&event_loop)
@@ -400,16 +400,12 @@ fn run_popup_panel() -> Result<()> {
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                event: WindowEvent::Focused(false),
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            _ => {}
+        if let Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+        } = event
+        {
+            *control_flow = ControlFlow::Exit;
         }
     });
 }
