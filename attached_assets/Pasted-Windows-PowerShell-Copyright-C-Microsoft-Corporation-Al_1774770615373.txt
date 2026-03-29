@@ -1,0 +1,186 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET; cargo build --release -p plenum-launcher
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: value assigned to `tray` is never read
+   --> tools\plenum-launcher\src\main.rs:211:21
+    |
+211 |                     tray = new_tray;
+    |                     ^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `version` is never read
+ --> tools\plenum-launcher\src\discovery.rs:8:9
+  |
+5 | pub struct InstalledApp {
+  |            ------------ field in this struct
+...
+8 |     pub version: String,
+  |         ^^^^^^^
+  |
+  = note: `InstalledApp` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `Locked` is never constructed
+  --> tools\plenum-launcher\src\discovery.rs:23:5
+   |
+19 | pub enum AppStatus {
+   |          --------- variant in this enum
+...
+23 |     Locked,
+   |     ^^^^^^
+   |
+   = note: `AppStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `status_color` is never used
+  --> tools\plenum-launcher\src\discovery.rs:38:12
+   |
+27 | impl InstalledApp {
+   | ----------------- method in this implementation
+...
+38 |     pub fn status_color(&self) -> &str {
+   |            ^^^^^^^^^^^^
+
+warning: method `status_summary` is never used
+  --> tools\plenum-launcher\src\discovery.rs:83:12
+   |
+74 | impl AppRegistry {
+   | ---------------- method in this implementation
+...
+83 |     pub fn status_summary(&self) -> (usize, usize) {
+   |            ^^^^^^^^^^^^^^
+
+warning: struct `StatusColors` is never constructed
+ --> tools\plenum-launcher\src\status.rs:3:12
+  |
+3 | pub struct StatusColors;
+  |            ^^^^^^^^^^^^
+
+warning: associated constants `ACTIVE`, `WARNING`, `INACTIVE`, and `LOCKED` are never used
+ --> tools\plenum-launcher\src\status.rs:6:15
+  |
+5 | impl StatusColors {
+  | ----------------- associated constants in this implementation
+6 |     pub const ACTIVE: &'static str = "#4A9EF5";
+  |               ^^^^^^
+7 |     pub const WARNING: &'static str = "#78828C";
+  |               ^^^^^^^
+8 |     pub const INACTIVE: &'static str = "#3D444B";
+  |               ^^^^^^^^
+9 |     pub const LOCKED: &'static str = "#4A9EF5";
+  |               ^^^^^^
+
+warning: struct `BrandPalette` is never constructed
+  --> tools\plenum-launcher\src\status.rs:12:12
+   |
+12 | pub struct BrandPalette;
+   |            ^^^^^^^^^^^^
+
+warning: multiple associated constants are never used
+  --> tools\plenum-launcher\src\status.rs:15:15
+   |
+14 | impl BrandPalette {
+   | ----------------- associated constants in this implementation
+15 |     pub const BG_PAGE_DARK: &'static str = "#0F0C0A";
+   |               ^^^^^^^^^^^^
+16 |     pub const BG_CARD_DARK: &'static str = "#181411";
+   |               ^^^^^^^^^^^^
+17 |     pub const BG_MUTED_DARK: &'static str = "#1D1915";
+   |               ^^^^^^^^^^^^^
+18 |     pub const BORDER_DARK: &'static str = "#272220";
+   |               ^^^^^^^^^^^
+19 |     pub const TEXT_HEADING_DARK: &'static str = "#F0EDE8";
+   |               ^^^^^^^^^^^^^^^^^
+20 |     pub const TEXT_NAV_DARK: &'static str = "#E4DFD5";
+   |               ^^^^^^^^^^^^^
+21 |     pub const TEXT_BODY_DARK: &'static str = "#C9C1B4";
+   |               ^^^^^^^^^^^^^^
+22 |     pub const TEXT_LABEL_DARK: &'static str = "#998F82";
+   |               ^^^^^^^^^^^^^^^
+23 |     pub const TEXT_FAINT_DARK: &'static str = "#6B655E";
+   |               ^^^^^^^^^^^^^^^
+24 |     pub const ACCENT_PRIMARY: &'static str = "#4A9EF5";
+   |               ^^^^^^^^^^^^^^
+25 |     pub const ACCENT_HOVER: &'static str = "#38BDF8";
+   |               ^^^^^^^^^^^^
+26 |     pub const SURFACE_IRON: &'static str = "#3D444B";
+   |               ^^^^^^^^^^^^
+27 |     pub const SURFACE_SLATE: &'static str = "#78828C";
+   |               ^^^^^^^^^^^^^
+28 |
+29 |     pub const BG_PAGE_LIGHT: &'static str = "#FAF8F6";
+   |               ^^^^^^^^^^^^^
+30 |     pub const BG_CARD_LIGHT: &'static str = "#FFFFFF";
+   |               ^^^^^^^^^^^^^
+31 |     pub const BG_MUTED_LIGHT: &'static str = "#F0ECE8";
+   |               ^^^^^^^^^^^^^^
+32 |     pub const BORDER_LIGHT: &'static str = "#D9D3CC";
+   |               ^^^^^^^^^^^^
+33 |     pub const TEXT_HEADING_LIGHT: &'static str = "#1A1614";
+   |               ^^^^^^^^^^^^^^^^^^
+34 |     pub const TEXT_NAV_LIGHT: &'static str = "#2C2722";
+   |               ^^^^^^^^^^^^^^
+35 |     pub const TEXT_BODY_LIGHT: &'static str = "#4A4440";
+   |               ^^^^^^^^^^^^^^^
+36 |     pub const TEXT_LABEL_LIGHT: &'static str = "#7A7168";
+   |               ^^^^^^^^^^^^^^^^
+37 |     pub const TEXT_FAINT_LIGHT: &'static str = "#A89E94";
+   |               ^^^^^^^^^^^^^^^^
+38 |     pub const ACCENT_PRIMARY_LIGHT: &'static str = "#2D7DD2";
+   |               ^^^^^^^^^^^^^^^^^^^^
+39 |     pub const ACCENT_HOVER_LIGHT: &'static str = "#1A6FC2";
+   |               ^^^^^^^^^^^^^^^^^^
+40 |     pub const SURFACE_IRON_LIGHT: &'static str = "#C8CDD2";
+   |               ^^^^^^^^^^^^^^^^^^
+41 |     pub const SURFACE_SLATE_LIGHT: &'static str = "#8E959C";
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `status_to_color` is never used
+  --> tools\plenum-launcher\src\status.rs:54:8
+   |
+54 | pub fn status_to_color(status: &AppStatus) -> &'static str {
+   |        ^^^^^^^^^^^^^^^
+
+warning: struct `HighContrastColors` is never constructed
+  --> tools\plenum-launcher\src\status.rs:64:12
+   |
+64 | pub struct HighContrastColors;
+   |            ^^^^^^^^^^^^^^^^^^
+
+warning: associated constants `ACTIVE`, `WARNING`, `INACTIVE`, `LOCKED`, `TEXT`, and `BACKGROUND` are never used
+  --> tools\plenum-launcher\src\status.rs:67:15
+   |
+66 | impl HighContrastColors {
+   | ----------------------- associated constants in this implementation
+67 |     pub const ACTIVE: &'static str = "#00FF00";
+   |               ^^^^^^
+68 |     pub const WARNING: &'static str = "#FFFF00";
+   |               ^^^^^^^
+69 |     pub const INACTIVE: &'static str = "#808080";
+   |               ^^^^^^^^
+70 |     pub const LOCKED: &'static str = "#00FFFF";
+   |               ^^^^^^
+71 |     pub const TEXT: &'static str = "#FFFFFF";
+   |               ^^^^
+72 |     pub const BACKGROUND: &'static str = "#000000";
+   |               ^^^^^^^^^^
+
+warning: function `status_to_color_hc` is never used
+  --> tools\plenum-launcher\src\status.rs:75:8
+   |
+75 | pub fn status_to_color_hc(status: &AppStatus) -> &'static str {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: `plenum-launcher` (bin "plenum-launcher") generated 13 warnings
+    Finished `release` profile [optimized] target(s) in 0.19s
+PS C:\PlenumNET>
