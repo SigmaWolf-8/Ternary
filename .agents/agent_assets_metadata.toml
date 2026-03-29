@@ -420,3 +420,9 @@ id = "arq_VCkg7gzx3Lran_u5Q"
 uri = "file://.local/tasks/qc-reviews/qc-r2-task45-consolidated.md"
 type = "text"
 title = "QC-R2 Consolidated Review — Task #45 (PlenumBrowser Phase 1 Remaining Gaps)"
+
+[[outputs]]
+id = "k1wyEH-hn33_znVVm_5JL"
+uri = "file://plenumnet-launcher-widget.zip"
+type = "unspecified"
+title = "PlenumNET Launcher Widget — Yoda Handoff Package"
