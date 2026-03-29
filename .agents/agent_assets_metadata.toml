@@ -396,3 +396,21 @@ id = "hqtVV1kK7dO9ss_A7XYtf"
 uri = "file://ninja-exec/task-54-full-qc-review.md"
 type = "text"
 title = "Task #54 — Full Quality Control Review (All Rounds)"
+
+[[outputs]]
+id = "kPujaCd5q6IWdLM4NvOJu"
+uri = "file://.local/tasks/qc-r2-task70-consolidated.md"
+type = "text"
+title = "QC-R2 Consolidated Review — Task #70"
+
+[[outputs]]
+id = "nOp2b7F_axwtiWgqmcpsS"
+uri = "file://.local/tasks/qc-r1-task70-consolidated.md"
+type = "text"
+title = "QC-R1 Consolidated Review — Task #70 (Reference)"
+
+[[outputs]]
+id = "8P4FIjTfefqYZ-79ihP-h"
+uri = "file://.local/tasks/qc-r3-task70-consolidated.md"
+type = "text"
+title = "QC-R3 Consolidated Review — Task #70 (Fit, Finish & Market Readiness)"
