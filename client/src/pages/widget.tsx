@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { LauncherProvider, useLauncher } from "@/components/LauncherPanel";
 
 function WidgetAutoOpen() {
@@ -6,7 +6,7 @@ function WidgetAutoOpen() {
 
   useEffect(() => {
     if (panelState === "CLOSED") {
-      setPanelState("OPENING");
+      setPanelState("OPEN");
     }
   }, [panelState, setPanelState]);
 
