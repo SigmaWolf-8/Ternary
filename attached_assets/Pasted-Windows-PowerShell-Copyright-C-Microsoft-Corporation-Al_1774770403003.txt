@@ -1,0 +1,47 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET; git stash; git pull; git stash pop; cargo build --release -p plenum-launcher
+warning: in the working copy of 'Cargo.lock', LF will be replaced by CRLF the next time Git touches it
+Saved working directory and index state WIP on main: 2f3c30a3 Native popup panel: wry webview anchored to tray, borderless, auto-dismiss on focus loss
+Updating 2f3c30a3..298d92d1
+Fast-forward
+ Cargo.lock                                         | 324 ++++++++++++++++++++-
+ .../src/.generated/mockup-components.ts            |   4 +-
+ tools/plenum-launcher/src/main.rs                  |   4 +-
+ 3 files changed, 326 insertions(+), 6 deletions(-)
+Auto-merging Cargo.lock
+CONFLICT (content): Merge conflict in Cargo.lock
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Unmerged paths:
+  (use "git restore --staged <file>..." to unstage)
+  (use "git add <file>..." to mark resolution)
+        both modified:   Cargo.lock
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        installer-output/
+        plenumnet-data/
+        tools/plenum-launcher/plenum-pack-output/
+
+no changes added to commit (use "git add" and/or "git commit -a")
+The stash entry is kept in case you need it again.
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+error: failed to parse lock file at: C:\PlenumNET\Cargo.lock
+
+Caused by:
+  TOML parse error at line 3685, column 2
+       |
+  3685 |  "thiserror 1.0.57",
+       |  ^
+  missing comma between array elements, expected `,`
+PS C:\PlenumNET>
