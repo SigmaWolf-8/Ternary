@@ -23,5 +23,3 @@ windows = { version = "0.52", features = [
     "Win32_System_Registry",
 ] }
 tray-item = "0.10"
-tao = "0.31"
-wry = "0.47"

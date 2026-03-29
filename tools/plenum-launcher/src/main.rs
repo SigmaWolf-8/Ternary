@@ -8,13 +8,6 @@ use anyhow::Result;
 use std::sync::{Arc, Mutex};
 
 fn main() -> Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-
-    #[cfg(windows)]
-    if args.iter().any(|a| a == "--popup") {
-        return run_popup_panel();
-    }
-
     let config = config::LauncherConfig::load()?;
     let app_registry = Arc::new(Mutex::new(discovery::AppRegistry::new()));
 
@@ -210,10 +203,7 @@ fn run_tray_app(
                     let _ = build_tray_menu(&mut new_tray, &registry, &tx);
                     tray = new_tray;
                 } else if msg == "dashboard" {
-                    let exe = std::env::current_exe().unwrap_or_default();
-                    let _ = std::process::Command::new(exe)
-                        .arg("--popup")
-                        .spawn();
+                    // TODO: native wry popup — disabled pending widget route
                 } else if msg == "about" {
                     show_notification(
                         &format!(
@@ -351,61 +341,3 @@ fn show_notification(message: &str, title: &str) {
     eprintln!("[{}] {}", title, message);
 }
 
-#[cfg(windows)]
-fn run_popup_panel() -> Result<()> {
-    use tao::event::{Event, WindowEvent};
-    use tao::event_loop::{ControlFlow, EventLoop};
-    use tao::window::WindowBuilder;
-    use tao::dpi::{LogicalSize, LogicalPosition};
-    use wry::WebViewBuilder;
-
-    let panel_width = 420.0_f64;
-    let panel_height = 640.0_f64;
-
-    let event_loop = EventLoop::new();
-
-    let monitor = event_loop
-        .primary_monitor()
-        .or_else(|| event_loop.available_monitors().next());
-
-    let (pos_x, pos_y) = if let Some(m) = &monitor {
-        let size = m.size();
-        let scale = m.scale_factor();
-        let w = size.width as f64 / scale;
-        let h = size.height as f64 / scale;
-        (w - panel_width - 12.0, h - panel_height - 60.0)
-    } else {
-        (800.0, 200.0)
-    };
-
-    let window = WindowBuilder::new()
-        .with_title("PlenumNET Dashboard")
-        .with_inner_size(LogicalSize::new(panel_width, panel_height))
-        .with_position(LogicalPosition::new(pos_x, pos_y))
-        .with_decorations(true)
-        .with_always_on_top(true)
-        .with_resizable(false)
-        .build(&event_loop)
-        .map_err(|e| anyhow::anyhow!("Failed to create window: {}", e))?;
-
-    let _webview = WebViewBuilder::new()
-        .with_url("https://plenumnet.replit.app")
-        .with_initialization_script(
-            r#"document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') { window.close(); }
-            });"#,
-        )
-        .build(&window)
-        .map_err(|e| anyhow::anyhow!("Failed to create webview: {}", e))?;
-
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-        if let Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } = event
-        {
-            *control_flow = ControlFlow::Exit;
-        }
-    });
-}
