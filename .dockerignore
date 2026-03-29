@@ -1,19 +1,41 @@
-# Rust build artifacts (4.4 GB root target, 96 MB ternary-math target)
+# ═══════════════════════════════════════════════════════════════════
+# PlenumNET .dockerignore — keep only dist/ and runtime essentials
+# ═══════════════════════════════════════════════════════════════════
+
+# Rust build artifacts (3.9 GB)
 target/
 ternary-math/target/
 libternary/target/
+services/inter-cube/target/
 
-# Source code (not needed at runtime — server is bundled into dist/)
+# Rust source crates (not needed at web runtime)
+ternary-math/
+libternary/
+libternary-improvements/
+services/
+ninja-exec/
+plenumlan/
+tools/
+cli/
+benchmarks/
+contracts/
+XPlenum/
+sign-here/
+
+# Kernel source (317 MB)
 src/
+
+# Frontend/backend source (compiled into dist/)
 client/
 server/
 shared/
 script/
-services/
-tests/
-XPlenum/
+scripts/
 
-# Git and CI
+# Node modules (825 MB — rebuilt in deploy if needed)
+node_modules/
+
+# Git and CI (574 MB)
 .git/
 .github/
 
@@ -22,28 +44,31 @@ XPlenum/
 .cache/
 .canvas/
 .pythonlibs/
-node_modules/.cache/
+.agents/
+artifacts/
 
-# Attached assets (bundled into dist at build time)
+# Attached assets
 attached_assets/
-
-# Rust/WASM source files
-ternary-math/src/
-ternary-math/benches/
-libternary/src/
 
 # Documentation and config
 docs/
 salvi_docs/
 references/
 deployments/
-scripts/
-sign-here/
+kong/
+keys/
+github-push/
+assets/
+
+# Test files
+tests/
+
+# All markdown, text, log files
 *.md
 *.txt
 *.log
 
-# TypeScript source (compiled into dist/)
+# TypeScript source files (compiled into dist/)
 *.ts
 *.tsx
 !dist/**
@@ -52,6 +77,8 @@ sign-here/
 .replit
 replit.nix
 .gitignore
+.gitattributes
+Dockerfile
 .dockerignore
 Cargo.toml
 Cargo.lock
@@ -62,8 +89,14 @@ postcss.config.js
 vite.config.ts
 theme.json
 components.json
+package-lock.json
+docker-compose*.yml
 
-# Large media files (exclude from source dirs, but dist/public is kept)
-attached_assets/*.mp4
-attached_assets/*.mov
-client/public/assets/*.mp4
+# Large media files
+*.mp4
+*.mov
+*.zip
+*.tar.gz
+*.msi
+installer-output/
+plenumnet-data/
