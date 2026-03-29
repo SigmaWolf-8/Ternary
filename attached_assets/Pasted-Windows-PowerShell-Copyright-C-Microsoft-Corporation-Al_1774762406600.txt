@@ -1,0 +1,41 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Invoke-WebRequest "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/0daa0c6/client/public/install/install-plenumnet-msi.ps1" -OutFile "$env:TEMP\install-plenumnet-msi.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\install-plenumnet-msi.ps1"
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:108 char:55
++ $env:RUSTUP_HOME = Join-Path $env:USERPROFILE ".rustup"
++                                                       ~
+Unexpected token '"
+$env:CARGO_HOME = Join-Path $env:USERPROFILE "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:109 char:53
++ $env:CARGO_HOME = Join-Path $env:USERPROFILE ".cargo"
++                                                     ~
+Unexpected token '"
+$userDotnetTools = Join-Path $env:USERPROFILE "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:110 char:55
++ $userDotnetTools = Join-Path $env:USERPROFILE ".dotnet\tools"
++                                                       ~~~~~~~
+Unexpected token '\tools"
+if (Test-Path $userDotnetTools) {
+    $env:PATH = $userDotnetTools + "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:117 char:34
++ if (-not $cpuArch) { $cpuArch = "AMD64" }
++                                  ~~~~~~~~
+Unexpected token 'AMD64" }
+$rustTarget = "x86_64-pc-windows-msvc"
+$archFlag = "x86_64"
+if ($cpuArch -eq "ARM64") {
+    $rustTarget = "aarch64-pc-windows-msvc"
+    $archFlag = "aarch64"
+}
+Write-Log "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi.ps1:27 char:6
++ trap {
++      ~
+Missing closing '}' in statement block or type definition.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\Sigma>
