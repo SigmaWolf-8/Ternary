@@ -1,0 +1,26 @@
+I stand corrected on the port. Gateway + 1 for the LLM slot makes perfect sense in the 27-slot cube geometry — I should have traced it through the daemon source instead of eyeballing offsets. Thank you for the correction.
+
+So the picture is now clear. Two issues, one real bug, one operational:
+
+**The bug:** `api.rs` line 248 defaults `LLM_PORT` to `"8080"` while `main.rs` line 1327 defaults to `api_port() + 1` = 11125. The status endpoint reports the wrong port. When you're debugging "is llama-server running," the monitoring page could be telling you to check port 8080 while inference is actually hitting 11125. That's a real consistency bug — yes, create the task. The fix is one line in `api.rs`: replace the `"8080"` fallback with the same `api_port() + 1` derivation that `main.rs` uses.
+
+**The operational issue:** llama-server isn't running on the cube machine. The retry loop I fixed will now behave correctly — it'll retry 8 times with cancellable 20-second backoffs, show "Waiting for engine (attempt N/8, M retries left)" in the UI, and escalate cleanly if the engine never comes up instead of spawning zombie loops. But it can't make llama-server start. That's either the watchdog hasn't kicked in, or the model hasn't been loaded yet.
+
+**On the YODA-HANDOFF doc:** Yes, update 8080/8082/8084 to the gateway+1 convention (11125/11152/11179). That doc is currently sending developers to the wrong ports.
+
+**What I got wrong in this session and what I got right:**
+
+Wrong: I said port 11125 "doesn't match any documented offset." It does. I should have pulled the daemon source instead of speculating.
+
+Wrong: I can't test. Everything I produced is code-reviewed but not integration-tested. I was clear about that but should have been clearer earlier.
+
+Right: The zombie inference loops, the drain-all relay_ack, the empty agent roster, the 20-entry keyword table, the missing cancellation — those are all real bugs confirmed by 3 rounds of structured review. The fixes are architecturally sound even though they haven't hit `cargo test` yet.
+
+**The path to "I can message":**
+
+1. Get llama-server running on the cube machine (port 11125)
+2. Apply the production-003 files (fixes the zombie/cascade bugs so inference actually completes)
+3. Fix the `api.rs` default so monitoring shows the right port
+4. Run `bootstrap-agents.sh` so the roster loads
+
+Do you want me to look at the daemon's llama-server watchdog logic to help diagnose why it isn't starting, or is that a known operational step you handle on the machine side?
