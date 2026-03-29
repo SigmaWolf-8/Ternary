@@ -627,6 +627,24 @@ if ($generatedMSIs.Count -eq 0) {
     Write-Log "  This may mean WiX could not compile the .wxs files." "Yellow"
     Write-Log "  Fix: dotnet tool install --global wix" "Yellow"
 } else {
+    # Uninstall any previous PlenumNET products before installing
+    Write-Log "  Checking for previous PlenumNET installations..." "White"
+    $plenumProducts = Get-WmiObject -Class Win32_Product -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "PlenumNET*" }
+    if ($plenumProducts) {
+        foreach ($existing in $plenumProducts) {
+            Write-Log "  Removing previous: $($existing.Name) v$($existing.Version)..." "Yellow"
+            $uninstallLog = Join-Path $env:TEMP "PlenumNET_uninstall.log"
+            $unProc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/x `"$($existing.IdentifyingNumber)`" /qb /l*v `"$uninstallLog`"" -Wait -PassThru
+            if ($unProc.ExitCode -eq 0) {
+                Write-Log "  [OK] Removed $($existing.Name)" "Green"
+            } else {
+                Write-Log "  WARN: Uninstall exited with code $($unProc.ExitCode)" "Yellow"
+            }
+        }
+    } else {
+        Write-Log "  No previous installations found." "White"
+    }
+
     $launcherMsi = $generatedMSIs | Where-Object { $_ -match "Launcher" } | Select-Object -First 1
     $otherMsis = $generatedMSIs | Where-Object { $_ -notmatch "Launcher" }
 
