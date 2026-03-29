@@ -1,0 +1,324 @@
+
+==========================================================
+  PlenumNET MSI Installer
+  Capomastro Holdings Ltd. - Applied Physics Division
+==========================================================
+
+  This script builds and installs PlenumNET products
+  using the plenum-pack MSI framework.
+
+  Products: Launcher
+  Log file: C:\Users\Sigma\AppData\Local\Temp\PlenumNET_MSI_Install.log
+
+  Architecture: ARM64 (Rust target: aarch64-pc-windows-msvc)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  Updating Rust toolchain to latest stable...
+  [OK] rustc 1.94.1 (e408947bf 2026-03-25)
+  [OK] cargo 1.94.1 (29ea6fb6a 2026-03-24)
+  cargo path: C:\Users\Sigma\.cargo\bin\cargo.exe
+  [OK] clang
+  [OK] .NET SDK
+  [OK] WiX v6 (6.0.2)
+  Installing WixToolset.UI.wixext/6.0.2...
+  [OK] WixToolset.UI.wixext v6.0.2 installed
+  Installing WixToolset.Util.wixext/6.0.2...
+  [OK] WixToolset.Util.wixext v6.0.2 installed
+
+STEP 2/8: Source code
+---
+  Updating source...
+  [OK] Source ready at C:\PlenumNET
+
+STEP 3/8: Building plenum-pack (MSI build tool)
+---
+  Updating dependency lock file (this may take a few minutes)...
+        Updating crates.io index
+        Updating anstyle v1.0.13 -> v1.0.14
+        Updating base64ct v1.6.0 -> v1.8.3
+          Adding block2 v0.5.1
+        Updating cc v1.2.56 -> v1.2.58
+          Adding cookie v0.18.1
+          Adding foldhash v0.1.5
+          Adding getrandom v0.4.2
+        Updating half v2.4.1 -> v2.7.1
+          Adding hashbrown v0.15.5
+        Removing icu_collections v1.5.0
+        Removing icu_locid v1.5.0
+        Removing icu_locid_transform v1.5.0
+        Removing icu_locid_transform_data v1.5.1
+        Removing icu_normalizer v1.5.0
+        Removing icu_normalizer_data v1.5.1
+        Removing icu_properties v1.5.1
+        Removing icu_properties_data v1.5.1
+        Removing icu_provider v1.5.0
+        Removing icu_provider_macros v1.5.0
+          Adding id-arena v2.3.0
+        Updating idna_adapter v1.2.0 -> v1.2.1
+        Updating iri-string v0.7.10 -> v0.7.11
+        Updating itoa v1.0.17 -> v1.0.18
+        Updating js-sys v0.3.91 -> v0.3.92
+          Adding leb128fmt v0.1.0
+        Removing litemap v0.7.4
+        Updating nalgebra v0.33.2 -> v0.33.3 (available: v0.34.2)
+        Updating napi v2.16.0 -> v2.16.17 (available: v3.8.4)
+        Updating napi-build v2.1.3 -> v2.3.1
+        Updating napi-derive v2.16.0 -> v2.16.13 (available: v3.5.3)
+        Updating napi-derive-backend v1.0.63 -> v1.0.75
+          Adding objc-sys v0.3.5
+          Adding objc2 v0.5.2
+          Adding objc2-app-kit v0.2.2
+          Adding objc2-cloud-kit v0.2.2
+          Adding objc2-contacts v0.2.2
+          Adding objc2-core-data v0.2.2
+          Adding objc2-core-image v0.2.2
+          Adding objc2-core-location v0.2.2
+          Adding objc2-encode v4.1.0
+          Adding objc2-foundation v0.2.2
+          Adding objc2-link-presentation v0.2.2
+          Adding objc2-metal v0.2.2
+          Adding objc2-quartz-core v0.2.2
+          Adding objc2-symbols v0.2.2
+          Adding objc2-ui-kit v0.2.2
+          Adding objc2-uniform-type-identifiers v0.2.2
+          Adding objc2-user-notifications v0.2.2
+          Adding objc2-web-kit v0.2.2
+        Updating once_cell v1.21.3 -> v1.21.4
+        Updating pin-project-lite v0.2.16 -> v0.2.17
+          Adding prettyplease v0.2.37
+        Updating quinn-proto v0.11.13 -> v0.11.14
+        Updating quote v1.0.44 -> v1.0.45
+          Adding r-efi v6.0.0
+        Updating rayon v1.10.0 -> v1.11.0
+        Updating rayon-core v1.12.1 -> v1.13.0
+        Updating regex v1.10.3 -> v1.12.3
+        Updating regex-syntax v0.8.9 -> v0.8.10
+        Updating rustc-hash v2.1.1 -> v2.1.2
+        Updating rustls-webpki v0.103.9 -> v0.103.10
+        Updating semver v1.0.22 -> v1.0.27
+        Updating simd-adler32 v0.3.8 -> v0.3.9
+        Updating socket2 v0.6.2 -> v0.6.3
+          Adding tao v0.31.1 (available: v0.35.0)
+        Updating thiserror v1.0.57 -> v1.0.69 (available: v2.0.18)
+        Updating thiserror-impl v1.0.57 -> v1.0.69
+        Removing tinystr v0.7.5
+        Updating tinyvec v1.10.0 -> v1.11.0
+        Updating unicode-segmentation v1.12.0 -> v1.13.2
+          Adding unicode-xid v0.2.6
+        Updating walkdir v2.4.0 -> v2.5.0
+          Adding wasip3 v0.4.0+wasi-0.3.0-rc-2026-01-06
+        Updating wasm-bindgen v0.2.114 -> v0.2.115
+        Updating wasm-bindgen-futures v0.4.64 -> v0.4.65
+        Updating wasm-bindgen-macro v0.2.114 -> v0.2.115
+        Updating wasm-bindgen-macro-support v0.2.114 -> v0.2.115
+        Updating wasm-bindgen-shared v0.2.114 -> v0.2.115
+          Adding wasm-encoder v0.244.0
+          Adding wasm-metadata v0.244.0
+          Adding wasmparser v0.244.0
+        Updating web-sys v0.3.91 -> v0.3.92
+          Adding wit-bindgen-core v0.51.0
+          Adding wit-bindgen-rust v0.51.0
+          Adding wit-bindgen-rust-macro v0.51.0
+          Adding wit-component v0.244.0
+          Adding wit-parser v0.244.0
+        Removing writeable v0.5.5
+          Adding wry v0.47.2 (available: v0.55.0)
+        Removing yoke v0.7.5
+        Removing yoke-derive v0.7.5
+        Updating zerocopy v0.8.39 -> v0.8.48
+        Updating zerocopy-derive v0.8.39 -> v0.8.48
+        Updating zerofrom v0.1.5 -> v0.1.6
+        Removing zerovec v0.10.4
+        Removing zerovec-derive v0.10.3
+  Compiling plenum-pack (release)...
+      Finished `release` profile [optimized] target(s) in 0.19s
+  [OK] plenum-pack built
+
+STEP 4/8: Building product binaries
+---
+  Building plenum-launcher...
+  warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+  package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
+  workspace: C:\PlenumNET\Cargo.toml
+  warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+  package:   C:\PlenumNET\src\kernel\Cargo.toml
+  workspace: C:\PlenumNET\Cargo.toml
+   Downloading crates ...
+    Downloaded cookie v0.18.1
+    Downloaded raw-window-handle v0.6.2
+    Downloaded windows-version v0.1.7
+    Downloaded windows-result v0.2.0
+    Downloaded windows-interface v0.58.0
+    Downloaded windows-strings v0.1.0
+    Downloaded deranged v0.5.8
+    Downloaded windows-core v0.58.0
+    Downloaded webview2-com v0.33.0
+    Downloaded time-macros v0.2.27
+    Downloaded unicode-segmentation v1.13.2
+    Downloaded crossbeam-channel v0.5.15
+    Downloaded powerfmt v0.2.0
+    Downloaded webview2-com-macros v0.8.1
+    Downloaded windows-implement v0.58.0
+    Downloaded wry v0.47.2
+    Downloaded num-conv v0.2.1
+    Downloaded dpi v0.1.2
+    Downloaded time v0.3.47
+    Downloaded time-core v0.1.8
+    Downloaded dunce v1.0.5
+    Downloaded tao v0.31.1
+    Downloaded webview2-com-sys v0.33.0
+    Downloaded windows v0.58.0
+     Compiling syn v2.0.117
+     Compiling synstructure v0.13.2
+     Compiling zerofrom-derive v0.1.6
+     Compiling zerofrom v0.1.6
+     Compiling yoke-derive v0.8.1
+     Compiling yoke v0.8.1
+     Compiling zerovec-derive v0.11.2
+     Compiling zerovec v0.11.5
+     Compiling displaydoc v0.2.5
+     Compiling tinystr v0.8.2
+     Compiling icu_locale_core v2.1.1
+     Compiling zerotrie v0.2.3
+     Compiling potential_utf v0.1.4
+     Compiling windows-result v0.2.0
+     Compiling thiserror-impl v1.0.69
+     Compiling smallvec v1.15.1
+     Compiling windows-strings v0.1.0
+     Compiling icu_collections v2.0.0
+     Compiling icu_provider v2.1.1
+     Compiling thiserror v1.0.69
+     Compiling windows-interface v0.58.0
+     Compiling windows-implement v0.58.0
+     Compiling windows-core v0.58.0
+     Compiling serde_derive v1.0.228
+     Compiling serde v1.0.228
+     Compiling icu_normalizer v2.0.1
+     Compiling icu_properties v2.0.2
+     Compiling webview2-com-sys v0.33.0
+     Compiling windows v0.58.0
+     Compiling crossbeam-utils v0.8.21
+     Compiling powerfmt v0.2.0
+     Compiling time-core v0.1.8
+     Compiling num-conv v0.2.1
+     Compiling time-macros v0.2.27
+     Compiling deranged v0.5.8
+     Compiling cookie v0.18.1
+     Compiling idna_adapter v1.2.1
+     Compiling libc v0.2.183
+     Compiling percent-encoding v2.3.2
+     Compiling form_urlencoded v1.2.2
+     Compiling idna v1.1.0
+     Compiling time v0.3.47
+     Compiling parking_lot_core v0.9.12
+     Compiling serde_spanned v0.6.9
+     Compiling toml_datetime v0.6.3
+     Compiling windows-version v0.1.7
+     Compiling webview2-com-macros v0.8.1
+     Compiling once_cell v1.21.4
+     Compiling dpi v0.1.2
+     Compiling wry v0.47.2
+     Compiling raw-window-handle v0.6.2
+     Compiling toml_edit v0.20.2
+     Compiling webview2-com v0.33.0
+     Compiling parking_lot v0.12.5
+     Compiling crossbeam-channel v0.5.15
+     Compiling url v2.5.8
+     Compiling dunce v1.0.5
+     Compiling unicode-segmentation v1.13.2
+     Compiling tao v0.31.1
+     Compiling toml v0.8.2
+     Compiling plenum-launcher v1.0.0 (C:\PlenumNET\tools\plenum-launcher)
+  error[E0061]: this function takes 0 arguments but 1 argument was supplied
+     --> tools\plenum-launcher\src\main.rs:391:20
+      |
+  391 |     let _webview = WebViewBuilder::new(&window)
+      |                    ^^^^^^^^^^^^^^^^^^^ ------- unexpected argument of type `&Window`
+      |
+  note: associated function defined here
+     --> C:\Users\Sigma\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.47.2\src\lib.rs:584:10
+      |
+  584 |   pub fn new() -> Self {
+      |          ^^^
+  help: remove the extra argument
+      |
+  391 -     let _webview = WebViewBuilder::new(&window)
+  391 +     let _webview = WebViewBuilder::new()
+      |
+  System.Management.Automation.RemoteException
+  error[E0061]: this method takes 1 argument but 0 arguments were supplied
+      --> tools\plenum-launcher\src\main.rs:398:10
+       |
+   398 |         .build()
+       |          ^^^^^-- argument #1 of type `&_` is missing
+       |
+  note: method defined here
+      --> C:\Users\Sigma\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.47.2\src\lib.rs:1157:10
+       |
+  1157 |   pub fn build<W: HasWindowHandle>(self, window: &'a W) -> Result<WebView> {
+       |          ^^^^^
+  help: provide the argument
+       |
+   398 |         .build(/* window */)
+       |                ++++++++++++
+  System.Management.Automation.RemoteException
+  warning: value assigned to `tray` is never read
+     --> tools\plenum-launcher\src\main.rs:211:21
+      |
+  211 |                     tray = new_tray;
+      |                     ^^^^
+      |
+      = help: maybe it is overwritten before being read?
+      = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+  System.Management.Automation.RemoteException
+  For more information about this error, try `rustc --explain E0061`.
+  warning: `plenum-launcher` (bin "plenum-launcher") generated 1 warning
+  error: could not compile `plenum-launcher` (bin "plenum-launcher") due to 2 previous errors; 1 warning emitted
+  WARN: plenum-launcher build failed - skipping this product.
+  Building plenum-launcher-elevate...
+      Finished `release` profile [optimized] target(s) in 0.26s
+  [OK] plenum-launcher-elevate built
+
+STEP 5/8: Validating product manifests
+---
+  Validating PlenumNET-Launcher...
+  [OK] PlenumNET-Launcher manifest valid
+
+STEP 6/8: Generating MSI installers
+---
+  Building MSI for PlenumNET-Launcher (aarch64)...
+  [OK] PlenumNET-Launcher-1.0.0-arm64.msi (1 MB)
+
+STEP 7/8: Installing PlenumNET products
+---
+  Checking for previous PlenumNET installations...
+  Removing previous: PlenumNET Launcher v1.0.0...
+  [OK] Removed PlenumNET Launcher
+  Installing PlenumNET Launcher...
+  [OK] PlenumNET Launcher installed
+
+STEP 8/8: Installation Summary
+==========================================================
+
+  Architecture   : ARM64
+  Source          : C:\PlenumNET
+  MSI output      : C:\PlenumNET\installer-output
+  Install log     : C:\Users\Sigma\AppData\Local\Temp\PlenumNET_MSI_Install.log
+
+  Installed MSIs:
+    - PlenumNET-Launcher-1.0.0-arm64.msi
+
+  PlenumNET products installed under:
+    %ProgramFiles%\Capomastro\
+
+  Data directories (preserved on uninstall):
+    %APPDATA%\PlenumNET-Launcher\
+
+==========================================================
+  PlenumNET MSI Installation Complete
+  Capomastro Holdings Ltd. - Applied Physics Division
+==========================================================
+
+Press Enter to close:
