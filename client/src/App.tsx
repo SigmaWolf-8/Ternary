@@ -89,7 +89,7 @@ const ApiKeysPage = lazyRetry(() => import("@/pages/api-keys"));
 const FPGABenchmarks = lazyRetry(() => import("@/pages/fpga-benchmarks"));
 const TsaPage = lazyRetry(() => import("@/pages/tsa"));
 const TerminalPage = lazyRetry(() => import("@/pages/terminal"));
-import InstallExtensionDialog from "@/components/InstallExtensionCard";
+import { LauncherProvider } from "@/components/LauncherPanel";
 
 function LoadingSpinner() {
   return (
@@ -106,8 +106,8 @@ function AppRouter() {
   usePageTitle();
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <LauncherProvider>
       <MarketingTopNav />
-      <InstallExtensionDialog />
       <main id="main-content" className="flex-1 pt-[148px]">
         <Suspense fallback={<LoadingSpinner />}>
           <Switch>
@@ -158,6 +158,7 @@ function AppRouter() {
         </Suspense>
       </main>
       <MarketingFooter />
+      </LauncherProvider>
     </div>
   );
 }

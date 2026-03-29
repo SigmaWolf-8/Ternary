@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
-import { triggerInstallDialog } from "@/components/InstallExtensionCard";
+import { useLauncher } from "@/components/LauncherPanel";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -129,7 +129,7 @@ const developersColumns: NavColumn[] = [
       { title: "Documentation", subtitle: "API reference & guides", href: "/docs" },
       { title: "Kong Konnect Gateway", subtitle: "API gateway management", href: "/kong-konnect" },
       { title: "Module Distribution", subtitle: "Install the framework", href: "/distribution" },
-      { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "#install-extension-download" },
+      { title: "PlenumNET Launcher", subtitle: "Manage PlenumNET applications", href: "#install-extension-download" },
       { title: "GitHub Repository", subtitle: "Source code & issues", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
     ],
   },
@@ -160,16 +160,20 @@ function NavItemLink({
   const isAnchor = item.href.startsWith("/#");
   const anchorId = isAnchor ? item.href.slice(2) : "";
 
+  const launcher = useLauncher();
+
   if (item.href === "#install-extension-download") {
     return (
       <a
         href="#"
         className={className}
         data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+        aria-expanded={launcher.isActive}
+        style={launcher.isActive ? { color: "hsl(var(--primary))", textShadow: "0 0 8px hsla(var(--primary), 0.4)" } : undefined}
         onClick={(e) => {
           e.preventDefault();
           onNavigate?.();
-          triggerInstallDialog();
+          launcher.togglePanel();
         }}
       >
         {item.title}
@@ -244,6 +248,8 @@ function MegaDropdownItem({ item }: { item: NavLinkItem }) {
     </>
   );
 
+  const launcher = useLauncher();
+
   if (isDialogTrigger) {
     return (
       <li>
@@ -252,9 +258,11 @@ function MegaDropdownItem({ item }: { item: NavLinkItem }) {
             href="#"
             className={baseClass}
             data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+            aria-expanded={launcher.isActive}
+            style={launcher.isActive ? { color: "hsl(var(--primary))", boxShadow: "0 0 6px hsla(var(--primary), 0.3)", borderColor: "hsl(var(--primary))" } : undefined}
             onClick={(e) => {
               e.preventDefault();
-              triggerInstallDialog();
+              launcher.togglePanel();
             }}
           >
             {content}
