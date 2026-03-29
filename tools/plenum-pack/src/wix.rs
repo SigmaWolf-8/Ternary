@@ -702,12 +702,16 @@ impl<'a> WixGenerator<'a> {
                     }
                     FirstRunAction::Launch { command } => {
                         let cmd = self.interpolate_command(command);
+                        let exe_cmd = cmd
+                            .replace("[INSTALLFOLDER]", "")
+                            .replace("[InstallFolder]", "");
                         actions.push_str(&format!(
-                            r#"    <SetProperty Id="{action_id}_Prop" Value="&quot;{cmd}&quot;" Before="{action_id}" Sequence="execute" />
-    <CustomAction Id="{action_id}" Property="{action_id}_Prop" Execute="commit" Impersonate="yes" Return="asyncNoWait" />
+                            r#"    <CustomAction Id="{action_id}" Directory="INSTALLFOLDER"
+                  ExeCommand="{exe_cmd}"
+                  Execute="commit" Impersonate="yes" Return="asyncNoWait" />
 "#,
                             action_id = action_id,
-                            cmd = cmd,
+                            exe_cmd = exe_cmd,
                         ));
                         sequence_entries.push(action_id);
                     }
