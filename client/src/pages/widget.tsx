@@ -1,17 +1,4 @@
-import { useEffect } from "react";
-import { LauncherProvider, useLauncher } from "@/components/LauncherPanel";
-
-function WidgetAutoOpen() {
-  const { panelState, setPanelState } = useLauncher();
-
-  useEffect(() => {
-    if (panelState === "CLOSED") {
-      setPanelState("OPEN");
-    }
-  }, [panelState, setPanelState]);
-
-  return null;
-}
+import { LauncherProvider } from "@/components/LauncherPanel";
 
 export default function WidgetPage() {
   return (
@@ -25,8 +12,8 @@ export default function WidgetPage() {
         position: "relative",
       }}
     >
-      <LauncherProvider>
-        <WidgetAutoOpen />
+      <LauncherProvider widgetMode>
+        <span />
       </LauncherProvider>
     </div>
   );

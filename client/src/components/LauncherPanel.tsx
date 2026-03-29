@@ -16,6 +16,7 @@ interface LauncherContextValue {
   setPanelState: (s: PanelState) => void;
   togglePanel: () => void;
   isActive: boolean;
+  widgetMode: boolean;
 }
 
 const LauncherContext = createContext<LauncherContextValue>({
@@ -23,6 +24,7 @@ const LauncherContext = createContext<LauncherContextValue>({
   setPanelState: () => {},
   togglePanel: () => {},
   isActive: false,
+  widgetMode: false,
 });
 
 export function useLauncher() {
@@ -829,7 +831,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 function LauncherPanelInner() {
-  const { panelState, setPanelState } = useLauncher();
+  const { panelState, setPanelState, widgetMode } = useLauncher();
   const [tab, setTab] = useState<TabId>("yoda");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const apiKeyRef = useRef("");
@@ -1242,7 +1244,14 @@ function LauncherPanelInner() {
         data-launcher-theme="dark"
         role="dialog"
         aria-label="PlenumNET Launcher"
-        style={{
+        style={widgetMode ? {
+          position: "absolute",
+          inset: 0,
+          zIndex: 9999,
+          display: "flex",
+          flexDirection: "column",
+          pointerEvents: "auto",
+        } : {
           position: "fixed",
           bottom: 0,
           right: 16,
@@ -1257,13 +1266,13 @@ function LauncherPanelInner() {
         }}
         onAnimationEnd={handleAnimationEnd}
       >
-        <div style={{ clipPath: chamfer(0), background: `linear-gradient(160deg, var(--launcher-bg-outer-frame) 0%, var(--launcher-bg-inner-frame) 50%, var(--launcher-bg-primary) 100%)`, padding: 2, position: "relative" }}>
+        <div style={{ clipPath: chamfer(0), background: `linear-gradient(160deg, var(--launcher-bg-outer-frame) 0%, var(--launcher-bg-inner-frame) 50%, var(--launcher-bg-primary) 100%)`, padding: 2, position: "relative", ...(widgetMode ? { flex: 1, display: "flex", flexDirection: "column" as const } : {}) }}>
           <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 10, clipPath: chamfer(0), background: `linear-gradient(180deg, var(--launcher-highlight) 0%, var(--launcher-highlight-subtle) 15%, transparent 40%)` }} />
-          <div style={{ clipPath: chamfer(2), background: `linear-gradient(145deg, var(--launcher-bg-primary) 0%, var(--launcher-bg-inner-frame) 30%, var(--launcher-bg-surface) 100%)`, padding: 8, position: "relative", overflow: "hidden" }}>
+          <div style={{ clipPath: chamfer(2), background: `linear-gradient(145deg, var(--launcher-bg-primary) 0%, var(--launcher-bg-inner-frame) 30%, var(--launcher-bg-surface) 100%)`, padding: 8, position: "relative", overflow: "hidden", ...(widgetMode ? { flex: 1, display: "flex", flexDirection: "column" as const } : {}) }}>
             <LeatherGrain seed={3} />
-            <div style={{ clipPath: chamfer(5), background: `linear-gradient(145deg, var(--launcher-bg-chamfer) 0%, var(--launcher-bg-panel) 50%, var(--launcher-bg-surface) 100%)`, padding: 2, position: "relative", overflow: "hidden", zIndex: 6 }}>
+            <div style={{ clipPath: chamfer(5), background: `linear-gradient(145deg, var(--launcher-bg-chamfer) 0%, var(--launcher-bg-panel) 50%, var(--launcher-bg-surface) 100%)`, padding: 2, position: "relative", overflow: "hidden", zIndex: 6, ...(widgetMode ? { flex: 1, display: "flex", flexDirection: "column" as const } : {}) }}>
               <LeatherGrain seed={7} />
-              <div style={{ clipPath: chamfer(6), overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--launcher-bg-primary)", position: "relative", zIndex: 6 }}>
+              <div style={{ clipPath: chamfer(6), overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--launcher-bg-primary)", position: "relative", zIndex: 6, ...(widgetMode ? { flex: 1 } : {}) }}>
 
                 {/* Header */}
                 <div
@@ -1854,8 +1863,8 @@ function LauncherStyles() {
 }
 
 
-export function LauncherProvider({ children }: { children: React.ReactNode }) {
-  const [panelState, setPanelState] = useState<PanelState>("CLOSED");
+export function LauncherProvider({ children, widgetMode = false }: { children: React.ReactNode; widgetMode?: boolean }) {
+  const [panelState, setPanelState] = useState<PanelState>(widgetMode ? "OPEN" : "CLOSED");
 
   const togglePanel = useCallback(() => {
     setPanelState((prev) => {
@@ -1869,8 +1878,8 @@ export function LauncherProvider({ children }: { children: React.ReactNode }) {
   const isActive = panelState !== "CLOSED";
 
   const value = useMemo(
-    () => ({ panelState, setPanelState, togglePanel, isActive }),
-    [panelState, setPanelState, togglePanel, isActive]
+    () => ({ panelState, setPanelState, togglePanel, isActive, widgetMode }),
+    [panelState, setPanelState, togglePanel, isActive, widgetMode]
   );
 
   return (
