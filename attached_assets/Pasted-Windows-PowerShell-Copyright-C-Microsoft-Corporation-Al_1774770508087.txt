@@ -1,0 +1,362 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Windows PowerShell
+Windows : The term 'Windows' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Windows PowerShell
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Windows:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Copyright (C) Microsoft Corporation. All rights reserved.
+C : The term 'C' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:12
++ Copyright (C) Microsoft Corporation. All rights reserved.
++            ~
+    + CategoryInfo          : ObjectNotFound: (C:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+Install : The term 'Install' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Install the latest PowerShell for new features and improvements! http ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Install:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> PS C:\Users\Sigma> cd C:\PlenumNET; git checkout --theirs Cargo.lock; git add Cargo.lock; git stash drop; cargo build --release -p plenum-launcher
+Get-Process : A positional parameter cannot be found that accepts argument 'cd'.
+At line:1 char:1
++ PS C:\Users\Sigma> cd C:\PlenumNET; git checkout --theirs Cargo.lock; ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Process], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetProcessCommand
+
+fatal: not a git repository (or any of the parent directories): .git
+fatal: not a git repository (or any of the parent directories): .git
+fatal: not a git repository (or any of the parent directories): .git
+error: could not find `Cargo.toml` in `C:\Users\Sigma` or any parent directory
+PS C:\Users\Sigma> Updated 1 path from the index
+Updated : The term 'Updated' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Updated 1 path from the index
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Updated:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> Dropped refs/stash@{0} (ac713905801a81cb99818b3cea47c6b97fdaa7e6)
+ac713905801a81cb99818b3cea47c6b97fdaa7e6 : The term 'ac713905801a81cb99818b3cea47c6b97fdaa7e6' is not recognized as
+the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was
+included, verify that the path is correct and try again.
+At line:1 char:25
++ Dropped refs/stash@{0} (ac713905801a81cb99818b3cea47c6b97fdaa7e6)
++                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (ac713905801a81cb99818b3cea47c6b97fdaa7e6:String) [], CommandNotFoundExc
+   eption
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+warning: : The term 'warning:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ warning: profiles for the non root package will be ignored, specify p ...
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (warning::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
+package: : The term 'package:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (package::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> workspace: C:\PlenumNET\Cargo.toml
+workspace: : The term 'workspace:' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ workspace: C:\PlenumNET\Cargo.toml
++ ~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (workspace::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+warning: : The term 'warning:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ warning: profiles for the non root package will be ignored, specify p ...
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (warning::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> package:   C:\PlenumNET\src\kernel\Cargo.toml
+package: : The term 'package:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ package:   C:\PlenumNET\src\kernel\Cargo.toml
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (package::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> workspace: C:\PlenumNET\Cargo.toml
+workspace: : The term 'workspace:' is not recognized as the name of a cmdlet, function, script file, or operable
+program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ workspace: C:\PlenumNET\Cargo.toml
++ ~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (workspace::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>    Compiling plenum-launcher v1.0.0 (C:\PlenumNET\tools\plenum-launcher)
+C:\PlenumNET\tools\plenum-launcher : The term 'C:\PlenumNET\tools\plenum-launcher' is not recognized as the name of a
+cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify
+that the path is correct and try again.
+At line:1 char:38
++ ... Compiling plenum-launcher v1.0.0 (C:\PlenumNET\tools\plenum-launcher)
++                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PlenumNET\tools\plenum-launcher:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma> warning: value assigned to `tray` is never read
+warning: : The term 'warning:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ warning: value assigned to `tray` is never read
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (warning::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>    --> tools\plenum-launcher\src\main.rs:211:21
+At line:1 char:6
++    --> tools\plenum-launcher\src\main.rs:211:21
++      ~
+Missing expression after unary operator '--'.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator
+
+PS C:\Users\Sigma>     |
+>> 211 |                     tray = new_tray;
+At line:1 char:5
++     |
++     ~
+An empty pipe element is not allowed.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EmptyPipeElement
+
+PS C:\Users\Sigma>     |                     ^^^^
+At line:1 char:5
++     |                     ^^^^
++     ~
+An empty pipe element is not allowed.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EmptyPipeElement
+
+PS C:\Users\Sigma>     |
+>>     = help: maybe it is overwritten before being read?
+At line:1 char:5
++     |
++     ~
+An empty pipe element is not allowed.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : EmptyPipeElement
+
+PS C:\Users\Sigma>     = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+>>
+At line:1 char:84
++ ... [warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
++                                                                          ~
+Missing closing ')' in expression.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingEndParenthesisInExpression
+
+PS C:\Users\Sigma> warning: field `version` is never read
+warning: : The term 'warning:' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ warning: field `version` is never read
++ ~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (warning::String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\Sigma>  --> tools\plenum-launcher\src\discovery.rs:8:9
+At line:1 char:4
++  --> tools\plenum-launcher\src\discovery.rs:8:9
++    ~
+Missing expression after unary operator '--'.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator
+
+PS C:\Users\Sigma>   |
+>> 5 | pub struct InstalledApp {
+>>   |            ------------ field in this struct
+>> ...
+>> 8 |     pub version: String,
+>>   |         ^^^^^^^
+>>   |
+>>   = note: `InstalledApp` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+>>   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+>>
+>> warning: variant `Locked` is never constructed
+>>   --> tools\plenum-launcher\src\discovery.rs:23:5
+>>    |
+>> 19 | pub enum AppStatus {
+>>    |          --------- variant in this enum
+>> ...
+>> 23 |     Locked,
+>>    |     ^^^^^^
+>>    |
+>>    = note: `AppStatus` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+>>
+>> warning: method `status_color` is never used
+>>   --> tools\plenum-launcher\src\discovery.rs:38:12
+>>    |
+>> 27 | impl InstalledApp {
+>>    | ----------------- method in this implementation
+>> ...
+>> 38 |     pub fn status_color(&self) -> &str {
+>>    |            ^^^^^^^^^^^^
+>>
+>> warning: method `status_summary` is never used
+>>   --> tools\plenum-launcher\src\discovery.rs:83:12
+>>    |
+>> 74 | impl AppRegistry {
+>>    | ---------------- method in this implementation
+>> ...
+>> 83 |     pub fn status_summary(&self) -> (usize, usize) {
+>>    |            ^^^^^^^^^^^^^^
+>>
+>> warning: struct `StatusColors` is never constructed
+>>  --> tools\plenum-launcher\src\status.rs:3:12
+>>   |
+>> 3 | pub struct StatusColors;
+>>   |            ^^^^^^^^^^^^
+>>
+>> warning: associated constants `ACTIVE`, `WARNING`, `INACTIVE`, and `LOCKED` are never used
+>>  --> tools\plenum-launcher\src\status.rs:6:15
+>>   |
+>> 5 | impl StatusColors {
+>>   | ----------------- associated constants in this implementation
+>> 6 |     pub const ACTIVE: &'static str = "#4A9EF5";
+>>   |               ^^^^^^
+>> 7 |     pub const WARNING: &'static str = "#78828C";
+>>   |               ^^^^^^^
+>> 8 |     pub const INACTIVE: &'static str = "#3D444B";
+>>   |               ^^^^^^^^
+>> 9 |     pub const LOCKED: &'static str = "#4A9EF5";
+>>   |               ^^^^^^
+>>
+>> warning: struct `BrandPalette` is never constructed
+>>   --> tools\plenum-launcher\src\status.rs:12:12
+>>    |
+>> 12 | pub struct BrandPalette;
+>>    |            ^^^^^^^^^^^^
+>>
+>> warning: multiple associated constants are never used
+>>   --> tools\plenum-launcher\src\status.rs:15:15
+>>    |
+>> 14 | impl BrandPalette {
+>>    | ----------------- associated constants in this implementation
+>> 15 |     pub const BG_PAGE_DARK: &'static str = "#0F0C0A";
+>>    |               ^^^^^^^^^^^^
+>> 16 |     pub const BG_CARD_DARK: &'static str = "#181411";
+>>    |               ^^^^^^^^^^^^
+>> 17 |     pub const BG_MUTED_DARK: &'static str = "#1D1915";
+>>    |               ^^^^^^^^^^^^^
+>> 18 |     pub const BORDER_DARK: &'static str = "#272220";
+>>    |               ^^^^^^^^^^^
+>> 19 |     pub const TEXT_HEADING_DARK: &'static str = "#F0EDE8";
+>>    |               ^^^^^^^^^^^^^^^^^
+>> 20 |     pub const TEXT_NAV_DARK: &'static str = "#E4DFD5";
+>>    |               ^^^^^^^^^^^^^
+>> 21 |     pub const TEXT_BODY_DARK: &'static str = "#C9C1B4";
+>>    |               ^^^^^^^^^^^^^^
+>> 22 |     pub const TEXT_LABEL_DARK: &'static str = "#998F82";
+>>    |               ^^^^^^^^^^^^^^^
+>> 23 |     pub const TEXT_FAINT_DARK: &'static str = "#6B655E";
+>>    |               ^^^^^^^^^^^^^^^
+>> 24 |     pub const ACCENT_PRIMARY: &'static str = "#4A9EF5";
+>>    |               ^^^^^^^^^^^^^^
+>> 25 |     pub const ACCENT_HOVER: &'static str = "#38BDF8";
+>>    |               ^^^^^^^^^^^^
+>> 26 |     pub const SURFACE_IRON: &'static str = "#3D444B";
+>>    |               ^^^^^^^^^^^^
+>> 27 |     pub const SURFACE_SLATE: &'static str = "#78828C";
+>>    |               ^^^^^^^^^^^^^
+>> 28 |
+>> 29 |     pub const BG_PAGE_LIGHT: &'static str = "#FAF8F6";
+>>    |               ^^^^^^^^^^^^^
+>> 30 |     pub const BG_CARD_LIGHT: &'static str = "#FFFFFF";
+>>    |               ^^^^^^^^^^^^^
+>> 31 |     pub const BG_MUTED_LIGHT: &'static str = "#F0ECE8";
+>>    |               ^^^^^^^^^^^^^^
+>> 32 |     pub const BORDER_LIGHT: &'static str = "#D9D3CC";
+>>    |               ^^^^^^^^^^^^
+>> 33 |     pub const TEXT_HEADING_LIGHT: &'static str = "#1A1614";
+>>    |               ^^^^^^^^^^^^^^^^^^
+>> 34 |     pub const TEXT_NAV_LIGHT: &'static str = "#2C2722";
+>>    |               ^^^^^^^^^^^^^^
+>> 35 |     pub const TEXT_BODY_LIGHT: &'static str = "#4A4440";
+>>    |               ^^^^^^^^^^^^^^^
+>> 36 |     pub const TEXT_LABEL_LIGHT: &'static str = "#7A7168";
+>>    |               ^^^^^^^^^^^^^^^^
+>> 37 |     pub const TEXT_FAINT_LIGHT: &'static str = "#A89E94";
+>>    |               ^^^^^^^^^^^^^^^^
+>> 38 |     pub const ACCENT_PRIMARY_LIGHT: &'static str = "#2D7DD2";
+>>    |               ^^^^^^^^^^^^^^^^^^^^
+>> 39 |     pub const ACCENT_HOVER_LIGHT: &'static str = "#1A6FC2";
+>>    |               ^^^^^^^^^^^^^^^^^^
+>> 40 |     pub const SURFACE_IRON_LIGHT: &'static str = "#C8CDD2";
+>>    |               ^^^^^^^^^^^^^^^^^^
+>> 41 |     pub const SURFACE_SLATE_LIGHT: &'static str = "#8E959C";
+>>    |               ^^^^^^^^^^^^^^^^^^^
+>>
+>> warning: function `status_to_color` is never used
+>>   --> tools\plenum-launcher\src\status.rs:54:8
+>>    |
+>> 54 | pub fn status_to_color(status: &AppStatus) -> &'static str {
+>>    |        ^^^^^^^^^^^^^^^
+>>
+>> warning: struct `HighContrastColors` is never constructed
+>>   --> tools\plenum-launcher\src\status.rs:64:12
+>>    |
+>> 64 | pub struct HighContrastColors;
+>>    |            ^^^^^^^^^^^^^^^^^^
+>>
+>> warning: associated constants `ACTIVE`, `WARNING`, `INACTIVE`, `LOCKED`, `TEXT`, and `BACKGROUND` are never used
+>>   --> tools\plenum-launcher\src\status.rs:67:15
+>>    |
+>> 66 | impl HighContrastColors {
+>>    | ----------------------- associated constants in this implementation
+>> 67 |     pub const ACTIVE: &'static str = "#00FF00";
+>>    |               ^^^^^^
+>> 68 |     pub const WARNING: &'static str = "#FFFF00";
+>>    |               ^^^^^^^
+>> 69 |     pub const INACTIVE: &'static str = "#808080";
+>>    |               ^^^^^^^^
+>> 70 |     pub const LOCKED: &'static str = "#00FFFF";
+>>    |               ^^^^^^
+>> 71 |     pub const TEXT: &'static str = "#FFFFFF";
+>>    |               ^^^^
+>> 72 |     pub const BACKGROUND: &'static str = "#000000";
+>>    |               ^^^^^^^^^^
+>>
+>> warning: function `status_to_color_hc` is never used
+>>   --> tools\plenum-launcher\src\status.rs:75:8
+>>    |
+>> 75 | pub fn status_to_color_hc(status: &AppStatus) -> &'static str {
+>>    |        ^^^^^^^^^^^^^^^^^^
+>>
+>> warning: `plenum-launcher` (bin "plenum-launcher") generated 13 warnings
+>>     Finished `release` profile [optimized] target(s) in 12.61s
+>> PS C:\PlenumNET>
