@@ -1,0 +1,52 @@
+Running as Administrator...
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:656 char:108
++ ... nPrimaryTokenPrivilege â€” secpol.msc > Local Policies > User Rights) ...
++                                                            ~~~~~~
+The output stream for this command is already redirected.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:654 char:16
++         } else {
++                ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:650 char:53
++     if (Test-Path "$env:TEMP\plenumnet-secpol.cfg") {
++                                                     ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:648 char:5
++ try {
++     ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:656 char:121
++ ... yTokenPrivilege â€” secpol.msc > Local Policies > User Rights)" -Fore ...
++                                                                  ~
+The Try statement is missing its Catch or Finally block.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:279 char:5
++ try {
++     ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:656 char:121
++ ... TokenPrivilege â€” secpol.msc > Local Policies > User Rights)" -Foreg ...
++                                                                 ~
+Unexpected token ')' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:658 char:22
++ ... emove-Item "$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyCont ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Unexpected token '$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
+    }
+} catch {
+    Write-Host "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:658 char:31
++ ... e-Item "$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
++                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Unexpected token '\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
+    }
+} catch {
+    Write-Host "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\deploy-yoda-10851.ps1:670 char:5
++     } else {
++     ~
+Unexpected token '}' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : StreamAlreadyRedirected
+
+Press any key to continue . . .

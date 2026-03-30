@@ -1,0 +1,31 @@
+Fix Installer Script Encoding Errors
+What & Why
+Both the Array3 Deployer (deploy-yoda.ps1) and the MSI Installer (install-plenumnet-msi.ps1) fail to parse on Windows because of Unicode characters in executable lines. When Invoke-WebRequest downloads a UTF-8 script, em dashes (—) get mangled into â€" on systems using Windows PowerShell 5.1 with non-UTF-8 default encoding, causing cascading parse errors. The deployer also has an unescaped > on line 656 that PowerShell interprets as a stream redirection operator.
+
+Done looks like
+Both installers download and run without parse errors on Windows 10/11 with default encoding settings
+No Unicode characters appear in any executable (non-comment) lines of either script
+Both scripts include a UTF-8 BOM so Windows PowerShell 5.1 detects the encoding correctly
+The .bat launchers for both scripts continue to work as before
+Out of scope
+Functional changes to what the installers do
+Changes to comment-only lines (box-drawing characters in step banners are fine since PowerShell ignores comments)
+Changes to the Unix installer (install.sh) or the legacy .bat installer (those have no non-ASCII characters)
+Tasks
+In services/inter-cube/deploy-yoda.ps1, replace all non-ASCII characters in executable (non-comment) lines with ASCII equivalents:
+Line 43: em dash in .DESCRIPTION help text
+Line 656: em dash AND rewrite the > characters so they are not interpreted as redirection (e.g., remove the arrows or use text like "secpol.msc, Local Policies, User Rights")
+Line 669: em dash in string
+Line 671: em dash in string
+Add a UTF-8 BOM (EF BB BF) to services/inter-cube/deploy-yoda.ps1 (the MSI installer already has one).
+In client/public/install/install-plenumnet-msi.ps1, replace non-ASCII characters in executable lines:
+Line 30: em dash in trap block string ("FATAL ERROR — installer crashed")
+Line 140: em dash in comment (lower priority but fix for consistency)
+Verify no other non-ASCII characters remain in executable lines of either script.
+Sync the deployer fix to client/public/install/deploy-yoda.ps1 (the second copy).
+Verify the server endpoints (/api/deploy-yoda, /api/install-msi) serve the files with correct encoding headers and BOM intact.
+Relevant files
+services/inter-cube/deploy-yoda.ps1:43,656,669,671
+client/public/install/install-plenumnet-msi.ps1:1,30,140
+client/public/install/deploy-yoda.ps1
+server/index.ts:1507-1519,1548-1562
