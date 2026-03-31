@@ -11,6 +11,7 @@
 // crate::layers::*, crate::crypto::*, crate::network::*.
 
 pub mod coprime_walk;
+pub mod coprime_polygon_pair;
 pub mod z_router;
 pub mod sponge_rekey;
 

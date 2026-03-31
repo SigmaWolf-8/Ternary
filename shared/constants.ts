@@ -241,6 +241,23 @@ export const PLATFORM = {
       PLENUM_CONFIGS: 12,
     },
   },
+
+  COPRIME_POLYGON_PAIR: {
+    ARC: 143,
+    HENDECAGON_EDGES: 11,
+    TRIDECAGON_EDGES: 13,
+    COMBINED_VERTICES: 23,
+    EULER_TOTIENT: 120,
+    INTERLEAVE: [1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1] as const,
+    PLENUM_SQUARE_GAP: 286,
+    SQRT_DISCRIMINANT: 468,
+    BEZOUT: [6, -5] as const,
+    CRT_364: [3, 3, 0] as const,
+    CRT_756: [8, 3] as const,
+    CRT_756_BLUE: [24, 16] as const,
+    TERNARY_RADIANS: 11,
+    EUCLIDEAN_CONTINUED_FRACTION: [2, 1, 1, 5] as const,
+  },
 } as const;
 
 export type Platform = typeof PLATFORM;

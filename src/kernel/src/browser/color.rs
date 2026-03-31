@@ -32,7 +32,23 @@ pub const ARC_RED: u32 = 182;
 pub const ARC_GREEN: u32 = 650;
 pub const ARC_PRODUCT: u32 = 118_300;
 pub const ARC_SUM: u32 = 832;
+/// ARC_BLUE = 240 = 2 × φ(143) = 2 × φ(11 × 13) = 3⁵ − 3.
+/// CRT in Z₇₅₆ ≅ Z₂₇ × Z₂₈: (24, 16) = (T₈, 2⁴).
+/// CRT in Z₃₆₄ ≅ Z₄ × Z₇ × Z₁₃: (0, 2, 6) where 6 = φ(7).
+/// ARC_COPRIME − ARC_BLUE = 46 = 2 × 23 = 2 × COMBINED_VERTICES.
+/// TM-2026-025 v3 §6.1.
 pub const ARC_BLUE: u32 = 240;
+
+/// Coprime polygon harmonic: 286 = 2 × 143 = 2 × 11 × 13.
+/// ARC_GREEN = FULL_CIRCLE_DEG + ARC_COPRIME  (650 = 364 + 286)
+/// ARC_RED   + ARC_COPRIME = √Δ_arc          (182 + 286 = 468)
+/// TM-2026-025 v3 §6.1.
+pub const ARC_COPRIME: u32 = 286;
+
+/// Discriminant root of arc² − 832·arc + 118,300 = 0.
+/// √Δ = 468 = 36 × 13 = 36 ternary radians.
+/// Roots: (832 ± 468) / 2 = {ARC_RED, ARC_GREEN} = {182, 650}.
+pub const ARC_SQRT_DISCRIMINANT: u32 = 468;
 
 pub const COPRIME_STEP: u32 = 1001;
 pub const OVERLAP_SLOTS: u32 = COPRIME_STEP - MESH_NODES as u32;
@@ -685,5 +701,56 @@ mod tests {
             i += 6;
         }
         true
+    }
+
+    #[test] fn green_eq_circle_plus_coprime() {
+        assert_eq!(364 + ARC_COPRIME, ARC_GREEN, "650 = 364 + 286");
+    }
+    #[test] fn red_plus_coprime_eq_sqrt_d() {
+        assert_eq!(ARC_RED + ARC_COPRIME, ARC_SQRT_DISCRIMINANT, "182 + 286 = 468");
+    }
+    #[test] fn coprime_eq_double_143() {
+        assert_eq!(ARC_COPRIME, 2 * 143, "286 = 2 × 143");
+        assert_eq!(ARC_COPRIME, 2 * 11 * 13, "286 = 2 × 11 × 13");
+    }
+    #[test] fn sqrt_d_is_root_diff() {
+        assert_eq!(ARC_GREEN - ARC_RED, ARC_SQRT_DISCRIMINANT, "650 − 182 = 468");
+    }
+    #[test] fn discriminant_identity() {
+        assert_eq!(ARC_SQRT_DISCRIMINANT * ARC_SQRT_DISCRIMINANT, 219024);
+        assert_eq!(832u32 * 832 - 4 * 118300, 219024);
+    }
+    #[test] fn roots_from_quadratic() {
+        assert_eq!((832 - ARC_SQRT_DISCRIMINANT) / 2, ARC_RED);
+        assert_eq!((832 + ARC_SQRT_DISCRIMINANT) / 2, ARC_GREEN);
+    }
+    #[test] fn sqrt_d_in_radians() {
+        assert_eq!(ARC_SQRT_DISCRIMINANT, 36 * 13, "468 = 36 ternary radians");
+    }
+    #[test] fn blue_eq_double_totient() {
+        assert_eq!(ARC_BLUE, 2 * 120, "240 = 2 × φ(143)");
+    }
+    #[test] fn blue_eq_base3_structural() {
+        assert_eq!(ARC_BLUE, 243 - 3, "240 = 3⁵ − 3");
+    }
+    #[test] fn coprime_minus_blue_eq_double_vertices() {
+        assert_eq!(ARC_COPRIME - ARC_BLUE, 2 * 23, "286 − 240 = 46 = 2×23");
+    }
+    #[test] fn blue_crt_dual_circle() {
+        assert_eq!(ARC_BLUE % 27, 24, "240 mod 27 = 24 = T₈");
+        assert_eq!(ARC_BLUE % 28, 16, "240 mod 28 = 16 = 2⁴");
+    }
+    #[test] fn scaling_pattern() {
+        assert_eq!(2 * 143, ARC_COPRIME);
+        assert_eq!(2 * 120, ARC_BLUE);
+        assert_eq!(2 * 23, ARC_COPRIME - ARC_BLUE);
+    }
+    #[test] fn three_routes_to_green() {
+        assert_eq!(364 + ARC_COPRIME, ARC_GREEN);
+        assert_eq!(ARC_RED + ARC_SQRT_DISCRIMINANT, ARC_GREEN);
+        assert_eq!((832 + ARC_SQRT_DISCRIMINANT) / 2, ARC_GREEN);
+    }
+    #[test] fn full_circle_double_red() {
+        assert_eq!(364, 2 * ARC_RED, "364 = 2 × 182");
     }
 }

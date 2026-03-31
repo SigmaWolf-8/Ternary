@@ -38,6 +38,9 @@ A browser engine built as kernel subsystem modules, implementing CPU rendering. 
 ### z=0 Distributor
 This component implements the z-axis dome geometry, acting as an equatorial distributor plane. It uses a (7, 11, 13) coprime walk over 540 nodes for full coverage.
 
+### (11, 13) Coprime Polygon Pair — TM-2026-025
+The hendecagon (11) and tridecagon (13) inscribed in the 364° circle form a named structural element. Combined arc = 143° = 11 ternary radians. Generator Duality: 13 generates Z₂₈, 11 generates Z₃₆₄. CRT of 143: Z₃₆₄ → (3,3,0), Z₇₅₆ → (8,3) = (branch number, Rep C max). Combined vertices = 23. PlenumColor harmonics: ARC_COPRIME=286, ARC_SQRT_DISCRIMINANT=468, with ARC_BLUE=240=2×φ(143). Sources: `shared/constants.ts` → `PLATFORM.COPRIME_POLYGON_PAIR`, `shared/agent-generators.ts` → `DUAL_GENERATOR_PAIR`, `src/kernel/src/distributor/coprime_polygon_pair.rs`, `src/kernel/src/browser/color.rs`.
+
 ### TIS-27 Keyboard Input
 Kernel-space TIS-27 encoding is used for keyboard input. Scancodes are encoded before buffering using a 54-trit sponge and decoded to Unicode inside the browser DOM handler.
 

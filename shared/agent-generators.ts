@@ -182,3 +182,55 @@ export const TRIBONACCI_KERNEL = [13, 24, 44] as const;
  * The calendar identity: 13 × 28 = 364 = 111111₃ = full ternary circle.
  */
 export const CALENDAR_IDENTITY = Z28_CANONICAL_GENERATOR * Z28_SIZE; // 364
+
+export const Z364_CANONICAL_GENERATOR = 11;
+
+export const DUAL_GENERATOR_PAIR = {
+  primary: {
+    stride: 13,
+    role: 'radian_cycle' as const,
+    group: 'Z28' as const,
+    inverseStride: 13,
+    generatesZ364: false,
+  },
+  secondary: {
+    stride: 11,
+    role: 'full_circle' as const,
+    group: 'Z364' as const,
+    inverseStride: 23,
+    generatesZ364: true,
+  },
+  arc: 143,
+  combinedVertices: 23,
+  eulerTotient: 120,
+  interleave: [1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1] as const,
+  bezout: [6, -5] as const,
+} as const;
+
+export function getStride11Walk(): number[] {
+  return Array.from({ length: 28 }, (_, k) => (11 * k) % 28);
+}
+
+export function getDualGeneratorSchedule(): {
+  primaryWalk: number[];
+  secondaryWalk: number[];
+  interleave: readonly number[];
+  combinedSchedule: Array<{ position: number; source: 'primary' | 'secondary' }>;
+} {
+  const primaryWalk = Array.from({ length: 28 }, (_, k) => (13 * k) % 28);
+  const secondaryWalk = Array.from({ length: 28 }, (_, k) => (11 * k) % 28);
+  const combined: Array<{ position: number; source: 'primary' | 'secondary' }> = [];
+  const il = DUAL_GENERATOR_PAIR.interleave;
+  let pi = 0, si = 0;
+
+  for (let i = 0; i < il.length && si < 28; i++) {
+    for (let j = 0; j < il[i] && pi < 28; j++) {
+      combined.push({ position: primaryWalk[pi++], source: 'primary' });
+    }
+    if (si < 28) combined.push({ position: secondaryWalk[si++], source: 'secondary' });
+  }
+  while (pi < 28) combined.push({ position: primaryWalk[pi++], source: 'primary' });
+  while (si < 28) combined.push({ position: secondaryWalk[si++], source: 'secondary' });
+
+  return { primaryWalk, secondaryWalk, interleave: il, combinedSchedule: combined };
+}
