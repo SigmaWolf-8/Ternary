@@ -1,0 +1,110 @@
+TECHNICAL MEMORANDUM
+TM-2026-025 (Version 1)
+
+THE (11, 13) COPRIME POLYGON PAIR
+Generator Duality, CRT Decomposition, and Structural Alignment
+in the Salvi Framework
+
+Salvi Framework — PlenumNET Architecture Series
+March 2026
+
+Capomastro Holdings Ltd. — Applied Physics Division
+Sherwood Park, Alberta, Canada
+
+Abstract
+This memorandum formalizes the (11, 13) coprime polygon pair as a named structural element in the Salvi Framework. The hendecagon (11 edges) and tridecagon (13 edges), inscribed in the 364° ternary circle, produce a combined arc of 143° = 11 × 13° = 11 ternary radians. Their interleave yields 23 combined vertices with palindromic distribution pattern [1,1,1,1,1,2,1,1,1,1,1].
+The principal finding is a Generator Duality Theorem: the two factors of 143 are the canonical generators of the framework’s two fundamental cyclic groups — 13 generates Z₂₈ (the radian cycle), while 11 generates Z₃₆₄ (the full circle). This duality is already formally verified in the bare-metal validation suite (generator_theorem_harness.rs) but has not previously been named or connected to the polygon pair.
+Cross-referencing against TM-2026-008 (Representation Universality) reveals that 143 maps to (8, 3) in the dual-circle CRT decomposition Z₇₅₆ ≅ Z₂₇ × Z₂₈, where 8 is the proven branch number B(Mθ) and 3 is the Rep C maximum. Additionally, 23 — the combined vertex count — is both 11⁻¹ mod 28 and one of the three optimal chi S-box exponents {17, 23, 25} from Program II.
+ 
+1. The Generator Duality Theorem
+The framework’s verified generator theorem (bare-metal/generator_theorem_harness.rs, 288 lines) establishes by exhaustive formal verification that step a generates Zₘ if and only if gcd(a, m) = 1, for all framework moduli {13, 27, 28, 54, 364}. Two consequences:
+
+Generator	Group	Role	Why Unique
+13	Z₂₈	Radian cycle, agent scheduling, calendar	gcd(13,28) = 1; T₇; 111₃; prime
+11	Z₃₆₄	Full circle traversal, degree cycle	gcd(11,364) = 1; gcd(11,54) = 1
+
+Theorem 1.1 (Generator Duality). The two factors of 143 = 11 × 13 are the canonical generators of the framework’s two fundamental cyclic groups. 13 generates Z₂₈ (geometric circle order, 28 radians). 11 generates Z₃₆₄ (full ternary circle, 364 degrees). Neither can perform the other’s role: 13 does not generate Z₃₆₄ (since 13 | 364), and 11 does not generate Z₂₈ in the canonical coprime walk (stride 13 is structurally preferred per Invariant 10). The product 11 × 13 = 143 = 11 ternary radians encodes both generators in a single angular measure.
+
+Proof. 364 = 2² × 7 × 13. Since 13 | 364, the walk 13k mod 364 has period 364/gcd(13,364) = 364/13 = 28, visiting only 28 of 364 positions. Conversely, gcd(11, 364) = 1 (since 11 is prime and 11 ∤ 364), so 11 generates Z₃₆₄. For Z₂₈: gcd(13, 28) = 1 (since 28 = 2² × 7 and 13 is prime), confirmed by the coprime walk visiting all 28 agent positions. ∎
+2. The Euclidean Ladder: gcd(364, 143) = 13
+Applying the Euclidean algorithm to the full circle and the coprime arc:
+364 = 2(143) + 78          ← remainder 78 = 6 × 13 = 6 radians 143 = 1(78)  + 65          ← remainder 65 = 5 × 13 = 5 radians  78 = 1(65)  + 13          ← remainder 13 = 1 × 13 = 1 radian  65 = 5(13)  + 0           ← terminates at the radian
+Every intermediate remainder is a positive integer multiple of 13. The algorithm terminates at the radian — the framework’s fundamental angular unit. This is structurally forced: 143 = 11 × 13 and 364 = 28 × 13, so their GCD is 13.
+
+Continued fraction representation: 364/143 = [2; 1, 1, 5]. Convergents: 2/1, 3/1, 5/2, 28/11. The final convergent 28/11 is the ratio of the geometric circle order (Z₂₈) to the full-circle generator (stride-11), recovering both fundamental constants from the simple continued fraction of (full circle)/(coprime arc).
+3. Chinese Remainder Theorem Decompositions
+3.1 Full Circle Decomposition
+Since 364 = 4 × 7 × 13 with pairwise coprime factors, Z₃₆₄ ≅ Z₄ × Z₇ × Z₁₃. The CRT image of 143:
+143 mod  4 = 3    (Rep C maximum in Z₄) 143 mod  7 = 3    (Rep C maximum in Z₇) 143 mod 13 = 0    (zero — forced since 13 | 143)
+The CRT image is (3, 3, 0). The Rep C ceiling value 3 appears simultaneously in both the Z₄ and Z₇ components. This is not forced by the divisibility constraint — it is a coincidence of the specific factorization 143 = 11 × 13 within the modular structure.
+
+3.2 Dual-Circle Decomposition
+Per TM-2026-008 §1.1: Z₇₅₆ ≅ Z₂₇ × Z₂₈ (since 756 = 27 × 28, gcd(27,28) = 1). The CRT image of 143:
+143 mod 27 = 8    = B(Mθ), the proven branch number 143 mod 28 = 3    = Rep C maximum
+Proposition 3.1. The (11, 13) coprime arc maps to (B, 3) in the dual-circle CRT, where B = 8 is the TIS-27 sponge branch number (TM-2026-008 Theorem 3.4) and 3 is the Rep C ceiling. The coprime polygon pair simultaneously encodes the cryptographic diffusion constant on the algebraic circle and the bijective ternary maximum on the geometric circle.
+ 
+4. The 23 Combined Vertices
+Interleaving the hendecagon and tridecagon on the ternary circle produces 23 distinct vertices (the shared vertex at 0° merges one pair). The number 23 serves triple structural duty:
+
+Context	Role of 23	Verification
+Z₂₈ modular inverse	11⁻¹ mod 28 = 23 (11 × 23 = 253 = 9 × 28 + 1)	agent-generators.ts inverse pairs
+Optimal chi exponent	x²³ over GF(27) achieves DP_max = 1/9	TM-2026-008 §3.2, Table of exponents
+Valid sponge stride	gcd(23, 54) = 1	Coprime to TIS-27 state width
+
+The chi S-box connection is particularly significant. TM-2026-008 identifies three optimal power-map permutations of GF(27): exponents {17, 23, 25}, all achieving DP_max = 3/27 = 1/9 with DDT values restricted to {0, 2, 3}. The number 23 is therefore not merely the multiplicative inverse of 11 in Z₂₈ — it is simultaneously one of three exponents producing maximum differential resistance in the sponge’s nonlinear layer.
+5. The Palindromic Interleave
+The interleave pattern [1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1] has the following properties:
+
+Length: 11 entries (hendecagon edge count). Sum: 12 = 13 − 1 (tridecagon vertices minus the shared vertex at 0°). Symmetry: Palindromic around central position (index 5). Distribution: 10 gaps with 1 tridecagon vertex, 1 central gap with 2. The single “2” at the center marks the angular region where tridecagon and hendecagon vertices are closest to coinciding.
+
+As a scheduling kernel, this pattern defines a rhythmic alternation: the “1” entries represent uniform single-step intervals, while the “2” at the center introduces a deliberate syncopation. In a dual-generator Z₂₈ scheduling context, this could encode a handoff rhythm between stride-11 and stride-13 walks.
+6. Unified Equation Connections
+The Plenum Square unified arc equation arc² − 832·arc + 118,300 = 0 has roots 182 (half-circle = πR₃ = 14 × 13) and 650 (rejected root). The (11, 13) pair provides the arithmetic bridge between these roots and the full circle:
+
+Relationship	Value
+650 − 364	286 = 2 × 143 = 2 × 11 × 13
+182 − 143	39 = 3 × 13 = 3 radians
+182 + 143	325 = 25 × 13 = 25 radians
+650 − 143	507 = 39 × 13 = 3 × 13²
+φ(364) − φ(143)	144 − 120 = 24 = T₈
+
+The rejected root exceeds the full circle by exactly 2 arcs of the coprime polygon pair: 650 = 364 + 2(143). The half-circle and the coprime arc differ by exactly 3 radians. All differences reduce to products of {3, 11, 13} — the prime factorization of 143 together with the base of the ternary system.
+
+The Euler totient gap is Tribonacci-controlled: φ(364) − φ(143) = 24 = T₈, the 8th Tribonacci number. This places the generator-count difference between the full circle and the coprime arc precisely one step above T₇ = 13 (the radian) in the Tribonacci sequence.
+7. DDT Zero-Count Alignment
+From TM-2026-008 Appendix B: the Difference Distribution Table of χ(x) = x¹⁷ over GF(27) contains exactly 364 zero entries out of 702 total nonzero-input entries. The full circle constant governs the count of differential impossibilities in the chi S-box. The non-zero entries decompose as 312 twos + 26 threes = 338 = 702 − 364, where 26 = |GF(27)*| = 2 × 13.
+ 
+8. Bézout Identity
+For the coprime pair (11, 13):
+11 × 6 − 13 × 5 = 66 − 65 = 1
+The Bézout coefficients are (6, −5), where 6 = φ(7) is the Euler totient of the third prime factor of 364 (since 364 = 2² × 7 × 13). This means the multiplicative structure of Z₇ is encoded in the linear combination that certifies the coprimality of 11 and 13.
+9. Proposed Framework Applications
+9.1 Named Structural Constant
+Add C₁₄₃ = 143 = 11 × 13 to the PLATFORM constants in shared/constants.ts as the Coprime Polygon Arc. Document its CRT images: (3, 3, 0) in Z₃₆₄ and (8, 3) in Z₇₅₆.
+9.2 Dual-Generator Z₂₈ Scheduling
+Extend agent-generators.ts with a named (11, 13) dual-generator schedule. Stride-13 remains canonical for primary scheduling. Stride-11 provides an independent complete walk for redundant heartbeat coverage, with the interleave pattern [1,1,1,1,1,2,1,1,1,1,1] as the handoff rhythm.
+9.3 Coprime Walk Layer
+Name the (11, 13) sub-pair within the existing (7, 11, 13) coprime walk in coprime_walk.rs. The combined vertex count 23 becomes a structural constant alongside the existing triple stride 1001.
+9.4 TIS-27 Dual-Stride Exploration
+Both 11 and 13 are coprime to the sponge state width 54 (gcd(11,54) = gcd(13,54) = 1). A dual-stride construction alternating between the two in the tisPi permutation layer could be explored for enhanced diffusion. The interleave pattern provides a natural alternation schedule. Additionally, the chi-optimal exponent 23 (also coprime to 54) provides a third stride option, creating a three-stride rotation 11 → 13 → 23 that connects the coprime polygon pair to the sponge’s nonlinear layer.
+9.5 Plenum Square Extension
+The value 286 = 2 × 143 = 650 − 364 names the arithmetic gap between the rejected root and the full circle in the unified arc equation. This gives geometric meaning to the “rejected” root: it is the full circle plus two coprime polygon arcs.
+10. Summary of Structural Connections
+
+Quantity	Value	Framework Significance
+143	11 × 13	Coprime polygon arc = 11 ternary radians
+143 mod 27	8	Branch number B(Mθ)
+143 mod 28	3	Rep C maximum
+143 in Z₃₆₄	(3, 3, 0)	CRT image: double-3 in Z₄ × Z₇
+23	11⁻¹ mod 28	Combined vertices, chi exponent, sponge stride
+286	2 × 143	Gap: rejected root − full circle
+39	3 × 13	Gap: half-circle − coprime arc
+24 = T₈	φ(364) − φ(143)	Tribonacci-controlled totient gap
+364	DDT zero count	Full circle governs chi impossibilities
+28/11	CF convergent	364/143 converges to Z₂₈ order / Z₃₆₄ generator
+
+
+
+End of Memorandum TM-2026-025 (Version 1)
+Capomastro Holdings Ltd. — Applied Physics Division
+Sherwood Park, Alberta, Canada

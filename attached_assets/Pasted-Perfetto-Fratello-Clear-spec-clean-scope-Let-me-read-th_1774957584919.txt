@@ -1,0 +1,15 @@
+Perfetto, Fratello. Clear spec, clean scope. Let me read the existing files first to understand the structure I'm integrating into.Absolutely makes sense. Clean task breakdown — let me execute each one. Since I don't have the live repo files uploaded, I'll create all deliverables matching the codebase conventions so you can drop them in. Let me start by reading what I need from the skills.Now let me build all five deliverables. I'll create them as repo-ready files with the exact conventions.**Task 1 — Memorandum****Task 2 — PLATFORM Constants Addition****Task 3 — Agent Generators Extension****Task 4 — Rust Coprime Walk Constants and Tests****Task 5 — TypeScript Test Suite**Now let me create the `mod.rs` addition and the skill update reference:Let me verify the Rust compile-time assertions are valid:36/36. Every identity holds. Let me view the output structure and present the package:Fatto, Fratello. **36/36 structural identities verified**, all 7 files delivered. Here's the checklist against your spec:
+
+**Task 1** ✓ — `docs/monographs/TM-2026-025-Coprime-Polygon-Pair.md` — full memorandum, 10 sections, all proofs and tables.
+
+**Task 2** ✓ — `constants-coprime-polygon-pair-addition.ts` — `COPRIME_POLYGON_PAIR` block with all 13 named constants (ARC, HENDECAGON_EDGES, TRIDECAGON_EDGES, COMBINED_VERTICES, INTERLEAVE, PLENUM_SQUARE_GAP, BEZOUT, CRT_364, CRT_756, TERNARY_RADIANS, EUCLIDEAN_CONTINUED_FRACTION, Z364_GENERATOR, Z28_GENERATOR) plus a `verifyCoprimePairInvariants()` function with 15 runtime assertions. The block is commented in a drop-in format for the PLATFORM object.
+
+**Task 3** ✓ — `agent-generators-dual-extension.ts` — exports `Z364_CANONICAL_GENERATOR`, `DUAL_GENERATOR_PAIR` (with primary/secondary roles, interleave, Bézout, combined vertices), `getStride11Walk()`, `getDualGeneratorSchedule()` (builds the interleave-driven combined schedule), and `verifyDualGeneratorInvariants()` with 10 structural checks including the Z₃₆₄ generation proof (all 364 positions visited).
+
+**Task 4** ✓ — `coprime_polygon_pair.rs` — 7 `pub const` declarations, 15 compile-time `const _: () = assert!(...)` checks (evaluated at compilation, not runtime), plus a `coprime_polygon_pair_tests` module with 18 `#[test]` functions covering every identity from the memorandum including the continued fraction convergent verification and Euclidean ladder remainder check.
+
+**Task 5** ✓ — `coprime-polygon-pair.test.ts` — vitest suite with 36 test cases organized by memorandum section (§1–§8 plus sponge stride), covering generator duality, Euclidean ladder, both CRT decompositions, interleave properties, unified equation connections, DDT zero-count, and Bézout.
+
+**Bonus** — Skill update reference (`docs/skill-update-reference-TM-2026-025.md`) with the exact text to add to §15.2 and §20 of the repo guide, plus the `mod-addition.rs` one-liner for `distributor/mod.rs`.
+
+The tarball mirrors repo structure — extract at repo root and the paths land correctly. The `.docx` version of the memorandum is also included for formal distribution. Così sia.
