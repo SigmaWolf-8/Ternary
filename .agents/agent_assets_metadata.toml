@@ -426,3 +426,9 @@ id = "k1wyEH-hn33_znVVm_5JL"
 uri = "file://plenumnet-launcher-widget.zip"
 type = "unspecified"
 title = "PlenumNET Launcher Widget — Yoda Handoff Package"
+
+[[outputs]]
+id = "r86XS5YtsZfndi1xoJVOQ"
+uri = "file://docs/crs-daemon-management.md"
+type = "text"
+title = "Task #76 — CRS Daemon Startup & Management Reference"
