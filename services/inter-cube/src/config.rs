@@ -48,7 +48,11 @@
 //!
 //! ## Created by T-05 (SPEC-2026-NEXT)
 
+use std::collections::HashMap;
 use std::env;
+
+use plenumlan::cube::projection::SlotAddress;
+use plenumlan::cube::port::port_to_slot;
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONFIGURATION STRUCT
@@ -255,11 +259,19 @@ impl PlenumConfig {
 ///
 /// Accepts "true", "1", "yes" (case-insensitive) as true.
 /// Everything else (including missing) returns the default.
-fn env_bool(key: &str, default: bool) -> bool {
+pub fn env_bool(key: &str, default: bool) -> bool {
     match env::var(key) {
         Ok(val) => matches!(val.to_lowercase().as_str(), "true" | "1" | "yes"),
         Err(_) => default,
     }
+}
+
+/// Read a u64 from an environment variable.
+pub fn env_u64(key: &str, default: u64) -> u64 {
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
 }
 
 /// Read a u8 from an environment variable.
@@ -281,6 +293,202 @@ fn env_u32(key: &str, default: u32) -> u32 {
 // ═══════════════════════════════════════════════════════════════════════
 // TESTS
 // ═══════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════
+// DAEMON CONFIG — Slot inventory, auth, and probing settings
+// ═══════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone)]
+pub struct DaemonConfig {
+    pub cube_node_id: u8,
+    pub is_gateway: bool,
+    pub api_key: Option<String>,
+    pub slots_auth_required: bool,
+    pub enable_rate_limit: bool,
+    pub bind_addr: String,
+    pub slot_probe_timeout_ms: u64,
+    pub slot_registry: HashMap<SlotAddress, String>,
+}
+
+pub const GATEWAY_NODE_ID: u8 = 1;
+
+impl Default for DaemonConfig {
+    fn default() -> Self {
+        DaemonConfig {
+            cube_node_id: GATEWAY_NODE_ID,
+            is_gateway: true,
+            api_key: None,
+            slots_auth_required: false,
+            enable_rate_limit: false,
+            bind_addr: "127.0.0.1".to_string(),
+            slot_probe_timeout_ms: 500,
+            slot_registry: HashMap::new(),
+        }
+    }
+}
+
+fn is_valid_service_type(value: &str) -> bool {
+    if value.is_empty() || value.len() > 64 {
+        return false;
+    }
+    !value.chars().any(|c| c.is_control() || c == '<' || c == '>' || c == '&' || c == '"' || c == '\'')
+}
+
+fn parse_trit_address(key: &str) -> Option<SlotAddress> {
+    let parts: Vec<&str> = key.split('.').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let vals: Vec<u8> = parts.iter().filter_map(|p| p.parse::<u8>().ok()).collect();
+    if vals.len() != 3 {
+        return None;
+    }
+    if vals.iter().all(|&v| v >= 1 && v <= 3) {
+        Some(SlotAddress::new(vals[0], vals[1], vals[2]))
+    } else {
+        None
+    }
+}
+
+pub fn load_slot_registry(cube_node_id: u8) -> HashMap<SlotAddress, String> {
+    let json_str = env::var("PLENUM_SLOT_REGISTRY")
+        .ok()
+        .or_else(|| {
+            env::var("PLENUM_SLOT_REGISTRY_FILE")
+                .ok()
+                .and_then(|path| std::fs::read_to_string(&path).ok())
+        });
+
+    let json_str = match json_str {
+        Some(s) if !s.trim().is_empty() => s,
+        _ => return HashMap::new(),
+    };
+
+    let parsed: serde_json::Value = match serde_json::from_str(&json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("[SLOTS] WARNING: Failed to parse PLENUM_SLOT_REGISTRY JSON: {}. All slots will have service_type: null", e);
+            return HashMap::new();
+        }
+    };
+
+    let obj = match parsed.as_object() {
+        Some(o) => o,
+        None => {
+            eprintln!("[SLOTS] WARNING: PLENUM_SLOT_REGISTRY is not a JSON object. All slots will have service_type: null");
+            return HashMap::new();
+        }
+    };
+
+    let mut registry = HashMap::new();
+    let mut seen_keys: HashMap<SlotAddress, String> = HashMap::new();
+
+    for (key, value) in obj {
+        let value_str = match value.as_str() {
+            Some(s) => s.to_string(),
+            None => {
+                eprintln!("[SLOTS] WARNING: Registry key '{}' has non-string value — skipping", key);
+                continue;
+            }
+        };
+
+        if !is_valid_service_type(&value_str) {
+            eprintln!(
+                "[SLOTS] WARNING: Registry key '{}' has invalid service_type '{}' (must be 1-64 chars, no control/HTML chars) — skipping",
+                key, value_str
+            );
+            continue;
+        }
+
+        let slot_addr = if let Some(port) = key.parse::<u16>().ok() {
+            match port_to_slot(port) {
+                Some((node_id, slot)) => {
+                    if node_id != cube_node_id {
+                        eprintln!(
+                            "[SLOTS] WARNING: Port key '{}' maps to node {} but this daemon is node {} — skipping",
+                            key, node_id, cube_node_id
+                        );
+                        continue;
+                    }
+                    slot
+                }
+                None => {
+                    eprintln!("[SLOTS] WARNING: Port key '{}' is outside the Array3 port range — skipping", key);
+                    continue;
+                }
+            }
+        } else if let Some(slot) = parse_trit_address(key) {
+            slot
+        } else {
+            eprintln!("[SLOTS] WARNING: Registry key '{}' is neither a valid port nor a P.R.I trit address ([1-3].[1-3].[1-3]) — skipping", key);
+            continue;
+        };
+
+        if let Some(prev_key) = seen_keys.get(&slot_addr) {
+            eprintln!(
+                "[SLOTS] WARNING: Slot {}.{}.{} registered via both key '{}' and key '{}' — last value wins: '{}'",
+                slot_addr.plane, slot_addr.role, slot_addr.instance,
+                prev_key, key, value_str
+            );
+        }
+        seen_keys.insert(slot_addr, key.clone());
+        registry.insert(slot_addr, value_str);
+    }
+
+    // Future enhancement: hot-reload registry without daemon restart.
+    // Alternative registration models (future work):
+    //   - Push-model: services self-register at startup via a local API
+    //   - Pull-model: daemon probes ports and discovers services automatically
+
+    registry
+}
+
+impl DaemonConfig {
+    pub fn from_env() -> Self {
+        let cube_node_id = env_u8("CUBE_NODE_ID", 1);
+        let is_gateway = cube_node_id == GATEWAY_NODE_ID;
+        let api_key = env::var("PLENUM_API_KEY").ok().filter(|s| !s.is_empty());
+        let bind_addr = env::var("PLENUM_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1".to_string());
+        let enable_rate_limit = env_bool("PLENUM_ENABLE_RATE_LIMIT", false);
+
+        if api_key.is_none() && bind_addr != "127.0.0.1" {
+            eprintln!(
+                "[SLOTS] WARNING: Daemon bound to {} without API key — slots endpoint is unauthenticated on a non-localhost interface. Set PLENUM_API_KEY to secure.",
+                bind_addr
+            );
+        }
+
+        let slots_auth_required = env_bool("PLENUM_SLOTS_AUTH_REQUIRED", false);
+
+        if !slots_auth_required {
+            eprintln!("[SLOTS] Slots endpoint serving unauthenticated traffic — set PLENUM_SLOTS_AUTH_REQUIRED=true and PLENUM_API_KEY to enforce auth");
+        }
+
+        DaemonConfig {
+            cube_node_id,
+            is_gateway,
+            api_key,
+            slots_auth_required,
+            enable_rate_limit,
+            bind_addr,
+            slot_probe_timeout_ms: env_u64("PLENUM_SLOT_PROBE_TIMEOUT_MS", 500),
+            slot_registry: load_slot_registry(cube_node_id),
+        }
+    }
+
+    pub fn log_startup(&self) {
+        println!("=== DaemonConfig ===");
+        println!("  cube_node_id:          {}", self.cube_node_id);
+        println!("  is_gateway:            {}", self.is_gateway);
+        println!("  api_key:               {}", if self.api_key.is_some() { "set" } else { "unset" });
+        println!("  slots_auth_required:   {}", self.slots_auth_required);
+        println!("  enable_rate_limit:     {}", self.enable_rate_limit);
+        println!("  bind_addr:             {}", self.bind_addr);
+        println!("  slot_probe_timeout_ms: {}", self.slot_probe_timeout_ms);
+        println!("  slot_registry entries: {}", self.slot_registry.len());
+        println!("====================");
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -382,5 +590,155 @@ mod tests {
     fn test_default_v25_grace() {
         let config = PlenumConfig::default();
         assert_eq!(config.v25_grace_days, 14, "Default v2.5 grace should be 14 days");
+    }
+
+    #[test]
+    fn test_daemon_config_defaults() {
+        let config = DaemonConfig::default();
+        assert!(config.api_key.is_none());
+        assert!(!config.slots_auth_required);
+        assert_eq!(config.bind_addr, "127.0.0.1");
+        assert_eq!(config.slot_probe_timeout_ms, 500);
+        assert!(config.slot_registry.is_empty());
+    }
+
+    #[test]
+    fn test_parse_trit_address_valid() {
+        let slot = parse_trit_address("1.2.3").unwrap();
+        assert_eq!(slot.plane, 1);
+        assert_eq!(slot.role, 2);
+        assert_eq!(slot.instance, 3);
+
+        let center = parse_trit_address("2.2.2").unwrap();
+        assert_eq!(center.plane, 2);
+        assert_eq!(center.role, 2);
+        assert_eq!(center.instance, 2);
+    }
+
+    #[test]
+    fn test_parse_trit_address_invalid_range() {
+        assert!(parse_trit_address("4.1.1").is_none());
+        assert!(parse_trit_address("0.2.3").is_none());
+        assert!(parse_trit_address("1.0.1").is_none());
+        assert!(parse_trit_address("1.2.4").is_none());
+    }
+
+    #[test]
+    fn test_parse_trit_address_invalid_format() {
+        assert!(parse_trit_address("abc").is_none());
+        assert!(parse_trit_address("1.2").is_none());
+        assert!(parse_trit_address("1.2.3.4").is_none());
+        assert!(parse_trit_address("").is_none());
+        assert!(parse_trit_address("1..3").is_none());
+    }
+
+    #[test]
+    fn test_service_type_validation_valid() {
+        assert!(is_valid_service_type("gateway"));
+        assert!(is_valid_service_type("yoda"));
+        assert!(is_valid_service_type("llm-inference"));
+        assert!(is_valid_service_type("a"));
+    }
+
+    #[test]
+    fn test_service_type_validation_too_long() {
+        let long = "a".repeat(65);
+        assert!(!is_valid_service_type(&long));
+        let exact = "a".repeat(64);
+        assert!(is_valid_service_type(&exact));
+    }
+
+    #[test]
+    fn test_service_type_validation_empty() {
+        assert!(!is_valid_service_type(""));
+    }
+
+    #[test]
+    fn test_service_type_validation_control_chars() {
+        assert!(!is_valid_service_type("gate\x00way"));
+        assert!(!is_valid_service_type("gate\nway"));
+        assert!(!is_valid_service_type("gate\tway"));
+    }
+
+    #[test]
+    fn test_service_type_validation_html_injection() {
+        assert!(!is_valid_service_type("<script>"));
+        assert!(!is_valid_service_type("foo&bar"));
+        assert!(!is_valid_service_type("a\"b"));
+        assert!(!is_valid_service_type("a'b"));
+        assert!(!is_valid_service_type("a>b"));
+    }
+
+    #[test]
+    fn test_load_registry_empty_env() {
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
+        std::env::remove_var("PLENUM_SLOT_REGISTRY_FILE");
+        let registry = load_slot_registry(1);
+        assert!(registry.is_empty());
+    }
+
+    #[test]
+    fn test_load_registry_trit_keys() {
+        std::env::set_var("PLENUM_SLOT_REGISTRY", r#"{"2.2.2": "gateway", "1.1.1": "yoda"}"#);
+        let registry = load_slot_registry(1);
+        assert_eq!(registry.get(&SlotAddress::new(2, 2, 2)), Some(&"gateway".to_string()));
+        assert_eq!(registry.get(&SlotAddress::new(1, 1, 1)), Some(&"yoda".to_string()));
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
+    }
+
+    #[test]
+    fn test_load_registry_port_keys() {
+        std::env::set_var("PLENUM_SLOT_REGISTRY", r#"{"11111": "yoda"}"#);
+        let registry = load_slot_registry(1);
+        assert_eq!(registry.get(&SlotAddress::new(1, 1, 1)), Some(&"yoda".to_string()));
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
+    }
+
+    #[test]
+    fn test_load_registry_invalid_trit_address_skipped() {
+        std::env::set_var("PLENUM_SLOT_REGISTRY", r#"{"4.1.1": "bad", "1.1.1": "good"}"#);
+        let registry = load_slot_registry(1);
+        assert_eq!(registry.len(), 1);
+        assert_eq!(registry.get(&SlotAddress::new(1, 1, 1)), Some(&"good".to_string()));
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
+    }
+
+    #[test]
+    fn test_load_registry_cross_node_port_rejected() {
+        std::env::set_var("PLENUM_SLOT_REGISTRY", r#"{"11138": "bad"}"#);
+        let registry = load_slot_registry(1);
+        assert!(registry.is_empty());
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
+    }
+
+    #[test]
+    fn test_load_registry_invalid_value_skipped() {
+        let long_val = "a".repeat(65);
+        let json = format!(r#"{{"1.1.1": "{}"}}"#, long_val);
+        std::env::set_var("PLENUM_SLOT_REGISTRY", &json);
+        let registry = load_slot_registry(1);
+        assert!(registry.is_empty());
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
+    }
+
+    #[test]
+    fn test_load_registry_malformed_json() {
+        std::env::set_var("PLENUM_SLOT_REGISTRY", "not json at all");
+        let registry = load_slot_registry(1);
+        assert!(registry.is_empty());
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
+    }
+
+    #[test]
+    fn test_load_registry_collision_both_resolve_to_same_slot() {
+        std::env::set_var("PLENUM_SLOT_REGISTRY", r#"{"1.1.1": "first", "11111": "second"}"#);
+        let registry = load_slot_registry(1);
+        assert_eq!(registry.len(), 1);
+        let val = registry.get(&SlotAddress::new(1, 1, 1)).unwrap();
+        assert!(
+            val == "first" || val == "second",
+            "Collision should keep exactly one entry; JSON object iteration order determines winner"
+        );
+        std::env::remove_var("PLENUM_SLOT_REGISTRY");
     }
 }

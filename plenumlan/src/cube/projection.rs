@@ -21,7 +21,7 @@ use super::constants::{CLASSIFICATION_DIMS, CUBE_DIMS, DIMS_PER_GROUP};
 pub type Trit = u8;
 
 /// 3-trit slot address in Rep C {1, 2, 3}. Index 0 = plane, 1 = role, 2 = instance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SlotAddress {
     pub plane: Trit,    // Rep C: 1=Data, 2=Control, 3=Management
     pub role: Trit,     // Rep C: 1=Primary, 2=Secondary, 3=Tertiary

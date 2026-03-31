@@ -94,6 +94,7 @@
 //! - Wire protocol carries femtosecond timestamps on all messages
 
 pub mod cube_addr;
+pub mod config;
 pub mod glb;
 pub mod overlay;
 pub mod crs;

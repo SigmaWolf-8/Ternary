@@ -766,15 +766,19 @@ async fn run_crs_mode() {
     let crs_yoda_relay_tx: YodaRelaySender = std::sync::Arc::new(tokio::sync::Mutex::new(None));
     let crs_yoda_waiters: YodaResponseWaiters = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
 
+    let port = api_port();
+    let p_port = peer_port();
+    let t_port = terminal_port();
+    let slots_bind = shared_state.daemon_config.bind_addr.clone();
+
     let app = crs_router(shared_state)
         .merge(vm_routes)
         .merge(inter_cube::cluster_shell::cluster_shell_router(cluster_shell.clone()))
         .merge(yoda_router(crs_yoda_verifier.clone(), crs_yoda_relay_tx.clone(), crs_yoda_waiters.clone()));
-
-    let port = api_port();
-    let p_port = peer_port();
-    let t_port = terminal_port();
-    let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+    let listen_addr: SocketAddr = format!("{}:{}", slots_bind, port).parse().unwrap_or_else(|_| {
+        eprintln!("[CRS] WARNING: Invalid PLENUM_BIND_ADDR '{}', falling back to 127.0.0.1", slots_bind);
+        format!("127.0.0.1:{}", port).parse().unwrap()
+    });
     if let Some(role) = role_label() {
         println!("  Role:          {}", role);
     }
@@ -823,7 +827,10 @@ async fn run_crs_mode() {
         }
     };
 
-    axum::serve(listener, app)
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
         .await
         .expect("Server error");
 }
@@ -1262,14 +1269,18 @@ async fn run_cube_mode() {
 
     let cluster_routes = inter_cube::cluster_shell::cluster_shell_router(cluster_shell);
 
+    let port = api_port();
+    let t_port = terminal_port();
+    let slots_bind = shared_state.daemon_config.bind_addr.clone();
+
     let app = cube_router(shared_state)
         .merge(vm_routes)
         .merge(cluster_routes)
         .merge(yoda_router(yoda_verifier, yoda_relay_tx, yoda_waiters));
-
-    let port = api_port();
-    let t_port = terminal_port();
-    let listen_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+    let listen_addr: SocketAddr = format!("{}:{}", slots_bind, port).parse().unwrap_or_else(|_| {
+        eprintln!("[CUBE] WARNING: Invalid PLENUM_BIND_ADDR '{}', falling back to 127.0.0.1", slots_bind);
+        format!("127.0.0.1:{}", port).parse().unwrap()
+    });
 
     let terminal_mux = pty_mux::new_shared_mux(16);
     let term_bind_addr = env::var("CUBE_TERMINAL_BIND").unwrap_or_else(|_| "127.0.0.1".to_string());
@@ -1305,7 +1316,10 @@ async fn run_cube_mode() {
         }
     };
 
-    axum::serve(listener, app)
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
         .await
         .expect("Server error");
 }
