@@ -1,0 +1,22 @@
+The API list would be exactly what I need. That's the fastest path — I can map each monitor field directly to a real endpoint.
+
+Before you pull that list, here are the specific questions I need answered. If you can annotate the API list with these, I can wire everything in one pass:
+
+**For each endpoint, I need to know:**
+- The HTTP method and path
+- What it returns (even a rough shape — JSON keys, not full schema)
+- Whether it's per-node, per-slot, or cluster-wide
+
+**Specific data I'm looking for:**
+
+For the **tunnel grid** (the 27 slots per node), I need an endpoint that tells me which slots exist and what's running in each. Something that returns the Rep C address, service type, and status for every slot on a node. If there's no single endpoint that does this, I need to know which combination of calls builds that picture.
+
+For the **health metrics** per slot (the detail panel when you click a tunnel), I need to know where each of these comes from: uptime, latency/RTT, load percentage, heartbeat interval, and TL-DSA signing event count. These might come from different endpoints — that's fine, I just need to know which ones.
+
+For the **inter-cube relay** status, I need to know how Node 1 discovers that Node 2 and Node 3 are connected. Is there an endpoint that shows relay peers and their connectivity state?
+
+For **YODA and LLM** specifically — the monitor currently shows them as services in a slot, but they might report their own metrics (active agents, task queue depth, tokens/sec, model loaded). Is there a YODA status endpoint and an LLM/llama-server health endpoint?
+
+And one architecture question: **WebSocket or polling?** The relay already uses WSS at `wss://plenumnet.replit.app/ws/relay`. Is there a monitoring channel on that socket, or should the monitor poll REST endpoints on a timer? WebSocket would give us real-time pulse animations that match actual traffic; polling would update every 1-2 seconds.
+
+If you dump the full API route list here, I'll map every field in the monitor to its real source and build the live-wired version. Anything the API doesn't currently expose, I'll flag as "needs a new endpoint" so you know what to add on the Rust side.

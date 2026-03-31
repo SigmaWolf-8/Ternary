@@ -1,0 +1,416 @@
+# PlenumNET Array3 Monitor — New Endpoint Specifications
+
+**Document:** TM-2026-XXX  
+**Author:** Capomastro Holdings Ltd., Applied Physics Division  
+**Date:** March 31, 2026  
+**Status:** Ready for Implementation  
+**Codebase:** SigmaWolf-8/Ternary — `services/inter-cube/`
+
+---
+
+## Overview
+
+Five new endpoints are required to fully wire the Array3 Interactive Monitor to live infrastructure. Each spec includes the HTTP route, Axum handler signature, response struct, JSON shape, and placement within the existing crate structure.
+
+**Priority order:**
+1. **Slot Inventory** — unlocks the entire tunnel grid (highest impact)
+2. **Relay Throughput** — enables live traffic visualization on relay tubes
+3. **TL-DSA Signing Stats** — security audit visibility per slot
+4. **YODA Agent Metrics** — multi-agent orchestration monitoring
+5. **LLM Detailed Health** — inference performance visibility
+
+### Deployment Agnosticism
+
+All values in these specs are runtime-derived. Nothing is hardcoded.
+
+- **Base URLs** are resolved from node configuration — the monitor discovers them via the relay's `cluster-health` response, which provides each node's `endpoint` and `port`.
+- **Ports** are computed from `BASE_PORT` + offsets defined in the node's configuration (constants in `plenumlan/src/cube/constants.rs`). The monitor never assumes specific port numbers.
+- **Node addresses** are the node's own identity (the 13-trit Rep C address from its identity file). The monitor reads these from API responses, never from constants.
+- **Service types** are auto-discovered from whatever is actually running. If a new service type appears in slot data, the monitor picks it up automatically — no code change required.
+- **Agent counts, model names, GPU hardware** — all read from the endpoint at runtime. Zero assumptions about specific hardware, model files, or pool sizes.
+
+The JSON examples below use placeholder notation (`<description>`) for all runtime-derived values.
+
+---
+
+## Endpoint 1: Slot Inventory
+
+**Why:** The monitor currently uses mock data for the 27-slot grid. This endpoint replaces all mock data with the real slot topology per node — which tunnels exist, what's running in each, and their status.
+
+### Route
+
+```
+GET /api/salvi/inter-cube/slots
+```
+
+**Scope:** Per-node (served by each node's daemon on its configured `CUBE_API_PORT`)
+
+### Axum Handler Signature
+
+```rust
+// File: services/inter-cube/src/routes/slots.rs (new file)
+
+use axum::{extract::State, Json};
+use serde::Serialize;
+
+#[derive(Serialize, Clone)]
+pub struct SlotInfo {
+    /// Rep C address as [trit1, trit2, trit3], each in {1,2,3}
+    pub rep_c: [u8; 3],
+    
+    /// Derived port for this slot (BASE_PORT + computed offset)
+    /// The monitor displays this but never computes it — the daemon owns 
+    /// the port derivation logic
+    pub port: u16,
+    
+    /// Slot index within the cube (0..SLOTS_PER_NODE-1)
+    pub slot_index: u8,
+    
+    /// Service type occupying this tunnel, or null if empty.
+    /// Free-form string — the monitor auto-discovers unique values and
+    /// builds its filter dropdown from them. No hardcoded type list.
+    pub service_type: Option<String>,
+    
+    /// Current status of the tunnel
+    pub status: SlotStatus,
+    
+    /// Whether this slot is the cluster's sole outbound gateway.
+    /// Determined by the daemon from its own role configuration.
+    pub is_primary_gateway: bool,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SlotStatus {
+    Online,
+    Degraded,
+    Offline,
+    Available,
+}
+
+#[derive(Serialize)]
+pub struct SlotInventoryResponse {
+    /// Node identity — from the node's own identity file
+    pub node_address: String,
+    pub node_address_dotted: String,
+    
+    /// The port this daemon is listening on (from config)
+    pub node_port: u16,
+    
+    /// All slots for this node (SLOTS_PER_NODE entries)
+    pub slots: Vec<SlotInfo>,
+    
+    /// Summary counts (derived from slots, included for convenience)
+    pub total_slots: u8,
+    pub occupied_slots: u8,
+    pub online_count: u8,
+    pub degraded_count: u8,
+    pub offline_count: u8,
+}
+
+pub async fn get_slot_inventory(
+    State(state): State<AppState>,
+) -> Json<SlotInventoryResponse> {
+    // Implementation:
+    // 1. Read SLOTS_PER_NODE from constants
+    // 2. Iterate all positions, derive port from BASE_PORT + offset
+    // 3. service_type = whatever string the service identifies as
+    // 4. is_primary_gateway from node role config + gateway position
+    // 5. status from CON module tunnel state or port health check
+    todo!()
+}
+```
+
+### Example JSON Response
+
+```json
+{
+  "node_address": "<from identity file>",
+  "node_address_dotted": "<dotted form>",
+  "node_port": "<CUBE_API_PORT>",
+  "total_slots": "<SLOTS_PER_NODE>",
+  "occupied_slots": "<count where service_type != null>",
+  "online_count": "<derived>",
+  "degraded_count": "<derived>",
+  "offline_count": "<derived>",
+  "slots": [
+    {
+      "rep_c": [1, 1, 1],
+      "port": "<BASE_PORT + offset>",
+      "slot_index": 0,
+      "service_type": "<runtime or null>",
+      "status": "online",
+      "is_primary_gateway": false
+    }
+  ]
+}
+```
+
+### Router Registration
+
+```rust
+.route("/api/salvi/inter-cube/slots", get(slots::get_slot_inventory))
+```
+
+### Monitor Mapping
+
+| Monitor Element | JSON Field | Notes |
+|---|---|---|
+| Tunnel grid per cube | `slots[]` | One cube per discovered node |
+| Wireframe color | `service_type` → color map | Unknown types get default color |
+| Service sphere | Present when `service_type != null` | |
+| Primary gateway | `is_primary_gateway == true` | Gold treatment |
+| Service dropdown | Unique `service_type` values | Auto-discovered |
+
+---
+
+## Endpoint 2: Relay Throughput
+
+**Why:** Relay tubes need real traffic data for pulse rate and brightness.
+
+### Route
+
+```
+GET /api/salvi/inter-cube/relay/throughput
+```
+
+**Scope:** Cluster-wide (relay server)
+
+### Response Struct
+
+```rust
+#[derive(Serialize)]
+pub struct RelayThroughputResponse {
+    pub total_messages_relayed: u64,
+    
+    /// Breakdown by message type — HashMap, not enum.
+    /// New types appear automatically.
+    pub by_type: HashMap<String, u64>,
+    
+    /// Messages in rolling window
+    pub messages_recent: u64,
+    
+    /// Window size so monitor can compute rate
+    pub window_seconds: u64,
+    
+    pub uptime_seconds: f64,
+    
+    /// Per-pair throughput — pairs discovered from traffic
+    pub pair_throughput: Vec<PairThroughput>,
+}
+
+#[derive(Serialize)]
+pub struct PairThroughput {
+    pub from_address: String,
+    pub to_address: String,
+    pub messages_recent: u64,
+    pub bytes_recent: u64,
+}
+```
+
+### Implementation Note
+
+Expose existing internal counters. Use `HashMap<String, u64>` for `by_type` so new message types appear without schema changes. Sliding-window ring buffer for `*_recent` fields.
+
+---
+
+## Endpoint 3: TL-DSA Signing Stats
+
+**Why:** Security audit visibility — which slots sign heavily, which have gone silent.
+
+### Route
+
+```
+GET /api/salvi/inter-cube/tldsa/stats
+```
+
+**Scope:** Per-node
+
+### Response Struct
+
+```rust
+#[derive(Serialize)]
+pub struct TlDsaStatsResponse {
+    pub total_signing_events: u64,
+    pub total_verification_events: u64,
+    
+    /// Only includes slots that have signed at least once.
+    /// Monitor infers 0 for missing slots.
+    pub per_slot: Vec<SlotSigningStats>,
+    
+    pub uptime_seconds: f64,
+    pub window_seconds: u64,
+}
+
+#[derive(Serialize)]
+pub struct SlotSigningStats {
+    pub rep_c: [u8; 3],
+    pub port: u16,
+    pub signing_events: u64,
+    pub verification_events: u64,
+    pub last_signed_at: Option<String>,
+    pub signings_recent: u64,
+}
+```
+
+### Implementation Note
+
+`AtomicU64` counter in the TL-DSA signing module. Per-slot breakdown requires passing the caller's Rep C address to the signing function. Same sliding-window pattern as Endpoint 2.
+
+---
+
+## Endpoint 4: YODA Agent Metrics
+
+**Why:** Agent pool status, task queue, QC pipeline for the YODA slot.
+
+### Route
+
+```
+GET /api/agents/status
+```
+
+**Scope:** YODA service (on its configured port)  
+**Auth:** Existing YODA auth guard
+
+### Response Struct
+
+```rust
+#[derive(Serialize)]
+pub struct AgentStatusResponse {
+    pub total_agents: u32,
+    pub active_agents: u32,
+    pub idle_agents: u32,
+    pub error_agents: u32,
+    pub task_queue_depth: u32,
+    pub tasks_in_qc: u32,
+    
+    /// Rounds from QC config — not hardcoded count
+    pub qc_rounds: Vec<QcRoundInfo>,
+    
+    pub approved_total: u64,
+    pub rejected_total: u64,
+    pub last_activity: Option<String>,
+    
+    /// Auto-discovered from agent metadata tags
+    pub capabilities: Vec<CapabilitySummary>,
+}
+
+#[derive(Serialize)]
+pub struct QcRoundInfo {
+    pub round_id: String,  // From QC config, not hardcoded
+    pub active_tasks: u32,
+}
+
+#[derive(Serialize)]
+pub struct CapabilitySummary {
+    pub capability: String,  // Free-form from agent tags
+    pub agent_count: u32,
+}
+```
+
+---
+
+## Endpoint 5: LLM Detailed Health
+
+**Why:** Telemetry gives status and model name but no performance metrics.
+
+### Route
+
+```
+GET /api/salvi/inter-cube/llm/health
+```
+
+**Scope:** Per-node
+
+### Response Struct
+
+```rust
+#[derive(Serialize)]
+pub struct LlmHealthResponse {
+    pub reachable: bool,
+    pub engine_status: String,       // Runtime string, not enum
+    pub active_model: Option<String>, // From backend
+    pub model_size_mb: Option<f64>,
+    pub context_length: Option<u32>,
+    pub tokens_per_second: Option<f64>,
+    pub total_tokens_generated: Option<u64>,
+    pub total_requests: Option<u64>,
+    pub avg_latency_ms: Option<f64>,
+    pub window_seconds: Option<u64>,
+    pub gpu_pct: Option<f64>,
+    pub gpu_name: Option<String>,    // Detected hardware
+    pub gpu_vram_used_mb: Option<f64>,
+    pub gpu_vram_total_mb: Option<f64>,
+    pub backend_port: u16,           // From config
+}
+```
+
+### Implementation Note
+
+Proxy to LLM backend's health/metrics endpoint, merge with telemetry. All `Option` fields return `null` if the backend doesn't report that metric. Monitor shows "—" for nulls. Never fabricate values.
+
+---
+
+## Design Principles
+
+1. **No hardcoded values.** Ports, addresses, model names, agent counts, service types, round names, capability tags — all runtime-derived.
+2. **No fixed enums on the monitor side.** `service_type`, `engine_status`, `capability` — all free-form strings. Monitor auto-discovers.
+3. **Nullable fields.** Every metric that might be unavailable is `Option<T>`. Monitor shows "—", never fabricates.
+4. **Rolling windows are self-describing.** `window_seconds` accompanies every `*_recent` field so the monitor computes rates correctly.
+5. **Rep C is the universal key.** All per-slot data keys on `rep_c`, not port numbers or indices.
+
+---
+
+## Implementation Checklist
+
+| # | Endpoint | Location | Priority | Est. LOC |
+|---|---|---|---|---|
+| 1 | `GET /slots` | `services/inter-cube/src/routes/slots.rs` | **P0** | ~120 |
+| 2 | `GET /relay/throughput` | Relay server | **P1** | ~60 |
+| 3 | `GET /tldsa/stats` | `services/inter-cube/src/routes/tldsa.rs` | **P1** | ~100 |
+| 4 | `GET /agents/status` | YODA crate | **P2** | ~80 |
+| 5 | `GET /llm/health` | `services/inter-cube/src/routes/llm.rs` | **P2** | ~90 |
+
+**Total:** ~450 LOC across 5 files
+
+---
+
+## Monitor Wiring Architecture
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                   Array3 Monitor (HTML)                   │
+│                                                          │
+│  Discovery (bootstrap):                                  │
+│    GET /relay/cluster-health → learn node addresses,     │
+│    ports, roles. Build cube layout from response.        │
+│                                                          │
+│  Real-time (WSS):                                        │
+│    wss://<relay-host>/ws/relay                           │
+│    ├── telemetry → CPU, RAM, GPU, uptime, LLM status    │
+│    ├── peers → connected nodes                           │
+│    └── peer-offline → node dropped                       │
+│                                                          │
+│  Structural (REST, polled):                              │
+│    GET /relay/cluster-health      (cluster topology)     │
+│    GET /relay/throughput          (relay traffic)         │
+│    GET /ops/status                (ops snapshot)          │
+│                                                          │
+│  Per-node (REST, via discovered addresses):              │
+│    GET /slots                     (tunnel grid)          │
+│    GET /con/stats                 (tunnel health)        │
+│    GET /tldsa/stats               (signing audit)        │
+│    GET /fts/status                (fault tolerance)      │
+│    GET /crs/stats                 (registration)         │
+│    GET /llm/health                (inference health)     │
+│                                                          │
+│  YODA (REST, on discovered YODA port):                   │
+│    GET /api/health                (alive check)          │
+│    GET /api/agents/status         (agent pool)           │
+│                                                          │
+│  Fallback:                                               │
+│    Missing endpoint → "—" + "Awaiting: GET /slots"       │
+│    Error/timeout → last good data + stale indicator      │
+│    Never fabricate data.                                 │
+└──────────────────────────────────────────────────────────┘
+```

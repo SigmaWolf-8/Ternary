@@ -1,0 +1,42 @@
+Unified Feedback List for #74 - Slot Inventory Endpoint
+1. Registry Loading & Validation
+
+Enhance collision/duplication warnings to include the conflicting keys/values for easier debugging (e.g., “Slot 2.2.2 registered via both trit '2.2.2' and port '11124' — last value wins”).
+
+2. Self-Referential Gateway Slot
+
+When hardcoding the gateway slot (2,2,2) as online / "Healthy" for the primary gateway, add a code comment that also mentions the risk of connection-pool exhaustion under high load (subtle but real gotcha with self-referential probing).
+
+3. Probe Timeout & Concurrency
+
+The 500ms default (PLENUM_SLOT_PROBE_TIMEOUT_MS) is reasonable.
+Optional future note: Consider documenting (or adding as future config) the distinction between per-probe connect timeout vs. overall timeout for extra precision.
+
+4. Auth Middleware Reusability
+
+Extract middleware construction into a reusable helper function, e.g. auth_middleware(config: &DaemonConfig) -> Option<Layer> (or similar). This keeps logic centralized and prevents copy-paste when adding future read endpoints (P1-P2).
+
+5. Logging
+
+The startup warning when !slots_auth_required is good.
+The per-source-IP hourly warning for unauthenticated requests is smart — ensure the rate-limiter keys on the real client IP (consider X-Forwarded-For if the daemon ever sits behind a proxy; for now localhost/non-local should be sufficient).
+
+6. Response Shape
+
+Summary counts (occupied, online, degraded, offline) are helpful for quick dashboard views.
+Optional: Consider adding a top-level node_id or cube_address field for clarity when the monitor aggregates multiple nodes (low priority since the monitor already knows the target node).
+
+7. Testing Surface
+
+Unit test the registry parser thoroughly (invalid trit addresses, out-of-range ports, cross-node port keys, value sanitization, key collisions).
+Integration test the concurrent probing path (mock TCP connect and /health responses).
+Explicitly test the gateway slot skip logic.
+Test both authentication modes (PLENUM_SLOTS_AUTH_REQUIRED = false and true) plus the associated warning paths.
+
+8. PR Review Checklist (Must-Haves)
+
+Use constant-time comparison for API key validation (subtle crate or ring::constant_time::verify_slices_are_equal — never ==).
+Confirm all 27 slot probes run truly concurrently (futures::join_all or tokio::JoinSet).
+Verify the gateway slot is properly skipped with the explanatory comment.
+Ensure registry validation exactly matches the documented rules in the ticket.
+Confirm clean warnings throughout and no information leakage in the 401 response (identical message for all failure cases).
