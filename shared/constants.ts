@@ -258,6 +258,114 @@ export const PLATFORM = {
     TERNARY_RADIANS: 11,
     EUCLIDEAN_CONTINUED_FRACTION: [2, 1, 1, 5] as const,
   },
+
+  REPUNITS: {
+    R3: 13,
+    R4: 40,
+    R5: 121,
+    R6: 364,
+  },
+
+  SQUARED_CIRCLE: {
+    AREA: 182,
+    SIDE_SQUARED: 182,
+    FACTORIZATION_A: 14,
+    FACTORIZATION_B: 13,
+    QUARTER_POINTS: [0, 91, 182, 273] as const,
+  },
+
+  POLYGON_CENTRAL_ANGLES: {
+    TRIANGLE: { N: 3, ANGLE_NUM: 364, ANGLE_DEN: 3 },
+    SQUARE: { N: 4, ANGLE: 91 },
+    PENTAGON: { N: 5, ANGLE_NUM: 364, ANGLE_DEN: 5 },
+    HEXAGON: { N: 6, ANGLE_NUM: 182, ANGLE_DEN: 3 },
+    HEPTAGON: { N: 7, ANGLE: 52 },
+    OCTAGON: { N: 8, ANGLE_NUM: 91, ANGLE_DEN: 2 },
+    NONAGON: { N: 9, ANGLE_NUM: 364, ANGLE_DEN: 9 },
+    DECAGON: { N: 10, ANGLE_NUM: 182, ANGLE_DEN: 5 },
+    HENDECAGON: { N: 11, ANGLE_NUM: 364, ANGLE_DEN: 11 },
+    DODECAGON: { N: 12, ANGLE_NUM: 91, ANGLE_DEN: 3 },
+    TRIDECAGON: { N: 13, ANGLE: 28 },
+  },
+
+  NODE_CENSUS: {
+    RIM_VERTICES: 58,
+    INTERIOR_INTERSECTIONS: 446,
+    TOTAL: 504,
+  },
+
+  SUPERHUB_ZONES: {
+    A: { ANGLE: 159.3, POLYGONS: [7, 11, 12, 13] as const, DISTANCE: 0.9743 },
+    B: { ANGLE: 204.7, POLYGONS: [7, 11, 12, 13] as const, DISTANCE: 0.9743 },
+    C: { ANGLE: 40.8, POLYGONS: [8, 11, 12, 13] as const, DISTANCE: 0.9699 },
+    D: { ANGLE: 323.2, POLYGONS: [8, 11, 12, 13] as const, DISTANCE: 0.9699 },
+    COMMON_POLYGONS: [11, 12, 13] as const,
+    DISCRIMINANT_POLYGON: 12,
+  },
+
+  TORUS_KNOTS: {
+    PRIMARY: { P: 7, Q: 11, CROSSINGS: 70 },
+    RED_RADIAN: { P: 7, Q: 13 },
+    GREEN_RADIAN: { P: 11, Q: 13 },
+    PI_RADIAN: { P: 13, Q: 14 },
+    FULL_CIRCLE_RADIAN: { P: 28, Q: 13 },
+    HAMILTONIAN_LENGTH: 1001,
+  },
+
+  BRIESKORN_SPHERE: {
+    EXPONENTS: [7, 11, 13] as const,
+    ORBIFOLD: {
+      NUMERATOR: -690,
+      DENOMINATOR: 1001,
+      PAIRWISE_PRODUCTS: [143, 91, 77] as const,
+      PAIRWISE_SUM: 311,
+      DECOMPOSITION_690: [650, 40] as const,
+    },
+    SYMMETRIC_POLYNOMIALS: {
+      E1: 31,
+      E2: 311,
+      E3: 1001,
+    },
+  },
+
+  UV_SPECTRAL: {
+    PRIMARY_BANDS: {
+      EUV: 91,
+      UVC: 182,
+      UVB: 286,
+      UVA: 364,
+    },
+    SECONDARY_INTEGERS: {
+      FAR_UVC_GERMICIDAL: 222,
+      EXCIMER_THERAPEUTIC: 308,
+      NARROWBAND_UVB: 311,
+    },
+    BAND_BOUNDARIES: {
+      EUV_UVC: 136,
+      UVC_UVB: 234,
+      UVB_UVA: 325,
+      UV_VISIBLE: 400,
+    },
+    EXACT_RATIOS: {
+      UVC_EUV: [2, 1] as const,
+      UVB_EUV: [22, 7] as const,
+      UVA_EUV: [4, 1] as const,
+      UVB_UVC: [11, 7] as const,
+      UVA_UVB: [14, 11] as const,
+    },
+    CENTER_CONSTANT: 111,
+    VACUUM_BIAS: 0.00194,
+    UNIVERSAL_BIAS: 0.00139,
+    GCD: 13,
+    RADIAN_MULTIPLIERS: [7, 14, 22, 28] as const,
+  },
+
+  ATMOSPHERIC_FILTER: {
+    EUV_91: { TRANSMISSION: 0, MECHANISM: "atomic ionization" },
+    UVC_182: { TRANSMISSION: 0, MECHANISM: "O₂ Schumann-Runge continuum" },
+    UVB_286: { TRANSMISSION: 0.004, MECHANISM: "O₃ Hartley band" },
+    UVA_364: { TRANSMISSION: 0.80, MECHANISM: "near-complete passage" },
+  },
 } as const;
 
 export type Platform = typeof PLATFORM;

@@ -12,6 +12,7 @@
 
 pub mod coprime_walk;
 pub mod coprime_polygon_pair;
+pub mod puv_spectral;
 pub mod z_router;
 pub mod sponge_rekey;
 
