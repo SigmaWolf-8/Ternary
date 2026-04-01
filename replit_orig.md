@@ -1,0 +1,108 @@
+# PlenumNET Framework Marketing Website
+
+## Overview
+PlenumNET is developing post-quantum internet solutions. This project creates a marketing website to showcase PlenumNET's quantum-resistant infrastructure, including the PlenumDB product with a compression demo and whitepaper management. It integrates payment processing and blockchain witnessing for secure, verifiable, and regulatory-compliant operations in quantum-resistant data and financial services. The project aims to position PlenumNET as a leader in next-generation internet solutions, offering unparalleled security and performance in the quantum-resistant internet domain.
+
+## User Preferences
+I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
+
+## System Architecture
+
+### Frontend
+The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui`, and Wouter, supporting light/dark modes. Key pages include a Landing Page, About, Contact, HPTP Timing API Demo, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub, CNSA 2.0 Compliance, TSA Time-Stamping Authority, Node Terminal, and an Admin Dashboard. It features a quantum-ternary simulator and FIPS 140-3 compliance checks.
+
+### Node Terminal + Array3 Cluster Shell + Ops Console
+A browser-accessible PTY terminal at `/terminal` provides interactive shell access via WebSocket. It is built with xterm.js (frontend) and node-pty (backend), featuring multiple concurrent sessions and a Cluster Shell mode for fanning out commands to Array3 peers. The terminal page doubles as a full production Ops Console with tabbed views for remote script execution (with approval gate + NinjaExec TL-DSA signing), live log tailing, system telemetry dashboards, and an operations timeline.
+
+### Daemon Remote Operations Channel
+The WebSocket relay serves as a full production ops channel with 7 capabilities: remote PowerShell script execution (with approval gate), live log tailing, system telemetry heartbeats (60s interval), small-file transfer (≤5 MB), chunked GGUF model transfer (>5 MB) with progress bar UI, GGUF model hot-swap with config persistence, and multi-operator RBAC. All authenticated operations require TL-DSA signatures from registered operators. Audit log written to `ops-audit.jsonl`. REST endpoints at `/api/ops/*` (status, audit, operators, enable, disable). Rust daemon module `ops_handler.rs` handles all 7 ops message types. Protocol defined in `shared/ops-protocol.ts` with 14 error codes and 3 permission scopes (full, exec-only, read-only). Telemetry uses real system metrics: Linux CPU via `/proc/stat` delta sampling in `spawn_blocking`, disk via `df`, OS version from `/etc/os-release`; Windows CPU via `Win32_Processor` WMI. Model hot-swap persists active model to `.plenumnet/active-model.json` and telemetry reports `active_model` + `llm_engine_status`. Chunked GGUF transfer has a full UI with progress bar, chunk-ack tracking, daemon-generated transfer ID handling, and cancel support.
+
+### Backend and Core Framework
+The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic, Femtosecond Timing, and Phase Encryption v3 (post-quantum, duplex-mode TL-Sponge-385-based GF(3) stream cipher). The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service. Security features include tiered rate limiting, CORS, Helmet.js, AES-256-GCM token encryption, input validation, hardened path sanitization, and API versioning.
+
+### Inter-Cube Infrastructure Services
+A 4-service system provides geometric routing across the 13D ternary cube network: Geometric Load Balancer (GLB), Cube Overlay Network (CON), Cube Registration Service (CRS), and Fault Tolerance Service (FTS). It is implemented as a Rust crate with TypeScript API routes. It features PT26-DSA native daemon identity with persistent encrypted MasterSecret, OS CSPRNG generation, address-bound TL-DSA-87 key derivation, and automatic radian-epoch key rotation.
+
+### Rust Kernel Architecture
+A Rust-based kernel provides core functionalities: Ternary Operations (GF(3) arithmetic), Femtosecond-precision Timing (HPTP), Phase Encryption, and a 3-Tier Security System. It includes Cryptographic Primitives (ternary hash, TL-KEM, TL-DSA, CNSA 2.0 compliance), a Torsion Network (N-dimensional torus topology, Ternary Transport/Transfer/DNS), and a Ternary Virtual Machine (176-opcode ISA, ternary addressing, three-ring privilege levels, quantum-ternary simulation, ternary-aware garbage collector). A Binary Compatibility Layer handles balanced ternary conversion and crypto interoperability.
+
+### Kernel Boot Infrastructure
+The kernel boots as a bare-metal binary for three architectures: x86_64, aarch64, and riscv64. It uses a 512MB linked-list allocator and initializes PlenumBrowser at full resolution after booting.
+
+### Plenum-Std Shim
+A standalone `#![no_std]` crate provides the full Rust `std` API surface mapped to kernel primitives, allowing `std`-dependent crates to compile transparently against the kernel.
+
+### PlenumBrowser Kernel Subsystem (Phase 1 — CPU Path)
+A browser engine built as kernel subsystem modules, implementing CPU rendering. This includes parsing (DOM/CSS types), layout (iterative Flexbox), scripting (cooperative JS executor), CPU rendering (framebuffer + sponge XOR encryption), tabs (isolation via kernel tasks), input (TIS-27 encoded key dispatch), networking (resource requests to z=0), mesh (540-node recursive polygon mesh), and color (PlenumColor mesh↔sRGB mapping).
+
+### z=0 Distributor
+This component implements the z-axis dome geometry, acting as an equatorial distributor plane. It uses a (7, 11, 13) coprime walk over 540 nodes for full coverage.
+
+### (11, 13) Coprime Polygon Pair — TM-2026-025
+The hendecagon (11) and tridecagon (13) inscribed in the 364° circle form a named structural element. Combined arc = 143° = 11 ternary radians. Generator Duality: 13 generates Z₂₈, 11 generates Z₃₆₄. CRT of 143: Z₃₆₄ → (3,3,0), Z₇₅₆ → (8,3) = (branch number, Rep C max). Combined vertices = 23. PlenumColor harmonics: ARC_COPRIME=286, ARC_SQRT_DISCRIMINANT=468, with ARC_BLUE=240=2×φ(143). Sources: `shared/constants.ts` → `PLATFORM.COPRIME_POLYGON_PAIR`, `shared/agent-generators.ts` → `DUAL_GENERATOR_PAIR`, `src/kernel/src/distributor/coprime_polygon_pair.rs`, `src/kernel/src/browser/color.rs`.
+
+### TIS-27 Keyboard Input
+Kernel-space TIS-27 encoding is used for keyboard input. Scancodes are encoded before buffering using a 54-trit sponge and decoded to Unicode inside the browser DOM handler.
+
+### XPlenum RISC-V Hardware Extension
+A custom RISC-V extension integrated with CVA6 provides 21 custom instructions and 12 custom CSRs for ternary security operations, PQC acceleration, and compliance.
+
+### TL-KEM — Ternary Lattice Key Encapsulation
+TL-KEM is a ternary-native equivalent of ML-KEM, providing IND-CCA2 secure key encapsulation at three security levels (TL-KEM-512, TL-KEM-768, TL-KEM-1024) based on Module-LWE over R_q.
+
+### Crypto Benchmark Suite
+A Criterion-based statistical benchmark suite covers all core cryptographic primitives: TIS-27, TLSponge-385, TL-DSA, TL-KEM, Phase Encryption v3, and raw sponge permutation.
+
+### Sponge Architecture
+TL-Sponge-385 provides 385-bit post-quantum security for signing, key derivation, FIPS validation, and document hashing, with implementations in TypeScript, Rust kernel, and Rust ternary-math. TL-Sponge-43 is used for TDNS identity derivation and TIS-27 for fast integrity checks.
+
+### TTC v4.2 Compression Pipeline
+File compression uses the TTC v4.2 native Rust engine via N-API. The pipeline includes domain analysis, ternary rANS, and GURFT fast-path, with frontend display of TTC metadata badges and round-trip verification using CRC32.
+
+### TDNS v2.5.0 — Ternary Domain Name System
+A standalone Rust crate implementing a 27-dimensional ontological addressing protocol with 54-trit dual-layer addressing. It uses TL-Sponge-43 for identity derivation and TIS-27 for wire packet integrity.
+
+### Tonal Diffusion System
+This system enables network-wide time synchronization using FM timing packets, a toroidal topology, and gradient-driven diffusion consensus.
+
+### RFC 3161 Time-Stamping Authority (TSA)
+A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161, featuring Merkle tamper-evident audit logs and dual-signature (RSA-4096 + TL-DSA-87).
+
+### Hedera HCS Witnessing
+Blockchain-based non-repudiation via Hedera Consensus Service for immutable, ordered, timestamped proof of PlenumNET operations.
+
+### API Key Management System
+A comprehensive system handles API key generation, validation, rotation, per-key rate limiting, and audit trails.
+
+### Security Middleware Stack
+Includes 4-tier rate limiting, CORS, Helmet.js security headers, AES-256-GCM token encryption, null-byte stripping, double URL-decode protection, and `execFile()`-only subprocess execution.
+
+### Capability-Based Security
+Authorization uses unforgeable, self-contained, bearer-verified capability tokens signed with TL-DSA.
+
+### Array3 Watchdog
+A Windows scheduled task monitors daemon services, LLM engines, and orphan processes, providing health checks, smart restarts, and log rotation.
+
+### PlenumNET App Installer Framework
+A manifest-driven MSI build system for packaging all PlenumNET Windows applications with consistent branding, system integration, and clean uninstall. Core components include a Rust CLI tool (`plenum-pack`) for generating MSI installers, a system tray launcher (`plenum-launcher`), and a UAC elevation helper.
+
+### NinjaExec — PlenumNET Local Signing Agent
+A standalone Rust binary (`ninja-exec`) that serves as the `ssh-agent` of PlenumNET. It holds the operator's TL-DSA-87 private key in an encrypted keystore and exposes a localhost-only HTTP signing API on `127.0.0.1:21027`. Core modules: signing engine (wraps TL-DSA from ternary-math), encrypted keystore (TLSponge-385-based passphrase encryption), HTTP API server (axum, `/sign`, `/verify`, `/pubkey`, `/status`, `/lock`, `/unlock`), confirmation system, audit log (JSONL), and CLI interface. Located in `ninja-exec/` with `plenum-app.toml` for the PlenumNET Installer Framework (#53).
+
+### Yoda Global Command — `y` Relay + Ctrl+Y Widget (Task #69)
+A universal `y` command prefix for operator-to-Yoda communication through the relay. Core module: `services/inter-cube/src/yoda_chat.rs` implements the `yoda_chat` / `yoda_response` message type pair with `PlenumNET-YODA-CHAT-v1` signing context (registered in ws_relay.rs Sponge Context String Registry), canonical JSON signing payload, 9-step daemon-side verification, replay protection (timestamp + per-session sequence), rate limiting (10 msgs/min per daemon Rep C address), and confidentiality-preserving audit trail with RFC 3339 timestamps. Three entry points: `yoda-cli/` (standalone `y` binary crate with NinjaExec signing, daemon `/health` + `/yoda/submit` API integration, `flock`-based session locking), Node Terminal integration (`plenumnet-builtin` message type), and `yoda-widget/` (Ctrl+Y desktop chat widget crate with `desktop` feature gate for tao+wry, headless default). Server-side handling in `server/index.ts` relay dispatch with rate limiting and timeout. Session-scoped response routing via `yoda_session_origins` map prevents response broadcast (security). Daemon HTTP API: `POST /yoda/submit` (axum, via `yoda_router()` merged into both CRS and cube mode routers) with synchronous response via `YodaResponseWaiters` (oneshot channels keyed by session ID, 30s timeout). All 14 error codes (DaemonNotRunning through ConcurrentAccess) with distinct exit codes and conversational-professional voice messages. Session management with 30-min inactivity timeout, `~/.plenumnet/yoda-session.id`, and concurrent access file locking. `y --doctor` diagnostic command with 8 structured `[OK]`/`[WARN]`/`[FAIL]` checks (daemon reachable, NinjaExec signing agent, NinjaExec unlocked, operator key registered via daemon registry query, data directory writable, clock synchronization, relay server clock drift, session file lock).
+
+### Brand Palette
+Dark mode primary (#0F0C0A bg, #4A9EF5 accent), light mode (#FAF8F6 bg, #2D7DD2 accent). Status: Active=#4A9EF5, Warning=#78828C, Inactive=#3D444B.
+
+## External Dependencies
+
+-   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).
+-   **Database**: PostgreSQL.
+-   **ORM**: Drizzle ORM.
+-   **API Gateway**: Kong Konnect.
+-   **Payment Gateways**: Stripe, Interac, various cryptocurrency platforms.
+-   **Message Queue**: BullMQ.
+-   **Blockchain Platforms**: Hedera Hashgraph Consensus Service (HCS), XRP Ledger (XRPL), Algorand.
+-   **Containerization**: Docker.
+-   **Cloud Deployment**: Render, Railway.
