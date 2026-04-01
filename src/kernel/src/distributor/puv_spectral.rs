@@ -326,8 +326,8 @@ mod tests {
         assert_eq!(scaled, 91 * 100_194);
     }
     #[test] fn vacuum_roundtrip() {
-        let scaled = plenum_to_vacuum_scaled(182);
-        let back = vacuum_to_plenum(scaled);
+        let vac = plenum_to_vacuum(182);
+        let back = vacuum_to_plenum(vac as u32);
         assert_eq!(back, 182);
     }
 

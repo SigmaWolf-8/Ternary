@@ -272,6 +272,8 @@ export const PLATFORM = {
     FACTORIZATION_A: 14,
     FACTORIZATION_B: 13,
     QUARTER_POINTS: [0, 91, 182, 273] as const,
+    INSCRIBED_CIRCLE_RADIUS_NUM: 91,
+    INSCRIBED_CIRCLE_RADIUS_DEN: 14,
   },
 
   POLYGON_CENTRAL_ANGLES: {
@@ -295,20 +297,20 @@ export const PLATFORM = {
   },
 
   SUPERHUB_ZONES: {
-    A: { ANGLE: 159.3, POLYGONS: [7, 11, 12, 13] as const, DISTANCE: 0.9743 },
-    B: { ANGLE: 204.7, POLYGONS: [7, 11, 12, 13] as const, DISTANCE: 0.9743 },
-    C: { ANGLE: 40.8, POLYGONS: [8, 11, 12, 13] as const, DISTANCE: 0.9699 },
-    D: { ANGLE: 323.2, POLYGONS: [8, 11, 12, 13] as const, DISTANCE: 0.9699 },
+    A: { ANGLE: 159.3, POLYGONS: [7, 11, 12, 13] as const, DISTANCE: 0.9743, X: -0.9400, Y: 0.3413 },
+    B: { ANGLE: 204.7, POLYGONS: [7, 11, 12, 13] as const, DISTANCE: 0.9743, X: -0.8851, Y: -0.4076 },
+    C: { ANGLE: 40.8, POLYGONS: [8, 11, 12, 13] as const, DISTANCE: 0.9699, X: 0.7353, Y: 0.6337 },
+    D: { ANGLE: 323.2, POLYGONS: [8, 11, 12, 13] as const, DISTANCE: 0.9699, X: 0.7776, Y: -0.5737 },
     COMMON_POLYGONS: [11, 12, 13] as const,
     DISCRIMINANT_POLYGON: 12,
   },
 
   TORUS_KNOTS: {
-    PRIMARY: { P: 7, Q: 11, CROSSINGS: 70 },
-    RED_RADIAN: { P: 7, Q: 13 },
-    GREEN_RADIAN: { P: 11, Q: 13 },
-    PI_RADIAN: { P: 13, Q: 14 },
-    FULL_CIRCLE_RADIAN: { P: 28, Q: 13 },
+    PRIMARY: { P: 7, Q: 11, CROSSINGS: 60 },
+    RED_RADIAN: { P: 7, Q: 13, CROSSINGS: 72 },
+    GREEN_RADIAN: { P: 11, Q: 13, CROSSINGS: 120 },
+    PI_RADIAN: { P: 13, Q: 14, CROSSINGS: 156 },
+    FULL_CIRCLE_RADIAN: { P: 28, Q: 13, CROSSINGS: 324 },
     HAMILTONIAN_LENGTH: 1001,
   },
 

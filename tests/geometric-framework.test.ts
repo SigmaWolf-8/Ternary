@@ -43,6 +43,10 @@ describe('TM-2026-017: Extended Geometric Framework', () => {
       expect(SC.QUARTER_POINTS[1]).toBe(91);
       expect(SC.QUARTER_POINTS[2]).toBe(182);
     });
+    it('inscribed circle radius = 91/14', () => {
+      expect(SC.INSCRIBED_CIRCLE_RADIUS_NUM).toBe(91);
+      expect(SC.INSCRIBED_CIRCLE_RADIUS_DEN).toBe(14);
+    });
   });
 
   describe('§4 Polygon Central Angles', () => {
@@ -85,6 +89,12 @@ describe('TM-2026-017: Extended Geometric Framework', () => {
     it('discriminant polygon = 12', () => expect(SH.DISCRIMINANT_POLYGON).toBe(12));
     it('A & B mirror (same distance)', () => expect(SH.A.DISTANCE).toBe(SH.B.DISTANCE));
     it('C & D mirror (same distance)', () => expect(SH.C.DISTANCE).toBe(SH.D.DISTANCE));
+    it('all zones have coordinates', () => {
+      [SH.A, SH.B, SH.C, SH.D].forEach(z => {
+        expect(z.X).toBeDefined();
+        expect(z.Y).toBeDefined();
+      });
+    });
   });
 
   describe('§10 Torus Knots', () => {
@@ -102,6 +112,13 @@ describe('TM-2026-017: Extended Geometric Framework', () => {
     });
     it('Hamiltonian = 7 × 11 × 13 = 1001', () => {
       expect(TK.HAMILTONIAN_LENGTH).toBe(7 * 11 * 13);
+    });
+    it('all families have crossing numbers', () => {
+      expect(TK.PRIMARY.CROSSINGS).toBe(60);
+      expect(TK.RED_RADIAN.CROSSINGS).toBe(72);
+      expect(TK.GREEN_RADIAN.CROSSINGS).toBe(120);
+      expect(TK.PI_RADIAN.CROSSINGS).toBe(156);
+      expect(TK.FULL_CIRCLE_RADIAN.CROSSINGS).toBe(324);
     });
   });
 });
