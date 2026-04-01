@@ -314,12 +314,14 @@ export const PLATFORM = {
 
   BRIESKORN_SPHERE: {
     EXPONENTS: [7, 11, 13] as const,
+    HOMOLOGY_SPHERE: true,
+    HYPERBOLIC_BASE: true,
     ORBIFOLD: {
       NUMERATOR: -690,
       DENOMINATOR: 1001,
       PAIRWISE_PRODUCTS: [143, 91, 77] as const,
       PAIRWISE_SUM: 311,
-      DECOMPOSITION_690: [650, 40] as const,
+      DECOMPOSITION_690: { ARC_ROOT: 650, REPUNIT_R4: 40 },
     },
     SYMMETRIC_POLYNOMIALS: {
       E1: 31,
@@ -356,15 +358,15 @@ export const PLATFORM = {
     CENTER_CONSTANT: 111,
     VACUUM_BIAS: 0.00194,
     UNIVERSAL_BIAS: 0.00139,
+    REDUCED_MASS_COMPONENT: 0.00055,
     GCD: 13,
     RADIAN_MULTIPLIERS: [7, 14, 22, 28] as const,
-  },
-
-  ATMOSPHERIC_FILTER: {
-    EUV_91: { TRANSMISSION: 0, MECHANISM: "atomic ionization" },
-    UVC_182: { TRANSMISSION: 0, MECHANISM: "O₂ Schumann-Runge continuum" },
-    UVB_286: { TRANSMISSION: 0.004, MECHANISM: "O₃ Hartley band" },
-    UVA_364: { TRANSMISSION: 0.80, MECHANISM: "near-complete passage" },
+    ATMOSPHERIC_FILTER: {
+      EUV_91: { TRANSMISSION: 0, MECHANISM: "atomic ionization" },
+      UVC_182: { TRANSMISSION: 0, MECHANISM: "O₂ Schumann-Runge continuum" },
+      UVB_286: { TRANSMISSION: 0.004, MECHANISM: "O₃ Hartley band" },
+      UVA_364: { TRANSMISSION: 0.80, MECHANISM: "near-complete passage" },
+    },
   },
 } as const;
 

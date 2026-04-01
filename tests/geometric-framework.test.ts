@@ -125,7 +125,7 @@ describe('TM-2026-026: UV Spectral Protocol', () => {
       expect(BS.ORBIFOLD.DENOMINATOR).toBe(1001);
     });
     it('690 = 650 + 40', () => {
-      const [a, b] = BS.ORBIFOLD.DECOMPOSITION_690;
+      const { ARC_ROOT: a, REPUNIT_R4: b } = BS.ORBIFOLD.DECOMPOSITION_690;
       expect(a + b).toBe(690);
       expect(a).toBe(650);
       expect(b).toBe(40);
@@ -214,7 +214,7 @@ describe('TM-2026-026: UV Spectral Protocol', () => {
   });
 
   describe('§5 Atmospheric Filter', () => {
-    const AF = PLATFORM.ATMOSPHERIC_FILTER;
+    const AF = PLATFORM.UV_SPECTRAL.ATMOSPHERIC_FILTER;
     it('EUV transmission = 0', () => expect(AF.EUV_91.TRANSMISSION).toBe(0));
     it('UVC transmission = 0', () => expect(AF.UVC_182.TRANSMISSION).toBe(0));
     it('UVB transmission ≈ 0.4%', () => expect(AF.UVB_286.TRANSMISSION).toBeCloseTo(0.004, 3));
@@ -247,6 +247,33 @@ describe('TM-2026-026: UV Spectral Protocol', () => {
     });
     it('Node census total = 504', () => {
       expect(PLATFORM.NODE_CENSUS.TOTAL).toBe(504);
+    });
+    it('unified equation: 182 + 650 = 832', () => {
+      const area = PLATFORM.SQUARED_CIRCLE.AREA;
+      const arc_root = PLATFORM.BRIESKORN_SPHERE.ORBIFOLD.DECOMPOSITION_690.ARC_ROOT;
+      expect(area + arc_root).toBe(832);
+    });
+    it('unified equation: 182 × 650 = 118300', () => {
+      const area = PLATFORM.SQUARED_CIRCLE.AREA;
+      const arc_root = PLATFORM.BRIESKORN_SPHERE.ORBIFOLD.DECOMPOSITION_690.ARC_ROOT;
+      expect(area * arc_root).toBe(118300);
+    });
+    it('BRIESKORN_SPHERE is homology sphere', () => {
+      expect(PLATFORM.BRIESKORN_SPHERE.HOMOLOGY_SPHERE).toBe(true);
+    });
+    it('BRIESKORN_SPHERE has hyperbolic base', () => {
+      expect(PLATFORM.BRIESKORN_SPHERE.HYPERBOLIC_BASE).toBe(true);
+    });
+    it('DECOMPOSITION_690: ARC_ROOT + REPUNIT_R4 = 690', () => {
+      const d = PLATFORM.BRIESKORN_SPHERE.ORBIFOLD.DECOMPOSITION_690;
+      expect(d.ARC_ROOT + d.REPUNIT_R4).toBe(690);
+    });
+    it('UV_SPECTRAL.REDUCED_MASS_COMPONENT defined', () => {
+      expect(PLATFORM.UV_SPECTRAL.REDUCED_MASS_COMPONENT).toBeCloseTo(0.00055, 5);
+    });
+    it('ATMOSPHERIC_FILTER nested inside UV_SPECTRAL', () => {
+      expect(PLATFORM.UV_SPECTRAL.ATMOSPHERIC_FILTER).toBeDefined();
+      expect(PLATFORM.UV_SPECTRAL.ATMOSPHERIC_FILTER.EUV_91.TRANSMISSION).toBe(0);
     });
   });
 });

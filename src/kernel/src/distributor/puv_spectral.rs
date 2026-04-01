@@ -131,23 +131,33 @@ impl PuvBand {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Plenum ↔ Vacuum wavelength conversion (integer-scaled to avoid floats)
+// Plenum ↔ Vacuum wavelength conversion
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-/// Convert plenum wavelength (integer nm) to vacuum wavelength (scaled ×100_000).
+/// Vacuum bias as ratio: VACUUM_BIAS_NUM / VACUUM_BIAS_DEN = 0.00194.
+const BIAS_FACTOR_NUM: u64 = (VACUUM_BIAS_DEN + VACUUM_BIAS_NUM) as u64;
+const BIAS_FACTOR_DEN: u64 = VACUUM_BIAS_DEN as u64;
+
+/// Convert plenum-exact wavelength to vacuum-measured wavelength (integer-scaled ×100_000).
 pub fn plenum_to_vacuum_scaled(lambda_plenum: u32) -> u64 {
-    (lambda_plenum as u64) * (VACUUM_BIAS_DEN as u64 + VACUUM_BIAS_NUM as u64)
+    (lambda_plenum as u64) * BIAS_FACTOR_NUM
 }
 
-/// Convert vacuum wavelength (scaled ×100_000) to plenum wavelength (integer nm, rounded).
-pub fn vacuum_to_plenum(lambda_vacuum_scaled: u64) -> u32 {
-    let denom = VACUUM_BIAS_DEN as u64 + VACUUM_BIAS_NUM as u64;
-    ((lambda_vacuum_scaled + denom / 2) / denom) as u32
+/// Convert plenum-exact wavelength (nm) to vacuum-measured wavelength (nm, f64).
+pub fn plenum_to_vacuum(lambda_plenum: u32) -> u64 {
+    let num = (lambda_plenum as u64) * BIAS_FACTOR_NUM;
+    (num + BIAS_FACTOR_DEN / 2) / BIAS_FACTOR_DEN
 }
 
-/// Classify a vacuum-measured wavelength (scaled ×100_000) by converting to plenum first.
-pub fn classify_vacuum(lambda_vacuum_scaled: u64) -> PuvBand {
-    PuvBand::classify(vacuum_to_plenum(lambda_vacuum_scaled))
+/// Convert vacuum-measured wavelength (nm) to plenum-exact wavelength (nm, rounded).
+pub fn vacuum_to_plenum(lambda_vacuum: u32) -> u32 {
+    let num = (lambda_vacuum as u64) * BIAS_FACTOR_DEN;
+    ((num + BIAS_FACTOR_NUM / 2) / BIAS_FACTOR_NUM) as u32
+}
+
+/// Classify a vacuum-measured wavelength by converting to plenum first.
+pub fn classify_vacuum(lambda_vacuum: u32) -> PuvBand {
+    PuvBand::classify(vacuum_to_plenum(lambda_vacuum))
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -167,6 +177,7 @@ pub enum MeasurementFrame {
 #[derive(Debug, Clone)]
 pub struct PuvMeasurement {
     pub lambda_nm: u32,
+    pub irradiance: u64,
     pub band: PuvBand,
     pub frame: MeasurementFrame,
     pub timestamp_ns: u64,
@@ -177,19 +188,18 @@ pub struct PuvMeasurement {
 impl PuvMeasurement {
     pub fn new(
         lambda_nm: u32,
+        irradiance: u64,
         frame: MeasurementFrame,
         timestamp_ns: u64,
         source_node: [u8; 7],
     ) -> Self {
         let effective_lambda = match frame {
             MeasurementFrame::Plenum => lambda_nm,
-            MeasurementFrame::Vacuum => {
-                let scaled = (lambda_nm as u64) * (VACUUM_BIAS_DEN as u64);
-                vacuum_to_plenum(scaled)
-            }
+            MeasurementFrame::Vacuum => vacuum_to_plenum(lambda_nm),
         };
         Self {
             lambda_nm,
+            irradiance,
             band: PuvBand::classify(effective_lambda),
             frame,
             timestamp_ns,
@@ -218,6 +228,14 @@ impl PuvSpectralResponse {
             .iter()
             .filter(|(lambda, _)| PuvBand::classify(*lambda) == band)
             .count()
+    }
+
+    pub fn band_sensitivity(&self, band: PuvBand) -> u64 {
+        self.response_curve
+            .iter()
+            .filter(|(lambda, _)| PuvBand::classify(*lambda) == band)
+            .map(|(_, sensitivity)| *sensitivity as u64)
+            .sum()
     }
 }
 
@@ -314,7 +332,7 @@ mod tests {
     }
 
     #[test] fn measurement_plenum() {
-        let m = PuvMeasurement::new(286, MeasurementFrame::Plenum, 0, [0u8; 7]);
+        let m = PuvMeasurement::new(286, 1000, MeasurementFrame::Plenum, 0, [0u8; 7]);
         assert_eq!(m.band, PuvBand::UvB);
     }
 
