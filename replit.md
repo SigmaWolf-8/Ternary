@@ -9,73 +9,32 @@ I prefer iterative development with a focus on delivering working features incre
 ## System Architecture
 
 ### Frontend
-The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui`, and Wouter, supporting light/dark modes. It includes a Landing Page, About, Contact, HPTP Timing API Demo, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub, CNSA 2.0 Compliance, TSA Time-Stamping Authority, Node Terminal, and an Admin Dashboard. It features a quantum-ternary simulator and FIPS 140-3 compliance checks.
-
-### Node Terminal + Array3 Cluster Shell + Ops Console
-A browser-accessible PTY terminal at `/terminal` provides interactive shell access via WebSocket. It features multiple concurrent sessions and a Cluster Shell mode for fanning out commands. The terminal doubles as a full production Ops Console for remote script execution (with approval gate + NinjaExec TL-DSA signing), live log tailing, system telemetry dashboards, and operations timeline.
-
-### Daemon Remote Operations Channel
-A WebSocket relay provides remote PowerShell script execution, live log tailing, system telemetry heartbeats, small and chunked GGUF model transfer, GGUF model hot-swap, and multi-operator RBAC. All authenticated operations require TL-DSA signatures.
+The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui`, and Wouter, supporting light/dark modes. Key pages include a Landing Page, About, Contact, HPTP Timing API Demo, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub, CNSA 2.0 Compliance, TSA Time-Stamping Authority, Node Terminal, and an Admin Dashboard. It features a quantum-ternary simulator and FIPS 140-3 compliance checks.
 
 ### Backend and Core Framework
-The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic, Femtosecond Timing, and Phase Encryption v3 (post-quantum, duplex-mode TL-Sponge-385-based GF(3) stream cipher). The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service. Security features include tiered rate limiting, CORS, Helmet.js, AES-256-GCM token encryption, input validation, and API versioning.
+The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic, Femtosecond Timing, and Phase Encryption v3 (post-quantum, duplex-mode TL-Sponge-385-based GF(3) stream cipher). The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service. Security features include tiered rate limiting, CORS, Helmet.js, AES-256-GCM token encryption, input validation, hardened path sanitization, and API versioning.
 
 ### Inter-Cube Infrastructure Services
-A 4-service system (Geometric Load Balancer, Cube Overlay Network, Cube Registration Service, Fault Tolerance Service) provides geometric routing across a 13D ternary cube network. It features PT26-DSA native daemon identity with persistent encrypted MasterSecret and automatic radian-epoch key rotation.
+A 4-service system provides geometric routing across the 13D ternary cube network: Geometric Load Balancer (GLB), Cube Overlay Network (CON), Cube Registration Service (CRS), and Fault Tolerance Service (FTS). It is implemented as a Rust crate with TypeScript API routes, featuring PT26-DSA native daemon identity and automatic radian-epoch key rotation.
 
 ### Rust Kernel Architecture
-A Rust-based kernel provides core functionalities: Ternary Operations (GF(3) arithmetic), Femtosecond-precision Timing (HPTP), Phase Encryption, and a 3-Tier Security System. It includes Cryptographic Primitives (ternary hash, TL-KEM, TL-DSA, CNSA 2.0 compliance), a Torsion Network (N-dimensional torus topology, Ternary Transport/Transfer/DNS), and a Ternary Virtual Machine (176-opcode ISA, quantum-ternary simulation, ternary-aware garbage collector). A Binary Compatibility Layer handles balanced ternary conversion and crypto interoperability. The kernel boots bare-metal for x86_64, aarch64, and riscv64.
+A Rust-based kernel provides core functionalities: Ternary Operations (GF(3) arithmetic), Femtosecond-precision Timing (HPTP), Phase Encryption, and a 3-Tier Security System. It includes Cryptographic Primitives (ternary hash, TL-KEM, TL-DSA, CNSA 2.0 compliance), a Torsion Network (N-dimensional torus topology, Ternary Transport/Transfer/DNS), and a Ternary Virtual Machine (176-opcode ISA, ternary addressing, three-ring privilege levels, quantum-ternary simulation, ternary-aware garbage collector). A Binary Compatibility Layer handles balanced ternary conversion and crypto interoperability. The kernel boots as a bare-metal binary for x86_64, aarch64, and riscv64, utilizing a 512MB linked-list allocator.
 
 ### PlenumBrowser Kernel Subsystem
-A browser engine built as kernel subsystem modules, implementing CPU rendering, parsing, layout, scripting, CPU rendering, tabs, input, networking, mesh, and color mapping.
+A browser engine built as kernel subsystem modules, implementing CPU rendering including parsing (DOM/CSS types), layout (iterative Flexbox), scripting (cooperative JS executor), CPU rendering (framebuffer + sponge XOR encryption), tabs (isolation via kernel tasks), input (TIS-27 encoded key dispatch), networking (resource requests to z=0), mesh (540-node recursive polygon mesh), and color (PlenumColor mesh↔sRGB mapping).
 
-### z=0 Distributor
-This component implements the z-axis dome geometry, acting as an equatorial distributor plane using a (7, 11, 13) coprime walk over 540 nodes.
+### Core Protocols and Features
+- **TTC v4.2 Compression Pipeline**: Native Rust engine for file compression using domain analysis, ternary rANS, and GURFT fast-path.
+- **TDNS v2.5.0**: A 27-dimensional ontological addressing protocol with 54-trit dual-layer addressing, using TL-Sponge-43 for identity derivation and TIS-27 for wire packet integrity.
+- **RFC 3161 Time-Stamping Authority (TSA)**: Digital notary service with Merkle tamper-evident audit logs and dual-signature (RSA-4096 + TL-DSA-87).
+- **Hedera HCS Witnessing**: Blockchain-based non-repudiation for immutable, ordered, timestamped proof of PlenumNET operations.
+- **Yoda Global Command**: A universal `y` command prefix for operator-to-Yoda communication through a relay, with client-side (CLI, Node Terminal, desktop widget) and server-side components ensuring secure, verified, and auditable interactions.
+- **XPlenum RISC-V Hardware Extension**: Custom RISC-V extension for ternary security operations, PQC acceleration, and compliance.
+- **TL-KEM**: Ternary-native equivalent of ML-KEM for IND-CCA2 secure key encapsulation.
+- **NinjaExec**: Local signing agent (`ssh-agent` equivalent) for PlenumNET, holding operator's TL-DSA-87 private key in an encrypted keystore and exposing a localhost-only HTTP signing API.
 
-### (11, 13) Coprime Polygon Pair & Extended Geometric Framework
-Specific geometric constants and relationships derived from hendecagons and tridecagons, and an extended geometric framework defining repunits, squared circle parameters, polygon central angles, node census, superhub zones, and torus knots, are used for platform calculations.
-
-### PUV UV Spectral Protocol
-The PlenumNET UV Spectral Protocol (PUV v1.0) defines UV band definitions based on the axiom π=14, with primary and secondary bands partitioning the UV spectrum, including specific constants for spectral analysis.
-
-### TIS-27 Keyboard Input & XPlenum RISC-V Hardware Extension
-Kernel-space TIS-27 encoding is used for keyboard input. A custom RISC-V extension with 21 custom instructions and 12 custom CSRs is integrated with CVA6 for ternary security operations, PQC acceleration, and compliance.
-
-### TL-KEM & Crypto Benchmark Suite
-TL-KEM provides IND-CCA2 secure key encapsulation at three security levels. A Criterion-based statistical benchmark suite covers all core cryptographic primitives.
-
-### Sponge Architecture
-TL-Sponge-385 provides 385-bit post-quantum security for signing, key derivation, FIPS validation, and document hashing. TL-Sponge-43 is used for TDNS identity derivation.
-
-### TTC v4.2 Compression Pipeline
-File compression uses the TTC v4.2 native Rust engine via N-API, including domain analysis, ternary rANS, and GURFT fast-path.
-
-### TDNS v2.5.0 — Ternary Domain Name System
-A standalone Rust crate implementing a 27-dimensional ontological addressing protocol with 54-trit dual-layer addressing, using TL-Sponge-43 for identity derivation and TIS-27 for wire packet integrity.
-
-### Tonal Diffusion System & RFC 3161 Time-Stamping Authority
-A system for network-wide time synchronization using FM timing packets and a digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161 with Merkle tamper-evident audit logs and dual-signature.
-
-### Hedera HCS Witnessing
-Blockchain-based non-repudiation via Hedera Consensus Service for immutable, ordered, timestamped proof of PlenumNET operations.
-
-### API Key Management System & Security Middleware Stack
-A comprehensive system handles API key generation, validation, rotation, per-key rate limiting, and audit trails. The security middleware includes 4-tier rate limiting, CORS, Helmet.js, AES-256-GCM token encryption, and hardened path sanitization.
-
-### Capability-Based Security
-Authorization uses unforgeable, self-contained, bearer-verified capability tokens signed with TL-DSA.
-
-### Array3 Watchdog & PlenumNET App Installer Framework
-A Windows scheduled task monitors daemon services and processes. A manifest-driven MSI build system packages PlenumNET Windows applications.
-
-### NinjaExec — PlenumNET Local Signing Agent
-A standalone Rust binary that acts as PlenumNET's `ssh-agent`, holding the operator's TL-DSA-87 private key in an encrypted keystore and exposing a localhost-only HTTP signing API.
-
-### Yoda Global Command
-A universal `y` command prefix for operator-to-Yoda communication through a relay, facilitating chat and responses with robust security features, session management, and diagnostics.
-
-### Brand Palette
-Dark mode primary (#0F0C0A bg, #4A9EF5 accent), light mode (#FAF8F6 bg, #2D7DD2 accent). Status: Active=#4A9EF5, Warning=#78828C, Inactive=#3D444B.
+### UI/UX and Branding
+The brand palette includes dark mode (#0F0C0A bg, #4A9EF5 accent) and light mode (#FAF8F6 bg, #2D7DD2 accent). Status indicators use Active=#4A9EF5, Warning=#78828C, Inactive=#3D444B.
 
 ## External Dependencies
 
