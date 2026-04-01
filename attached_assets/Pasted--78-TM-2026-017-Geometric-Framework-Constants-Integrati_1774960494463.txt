@@ -1,0 +1,37 @@
+#78 - TM-2026-017 Geometric Framework Constants Integration
+What & Why
+TM-2026-017 v5.0 (Extended Geometric Framework — "From the Axiom π = 14") is now saved as docs/monographs/TM-2026-017-Extended-Geometric-Framework.md. A cross-reference against the existing codebase identified 10 constant groups from the monograph that are NOT yet represented in shared/constants.ts or the Rust kernel modules. This task integrates them so the single-source-of-truth constants file fully reflects TM-2026-017 alongside the already-integrated TM-2026-025.
+
+Done looks like
+shared/constants.ts has a new GEOMETRIC_FRAMEWORK (or extension to PLENUM_SQUARE) block containing all missing constants from TM-2026-017 v5.0.
+src/kernel/src/browser/color.rs has any needed Rust-side constant additions (superhub zone data, node census).
+A Vitest test suite (tests/geometric-framework.test.ts) validates the key identities from TM-2026-017.
+All existing tests still pass.
+replit.md updated.
+Pushed to GitHub.
+Out of scope
+Frontend UI pages or visualizations for the geometric framework.
+Changes to Bézier interpolation logic in color.rs (already working).
+Any changes to deployments/ folder.
+Re-deriving constants that already exist (182, 650, 832, 118300, 468, etc. are already present).
+Tasks
+Add REPUNITS sub-block to PLATFORM in shared/constants.ts: R₃=13, R₄=40, R₅=121, R₆=364 (R₄ and R₆ already exist in MASTER but not as a named repunit family).
+Add SQUARED_CIRCLE sub-block: side = √182, factorization √(2×91) = √2·√91, r=√13 formulation.
+Add POLYGON_CENTRAL_ANGLES sub-block: table of 364/n for n=3..13 (§4), highlighting the tridecagon capstone 28° = 2π.
+Add SUPERHUB_ZONES sub-block: 4 zones (A/B/C/D) with coordinates, custom angles, polygon crossing sets, distances from center (§11).
+Add NODE_CENSUS sub-block: total=504, rim=58, interior_intersections=446 (note: 540 mesh nodes in color.rs is distinct from 504 polygon intersections — document the distinction).
+Add TORUS_KNOTS sub-block: the 5 coprime knot families from §10.3 — (7,11), (7,13), (11,13), (13,14), (28,13).
+Add BRIESKORN_SPHERE sub-block: Σ(7,11,13) identification, linking to the (7,11,13) coprime triple.
+Add UV_SPECTRAL sub-block: UV-C=182nm, UV-B=286nm, UV-A=364nm band markers, Rydberg scaling 13nm = 1/(7·R_H), harmonic ratios 7:11:14 (§16).
+Add Rust constants to coprime_polygon_pair.rs or a new geometric_framework.rs for any Rust-side superhub/node data if needed by kernel code.
+Write Vitest test suite tests/geometric-framework.test.ts covering: repunit family R_n = (3^n-1)/2, unified equation roots, superhub zone symmetry, UV wavelength ratios, polygon angle identities, torus knot coprimality.
+Update replit.md and push to GitHub.
+Relevant files
+shared/constants.ts
+shared/agent-generators.ts
+src/kernel/src/browser/color.rs
+src/kernel/src/distributor/coprime_polygon_pair.rs
+src/kernel/src/distributor/coprime_walk.rs
+docs/monographs/TM-2026-017-Extended-Geometric-Framework.md
+tests/coprime-polygon-pair.test.ts
+Dependencies
