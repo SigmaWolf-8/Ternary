@@ -599,36 +599,51 @@ async function fetchLiveSlots(){
 
     if(!cluster.daemons||!cluster.daemons.length) throw new Error('No daemons in response');
 
-    // Build node data from cluster-health
-    const nodeDataArray=cluster.daemons.map((daemon,ni)=>{
-      const slots=[];
-      const nodeName=`Node ${ni+1}`;
-      const nodePort=daemon.port;
-      const isUp=daemon.healthState==='up';
-      const roleSvc=daemon.role==='crs'?'CRS':daemon.role==='cube'?'Gateway':'Gateway';
+    // Build node data from cluster-health, using MOCK layout as service template
+      const nodeDataArray=cluster.daemons.map((daemon,ni)=>{
+        const nodeName=`Node ${ni+1}`;
+        const nodePort=daemon.port;
+        const isUp=daemon.healthState==='up';
+        const mockNode=MOCK_NODES[ni];
+        const upStr=daemon.nodeUptimeMs?Math.floor(daemon.nodeUptimeMs/3600000)+'h':'—';
+        const hbStr=daemon.lastSeen?Math.round((Date.now()-new Date(daemon.lastSeen).getTime())/1000)+'s ago':'—';
 
-      // Try /slots for this node (may 404 if not deployed yet)
-      // For now, build 27 slots with gateway at center, rest available
-      for(let x=1;x<=3;x++) for(let y=1;y<=3;y++) for(let z=1;z<=3;z++){
-        const isCenter=x===2&&y===2&&z===2;
-        slots.push({
-          rc:[x,y,z],ni:ni,nn:nodeName,np:nodePort,
-          occ:isCenter,
-          svc:isCenter?roleSvc:null,
-          st:isCenter?(isUp?'online':'offline'):'available',
-          statusLabel:isCenter?(isUp?'Healthy':'Unreachable'):'Unassigned',
-          ld:0,pt:isCenter?nodePort:0,
-          up:daemon.nodeUptimeMs?Math.floor(daemon.nodeUptimeMs/3600000)+'h':'—',
-          la:daemon.lastSeenAgeMs?Math.round(daemon.lastSeenAgeMs)+'ms':'—',
-          td:0,hb:daemon.lastSeen?Math.round((Date.now()-new Date(daemon.lastSeen).getTime())/1000)+'s ago':'—',
-        });
-      }
-      return {name:nodeName,port:nodePort,slots,
-        meta:{address:daemon.address,hostname:daemon.hostname,role:daemon.role,
-              healthState:daemon.healthState,status:daemon.status,endpoint:daemon.endpoint}};
-    });
+        const occMap=new Map();
+        if(mockNode){
+          mockNode.occ.forEach(s=>occMap.set(s.rc.join(','),s));
+        }
 
-    // Now try /slots for full per-slot data (may fail — that's OK)
+        const slots=[];
+        for(let x=1;x<=3;x++) for(let y=1;y<=3;y++) for(let z=1;z<=3;z++){
+          const key=`${x},${y},${z}`;
+          const tmpl=occMap.get(key);
+          if(tmpl){
+            slots.push({
+              rc:[x,y,z],ni:ni,nn:nodeName,np:nodePort,
+              occ:true,
+              svc:tmpl.svc,
+              st:isUp?tmpl.st:'offline',
+              statusLabel:isUp?(tmpl.st==='online'?'Healthy':'Degraded'):'Unreachable',
+              ld:tmpl.ld,pt:tmpl.pt||nodePort,
+              up:isUp?upStr:'—',
+              la:tmpl.la,
+              td:tmpl.td,hb:hbStr,
+            });
+          }else{
+            slots.push({
+              rc:[x,y,z],ni:ni,nn:nodeName,np:nodePort,
+              occ:false,svc:null,
+              st:'available',statusLabel:'Unassigned',
+              ld:0,pt:0,up:'—',la:0,td:0,hb:0,
+            });
+          }
+        }
+        return {name:nodeName,port:nodePort,slots,
+          meta:{address:daemon.address,hostname:daemon.hostname,role:daemon.role,
+                healthState:daemon.healthState,status:daemon.status,endpoint:daemon.endpoint}};
+      });
+
+      // Now try /slots for full per-slot data (may fail — that's OK)
     const headers={'Content-Type':'application/json'};
     if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
     try{
