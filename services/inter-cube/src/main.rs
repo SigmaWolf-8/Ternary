@@ -775,7 +775,7 @@ async fn run_crs_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../../monitor/array3-monitor-v7.html"))
+            Html(include_str!("../monitor/array3-monitor-v7.html"))
         }));
 
     let app = crs_router(shared_state)
@@ -1283,7 +1283,7 @@ async fn run_cube_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../../monitor/array3-monitor-v7.html"))
+            Html(include_str!("../monitor/array3-monitor-v7.html"))
         }));
 
     let app = cube_router(shared_state)
