@@ -1227,6 +1227,21 @@ function startPqtiService(): ChildProcess | null {
     }
   });
 
+  app.delete("/api/salvi/inter-cube/relay/deployment/:hostname", async (req, res) => {
+    try {
+      const hostname = req.params.hostname;
+      if (!hostname) {
+        return res.status(400).json({ error: "hostname required" });
+      }
+      const count = await storage.deleteDeploymentByHostname(hostname);
+      log(`Deployment record deleted for ${hostname} (${count} removed)`, "crs");
+      res.json({ status: "ok", deleted: count, hostname });
+    } catch (err: any) {
+      log(`Deployment delete error: ${err.message}`, "crs");
+      res.status(500).json({ error: "Failed to delete deployment" });
+    }
+  });
+
   app.get("/api/salvi/inter-cube/relay/cluster-health", async (_req, res) => {
     try {
       const records = await storage.getAllDeploymentRecords();

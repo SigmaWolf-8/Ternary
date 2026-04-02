@@ -133,6 +133,7 @@ export interface IStorage {
   createDeploymentRecord(data: InsertDeploymentRecord): Promise<DeploymentRecord>;
   getAllDeploymentRecords(): Promise<DeploymentRecord[]>;
   getDeploymentsByHostname(hostname: string): Promise<DeploymentRecord[]>;
+  deleteDeploymentByHostname(hostname: string): Promise<number>;
 
   createExpectedNode(data: InsertExpectedNode): Promise<ExpectedNode>;
   getAllExpectedNodes(): Promise<ExpectedNode[]>;
@@ -518,6 +519,11 @@ export class DatabaseStorage implements IStorage {
   async getDeploymentsByHostname(hostname: string): Promise<DeploymentRecord[]> {
     const rows = await db.select().from(deploymentRecords).where(eq(deploymentRecords.hostname, hostname)).orderBy(desc(deploymentRecords.createdAt));
     return rows.map(r => this._decryptDeploymentRecord(r));
+  }
+
+  async deleteDeploymentByHostname(hostname: string): Promise<number> {
+    const deleted = await db.delete(deploymentRecords).where(eq(deploymentRecords.hostname, hostname)).returning();
+    return deleted.length;
   }
 
   async createExpectedNode(data: InsertExpectedNode): Promise<ExpectedNode> {
