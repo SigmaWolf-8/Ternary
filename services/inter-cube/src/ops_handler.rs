@@ -473,11 +473,6 @@ impl OpsHandler {
             cmd.env("PLENUMNET_REQUEST_ID", &request_id);
             cmd.current_dir(&ops_dir);
 
-            {
-                use std::os::unix::process::CommandExt;
-                cmd.process_group(0);
-            }
-
             let mut child = match cmd.spawn() {
                 Ok(c) => c,
                 Err(e) => {
@@ -502,17 +497,9 @@ impl OpsHandler {
                 }
             };
 
-            let child_pid = child.id().unwrap_or(0);
-
             match tokio::time::timeout(Duration::from_secs(timeout_secs), child.wait_with_output()).await {
                 Ok(r) => Ok(r),
                 Err(_) => {
-                    if child_pid > 0 {
-                        use nix::sys::signal::{killpg, Signal};
-                        use nix::unistd::Pid;
-                        let _ = killpg(Pid::from_raw(child_pid as i32), Signal::SIGKILL);
-                    }
-                    let _ = child.kill().await;
                     Err(())
                 }
             }
@@ -677,7 +664,8 @@ impl OpsHandler {
 
         if follow {
             let (tx, _rx) = tokio::sync::watch::channel(false);
-            self.active_tails.lock().await.insert(request_id.clone(), tx.clone());
+            let mut rx = tx.subscribe();
+            self.active_tails.lock().await.insert(request_id.clone(), tx);
 
             let node_id = self.node_id.clone();
             let rid = request_id.clone();
@@ -688,7 +676,6 @@ impl OpsHandler {
             tokio::spawn(async move {
                 let mut last_size = tokio::fs::metadata(&full_p).await
                     .map(|m| m.len()).unwrap_or(0);
-                let mut rx = tx.subscribe();
                 loop {
                     tokio::select! {
                         _ = tokio::time::sleep(Duration::from_secs(2)) => {
@@ -1105,9 +1092,11 @@ impl OpsHandler {
         let temp_dir = self.base_dir.join(".plenumnet/transfers").join(&transfer_id);
         let _ = tokio::fs::create_dir_all(&temp_dir).await;
 
+        let payload_hash = Self::hash_payload(&file_path);
+
         let manifest = ChunkTransferManifest {
             transfer_id: transfer_id.clone(),
-            file_path,
+            file_path: file_path.clone(),
             total_size_bytes: total_size,
             chunk_count,
             chunk_size_bytes: chunk_size,
@@ -1129,7 +1118,7 @@ impl OpsHandler {
             operator_fingerprint: msg.get("operator_fingerprint").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             node_id: self.node_id.clone(),
             request_id: request_id.clone(),
-            payload_hash: Self::hash_payload(&file_path),
+            payload_hash,
             script_text: None, exit_code: None, stdout_truncated: None, stderr_truncated: None, duration_ms: None,
             file_path: Some(file_path),
             file_size: Some(total_size),

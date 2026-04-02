@@ -841,14 +841,14 @@ async fn run_crs_mode() {
 
 async fn is_terminal_authorized(
     from: &str,
-    known_peers: &tokio::sync::Mutex<std::collections::HashSet<String>>,
+    known_peers: &Arc<tokio::sync::Mutex<Vec<String>>>,
 ) -> (bool, String) {
     if from == "?" || from.is_empty() {
         return (false, "terminal command from unauthenticated source".to_string());
     }
     let is_known = {
         let peers = known_peers.lock().await;
-        peers.contains(from)
+        peers.contains(&from.to_string())
     };
     if !is_known {
         return (false, format!("terminal command from unknown peer {}", from));
@@ -1580,7 +1580,8 @@ fn spawn_relay_client(
                             }
                         };
 
-                        let msg_type = envelope.relay_msg_type.as_deref().unwrap_or("unknown");
+                        let msg_type_owned = envelope.relay_msg_type.clone().unwrap_or_else(|| "unknown".to_string());
+                        let msg_type: &str = &msg_type_owned;
                         let from = envelope.from.as_deref().unwrap_or("?").to_string();
                         let payload_str = envelope.payload.as_deref().unwrap_or("{}").to_string();
 
@@ -1617,9 +1618,12 @@ fn spawn_relay_client(
                             let addr_for_reply = address.clone();
                             let terminal_sessions_clone = terminal_sessions.clone();
                             let msg_type_owned = msg_type.to_string();
-                            let yoda_verifier = yoda_verifier.clone();
+                            let yoda_verifier_term = yoda_verifier.clone();
+                            let yoda_session_origins_term = yoda_session_origins.clone();
 
                             tokio::spawn(async move {
+                                let yoda_verifier = yoda_verifier_term;
+                                let yoda_session_origins = yoda_session_origins_term;
                                 let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
                                 let session_id = parsed.get("sessionId").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
@@ -1955,13 +1959,14 @@ fn spawn_relay_client(
                             let reply_tx = client.outgoing_tx.clone();
                             let addr_ops = address.clone();
                             let from_ops = from.clone();
+                            let msg_type_ops = msg_type.to_string();
                             tokio::spawn(async move {
                                 let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
                                 let mut msg_with_type = parsed.clone();
                                 if let Some(obj) = msg_with_type.as_object_mut() {
-                                    obj.insert("type".to_string(), serde_json::json!(msg_type));
+                                    obj.insert("type".to_string(), serde_json::json!(msg_type_ops));
                                 }
-                                println!("[ops] Handling {} from {}", msg_type, from_ops);
+                                println!("[ops] Handling {} from {}", msg_type_ops, from_ops);
                                 if let Some(response) = oh.handle_ops_message(&msg_with_type).await {
                                     let response_type = response.get("type")
                                         .and_then(|v| v.as_str())
