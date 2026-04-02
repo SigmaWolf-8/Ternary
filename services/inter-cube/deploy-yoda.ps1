@@ -230,7 +230,7 @@ if (-not (Test-Admin)) {
         Write-Host "         This deployer was started via a web download command (irm | iex)" -ForegroundColor Red
         Write-Host "         which cannot request admin privileges automatically." -ForegroundColor Red
         Write-Host ""
-        Write-Host "         To fix: Open PowerShell as Administrator (right-click >" -ForegroundColor Yellow
+        Write-Host "         To fix: Open PowerShell as Administrator (right-click ->" -ForegroundColor Yellow
         Write-Host "         'Run as administrator') and run the command again." -ForegroundColor Yellow
         Write-Host ""
         Read-Host "Press Enter to close"
@@ -833,7 +833,7 @@ try {
             Write-Host "  [OK] SeAssignPrimaryTokenPrivilege detected in security policy" -ForegroundColor Green
         } else {
             Write-Host "  [INFO] A required Windows privilege has been configured but requires a reboot to take effect" -ForegroundColor Yellow
-            Write-Host "         (Technical: SeAssignPrimaryTokenPrivilege — secpol.msc > Local Policies > User Rights)" -ForegroundColor DarkGray
+            Write-Host "         (Technical: SeAssignPrimaryTokenPrivilege — secpol.msc -> Local Policies -> User Rights)" -ForegroundColor DarkGray
         }
         Remove-Item "$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
     }
