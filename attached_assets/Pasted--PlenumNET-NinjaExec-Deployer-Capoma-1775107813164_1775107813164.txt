@@ -1,0 +1,70 @@
+==========================================================
+  PlenumNET NinjaExec Deployer
+  Capomastro Holdings Ltd.
+==========================================================
+
+  [OK] Running as Administrator
+
+  Pulling latest code from GitHub...
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+  [OK] deploy-yoda.ps1 updated
+
+  Launching deployer v0.6.0 (includes NinjaExec)...
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:836 char:108
++ ... nPrimaryTokenPrivilege â€” secpol.msc > Local Policies > User Rights) ...
++                                                            ~~~~~~
+The output stream for this command is already redirected.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:834 char:16
++         } else {
++                ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:830 char:53
++     if (Test-Path "$env:TEMP\plenumnet-secpol.cfg") {
++                                                     ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:828 char:5
++ try {
++     ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:836 char:121
++ ... yTokenPrivilege â€” secpol.msc > Local Policies > User Rights)" -Fore ...
++                                                                  ~
+The Try statement is missing its Catch or Finally block.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:287 char:5
++ try {
++     ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:836 char:121
++ ... TokenPrivilege â€” secpol.msc > Local Policies > User Rights)" -Foreg ...
++                                                                 ~
+Unexpected token ')' in expression or statement.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:838 char:22
++ ... emove-Item "$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyCont ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Unexpected token '$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
+    }
+} catch {
+    Write-Host "' in expression or statement.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:838 char:31
++ ... e-Item "$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
++                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Unexpected token '\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
+    }
+} catch {
+    Write-Host "' in expression or statement.
+At C:\PlenumNET\services\inter-cube\deploy-yoda.ps1:850 char:5
++     } else {
++     ~
+Unexpected token '}' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : StreamAlreadyRedirected
+
+
+==========================================================
+  Deployer finished. Review the output above.
+==========================================================
+Press any key to continue . . .
