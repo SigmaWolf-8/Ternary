@@ -42,9 +42,9 @@
     Application engines are NOT installed by this script. Application
     setup is handled separately by the consuming app (e.g. YODA).
     NinjaExec (the local signing agent) IS built and configured by
-    this script — it is required for signed operations.
+    this script -- it is required for signed operations.
 
-    Node IDs are Rep C ordinals {1,2,3} — NOT GF(3) {0,1,2}. Zero is
+    Node IDs are Rep C ordinals {1,2,3} -- NOT GF(3) {0,1,2}. Zero is
     never used as a node ID. Key rotation follows radian-epoch intervals
     (14-day periods).
 
@@ -588,18 +588,18 @@ if ($neBuildExit -ne 0) {
 
     $neKeystorePath = Join-Path $env:APPDATA "NinjaExec\keystore.enc"
     if (Test-Path $neKeystorePath) {
-        Write-Host "  [OK] Existing NinjaExec keystore found — skipping init" -ForegroundColor Green
+        Write-Host "  [OK] Existing NinjaExec keystore found -- skipping init" -ForegroundColor Green
     } else {
         Write-Host "" -ForegroundColor White
-        Write-Host "  ══════════════════════════════════════════════════════════" -ForegroundColor Cyan
+        Write-Host "  ==========================================================" -ForegroundColor Cyan
         Write-Host "  NinjaExec First-Time Setup" -ForegroundColor Cyan
-        Write-Host "  ══════════════════════════════════════════════════════════" -ForegroundColor Cyan
+        Write-Host "  ==========================================================" -ForegroundColor Cyan
         Write-Host ""
         Write-Host "  NinjaExec is your local signing agent. It holds your private" -ForegroundColor White
         Write-Host "  key in an encrypted keystore and signs operations on demand." -ForegroundColor White
         Write-Host ""
         Write-Host "  You will be asked to set a passphrase (minimum 12 characters)." -ForegroundColor Yellow
-        Write-Host "  This passphrase encrypts your private key. Store it safely —" -ForegroundColor Yellow
+        Write-Host "  This passphrase encrypts your private key. Store it safely --" -ForegroundColor Yellow
         Write-Host "  it cannot be recovered if lost." -ForegroundColor Yellow
         Write-Host ""
 
@@ -833,7 +833,7 @@ try {
             Write-Host "  [OK] SeAssignPrimaryTokenPrivilege detected in security policy" -ForegroundColor Green
         } else {
             Write-Host "  [INFO] A required Windows privilege has been configured but requires a reboot to take effect" -ForegroundColor Yellow
-            Write-Host "         (Technical: SeAssignPrimaryTokenPrivilege — secpol.msc -> Local Policies -> User Rights)" -ForegroundColor DarkGray
+            Write-Host "         (Technical: SeAssignPrimaryTokenPrivilege -- secpol.msc -> Local Policies -> User Rights)" -ForegroundColor DarkGray
         }
         Remove-Item "$env:TEMP\plenumnet-secpol.cfg" -ErrorAction SilentlyContinue
     }
@@ -846,9 +846,9 @@ try {
     $appLockerSvc = Get-Service -Name "AppIDSvc" -ErrorAction SilentlyContinue
     if ($appLockerSvc -and $appLockerSvc.Status -eq "Running") {
         $appLockerAvail = $true
-        Write-Host "  [OK] AppLocker service detected and running — exec sandbox: Full (AppLocker)" -ForegroundColor Green
+        Write-Host "  [OK] AppLocker service detected and running -- exec sandbox: Full (AppLocker)" -ForegroundColor Green
     } else {
-        Write-Host "  [INFO] AppLocker not running — exec sandbox: Reduced (ACLs only)" -ForegroundColor DarkGray
+        Write-Host "  [INFO] AppLocker not running -- exec sandbox: Reduced (ACLs only)" -ForegroundColor DarkGray
     }
 } catch {
     Write-Host "  [INFO] AppLocker detection skipped" -ForegroundColor DarkGray
