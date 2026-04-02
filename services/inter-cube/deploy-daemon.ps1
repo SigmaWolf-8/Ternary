@@ -39,6 +39,42 @@ function Test-Command($cmd) {
     catch { return $false }
 }
 
+function Restrict-FileAcl {
+    param([string]$FilePath)
+    try {
+        $acl = New-Object System.Security.AccessControl.FileSecurity
+        $acl.SetAccessRuleProtection($true, $false)
+        $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "Allow")
+        $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\Administrators", "FullControl", "Allow")
+        $acl.AddAccessRule($systemRule)
+        $acl.AddAccessRule($adminRule)
+        Set-Acl -Path $FilePath -AclObject $acl
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Get-Or-Create-Passphrase {
+    param([string]$IdentityDir, [int]$NodeId)
+    $passphraseFile = Join-Path $IdentityDir ".passphrase"
+    if (-not (Test-Path $passphraseFile)) {
+        $passBytes = New-Object byte[] 32
+        $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+        $rng.GetBytes($passBytes)
+        $rng.Dispose()
+        $passphrase = [Convert]::ToBase64String($passBytes)
+        Set-Content -Path $passphraseFile -Value $passphrase -Encoding UTF8 -NoNewline
+        Restrict-FileAcl -FilePath $passphraseFile | Out-Null
+        Write-Host "  [OK] Node #$NodeId passphrase generated and ACL-restricted" -ForegroundColor Green
+        return $passphrase
+    } else {
+        $passphrase = Get-Content -Path $passphraseFile -Raw
+        Write-Host "  [OK] Node #$NodeId passphrase loaded" -ForegroundColor Green
+        return $passphrase
+    }
+}
+
 function Get-ServiceAccountName {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     return $identity.Name
@@ -227,15 +263,20 @@ try {
         Write-Host "IDENTITY: Creating identity directory: $dir" -ForegroundColor Yellow
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
+    $nodePassphrase = Get-Or-Create-Passphrase -IdentityDir $dir -NodeId $nextId
+
     $keyFile = Join-Path $dir "master.key"
     if (-not (Test-Path $keyFile)) {
         Write-Host "IDENTITY: Generating identity #$nextId..." -ForegroundColor Yellow
         $env:CUBE_MODE = "keygen"
         $env:CUBE_IDENTITY_DIR = $dir
+        $env:CUBE_IDENTITY_PASSPHRASE = $nodePassphrase
         $null = & $BinaryPath 2>&1
         Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_IDENTITY_PASSPHRASE -ErrorAction SilentlyContinue
         if (Test-Path $keyFile) {
+            Restrict-FileAcl -FilePath $keyFile | Out-Null
             Write-Host "IDENTITY: Daemon #$nextId identity created." -ForegroundColor Green
         } else {
             Write-Host "IDENTITY: WARNING - Identity #$nextId key generation may have failed." -ForegroundColor Yellow
@@ -301,11 +342,12 @@ try {
 
         Write-Host "  Start Daemon #$id (gateway=$gw, peer=$pp, terminal=$tp, slots=${ns}-$($ns+$NodeSlotSize-1)):" -ForegroundColor White
         Write-Host "    Gateway API : http://localhost:$gw" -ForegroundColor DarkGray
+        Write-Host "    Monitor     : http://localhost:$gw/monitor" -ForegroundColor DarkGray
         Write-Host "    Terminal WS : ws://localhost:$tp (WebSocket PTY)" -ForegroundColor DarkGray
         Write-Host "    VM API      : http://localhost:$gw/vm/exec, /vm/status, /vm/registers, /vm/reset, /vm/isa" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_MODE=`"cube`"; `$env:CUBE_API_PORT=`"$gw`"; `$env:CUBE_NODE_ID=`"$id`"" -ForegroundColor DarkGray
         Write-Host "    `$env:CUBE_PEER_PORT=`"$pp`"; `$env:CUBE_TERMINAL_PORT=`"$tp`"; `$env:CUBE_CRS_URL=`"$CRS_URL`"; `$env:CUBE_ROLE=`"inference`"" -ForegroundColor DarkGray
-        Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"" -ForegroundColor DarkGray
+        Write-Host "    `$env:CUBE_IDENTITY_DIR=`"$idDir`"; `$env:CUBE_IDENTITY_PASSPHRASE=`"<from .passphrase>`"" -ForegroundColor DarkGray
         Write-Host ('    & "' + $BinaryPath + '"') -ForegroundColor DarkGray
         Write-Host ""
     }
@@ -344,6 +386,8 @@ try {
             $svcName = "PlenumNET-Cube-$id"
             $logFile = Join-Path $LogDir "cube-${id}.log"
 
+            $svcPassphrase = Get-Or-Create-Passphrase -IdentityDir $idDir -NodeId $id
+
             $wrapperDir = Join-Path $RepoDir "services\wrappers"
             if (-not (Test-Path $wrapperDir)) {
                 New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
@@ -369,6 +413,7 @@ set CUBE_TERMINAL_PORT=$tp
 set CUBE_CRS_URL=$CRS_URL
 set RELAY_URL=$CRS_URL
 set CUBE_IDENTITY_DIR=$idDir
+set CUBE_IDENTITY_PASSPHRASE=$svcPassphrase
 set CUBE_ROLE=inference
 set CUBE_ARRAY3_PEERS=$peerEnv
 "$BinaryPath" >> "$logFile" 2>&1
