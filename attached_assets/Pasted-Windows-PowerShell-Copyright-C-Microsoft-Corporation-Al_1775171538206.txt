@@ -1,0 +1,210 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> # Remove the extra services
+>> sc.exe delete PlenumNET-Cube-4
+>> sc.exe delete PlenumNET-Cube-5
+>>
+>> # Remove extra identity folders
+>> Remove-Item "$env:USERPROFILE\.plenumnet\identity-4" -Recurse -Force
+>> Remove-Item "$env:USERPROFILE\.plenumnet\identity-5" -Recurse -Force
+[SC] DeleteService SUCCESS
+[SC] DeleteService SUCCESS
+PS C:\windows\system32> irm https://plenumnet.replit.app/api/deploy-daemon | iex
+
+==========================================================
+  PlenumNET Cube Daemon Deployer
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+PULL: Updating source from GitHub...
+PULL: Updated to 14aa5c16
+BUILD: Compiling inter-cube daemon (release)...
+       This may take a few minutes on first build.
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+       warning: unused variable: `adaptive_rep`
+       warning: unused variable: `mode`
+       warning: unused variable: `adaptive_rep`
+       warning: function `mod3_small` is never used
+       warning: function `mod3_med` is never used
+       warning: constant `TRIBONACCI_SEQ` is never used
+       warning: associated function `new` is never used
+       warning: method `is_exhausted` is never used
+       warning: function `deserialize_ternary_enhanced` is never used
+       warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+       warning: unused import: `REPUNIT_R5`
+       warning: unused imports: `GF3_ORDER` and `SLOTS_PER_NODE`
+       warning: unused imports: `GF3_ORDER` and `SLOTS_PER_NODE`
+       warning: unused import: `Trit`
+       warning: unused imports: `SlotAddress` and `project_to_slot`
+       warning: unused import: `ternary_math::repunit_circles::REPUNIT_R5`
+       warning: function `make_class` is never used
+       warning: `plenumlan` (lib) generated 7 warnings (run `cargo fix --lib -p plenumlan` to apply 6 suggestions)
+       warning: unused import: `RepCTrit`
+       warning: unused import: `Path`
+       warning: unused import: `DIMENSIONS`
+       warning: unused import: `TOTAL_VERTICES`
+       warning: unused import: `DimensionDensity`
+       warning: unused import: `std::collections::HashMap`
+       warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+       warning: unused import: `SystemTime`
+       warning: unused variable: `destination`
+       warning: unused variable: `min_c`
+       warning: variable does not need to be mutable
+       warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+       warning: method `count` is never used
+       warning: field `heartbeat_interval` is never read
+       warning: associated functions `entropy_seed` and `collect_entropy_seed` are never used
+       warning: constant `GRID_ROWS` is never used
+       warning: constant `OVERFLOW` is never used
+       warning: constant `ROW_SIZES` is never used
+       warning: method `reg` is never used
+       warning: `inter-cube` (lib) generated 19 warnings (run `cargo fix --lib -p inter-cube` to apply 11 suggestions)
+       warning: unused variable: `endpoint_for_heartbeat`
+       warning: unused variable: `payload_hash`
+       warning: unused variable: `addr_for_reply`
+       warning: unused variable: `addr_ops`
+       warning: struct `Array3NodeInfo` is never constructed
+       warning: fields `address`, `ip`, and `peer_port` are never read
+       warning: `inter-cube` (bin "inter-cube-daemon") generated 6 warnings (run `cargo fix --bin "inter-cube-daemon" -p inter-cube` to apply 4 suggestions)
+           Finished `release` profile [optimized] target(s) in 0.23s
+
+==========================================================
+  BUILD SUCCESSFUL
+==========================================================
+  Binary:    C:\PlenumNET\target\release\inter-cube-daemon.exe
+  Size:      5.8 MB
+  Built:     2026-04-02 16:56:48
+  Commit:    14aa5c16
+
+  Hostname:  SSLAPTOPPMHU6JD
+  IP:        10.0.0.42
+  Arch:      x64
+
+IDENTITY: Creating identity directory: C:\Users\Sigma\.plenumnet\identity-4
+IDENTITY: Generating identity #4...
+IDENTITY: WARNING - Identity #4 key generation may have failed.
+
+==========================================================
+  READY TO LAUNCH
+==========================================================
+
+  Start Daemon #1 (gateway=11124, peer=11123, terminal=11122, slots=11111-11137):
+    Gateway API : http://localhost:11124
+    Terminal WS : ws://localhost:11122 (WebSocket PTY)
+    VM API      : http://localhost:11124/vm/exec, /vm/status, /vm/registers, /vm/reset, /vm/isa
+    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="11124"; $env:CUBE_NODE_ID="1"
+    $env:CUBE_PEER_PORT="11123"; $env:CUBE_TERMINAL_PORT="11122"; $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+    $env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-1"
+    & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+
+  Start Daemon #1 (gateway=11124, peer=11123, terminal=11122, slots=11111-11137):
+    Gateway API : http://localhost:11124
+    Terminal WS : ws://localhost:11122 (WebSocket PTY)
+    VM API      : http://localhost:11124/vm/exec, /vm/status, /vm/registers, /vm/reset, /vm/isa
+    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="11124"; $env:CUBE_NODE_ID="1"
+    $env:CUBE_PEER_PORT="11123"; $env:CUBE_TERMINAL_PORT="11122"; $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+    $env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-1"
+    & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+
+  Start Daemon #2 (gateway=11151, peer=11150, terminal=11149, slots=11138-11164):
+    Gateway API : http://localhost:11151
+    Terminal WS : ws://localhost:11149 (WebSocket PTY)
+    VM API      : http://localhost:11151/vm/exec, /vm/status, /vm/registers, /vm/reset, /vm/isa
+    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="11151"; $env:CUBE_NODE_ID="2"
+    $env:CUBE_PEER_PORT="11150"; $env:CUBE_TERMINAL_PORT="11149"; $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+    $env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-2"
+    & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+
+  Start Daemon #3 (gateway=11178, peer=11177, terminal=11176, slots=11165-11191):
+    Gateway API : http://localhost:11178
+    Terminal WS : ws://localhost:11176 (WebSocket PTY)
+    VM API      : http://localhost:11178/vm/exec, /vm/status, /vm/registers, /vm/reset, /vm/isa
+    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="11178"; $env:CUBE_NODE_ID="3"
+    $env:CUBE_PEER_PORT="11177"; $env:CUBE_TERMINAL_PORT="11176"; $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+    $env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-3"
+    & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+
+  Start Daemon #4 (gateway=11205, peer=11204, terminal=11203, slots=11192-11218):
+    Gateway API : http://localhost:11205
+    Terminal WS : ws://localhost:11203 (WebSocket PTY)
+    VM API      : http://localhost:11205/vm/exec, /vm/status, /vm/registers, /vm/reset, /vm/isa
+    $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="11205"; $env:CUBE_NODE_ID="4"
+    $env:CUBE_PEER_PORT="11204"; $env:CUBE_TERMINAL_PORT="11203"; $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+    $env:CUBE_IDENTITY_DIR="C:\Users\Sigma\.plenumnet\identity-4"
+    & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+
+  Total identities: 5
+
+==========================================================
+  REGISTERING WINDOWS SERVICES
+==========================================================
+
+Start-Service : Service 'PlenumNET Inter-Cube Daemon (Identity #1) (PlenumNET-Cube-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Cube-1 on computer '.'.
+At line:398 char:17
++                 Start-Service -Name $svcName
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+  [OK] Daemon #1 registered as Windows Service: PlenumNET-Cube-1
+Start-Service : Service 'PlenumNET Inter-Cube Daemon (Identity #1) (PlenumNET-Cube-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Cube-1 on computer '.'.
+At line:398 char:17
++                 Start-Service -Name $svcName
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+  [OK] Daemon #1 registered as Windows Service: PlenumNET-Cube-1
+Start-Service : Service 'PlenumNET Inter-Cube Daemon (Identity #2) (PlenumNET-Cube-2)' cannot be started due to the
+following error: Cannot start service PlenumNET-Cube-2 on computer '.'.
+At line:398 char:17
++                 Start-Service -Name $svcName
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+  [OK] Daemon #2 registered as Windows Service: PlenumNET-Cube-2
+Start-Service : Service 'PlenumNET Inter-Cube Daemon (Identity #3) (PlenumNET-Cube-3)' cannot be started due to the
+following error: Cannot start service PlenumNET-Cube-3 on computer '.'.
+At line:398 char:17
++                 Start-Service -Name $svcName
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+  [OK] Daemon #3 registered as Windows Service: PlenumNET-Cube-3
+Start-Service : Service 'PlenumNET Inter-Cube Daemon (Identity #4) (PlenumNET-Cube-4)' cannot be started due to the
+following error: Cannot start service PlenumNET-Cube-4 on computer '.'.
+At line:398 char:17
++                 Start-Service -Name $svcName
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+  [OK] Daemon #4 registered as Windows Service: PlenumNET-Cube-4
+  [OK] Watchdog scheduled task registered: PlenumNET-Daemon-Watchdog
+       Checks every 5 minutes + on boot -- restarts any stopped daemons
+
+  Service management:
+    Get-Service PlenumNET-Cube-*       # Check all daemon services
+    Restart-Service PlenumNET-Cube-1   # Restart daemon #1
+    powershell -File "C:\PlenumNET\client\public\install\plenumnet-service.ps1" status
+
+  Run this script again to add another daemon.
+
+  [OK] Deployment recorded with CRS Daemon Registry
+       Query: https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments?hostname=SSLAPTOPPMHU6JD
+
+PS C:\windows\system32>
