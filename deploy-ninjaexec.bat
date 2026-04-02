@@ -27,9 +27,8 @@ if %errorlevel% neq 0 (
 )
 
 echo   Pulling latest code from GitHub...
-git fetch origin main
-git checkout origin/main -- services/inter-cube/deploy-yoda.ps1
-echo   [OK] deploy-yoda.ps1 updated
+git pull origin main
+echo   [OK] Code updated
 echo.
 
 echo   Launching deployer v0.6.0 (includes NinjaExec)...
