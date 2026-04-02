@@ -586,7 +586,7 @@ if ($neBuildExit -ne 0) {
 
     $env:PATH += ";$(Split-Path $NinjaExecPath)"
 
-    $neKeystorePath = Join-Path $env:APPDATA "NinjaExec\keystore.enc"
+    $neKeystorePath = Join-Path $env:APPDATA "NinjaExec\ninja-exec.keystore"
     if (Test-Path $neKeystorePath) {
         Write-Host "  [OK] Existing NinjaExec keystore found -- skipping init" -ForegroundColor Green
     } else {
@@ -912,7 +912,7 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
       $passphraseFile = Join-Path $dir ".passphrase"
       if (-not (Test-Path $passphraseFile)) {
           $passBytes = New-Object byte[] 32
-          [System.Security.Cryptography.RandomNumberGenerator]::Fill($passBytes)
+          $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider; $rng.GetBytes($passBytes); $rng.Dispose()
           $nodePassphrase = [Convert]::ToBase64String($passBytes)
           Set-Content -Path $passphraseFile -Value $nodePassphrase -Encoding UTF8 -NoNewline
           Restrict-FileAcl -FilePath $passphraseFile | Out-Null
@@ -1819,7 +1819,7 @@ Write-Host "  NinjaExec Signing Agent" -ForegroundColor Cyan
 if (Test-Path $NinjaExecPath) {
     Write-Host "  Binary           : $NinjaExecPath" -ForegroundColor White
     Write-Host "  Signing API      : http://localhost:21027/sign" -ForegroundColor White
-    $neKeystoreCheck = Join-Path $env:APPDATA "NinjaExec\keystore.enc"
+    $neKeystoreCheck = Join-Path $env:APPDATA "NinjaExec\ninja-exec.keystore"
     if (Test-Path $neKeystoreCheck) {
         Write-Host "  Keystore         : $neKeystoreCheck (initialized)" -ForegroundColor White
     } else {
