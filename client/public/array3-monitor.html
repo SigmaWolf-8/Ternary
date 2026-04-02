@@ -1112,108 +1112,121 @@ function hideRestartDialog(){
 restartCancelBtn.addEventListener('click',hideRestartDialog);
 
 restartConfirmBtn.addEventListener('click',async()=>{
-  if(!restartTarget)return;
-  restartConfirmBtn.disabled=true;
-  restartConfirmBtn.textContent='Signing...';
-  restartStatus.textContent='Contacting NinjaExec for TL-DSA signature...';
-  restartStatus.style.color=CSS.blueActive;
-
-  // Step 1: Check NinjaExec is alive
-  const ninjaAlive=await ninjaStatus();
-  if(!ninjaAlive){
-    restartStatus.textContent='NinjaExec not reachable at 127.0.0.1:21027 — is it running?';
-    restartStatus.style.color='#E24B4A';
-    restartConfirmBtn.disabled=false;
-    restartConfirmBtn.textContent='Retry';
-    return;
-  }
-
-  // Step 2: Build the exec command
-  const isWindows=true; // assume Windows deployment for now
-  const cmd=isWindows
-    ?`Restart-Service PlenumNET-Cube-${restartTarget.nodeId}`
-    :`systemctl restart plenumnet-crs.service`;
-
-  const execPayload={
-    msg_type:'exec',
-    target_node:restartTarget.nodeId,
-    script:cmd,
-    timestamp:Date.now()
-  };
-
-  // Step 3: Sign with NinjaExec
-  try{
-    restartStatus.textContent='Signing exec payload...';
-    const signed=await ninjaSign(execPayload);
-    execPayload.signature=signed.signature;
-    execPayload.public_key=signed.public_key;
-    restartStatus.textContent='Signed. Sending to relay...';
-  }catch(e){
-    restartStatus.textContent=`Signing failed: ${e.message}`;
-    restartStatus.style.color='#E24B4A';
-    restartConfirmBtn.disabled=false;
-    restartConfirmBtn.textContent='Retry';
-    return;
-  }
-
-  // Step 4: Send through WSS relay
-  if(!relayConnected){
-    // Try connecting first
-    connectRelayWss();
-    await new Promise(r=>setTimeout(r,2000));
-  }
-
-  const sent=sendOpsMessage(execPayload);
-  if(!sent){
-    restartStatus.textContent='Relay not connected — command not sent. Trying HTTP fallback...';
-    restartStatus.style.color=CSS.label;
-    // HTTP fallback — POST to relay endpoint
-    try{
-      const headers={'Content-Type':'application/json'};
-      if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
-      const resp=await fetch(`${relayUrl}/api/ops/exec`,{method:'POST',headers,body:JSON.stringify(execPayload)});
-      if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
-      restartStatus.textContent='Command sent via HTTP. Watching for recovery...';
-      restartStatus.style.color=CSS.lime;
-    }catch(e){
-      restartStatus.textContent=`Could not reach relay: ${e.message}`;
+    if(!restartTarget)return;
+    restartConfirmBtn.disabled=true;
+    restartConfirmBtn.textContent='Signing...';
+    restartStatus.textContent='Contacting NinjaExec for TL-DSA signature...';
+    restartStatus.style.color=CSS.blueActive;
+  
+    // Step 1: Check NinjaExec is alive
+    const ninjaAlive=await ninjaStatus();
+    if(!ninjaAlive){
+      restartStatus.textContent='NinjaExec not reachable at 127.0.0.1:21027 -- is it running?';
       restartStatus.style.color='#E24B4A';
       restartConfirmBtn.disabled=false;
       restartConfirmBtn.textContent='Retry';
       return;
     }
-  }else{
-    restartStatus.textContent='Command sent via WebSocket. Watching for recovery...';
-    restartStatus.style.color=CSS.lime;
-  }
-
-  restartConfirmBtn.textContent='Waiting...';
-
-  // Step 5: Poll /api/ops/status for recovery
-  let elapsed=0;
-  restartPollTimer=setInterval(async()=>{
-    elapsed+=3;
-    restartStatus.textContent=`Watching for ${restartTarget.nodeName} recovery... ${elapsed}s`;
-    if(elapsed>=60){
-      clearInterval(restartPollTimer);restartPollTimer=null;
-      restartStatus.textContent=`Timeout — ${restartTarget.nodeName} did not reconnect within 60s. The watchdog may recover it within 5 minutes.`;
-      restartStatus.style.color=CSS.label;
+  
+    // Step 2: Build the exec command (correct service names)
+    const cmd=`Restart-Service PlenumNET-Array3-${restartTarget.nodeId}`;
+  
+    const execPayload={
+      msg_type:'exec',
+      target_node:restartTarget.nodeId,
+      script:cmd,
+      timestamp:Date.now()
+    };
+  
+    // Step 3: Sign with NinjaExec
+    try{
+      restartStatus.textContent='Signing exec payload...';
+      const signed=await ninjaSign(execPayload);
+      execPayload.signature=signed.signature;
+      execPayload.public_key=signed.public_key;
+      restartStatus.textContent='Signed. Sending to relay...';
+    }catch(e){
+      restartStatus.textContent=`Signing failed: ${e.message}`;
+      restartStatus.style.color='#E24B4A';
       restartConfirmBtn.disabled=false;
-      restartConfirmBtn.textContent='Close';
-      restartConfirmBtn.onclick=hideRestartDialog;
+      restartConfirmBtn.textContent='Retry';
       return;
     }
+  
+    // Step 4: Ensure ops channel is enabled on the relay
     try{
-      const headers2={'Content-Type':'application/json'};
-      if(apiKey)headers2['Authorization']=`Bearer ${apiKey}`;
-      const resp=await fetch(`${relayUrl}/api/ops/status`,{headers:headers2});
-      if(resp.ok){
-        const status=await resp.json();
-        // Check if target node is connected
-        const nodes=status.nodes||status;
-        if(Array.isArray(nodes)){
-          const node=nodes.find(n=>n.node_id===restartTarget.nodeId||n.nodeId===restartTarget.nodeId);
-          if(node&&(node.connection_state==='connected'||node.connectionState==='connected')){
+      const headers={'Content-Type':'application/json'};
+      if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
+      await fetch(`${relayUrl}/api/ops/enable`,{method:'POST',headers});
+    }catch(e){console.warn('[ops] Could not enable ops channel:',e.message)}
+  
+    // Step 5: Send via propose-exec HTTP endpoint (reliable, no WSS needed)
+    try{
+      const headers={'Content-Type':'application/json'};
+      if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
+      const proposeResp=await fetch(`${relayUrl}/api/ops/propose-exec`,{
+        method:'POST',
+        headers,
+        body:JSON.stringify({
+          proposed_script:cmd,
+          rationale:`Restart ${restartTarget.svc} on ${restartTarget.nodeName} via Array3 Monitor`,
+          target_node_id:String(restartTarget.nodeId),
+          signature:execPayload.signature,
+          public_key:execPayload.public_key
+        })
+      });
+      if(!proposeResp.ok){
+        const errText=await proposeResp.text().catch(()=>'');
+        throw new Error(`HTTP ${proposeResp.status}: ${errText}`);
+      }
+      const proposeResult=await proposeResp.json();
+      if(proposeResult.delivered>0){
+        restartStatus.textContent=`Command proposed and delivered to ${proposeResult.delivered} terminal client(s). Approve in the Node Terminal.`;
+        restartStatus.style.color=CSS.lime;
+      }else{
+        restartStatus.textContent='Command proposed but no terminal clients connected. Open the Node Terminal to approve.';
+        restartStatus.style.color=CSS.label;
+      }
+    }catch(e){
+      // Fallback: try WSS relay
+      if(!relayConnected){connectRelayWss();await new Promise(r=>setTimeout(r,2000))}
+      const sent=sendOpsMessage(execPayload);
+      if(sent){
+        restartStatus.textContent='Command sent via WebSocket relay. Watching for recovery...';
+        restartStatus.style.color=CSS.lime;
+      }else{
+        restartStatus.textContent=`Could not reach relay: ${e.message}`;
+        restartStatus.style.color='#E24B4A';
+        restartConfirmBtn.disabled=false;
+        restartConfirmBtn.textContent='Retry';
+        return;
+      }
+    }
+  
+    restartConfirmBtn.textContent='Waiting...';
+  
+    // Step 6: Poll for recovery
+    let elapsed=0;
+    restartPollTimer=setInterval(async()=>{
+      elapsed+=3;
+      restartStatus.textContent=`Watching for ${restartTarget.nodeName} recovery... ${elapsed}s`;
+      if(elapsed>=60){
+        clearInterval(restartPollTimer);restartPollTimer=null;
+        restartStatus.textContent=`Timeout -- ${restartTarget.nodeName} did not reconnect within 60s. The watchdog may recover it within 5 minutes.`;
+        restartStatus.style.color=CSS.label;
+        restartConfirmBtn.disabled=false;
+        restartConfirmBtn.textContent='Close';
+        restartConfirmBtn.onclick=hideRestartDialog;
+        return;
+      }
+      try{
+        const hdr={'Content-Type':'application/json'};
+        if(apiKey)hdr['Authorization']=`Bearer ${apiKey}`;
+        const healthResp=await fetch(`${relayUrl}/api/salvi/inter-cube/relay/cluster-health`,{headers:hdr});
+        if(healthResp.ok){
+          const cluster=await healthResp.json();
+          const daemon=cluster.daemons?.find(d=>d.healthState==='up');
+          if(daemon){
             clearInterval(restartPollTimer);restartPollTimer=null;
             restartStatus.innerHTML=`<span style="color:${CSS.lime}">${restartTarget.nodeName} is back online.</span>`;
             restartConfirmBtn.disabled=false;
@@ -1222,10 +1235,9 @@ restartConfirmBtn.addEventListener('click',async()=>{
             return;
           }
         }
-      }
-    }catch(e){/* keep polling */}
-  },3000);
-});
+      }catch(e){/* keep polling */}
+    },3000);
+  });
 
 function handleExecResult(msg){
   console.log('[ops] exec-result:',msg);
