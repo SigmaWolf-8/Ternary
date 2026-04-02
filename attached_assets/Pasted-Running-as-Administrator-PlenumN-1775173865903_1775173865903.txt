@@ -1,0 +1,164 @@
+Running as Administrator...
+
+==========================================================
+  PlenumNET Array3 Deployer v0.6.0
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v0.6.0
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+  Continue? (Y/n): y
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v0.6.0)
+---
+  [INFO] Updating source to v0.6.0...
+  [OK] Source ready (pinned to v0.6.0)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:00]     Finished `release` profile [optimized] target(s) in 0.82s
+  [OK] Build successful (5.8 MB, 00:00 elapsed, 0 crates)
+  [OK] Binary SHA-256: A940B5D0A2844DF97849FBF973D68FA3E79CD4E42BF391D823F1598C7EC78C63
+  [WARN] TIS-27 hash not available from daemon -- using SHA-256 as fallback
+
+STEP 5/11: Building and configuring NinjaExec signing agent
+---
+  [INFO] Building NinjaExec signing agent...
+         This typically takes 3-10 minutes (shares compiled dependencies).
+  [00:00] Compiling ternary-math (#1)
+  [00:07] Compiling ninja-exec (#2)
+  error: failed to remove file `C:\PlenumNET\target\release\ninja-exec.exe`
+    Access is denied. (os error 5)
+  [FAIL] NinjaExec could not be compiled (00:28 elapsed).
+         Review the error output above for details.
+         The daemon cluster will still work, but signing operations will not be available.
+         Re-run the deployer after resolving the build issue to add NinjaExec.
+
+STEP 6/11: Verifying version alignment
+---
+  [INFO] Local node    : v2.4.1
+  [INFO] CRS reference : v2.4.1
+  [OK] Version aligned
+
+STEP 7/11: Detecting local network
+---
+  [OK] Local IP: 10.0.0.42
+
+STEP 8/11: Generating 3 node identities
+---
+  [OK] Operations channel directories created
+  [OK] Existing ops-config.json preserved
+
+=== Ops Sandbox Hardening ===
+  [OK] ACL hardening applied to C:\PlenumNET\plenumnet-data\.plenumnet (SYSTEM + Administrators only)
+  [OK] SeAssignPrimaryTokenPrivilege detected in security policy
+  [INFO] AppLocker not running -- exec sandbox: Reduced (ACLs only)
+  [INFO] Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...
+  [OK] Node #1 passphrase loaded
+  [OK] Node #1 identity exists
+  [OK] Node #2 passphrase loaded
+  [OK] Node #2 identity exists
+  [OK] Node #3 passphrase loaded
+  [OK] Node #3 identity exists
+
+STEP 9/11: Registering and starting Windows Services
+---
+  [OK] Node #1 registered as service 'PlenumNET-Array3-1'
+  [OK] Node #2 registered as service 'PlenumNET-Array3-2'
+  [OK] Node #3 registered as service 'PlenumNET-Array3-3'
+
+  [INFO] Starting Node #1 (coordinator) first...
+  [INFO] Waiting for coordinator to be ready...
+         Waiting for coordinator... (attempt 1/15)
+  [OK] Coordinator ready at http://localhost:11124
+  [OK] Node #2 service started
+  [OK] Node #3 service started
+
+STEP 10/11: Configuring watchdog and LLM engines
+---
+  [WARN] No AI model file (.gguf) was found on this machine.
+         To enable AI inference, download a compatible model file and place it
+         in C:\PlenumNET\models\. The watchdog will automatically configure it.
+         For model recommendations, visit https://plenumnet.com/docs/models
+  [OK] LLM engine config written to C:\ProgramData\PlenumNET\llm-engines.json (ACL: SYSTEM + Administrators only)
+  [OK] C:\ProgramData\PlenumNET ACL restricted (SYSTEM + Administrators)
+  [OK] Watchdog scheduled task registered: PlenumNET-Array3-Watchdog
+       Checks every 2 minutes + on boot
+       Watchdog log: C:\PlenumNET\plenumnet-data\logs\watchdog.log
+  [OK] Node #1 (coordinator) address: 1111111111111
+  [OK] Node #2 registered -> address: 1211111111111
+  [OK] Node #3 registered -> address: 2211111111111
+
+STEP 11/11: Deployment summary and desktop launchers
+---
+  [WARN] Could not register this deployment with the Node Registry.
+         Your cluster is running normally -- registry notification can be retried later.
+
+  [OK] Start launcher created: C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.cmd
+  [OK] Stop launcher created: C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.cmd
+
+==========================================================
+  PlenumNET Array3 Deployment Complete
+  Capomastro Holdings Ltd.
+  Deployer v0.6.0 | Release v0.6.0
+  NinjaExec signing agent included
+==========================================================
+
+  Cluster Status
+  Node #1 (coordinator): gateway 11124, terminal 11122, address 1111111111111
+  Node #2 (worker)      : gateway 11151, terminal 11149, address 1211111111111
+  Node #3 (worker)      : gateway 11178, terminal 11176, address 2211111111111
+
+  API Endpoints
+  VM API           : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway port)
+  Cluster Shell    : /cluster/exec, /cluster/peers (on gateway port)
+  Coordinator      : http://localhost:11124 (Node #1)
+  Relay            : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Node Registry    : https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+
+  Management
+  Services         : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+  Startup          : Automatic (survives reboots + terminal close)
+  Watchdog         : PlenumNET-Array3-Watchdog (every 2 min + on boot)
+  Start Launcher   : C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.cmd
+  Stop Launcher    : C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.cmd
+
+  NinjaExec Signing Agent
+  Binary           : C:\PlenumNET\target\release\ninja-exec.exe
+  Signing API      : http://localhost:21027/sign
+  Keystore         : C:\Users\Sigma\AppData\Roaming\NinjaExec\ninja-exec.keystore (initialized)
+
+  Operations Channel
+  Ops Config       : C:\PlenumNET\plenumnet-data\.plenumnet\ops-config.json
+  Ops Enabled      : false
+  Audit Log        : C:\PlenumNET\plenumnet-data\.plenumnet\ops-audit.jsonl
+  Ops Directories  : ops/, logs/, configs/, transfers/
+
+  Files and Logs
+  Binary           : C:\PlenumNET\target\release\inter-cube-daemon.exe (5.8 MB)
+  Binary Hash      : sha256:A940B5D0A2844DF97849FBF973D68FA3E79CD4E42BF391D823F1598C7EC78C63
+  Logs             : C:\PlenumNET\plenumnet-data\logs
+  Watchdog Log     : C:\PlenumNET\plenumnet-data\logs\watchdog.log
+  Release Tag      : v0.6.0
+
+  Closing this window will NOT stop the nodes -- they run as services.
+  Applications (e.g. YODA) connect via the relay to reach these nodes.
+
+Press Enter to close this window. Your nodes are running as services and will continue.:
