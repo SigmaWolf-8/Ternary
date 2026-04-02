@@ -1,0 +1,159 @@
+==========================================================
+  PlenumNET NinjaExec Deployer
+  Capomastro Holdings Ltd.
+==========================================================
+
+  [OK] Running as Administrator
+
+  Pulling latest code from GitHub...
+remote: Enumerating objects: 14, done.
+remote: Counting objects: 100% (14/14), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 9 (delta 6), reused 9 (delta 6), pack-reused 0 (from 0)
+Unpacking objects: 100% (9/9), 2.13 KiB | 128.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   82d4b454..a61604ee  main       -> origin/main
+  [OK] deploy-yoda.ps1 updated
+
+  Launching deployer v0.6.0 (includes NinjaExec)...
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+
+==========================================================
+  PlenumNET Array3 Deployer v0.6.0
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v0.6.0
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v0.6.0)
+---
+  [INFO] Updating source to v0.6.0...
+  [OK] Source ready (pinned to v0.6.0)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [WARN] Stopping 3 running daemon process(es)...
+         Connected relay clients will be temporarily disconnected.
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:06] Compiling quote (#1)
+  [00:07] Compiling syn (#2)
+  [00:11] Compiling synstructure (#3)
+  [00:12] Compiling pin-project-lite (#4)
+  [00:12] Compiling zerofrom-derive (#5)
+  [00:13] Compiling itoa (#6)
+  [00:13] Compiling zerofrom (#7)
+  [00:13] Compiling yoke-derive (#8)
+  [00:14] Compiling yoke (#9)
+  [00:14] Compiling zerovec-derive (#10)
+  [00:15] Compiling zerovec (#11)
+  [00:16] Compiling tokio-macros (#12)
+  [00:17] Compiling displaydoc (#13)
+  [00:17] Compiling tokio (#14)
+  [00:24] Compiling http (#15)
+  [00:25] Compiling once_cell (#16)
+  [00:25] Compiling tinystr (#17)
+  [00:25] Compiling litemap (#18)
+  [00:25] Compiling writeable (#19)
+  [00:26] Compiling icu_locid_transform_data (#20)
+  [00:26] Compiling icu_locid (#21)
+  [00:27] Compiling icu_provider_macros (#22)
+  [00:28] Compiling futures-macro (#23)
+  [00:28] Compiling icu_properties_data (#24)
+  [00:29] Compiling futures-util (#25)
+  [00:31] Compiling icu_provider (#26)
+  [00:32] Compiling wasm-bindgen-shared (#27)
+  [00:32] Compiling icu_normalizer_data (#28)
+  [00:32] Compiling icu_locid_transform (#29)
+  [00:35] Compiling tracing-core (#30)
+  [00:36] Compiling icu_collections (#31)
+  [00:36] Compiling tracing-attributes (#32)
+  [00:37] Compiling windows_aarch64_msvc (#33)
+  [00:37] Compiling tracing (#34)
+  [00:38] Compiling icu_properties (#35)
+  [00:39] Compiling http-body (#36)
+  [00:40] Compiling windows-sys (#37)
+  [00:42] Compiling zerocopy (#38)
+  [00:42] Compiling utf16_iter (#39)
+  [00:43] Compiling write16 (#40)
+  [00:43] Compiling icu_normalizer (#41)
+  [00:44] Compiling schannel (#42)
+  [00:44] Compiling serde_derive (#43)
+     Compiling thiserror v1.0.57
+  [00:47] Compiling indexmap (#44)
+  [00:47] Compiling serde (#45)
+  [00:48] Compiling windows-targets (#46)
+  [00:48] Compiling native-tls (#47)
+  [00:51] Compiling idna_adapter (#48)
+  [00:51] Compiling tokio-util (#49)
+     Compiling thiserror-impl v1.0.57
+  [00:53] Compiling h2 (#50)
+  [00:57] Compiling idna (#51)
+  [00:58] Compiling ppv-lite86 (#52)
+  [00:58] Compiling windows-sys (#53)
+  [00:59] Compiling rayon-core (#54)
+  [00:59] Compiling wasm-bindgen-macro-support (#55)
+  [01:01] Compiling hyper (#56)
+  [01:04] Compiling rand_chacha (#57)
+  [01:04] Compiling socket2 (#58)
+  [01:05] Compiling url (#59)
+  [01:06] Compiling tokio-native-tls (#60)
+  [01:06] Compiling http-body-util (#61)
+  [01:06] Compiling wasm-bindgen (#62)
+  [01:07] Compiling serde_json (#63)
+  [01:08] Compiling hyper-util (#64)
+  [01:11] Compiling rand (#65)
+  [01:12] Compiling wasm-bindgen-macro (#66)
+  [01:12] Compiling pin-project-internal (#67)
+  [01:13] Compiling tungstenite (#68)
+  [01:15] Compiling rayon (#69)
+  [01:17] Compiling serde_urlencoded (#70)
+  [01:18] Compiling pin-project (#71)
+  [01:19] Compiling filedescriptor (#72)
+  [01:19] Compiling tower (#73)
+  [01:20] Compiling async-trait (#74)
+  [01:20] Compiling iri-string (#75)
+  [01:22] Compiling tower-http (#76)
+  [01:23] Compiling axum-core (#77)
+  [01:24] Compiling portable-pty (#78)
+  [01:25] Compiling ternary-math (#79)
+  [01:32] Compiling tower (#80)
+  [01:32] Compiling tokio-tungstenite (#81)
+  [01:33] Compiling hyper-tls (#82)
+     Compiling serde_path_to_error v0.1.20
+  [01:33] Compiling static_assertions (#83)
+  [01:33] Compiling plenumlan (#84)
+  [01:34] Compiling axum (#85)
+  [01:37] Compiling reqwest (#86)
+  [01:43] Compiling pty-mux (#87)
+  [01:44] Compiling chrono (#88)
+  [01:46] Compiling uuid (#89)
+  [01:46] Compiling subtle (#90)
+  [01:46] Compiling inter-cube (#91)
+  error[E0599]: no method named `clone` found for struct `tokio::sync::watch::Sender<T>` in the current scope
+  error[E0382]: borrow of moved value: `file_path`
+  Some errors have detailed explanations: E0382, E0599.
+  For more information about an error, try `rustc --explain E0382`.
+  error: could not compile `inter-cube` (lib) due to 2 previous errors; 11 warnings emitted
+  [FAIL] The PlenumNET daemon could not be compiled (01:48 elapsed).
+         Review the error output above for details.
+         If a build tool is missing, install it and re-run the deployer.
+Press Enter to close. Re-run the deployer after resolving the issue above.:
