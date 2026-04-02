@@ -1,0 +1,347 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+remote: Enumerating objects: 21, done.
+remote: Counting objects: 100% (21/21), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 13 (delta 9), reused 12 (delta 8), pack-reused 0 (from 0)
+Unpacking objects: 100% (13/13), 2.44 KiB | 89.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   c08ebb17..825022a2  main       -> origin/main
+Updating c08ebb17..825022a2
+Fast-forward
+ client/public/array3-monitor.html                  |   75 +-
+ services/inter-cube/monitor/array3-monitor-v7.html | 1518 ++++++++++++++++++++
+ services/inter-cube/src/main.rs                    |   18 +-
+ 3 files changed, 1579 insertions(+), 32 deletions(-)
+ create mode 100644 services/inter-cube/monitor/array3-monitor-v7.html
+PS C:\PlenumNET> cargo build --release -p inter-cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+   Compiling ternary-math v0.1.0 (C:\PlenumNET\ternary-math)
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:1994:47
+     |
+1994 |     let independent = aflags & 0x04 != 0; let adaptive_rep = aflags & 0x08 != 0;
+     |                                               ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `mode`
+    --> ternary-math\src\ttc.rs:2048:9
+     |
+2048 |     let mode = CompressionMode::from_u8(compressed[0x05])?;
+     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_mode`
+
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:2055:9
+     |
+2055 |     let adaptive_rep = aflags & 0x08 != 0;
+     |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: constant `TRIBONACCI_SEQ` is never used
+   --> ternary-math\src\ttc.rs:119:7
+    |
+119 | const TRIBONACCI_SEQ: [u64; 30] = [
+    |       ^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> ternary-math\src\ttc.rs:538:8
+    |
+536 | impl TritStreamWriter {
+    | --------------------- associated function in this implementation
+537 |     #[inline]
+538 |     fn new() -> Self { Self { buffer: Vec::new(), pending: [0; 5], count: 0, total_trits: 0 } }
+    |        ^^^
+
+warning: method `is_exhausted` is never used
+   --> ternary-math\src\ttc.rs:619:8
+    |
+593 | impl<'a> TritStreamReader<'a> {
+    | ----------------------------- method in this implementation
+...
+619 |     fn is_exhausted(&self) -> bool {
+    |        ^^^^^^^^^^^^
+
+warning: function `deserialize_ternary_enhanced` is never used
+    --> ternary-math\src\ttc.rs:1601:4
+     |
+1601 | fn deserialize_ternary_enhanced(payload: &[u8], _adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+   Compiling plenumlan v2.4.1 (C:\PlenumNET\plenumlan)
+warning: unused import: `REPUNIT_R5`
+  --> plenumlan\src\cube\constants.rs:20:37
+   |
+20 | use ternary_math::repunit_circles::{REPUNIT_R5, REPUNIT_R6};
+   |                                     ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `GF3_ORDER` and `SLOTS_PER_NODE`
+  --> plenumlan\src\cube\node.rs:15:16
+   |
+15 |     BASE_PORT, GF3_ORDER, GATEWAY_NODE_ID, MAX_NODES, SLOTS_PER_NODE,
+   |                ^^^^^^^^^                              ^^^^^^^^^^^^^^
+
+warning: unused imports: `GF3_ORDER` and `SLOTS_PER_NODE`
+  --> plenumlan\src\cube\routing.rs:23:35
+   |
+23 | use super::constants::{CUBE_DIMS, GF3_ORDER, SLOTS_PER_NODE};
+   |                                   ^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `Trit`
+  --> plenumlan\src\cube\routing.rs:24:38
+   |
+24 | use super::projection::{SlotAddress, Trit};
+   |                                      ^^^^
+
+warning: unused imports: `SlotAddress` and `project_to_slot`
+  --> plenumlan\src\cube\windows_roles.rs:11:31
+   |
+11 | use super::projection::{Trit, SlotAddress, project_to_slot};
+   |                               ^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused import: `ternary_math::repunit_circles::REPUNIT_R5`
+  --> plenumlan\src\cube\freshness.rs:19:5
+   |
+19 | use ternary_math::repunit_circles::REPUNIT_R5;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `make_class` is never used
+  --> plenumlan\src\cube\windows_roles.rs:23:10
+   |
+23 | const fn make_class(base: [Trit; CLASSIFICATION_DIMS], _label: &str) -> [Trit; CLASSIFICATION_DIMS] {
+   |          ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling inter-cube v2.4.1 (C:\PlenumNET\services\inter-cube)
+warning: `plenumlan` (lib) generated 7 warnings (run `cargo fix --lib -p plenumlan` to apply 6 suggestions)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:48:34
+   |
+48 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Path`
+  --> services\inter-cube\src\persistence.rs:60:17
+   |
+60 | use std::path::{Path, PathBuf};
+   |                 ^^^^
+
+warning: unused import: `DIMENSIONS`
+  --> services\inter-cube\src\lattice_mixer.rs:49:34
+   |
+49 | use crate::cube_addr::{CubeAddr, DIMENSIONS};
+   |                                  ^^^^^^^^^^
+
+warning: unused import: `TOTAL_VERTICES`
+  --> services\inter-cube\src\sampling.rs:51:46
+   |
+51 | use crate::cube_addr::{CubeAddr, DIMENSIONS, TOTAL_VERTICES};
+   |                                              ^^^^^^^^^^^^^^
+
+warning: unused import: `DimensionDensity`
+  --> services\inter-cube\src\sampling.rs:52:42
+   |
+52 | use crate::placement::{hamming_distance, DimensionDensity};
+   |                                          ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> services\inter-cube\src\pt26_parallel.rs:13:5
+   |
+13 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+  --> services\inter-cube\src\pt26_parallel.rs:18:46
+   |
+18 |     DIMENSIONS, NUM_SIGMAS, STEP_COMMIT_LEN, SIG_COMMIT_LEN,
+   |                                              ^^^^^^^^^^^^^^
+19 |     DOMAIN_MSG, DOMAIN_SIG,
+   |                 ^^^^^^^^^^
+
+warning: unused import: `SystemTime`
+  --> services\inter-cube\src\ops_handler.rs:35:36
+   |
+35 | use std::time::{Duration, Instant, SystemTime};
+   |                                    ^^^^^^^^^^
+
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `min_c`
+   --> services\inter-cube\src\dimension_tracker.rs:224:17
+    |
+224 |             let min_c = *counts.iter().min().unwrap();
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_min_c`
+
+warning: variable does not need to be mutable
+  --> services\inter-cube\src\pt26_parallel.rs:84:17
+   |
+84 |             let mut current_trits = addr_bytes;
+   |                 ----^^^^^^^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+   --> services\inter-cube\src\overlay.rs:273:5
+    |
+263 | pub struct CubeOverlayNetwork {
+    |            ------------------ fields in this struct
+...
+273 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+274 |     /// Key rotation interval.
+275 |     key_rotation_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `count` is never used
+   --> services\inter-cube\src\crs.rs:340:8
+    |
+275 | impl AddressAllocator {
+    | --------------------- method in this implementation
+...
+340 |     fn count(&self) -> u64 {
+    |        ^^^^^
+
+warning: field `heartbeat_interval` is never read
+   --> services\inter-cube\src\crs.rs:468:5
+    |
+462 | pub struct CubeRegistrationService {
+    |            ----------------------- field in this struct
+...
+468 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated functions `entropy_seed` and `collect_entropy_seed` are never used
+   --> services\inter-cube\src\identity.rs:242:19
+    |
+186 | impl MasterSecret {
+    | ----------------- associated functions in this implementation
+...
+242 |     pub(crate) fn entropy_seed() -> Vec<u8> {
+    |                   ^^^^^^^^^^^^
+...
+252 |     fn collect_entropy_seed() -> Vec<u8> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `GRID_ROWS` is never used
+  --> services\inter-cube\src\wire_ecc.rs:74:7
+   |
+74 | const GRID_ROWS: usize = 3;
+   |       ^^^^^^^^^
+
+warning: constant `OVERFLOW` is never used
+  --> services\inter-cube\src\wire_ecc.rs:75:7
+   |
+75 | const OVERFLOW: usize = 4;
+   |       ^^^^^^^^
+
+warning: constant `ROW_SIZES` is never used
+   --> services\inter-cube\src\wire_ecc.rs:110:7
+    |
+110 | const ROW_SIZES: [usize; 4] = [3, 3, 3, 4];
+    |       ^^^^^^^^^
+
+warning: method `reg` is never used
+   --> services\inter-cube\src\vm_service.rs:434:8
+    |
+370 | impl TernaryVmInstance {
+    | ---------------------- method in this implementation
+...
+434 |     fn reg(&self, idx: usize) -> i64 {
+    |        ^^^
+
+warning: `inter-cube` (lib) generated 19 warnings (run `cargo fix --lib -p inter-cube` to apply 11 suggestions)
+error: couldn't read `services\inter-cube\src\../../monitor/array3-monitor-v7.html`: The system cannot find the path specified. (os error 3)
+   --> services\inter-cube\src\main.rs:778:18
+    |
+778 |             Html(include_str!("../../monitor/array3-monitor-v7.html"))
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: there is a file with the same name in a different directory
+    |
+778 -             Html(include_str!("../../monitor/array3-monitor-v7.html"))
+778 +             Html(include_str!("../monitor/array3-monitor-v7.html"))
+    |
+
+error: couldn't read `services\inter-cube\src\../../monitor/array3-monitor-v7.html`: The system cannot find the path specified. (os error 3)
+    --> services\inter-cube\src\main.rs:1286:18
+     |
+1286 |             Html(include_str!("../../monitor/array3-monitor-v7.html"))
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+help: there is a file with the same name in a different directory
+     |
+1286 -             Html(include_str!("../../monitor/array3-monitor-v7.html"))
+1286 +             Html(include_str!("../monitor/array3-monitor-v7.html"))
+     |
+
+warning: unused variable: `payload_hash`
+    --> services\inter-cube\src\main.rs:2016:59
+     |
+2016 | ...                   Ok((verified_payload, payload_hash)) => {
+     |                                             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_payload_hash`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `addr_for_reply`
+    --> services\inter-cube\src\main.rs:1632:33
+     |
+1632 | ...                   let addr_for_reply = address.clone();
+     |                           ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_addr_for_reply`
+
+warning: unused variable: `addr_ops`
+    --> services\inter-cube\src\main.rs:1974:33
+     |
+1974 | ...                   let addr_ops = address.clone();
+     |                           ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_addr_ops`
+
+warning: `inter-cube` (bin "inter-cube-daemon") generated 3 warnings
+error: could not compile `inter-cube` (bin "inter-cube-daemon") due to 2 previous errors; 3 warnings emitted
+PS C:\PlenumNET>
