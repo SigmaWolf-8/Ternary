@@ -1,0 +1,115 @@
+==========================================================
+  PlenumNET NinjaExec Deployer
+  Capomastro Holdings Ltd.
+==========================================================
+
+  [OK] Running as Administrator
+
+  Pulling latest code from GitHub...
+remote: Enumerating objects: 27, done.
+remote: Counting objects: 100% (27/27), done.
+remote: Compressing objects: 100% (12/12), done.
+remote: Total 22 (delta 17), reused 15 (delta 10), pack-reused 0 (from 0)
+Unpacking objects: 100% (22/22), 6.68 KiB | 171.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   196dcacd..a3f25000  main       -> origin/main
+  [OK] deploy-yoda.ps1 updated
+
+  Launching deployer v0.6.0 (includes NinjaExec)...
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+
+==========================================================
+  PlenumNET Array3 Deployer v0.6.0
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v0.6.0
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v0.6.0)
+---
+  [INFO] Updating source to v0.6.0...
+  [OK] Source ready (pinned to v0.6.0)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:00] Compiling ternary-math (#1)
+  [00:06] Compiling plenumlan (#2)
+  [00:06] Compiling inter-cube (#3)
+  [01:11] Still building... (3 crates compiled so far)
+  [01:11]     Finished `release` profile [optimized] target(s) in 1m 11s
+  [OK] Build successful (5.7 MB, 01:11 elapsed, 3 crates)
+  [OK] Binary SHA-256: 2FFED4AA903B01D70BC65F8EC7D073017FAFCC57F8A7E0D9671C0177C555F10E
+  [WARN] TIS-27 hash not available from daemon -- using SHA-256 as fallback
+
+STEP 5/11: Building and configuring NinjaExec signing agent
+---
+  [INFO] Building NinjaExec signing agent...
+         This typically takes 3-10 minutes (shares compiled dependencies).
+  [00:00] Compiling ternary-math (#1)
+  [00:07] Compiling ninja-exec (#2)
+  [00:26]     Finished `release` profile [optimized] target(s) in 25.97s
+  [OK] NinjaExec build successful (1.8 MB, 00:26 elapsed, 2 new crates)
+  [OK] NinjaExec SHA-256: 0A2B259FEE81EC7CE685EB50261A0D90CC910D5EA31437F1BFA343F08D85E749
+
+  ==========================================================
+  NinjaExec First-Time Setup
+  ==========================================================
+
+  NinjaExec is your local signing agent. It holds your private
+  key in an encrypted keystore and signs operations on demand.
+
+  You will be asked to set a passphrase (minimum 12 characters).
+  This passphrase encrypts your private key. Store it safely --
+  it cannot be recovered if lost.
+
+  Enter passphrase (min 12 chars): **************
+  Confirm passphrase: **************
+  [FAIL] NinjaExec keystore initialization failed.
+         Output: [NinjaExec] Keystore already exists at C:\Users\Sigma\AppData\Roaming\NinjaExec\ninja-exec.keystore [NinjaExec] To create a new keystore, remove the existing one first.
+         Run 'ninja-exec init' manually later.
+
+STEP 6/11: Verifying version alignment
+---
+  [INFO] Local node    : v2.4.1
+  [INFO] CRS reference : v2.4.1
+  [OK] Version aligned
+
+STEP 7/11: Detecting local network
+---
+  [OK] Local IP: 10.0.0.42
+
+STEP 8/11: Generating 3 node identities
+---
+  [OK] Operations channel directories created
+  [OK] Existing ops-config.json preserved
+
+=== Ops Sandbox Hardening ===
+  [OK] ACL hardening applied to C:\PlenumNET\plenumnet-data\.plenumnet (SYSTEM + Administrators only)
+  [OK] SeAssignPrimaryTokenPrivilege detected in security policy
+  [INFO] AppLocker not running -- exec sandbox: Reduced (ACLs only)
+  [INFO] Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...
+
+  [FAIL] Deployment interrupted or failed: Method invocation failed because [System.Security.Cryptography.RandomNumberGenerator] does not contain a method named 'Fill'.
+  Re-run the deployer after resolving the issue.
+
+Press Enter to close this window. Your nodes are running as services and will continue.:
