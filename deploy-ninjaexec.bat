@@ -11,7 +11,7 @@ if %errorlevel% neq 0 (
     echo   This script needs Administrator privileges.
     echo   Relaunching as Administrator...
     echo.
-    powershell -Command "Start-Process cmd.exe -ArgumentList '/c \"%~f0\"' -Verb RunAs"
+    powershell -Command "Start-Process cmd.exe -ArgumentList '/k \"%~f0\"' -Verb RunAs"
     exit /b 0
 )
 
@@ -36,3 +36,9 @@ echo   Launching deployer v0.6.0 (includes NinjaExec)...
 echo   ──────────────────────────────────────────────────
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "services\inter-cube\deploy-yoda.ps1" -Force
+
+echo.
+echo ==========================================================
+echo   Deployer finished. Review the output above.
+echo ==========================================================
+pause
