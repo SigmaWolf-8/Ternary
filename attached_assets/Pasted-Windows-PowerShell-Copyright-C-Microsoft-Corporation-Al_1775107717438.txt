@@ -1,0 +1,107 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git stash
+warning: in the working copy of 'Cargo.lock', LF will be replaced by CRLF the next time Git touches it
+Saved working directory and index state WIP on main: 99d492c1 Optimize Docker image: exclude Rust crates, kernel, node_modules, dev tooling (was >8 GiB)
+PS C:\PlenumNET> git pull
+Updating 99d492c1..8be42432
+Fast-forward
+ .agents/agent_assets_metadata.toml                 |    6 +
+ .replit                                            |    4 +-
+ Cargo.lock                                         |   98 +-
+ attached_assets/544Claude_1774957522386.zip        |  Bin 0 -> 47193 bytes
+ ...Framework-Constants-Integrati_1774960494463.txt |   37 +
+ ...New-Endpoint-Specifications-D_1774941314415.txt |  416 +++
+ ...ric-Framework-From-the-Axiom-_1774959843792.txt |  731 ++++
+ ...tocol-First-Principles-Band-D_1775006645403.txt | 1232 +++++++
+ ...tocol-First-Principles-Band-D_1775008662707.txt | 1232 +++++++
+ ...ing-Errors-What-Why-Both-the-_1774842875678.txt |   31 +
+ ...ec-clean-scope-Let-me-read-th_1774957584919.txt |   15 +
+ ...-A-Ternary-First-Graphics-Arc_1775088819165.txt |  273 ++
+ ...t-C-Users-Sigma-AppData-Local_1774840982384.txt |   52 +
+ ...26-025-Version-1-THE-11-13-CO_1774956886365.txt |  110 +
+ ...tly-what-I-need-That-s-the-fa_1774939990379.txt |   22 +
+ ...74-Slot-Inventory-Endpoint-1-_1774945191970.txt |   42 +
+ ...ity-section-is-the-strongest-_1774944010666.txt |   10 +
+ ...ht-C-Microsoft-Corporation-Al_1774801811408.txt |  308 ++
+ ...ht-C-Microsoft-Corporation-Al_1775107507467.txt |  308 ++
+ ...n-a-ternary-CPU-GPU-design-xp_1775084727328.txt |  115 +
+ ...-was-sloppy-Let-me-do-this-pr_1775089763140.txt |   41 +
+ ...issue-77-tm-2026-025-complete_1774958743290.zip |  Bin 0 -> 17896 bytes
+ client/src/components/LauncherPanel.tsx            |   29 +-
+ client/src/pages/widget.tsx                        |   19 +-
+ deploy-ninjaexec.bat                               |   38 +
+ docs/crs-daemon-management.md                      |  334 ++
+ .../TM-2026-017-Extended-Geometric-Framework.md    |  731 ++++
+ .../monographs/TM-2026-025-Coprime-Polygon-Pair.md |  265 ++
+ .../monographs/TM-2026-026-UV-Spectral-Protocol.md | 1232 +++++++
+ docs/reviews/qc-r1-agent1-security-engineer.md     |  102 +
+ docs/reviews/qc-r1-agent2-devops-automator.md      |  102 +
+ docs/reviews/qc-r1-agent3-plenumnet-integration.md |  124 +
+ docs/reviews/qc-r1-consolidated-deployer.md        |  120 +
+ plenumlan/src/cube/projection.rs                   |    2 +-
+ replit.md                                          |   44 +-
+ replit_orig.md                                     |  108 +
+ server/middleware/cors-config.ts                   |    5 +-
+ services/inter-cube/Cargo.toml                     |    6 +
+ services/inter-cube/deploy-yoda.ps1                | 3502 +++++++++++---------
+ services/inter-cube/src/api.rs                     |  596 +++-
+ services/inter-cube/src/config.rs                  |  360 +-
+ services/inter-cube/src/lib.rs                     |    1 +
+ services/inter-cube/src/main.rs                    |   36 +-
+ shared/agent-generators.ts                         |   52 +
+ shared/constants.ts                                |  129 +
+ src/kernel/src/browser/color.rs                    |   67 +
+ src/kernel/src/distributor/coprime_polygon_pair.rs |  194 ++
+ src/kernel/src/distributor/mod.rs                  |    2 +
+ src/kernel/src/distributor/puv_spectral.rs         |  357 ++
+ tests/coprime-polygon-pair.test.ts                 |  156 +
+ tests/geometric-framework.test.ts                  |  296 ++
+ 51 files changed, 12290 insertions(+), 1802 deletions(-)
+ create mode 100644 attached_assets/544Claude_1774957522386.zip
+ create mode 100644 attached_assets/Pasted--78-TM-2026-017-Geometric-Framework-Constants-Integrati_1774960494463.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-Array3-Monitor-New-Endpoint-Specifications-D_1774941314415.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-Extended-Geometric-Framework-From-the-Axiom-_1774959843792.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-UV-Spectral-Protocol-First-Principles-Band-D_1775006645403.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-UV-Spectral-Protocol-First-Principles-Band-D_1775008662707.txt
+ create mode 100644 attached_assets/Pasted-Fix-Installer-Script-Encoding-Errors-What-Why-Both-the-_1774842875678.txt
+ create mode 100644 attached_assets/Pasted-Perfetto-Fratello-Clear-spec-clean-scope-Let-me-read-th_1774957584919.txt
+ create mode 100644 attached_assets/Pasted-PlenumNET-Rendering-Engine-A-Ternary-First-Graphics-Arc_1775088819165.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-At-C-Users-Sigma-AppData-Local_1774840982384.txt
+ create mode 100644 attached_assets/Pasted-TECHNICAL-MEMORANDUM-TM-2026-025-Version-1-THE-11-13-CO_1774956886365.txt
+ create mode 100644 attached_assets/Pasted-The-API-list-would-be-exactly-what-I-need-That-s-the-fa_1774939990379.txt
+ create mode 100644 attached_assets/Pasted-Unified-Feedback-List-for-74-Slot-Inventory-Endpoint-1-_1774945191970.txt
+ create mode 100644 attached_assets/Pasted-What-s-excellent-The-security-section-is-the-strongest-_1774944010666.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774801811408.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775107507467.txt
+ create mode 100644 attached_assets/Pasted-You-have-a-unique-situation-a-ternary-CPU-GPU-design-xp_1775084727328.txt
+ create mode 100644 attached_assets/Pasted-You-re-right-Fratello-that-was-sloppy-Let-me-do-this-pr_1775089763140.txt
+ create mode 100644 attached_assets/issue-77-tm-2026-025-complete_1774958743290.zip
+ create mode 100644 deploy-ninjaexec.bat
+ create mode 100644 docs/crs-daemon-management.md
+ create mode 100644 docs/monographs/TM-2026-017-Extended-Geometric-Framework.md
+ create mode 100644 docs/monographs/TM-2026-025-Coprime-Polygon-Pair.md
+ create mode 100644 docs/monographs/TM-2026-026-UV-Spectral-Protocol.md
+ create mode 100644 docs/reviews/qc-r1-agent1-security-engineer.md
+ create mode 100644 docs/reviews/qc-r1-agent2-devops-automator.md
+ create mode 100644 docs/reviews/qc-r1-agent3-plenumnet-integration.md
+ create mode 100644 docs/reviews/qc-r1-consolidated-deployer.md
+ create mode 100644 replit_orig.md
+ create mode 100644 src/kernel/src/distributor/coprime_polygon_pair.rs
+ create mode 100644 src/kernel/src/distributor/puv_spectral.rs
+ create mode 100644 tests/coprime-polygon-pair.test.ts
+ create mode 100644 tests/geometric-framework.test.ts
+PS C:\PlenumNET> .\deploy-ninjaexec.bat
+==========================================================
+  PlenumNET NinjaExec Deployer
+  Capomastro Holdings Ltd.
+==========================================================
+
+  This script needs Administrator privileges.
+  Relaunching as Administrator...
+
+PS C:\PlenumNET>
