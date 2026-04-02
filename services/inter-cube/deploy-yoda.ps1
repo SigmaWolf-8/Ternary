@@ -1,8 +1,9 @@
 <#
 .SYNOPSIS
     PlenumNET Array3 Deployer
-    Builds the node binary, generates 3 PT26-DSA identities, starts a
-    3-node PlenumNET Array3 cluster, and posts a deployment summary to
+    Builds the node binary and NinjaExec signing agent, generates
+    3 PT26-DSA identities, starts a 3-node PlenumNET Array3 cluster,
+    configures the signing agent, and posts a deployment summary to
     the PlenumNET Node Registry for monitoring.
 
 .DESCRIPTION
@@ -16,6 +17,7 @@
       2. Clone and build the PlenumNET daemon from source
       3. Register 3 Windows Services and a watchdog scheduled task
       4. Create desktop launchers for Start/Stop
+      5. Build and configure NinjaExec signing agent
 
     Or download the .bat wrapper from the Distribution page.
 
@@ -39,6 +41,8 @@
 
     Application engines are NOT installed by this script. Application
     setup is handled separately by the consuming app (e.g. YODA).
+    NinjaExec (the local signing agent) IS built and configured by
+    this script — it is required for signed operations.
 
     Node IDs are Rep C ordinals {1,2,3} — NOT GF(3) {0,1,2}. Zero is
     never used as a node ID. Key rotation follows radian-epoch intervals
@@ -65,8 +69,8 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v0.5.0"
-$RELEASE_TAG      = "v0.5.0"
+$DEPLOYER_VERSION = "v0.6.0"
+$RELEASE_TAG      = "v0.6.0"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
 $BASE_PORT        = 11111
@@ -77,6 +81,8 @@ $LOCAL_CRS_URL    = "http://localhost:$LOCAL_CRS_PORT"
 $RepoDir          = "C:\PlenumNET"
 $BinaryName       = "inter-cube-daemon.exe"
 $BinaryPath       = Join-Path $RepoDir "target\release\$BinaryName"
+$NinjaExecBinary  = "ninja-exec.exe"
+$NinjaExecPath    = Join-Path $RepoDir "target\release\$NinjaExecBinary"
 $RepoUrl          = "https://github.com/SigmaWolf-8/Ternary.git"
 $IdentityBase     = Join-Path $RepoDir "plenumnet-data"
 $LOG_DIR          = Join-Path $IdentityBase "logs"
@@ -252,6 +258,7 @@ if ($isUpgrade) {
     Write-Host "    - Rebuild the daemon binary from release tag $RELEASE_TAG" -ForegroundColor White
     Write-Host "    - Restart all 3 Windows Services" -ForegroundColor White
     Write-Host "    - Preserve existing node identities" -ForegroundColor White
+    Write-Host "    - Rebuild NinjaExec signing agent" -ForegroundColor White
     Write-Host "    - Overwrite desktop launchers and watchdog script" -ForegroundColor White
     Write-Host ""
 } else {
@@ -260,6 +267,7 @@ if ($isUpgrade) {
     Write-Host "    - Clone and build the PlenumNET daemon from source" -ForegroundColor White
     Write-Host "    - Generate 3 node identities (PT26-DSA key pairs)" -ForegroundColor White
     Write-Host "    - Register 3 Windows Services + watchdog scheduled task" -ForegroundColor White
+    Write-Host "    - Build and configure NinjaExec signing agent" -ForegroundColor White
     Write-Host "    - Create desktop Start/Stop launchers" -ForegroundColor White
     Write-Host ""
 }
@@ -278,9 +286,9 @@ $partialServices = @()
 $cleanupNeeded = $false
 try {
 
-# ── STEP 1/10: Checking prerequisites ───────────────────────────────────
+# ── STEP 1/11: Checking prerequisites ───────────────────────────────────
 Write-Host ""
-Write-Host "STEP 1/10: Checking prerequisites" -ForegroundColor Yellow
+Write-Host "STEP 1/11: Checking prerequisites" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Command "git")) {
@@ -316,9 +324,9 @@ if (-not (Test-Command "cargo")) {
 }
 Write-Host "  [OK] cargo" -ForegroundColor Green
 
-# ── STEP 2/10: Configuring build environment ────────────────────────────
+# ── STEP 2/11: Configuring build environment ────────────────────────────
 Write-Host ""
-Write-Host "STEP 2/10: Configuring build environment" -ForegroundColor Yellow
+Write-Host "STEP 2/11: Configuring build environment" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 try {
@@ -408,9 +416,9 @@ if ($hasClang) {
     }
 }
 
-# ── STEP 3/10: Cloning source from pinned release ──────────────────────
+# ── STEP 3/11: Cloning source from pinned release ──────────────────────
 Write-Host ""
-Write-Host "STEP 3/10: Cloning source (release $RELEASE_TAG)" -ForegroundColor Yellow
+Write-Host "STEP 3/11: Cloning source (release $RELEASE_TAG)" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Path $RepoDir)) {
@@ -440,9 +448,9 @@ if (-not (Test-Path $RepoDir)) {
 }
 Write-Host "  [OK] Source ready (pinned to $RELEASE_TAG)" -ForegroundColor Green
 
-# ── STEP 4/10: Building inter-cube daemon ───────────────────────────────
+# ── STEP 4/11: Building inter-cube daemon ───────────────────────────────
 Write-Host ""
-Write-Host "STEP 4/10: Building inter-cube daemon" -ForegroundColor Yellow
+Write-Host "STEP 4/11: Building inter-cube daemon" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 $runningDaemons = Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue
@@ -536,9 +544,147 @@ if ($preStartHash -ne $binarySha256) {
     exit 1
 }
 
-# ── STEP 5/10: Verifying version alignment ──────────────────────────────
+# ── STEP 5/11: Building and configuring NinjaExec signing agent ──────
 Write-Host ""
-Write-Host "STEP 5/10: Verifying version alignment" -ForegroundColor Yellow
+Write-Host "STEP 5/11: Building and configuring NinjaExec signing agent" -ForegroundColor Yellow
+Write-Host "---" -ForegroundColor DarkGray
+
+Write-Host "  [INFO] Building NinjaExec signing agent..." -ForegroundColor White
+Write-Host "         This typically takes 3-10 minutes (shares compiled dependencies)." -ForegroundColor DarkGray
+Push-Location $RepoDir
+$neBuildStart = Get-Date
+$neCompiledCount = 0
+& cargo build --release -p ninja-exec 2>&1 | ForEach-Object {
+    $line = $_.ToString()
+    $now = Get-Date
+    $elapsed = ($now - $neBuildStart).ToString("mm\:ss")
+    if ($line -match "error") {
+        Write-Host "  $line" -ForegroundColor Red
+    } elseif ($line -match "Compiling\s+(\S+)") {
+        $neCompiledCount++
+        Write-Host "  [$elapsed] Compiling $($Matches[1]) (#$neCompiledCount)" -ForegroundColor DarkGray
+    } elseif ($line -match "Finished") {
+        Write-Host "  [$elapsed] $line" -ForegroundColor DarkGray
+    }
+}
+$neBuildExit = $LASTEXITCODE
+$neBuildElapsed = ((Get-Date) - $neBuildStart).ToString("mm\:ss")
+Pop-Location
+if ($neBuildExit -ne 0) {
+    Write-Host "  [FAIL] NinjaExec could not be compiled ($neBuildElapsed elapsed)." -ForegroundColor Red
+    Write-Host "         Review the error output above for details." -ForegroundColor Yellow
+    Write-Host "         The daemon cluster will still work, but signing operations will not be available." -ForegroundColor Yellow
+    Write-Host "         Re-run the deployer after resolving the build issue to add NinjaExec." -ForegroundColor Yellow
+} elseif (-not (Test-Path $NinjaExecPath)) {
+    Write-Host "  [FAIL] NinjaExec compilation appeared to succeed, but the binary was not found." -ForegroundColor Red
+    Write-Host "         This may indicate an antivirus quarantine. Check your AV logs." -ForegroundColor Yellow
+} else {
+    $neFileSizeMB = [math]::Round((Get-Item $NinjaExecPath).Length / 1MB, 1)
+    $neSha256 = (Get-FileHash -Path $NinjaExecPath -Algorithm SHA256).Hash
+    Write-Host "  [OK] NinjaExec build successful ($neFileSizeMB MB, $neBuildElapsed elapsed, $neCompiledCount new crates)" -ForegroundColor Green
+    Write-Host "  [OK] NinjaExec SHA-256: $neSha256" -ForegroundColor DarkGray
+
+    $env:PATH += ";$(Split-Path $NinjaExecPath)"
+
+    $neKeystorePath = Join-Path $env:APPDATA "NinjaExec\keystore.enc"
+    if (Test-Path $neKeystorePath) {
+        Write-Host "  [OK] Existing NinjaExec keystore found — skipping init" -ForegroundColor Green
+    } else {
+        Write-Host "" -ForegroundColor White
+        Write-Host "  ══════════════════════════════════════════════════════════" -ForegroundColor Cyan
+        Write-Host "  NinjaExec First-Time Setup" -ForegroundColor Cyan
+        Write-Host "  ══════════════════════════════════════════════════════════" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  NinjaExec is your local signing agent. It holds your private" -ForegroundColor White
+        Write-Host "  key in an encrypted keystore and signs operations on demand." -ForegroundColor White
+        Write-Host ""
+        Write-Host "  You will be asked to set a passphrase (minimum 12 characters)." -ForegroundColor Yellow
+        Write-Host "  This passphrase encrypts your private key. Store it safely —" -ForegroundColor Yellow
+        Write-Host "  it cannot be recovered if lost." -ForegroundColor Yellow
+        Write-Host ""
+
+        $passOk = $false
+        for ($ppAttempt = 1; $ppAttempt -le 3; $ppAttempt++) {
+            $secPass = Read-Host "  Enter passphrase (min 12 chars)" -AsSecureString
+            $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPass)
+            $plainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+
+            if ($plainPass.Length -lt 12) {
+                Write-Host "  [FAIL] Passphrase must be at least 12 characters." -ForegroundColor Red
+                if ($ppAttempt -lt 3) { Write-Host "         Try again ($ppAttempt/3)." -ForegroundColor Yellow }
+                continue
+            }
+
+            $secConfirm = Read-Host "  Confirm passphrase" -AsSecureString
+            $bstr2 = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secConfirm)
+            $plainConfirm = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr2)
+            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr2)
+
+            if ($plainPass -ne $plainConfirm) {
+                Write-Host "  [FAIL] Passphrases do not match." -ForegroundColor Red
+                if ($ppAttempt -lt 3) { Write-Host "         Try again ($ppAttempt/3)." -ForegroundColor Yellow }
+                continue
+            }
+
+            $passOk = $true
+            break
+        }
+
+        if (-not $passOk) {
+            Write-Host "  [FAIL] Passphrase setup failed after 3 attempts." -ForegroundColor Red
+            Write-Host "         NinjaExec will not be configured. Run 'ninja-exec init' manually later." -ForegroundColor Yellow
+        } else {
+            $neDataDir = Join-Path $env:APPDATA "NinjaExec"
+            if (-not (Test-Path $neDataDir)) { New-Item -ItemType Directory -Force -Path $neDataDir | Out-Null }
+
+            $env:PLENUM_PASSPHRASE = $plainPass
+            $initOutput = & $NinjaExecPath init 2>&1
+            $initExit = $LASTEXITCODE
+            Remove-Item Env:\PLENUM_PASSPHRASE -ErrorAction SilentlyContinue
+            $plainPass = $null
+            $plainConfirm = $null
+
+            if ($initExit -ne 0 -and -not (Test-Path $neKeystorePath)) {
+                Write-Host "  [FAIL] NinjaExec keystore initialization failed." -ForegroundColor Red
+                Write-Host "         Output: $initOutput" -ForegroundColor DarkGray
+                Write-Host "         Run 'ninja-exec init' manually later." -ForegroundColor Yellow
+            } else {
+                Restrict-FileAcl -FilePath $neKeystorePath | Out-Null
+                Write-Host "  [OK] NinjaExec keystore created and ACL-restricted" -ForegroundColor Green
+
+                $exportOutput = & $NinjaExecPath export-operator 2>&1
+                $exportExit = $LASTEXITCODE
+
+                $operatorJson = $null
+                if ($exportExit -eq 0 -and $exportOutput) {
+                    $rawJson = ($exportOutput | Out-String).Trim()
+                    try {
+                        $operatorJson = $rawJson | ConvertFrom-Json
+                    } catch {
+                        $jsonLine = $exportOutput | Where-Object { $_ -match '^s*{' } | Select-Object -First 1
+                        if ($jsonLine) {
+                            try { $operatorJson = $jsonLine | ConvertFrom-Json } catch {}
+                        }
+                    }
+                }
+
+                if ($operatorJson -and $operatorJson.public_key) {
+                    Write-Host "  [OK] Operator public key exported" -ForegroundColor Green
+                    Write-Host "       Fingerprint: $($operatorJson.key_fingerprint)" -ForegroundColor DarkGray
+                    $script:NinjaExecOperator = $operatorJson
+                } else {
+                    Write-Host "  [WARN] Could not export operator key automatically." -ForegroundColor Yellow
+                    Write-Host "         Run 'ninja-exec export-operator' manually after deployment." -ForegroundColor Yellow
+                }
+            }
+        }
+    }
+}
+
+# ── STEP 6/11: Verifying version alignment ──────────────────────────────
+Write-Host ""
+Write-Host "STEP 6/11: Verifying version alignment" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 $localVersion = "unknown"
@@ -575,9 +721,9 @@ if ($localVersion -ne "unknown" -and $remoteVersion -ne "unknown" -and $localVer
     Write-Host "  [OK] Version aligned" -ForegroundColor Green
 }
 
-# ── STEP 6/10: Detecting local network ──────────────────────────────────
+# ── STEP 7/11: Detecting local network ──────────────────────────────────
 Write-Host ""
-Write-Host "STEP 6/10: Detecting local network" -ForegroundColor Yellow
+Write-Host "STEP 7/11: Detecting local network" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 $ip = (Get-NetIPAddress -AddressFamily IPv4 |
@@ -587,9 +733,9 @@ $ip = (Get-NetIPAddress -AddressFamily IPv4 |
 if (-not $ip) { $ip = "0.0.0.0" }
 Write-Host "  [OK] Local IP: $ip" -ForegroundColor Green
 
-# ── STEP 7/10: Generating node identities ───────────────────────────────
+# ── STEP 8/11: Generating node identities ───────────────────────────────
 Write-Host ""
-Write-Host "STEP 7/10: Generating $DAEMON_COUNT node identities" -ForegroundColor Yellow
+Write-Host "STEP 8/11: Generating $DAEMON_COUNT node identities" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 New-Item -ItemType Directory -Force -Path $IdentityBase | Out-Null
@@ -626,9 +772,43 @@ if (-not (Test-Path $opsConfigPath)) {
         audit_log_max_size_mb = 50
     } | ConvertTo-Json -Depth 3
     Set-Content -Path $opsConfigPath -Value $opsConfig -Encoding UTF8
-    Write-Host "  [OK] Default ops-config.json created (ops_enabled: false)" -ForegroundColor Green
+    Write-Host "  [OK] Default ops-config.json created" -ForegroundColor Green
 } else {
     Write-Host "  [OK] Existing ops-config.json preserved" -ForegroundColor DarkGray
+}
+
+if ($script:NinjaExecOperator) {
+    $currentOpsConfig = Get-Content $opsConfigPath -Raw | ConvertFrom-Json
+    $alreadyRegistered = $false
+    foreach ($op in $currentOpsConfig.operators) {
+        if ($op.key_fingerprint -eq $script:NinjaExecOperator.key_fingerprint) {
+            $alreadyRegistered = $true
+            break
+        }
+    }
+    if (-not $alreadyRegistered) {
+        $newOp = @{
+            name = if ($script:NinjaExecOperator.name) { $script:NinjaExecOperator.name } else { $env:USERNAME }
+            public_key = $script:NinjaExecOperator.public_key
+            scope = if ($script:NinjaExecOperator.scope) { $script:NinjaExecOperator.scope } else { "full" }
+            key_fingerprint = $script:NinjaExecOperator.key_fingerprint
+            registered_at = (Get-Date -Format 'o')
+            source = "deploy-yoda"
+        }
+        $opsList = @($currentOpsConfig.operators) + @($newOp)
+        $currentOpsConfig.operators = $opsList
+        $currentOpsConfig.ops_enabled = $true
+        $currentOpsConfig | ConvertTo-Json -Depth 5 | Set-Content -Path $opsConfigPath -Encoding UTF8
+        Write-Host "  [OK] NinjaExec operator auto-registered in ops-config.json" -ForegroundColor Green
+        Write-Host "  [OK] Operations channel enabled (ops_enabled: true)" -ForegroundColor Green
+    } else {
+        Write-Host "  [OK] NinjaExec operator already registered (fingerprint match)" -ForegroundColor DarkGray
+        if (-not $currentOpsConfig.ops_enabled) {
+            $currentOpsConfig.ops_enabled = $true
+            $currentOpsConfig | ConvertTo-Json -Depth 5 | Set-Content -Path $opsConfigPath -Encoding UTF8
+            Write-Host "  [OK] Operations channel enabled (ops_enabled: true)" -ForegroundColor Green
+        }
+    }
 }
 
 Write-Host "`n=== Ops Sandbox Hardening ===" -ForegroundColor Cyan
@@ -774,9 +954,9 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     }
 }
 
-# ── STEP 8/10: Registering and starting Windows Services ────────────────
+# ── STEP 9/11: Registering and starting Windows Services ────────────────
 Write-Host ""
-Write-Host "STEP 8/10: Registering and starting Windows Services" -ForegroundColor Yellow
+Write-Host "STEP 9/11: Registering and starting Windows Services" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 $wrapperDir = Join-Path $RepoDir "services\wrappers"
@@ -933,9 +1113,9 @@ for ($i = 2; $i -le $DAEMON_COUNT; $i++) {
     Start-Sleep -Seconds 2
 }
 
-# ── STEP 9/10: Configuring watchdog and LLM engines ─────────────────────
+# ── STEP 10/11: Configuring watchdog and LLM engines ─────────────────────
 Write-Host ""
-Write-Host "STEP 9/10: Configuring watchdog and LLM engines" -ForegroundColor Yellow
+Write-Host "STEP 10/11: Configuring watchdog and LLM engines" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 $watchdogScript = Join-Path $wrapperDir "array3-watchdog.ps1"
@@ -1414,9 +1594,9 @@ foreach ($cfg in $daemonConfigs) {
     }
 }
 
-# ── STEP 10/10: Deployment summary and desktop launchers ────────────────
+# ── STEP 11/11: Deployment summary and desktop launchers ────────────────
 Write-Host ""
-Write-Host "STEP 10/10: Deployment summary and desktop launchers" -ForegroundColor Yellow
+Write-Host "STEP 11/11: Deployment summary and desktop launchers" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
 $hostname = $env:COMPUTERNAME
@@ -1589,6 +1769,7 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  PlenumNET Array3 Deployment Complete" -ForegroundColor Green
 Write-Host "  Capomastro Holdings Ltd." -ForegroundColor Green
 Write-Host "  Deployer $DEPLOYER_VERSION | Release $RELEASE_TAG" -ForegroundColor Green
+Write-Host "  NinjaExec signing agent included" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Cluster Status" -ForegroundColor Cyan
@@ -1614,9 +1795,28 @@ Write-Host "  Watchdog         : PlenumNET-Array3-Watchdog (every 2 min + on boo
 Write-Host "  Start Launcher   : $startYodaPath" -ForegroundColor White
 Write-Host "  Stop Launcher    : $stopYodaPath" -ForegroundColor White
 Write-Host ""
+Write-Host "  NinjaExec Signing Agent" -ForegroundColor Cyan
+if (Test-Path $NinjaExecPath) {
+    Write-Host "  Binary           : $NinjaExecPath" -ForegroundColor White
+    Write-Host "  Signing API      : http://localhost:21027/sign" -ForegroundColor White
+    $neKeystoreCheck = Join-Path $env:APPDATA "NinjaExec\keystore.enc"
+    if (Test-Path $neKeystoreCheck) {
+        Write-Host "  Keystore         : $neKeystoreCheck (initialized)" -ForegroundColor White
+    } else {
+        Write-Host "  Keystore         : Not initialized (run 'ninja-exec init')" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  Status           : Not built (re-run deployer to install)" -ForegroundColor Yellow
+}
+Write-Host ""
 Write-Host "  Operations Channel" -ForegroundColor Cyan
 Write-Host "  Ops Config       : $opsConfigPath" -ForegroundColor White
-Write-Host "  Ops Enabled      : false (enable via dashboard or ops-config.json)" -ForegroundColor White
+$opsEnabledDisplay = "false"
+try {
+    $opsCheckConfig = Get-Content $opsConfigPath -Raw | ConvertFrom-Json
+    if ($opsCheckConfig.ops_enabled) { $opsEnabledDisplay = "true" }
+} catch {}
+Write-Host "  Ops Enabled      : $opsEnabledDisplay" -ForegroundColor White
 Write-Host "  Audit Log        : $OpsBase\ops-audit.jsonl" -ForegroundColor White
 Write-Host "  Ops Directories  : ops/, logs/, configs/, transfers/" -ForegroundColor White
 Write-Host ""
