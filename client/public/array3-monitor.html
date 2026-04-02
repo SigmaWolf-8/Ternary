@@ -1153,11 +1153,13 @@ restartConfirmBtn.addEventListener('click',async()=>{
       return;
     }
   
+    // Build auth headers for relay requests
+    const opsHeaders={'Content-Type':'application/json'};
+    if(apiKey)opsHeaders['Authorization']=`Bearer ${apiKey}`;
+
     // Step 4: Ensure ops channel is enabled on the relay
     try{
-      const headers={'Content-Type':'application/json'};
-      if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
-      await fetch(`${relayUrl}/api/ops/enable`,{method:'POST',headers});
+      await fetch(`${relayUrl}/api/ops/enable`,{method:'POST',headers:opsHeaders});
     }catch(e){console.warn('[ops] Could not enable ops channel:',e.message)}
   
     // Step 5: Send exec via HTTP to relay (forwarded to daemon WebSocket)
@@ -1219,7 +1221,7 @@ restartConfirmBtn.addEventListener('click',async()=>{
       try{
         const hdr={'Content-Type':'application/json'};
         if(apiKey)hdr['Authorization']=`Bearer ${apiKey}`;
-        const healthResp=await fetch(`${relayUrl}/api/salvi/inter-cube/relay/cluster-health`,{headers:hdr});
+        const healthResp=await fetch(`${relayUrl}/api/salvi/inter-cube/relay/cluster-health`,{headers:opsHeaders});
         if(healthResp.ok){
           const cluster=await healthResp.json();
           const daemon=cluster.daemons?.find(d=>d.healthState==='up');

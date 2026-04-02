@@ -545,7 +545,19 @@ function startPqtiService(): ChildProcess | null {
     res.json({ operators, ops_enabled: opsChannelService.isOpsEnabled() });
   });
 
-  app.post('/api/ops/enable', requireOpsAuth, (_req, res) => {
+  const requireOpsOrApiKey = (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      const plenumKey = process.env.PLENUM_API_KEY;
+      if (plenumKey && token === plenumKey) {
+        return next();
+      }
+    }
+    return requireOpsAuth(req, res, next);
+  };
+
+  app.post('/api/ops/enable', requireOpsOrApiKey, (_req, res) => {
     opsChannelService.setOpsEnabled(true);
     for (const [, clientWs] of relayClients.entries()) {
       if (clientWs.readyState === WebSocket.OPEN) {
@@ -645,7 +657,7 @@ function startPqtiService(): ChildProcess | null {
     res.json({ proposal_id: proposal.proposal_id, delivered });
   });
 
-  app.post('/api/ops/exec', requireOpsAuth, (req: Request, res: Response) => {
+  app.post('/api/ops/exec', requireOpsOrApiKey, (req: Request, res: Response) => {
     const { script, target_node_id, node_id, signature, public_key, context } = req.body;
     const targetId = target_node_id || node_id;
     const execScript = script || req.body.proposed_script;
@@ -803,6 +815,42 @@ function startPqtiService(): ChildProcess | null {
       return null;
     }
   }
+
+  app.post("/api/salvi/inter-cube/relay/register", async (req, res) => {
+    const { publicKey, endpoint: rawEndpoint, tlDsaPk } = req.body as { publicKey?: string; endpoint?: string; tlDsaPk?: string };
+    if (!publicKey || !rawEndpoint) {
+      return res.status(400).json({ error: "publicKey and endpoint required" });
+    }
+    const callerIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "").split(",")[0].trim();
+    const endpoint = rawEndpoint.startsWith("0.0.0.0:") && callerIp
+      ? `${callerIp}:${rawEndpoint.split(":")[1]}`
+      : rawEndpoint;
+    const candidateAddr = publicKeyAddressMap.get(publicKey) ||
+      [...crsRegistry.entries()].find(([_, v]) => v.publicKey === publicKey)?.[0];
+    if (candidateAddr) {
+      const entry = crsRegistry.get(candidateAddr);
+      if (entry) {
+        entry.lastSeen = Date.now();
+        entry.endpoint = endpoint;
+        if (tlDsaPk) entry.tlDsaPk = tlDsaPk;
+      } else {
+        crsRegistry.set(candidateAddr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
+      }
+      publicKeyAddressMap.set(publicKey, candidateAddr);
+      storage.upsertCrsRelayNode(publicKey, candidateAddr, endpoint, tlDsaPk || crsRegistry.get(candidateAddr)?.tlDsaPk).catch(() => {});
+      log(`CRS POST re-register ${publicKey.substring(0, 16)}... → ${toDottedAddr(candidateAddr)} (stable)`, "crs");
+      return res.json({ address: candidateAddr, addressDotted: toDottedAddr(candidateAddr), endpoint, source: "stable" });
+    }
+    if (publicKey.length >= 16) {
+      const derivedAddr = deriveAddressFromPublicKey(publicKey);
+      crsRegistry.set(derivedAddr, { publicKey, endpoint, lastSeen: Date.now(), tlDsaPk: tlDsaPk || undefined });
+      publicKeyAddressMap.set(publicKey, derivedAddr);
+      storage.upsertCrsRelayNode(publicKey, derivedAddr, endpoint, tlDsaPk || undefined).catch(() => {});
+      log(`CRS POST first-register ${publicKey.substring(0, 16)}... → ${toDottedAddr(derivedAddr)}${tlDsaPk ? ' (TL-DSA-87)' : ''}`, "crs");
+      return res.json({ address: derivedAddr, addressDotted: toDottedAddr(derivedAddr), endpoint, source: "relay-derived" });
+    }
+    return res.status(400).json({ error: "Invalid publicKey" });
+  });
 
   app.get("/api/salvi/inter-cube/relay/register", async (req, res) => {
     const { publicKey, endpoint: rawEndpoint, tlDsaPk } = req.query as { publicKey?: string; endpoint?: string; tlDsaPk?: string };
