@@ -1160,34 +1160,31 @@ restartConfirmBtn.addEventListener('click',async()=>{
       await fetch(`${relayUrl}/api/ops/enable`,{method:'POST',headers});
     }catch(e){console.warn('[ops] Could not enable ops channel:',e.message)}
   
-    // Step 5: Send via propose-exec HTTP endpoint (reliable, no WSS needed)
-    try{
-      const headers={'Content-Type':'application/json'};
-      if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
-      const proposeResp=await fetch(`${relayUrl}/api/ops/propose-exec`,{
-        method:'POST',
-        headers,
-        body:JSON.stringify({
-          proposed_script:cmd,
-          rationale:`Restart ${restartTarget.svc} on ${restartTarget.nodeName} via Array3 Monitor`,
-          target_node_id:String(restartTarget.nodeId),
-          signature:execPayload.signature,
-          public_key:execPayload.public_key
-        })
-      });
-      if(!proposeResp.ok){
-        const errText=await proposeResp.text().catch(()=>'');
-        throw new Error(`HTTP ${proposeResp.status}: ${errText}`);
-      }
-      const proposeResult=await proposeResp.json();
-      if(proposeResult.delivered>0){
-        restartStatus.textContent=`Command proposed and delivered to ${proposeResult.delivered} terminal client(s). Approve in the Node Terminal.`;
+    // Step 5: Send exec via HTTP to relay (forwarded to daemon WebSocket)
+      try{
+        const execResp=await fetch(`${relayUrl}/api/ops/exec`,{
+          method:'POST',
+          headers,
+          body:JSON.stringify({
+            script:cmd,
+            target_node_id:String(restartTarget.nodeId),
+            signature:execPayload.signature,
+            public_key:execPayload.public_key,
+            context:`Array3 Monitor restart ${restartTarget.nodeName}`
+          })
+        });
+        if(!execResp.ok){
+          const errBody=await execResp.json().catch(()=>({}));
+          if(errBody.error==='NODE_DISCONNECTED'){
+            const nodes=(errBody.connected_nodes||[]).join(', ');
+            throw new Error(`Node ${restartTarget.nodeId} not connected to relay. Connected: [${nodes}]`);
+          }
+          throw new Error(`Relay returned ${execResp.status}: ${errBody.error||errBody.message||'unknown'}`);
+        }
+        const execResult=await execResp.json();
+        restartStatus.textContent=`Exec delivered to ${restartTarget.nodeName} (id: ${execResult.request_id}). Watching for recovery...`;
         restartStatus.style.color=CSS.lime;
-      }else{
-        restartStatus.textContent='Command proposed but no terminal clients connected. Open the Node Terminal to approve.';
-        restartStatus.style.color=CSS.label;
-      }
-    }catch(e){
+      }catch(e){
       // Fallback: try WSS relay
       if(!relayConnected){connectRelayWss();await new Promise(r=>setTimeout(r,2000))}
       const sent=sendOpsMessage(execPayload);

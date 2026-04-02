@@ -645,7 +645,68 @@ function startPqtiService(): ChildProcess | null {
     res.json({ proposal_id: proposal.proposal_id, delivered });
   });
 
-  log(`Ops Channel — 8 endpoints at /api/ops/* (bootstrap verifier: ${bootstrapFingerprint} [read-only], ops_enabled: false — register operators via POST /api/ops/operators, enable via POST /api/ops/enable)`, 'ops');
+  app.post('/api/ops/exec', requireOpsAuth, (req: Request, res: Response) => {
+    const { script, target_node_id, node_id, signature, public_key, context } = req.body;
+    const targetId = target_node_id || node_id;
+    const execScript = script || req.body.proposed_script;
+    if (!execScript || !targetId) {
+      return res.status(400).json({ error: 'script and target_node_id are required' });
+    }
+
+    if (!opsChannelService.isOpsEnabled()) {
+      opsChannelService.setOpsEnabled(true);
+      for (const [, clientWs] of relayClients.entries()) {
+        if (clientWs.readyState === WebSocket.OPEN) {
+          clientWs.send(JSON.stringify({ type: "relay", msgType: "ops-config-update", payload: JSON.stringify({ ops_enabled: true }), from: "coordinator" }));
+        }
+      }
+      log('Ops channel auto-enabled by /api/ops/exec', 'ops');
+    }
+
+    const requestId = `http-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const opsMsg: any = {
+      type: 'exec',
+      node_id: String(targetId),
+      script: String(execScript),
+      request_id: requestId,
+      timestamp: Date.now(),
+    };
+    if (signature) opsMsg.signature = signature;
+    if (public_key) opsMsg.public_key = public_key;
+    if (context) opsMsg.context = context;
+
+    let opsTargetWs: WebSocket | undefined;
+    for (const [addr, clientWs] of relayClients.entries()) {
+      if (addr === String(targetId) || addr.includes(String(targetId))) {
+        opsTargetWs = clientWs;
+        break;
+      }
+    }
+    if (!opsTargetWs || opsTargetWs.readyState !== WebSocket.OPEN) {
+      return res.status(503).json({
+        error: 'NODE_DISCONNECTED',
+        message: `Node ${targetId} is not connected to the relay`,
+        connected_nodes: Array.from(relayClients.keys()),
+      });
+    }
+
+    opsTargetWs.send(JSON.stringify({
+      type: "relay",
+      msgType: "exec",
+      payload: JSON.stringify(opsMsg),
+      from: "coordinator",
+    }));
+
+    log(`Exec forwarded to node ${targetId}: ${execScript.substring(0, 80)}`, 'ops');
+    res.json({
+      request_id: requestId,
+      delivered: true,
+      target_node: targetId,
+      script: execScript,
+    });
+  });
+
+  log(`Ops Channel — 9 endpoints at /api/ops/* (bootstrap verifier: ${bootstrapFingerprint} [read-only], ops_enabled: false — register operators via POST /api/ops/operators, enable via POST /api/ops/enable)`, 'ops');
 
   await registerRoutes(httpServer, app);
 
