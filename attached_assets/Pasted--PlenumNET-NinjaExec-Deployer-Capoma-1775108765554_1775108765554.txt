@@ -1,0 +1,64 @@
+==========================================================
+  PlenumNET NinjaExec Deployer
+  Capomastro Holdings Ltd.
+==========================================================
+
+  [OK] Running as Administrator
+
+  Pulling latest code from GitHub...
+remote: Enumerating objects: 28, done.
+remote: Counting objects: 100% (28/28), done.
+remote: Compressing objects: 100% (6/6), done.
+remote: Total 16 (delta 11), reused 13 (delta 8), pack-reused 0 (from 0)
+Unpacking objects: 100% (16/16), 3.02 KiB | 123.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   a61604ee..b5db0729  main       -> origin/main
+  [OK] deploy-yoda.ps1 updated
+
+  Launching deployer v0.6.0 (includes NinjaExec)...
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+
+==========================================================
+  PlenumNET Array3 Deployer v0.6.0
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v0.6.0
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v0.6.0)
+---
+  [INFO] Updating source to v0.6.0...
+  [OK] Source ready (pinned to v0.6.0)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:00] Compiling inter-cube (#1)
+  error[E0599]: no method named `clone` found for struct `tokio::sync::watch::Sender<T>` in the current scope
+  error[E0382]: borrow of moved value: `file_path`
+  Some errors have detailed explanations: E0382, E0599.
+  For more information about an error, try `rustc --explain E0382`.
+  error: could not compile `inter-cube` (lib) due to 2 previous errors; 11 warnings emitted
+  [FAIL] The PlenumNET daemon could not be compiled (00:02 elapsed).
+         Review the error output above for details.
+         If a build tool is missing, install it and re-run the deployer.
+Press Enter to close. Re-run the deployer after resolving the issue above.:
