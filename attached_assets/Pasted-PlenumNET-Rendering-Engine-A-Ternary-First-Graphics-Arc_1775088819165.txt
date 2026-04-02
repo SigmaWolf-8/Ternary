@@ -1,0 +1,273 @@
+PlenumNET Rendering Engine: A Ternary‑First Graphics Architecture
+
+Abstract
+
+We present the PlenumNET Rendering Engine, a complete graphics and user interface system built on exact integer arithmetic derived from a single algebraic axiom: π = 14 when the radian unit is 13. This axiom yields a self‑consistent universe where the full circle measures 364°, all key angles are integer multiples of 13°, and the ultraviolet spectrum partitions into four exact wavelengths (91, 182, 286, 364 nm). The rendering algorithm itself is the geometry of an orbifold defined by three cone points of orders 7, 11, and 13. The coprime triple (7, 11, 13) generates a Hamiltonian cycle of length 1001 that drives every stage of rendering—ray generation, pixel sampling, and colour computation—without floating‑point error, overlap, or gaps. Colours are defined as deterministic integer combinations of the four UV primaries, eliminating the traditional RGB/CMYK/Pantone pipeline. The engine is designed to run on binary GPUs today via compute shaders (Vulkan) and will transition seamlessly to native ternary hardware (the xplemum architecture) with no changes to higher‑level code. This document unifies the mathematical foundations, colour specification, system architecture, and phased implementation plan.
+
+---
+
+1. Introduction
+
+Conventional computer graphics relies on floating‑point approximations, triangle meshes, and colour pipelines that introduce cumulative errors. The PlenumNET Rendering Engine abandons these compromises. It is built on a single axiom that defines all constants as integers, and it uses a coprime walk to generate exact ray directions, pixel positions, and colours. The result is a deterministic, error‑free rendering system that produces mathematically perfect images, independent of the underlying hardware.
+
+This whitepaper describes:
+
+· The PlenumNET axiom and its consequences.
+· The coprime triple (7, 11, 13) and its Hamiltonian cycle.
+· The orbifold as the rendering kernel.
+· A colour system rooted in the UV integers and base‑3 arithmetic.
+· System architecture and hardware abstraction.
+· A phased implementation plan that leverages existing code (kernel, browser, ternary VM).
+· The path to native ternary hardware.
+
+---
+
+2. Mathematical Foundations
+
+2.1 The PlenumNET Axiom
+
+The entire system follows from one rule:
+
+π = 14 when the radian unit = 13
+
+Let the custom degree be defined such that a full circle measures 364°. Then:
+
+· Half‑circle (π in custom measure) = 14 × 13 = 182°.
+· Full circle = 2π = 28 × 13 = 364°.
+· Quarter‑turn = π/2 = 7 × 13 = 91°.
+
+These constants are not approximations; they are exact integers derived from the quadratic
+
+x^2 - 40x + 364 = 0,
+
+
+where 40 = R_4 and 364 = R_6 are base‑3 repunits:
+
+R_n = \frac{3^n - 1}{2}.
+
+The roots of this quadratic are 14 (π) and 26 (R_6 / π), and the discriminant 144 = 12² is a perfect square, guaranteeing integer results.
+
+2.2 The Coprime Triple (7, 11, 13)
+
+The numbers 7, 11, and 13 appear naturally in the angular measures:
+
+· Quarter‑turn = 7 × 13 = 91°.
+· Green arc span (650 ° mod 364) = 11 × 13 = 143° effective (286 °).
+· Half‑turn = 14 × 13 = 182°.
+· Full circle = 28 × 13 = 364°.
+
+They are pairwise coprime, and their product 7 \times 11 \times 13 = 1001. For any step index i = 0, 1, \dots, 1000 define:
+
+a_i = (7i) \bmod 1001,\qquad b_i = (11i) \bmod 1001,\qquad c_i = (13i) \bmod 1001.
+
+
+Because each multiplier is coprime to 1001, each sequence is a permutation of \{0,\dots,1000\}, and the triple (a_i,b_i,c_i) visits every combination exactly once—a Hamiltonian cycle on a 3‑torus of side 1001. This walk provides perfect integer‑based traversal without collisions or gaps.
+
+2.3 The Orbifold as Rendering Kernel
+
+The orbifold is a sphere with three cone points of orders \alpha_1=7, \alpha_2=11, \alpha_3=13. Its Euler characteristic is
+
+\chi_{\text{orb}} = 2 - \sum_{i=1}^3\left(1-\frac{1}{\alpha_i}\right) = -\frac{690}{1001}.
+
+The geometry is defined by an angular deficit 2\pi(1-1/\alpha_i) around each cone point. In rendering, we implement a warping function that takes a point on the unit sphere and “pinches” it according to these deficits. Because all angles involved are integer multiples of 1/1001 of a full circle, we precompute trigonometric values as scaled integers (e.g., \sin(2\pi k/1001) multiplied by 1001) and use exact integer arithmetic for all operations.
+
+Ray intersection proceeds as:
+
+1. Intersect the ray with the unit sphere (exact integer‑scaled sphere equation).
+2. Apply the inverse warp to find the pre‑image point on the ideal sphere.
+3. Compute the normal after warping using integer rotations.
+4. Colour the pixel using the coprime walk indices.
+
+No floating‑point numbers are used; all coordinates and angles are integers scaled by repunits (e.g., 1001).
+
+2.4 Torus Knots as Supplementary Surfaces
+
+The coprime pairs generate three torus knots:
+
+· (7,11) – primary
+· (7,13) – secondary
+· (11,13) – tertiary
+
+These are defined by parametric equations, e.g., for (7,11):
+
+x = (2 + \cos 11t)\cos 7t,\quad y = (2 + \cos 11t)\sin 7t,\quad z = \sin 11t.
+
+
+With t ranging over rational multiples of 2\pi (again multiples of 1/1001 of a circle), we can render them as thin tubes using signed distance functions evaluated with integer stepping.
+
+---
+
+3. Colour System
+
+3.1 UV Spectral Integers as Primaries
+
+The four UV integers (91, 182, 286, 364 nm) correspond to distinct physical bands and serve as primary colours in our system. For visualisation and printing we assign false‑colour equivalents derived from the coprime triple:
+
+Wavelength Band Role sRGB (R,G,B) CMYK (C,M,Y,K) Pantone (approx)
+91 nm EUV Ionisation threshold (120,0,120) (60,100,20,40) 2617 C
+182 nm UV‑C O₂ absorption wall (0,0,180) (100,100,0,20) 286 C
+286 nm UV‑B Ozone bridge (0,160,160) (100,0,30,10) 3125 C
+364 nm UV‑A Full transmission (160,0,200) (40,100,0,0) 2597 C
+
+These values are derived using integer arithmetic:
+
+· For 91 nm: 91 \times 7 = 637, 637 \bmod 256 = 125 → rounded to 120; 91 \times 13 = 1183, 1183 \bmod 256 = 159 → rounded to 120.
+· For 182 nm: 182 \times 11 = 2002, 2002 \bmod 256 = 210 → rounded to 180.
+· For 286 nm: 286 \times 7 = 2002 → 210 → 160; 286 \times 13 = 3718 → 150 → 160.
+· For 364 nm: 364 \times 13 = 4732 → 124 → 160; 364 \times 7 = 2548 → 244 → 200.
+
+All adjustments preserve the prime ratios and are integer multiples of 10, ensuring consistency.
+
+3.2 Base‑3 Representation
+
+The entire colour palette is defined in base‑3. The decimal sRGB values can be expressed as ternary integers:
+
+Wavelength Decimal RGB Base‑3 RGB
+91 nm (120,0,120) (11110₃, 0, 11110₃)
+182 nm (0,0,180) (0, 0, 20200₃)
+286 nm (0,160,160) (0, 12221₃, 12221₃)
+364 nm (160,0,200) (12221₃, 0, 21102₃)
+
+(Verification: 11110₃ = 1·81+1·27+1·9+1·3+0 = 120; 20200₃ = 2·81+0·27+2·9+0·3+0 = 180; 12221₃ = 1·81+2·27+2·9+2·3+1 = 160; 21102₃ = 2·81+1·27+1·9+0·3+2 = 200.)
+
+3.3 Colour Mixing via the Coprime Walk
+
+For a pixel whose ray corresponds to step index i (or whose screen coordinates map to a walk index), the final colour is a weighted integer blend of the four base colours using the walk components (a,b,c):
+
+\begin{aligned}
+R &= \frac{a \cdot R_{91} + b \cdot R_{182} + c \cdot R_{286} + (1001 - a - b - c) \cdot R_{364}}{1001} \\
+G &= \frac{a \cdot G_{91} + b \cdot G_{182} + c \cdot G_{286} + (1001 - a - b - c) \cdot G_{364}}{1001} \\
+B &= \frac{a \cdot B_{91} + b \cdot B_{182} + c \cdot B_{286} + (1001 - a - b - c) \cdot B_{364}}{1001}
+\end{aligned}
+
+All arithmetic is integer; the division by 1001 is integer division (floor). Because 1001 is the product of the three primes, the result is an integer in the range 0–255 after scaling. This formula can be evaluated entirely in base‑3, using base‑3 multiplication, addition, and division by 1101010₃ (the base‑3 representation of 1001). The output is a pure integer colour value, ready for display or print.
+
+3.4 Eliminating the Traditional Colour Pipeline
+
+In the PlenumNET system, colour is not a device‑dependent mapping but a mathematical object. The framebuffer stores the integer triples (R,G,B) directly. The display driver applies a linear mapping (e.g., voltage = (colour × V_max) / 1000) without gamma correction or colour management. The printer receives the same integers and maps them to ink densities via a pre‑calibrated linear function. This eliminates all ICC profiles, CMYK conversions, and floating‑point errors. What you see is what you print becomes a mathematical certainty.
+
+---
+
+4. System Architecture
+
+4.1 Hardware Abstraction Layer (HAL)
+
+The HAL separates hardware‑dependent operations from the rendering logic:
+
+· Compute HAL – allocates buffers, loads shaders, dispatches compute tasks.
+  · CpuBackend (existing) – uses tiny‑skia for 2D fallback.
+  · GpuBackend (to be built) – uses Vulkan compute shaders (binary GPUs).
+  · TernaryGpuBackend (future) – uses native ternary instructions and memory addressing.
+· Display HAL – abstracts framebuffer and presentation (binary now, ternary‑addressed later).
+
+4.2 Rendering Engine
+
+The engine is a compute shader (or ternary compute kernel) that performs per‑pixel ray marching using the coprime walk. It receives:
+
+· Screen resolution (in pixels)
+· Walk index (or pixel coordinates converted to index)
+· Camera orientation (integer angles, multiples of 1/1001 of a circle)
+· Scene parameters (cone point positions, knot types, etc.)
+
+It outputs an RGBA texture.
+
+4.3 Document Engine (PlenumText)
+
+The existing kernel‑space browser already includes:
+
+· HTML/CSS parser, DOM, layout (taffy)
+· CPU renderer for text and images
+· PlenumNET constants and mesh data
+
+We extend it to:
+
+· Emit “shape” elements (orbifold, torus knots) that are rendered via the GPU backend.
+· Support text wrap around shapes (exclusion zones) using the layout pass.
+· Provide style groups (fonts, colours, spacing) as in the React prototype.
+
+4.4 Window Manager and Compositor
+
+· Ternary‑unit window manager – window positions and sizes are expressed in base‑3 fractions (e.g., 1/3, 2/3, 1/9). This aligns with the repunit structure and will be native on ternary hardware.
+· Compositor – a compute shader that blends layers:
+  · Background: GPU‑rendered orbifold/knot scene.
+  · Overlays: document windows (rendered by the document engine into textures).
+  · UI widgets (toolbars, etc.) – rendered using a small immediate‑mode GUI with ternary‑sized widgets and UV colours.
+  · Ternary grid overlay (optional).
+
+All blending uses integer arithmetic.
+
+---
+
+5. Implementation Phases
+
+We leverage existing code (kernel, browser, ternary VM, device HAL) and build in incremental, self‑contained stages.
+
+Phase 0: Port PlenumText Document Engine to Rust (Weeks 1–2)
+
+· Implement markdown parser, style groups, block measurement with exclusions.
+· Add image contour tracing to the CPU renderer.
+· Deliverable: Kernel‑space document viewer capable of rendering rich markdown with images and basic shapes.
+
+Phase 1: Vulkan Compute Backend (Weeks 3–4)
+
+· Add Vulkan dependencies, implement GpuBackend with compute shader loading/dispatch.
+· Write a test compute shader (UV gradient) and integrate with browser rendering loop.
+· Deliverable: Working GPU‑accelerated gradient background; foundation for all compute shaders.
+
+Phase 2: Coprime Walk and Orbifold Shader (Weeks 5–8)
+
+· Precompute 1001‑step Hamiltonian cycle tables in Rust, transfer to GPU buffers.
+· Write orbifold ray‑marching shader in Rust using rust-gpu:
+  · Ray‑sphere intersection with integer scaling.
+  · Cone‑point warping (azimuth multiplication using precomputed trig tables).
+  · Normal computation and shading using UV colours.
+· Compile to SPIR‑V, integrate with Vulkan backend.
+· Deliverable: Interactive orbifold visualisation with exact integer arithmetic.
+
+Phase 3: Torus Knots and Compositor (Weeks 9–10)
+
+· Add parametric torus knot shaders (distance fields for tubes).
+· Implement compositor compute shader that blends background, knots, and CPU‑rendered document texture.
+· Support window manager for multiple surfaces.
+· Deliverable: Full GPU‑accelerated document display with live orbifold background and optional knots.
+
+Phase 4: Ternary‑Unit Window Manager & UI Toolkit (Weeks 11–12)
+
+· Implement window manager with base‑3 coordinates.
+· Create simple widgets (button, label) using UV colours and ternary‑sized dimensions.
+· Extend compositor to draw window borders.
+· Deliverable: Desktop environment where PlenumText runs in a resizable window, orbifold as background.
+
+Phase 5: Polish & Optimization (Weeks 13–14)
+
+· Add temporal accumulation (sub‑pixel jittering) for anti‑aliasing.
+· Optimise ray‑marching step counts.
+· Implement super‑resolution via compute shader.
+· Add animations driven by the coprime walk (camera rotation, knot deformation).
+· Deliverable: Smooth, high‑quality rendering with sub‑pixel accuracy.
+
+Phase 6: Ternary Hardware Transition (Future)
+
+· Replace GpuBackend with TernaryGpuBackend using ternary device driver.
+· Re‑target shader compilation from SPIR‑V to ternary ISA (same Rust source).
+· Update display HAL for ternary‑addressed framebuffer.
+· All higher‑level code (document engine, window manager, compositor) remains unchanged.
+· Deliverable: Native ternary GUI running on custom xplemum hardware.
+
+---
+
+6. Conclusion
+
+The PlenumNET Rendering Engine redefines graphics from first principles. By grounding every operation in the coprime walk (7, 11, 13) and the exact integer constants derived from the axiom π = 14 (radian = 13), we achieve:
+
+· Mathematical exactness – no floating‑point approximations, no tessellation.
+· Deterministic sampling – the Hamiltonian cycle guarantees perfect coverage.
+· Harmonious aesthetics – colours derived directly from UV spectral bands.
+· Device independence – the same integer colour values drive any output device.
+· Ternary‑native readiness – the system is designed to run natively on future ternary hardware.
+
+The existing kernel‑space browser, ternary VM, and device HAL provide a solid foundation. The phased implementation plan delivers tangible milestones while preserving the integrity of the mathematical core. This is not merely a rendering engine; it is a computational universe where geometry, sampling, and colour are one.
+
+---
+
+All rights reserved – Capomastro Holdings Ltd 2026
