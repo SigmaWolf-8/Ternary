@@ -252,43 +252,50 @@ try {
             } | Sort-Object
     }
 
-    if ($existingIds.Count -gt 0) {
-        $nextId = ($existingIds | Measure-Object -Maximum).Maximum + 1
+    $MaxNodes = 3
+    $existingIds = @($existingIds | Sort-Object -Unique)
+
+    if ($existingIds.Count -ge $MaxNodes) {
+        Write-Host "IDENTITY: $($existingIds.Count) identities already exist (max $MaxNodes). Skipping creation." -ForegroundColor Green
     } else {
-        $nextId = 1
-    }
-
-    $dir = Join-Path $IdentityBase "identity-$nextId"
-    if (-not (Test-Path $dir)) {
-        Write-Host "IDENTITY: Creating identity directory: $dir" -ForegroundColor Yellow
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    }
-    $nodePassphrase = Get-Or-Create-Passphrase -IdentityDir $dir -NodeId $nextId
-
-    $keyFile = Join-Path $dir "master.key"
-    if (-not (Test-Path $keyFile)) {
-        Write-Host "IDENTITY: Generating identity #$nextId..." -ForegroundColor Yellow
-        $env:CUBE_MODE = "keygen"
-        $env:CUBE_IDENTITY_DIR = $dir
-        $env:CUBE_IDENTITY_PASSPHRASE = $nodePassphrase
-        $null = & $BinaryPath 2>&1
-        Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-        Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
-        Remove-Item Env:\CUBE_IDENTITY_PASSPHRASE -ErrorAction SilentlyContinue
-        if (Test-Path $keyFile) {
-            Restrict-FileAcl -FilePath $keyFile | Out-Null
-            Write-Host "IDENTITY: Daemon #$nextId identity created." -ForegroundColor Green
+        if ($existingIds.Count -gt 0) {
+            $nextId = ($existingIds | Measure-Object -Maximum).Maximum + 1
         } else {
-            Write-Host "IDENTITY: WARNING - Identity #$nextId key generation may have failed." -ForegroundColor Yellow
+            $nextId = 1
         }
-    } else {
-        Write-Host "IDENTITY: Daemon #$nextId identity already exists." -ForegroundColor Green
-    }
 
-    $nodeSlotStart = $BasePort + (($nextId - 1) * $NodeSlotSize)
-    $gatewayPort = $nodeSlotStart + $GatewayCenterOffset
-    $peerPort = $gatewayPort - 1
-    $terminalPort = $gatewayPort - 2
+        while ($existingIds.Count -lt $MaxNodes -and $nextId -le $MaxNodes) {
+            $dir = Join-Path $IdentityBase "identity-$nextId"
+            if (-not (Test-Path $dir)) {
+                Write-Host "IDENTITY: Creating identity directory: $dir" -ForegroundColor Yellow
+                New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            }
+            $nodePassphrase = Get-Or-Create-Passphrase -IdentityDir $dir -NodeId $nextId
+
+            $keyFile = Join-Path $dir "master.key"
+            if (-not (Test-Path $keyFile)) {
+                Write-Host "IDENTITY: Generating identity #$nextId..." -ForegroundColor Yellow
+                $env:CUBE_MODE = "keygen"
+                $env:CUBE_IDENTITY_DIR = $dir
+                $env:CUBE_IDENTITY_PASSPHRASE = $nodePassphrase
+                $null = & $BinaryPath 2>&1
+                Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+                Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+                Remove-Item Env:\CUBE_IDENTITY_PASSPHRASE -ErrorAction SilentlyContinue
+                if (Test-Path $keyFile) {
+                    Restrict-FileAcl -FilePath $keyFile | Out-Null
+                    Write-Host "IDENTITY: Daemon #$nextId identity created." -ForegroundColor Green
+                } else {
+                    Write-Host "IDENTITY: WARNING - Identity #$nextId key generation may have failed." -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "IDENTITY: Daemon #$nextId identity already exists." -ForegroundColor Green
+            }
+
+            $existingIds += $nextId
+            $nextId++
+        }
+    }
 
     Write-Host ""
     Write-Host "==========================================================" -ForegroundColor Cyan
@@ -305,7 +312,8 @@ try {
                 elseif ($num -match '^[a-z]$') {
                     [int][char]$num - [int][char]'a' + 1
                 }
-            } | Sort-Object
+            } | Sort-Object -Unique |
+            Where-Object { $_ -ge 1 -and $_ -le $MaxNodes }
     }
 
     $CRS_URL = "https://plenumnet.replit.app"
@@ -388,10 +396,6 @@ try {
 
             $svcPassphrase = Get-Or-Create-Passphrase -IdentityDir $idDir -NodeId $id
 
-            $wrapperDir = Join-Path $RepoDir "services\wrappers"
-            if (-not (Test-Path $wrapperDir)) {
-                New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
-            }
             $peerList = @()
             foreach ($otherId in $allIds) {
                 if ($otherId -ne $id) {
@@ -402,37 +406,35 @@ try {
             }
             $peerEnv = $peerList -join ","
 
-            $wrapperBat = Join-Path $wrapperDir "cube-${id}-start.bat"
-            @"
-@echo off
-set CUBE_MODE=cube
-set CUBE_API_PORT=$gw
-set CUBE_NODE_ID=$id
-set CUBE_PEER_PORT=$pp
-set CUBE_TERMINAL_PORT=$tp
-set CUBE_CRS_URL=$CRS_URL
-set RELAY_URL=$CRS_URL
-set CUBE_IDENTITY_DIR=$idDir
-set CUBE_IDENTITY_PASSPHRASE=$svcPassphrase
-set CUBE_ROLE=inference
-set CUBE_ARRAY3_PEERS=$peerEnv
-"$BinaryPath" >> "$logFile" 2>&1
-"@ | Set-Content -Path $wrapperBat -Encoding ASCII
-
             $existingSvc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
             if ($existingSvc) {
                 Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
                 & sc.exe delete $svcName | Out-Null
-                Start-Sleep -Seconds 1
+                Start-Sleep -Seconds 2
             }
 
             try {
-                $svcBinPath = "cmd.exe /s /c `" `"$wrapperBat`" `""
                 New-Service -Name $svcName `
-                    -BinaryPathName $svcBinPath `
+                    -BinaryPathName "`"$BinaryPath`"" `
                     -DisplayName "PlenumNET Inter-Cube Daemon (Identity #$id)" `
                     -Description "PlenumNET Inter-Cube infrastructure daemon for identity #$id" `
                     -StartupType Automatic | Out-Null
+
+                $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$svcName"
+                $envVars = @(
+                    "CUBE_MODE=cube",
+                    "CUBE_API_PORT=$gw",
+                    "CUBE_NODE_ID=$id",
+                    "CUBE_PEER_PORT=$pp",
+                    "CUBE_TERMINAL_PORT=$tp",
+                    "CUBE_CRS_URL=$CRS_URL",
+                    "RELAY_URL=$CRS_URL",
+                    "CUBE_IDENTITY_DIR=$idDir",
+                    "CUBE_IDENTITY_PASSPHRASE=$svcPassphrase",
+                    "CUBE_ROLE=inference",
+                    "CUBE_ARRAY3_PEERS=$peerEnv"
+                )
+                New-ItemProperty -Path $regPath -Name "Environment" -Value $envVars -PropertyType MultiString -Force | Out-Null
 
                 & sc.exe failure $svcName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
                 & sc.exe config $svcName depend= Tcpip/Afd/Dnscache | Out-Null
@@ -441,7 +443,7 @@ set CUBE_ARRAY3_PEERS=$peerEnv
                 Set-ServiceLogonAccount -ServiceName $svcName -AccountName $svcAccount
 
                 Start-Service -Name $svcName
-                Write-Host "  [OK] Daemon #$id registered as Windows Service: $svcName" -ForegroundColor Green
+                Write-Host "  [OK] Daemon #$id registered and started: $svcName" -ForegroundColor Green
             } catch {
                 Write-Host "  [WARN] Could not register daemon #$id as service: $_" -ForegroundColor Yellow
             }
