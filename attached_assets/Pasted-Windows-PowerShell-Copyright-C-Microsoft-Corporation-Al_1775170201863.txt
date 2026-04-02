@@ -1,0 +1,53 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> Restart-Service PlenumNET-Cube-1
+>> Restart-Service PlenumNET-Cube-2
+>> Restart-Service PlenumNET-Cube-3
+Restart-Service : Cannot find any service with service name 'PlenumNET-Cube-1'.
+At line:1 char:1
++ Restart-Service PlenumNET-Cube-1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNET-Cube-1:String) [Restart-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+Restart-Service : Cannot find any service with service name 'PlenumNET-Cube-2'.
+At line:2 char:1
++ Restart-Service PlenumNET-Cube-2
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNET-Cube-2:String) [Restart-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+Restart-Service : Cannot find any service with service name 'PlenumNET-Cube-3'.
+At line:3 char:1
++ Restart-Service PlenumNET-Cube-3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNET-Cube-3:String) [Restart-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+PS C:\windows\system32> cd c:\PlenumNET
+PS C:\PlenumNET> Restart-Service PlenumNET-Cube-1
+>> Restart-Service PlenumNET-Cube-2
+>> Restart-Service PlenumNET-Cube-3
+Restart-Service : Cannot find any service with service name 'PlenumNET-Cube-1'.
+At line:1 char:1
++ Restart-Service PlenumNET-Cube-1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNET-Cube-1:String) [Restart-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+Restart-Service : Cannot find any service with service name 'PlenumNET-Cube-2'.
+At line:2 char:1
++ Restart-Service PlenumNET-Cube-2
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNET-Cube-2:String) [Restart-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+Restart-Service : Cannot find any service with service name 'PlenumNET-Cube-3'.
+At line:3 char:1
++ Restart-Service PlenumNET-Cube-3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (PlenumNET-Cube-3:String) [Restart-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.RestartServiceCommand

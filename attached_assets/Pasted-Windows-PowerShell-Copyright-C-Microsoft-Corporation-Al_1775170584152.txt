@@ -1,0 +1,69 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> # Run as Administrator
+>> irm https://plenumnet.replit.app/api/deploy-daemon | iex
+
+==========================================================
+  PlenumNET Cube Daemon Deployer
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+PULL: Updating source from GitHub...
+PULL: Already up to date (700362b3)
+STOP: Stopping running daemon(s)...
+STOP: Daemon(s) stopped.
+BUILD: Compiling inter-cube daemon (release)...
+       This may take a few minutes on first build.
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+       warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+       warning: unused variable: `adaptive_rep`
+       warning: unused variable: `mode`
+       warning: unused variable: `adaptive_rep`
+       warning: function `mod3_small` is never used
+       warning: function `mod3_med` is never used
+       warning: constant `TRIBONACCI_SEQ` is never used
+       warning: associated function `new` is never used
+       warning: method `is_exhausted` is never used
+       warning: function `deserialize_ternary_enhanced` is never used
+       warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+       warning: unused import: `REPUNIT_R5`
+       warning: unused imports: `GF3_ORDER` and `SLOTS_PER_NODE`
+       warning: unused imports: `GF3_ORDER` and `SLOTS_PER_NODE`
+       warning: unused import: `Trit`
+       warning: unused imports: `SlotAddress` and `project_to_slot`
+       warning: unused import: `ternary_math::repunit_circles::REPUNIT_R5`
+       warning: function `make_class` is never used
+       warning: `plenumlan` (lib) generated 7 warnings (run `cargo fix --lib -p plenumlan` to apply 6 suggestions)
+       warning: unused import: `RepCTrit`
+       warning: unused import: `Path`
+       warning: unused import: `DIMENSIONS`
+       warning: unused import: `TOTAL_VERTICES`
+       warning: unused import: `DimensionDensity`
+       warning: unused import: `std::collections::HashMap`
+       warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+       warning: unused import: `SystemTime`
+       warning: unused variable: `destination`
+       warning: unused variable: `min_c`
+       warning: variable does not need to be mutable
+       warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+       warning: method `count` is never used
+       warning: field `heartbeat_interval` is never read
+       warning: associated functions `entropy_seed` and `collect_entropy_seed` are never used
+       warning: constant `GRID_ROWS` is never used
+       warning: constant `OVERFLOW` is never used
+       warning: constant `ROW_SIZES` is never used
+       warning: method `reg` is never used
+       warning: `inter-cube` (lib) generated 19 warnings (run `cargo fix --lib -p inter-cube` to apply 11 suggestions)
+          Compiling inter-cube v2.4.1 (C:\PlenumNET\services\inter-cube)
+       warning: unused variable: `endpoint_for_heartbeat`
+       warning: unused variable: `payload_hash`
+       warning: unused variable: `addr_for_reply`
+       warning: unused variable: `addr_ops`
+       warning: struct `Array3NodeInfo` is never constructed
+       warning: fields `address`, `ip`, and `peer_port` are never read
+
+

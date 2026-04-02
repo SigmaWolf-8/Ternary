@@ -1,0 +1,58 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> $bin = "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+PS C:\PlenumNET> $idBase = "$env:USERPROFILE\.plenumnet"
+PS C:\PlenumNET>
+PS C:\PlenumNET> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="11124"; $env:CUBE_NODE_ID="1"
+PS C:\PlenumNET> $env:CUBE_PEER_PORT="11123"; $env:CUBE_TERMINAL_PORT="11122"
+PS C:\PlenumNET> $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:RELAY_URL="https://plenumnet.replit.app"
+PS C:\PlenumNET> $env:CUBE_IDENTITY_DIR="$idBase\identity-1"; $env:CUBE_ROLE="inference"
+PS C:\PlenumNET>
+PS C:\PlenumNET> & $bin
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v2.4.1
+  Wire Protocol: V3
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+[CUBE] Role: inference
+
+[IDENTITY] FATAL: CUBE_IDENTITY_PASSPHRASE is not set or empty.
+This environment variable is required to encrypt/decrypt the master secret.
+The deployer (deploy-yoda.ps1) generates and sets this automatically.
+For manual operation, set a strong passphrase (32+ random bytes recommended).
+When running as a Windows service, set the variable in the service's
+Environment registry key (HKLM\SYSTEM\CurrentControlSet\Services\<name>\Environment)
+or via sc.exe.
+Refusing to start with hostname-derived passphrase (insufficient entropy).
+PS C:\PlenumNET> $env:CUBE_IDENTITY_PASSPHRASE = "your-strong-passphrase-here"
+PS C:\PlenumNET> & $bin
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v2.4.1
+  Wire Protocol: V3
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+[CUBE] Role: inference
+
+[IDENTITY] WARNING: Failed to decrypt C:\Users\Sigma\.plenumnet\identity-1\master.key: decryption failed (wrong passphrase or corrupted)
+[IDENTITY] Generating fresh master secret
+[IDENTITY] WARNING: Atomic rename failed for C:\Users\Sigma\.plenumnet\identity-1\master.key: Access is denied. (os error 5)
+[IDENTITY] PT26-DSA keypair derived (pk: 0303030103030201...)
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/crs/register
+
+thread 'main' (112156) panicked at services\inter-cube\src\main.rs:951:10:
+CRS response missing 'address' field
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\PlenumNET>
