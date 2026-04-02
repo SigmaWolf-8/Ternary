@@ -908,14 +908,29 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     $endpoint = "${ip}:${gatewayPort}"
 
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
-
-    if (-not (Test-Path $keyFile)) {
+  
+      $passphraseFile = Join-Path $dir ".passphrase"
+      if (-not (Test-Path $passphraseFile)) {
+          $passBytes = New-Object byte[] 32
+          [System.Security.Cryptography.RandomNumberGenerator]::Fill($passBytes)
+          $nodePassphrase = [Convert]::ToBase64String($passBytes)
+          Set-Content -Path $passphraseFile -Value $nodePassphrase -Encoding UTF8 -NoNewline
+          Restrict-FileAcl -FilePath $passphraseFile | Out-Null
+          Write-Host "  [OK] Node #$i passphrase generated and ACL-restricted" -ForegroundColor Green
+      } else {
+          $nodePassphrase = Get-Content -Path $passphraseFile -Raw
+          Write-Host "  [OK] Node #$i passphrase loaded" -ForegroundColor Green
+      }
+  
+      if (-not (Test-Path $keyFile)) {
         Write-Host "  [INFO] Generating identity #$i..." -ForegroundColor White
         $env:CUBE_MODE = "keygen"
         $env:CUBE_IDENTITY_DIR = $dir
+        $env:CUBE_IDENTITY_PASSPHRASE = $nodePassphrase
         $keygenOutput = & $BinaryPath 2>&1
         Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_IDENTITY_PASSPHRASE -ErrorAction SilentlyContinue
         if (Test-Path $keyFile) {
             Restrict-FileAcl -FilePath $keyFile | Out-Null
             Write-Host "  [OK] Node #$i identity created (ACL restricted)" -ForegroundColor Green
@@ -930,9 +945,11 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     $pubKey = ""
     $env:CUBE_MODE = "keygen"
     $env:CUBE_IDENTITY_DIR = $dir
+    $env:CUBE_IDENTITY_PASSPHRASE = $nodePassphrase
     $infoOutput = & $BinaryPath 2>&1
     Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
     Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+    Remove-Item Env:\CUBE_IDENTITY_PASSPHRASE -ErrorAction SilentlyContinue
     $pkLine = $infoOutput | Where-Object { $_ -match "PT26-DSA Public Key|Public Key|pk:" } | Select-Object -First 1
     if ($pkLine -match ':\s*([0-9a-fA-F]+)\s*$') {
         $pubKey = $Matches[1]
@@ -951,6 +968,7 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
         Endpoint = $endpoint
         PublicKey = $pubKey
         Mode = $mode
+        Passphrase = $nodePassphrase
     }
 }
 
@@ -990,6 +1008,7 @@ set CUBE_API_PORT=$($cfg.GatewayPort)
 set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
+set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
 cd /d "$RepoDir"
@@ -1023,6 +1042,7 @@ set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
+set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
 cd /d "$RepoDir"
