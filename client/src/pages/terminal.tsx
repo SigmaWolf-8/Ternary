@@ -755,16 +755,35 @@ export default function TerminalPage() {
   const signOpsRequest = async (payload: Record<string, unknown>, requestId: string): Promise<{ signature: string; fingerprint: string } | null> => {
     try {
       const canonical = canonicalStringify(payload);
+      const payloadB64 = btoa(canonical);
+      const msgType = (payload.type as string) || "ops";
       const signResp = await fetch(NINJAEXEC_SIGN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload: canonical, request_id: requestId }),
+        body: JSON.stringify({ payload_b64: payloadB64, context: `${msgType}: ${requestId}` }),
       });
-      if (signResp.ok) {
-        const signData = await signResp.json();
-        if (signData.signature && signData.fingerprint) {
-          return { signature: signData.signature, fingerprint: signData.fingerprint };
+      if (!signResp.ok) {
+        const errText = await signResp.text().catch(() => "");
+        console.error(`[ops] NinjaExec returned ${signResp.status}: ${errText}`);
+        addTimelineEntry({ type: "exec", nodeId: "", requestId, status: "error", summary: `Signing failed: NinjaExec returned ${signResp.status}` });
+        return null;
+      }
+      const signData = await signResp.json();
+      if (signData.signature_b64 && signData.pubkey_b64) {
+        const sigBytes = Uint8Array.from(atob(signData.signature_b64), c => c.charCodeAt(0));
+        const sigHex = Array.from(sigBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+        const pkResp = await fetch(`${NINJAEXEC_SIGN_URL.replace("/sign", "/pubkey")}`).catch(() => null);
+        let fingerprint = "";
+        if (pkResp?.ok) {
+          const pkData = await pkResp.json().catch(() => ({}));
+          fingerprint = pkData.fingerprint || "";
         }
+        if (!fingerprint) {
+          const pkBytes = Uint8Array.from(atob(signData.pubkey_b64), c => c.charCodeAt(0));
+          const pkHex = Array.from(pkBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+          fingerprint = pkHex.slice(0, 32).match(/.{2}/g)?.join(":") || pkHex;
+        }
+        return { signature: sigHex, fingerprint };
       }
     } catch (e) {
       console.error("[ops] NinjaExec signing failed:", e);
