@@ -375,6 +375,32 @@ try {
         Write-Host "==========================================================" -ForegroundColor Cyan
         Write-Host ""
 
+        $ToolsDir = Join-Path $RepoDir "tools"
+        if (-not (Test-Path $ToolsDir)) {
+            New-Item -ItemType Directory -Path $ToolsDir -Force | Out-Null
+        }
+        $NssmExe = Join-Path $ToolsDir "nssm.exe"
+        if (-not (Test-Path $NssmExe)) {
+            Write-Host "  Downloading NSSM (service wrapper)..." -ForegroundColor DarkGray
+            $nssmZip = Join-Path $env:TEMP "nssm-2.24.zip"
+            try {
+                Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" -OutFile $nssmZip -UseBasicParsing
+                $nssmExtract = Join-Path $env:TEMP "nssm-extract"
+                Expand-Archive -Path $nssmZip -DestinationPath $nssmExtract -Force
+                $arch = if ([Environment]::Is64BitOperatingSystem) { "win64" } else { "win32" }
+                Copy-Item (Join-Path $nssmExtract "nssm-2.24\$arch\nssm.exe") $NssmExe -Force
+                Remove-Item $nssmZip -Force -ErrorAction SilentlyContinue
+                Remove-Item $nssmExtract -Recurse -Force -ErrorAction SilentlyContinue
+                Write-Host "  [OK] NSSM installed to $NssmExe" -ForegroundColor Green
+            } catch {
+                Write-Host "  [FAIL] Could not download NSSM: $_" -ForegroundColor Red
+                Write-Host "         Download manually from https://nssm.cc and place nssm.exe in $ToolsDir" -ForegroundColor Yellow
+                return
+            }
+        } else {
+            Write-Host "  NSSM already present: $NssmExe" -ForegroundColor DarkGray
+        }
+
         $LogDir = Join-Path $IdentityBase "logs"
         if (-not (Test-Path $LogDir)) {
             New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
@@ -393,6 +419,7 @@ try {
 
             $svcName = "PlenumNET-Cube-$id"
             $logFile = Join-Path $LogDir "cube-${id}.log"
+            $errFile = Join-Path $LogDir "cube-${id}-err.log"
 
             $svcPassphrase = Get-Or-Create-Passphrase -IdentityDir $idDir -NodeId $id
 
@@ -408,48 +435,59 @@ try {
 
             $existingSvc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
             if ($existingSvc) {
-                Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
-                & sc.exe delete $svcName | Out-Null
+                & $NssmExe stop $svcName 2>$null | Out-Null
+                & $NssmExe remove $svcName confirm 2>$null | Out-Null
                 Start-Sleep -Seconds 2
             }
 
             try {
-                New-Service -Name $svcName `
-                    -BinaryPathName "`"$BinaryPath`"" `
-                    -DisplayName "PlenumNET Inter-Cube Daemon (Identity #$id)" `
-                    -Description "PlenumNET Inter-Cube infrastructure daemon for identity #$id" `
-                    -StartupType Automatic | Out-Null
+                & $NssmExe install $svcName $BinaryPath | Out-Null
 
-                $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$svcName"
-                $envVars = @(
-                    "CUBE_MODE=cube",
-                    "CUBE_API_PORT=$gw",
-                    "CUBE_NODE_ID=$id",
-                    "CUBE_PEER_PORT=$pp",
-                    "CUBE_TERMINAL_PORT=$tp",
-                    "CUBE_CRS_URL=$CRS_URL",
-                    "RELAY_URL=$CRS_URL",
-                    "CUBE_IDENTITY_DIR=$idDir",
-                    "CUBE_IDENTITY_PASSPHRASE=$svcPassphrase",
-                    "CUBE_ROLE=inference",
-                    "CUBE_ARRAY3_PEERS=$peerEnv"
-                )
-                New-ItemProperty -Path $regPath -Name "Environment" -Value $envVars -PropertyType MultiString -Force | Out-Null
+                & $NssmExe set $svcName DisplayName "PlenumNET Inter-Cube Daemon (Identity #$id)" | Out-Null
+                & $NssmExe set $svcName Description "PlenumNET Inter-Cube infrastructure daemon for identity #$id" | Out-Null
+                & $NssmExe set $svcName Start SERVICE_AUTO_START | Out-Null
+
+                & $NssmExe set $svcName AppEnvironmentExtra `
+                    "CUBE_MODE=cube" `
+                    "CUBE_API_PORT=$gw" `
+                    "CUBE_NODE_ID=$id" `
+                    "CUBE_PEER_PORT=$pp" `
+                    "CUBE_TERMINAL_PORT=$tp" `
+                    "CUBE_CRS_URL=$CRS_URL" `
+                    "RELAY_URL=$CRS_URL" `
+                    "CUBE_IDENTITY_DIR=$idDir" `
+                    "CUBE_IDENTITY_PASSPHRASE=$svcPassphrase" `
+                    "CUBE_ROLE=inference" `
+                    "CUBE_ARRAY3_PEERS=$peerEnv" | Out-Null
+
+                & $NssmExe set $svcName AppStdout $logFile | Out-Null
+                & $NssmExe set $svcName AppStderr $errFile | Out-Null
+                & $NssmExe set $svcName AppStdoutCreationDisposition 4 | Out-Null
+                & $NssmExe set $svcName AppStderrCreationDisposition 4 | Out-Null
+                & $NssmExe set $svcName AppRotateFiles 1 | Out-Null
+                & $NssmExe set $svcName AppRotateBytes 10485760 | Out-Null
 
                 & sc.exe failure $svcName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
                 & sc.exe config $svcName depend= Tcpip/Afd/Dnscache | Out-Null
 
-                $svcAccount = Get-ServiceAccountName
-                Set-ServiceLogonAccount -ServiceName $svcName -AccountName $svcAccount
-
-                Start-Service -Name $svcName
-                Write-Host "  [OK] Daemon #$id registered and started: $svcName" -ForegroundColor Green
+                & $NssmExe start $svcName | Out-Null
+                Start-Sleep -Milliseconds 500
+                $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+                if ($svc -and $svc.Status -eq 'Running') {
+                    Write-Host "  [OK] Daemon #$id running as Windows Service: $svcName (port $gw)" -ForegroundColor Green
+                } else {
+                    Write-Host "  [WARN] Daemon #$id registered but may not have started yet: $svcName" -ForegroundColor Yellow
+                }
             } catch {
                 Write-Host "  [WARN] Could not register daemon #$id as service: $_" -ForegroundColor Yellow
             }
         }
 
         $watchdogScript = Join-Path $RepoDir "services\wrappers\plenumnet-watchdog.ps1"
+        $wrapperDir = Join-Path $RepoDir "services\wrappers"
+        if (-not (Test-Path $wrapperDir)) {
+            New-Item -ItemType Directory -Path $wrapperDir -Force | Out-Null
+        }
         @"
 `$stopped = Get-Service PlenumNET-Cube-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -ne 'Running' }
 foreach (`$svc in `$stopped) {
@@ -478,6 +516,9 @@ foreach (`$svc in `$stopped) {
         Write-Host "    Get-Service PlenumNET-Cube-*       # Check all daemon services" -ForegroundColor DarkGray
         Write-Host "    Restart-Service PlenumNET-Cube-1   # Restart daemon #1" -ForegroundColor DarkGray
         Write-Host "    powershell -File `"$RepoDir\client\public\install\plenumnet-service.ps1`" status" -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "  Log files:" -ForegroundColor White
+        Write-Host "    $LogDir" -ForegroundColor DarkGray
         Write-Host ""
     } else {
         Write-Host "  NOTE: Run as Administrator to register daemons as Windows Services." -ForegroundColor Yellow
