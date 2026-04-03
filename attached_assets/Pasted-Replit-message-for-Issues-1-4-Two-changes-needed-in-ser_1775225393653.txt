@@ -1,0 +1,52 @@
+Replit message for Issues 1 & 4:
+
+Two changes needed in services/inter-cube/src/api.rs and main.rs. No new crates.
+Issue 1 — Heartbeat counter is counting HTTP polls, not heartbeats
+api.rs line 964: heartbeat_counter.fetch_add(1) fires on every /slots request. Fix:
+Add to AppState:
+rustpub real_heartbeat_counter: AtomicU64,
+pub last_heartbeat_epoch: AtomicU64,
+Initialize both to AtomicU64::new(0) in both AppState::new() calls.
+In main.rs heartbeat loop (~line 1182), add:
+ruststate.real_heartbeat_counter.fetch_add(1, Ordering::Relaxed);
+state.last_heartbeat_epoch.store(
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default().as_secs(),
+    Ordering::Relaxed,
+);
+In get_slot_inventory, replace the poll-increment with a read:
+rust// Remove this:
+let hb = state.heartbeat_counter.fetch_add(1, Ordering::Relaxed);
+// Replace with:
+let hb = state.real_heartbeat_counter.load(Ordering::Relaxed);
+let last_hb_epoch = state.last_heartbeat_epoch.load(Ordering::Relaxed);
+Add to SlotInfo:
+rustpub last_heartbeat_epoch: u64,
+Populate with last_hb_epoch on each slot push.
+
+Issue 4 — Load metrics are all 0%
+The data is already computed in the match arms. Just derive a load_pct from it and add it to SlotInfo:
+Add to SlotInfo:
+rustpub load_pct: f32,
+In the match arms:
+rustSome("con") => {
+    // existing cs = con.stats() ...
+    let load_pct = cs.tunnels_up as f32 / 27.0_f32;
+    // pass through
+}
+Some("fts") => {
+    // existing (up, suspect, down, recovering) = fts.state_counts() ...
+    let total = (up + suspect + down).max(1) as f32;
+    let load_pct = (suspect + down) as f32 / total;
+}
+Some("glb") => {
+    // existing gs = glb.stats() ...
+    let load_pct = (gs.active_flows as f32 / 100.0_f32).min(1.0);
+}
+Some("crs") => {
+    // existing count = crs.registered_count() ...
+    let load_pct = count as f32 / 100.0_f32;
+}
+_ => { let load_pct = 0.0_f32; }
+The monitor reads load_pct from s.ld — already wired. No monitor changes needed once the field is in the JSON response.
