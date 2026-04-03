@@ -1,0 +1,143 @@
+
+I'll run the QC-R1 review against this spec. Let me load the review skill and the repo guide first.
+
+Let me investigate the referenced files in the codebase to ground the review properly.
+
+None of the referenced files exist in this Replit workspace — they live in the external GitHub repo. I have enough context from the spec to execute the full QC-R1 review. Let me produce all three agent reviews now.
+
+QC-R1 — Quality Control Review: #88 Fix XPlenum RISC-V Extension CI
+Source Document: #88 - Fix XPlenum RISC-V Extension CI (pasted spec, no revision number)
+
+Agent 1: Security Engineer
+YODA Role ID: engineering/security-engineer
+
+The full specification was reviewed. This is a CI pipeline fix task — it addresses failing GitHub Actions jobs for the XPlenum RISC-V Extension. The spec does not introduce new cryptographic operations, credential handling, key provisioning, or privilege changes. However, several security-adjacent concerns arise from the CI context.
+
+Finding 1
+Section: Tasks, Item 1 — Fix RTL Lint job
+Severity: IMPORTANT
+Finding: The spec proposes either adding Verilog RTL source files or conditionally skipping the job when files aren't present. The "conditionally skip" option creates a silent failure path — if RTL files are accidentally deleted or not committed, CI would pass without linting. This masks regressions in hardware security modules (AES-256 core, CTR-DRBG, mask unit) that are security-critical components.
+Recommendation: Do not implement the "conditionally skip" path. The RTL files must exist and be linted. If the files genuinely don't exist yet, the workflow should be disabled (removed or set to workflow_dispatch only) rather than silently skipping. The spec should take a clear position: either the files exist and must be linted, or the workflow is premature and should be gated.
+Verification: Confirm the workflow either runs the lint successfully or is explicitly disabled. No if: hashFiles(...) conditional skip pattern should be present for security-critical RTL.
+Finding 2
+Section: Tasks, Item 3 — Fix DRBG Statistical Validation
+Severity: IMPORTANT
+Finding: The spec notes the NIST STS Python script runs for 35 minutes then fails, and proposes "adjusting test data size/bit count" as a potential fix. Reducing the statistical test sample size to meet a time constraint weakens the DRBG validation. A CTR-DRBG is a security-critical component — its statistical validation must meet NIST SP 800-22 minimum sample requirements. The spec does not define what "reasonable time" means in terms of minimum acceptable test parameters.
+Recommendation: Define the minimum acceptable NIST STS parameters (bit stream length, number of sequences) that satisfy SP 800-22 requirements. If the current parameters exceed these minimums, reduction is acceptable. If not, the fix must be a script optimization (parallelism, algorithm efficiency), not a parameter reduction. Document the chosen parameters and their SP 800-22 compliance rationale.
+Verification: The DRBG validation job passes with documented parameters that meet or exceed NIST SP 800-22 minimum requirements. A comment in the script or workflow cites the specific SP 800-22 section.
+Finding 3
+Section: Tasks, Item 2 — Fix Rust Kernel Build
+Severity: MINOR
+Finding: The spec mentions running cargo test --lib -- xplenum on the host target. If the xplenum tests include any cryptographic validation (e.g., testing the DRBG, AES core HAL, or signature operations), running them on the host rather than the RISC-V target means the tests validate x86 behavior, not the target architecture. The spec doesn't clarify whether any crypto-sensitive tests are architecture-dependent.
+Recommendation: Add a note clarifying which tests are host-safe (pure logic, no architecture-dependent behavior) vs. which require target emulation (QEMU) or hardware. If any xplenum tests validate cryptographic operations that could differ by architecture (e.g., endianness, instruction availability), they should run under QEMU-riscv64.
+Verification: Review xplenum test list; confirm no architecture-sensitive crypto tests run only on host.
+Finding 4
+Section: Relevant files
+Severity: MINOR
+Finding: The spec does not mention whether the CI workflow handles any secrets (signing keys, deployment tokens, API keys). If the workflow has access to repository secrets (e.g., for artifact publishing or notifications), the fix should not inadvertently expose them in new job steps or log output. This is standard CI hygiene but worth flagging given the spec's silence.
+Recommendation: Add a note confirming the workflow does not use repository secrets, or if it does, that the fix preserves secret masking and does not add echo or debug statements that could leak.
+Verification: Review the workflow YAML for secrets.* references and confirm no new exposure vectors.
+Summary Verdict
+PASS WITH CONDITIONS — The spec is a straightforward CI fix with no direct cryptographic changes. However, two IMPORTANT findings must be resolved before implementation: (1) the RTL lint skip option creates a dangerous silent-pass path for security-critical hardware modules and must be eliminated from the approach, and (2) the DRBG statistical validation fix must not reduce test parameters below NIST SP 800-22 minimums — the spec must define the acceptable parameter floor. No passphrase-based authentication or key derivation is present in this spec. No cryptographic claims require status assessment (VERIFIED/UNVERIFIED/INCORRECT) as no cryptographic operations are introduced or modified.
+
+Agent 2: DevOps Automator
+YODA Role ID: engineering/devops-automator
+
+The full specification was reviewed. This is squarely a CI/CD pipeline fix task — all five items in the Tasks section address GitHub Actions job failures. The review focuses on pipeline correctness, failure handling, reproducibility, and silent failure risks.
+
+Finding 1
+Section: Tasks, Item 1 — Fix RTL Lint job
+Severity: CRITICAL
+Finding: The spec presents two options: "add the required Verilog source files" or "update the workflow to conditionally skip when RTL files aren't present." These are fundamentally different approaches with opposite outcomes. A conditional skip means the RTL Lint job reports SUCCESS when no files exist — this poisons the downstream dependency chain. The RTL Simulation and Formal Verification jobs depend on rtl-lint, so if rtl-lint passes vacuously, they will also run and either fail confusingly or pass vacuously. The spec must make a single, clear architectural decision, not offer two contradictory options to the implementer.
+Recommendation: Remove the "conditionally skip" option. The spec must decide: either (a) the RTL files are created/committed as part of this task, or (b) the entire xplenum-riscv.yml workflow is gated behind paths: filters or converted to workflow_dispatch until RTL files exist. Do not allow a green CI status with no actual validation.
+Verification: After implementation, pushing a commit with no RTL files must NOT produce a green check on the RTL Lint job. Either the job runs and passes with real files, or the workflow does not trigger at all.
+Finding 2
+Section: Tasks, Item 3 — Fix DRBG Statistical Validation
+Severity: IMPORTANT
+Finding: The spec says the job "runs for 35 minutes then fails" and proposes investigating whether it has "a bug, excessive iteration count, or incorrect test parameters." This is an investigation task disguised as a fix task. The spec does not define a target wall-clock time, a maximum acceptable CI duration, or what "reasonable time (under 10 minutes)" means in terms of statistical rigor. A 10-minute timeout is stated in "Done looks like" but not justified against the test's requirements.
+Recommendation: Define the maximum acceptable wall-clock time for the DRBG job (the "under 10 minutes" target in Done looks like) and document the rationale. Specify a timeout-minutes: value in the workflow job definition. If the test cannot complete within the budget, define whether the fix is script optimization, parameter adjustment (with documented minimum thresholds), or splitting into a separate scheduled workflow that runs nightly with full parameters.
+Verification: The DRBG job completes within the stated time budget. The workflow YAML includes an explicit timeout-minutes: value matching the spec.
+Finding 3
+Section: Tasks, Item 5 — Verify end-to-end
+Severity: IMPORTANT
+Finding: The spec says "Push changes and confirm all 5 jobs pass in GitHub Actions" but does not define what happens if only 4 of 5 pass. The spec treats the 5 jobs as independent fixes (Tasks 1-4) but "Done looks like" requires all 5 to pass. There is no defined rollback or partial-success strategy. If the RTL files are added but the DRBG script fix doesn't work, does the PR merge with 4/5 passing?
+Recommendation: State explicitly: all 5 jobs must pass for the PR to merge. No partial success. If any job still fails after the fixes, the PR remains open until resolved. Add required_status_checks configuration guidance if the repo uses branch protection.
+Verification: The repo's branch protection rules (or the PR review checklist) require all 5 jobs to pass before merge.
+Finding 4
+Section: Tasks, Item 2 — Fix Rust Kernel Build
+Severity: IMPORTANT
+Finding: The spec says to "investigate why cargo check --target riscv64gc-unknown-none-elf fails" but does not specify which Rust toolchain version, whether the riscv64gc-unknown-none-elf target is installed via rustup target add, or whether the CI runner has the correct toolchain. The workflow YAML is listed as a relevant file but the spec doesn't describe the CI environment setup. If the toolchain isn't pinned, different runners may produce different results.
+Recommendation: The spec should require: (a) the Rust toolchain version is pinned in rust-toolchain.toml or the workflow YAML, (b) rustup target add riscv64gc-unknown-none-elf is an explicit workflow step, (c) any cross-compilation dependencies (linker, sysroot) are documented.
+Verification: The workflow YAML includes explicit toolchain installation with a pinned version and the RISC-V target.
+Finding 5
+Section: Tasks, Item 4 — Unblock downstream jobs
+Severity: MINOR
+Finding: The spec says "Once rtl-lint passes, the RTL Simulation (Icarus Verilog) and Formal Verification (SymbiYosys) jobs will run. Ensure they have the necessary source files and testbenches." This is vague — it doesn't define what "ensure" means. Will testbench files be created? Are they already in the repo but in a different path? The spec should clarify the expected state of tb/ directory contents.
+Recommendation: List the specific testbench files required by the Simulation and Formal Verification jobs, or state that these jobs will be addressed in a follow-up task if testbenches don't exist yet.
+Verification: The tb/ directory contains the expected files, or the follow-up task is created and referenced.
+Finding 6
+Section: Out of scope
+Severity: MINOR
+Finding: The spec says "Other CI workflows (already fixed separately)" are out of scope, but doesn't reference which task or PR fixed them. If the other workflow fixes haven't merged yet, this task could have merge conflicts or interact with those changes.
+Recommendation: Add a cross-reference to the PR/task that fixed other workflows, and note whether it has merged.
+Verification: The referenced fix has merged before this task begins, or the spec notes the dependency.
+Summary Verdict
+FAIL — One CRITICAL finding blocks implementation: the spec offers two contradictory approaches for the RTL Lint job (add files vs. conditionally skip) without making a decision. This ambiguity means an implementer could create a CI pipeline that passes green with zero actual validation — the worst possible outcome for a CI fix task. Three IMPORTANT findings also require resolution: the DRBG timeout needs a justified target and explicit timeout-minutes:, the end-to-end verification needs a no-partial-success policy, and the Rust build job needs toolchain pinning requirements. After the CRITICAL finding is resolved and the spec takes a clear position on the RTL approach, this should be re-reviewed.
+
+Agent 3: PlenumNET Integration Specialist
+YODA Role ID: capomastro/plenumnet-integration
+
+The full specification was reviewed. This spec addresses CI pipeline failures for the XPlenum RISC-V Extension — a hardware/software co-design component of the Salvi Framework. While primarily a DevOps task, the XPlenum extension implements cryptographic primitives in hardware (AES-256 core, CTR-DRBG, masking unit) that are foundational to the framework.
+
+Finding 1
+Section: Tasks, Item 1 — Fix RTL Lint job
+Severity: IMPORTANT
+Finding: The spec lists RTL source files: xplenum_aes256_core.v, xplenum_ctr_drbg.v, xplenum_mask_unit.v, xplenum_top.v, xplenum_pkg.vh. These implement AES-256, which is an external cryptographic primitive — not a PlenumNET primitive. Per framework rules, AES-256-GCM is banned and must be replaced with Phase Encryption (data at rest) or T-AE-MAC (authenticated encryption). However, the XPlenum RISC-V extension occupies a special position: it is a hardware acceleration layer that may be providing AES-256 as a building block for T-AE-MAC or Phase Encryption at the hardware level, not as a standalone primitive. The spec does not clarify this relationship.
+Recommendation: Add a note clarifying the role of the AES-256 core in the XPlenum extension. If AES-256 is used as an internal building block within a PlenumNET primitive (e.g., T-AE-MAC's bulk cipher), document this explicitly. If AES-256 is exposed as a standalone operation accessible to application code, this is a framework violation. Cross-reference to Security Engineer (Agent 1) for severity assessment.
+Verification: The spec or a referenced architecture document confirms AES-256 is encapsulated within a PlenumNET primitive and not directly accessible. The RTL module hierarchy shows xplenum_aes256_core is only instantiated by xplenum_top and not independently addressable.
+Finding 2
+Section: Tasks, Item 3 — Fix DRBG Statistical Validation
+Severity: IMPORTANT
+Finding: The spec references a CTR-DRBG implementation (xplenum_ctr_drbg.v) and its statistical validation script (xplenum_drbg_nist_sts.py). CTR-DRBG is specified in NIST SP 800-90A and uses AES as its block cipher. The Salvi Framework's random number generation should derive from PlenumNET primitives. If this DRBG is the framework's entropy source, its relationship to TLSponge-385 key derivation and TIS-27 must be documented. If CTR-DRBG feeds into TLSponge as a seed, the interface boundary must be specified. The spec treats the DRBG as an isolated component without placing it in the framework's key material lifecycle. — Crypto Status: UNVERIFIED.
+Recommendation: Add context establishing where CTR-DRBG sits in the framework's entropy chain. Does it feed raw entropy to TLSponge-385 for key derivation? Is it used only within the hardware boundary for mask generation? Document the trust boundary between the hardware DRBG and the software cryptographic stack.
+Verification: The spec or a referenced document shows the CTR-DRBG's output consumers and confirms it does not bypass PlenumNET's key derivation pipeline.
+Finding 3
+Section: Tasks, Item 2 — Fix Rust Kernel Build
+Severity: MINOR
+Finding: The spec references src/kernel/src/security/xplenum_hal.rs and src/kernel/src/security/xplenum_tests.rs. The HAL (Hardware Abstraction Layer) presumably bridges the RTL hardware implementation to the Rust kernel's cryptographic stack. The spec treats the build fix as a pure toolchain/dependency issue but does not confirm that the HAL interface aligns with current kernel cryptographic APIs (TIS-27, TL-DSA, TLSponge-385 function signatures). If the HAL was written against an older version of the kernel crypto API, the build failure could be an API mismatch rather than a missing dependency. — Crypto Status: UNVERIFIED.
+Recommendation: When investigating the build failure, check whether xplenum_hal.rs imports match the current kernel crypto module signatures. If the HAL references deprecated types or functions, the fix may require API updates beyond toolchain configuration.
+Verification: cargo check passes with the HAL importing current kernel crypto types. No #[allow(deprecated)] annotations suppress API warnings.
+Finding 4
+Section: Relevant files / Overall
+Severity: MINOR
+Finding: The spec references src/kernel/src/arch/xplenum.rs as a relevant file but does not describe what it contains or its role. If this is the architecture-specific instruction encoding for XPlenum custom RISC-V instructions, it should be confirmed against the XPlenum ISA extension specification (which defines custom opcodes for ternary operations). The spec treats all files as equal without distinguishing architectural files from security files from test files.
+Verification: Confirm xplenum.rs contains architecture definitions consistent with the XPlenum ISA extension spec.
+Summary Verdict
+PASS WITH CONDITIONS — The spec is primarily a CI infrastructure fix and does not introduce or modify cryptographic operations. However, two IMPORTANT findings require resolution before implementation: (1) the AES-256 core's role must be clarified — whether it is an encapsulated building block within PlenumNET primitives or an exposed standalone primitive determines whether the RTL files are framework-compliant, and (2) the CTR-DRBG's position in the framework's entropy chain must be documented to confirm it does not bypass PlenumNET's key derivation pipeline. Both are documentation/clarification issues rather than design flaws, but without them an implementer could inadvertently create or validate hardware modules that violate framework invariants.
+
+Consolidation Table
+#	Finding ID	Agent	Section	Severity	Finding (Summary)	Crypto Status
+1	R1-A2-1	DevOps	Tasks 1 — RTL Lint	CRITICAL	Spec offers two contradictory approaches (add files vs. skip) without deciding; skip creates false-green CI	N/A
+2	R1-A1-1	Security	Tasks 1 — RTL Lint	IMPORTANT	Conditional skip masks regressions in security-critical hardware modules	N/A
+3	R1-A1-2	Security	Tasks 3 — DRBG	IMPORTANT	Reducing NIST STS parameters to meet time budget may weaken DRBG validation below SP 800-22 minimums	N/A
+4	R1-A2-2	DevOps	Tasks 3 — DRBG	IMPORTANT	No justified wall-clock target or timeout-minutes defined	N/A
+5	R1-A2-3	DevOps	Tasks 5 — E2E	IMPORTANT	No partial-success policy; unclear if 4/5 passing allows merge	N/A
+6	R1-A2-4	DevOps	Tasks 2 — Rust Build	IMPORTANT	Rust toolchain not pinned; RISC-V target install not specified	N/A
+7	R1-A3-1	Integration	Tasks 1 — RTL Lint	IMPORTANT	AES-256 core role unclear — standalone primitive (violation) vs. encapsulated building block (permitted)	UNVERIFIED
+8	R1-A3-2	Integration	Tasks 3 — DRBG	IMPORTANT	CTR-DRBG position in framework entropy chain undocumented; may bypass PlenumNET key derivation	UNVERIFIED
+9	R1-A1-3	Security	Tasks 2 — Rust Build	MINOR	Host-target tests may miss architecture-dependent crypto behavior	N/A
+10	R1-A1-4	Security	Relevant files	MINOR	No confirmation workflow doesn't use/expose repository secrets	N/A
+11	R1-A2-5	DevOps	Tasks 4 — Unblock	MINOR	Testbench file requirements vague	N/A
+12	R1-A2-6	DevOps	Out of scope	MINOR	No cross-reference to PR/task that fixed other workflows	N/A
+13	R1-A3-3	Integration	Tasks 2 — Rust Build	MINOR	HAL may reference deprecated kernel crypto APIs	UNVERIFIED
+14	R1-A3-4	Integration	Relevant files	MINOR	xplenum.rs role and ISA alignment not described	N/A
+Overall QC-R1 Verdict
+FAIL — Agent 2 (DevOps) issued FAIL due to one CRITICAL finding (R1-A2-1). The spec must resolve the RTL Lint approach ambiguity before proceeding. Additionally, 7 IMPORTANT findings across all three agents require attention. The spec does not proceed to QC-R2 until the CRITICAL finding is resolved and Agent 2 re-reviews.
+
+Key actions to unblock:
+
+Remove the "conditionally skip" option from Task 1 — take a clear position on whether RTL files are created in this task or the workflow is deferred.
+Define NIST STS minimum parameters and a justified timeout for the DRBG job.
+Clarify AES-256 core and CTR-DRBG roles within the PlenumNET primitive hierarchy.
+Pin Rust toolchain and specify RISC-V target installation in the workflow.
+State the merge policy — all 5 jobs must pass, no partial success.

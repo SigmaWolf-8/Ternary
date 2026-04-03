@@ -1,0 +1,32 @@
+#88 - Fix XPlenum RISC-V Extension CI
+What & Why
+The XPlenum RISC-V Extension CI workflow (xplenum-riscv.yml) is failing across 3 of 5 jobs after a push that modified other workflow files in .github/workflows/ caused GitHub to re-evaluate and trigger it. The failures reveal pre-existing issues: missing RTL source directories, broken Rust kernel cross-compilation, and a DRBG statistical validation timeout.
+
+Done looks like
+All 5 jobs in the XPlenum RISC-V Extension CI pass on a clean push
+RTL Lint & Syntax Check passes (Verilator)
+Rust Kernel Build (RISC-V Target) passes (cargo check + cargo test)
+DRBG Statistical Validation passes within a reasonable time (under 10 minutes)
+RTL Simulation and Formal Verification jobs run (currently skipped because they depend on rtl-lint)
+Out of scope
+Changes to the actual RISC-V extension functionality or cryptographic logic
+Adding new RTL modules or kernel features
+Other CI workflows (already fixed separately)
+Tasks
+Fix RTL Lint job — The rtl/ and tb/ directories are missing from the repo. Either add the required Verilog source files (xplenum_aes256_core.v, xplenum_ctr_drbg.v, xplenum_mask_unit.v, xplenum_top.v, xplenum_pkg.vh) and testbenches, or update the workflow to conditionally skip when RTL files aren't present. Determine whether these files exist elsewhere in the repo or need to be created.
+
+Fix Rust Kernel Build job — Investigate why cargo check --target riscv64gc-unknown-none-elf fails in src/kernel/. Check Cargo.toml for missing dependencies, feature flags, or target configuration. Also verify cargo test --lib -- xplenum runs on the host target.
+
+Fix DRBG Statistical Validation job — The NIST STS Python script (scripts/xplenum_drbg_nist_sts.py) runs for 35 minutes then fails. Investigate the script to determine if it has a bug, excessive iteration count, or incorrect test parameters. Fix the script or adjust the test data size/bit count.
+
+Unblock downstream jobs — Once rtl-lint passes, the RTL Simulation (Icarus Verilog) and Formal Verification (SymbiYosys) jobs will run. Ensure they have the necessary source files and testbenches.
+
+Verify end-to-end — Push changes and confirm all 5 jobs pass in GitHub Actions.
+
+Relevant files
+.github/workflows/xplenum-riscv.yml
+src/kernel/Cargo.toml
+src/kernel/src/arch/xplenum.rs
+src/kernel/src/security/xplenum_hal.rs
+src/kernel/src/security/xplenum_tests.rs
+scripts/xplenum_drbg_nist_sts.py
