@@ -951,16 +951,29 @@ addEventListener('keydown',e=>{if(e.key==='Escape'){selected=-1;detail.classList
 let relayWs=null;
 let relayConnected=false;
 
+let relayBackoff=5000;
+const RELAY_BACKOFF_MAX=60000;
 function connectRelayWss(){
   const wsUrl=relayUrl.replace(/^http/,'ws')+'/ws/relay';
   try{
     relayWs=new WebSocket(wsUrl);
-    relayWs.onopen=()=>{relayConnected=true;console.log('[ws-relay] Connected to',wsUrl)};
-    relayWs.onclose=()=>{relayConnected=false;console.log('[ws-relay] Disconnected');setTimeout(connectRelayWss,5000)};
+    relayWs.onopen=()=>{
+      relayConnected=true;relayBackoff=5000;
+      console.log('[ws-relay] Connected to',wsUrl);
+      relayWs.send(JSON.stringify({type:'monitor'}));
+    };
+    relayWs.onclose=()=>{
+      relayConnected=false;
+      console.log('[ws-relay] Disconnected — reconnecting in',relayBackoff/1000+'s');
+      setTimeout(connectRelayWss,relayBackoff);
+      relayBackoff=Math.min(relayBackoff*2,RELAY_BACKOFF_MAX);
+    };
     relayWs.onerror=e=>{console.warn('[ws-relay] Error:',e)};
     relayWs.onmessage=e=>{
       try{
         const msg=JSON.parse(e.data);
+        if(msg.type==='monitor_ok'){console.log('[ws-relay] Monitor mode active — peers:',msg.peerCount);return}
+        if(msg.type==='challenge'){return}
         if(msg.msg_type==='exec-result'){handleExecResult(msg)}
         if(msg.msg_type==='telemetry'){handleTelemetry(msg)}
       }catch(err){/* non-JSON message */}

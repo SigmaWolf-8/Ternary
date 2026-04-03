@@ -2369,8 +2369,11 @@ function startPqtiService(): ChildProcess | null {
   }, RELAY_PING_INTERVAL);
   relayPingInterval.unref();
 
+  const relayMonitorClients = new Set<WebSocket>();
+
   wss.on("connection", (ws: WebSocket) => {
     let authenticated = false;
+    let isMonitor = false;
     let nodeAddress = "";
     const challengeNonce = crypto.randomBytes(32).toString("hex");
 
@@ -2396,6 +2399,14 @@ function startPqtiService(): ChildProcess | null {
       }
 
       if (!authenticated) {
+        if (msg.type === "monitor") {
+          authenticated = true;
+          isMonitor = true;
+          relayMonitorClients.add(ws);
+          ws.send(JSON.stringify({ type: "monitor_ok", connectedPeers: Array.from(relayClients.keys()), peerCount: relayClients.size }));
+          console.log(`[ws-relay] Monitor client connected (${relayMonitorClients.size} monitor(s))`);
+          return;
+        }
         if (msg.type === "auth" && msg.address && msg.publicKey) {
           const normalAddr = normalizeTernaryAddr(msg.address);
           let verified = false;
@@ -2523,6 +2534,13 @@ function startPqtiService(): ChildProcess | null {
         }
         ws.send(JSON.stringify(makeErrorResponse("ERR_NOT_AUTHENTICATED", msg.type)));
         recordRelayAuditEvent({ eventType: "relay.error", address: "unauthenticated", timestamp: new Date().toISOString(), details: { code: "ERR_NOT_AUTHENTICATED", msgType: msg.type } });
+        return;
+      }
+
+      if (isMonitor) {
+        if (msg.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong", ts: Date.now() }));
+        }
         return;
       }
 
@@ -2850,6 +2868,11 @@ function startPqtiService(): ChildProcess | null {
     });
 
     ws.on("close", (code: number, reason: Buffer) => {
+      if (isMonitor) {
+        relayMonitorClients.delete(ws);
+        console.log(`[ws-relay] Monitor client disconnected (${relayMonitorClients.size} monitor(s) remain)`);
+        return;
+      }
       if (nodeAddress) {
         relayClients.delete(nodeAddress);
         relayAddressByWs.delete(ws);

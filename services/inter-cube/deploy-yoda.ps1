@@ -997,6 +997,19 @@ foreach ($cfg in $daemonConfigs) {
     $logFile = Join-Path $LOG_DIR "array3-node-$($cfg.Id).log"
     $wrapperBat = Join-Path $wrapperDir "array3-node-$($cfg.Id)-start.bat"
 
+    $slotRegistryFile = Join-Path $IdentityBase "slot-registry-$($cfg.Id).json"
+    if (-not (Test-Path $slotRegistryFile)) {
+        if ($cfg.Mode -eq "crs") {
+            $slotRegistryJson = '{"2.2.2": "gateway", "1.1.1": "crs"}'
+        } else {
+            $slotRegistryJson = '{"2.2.2": "gateway"}'
+        }
+        Set-Content -Path $slotRegistryFile -Value $slotRegistryJson -Encoding UTF8
+        Write-Host "  [OK] Node #$($cfg.Id) slot registry created ($slotRegistryFile)" -ForegroundColor Green
+    } else {
+        Write-Host "  [OK] Node #$($cfg.Id) slot registry exists ($slotRegistryFile)" -ForegroundColor Green
+    }
+
     $peerListForNode = @()
     foreach ($other in $daemonConfigs) {
         if ($other.Id -ne $cfg.Id) {
@@ -1016,6 +1029,7 @@ set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
+set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
 cd /d "$RepoDir"
@@ -1050,6 +1064,7 @@ set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
 set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
+set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
 cd /d "$RepoDir"
