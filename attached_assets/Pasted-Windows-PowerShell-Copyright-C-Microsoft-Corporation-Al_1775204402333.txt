@@ -1,0 +1,44 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> # 1. Show the wrapper script so we can see the env vars
+PS C:\Users\Sigma> Get-Content "C:\PlenumNET\plenumnet-data\.plenumnet\wrappers\array3-node-1-start.bat" | Select-Object -First 20
+Get-Content : Cannot find path 'C:\PlenumNET\plenumnet-data\.plenumnet\wrappers\array3-node-1-start.bat' because it
+does not exist.
+At line:1 char:1
++ Get-Content "C:\PlenumNET\plenumnet-data\.plenumnet\wrappers\array3-n ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PlenumNET\pl...ode-1-start.bat:String) [Get-Content], ItemNotFoundEx
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # 2. Start the service and immediately grab the log
+PS C:\Users\Sigma> net start PlenumNET-Array3-1; Start-Sleep -Seconds 5; Get-Content "C:\PlenumNET\plenumnet-data\logs\array3-node-1.log" -Tail 20
+System error 5 has occurred.
+
+Access is denied.
+
+[2026-04-01T23:49:41-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:41-06:00] Restarting in 5s (attempt 2)
+[2026-04-01T23:49:46-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #2]
+[2026-04-01T23:49:46-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:46-06:00] Restarting in 5s (attempt 3)
+[2026-04-01T23:49:51-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #3]
+[2026-04-01T23:49:51-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:51-06:00] Restarting in 10s (attempt 4)
+[2026-04-01T23:50:01-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #4]
+[2026-04-01T23:50:01-06:00] Node #1 exited with code 1
+[2026-04-01T23:50:01-06:00] Restarting in 10s (attempt 5)
+[2026-04-02T00:14:17-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T17:48:50-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T17:57:16-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T18:58:00-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T19:08:58-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T20:27:40-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T00:23:14-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T00:45:13-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T02:13:01-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+PS C:\Users\Sigma>
