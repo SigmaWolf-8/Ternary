@@ -1057,7 +1057,7 @@ for /f "usebackq delims=" %%P in ("$($cfg.IdentityDir)\.passphrase") do set CUBE
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
-cd /d "$RepoDir"
+pushd "$RepoDir" || (echo [FATAL] Cannot change to $RepoDir ^>^> "$logFile" & exit /b 1)
 set RESTART_DELAY=5
 set RESTART_COUNT=0
 :loop
@@ -1092,7 +1092,7 @@ for /f "usebackq delims=" %%P in ("$($cfg.IdentityDir)\.passphrase") do set CUBE
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
-cd /d "$RepoDir"
+pushd "$RepoDir" || (echo [FATAL] Cannot change to $RepoDir ^>^> "$logFile" & exit /b 1)
 set RESTART_DELAY=5
 set RESTART_COUNT=0
 :loop
@@ -1798,26 +1798,34 @@ if ($crsReady) {
     if (Test-Path $crsRegistryFile) {
         try {
             $regJson = Get-Content -Path $crsRegistryFile -Raw | ConvertFrom-Json
-            $registryCount = ($regJson.PSObject.Properties | Measure-Object).Count
+            $registryCount = ($regJson.PSObject.Properties | Where-Object { $_.Name -ne "2.2.2" } | Measure-Object).Count
         } catch {}
     }
-    try {
-        $slotResponse = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/api/salvi/inter-cube/slots" -TimeoutSec 10 -ErrorAction Stop
-        if ($slotResponse -and $slotResponse.summary) {
-            $occupied = $slotResponse.summary.occupied
-            $expectedMin = $registryCount + 1
-            if ($occupied -ge $expectedMin) {
-                Write-Host "  [OK] Slot registry verified: $occupied occupied slots ($registryCount from registry file)" -ForegroundColor Green
+    $expectedMin = $registryCount + 1
+    $slotVerified = $false
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            $slotResponse = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/api/salvi/inter-cube/slots" -TimeoutSec 10 -ErrorAction Stop
+            if ($slotResponse -and $slotResponse.summary) {
+                $occupied = $slotResponse.summary.occupied
+                if ($occupied -ge $expectedMin) {
+                    Write-Host "  [OK] Slot registry verified: $occupied occupied slots ($registryCount from registry + gateway)" -ForegroundColor Green
+                    $slotVerified = $true
+                    break
+                } else {
+                    Write-Host "  [..] Attempt $attempt/3: $occupied occupied (need >= $expectedMin) -- retrying in 2s" -ForegroundColor DarkGray
+                }
             } else {
-                Write-Host "  [WARN] Slot registry partially loaded: $occupied occupied (expected >= $expectedMin from $registryCount registry entries + gateway)" -ForegroundColor Yellow
-                Write-Host "         Check PLENUM_SLOT_REGISTRY_FILE content and daemon logs for [SLOTS-N*] messages" -ForegroundColor Yellow
+                Write-Host "  [..] Attempt $attempt/3: empty response -- retrying in 2s" -ForegroundColor DarkGray
             }
-        } else {
-            Write-Host "  [WARN] Slot registry response empty -- PLENUM_SLOT_REGISTRY_FILE may not be loaded" -ForegroundColor Yellow
+        } catch {
+            Write-Host "  [..] Attempt $attempt/3: $_ -- retrying in 2s" -ForegroundColor DarkGray
         }
-    } catch {
-        Write-Host "  [WARN] Could not verify slot registry at /api/salvi/inter-cube/slots: $_" -ForegroundColor Yellow
-        Write-Host "         Verify PLENUM_SLOT_REGISTRY_FILE is set in the service wrapper .bat file" -ForegroundColor Yellow
+        if ($attempt -lt 3) { Start-Sleep -Seconds 2 }
+    }
+    if (-not $slotVerified) {
+        Write-Host "  [WARN] Slot registry verification failed after 3 attempts (expected >= $expectedMin occupied)" -ForegroundColor Yellow
+        Write-Host "         Check PLENUM_SLOT_REGISTRY_FILE content and daemon logs for [SLOTS-N*] messages" -ForegroundColor Yellow
     }
 }
 

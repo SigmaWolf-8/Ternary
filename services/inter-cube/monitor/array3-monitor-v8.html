@@ -602,17 +602,17 @@ async function fetchAllNodes(){
 
     // Update connection status
     const summaries=results.map((r,i)=>{
+      const lastOk=nodeLastUpdated[r.port];
+      const lastOkStr=lastOk?" (last ok "+Math.round((Date.now()-lastOk.getTime())/1000)+"s ago)":"";
       if(!r.alive){
         const et=r.errorType||"unreachable";
-        if(et==="auth")return `N${i+1}:401-auth`;
-        if(et==="timeout")return `N${i+1}:timeout`;
-        if(et==="server")return `N${i+1}:err-${r.error}`;
-        return `N${i+1}:down`;
+        if(et==="auth")return `N${i+1}:auth-rejected${lastOkStr}`;
+        if(et==="timeout")return `N${i+1}:timeout${lastOkStr}`;
+        if(et==="server")return `N${i+1}:server-error${lastOkStr}`;
+        return `N${i+1}:unreachable${lastOkStr}`;
       }
       const occ=r.slots?r.slots.summary?.occupied||0:0;
-      const ts=nodeLastUpdated[r.port];
-      const ago=ts?Math.round((Date.now()-ts.getTime())/1000)+"s ago":"";
-      return `N${i+1}:${occ}svc${ago?" ("+ago+")":""}`;
+      return `N${i+1}:${occ}svc`;
     });
     connStatus.textContent=`Live · ${upCount}/3 nodes · ${summaries.join(' · ')}`;
     connStatus.style.color=upCount===3?CSS.lime:upCount>0?CSS.blueActive:CSS.slate;
