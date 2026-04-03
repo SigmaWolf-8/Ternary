@@ -979,8 +979,10 @@ function startPqtiService(): ChildProcess | null {
   app.get("/api/salvi/inter-cube/relay/slot-inventory", async (_req, res) => {
     try {
       const now = Date.now();
-      const staleThresholdMs = 60000;
+      const staleThresholdMs = 90000;
       const nodes: any[] = [];
+      const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
+
       for (const [nid, cached] of slotInventoryCache.entries()) {
         const ageMs = now - cached.receivedAt;
         const isStale = ageMs > staleThresholdMs;
@@ -991,8 +993,85 @@ function startPqtiService(): ChildProcess | null {
           receivedAt: cached.receivedAt,
           ageMs,
           stale: isStale,
+          source: "slot-report",
         });
       }
+
+      const opsStatus = opsChannelService.getOpsStatus();
+      for (const nodeSnapshot of opsStatus.nodes) {
+        const addr = nodeSnapshot.address || "";
+        const alreadyCached = nodes.some((n: any) => n.nodeId === addr || n.nodeId === nodeSnapshot.node_id);
+        if (alreadyCached) continue;
+
+        const isWsConnected = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
+        const crsEntry = crsRegistry.get(addr);
+        const telem = nodeSnapshot.last_telemetry as any;
+
+        const port = crsEntry?.endpoint?.split(":").pop() || "11124";
+        const portNum = parseInt(port, 10) || 11124;
+        const nodeNum = portNum === 11124 ? 1 : portNum === 11151 ? 2 : portNum === 11178 ? 3 : 1;
+        const baseSlotStr = `${nodeNum}.`;
+
+        const synthSlots: any[] = [
+          { address: `${baseSlotStr}1.1`, service: "CRS", version: "1.1.1", status: isWsConnected ? "active" : "inactive", uptime_secs: telem?.process_uptime_seconds || 0, heartbeat_count: 0, latency_us: 0, service_detail: {} },
+          { address: `${baseSlotStr}1.2`, service: "CON", version: "1.1.2", status: isWsConnected ? "active" : "inactive", uptime_secs: telem?.process_uptime_seconds || 0, heartbeat_count: 0, latency_us: 0, service_detail: {} },
+          { address: `${baseSlotStr}1.3`, service: "FTS", version: "1.1.3", status: isWsConnected ? "active" : "inactive", uptime_secs: telem?.process_uptime_seconds || 0, heartbeat_count: 0, latency_us: 0, service_detail: {} },
+          { address: `${baseSlotStr}2.1`, service: "GLB", version: "1.2.1", status: isWsConnected ? "active" : "inactive", uptime_secs: telem?.process_uptime_seconds || 0, heartbeat_count: 0, latency_us: 0, service_detail: {} },
+          { address: `${baseSlotStr}2.2`, service: "Gateway", version: "2.2.2", status: isWsConnected ? "active" : "inactive", uptime_secs: telem?.process_uptime_seconds || 0, heartbeat_count: 0, latency_us: 0, service_detail: {} },
+        ];
+
+        nodes.push({
+          nodeId: addr || nodeSnapshot.node_id,
+          slots: synthSlots,
+          health: {
+            status: isWsConnected ? "healthy" : "unreachable",
+            uptime: telem?.process_uptime_seconds || 0,
+            version: "2.4.5",
+            telemetry: telem ? {
+              cpu_pct: telem.cpu_pct,
+              ram_pct: telem.ram_pct,
+              ram_used_mb: telem.ram_used_mb,
+              disk_pct: telem.disk_pct,
+              gpu_pct: telem.gpu_pct,
+              gpu_name: telem.gpu_name,
+            } : null,
+          },
+          receivedAt: new Date(nodeSnapshot.last_seen).getTime(),
+          ageMs: now - new Date(nodeSnapshot.last_seen).getTime(),
+          stale: nodeSnapshot.connection_state !== "connected",
+          source: "telemetry-synth",
+          wsConnected: isWsConnected,
+        });
+      }
+
+      if (nodes.length === 0) {
+        for (const [addr, entry] of crsRegistry.entries()) {
+          const isWsConnected = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
+          const ageMs = now - entry.lastSeen;
+          const port = entry.endpoint?.split(":").pop() || "11124";
+          const portNum = parseInt(port, 10) || 11124;
+          const nodeNum = portNum === 11124 ? 1 : portNum === 11151 ? 2 : portNum === 11178 ? 3 : 1;
+          const baseSlotStr = `${nodeNum}.`;
+
+          nodes.push({
+            nodeId: addr,
+            slots: [
+              { address: `${baseSlotStr}1.1`, service: "CRS", version: "1.1.1", status: isWsConnected ? "active" : "inactive" },
+              { address: `${baseSlotStr}1.2`, service: "CON", version: "1.1.2", status: isWsConnected ? "active" : "inactive" },
+              { address: `${baseSlotStr}1.3`, service: "FTS", version: "1.1.3", status: isWsConnected ? "active" : "inactive" },
+              { address: `${baseSlotStr}2.1`, service: "GLB", version: "1.2.1", status: isWsConnected ? "active" : "inactive" },
+              { address: `${baseSlotStr}2.2`, service: "Gateway", version: "2.2.2", status: isWsConnected ? "active" : "inactive" },
+            ],
+            health: { status: isWsConnected ? "healthy" : "stale", uptime: 0 },
+            receivedAt: entry.lastSeen,
+            ageMs,
+            stale: ageMs > staleThresholdMs,
+            source: "crs-registry",
+            wsConnected: isWsConnected,
+          });
+        }
+      }
+
       return res.json({ nodes, count: nodes.length, timestamp: now });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -2757,6 +2836,7 @@ function startPqtiService(): ChildProcess | null {
             opsChannelService.updateNodeTelemetry(
               opsPayload.node_id || nodeAddress, nodeAddress, opsPayload as TelemetryMessage,
             );
+            broadcastToMonitors({ type: "telemetry", address: toDottedAddr(nodeAddress), data: opsPayload, ts: Date.now() });
           } else {
             opsChannelService.updateNodeSeen(opsPayload.node_id || nodeAddress, nodeAddress);
           }
