@@ -96,8 +96,12 @@ pub struct AppState {
     pub daemon_config: DaemonConfig,
     /// Process start time for uptime tracking.
     pub start_time: std::time::Instant,
-    /// Monotonic heartbeat counter (incremented each /slots poll).
+    /// Monotonic heartbeat counter (incremented each /slots poll — legacy).
     pub heartbeat_counter: std::sync::atomic::AtomicU64,
+    /// Real heartbeat counter (incremented every 30s heartbeat cycle).
+    pub real_heartbeat_counter: Arc<std::sync::atomic::AtomicU64>,
+    /// Unix epoch of last heartbeat cycle.
+    pub last_heartbeat_epoch: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl AppState {
@@ -108,6 +112,8 @@ impl AppState {
         fts: FaultToleranceService,
         glb: GeometricLoadBalancer,
         local_address: CubeAddr,
+        real_heartbeat_counter: Arc<std::sync::atomic::AtomicU64>,
+        last_heartbeat_epoch: Arc<std::sync::atomic::AtomicU64>,
     ) -> Arc<Self> {
         Arc::new(AppState {
             crs: Some(Mutex::new(crs)),
@@ -119,6 +125,8 @@ impl AppState {
             daemon_config: DaemonConfig::from_env(),
             start_time: std::time::Instant::now(),
             heartbeat_counter: std::sync::atomic::AtomicU64::new(0),
+            real_heartbeat_counter,
+            last_heartbeat_epoch,
         })
     }
 
@@ -128,6 +136,8 @@ impl AppState {
         fts: FaultToleranceService,
         glb: GeometricLoadBalancer,
         local_address: CubeAddr,
+        real_heartbeat_counter: Arc<std::sync::atomic::AtomicU64>,
+        last_heartbeat_epoch: Arc<std::sync::atomic::AtomicU64>,
     ) -> Arc<Self> {
         Arc::new(AppState {
             crs: None,
@@ -139,6 +149,8 @@ impl AppState {
             daemon_config: DaemonConfig::from_env(),
             start_time: std::time::Instant::now(),
             heartbeat_counter: std::sync::atomic::AtomicU64::new(0),
+            real_heartbeat_counter,
+            last_heartbeat_epoch,
         })
     }
 }
@@ -700,6 +712,8 @@ pub struct SlotInfo {
     pub is_primary_gateway: bool,
     pub uptime_secs: u64,
     pub heartbeat_count: u64,
+    pub last_heartbeat_epoch: u64,
+    pub load_pct: f32,
     pub latency_us: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_detail: Option<serde_json::Value>,
@@ -961,7 +975,8 @@ pub async fn get_slot_inventory(
     };
 
     let uptime_secs = state.start_time.elapsed().as_secs();
-    let hb = state.heartbeat_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let hb = state.real_heartbeat_counter.load(std::sync::atomic::Ordering::Relaxed);
+    let last_hb_epoch = state.last_heartbeat_epoch.load(std::sync::atomic::Ordering::Relaxed);
 
     for (idx, status) in statuses.into_iter().enumerate() {
         let (slot, port, service_type, is_primary_gw) = &slot_meta[idx];
@@ -979,21 +994,22 @@ pub async fn get_slot_inventory(
             SlotStatus::Offline => { summary.occupied += 1; summary.offline += 1; }
         }
 
-        let (slot_uptime, slot_hb, slot_latency, detail) = match service_type.as_deref() {
+        let (slot_uptime, slot_hb, slot_latency, slot_load, detail) = match service_type.as_deref() {
             Some("crs") => {
-                let detail = if let Some(crs_mutex) = &state.crs {
+                let (detail, load_pct) = if let Some(crs_mutex) = &state.crs {
                     let crs = crs_mutex.lock().unwrap();
                     let count = crs.registered_count();
-                    Some(serde_json::json!({"registered_nodes": count}))
+                    (Some(serde_json::json!({"registered_nodes": count})), count as f32 / 100.0_f32)
                 } else {
-                    None
+                    (None, 0.0_f32)
                 };
-                (uptime_secs, hb, 0u64, detail)
+                (uptime_secs, hb, 0u64, load_pct, detail)
             }
             Some("con") => {
                 let con = state.con.lock().unwrap();
                 let cs = con.stats();
                 let latency = cs.avg_rtt_ms.map(|r| (r * 1000.0) as u64).unwrap_or(0);
+                let load_pct = cs.tunnels_up as f32 / 27.0_f32;
                 let detail = Some(serde_json::json!({
                     "tunnels_up": cs.tunnels_up,
                     "tunnels_down": cs.tunnels_down,
@@ -1002,35 +1018,38 @@ pub async fn get_slot_inventory(
                     "bytes_out": cs.total_bytes_out,
                     "avg_rtt_ms": cs.avg_rtt_ms,
                 }));
-                (uptime_secs, hb, latency, detail)
+                (uptime_secs, hb, latency, load_pct, detail)
             }
             Some("fts") => {
                 let fts = state.fts.lock().unwrap();
                 let (up, suspect, down, recovering) = fts.state_counts();
+                let total = (up + suspect + down).max(1) as f32;
+                let load_pct = (suspect + down) as f32 / total;
                 let detail = Some(serde_json::json!({
                     "neighbors_up": up,
                     "neighbors_suspect": suspect,
                     "neighbors_down": down,
                     "neighbors_recovering": recovering,
                 }));
-                (uptime_secs, hb, 0u64, detail)
+                (uptime_secs, hb, 0u64, load_pct, detail)
             }
             Some("glb") => {
                 let glb = state.glb.lock().unwrap();
                 let gs = glb.stats();
                 let live = glb.live_neighbor_count();
+                let load_pct = (gs.active_flows as f32 / 100.0_f32).min(1.0);
                 let detail = Some(serde_json::json!({
                     "live_neighbors": live,
                     "active_flows": gs.active_flows,
                     "total_forwards": gs.total_forwards,
                     "detours_computed": gs.detours_computed,
                 }));
-                (uptime_secs, hb, 0u64, detail)
+                (uptime_secs, hb, 0u64, load_pct, detail)
             }
             Some("gateway") if *is_primary_gw => {
-                (uptime_secs, hb, 0u64, Some(serde_json::json!({"role": "primary"})))
+                (uptime_secs, hb, 0u64, 0.0_f32, Some(serde_json::json!({"role": "primary"})))
             }
-            _ => (0u64, 0u64, 0u64, None),
+            _ => (0u64, 0u64, 0u64, 0.0_f32, None),
         };
 
         slots.push(SlotInfo {
@@ -1042,6 +1061,8 @@ pub async fn get_slot_inventory(
             is_primary_gateway: *is_primary_gw,
             uptime_secs: slot_uptime,
             heartbeat_count: slot_hb,
+            last_heartbeat_epoch: last_hb_epoch,
+            load_pct: slot_load,
             latency_us: slot_latency,
             service_detail: detail,
         });

@@ -741,7 +741,9 @@ async fn run_crs_mode() {
     println!("  CRS -> CON -> FTS -> GLB pipeline operational.");
     println!("  The geometry IS the routing protocol.");
 
-    let shared_state = AppState::new_crs(crs, con, fts, glb, local_address.clone());
+    let real_hb_crs = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let last_hb_epoch_crs = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let shared_state = AppState::new_crs(crs, con, fts, glb, local_address.clone(), real_hb_crs, last_hb_epoch_crs);
     shared_state.daemon_config.log_startup();
 
     let vm = inter_cube::vm_service::new_shared_vm(65536);
@@ -1159,6 +1161,11 @@ async fn run_cube_mode() {
     drop(passphrase);
     let orchestrator = Arc::new(Mutex::new(orchestrator));
 
+    let real_hb = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let last_hb_epoch = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let real_hb_for_loop = real_hb.clone();
+    let last_hb_epoch_for_loop = last_hb_epoch.clone();
+
     let crs_url_for_heartbeat = crs_url.clone();
     let endpoint_for_heartbeat = cube_endpoint.clone();
     let addr_trits: Vec<u8> = local_address.to_bytes().to_vec();
@@ -1186,6 +1193,9 @@ async fn run_cube_mode() {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
+
+            real_hb_for_loop.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            last_hb_epoch_for_loop.store(unix_now, std::sync::atomic::Ordering::Relaxed);
 
             let rotation_result = {
                 if let Ok(mut orch) = orchestrator_hb.lock() {
@@ -1335,7 +1345,7 @@ async fn run_cube_mode() {
     let peer_msg_tx_discovery = peer_msg_tx.clone();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));
 
-    let shared_state = AppState::new_cube(con, fts, glb, local_address.clone());
+    let shared_state = AppState::new_cube(con, fts, glb, local_address.clone(), real_hb, last_hb_epoch);
     shared_state.daemon_config.log_startup();
 
     let vm = inter_cube::vm_service::new_shared_vm(65536);
