@@ -41,6 +41,7 @@ param(
 )
 
 $DAEMON_COUNT   = 3
+$RELEASE_TAG    = "v2.4.2"
 $REMOTE_CRS     = "https://plenumnet.replit.app"
 $BASE_PORT      = 11111
 $SLOTS_PER_NODE = 27
@@ -254,13 +255,14 @@ if (-not (Test-Path $RepoDir)) {
     Push-Location $RepoDir
     $null = & git init 2>&1
     $null = & git remote add origin $RepoUrl 2>&1
-    $null = & git fetch origin main 2>&1
-    $null = & git reset --hard origin/main 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --depth 1 2>&1
+    $null = & git reset --hard $RELEASE_TAG 2>&1
     Pop-Location
 } else {
     Write-Host "  Updating source..." -ForegroundColor White
     Push-Location $RepoDir
-    $null = & git pull origin main --ff-only 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --force 2>&1
+    $null = & git checkout $RELEASE_TAG 2>&1
     Pop-Location
 }
 Write-Host "  [OK] Source ready" -ForegroundColor Green

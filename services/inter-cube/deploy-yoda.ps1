@@ -427,7 +427,7 @@ Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Path $RepoDir)) {
     Write-Host "  [INFO] Cloning PlenumNET repository (tag $RELEASE_TAG)..." -ForegroundColor White
-    $null = & git clone --branch main --depth 1 $RepoUrl $RepoDir 2>&1
+    $null = & git clone --branch $RELEASE_TAG --depth 1 $RepoUrl $RepoDir 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  [FAIL] Could not download PlenumNET source code." -ForegroundColor Red
         Write-Host "         Check your internet connection and firewall settings, then try again." -ForegroundColor Yellow
@@ -440,18 +440,18 @@ if (-not (Test-Path $RepoDir)) {
     Push-Location $RepoDir
     $null = & git init 2>&1
     $null = & git remote add origin $RepoUrl 2>&1
-    $null = & git fetch origin main --depth 1 2>&1
-    $null = & git reset --hard origin/main 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --depth 1 2>&1
+    $null = & git reset --hard $RELEASE_TAG 2>&1
     Pop-Location
 } else {
-    Write-Host "  [INFO] Updating source to latest main..." -ForegroundColor White
+    Write-Host "  [INFO] Updating source to $RELEASE_TAG..." -ForegroundColor White
     Push-Location $RepoDir
-    $null = & git fetch origin main --force 2>&1
-    $null = & git checkout main 2>&1
-    $null = & git reset --hard origin/main 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --force 2>&1
+    $null = & git checkout $RELEASE_TAG 2>&1
+    $null = & git reset --hard $RELEASE_TAG 2>&1
     Pop-Location
 }
-Write-Host "  [OK] Source ready (latest main)" -ForegroundColor Green
+Write-Host "  [OK] Source ready (pinned to $RELEASE_TAG)" -ForegroundColor Green
 
 # ── STEP 4/11: Building inter-cube daemon ───────────────────────────────
 Write-Host ""
@@ -536,8 +536,11 @@ try {
     Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
 }
 if (-not $tis27Hash) {
-    $tis27Hash = "sha256:$binarySha256"
-    Write-Host "  [WARN] TIS-27 hash not available from daemon -- using SHA-256 as fallback" -ForegroundColor Yellow
+    Write-Host "  [FAIL] TIS-27 integrity hash is mandatory but daemon did not produce one." -ForegroundColor Red
+    Write-Host "         The daemon must support CUBE_MODE=hash for TIS-27 hashing." -ForegroundColor Yellow
+    Write-Host "         Deployment cannot continue without TIS-27 verification." -ForegroundColor Yellow
+    Read-Host "Press Enter to close"
+    exit 1
 }
 
 # ── R1-C5: Re-verify binary integrity before service registration ───────
@@ -1050,7 +1053,7 @@ set CUBE_API_PORT=$($cfg.GatewayPort)
 set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
-set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
+for /f "usebackq delims=" %%P in ("$($cfg.IdentityDir)\.passphrase") do set CUBE_IDENTITY_PASSPHRASE=%%P
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
@@ -1085,7 +1088,7 @@ set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
-set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
+for /f "usebackq delims=" %%P in ("$($cfg.IdentityDir)\.passphrase") do set CUBE_IDENTITY_PASSPHRASE=%%P
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
@@ -1195,7 +1198,7 @@ set RESTART_COUNT=0
 :loop
 for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
 echo [%TS%] Starting NinjaExec signing agent on port 21027 [restart #!RESTART_COUNT!] >> "$neLogFile"
-"$NinjaExecPath" run --port 21027 --headless --data-dir "$neKeystoreDir" >> "$neLogFile" 2>&1
+"$NinjaExecPath" run --port 21027 --data-dir "$neKeystoreDir" >> "$neLogFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
 for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
 echo [%TS%] NinjaExec exited with code !EXIT_CODE! >> "$neLogFile"

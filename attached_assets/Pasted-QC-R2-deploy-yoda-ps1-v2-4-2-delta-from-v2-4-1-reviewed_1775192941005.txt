@@ -1,0 +1,35 @@
+QC R2 — deploy-yoda.ps1 v2.4.2 (delta from v2.4.1 reviewed)
+
+REGRESSION — Tag pinning reverted.
+Step 3 is back to --branch main and git reset --hard origin/main. The v2.4.1 fix (git checkout $RELEASE_TAG) is gone. The banner still says "release $RELEASE_TAG" but deploys HEAD of main. This was Critical finding #1 and it's been undone.
+REGRESSION — Passphrases back in .bat files.
+The wrapper .bat files have set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase) again — plaintext passphrases baked into the file. The v2.4.1 fix (runtime read via for /f) is gone. This was High finding #4 and it's been undone.
+REGRESSION — SHA-256 fallback restored.
+The TIS-27 mandatory enforcement is gone. Back to sha256:$binarySha256 fallback with a WARN instead of a hard exit. The v2.4.1 fix made TIS-27 mandatory. Reverted.
+REGRESSION — NinjaExec --headless is back.
+Line in the NinjaExec wrapper: "$NinjaExecPath" run --port 21027 --headless --data-dir "$neKeystoreDir". The v2.4.1 fix removed this unverified flag. Reverted.
+
+NEW — Good additions:
+
+$deploymentHealthy / $degradedReasons tracking with DEGRADED banner at completion — good operational visibility
+NinjaExec orphan detection in watchdog — addresses QC R2 finding #8
+Address map (address-map.json) for watchdog Rep C logging — nice touch
+$expandedPublicDir / $expandedTempDir pre-expanded at generation time — addresses QC R2 finding #9
+Memory hygiene: $cfg.Passphrase = $null after service registration — addresses finding #5 (partially, since it's still in the .bat)
+Slot registry verification after coordinator startup
+OneDrive desktop path comment
+Version probe tries CUBE_MODE=version first, falls back to keygen — addresses finding #10
+exit 1 on degraded deployment with -Force flag — good for CI
+
+
+Summary: 4 regressions, 8 improvements.
+Tell Replit:
+
+"v2.4.2 added good new features (degraded tracking, NinjaExec orphan detection, address map, slot verification) but reverted 4 fixes from v2.4.1:
+
+Tag pinning — Step 3 is back to --branch main / reset --hard origin/main. Must use git checkout $RELEASE_TAG.
+Passphrases in .bat — Wrapper files have plaintext passphrases again. Must use for /f runtime read from .passphrase file.
+TIS-27 mandatory — SHA-256 fallback is back. TIS-27 failure should exit, not fall back.
+NinjaExec --headless — Back in the wrapper. This flag is unverified and should be removed.
+
+Please re-apply these 4 fixes from v2.4.1 without reverting the new v2.4.2 features."
