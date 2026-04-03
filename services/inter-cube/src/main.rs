@@ -779,11 +779,19 @@ async fn run_crs_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../monitor/array3-monitor-v8.html"))
+            Html(include_str!("../monitor/array3-monitor-v9.html"))
         }));
 
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin(
+            tower_http::cors::AllowOrigin::predicate(|origin, _| {
+                let o = origin.as_bytes();
+                o == b"null"
+                || o.starts_with(b"http://127.")
+                || o.starts_with(b"http://localhost")
+                || o.starts_with(b"http://[::1]")
+            })
+        )
         .allow_methods(Any)
         .allow_headers(Any);
 
@@ -1358,11 +1366,19 @@ async fn run_cube_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../monitor/array3-monitor-v8.html"))
+            Html(include_str!("../monitor/array3-monitor-v9.html"))
         }));
 
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin(
+            tower_http::cors::AllowOrigin::predicate(|origin, _| {
+                let o = origin.as_bytes();
+                o == b"null"
+                || o.starts_with(b"http://127.")
+                || o.starts_with(b"http://localhost")
+                || o.starts_with(b"http://[::1]")
+            })
+        )
         .allow_methods(Any)
         .allow_headers(Any);
 
