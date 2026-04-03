@@ -8,8 +8,24 @@ name: License Header Check
 on:
   pull_request:
     branches: [main]
+    paths:
+      - '**/*.rs'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/*.py'
+      - '.github/workflows/license-check.yml'
   push:
     branches: [main]
+    paths:
+      - '**/*.rs'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/*.py'
+      - '.github/workflows/license-check.yml'
 
 jobs:
   check-headers:

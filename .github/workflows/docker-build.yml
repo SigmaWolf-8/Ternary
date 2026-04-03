@@ -3,9 +3,16 @@ name: Docker Build
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    paths:
+      - 'deployments/docker/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/docker-build.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'deployments/docker/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/docker-build.yml'
   workflow_dispatch:
 
 env:

@@ -8,8 +8,24 @@ name: OWASP & Dependency Security Scan
 on:
   push:
     branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'libternary/Cargo.toml'
+      - 'libternary/Cargo.lock'
+      - 'ternary-math/Cargo.toml'
+      - 'src/kernel/Cargo.toml'
+      - '.github/workflows/owasp-scan.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'libternary/Cargo.toml'
+      - 'libternary/Cargo.lock'
+      - 'ternary-math/Cargo.toml'
+      - 'src/kernel/Cargo.toml'
+      - '.github/workflows/owasp-scan.yml'
   schedule:
     - cron: '0 4 * * 1'
   workflow_dispatch:

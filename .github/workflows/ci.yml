@@ -11,8 +11,26 @@ name: Salvi Framework CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'libternary/**'
+      - 'server/**'
+      - 'client/**'
+      - 'shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'libternary/**'
+      - 'server/**'
+      - 'client/**'
+      - 'shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/ci.yml'
   schedule:
     # Weekly security audit: Sunday 03:00 UTC
     - cron: '0 3 * * 0'
