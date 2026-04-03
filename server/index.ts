@@ -1026,7 +1026,7 @@ function startPqtiService(): ChildProcess | null {
           health: {
             status: isWsConnected ? "healthy" : "unreachable",
             uptime: telem?.process_uptime_seconds || 0,
-            version: "2.4.5",
+            version: "2.4.8",
             telemetry: telem ? {
               cpu_pct: telem.cpu_pct,
               ram_pct: telem.ram_pct,
@@ -1241,7 +1241,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   const CRS_ADDRESS = "111.111.111.111.1";
-  const CRS_VERSION = "2.4.6";
+  const CRS_VERSION = "2.4.8";
 
   const crsCircuitBreaker = new CircuitBreaker("crs-verification", 5, 30_000, (name, state) => {
     const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
