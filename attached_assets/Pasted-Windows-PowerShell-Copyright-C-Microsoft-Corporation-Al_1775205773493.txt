@@ -1,0 +1,44 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> $f = "C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-1.json"
+>> [System.IO.File]::WriteAllText($f, '{"2.2.2": "gateway", "1.1.1": "crs"}', (New-Object System.Text.UTF8Encoding $false))
+PS C:\windows\system32> Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-1 on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-2 on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-3 on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+PS C:\windows\system32> $f2 = "C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-2.json"
+>> $f3 = "C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-3.json"
+>> if (Test-Path $f2) { [System.IO.File]::WriteAllText($f2, (Get-Content $f2 -Raw).TrimStart([char]0xFEFF), (New-Object System.Text.UTF8Encoding $false)) }
+>> if (Test-Path $f3) { [System.IO.File]::WriteAllText($f3, (Get-Content $f3 -Raw).TrimStart([char]0xFEFF), (New-Object System.Text.UTF8Encoding $false)) }
+PS C:\windows\system32> Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Stop-Process -Force
+>> Start-Sleep 2
+>> Start-Service PlenumNET-Array3-1
+>> Start-Sleep 5
+>> Start-Service PlenumNET-Array3-2, PlenumNET-Array3-3
