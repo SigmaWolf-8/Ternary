@@ -2089,6 +2089,11 @@ Write-Host "  Closing this window will NOT stop the nodes -- they run as service
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  ── Upgrade Notes (v2.4.4) ──" -ForegroundColor Cyan
+Write-Host "  What changed:" -ForegroundColor DarkGray
+Write-Host "    - Slot registry loading now logs diagnostic messages ([SLOTS-N*] prefix)" -ForegroundColor DarkGray
+Write-Host "    - Gateway slot 2.2.2 auto-registered on coordinator node" -ForegroundColor DarkGray
+Write-Host "    - Monitor sends auth header and shows per-node error details" -ForegroundColor DarkGray
+Write-Host "    - Deployer verifies slot counts with retry (3 attempts)" -ForegroundColor DarkGray
 Write-Host "  Re-running this deployer on an existing cluster is safe:" -ForegroundColor DarkGray
 Write-Host "    - Existing data and identity keys are preserved" -ForegroundColor DarkGray
 Write-Host "    - The .bat script always downloads the latest deployer" -ForegroundColor DarkGray

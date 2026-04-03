@@ -648,6 +648,10 @@ connBtn.addEventListener('click',async()=>{
   apiKey=document.getElementById('inp-key').value;
   connStatus.textContent='Connecting to local daemons...';connStatus.style.color=CSS.blueActive;
   connBtn.disabled=true;connBtn.textContent='Connecting...';
+  if(apiKey && relayUrl && !relayUrl.startsWith('https://') && !relayUrl.startsWith('http://127.') && !relayUrl.startsWith('http://localhost')){
+    console.warn('[monitor] WARNING: API key sent over plaintext HTTP to non-localhost host — credentials may be intercepted');
+    connStatus.textContent='WARNING: API key over plaintext HTTP — use https or localhost';connStatus.style.color='#FF6B6B';
+  }
 
   const ok=await fetchAllNodes();
   if(ok){
