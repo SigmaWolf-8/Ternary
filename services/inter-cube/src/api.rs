@@ -846,8 +846,8 @@ pub async fn slots_auth_middleware(
         if let Some(ip) = peer_ip {
             if get_auth_warn_tracker().should_warn(ip) {
                 eprintln!(
-                    "[SLOTS] WARNING: Unauthenticated request from {} — set PLENUM_API_KEY and PLENUM_SLOTS_AUTH_REQUIRED=true to enforce auth",
-                    ip
+                    "[SLOTS-N{}] WARNING: Unauthenticated request from {} — set PLENUM_API_KEY and PLENUM_SLOTS_AUTH_REQUIRED=true to enforce auth",
+                    config.cube_node_id, ip
                 );
             }
         }

@@ -516,22 +516,32 @@ let apiKey='';
 const connStatus=document.getElementById('conn-status');
 const connBtn=document.getElementById('btn-connect');
 
-// Fetch /slots and /health from a single daemon
+const nodeLastUpdated={};
+
 async function fetchNode(port){
   const timeout=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
+  const headers={};
+  if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
   try{
     const [slotsResp,healthResp]=await Promise.all([
-      Promise.race([fetch(nodeUrl(port,'/api/salvi/inter-cube/slots')),timeout(3000)]),
-      Promise.race([fetch(nodeUrl(port,'/health')),timeout(3000)])
+      Promise.race([fetch(nodeUrl(port,'/api/salvi/inter-cube/slots'),{headers}),timeout(3000)]),
+      Promise.race([fetch(nodeUrl(port,'/health'),{headers}),timeout(3000)])
     ]);
-    if(!slotsResp.ok)throw new Error(`/slots ${slotsResp.status}`);
-    if(!healthResp.ok)throw new Error(`/health ${healthResp.status}`);
+    if(slotsResp.status===401)throw new Error('auth-rejected');
+    if(!slotsResp.ok)throw new Error(`server-${slotsResp.status}`);
+    if(!healthResp.ok)throw new Error(`server-${healthResp.status}`);
     const slots=await slotsResp.json();
     const health=await healthResp.json();
+    nodeLastUpdated[port]=new Date();
     return {slots,health,port,alive:true};
   }catch(e){
-    console.warn(`[node:${port}] Fetch failed:`,e.message);
-    return {slots:null,health:null,port,alive:false,error:e.message};
+    const msg=e.message;
+    let errorType='unreachable';
+    if(msg==='auth-rejected')errorType='auth';
+    else if(msg==='timeout')errorType='timeout';
+    else if(msg.startsWith('server-'))errorType='server';
+    console.warn(`[node:${port}] Fetch failed (${errorType}):`,msg);
+    return {slots:null,health:null,port,alive:false,error:msg,errorType};
   }
 }
 
@@ -592,9 +602,17 @@ async function fetchAllNodes(){
 
     // Update connection status
     const summaries=results.map((r,i)=>{
-      if(!r.alive)return `N${i+1}:down`;
+      if(!r.alive){
+        const et=r.errorType||"unreachable";
+        if(et==="auth")return `N${i+1}:401-auth`;
+        if(et==="timeout")return `N${i+1}:timeout`;
+        if(et==="server")return `N${i+1}:err-${r.error}`;
+        return `N${i+1}:down`;
+      }
       const occ=r.slots?r.slots.summary?.occupied||0:0;
-      return `N${i+1}:${occ}svc`;
+      const ts=nodeLastUpdated[r.port];
+      const ago=ts?Math.round((Date.now()-ts.getTime())/1000)+"s ago":"";
+      return `N${i+1}:${occ}svc${ago?" ("+ago+")":""}`;
     });
     connStatus.textContent=`Live · ${upCount}/3 nodes · ${summaries.join(' · ')}`;
     connStatus.style.color=upCount===3?CSS.lime:upCount>0?CSS.blueActive:CSS.slate;

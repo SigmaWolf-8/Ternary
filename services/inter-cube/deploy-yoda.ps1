@@ -69,8 +69,8 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v2.4.3"
-$RELEASE_TAG      = "v2.4.3"
+$DEPLOYER_VERSION = "v2.4.4"
+$RELEASE_TAG      = "v2.4.4"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
 $BASE_PORT        = 11111
@@ -1793,10 +1793,25 @@ foreach ($cfg in $daemonConfigs) {
 
 # ── Slot registry verification ────────────────────────────────────────
 if ($crsReady) {
+    $crsRegistryFile = Join-Path $OpsBase "slot-registry-$($daemonConfigs[0].Id).json"
+    $registryCount = 0
+    if (Test-Path $crsRegistryFile) {
+        try {
+            $regJson = Get-Content -Path $crsRegistryFile -Raw | ConvertFrom-Json
+            $registryCount = ($regJson.PSObject.Properties | Measure-Object).Count
+        } catch {}
+    }
     try {
         $slotResponse = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/api/salvi/inter-cube/slots" -TimeoutSec 10 -ErrorAction Stop
-        if ($slotResponse) {
-            Write-Host "  [OK] Slot registry verified: coordinator reports slot data" -ForegroundColor Green
+        if ($slotResponse -and $slotResponse.summary) {
+            $occupied = $slotResponse.summary.occupied
+            $expectedMin = $registryCount + 1
+            if ($occupied -ge $expectedMin) {
+                Write-Host "  [OK] Slot registry verified: $occupied occupied slots ($registryCount from registry file)" -ForegroundColor Green
+            } else {
+                Write-Host "  [WARN] Slot registry partially loaded: $occupied occupied (expected >= $expectedMin from $registryCount registry entries + gateway)" -ForegroundColor Yellow
+                Write-Host "         Check PLENUM_SLOT_REGISTRY_FILE content and daemon logs for [SLOTS-N*] messages" -ForegroundColor Yellow
+            }
         } else {
             Write-Host "  [WARN] Slot registry response empty -- PLENUM_SLOT_REGISTRY_FILE may not be loaded" -ForegroundColor Yellow
         }
@@ -2064,6 +2079,12 @@ Write-Host "  Release Tag      : $RELEASE_TAG" -ForegroundColor White
 Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "  ── Upgrade Notes (v2.4.4) ──" -ForegroundColor Cyan
+Write-Host "  Re-running this deployer on an existing cluster is safe:" -ForegroundColor DarkGray
+Write-Host "    - Existing data and identity keys are preserved" -ForegroundColor DarkGray
+Write-Host "    - The .bat script always downloads the latest deployer" -ForegroundColor DarkGray
+Write-Host "    - Services are stopped, updated, and restarted cleanly" -ForegroundColor DarkGray
 Write-Host ""
 
 if (-not $deploymentHealthy -and $Force) {

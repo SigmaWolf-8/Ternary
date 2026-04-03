@@ -2,7 +2,7 @@
 // Patent(s) Pending — All Rights Reserved
 // Applied Physics Division
 //
-// PlenumNET Inter-Cube Infrastructure Daemon v2.4.3
+// PlenumNET Inter-Cube Infrastructure Daemon v2.4.4
 //
 // MODES (controlled by CUBE_MODE env var):
 //   "crs"     — Central Registration Service. Allocates addresses,
@@ -742,6 +742,7 @@ async fn run_crs_mode() {
     println!("  The geometry IS the routing protocol.");
 
     let shared_state = AppState::new_crs(crs, con, fts, glb, local_address.clone());
+    shared_state.daemon_config.log_startup();
 
     let vm = inter_cube::vm_service::new_shared_vm(65536);
     let vm_routes = inter_cube::vm_service::vm_router(vm);
@@ -1263,6 +1264,7 @@ async fn run_cube_mode() {
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));
 
     let shared_state = AppState::new_cube(con, fts, glb, local_address.clone());
+    shared_state.daemon_config.log_startup();
 
     let vm = inter_cube::vm_service::new_shared_vm(65536);
     let vm_routes = inter_cube::vm_service::vm_router(vm);

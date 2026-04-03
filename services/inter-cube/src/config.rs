@@ -351,23 +351,60 @@ fn parse_trit_address(key: &str) -> Option<SlotAddress> {
 }
 
 pub fn load_slot_registry(cube_node_id: u8) -> HashMap<SlotAddress, String> {
-    let json_str = env::var("PLENUM_SLOT_REGISTRY")
+    let inline_var = env::var("PLENUM_SLOT_REGISTRY");
+    let file_var = env::var("PLENUM_SLOT_REGISTRY_FILE");
+
+    eprintln!(
+        "[SLOTS-N{}] Registry env check: PLENUM_SLOT_REGISTRY={}, PLENUM_SLOT_REGISTRY_FILE={}",
+        cube_node_id,
+        match &inline_var {
+            Ok(s) if s.trim().is_empty() => "set(empty)".to_string(),
+            Ok(s) => format!("set({} chars)", s.len()),
+            Err(_) => "unset".to_string(),
+        },
+        match &file_var {
+            Ok(p) => format!("set({})", p),
+            Err(_) => "unset".to_string(),
+        }
+    );
+
+    let json_str = inline_var
         .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| {
+            eprintln!("[SLOTS-N{}] Using inline PLENUM_SLOT_REGISTRY ({} chars)", cube_node_id, s.len());
+            s
+        })
         .or_else(|| {
-            env::var("PLENUM_SLOT_REGISTRY_FILE")
+            file_var
                 .ok()
-                .and_then(|path| std::fs::read_to_string(&path).ok())
+                .and_then(|path| {
+                    eprintln!("[SLOTS-N{}] Trying file: {}", cube_node_id, path);
+                    match std::fs::read_to_string(&path) {
+                        Ok(contents) => {
+                            eprintln!("[SLOTS-N{}] Read {} bytes from file: {}", cube_node_id, contents.len(), path);
+                            Some(contents)
+                        }
+                        Err(e) => {
+                            eprintln!("[SLOTS-N{}] WARNING: Failed to read file {}: {}", cube_node_id, path, e);
+                            None
+                        }
+                    }
+                })
         });
 
     let json_str = match json_str {
         Some(s) if !s.trim().is_empty() => s,
-        _ => return HashMap::new(),
+        _ => {
+            eprintln!("[SLOTS-N{}] No slot registry source found — all slots will have service_type: null", cube_node_id);
+            return HashMap::new();
+        }
     };
 
     let parsed: serde_json::Value = match serde_json::from_str(&json_str) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("[SLOTS] WARNING: Failed to parse PLENUM_SLOT_REGISTRY JSON: {}. All slots will have service_type: null", e);
+            eprintln!("[SLOTS-N{}] WARNING: Failed to parse slot registry JSON: {}. All slots will have service_type: null", cube_node_id, e);
             return HashMap::new();
         }
     };
@@ -375,7 +412,7 @@ pub fn load_slot_registry(cube_node_id: u8) -> HashMap<SlotAddress, String> {
     let obj = match parsed.as_object() {
         Some(o) => o,
         None => {
-            eprintln!("[SLOTS] WARNING: PLENUM_SLOT_REGISTRY is not a JSON object. All slots will have service_type: null");
+            eprintln!("[SLOTS-N{}] WARNING: Slot registry is not a JSON object. All slots will have service_type: null", cube_node_id);
             return HashMap::new();
         }
     };
@@ -383,19 +420,23 @@ pub fn load_slot_registry(cube_node_id: u8) -> HashMap<SlotAddress, String> {
     let mut registry = HashMap::new();
     let mut seen_keys: HashMap<SlotAddress, String> = HashMap::new();
 
+    // Registry keys are parsed port-first, then dotted-trit (P.R.I).
+    // Port keys (e.g., "11124") are mapped to slot addresses via port_to_slot().
+    // Dotted-trit keys (e.g., "2.2.2") are parsed directly as P.R.I addresses.
+    // If both "11124" and "2.2.2" appear for the same slot, dedup fires and last value wins.
     for (key, value) in obj {
         let value_str = match value.as_str() {
             Some(s) => s.to_string(),
             None => {
-                eprintln!("[SLOTS] WARNING: Registry key '{}' has non-string value — skipping", key);
+                eprintln!("[SLOTS-N{}] WARNING: Registry key '{}' has non-string value — skipping", cube_node_id, key);
                 continue;
             }
         };
 
         if !is_valid_service_type(&value_str) {
             eprintln!(
-                "[SLOTS] WARNING: Registry key '{}' has invalid service_type '{}' (must be 1-64 chars, no control/HTML chars) — skipping",
-                key, value_str
+                "[SLOTS-N{}] WARNING: Registry key '{}' has invalid service_type '{}' (must be 1-64 chars, no control/HTML chars) — skipping",
+                cube_node_id, key, value_str
             );
             continue;
         }
@@ -405,35 +446,45 @@ pub fn load_slot_registry(cube_node_id: u8) -> HashMap<SlotAddress, String> {
                 Some((node_id, slot)) => {
                     if node_id != cube_node_id {
                         eprintln!(
-                            "[SLOTS] WARNING: Port key '{}' maps to node {} but this daemon is node {} — skipping",
-                            key, node_id, cube_node_id
+                            "[SLOTS-N{}] WARNING: Port key '{}' maps to node {} but this daemon is node {} — skipping",
+                            cube_node_id, key, node_id, cube_node_id
                         );
                         continue;
                     }
                     slot
                 }
                 None => {
-                    eprintln!("[SLOTS] WARNING: Port key '{}' is outside the Array3 port range — skipping", key);
+                    eprintln!("[SLOTS-N{}] WARNING: Port key '{}' is outside the Array3 port range — skipping", cube_node_id, key);
                     continue;
                 }
             }
         } else if let Some(slot) = parse_trit_address(key) {
             slot
         } else {
-            eprintln!("[SLOTS] WARNING: Registry key '{}' is neither a valid port nor a P.R.I trit address ([1-3].[1-3].[1-3]) — skipping", key);
+            eprintln!("[SLOTS-N{}] WARNING: Registry key '{}' is neither a valid port nor a P.R.I trit address ([1-3].[1-3].[1-3]) — skipping", cube_node_id, key);
             continue;
         };
 
         if let Some(prev_key) = seen_keys.get(&slot_addr) {
             eprintln!(
-                "[SLOTS] WARNING: Slot {}.{}.{} registered via both key '{}' and key '{}' — last value wins: '{}'",
-                slot_addr.plane, slot_addr.role, slot_addr.instance,
+                "[SLOTS-N{}] WARNING: Slot {}.{}.{} registered via both key '{}' and key '{}' — last value wins: '{}'",
+                cube_node_id, slot_addr.plane, slot_addr.role, slot_addr.instance,
                 prev_key, key, value_str
             );
         }
         seen_keys.insert(slot_addr, key.clone());
         registry.insert(slot_addr, value_str);
     }
+
+    eprintln!(
+        "[SLOTS-N{}] Loaded {} entries: {}",
+        cube_node_id,
+        registry.len(),
+        registry.iter()
+            .map(|(s, v)| format!("slot {}.{}.{}={}", s.plane, s.role, s.instance, v))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
 
     // Future enhancement: hot-reload registry without daemon restart.
     // Alternative registration models (future work):
@@ -453,15 +504,30 @@ impl DaemonConfig {
 
         if api_key.is_none() && bind_addr != "127.0.0.1" {
             eprintln!(
-                "[SLOTS] WARNING: Daemon bound to {} without API key — slots endpoint is unauthenticated on a non-localhost interface. Set PLENUM_API_KEY to secure.",
-                bind_addr
+                "[SLOTS-N{}] WARNING: Daemon bound to {} without API key — slots endpoint is unauthenticated on a non-localhost interface. Set PLENUM_API_KEY to secure.",
+                cube_node_id, bind_addr
             );
         }
 
         let slots_auth_required = env_bool("PLENUM_SLOTS_AUTH_REQUIRED", false);
 
-        if !slots_auth_required {
-            eprintln!("[SLOTS] Slots endpoint serving unauthenticated traffic — set PLENUM_SLOTS_AUTH_REQUIRED=true and PLENUM_API_KEY to enforce auth");
+        if slots_auth_required && api_key.is_none() {
+            eprintln!("[SLOTS-N{}] WARNING: slots_auth_required=true but PLENUM_API_KEY is unset — ALL slot requests will be rejected", cube_node_id);
+        }
+
+        if api_key.is_some() && !slots_auth_required {
+            eprintln!("[SLOTS-N{}] WARNING: PLENUM_API_KEY is set but PLENUM_SLOTS_AUTH_REQUIRED is false — authenticated and unauthenticated requests both allowed", cube_node_id);
+        }
+
+        if !slots_auth_required && api_key.is_none() {
+            eprintln!("[SLOTS-N{}] Slots endpoint serving unauthenticated traffic — set PLENUM_SLOTS_AUTH_REQUIRED=true and PLENUM_API_KEY to enforce auth", cube_node_id);
+        }
+
+        let mut slot_registry = load_slot_registry(cube_node_id);
+        if is_gateway {
+            let gateway_addr = SlotAddress::new(2, 2, 2);
+            slot_registry.entry(gateway_addr).or_insert_with(|| "gateway".to_string());
+            eprintln!("[SLOTS-N{}] Gateway slot 2.2.2 auto-registered (structural invariant)", cube_node_id);
         }
 
         DaemonConfig {
@@ -472,11 +538,15 @@ impl DaemonConfig {
             enable_rate_limit,
             bind_addr,
             slot_probe_timeout_ms: env_u64("PLENUM_SLOT_PROBE_TIMEOUT_MS", 500),
-            slot_registry: load_slot_registry(cube_node_id),
+            slot_registry,
         }
     }
 
     pub fn log_startup(&self) {
+        debug_assert!(
+            !self.is_gateway || self.slot_registry.contains_key(&SlotAddress::new(2, 2, 2)),
+            "Gateway node must have slot 2.2.2 registered"
+        );
         println!("=== DaemonConfig ===");
         println!("  cube_node_id:          {}", self.cube_node_id);
         println!("  is_gateway:            {}", self.is_gateway);
@@ -486,7 +556,13 @@ impl DaemonConfig {
         println!("  bind_addr:             {}", self.bind_addr);
         println!("  slot_probe_timeout_ms: {}", self.slot_probe_timeout_ms);
         println!("  slot_registry entries: {}", self.slot_registry.len());
+        for (addr, svc) in &self.slot_registry {
+            println!("    slot {}.{}.{} = {}", addr.plane, addr.role, addr.instance, svc);
+        }
         println!("====================");
+        if self.bind_addr != "127.0.0.1" && self.api_key.is_none() {
+            eprintln!("!!! WARNING !!! Daemon bound to {} without API key — slots endpoint is publicly accessible !!!", self.bind_addr);
+        }
     }
 }
 
