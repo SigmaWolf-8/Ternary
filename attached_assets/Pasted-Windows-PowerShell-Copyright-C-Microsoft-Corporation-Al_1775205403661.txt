@@ -1,0 +1,154 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> Windows PowerShell
+>> Copyright (C) Microsoft Corporation. All rights reserved.
+>>
+>> Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+>>
+>> PS C:\Users\Sigma> Select-String -Path "C:\PlenumNET\plenumnet-data\logs\array3-node-1.log" -Pattern "SLOTS-N" | Select-Object -Last 20
+>> PS C:\Users\Sigma>
+Windows : The term 'Windows' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ Windows PowerShell
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Windows:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+C : The term 'C' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:2 char:12
++ Copyright (C) Microsoft Corporation. All rights reserved.
++            ~
+    + CategoryInfo          : ObjectNotFound: (C:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+Install : The term 'Install' is not recognized as the name of a cmdlet, function, script file, or operable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:4 char:1
++ Install the latest PowerShell for new features and improvements! http ...
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (Install:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+Get-Process : A positional parameter cannot be found that accepts argument 'Select-String'.
+At line:6 char:1
++ PS C:\Users\Sigma> Select-String -Path "C:\PlenumNET\plenumnet-data\l ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Get-Process], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.GetProcessCommand
+
+PS : Cannot find a process with the name "C:\Users\Sigma>". Verify the process name and call the cmdlet again.
+At line:7 char:1
++ PS C:\Users\Sigma>
++ ~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\Sigma>:String) [Get-Process], ProcessCommandException
+    + FullyQualifiedErrorId : NoProcessFoundForGivenName,Microsoft.PowerShell.Commands.GetProcessCommand
+
+PS C:\windows\system32> Get-Content "C:\PlenumNET\plenumnet-data\logs\array3-node-1.log" | Select-Object -Last 30
+[2026-03-27  4:06:52.34] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27  9:32:02.41] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27 20:18:30.28] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27 21:03:30.34] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-28  6:18:31.12] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-04-01T23:49:36-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-01T23:49:36-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:36-06:00] Restarting in 5s (attempt 1)
+[2026-04-01T23:49:41-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #1]
+[2026-04-01T23:49:41-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:41-06:00] Restarting in 5s (attempt 2)
+[2026-04-01T23:49:46-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #2]
+[2026-04-01T23:49:46-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:46-06:00] Restarting in 5s (attempt 3)
+[2026-04-01T23:49:51-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #3]
+[2026-04-01T23:49:51-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:51-06:00] Restarting in 10s (attempt 4)
+[2026-04-01T23:50:01-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #4]
+[2026-04-01T23:50:01-06:00] Node #1 exited with code 1
+[2026-04-01T23:50:01-06:00] Restarting in 10s (attempt 5)
+[2026-04-02T00:14:17-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T17:48:50-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T17:57:16-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T18:58:00-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T19:08:58-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T20:27:40-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T00:23:14-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T00:45:13-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T02:13:01-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T02:31:59-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+PS C:\windows\system32> Get-Content "C:\PlenumNET\plenumnet-data\logs\array3-node-1.log" | Select-Object -Last 30
+[2026-03-27  4:06:52.34] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27  9:32:02.41] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27 20:18:30.28] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-27 21:03:30.34] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-03-28  6:18:31.12] Starting PlenumNET Node #1 (CRS) gateway=11124 [restart #0]
+[2026-04-01T23:49:36-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-01T23:49:36-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:36-06:00] Restarting in 5s (attempt 1)
+[2026-04-01T23:49:41-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #1]
+[2026-04-01T23:49:41-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:41-06:00] Restarting in 5s (attempt 2)
+[2026-04-01T23:49:46-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #2]
+[2026-04-01T23:49:46-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:46-06:00] Restarting in 5s (attempt 3)
+[2026-04-01T23:49:51-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #3]
+[2026-04-01T23:49:51-06:00] Node #1 exited with code 1
+[2026-04-01T23:49:51-06:00] Restarting in 10s (attempt 4)
+[2026-04-01T23:50:01-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #4]
+[2026-04-01T23:50:01-06:00] Node #1 exited with code 1
+[2026-04-01T23:50:01-06:00] Restarting in 10s (attempt 5)
+[2026-04-02T00:14:17-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T17:48:50-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T17:57:16-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T18:58:00-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T19:08:58-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-02T20:27:40-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T00:23:14-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T00:45:13-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T02:13:01-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+[2026-04-03T02:31:59-06:00] Starting PlenumNET Node #1 (CRS) gateway=11124 terminal=11122 [restart #0]
+PS C:\windows\system32> Select-String -Path "C:\PlenumNET\services\inter-cube\src\config.rs" -Pattern "SLOTS-N"
+
+C:\PlenumNET\services\inter-cube\src\config.rs:358:        "[SLOTS-N{}] Registry env check: PLENUM_SLOT_REGISTRY={},
+PLENUM_SLOT_REGISTRY_FILE={}",
+C:\PlenumNET\services\inter-cube\src\config.rs:375:            eprintln!("[SLOTS-N{}] Using inline
+PLENUM_SLOT_REGISTRY ({} chars)", cube_node_id, s.len());
+C:\PlenumNET\services\inter-cube\src\config.rs:382:                    eprintln!("[SLOTS-N{}] Trying file: {}",
+cube_node_id, path);
+C:\PlenumNET\services\inter-cube\src\config.rs:385:                            eprintln!("[SLOTS-N{}] Read {} bytes
+from file: {}", cube_node_id, contents.len(), path);
+C:\PlenumNET\services\inter-cube\src\config.rs:389:                            eprintln!("[SLOTS-N{}] WARNING: Failed
+to read file {}: {}", cube_node_id, path, e);
+C:\PlenumNET\services\inter-cube\src\config.rs:399:            eprintln!("[SLOTS-N{}] No slot registry source found —
+all slots will have service_type: null", cube_node_id);
+C:\PlenumNET\services\inter-cube\src\config.rs:407:            eprintln!("[SLOTS-N{}] WARNING: Failed to parse slot
+registry JSON: {}. All slots will have service_type: null", cube_node_id, e);
+C:\PlenumNET\services\inter-cube\src\config.rs:415:            eprintln!("[SLOTS-N{}] WARNING: Slot registry is not a
+JSON object. All slots will have service_type: null", cube_node_id);
+C:\PlenumNET\services\inter-cube\src\config.rs:431:                eprintln!("[SLOTS-N{}] WARNING: Registry key '{}'
+has non-string value — skipping", cube_node_id, key);
+C:\PlenumNET\services\inter-cube\src\config.rs:438:                "[SLOTS-N{}] WARNING: Registry key '{}' has invalid
+service_type '{}' (must be 1-64 chars, no control/HTML chars) — skipping",
+C:\PlenumNET\services\inter-cube\src\config.rs:449:                            "[SLOTS-N{}] WARNING: Port key '{}'
+maps to node {} but this daemon is node {} — skipping",
+C:\PlenumNET\services\inter-cube\src\config.rs:457:                    eprintln!("[SLOTS-N{}] WARNING: Port key '{}'
+is outside the Array3 port range — skipping", cube_node_id, key);
+C:\PlenumNET\services\inter-cube\src\config.rs:464:            eprintln!("[SLOTS-N{}] WARNING: Registry key '{}' is
+neither a valid port nor a P.R.I trit address ([1-3].[1-3].[1-3]) — skipping", cube_node_id, key);
+C:\PlenumNET\services\inter-cube\src\config.rs:470:                "[SLOTS-N{}] WARNING: Slot {}.{}.{} registered via
+both key '{}' and key '{}' — last value wins: '{}'",
+C:\PlenumNET\services\inter-cube\src\config.rs:480:        "[SLOTS-N{}] Loaded {} entries: {}",
+C:\PlenumNET\services\inter-cube\src\config.rs:507:                "[SLOTS-N{}] WARNING: Daemon bound to {} without
+API key — slots endpoint is unauthenticated on a non-localhost interface. Set PLENUM_API_KEY to secure.",
+C:\PlenumNET\services\inter-cube\src\config.rs:515:            eprintln!("[SLOTS-N{}] WARNING:
+slots_auth_required=true but PLENUM_API_KEY is unset — ALL slot requests will be rejected", cube_node_id);
+C:\PlenumNET\services\inter-cube\src\config.rs:519:            eprintln!("[SLOTS-N{}] WARNING: PLENUM_API_KEY is set
+but PLENUM_SLOTS_AUTH_REQUIRED is false — authenticated and unauthenticated requests both allowed", cube_node_id);
+C:\PlenumNET\services\inter-cube\src\config.rs:523:            eprintln!("[SLOTS-N{}] Slots endpoint serving
+unauthenticated traffic — set PLENUM_SLOTS_AUTH_REQUIRED=true and PLENUM_API_KEY to enforce auth", cube_node_id);
+C:\PlenumNET\services\inter-cube\src\config.rs:530:            eprintln!("[SLOTS-N{}] Gateway slot 2.2.2
+auto-registered (structural invariant)", cube_node_id);
+
