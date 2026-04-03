@@ -1,0 +1,145 @@
+A thorough review follows. I'll work through this systematically — architecture, security, correctness, and quality.
+
+---
+
+## Array3 Monitor v8.9 — Code Review
+
+### ✅ What's Working Well
+
+**Brand consistency** is impeccable. Every colour, spacing, and typography decision traces directly to the spec — `#4A9EF5`, `#8BA633` for relay data flow, `#FFCC44` for the primary gateway. No rogue values. The CSS variable system is clean.
+
+**TextEngine** is a genuine highlight — the `CanvasTexture` cache with `|`-keyed strings avoids DOM reflow entirely for HUD text. The leader-line system is clever and visually distinctive.
+
+**Status stratification** (`online` / `degraded` / `offline` / `available`) driving breathing amplitude, glow intensity, opacity, and edge colour simultaneously is architecturally sound and matches the PlenumNET model.
+
+**Auto-connection logic** — local-first with relay fallback, then relay-first based on `_isLocal`, 5-second polling — is the right structure.
+
+---
+
+### 🔴 Critical Issues
+
+**1. Security warning is backwards (line ~1540)**
+```js
+if(apiKey && relayUrl && !relayUrl.startsWith('https://') 
+   && !relayUrl.startsWith('http://127.') 
+   && !relayUrl.startsWith('http://localhost')){
+```
+This warns but **does not block**. The credentials are sent anyway. The correct pattern:
+```js
+if(condition){ connStatus.textContent='...'; return; }
+```
+Also missing: `http://[::1]` (IPv6 loopback).
+
+**2. NinjaExec auto-approval is a security regression**
+```js
+// Step 2: Poll /confirm/pending until our request appears, then approve it
+```
+The entire point of NinjaExec's confirmation gate is to require human presence. Auto-approving via polling from the same browser context eliminates that control entirely — any XSS or compromised page tab can now restart daemon services without user intent. The monitor should either: (a) open a new tab/popup directing the user to `localhost:21027/confirm`, or (b) simply show the pending request ID and instruct the operator to approve manually. The current flow should be removed.
+
+**3. Relay data is trusted without signature verification (line ~1446)**
+```js
+const data=await resp.json();
+if(!data.nodes||data.nodes.length===0)return null;
+```
+No HMAC, no challenge-response, no signature check on relay responses. A MITM or compromised relay can inject arbitrary slot data, making the monitor display a false cluster state and potentially mislead restart decisions. At minimum, the relay response should include a timestamp+nonce and be rejected if stale (>30s).
+
+**4. `wasDrag` double-click detection is broken**
+```js
+renderer.domElement.addEventListener('click',()=>{
+  if(wasDrag)return;
+  ...
+});
+// and the double-click handler also uses click:
+renderer.domElement.addEventListener('click',()=>{
+  if(wasDrag)return;
+  ...lastClickTime
+```
+Both handlers are on the same `click` event. The second `addEventListener` at line ~1653 is **a second independent handler** attached to `renderer.domElement` — both fire. This means every single click will run both the selection logic AND the double-click detection, which creates race conditions and double-`showDet()` calls.
+
+**Fix:** merge into one handler, or use `addEventListener('dblclick', ...)` for the restart flow.
+
+---
+
+### 🟡 Significant Issues
+
+**5. `allSlots` is populated then immediately used before `buildAll()` in the auto-connect path**
+```js
+NODE_PORTS.forEach((port,ni)=>{
+  for(let x=1;x<=3;x++) ...
+    allSlots.push({...});
+});
+refreshScene(); // calls buildAll() which iterates allSlots
+```
+The fallback empty-cube path is fine. But the async auto-connect at the top calls `fetchAllNodes()` → `transformNode()` → `allSlots.length=0` then `allSlots.push(...)`. If `fetchAllNodes()` fires and `allSlots` was already populated by the fallback, `allSlots.length=0` correctly clears it — this is actually correct. But if `fetchAllNodes()` is called concurrently (poll timer fires during another fetch), the `allSlots.length=0` midway through a second fetch can clear data that the first fetch is still processing. The polling should use a mutex/flag:
+```js
+let fetchInFlight=false;
+async function fetchAllNodes(){
+  if(fetchInFlight)return false;
+  fetchInFlight=true;
+  try{ /* ... */ }finally{ fetchInFlight=false; }
+}
+```
+
+**6. `TextEngine` cache never clears during resize**
+```js
+addEventListener('resize',()=>{...TextEngine.clear()});
+```
+Wait — it *does* call `TextEngine.clear()` on resize. Good. But the cache also never evicts stale entries during long sessions. For a monitoring tool running 24/7 with dynamic slot labels, the cache grows unbounded. A simple max-size LRU or a periodic `clear()` every N minutes would prevent eventual memory pressure.
+
+**7. Relay fallback logic has a silent failure mode**
+```js
+const relayData=await fetchFromRelay();
+if(relayData&&relayData.length>0){results=relayData;useRelay=true}
+```
+If `fetchFromRelay()` returns data for only 1 or 2 nodes (relay has partial connectivity), `results` is set to that partial array. Then `transformNode()` is called with `ni` indices 0..N-1 of that array, not the actual node indices. Node 2 in the relay response might actually be physical Node 3. The indices need to come from the relay response data, not array position.
+
+**8. `connStatus` credential leak in error messages**
+```js
+connStatus.textContent=`Live · ${upCount}/3 nodes · ${summaries.join(' · ')}`;
+```
+The `connStatus` element is visible in the UI. If `apiKey` is somehow included in an error path (it isn't currently, but the URL is echoed in several `console.warn` paths), credentials appear in the DOM. Low risk currently but worth noting.
+
+---
+
+### 🟢 Minor / Polish
+
+**9. `USE_RELAY` flag conflicts with `_isLocal` check**
+```js
+let useRelay=!_isLocal;
+```
+When deployed to `plenumnet.replit.app` itself, `_isLocal=false` and `useRelay=true` immediately — so it tries to fetch from itself as the relay. This is probably the intended production behaviour, but it means the Replit-hosted version never tries direct daemon connections. Intentional, but worth documenting.
+
+**10. `KNOWLEDGE` base is a flat object with exact string keys**
+```js
+const know=s.occ&&s.svc?KNOWLEDGE[s.svc]||{what:`${s.svc}...`}:EMPTY_KNOWLEDGE;
+```
+The daemon returns lowercase service types (`crs`, `glb`, etc.) from the API. `transformNode()` title-cases them: `svc.charAt(0).toUpperCase()+svcRaw.slice(1)`. So `crs` → `Crs`, not `CRS`. `KNOWLEDGE.CRS` will never match — it'll always fall through to the generic fallback. Change keys to match: `{Crs:{...}, Glb:{...}, Con:{...}, Fts:{...}, Gateway:{...}, Yoda:{...}, Llm:{...}}` or normalise to uppercase on lookup.
+
+**11. Leader lines project using the current `camera` position but are drawn in `drawLeaderLines()` which runs every frame during `animate()`**
+This is correct — they reproject each frame. No bug. But when the detail panel is closed, `leaderTargets=[]` correctly suppresses drawing. No issue.
+
+**12. `THREE.js r128` inlined (~6600 lines)**
+The inline is the right call for CDN-blocking environments (Tracking Prevention, corporate proxies). No change needed — this was a deliberate architectural decision that I recall being discussed.
+
+**13. `restartPollTimer` polls `nodeUrl(targetPort, '/health')` but `targetPort` is `slot.np` (the daemon port)**
+This is correct — it checks the actual daemon health endpoint. No bug.
+
+**14. Double `addEventListener` on `renderer.domElement` for `mousemove` (only one exists) vs `click` (two exist)**
+As noted in issue #4 — the click handler duplication is the only instance of this problem.
+
+---
+
+### Summary Table
+
+| Severity | Issue | Line Approx |
+|---|---|---|
+| 🔴 Critical | Auto-approve NinjaExec defeats signing control | ~1590 |
+| 🔴 Critical | Credential leak over plaintext HTTP not blocked | ~1540 |
+| 🔴 Critical | Relay response has no integrity check | ~1446 |
+| 🔴 Critical | Duplicate click handlers cause double-execution | ~1642 & ~1653 |
+| 🟡 Significant | No fetch-in-flight mutex → concurrent poll race | ~1403 |
+| 🟡 Significant | Relay partial response maps nodes by array index, not node ID | ~1458 |
+| 🟢 Minor | KNOWLEDGE keys don't match title-cased service names | ~1697 |
+| 🟢 Minor | `useRelay` logic on Replit may be confusing | ~1271 |
+
+The architecture itself is solid — the status stratification system, the TextEngine, the breathing rhythms, the leader lines. The structural problems are all in the network layer and security flow. The NinjaExec auto-approval is the one I'd fix first — it's the sharpest edge.
