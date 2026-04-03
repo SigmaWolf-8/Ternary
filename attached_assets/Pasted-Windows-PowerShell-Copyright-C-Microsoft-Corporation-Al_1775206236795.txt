@@ -1,0 +1,93 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> # Delete failed services
+>> sc.exe delete PlenumNET-Array3-1; sc.exe delete PlenumNET-Array3-2; sc.exe delete PlenumNET-Array3-3
+>> Start-Sleep 3
+>>
+>> # Re-register
+>> $w = "C:\PlenumNET\services\wrappers"
+>> New-Service -Name PlenumNET-Array3-1 -BinaryPathName "cmd.exe /s /c `" `"$w\array3-node-1-start.bat`" `"" -DisplayName "PlenumNET Array3 Node #1 (coordinator)" -StartupType Automatic
+>> New-Service -Name PlenumNET-Array3-2 -BinaryPathName "cmd.exe /s /c `" `"$w\array3-node-2-start.bat`" `"" -DisplayName "PlenumNET Array3 Node #2 (worker)" -StartupType Automatic
+>> New-Service -Name PlenumNET-Array3-3 -BinaryPathName "cmd.exe /s /c `" `"$w\array3-node-3-start.bat`" `"" -DisplayName "PlenumNET Array3 Node #3 (worker)" -StartupType Automatic
+>>
+>> # Start coordinator first, then workers
+>> Start-Service PlenumNET-Array3-1
+>> Start-Sleep 8
+>> Start-Service PlenumNET-Array3-2, PlenumNET-Array3-3
+>>
+>> # Verify
+>> Start-Sleep 5
+>> Get-Service PlenumNET-Array3-* | Format-Table Name, Status
+>> Invoke-RestMethod http://localhost:11124/health
+[SC] DeleteService SUCCESS
+[SC] DeleteService SUCCESS
+[SC] DeleteService SUCCESS
+
+Status   Name               DisplayName
+------   ----               -----------
+Stopped  PlenumNET-Array3-1 PlenumNET Array3 Node #1 (coordinator)
+Stopped  PlenumNET-Array3-2 PlenumNET Array3 Node #2 (worker)
+Stopped  PlenumNET-Array3-3 PlenumNET Array3 Node #3 (worker)
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-1 on computer '.'.
+At line:12 char:1
++ Start-Service PlenumNET-Array3-1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-2 on computer '.'.
+At line:14 char:1
++ Start-Service PlenumNET-Array3-2, PlenumNET-Array3-3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-3 on computer '.'.
+At line:14 char:1
++ Start-Service PlenumNET-Array3-2, PlenumNET-Array3-3
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+
+
+
+Name                Status
+----                ------
+PlenumNET-Array3-1 Stopped
+PlenumNET-Array3-2 Stopped                                                                                              PlenumNET-Array3-3 Stopped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              status            : ok                                                                                                  service           : PlenumNET Inter-Cube Infrastructure                                                                 version           : 2.4.4                                                                                               mode              : crs                                                                                                 address           : 1111111111111                                                                                                                                                                                                                Test-NetConnection :: 127.0.0.1                                                                                            Ping/ICMP Test                                                                                                                                                                                                                                  Waiting for echo reply                                                                                                                                                                                                                      PS C:\windows\system32> # Kill ALL daemon processes, then start services
+>> Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Stop-Process -Force
+>> Get-Process -Name "cmd" -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $null -or $_.MainWindowTitle -eq "" } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+>> Start-Sleep 3
+>>
+>> # Confirm port is free
+>> Test-NetConnection -ComputerName 127.0.0.1 -Port 11124 -WarningAction SilentlyContinue | Select-Object TcpTestSucceeded
+>>
+>> # Now start
+>> Start-Service PlenumNET-Array3-1
+>> Start-Sleep 8
+>> Start-Service PlenumNET-Array3-2, PlenumNET-Array3-3
+>> Start-Sleep 5
+>> Get-Service PlenumNET-Array3-* | Format-Table Name, Status
+
+TcpTestSucceeded
+----------------
+           False
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-1 on computer '.'.
+At line:10 char:1
++ Start-Service PlenumNET-Array3-1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
