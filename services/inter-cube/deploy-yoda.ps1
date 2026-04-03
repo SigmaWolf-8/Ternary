@@ -1029,7 +1029,7 @@ foreach ($cfg in $daemonConfigs) {
         } else {
             $slotRegistryJson = '{"2.2.2": "gateway"}'
         }
-        Set-Content -Path $slotRegistryFile -Value $slotRegistryJson -Encoding UTF8
+        [System.IO.File]::WriteAllText($slotRegistryFile, $slotRegistryJson, (New-Object System.Text.UTF8Encoding $false))
         Write-Host "  [OK] Node #$($cfg.Id) slot registry created ($slotRegistryFile)" -ForegroundColor Green
     } else {
         Write-Host "  [OK] Node #$($cfg.Id) slot registry exists ($slotRegistryFile)" -ForegroundColor Green

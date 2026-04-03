@@ -401,6 +401,8 @@ pub fn load_slot_registry(cube_node_id: u8) -> HashMap<SlotAddress, String> {
         }
     };
 
+    let json_str = json_str.trim_start_matches('\u{feff}').to_string();
+
     let parsed: serde_json::Value = match serde_json::from_str(&json_str) {
         Ok(v) => v,
         Err(e) => {
