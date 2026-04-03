@@ -1795,7 +1795,7 @@ function startPqtiService(): ChildProcess | null {
 
   app.get("/api/install-msi", async (_req, res) => {
     try {
-      const psPath = path.resolve(process.cwd(), "client", "public", "install", "install-plenumnet-msi.ps1");
+      const psPath = path.resolve(process.cwd(), "install-plenumnet-msi.ps1");
       if (fs.existsSync(psPath)) {
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         res.setHeader("Content-Disposition", 'attachment; filename="install-plenumnet-msi.ps1"');
@@ -1815,7 +1815,7 @@ function startPqtiService(): ChildProcess | null {
       "title PlenumNET MSI Installer",
       'echo.',
       'echo  PlenumNET MSI Installer',
-      'echo  Capomastro Holdings Ltd. — Applied Physics Division',
+      'echo  Capomastro Holdings Ltd. -- Applied Physics Division',
       'echo.',
       'echo  Downloading installer script...',
       'echo.',
@@ -1824,7 +1824,7 @@ function startPqtiService(): ChildProcess | null {
       'net session >nul 2>&1',
       'if %errorlevel% neq 0 (',
       '    echo   Requesting administrator privileges...',
-      '    powershell.exe -NoProfile -Command "Start-Process cmd.exe -Verb RunAs -ArgumentList \'/c \\"%~f0\\"\'"',
+      '    powershell.exe -NoProfile -Command "Start-Process cmd.exe -Verb RunAs -ArgumentList \'/c \\"\\"\\""%~f0"\\"\\"\\"\'"',
       '    exit /b',
       ')',
       "",
