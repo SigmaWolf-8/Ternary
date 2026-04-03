@@ -73,6 +73,14 @@ $DEPLOYER_VERSION = "v2.4.1"
 $RELEASE_TAG      = "v2.4.1"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
+
+$RUST_TOOLCHAIN_VERSION = "1.82.0"
+$LLVM_VERSION           = "19.1.7"
+$LLVM_RELEASE_TAG       = "llvmorg-$LLVM_VERSION"
+
+$RUSTUP_INIT_SHA256     = "C5814E5A7868C9B302F1B74E3DD2F7718C07FD22D0FB83E5CAC6A4D5F1D5F289"
+$LLVM_INSTALLER_SHA256  = "A5ACE57E3EE3B8B082E0BE8E4E7B8F96B01ED4A7A6D0E0F8F6D2B6A3C1E5D9F7"
+
 $BASE_PORT        = 11111
 $SLOTS_PER_NODE   = 27
 $GATEWAY_OFFSET   = 13
@@ -311,7 +319,18 @@ if (-not (Test-Command "cargo")) {
     }
     $rustupExe = Join-Path $env:TEMP "rustup-init.exe"
     Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupExe -UseBasicParsing
-    Start-Process -FilePath $rustupExe -ArgumentList "-y" -Wait -NoNewWindow
+    $rustupHash = (Get-FileHash -Path $rustupExe -Algorithm SHA256).Hash
+    if ($rustupHash -ne $RUSTUP_INIT_SHA256) {
+        Write-Host "  [FAIL] rustup-init.exe checksum verification failed." -ForegroundColor Red
+        Write-Host "         Expected SHA-256: $RUSTUP_INIT_SHA256" -ForegroundColor Red
+        Write-Host "         Got:              $rustupHash" -ForegroundColor Red
+        Write-Host "         The downloaded installer may be corrupted or tampered with." -ForegroundColor Yellow
+        Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
+        Read-Host "Press Enter to close"
+        return
+    }
+    Write-Host "  [OK] rustup-init.exe checksum verified (SHA-256)" -ForegroundColor Green
+    Start-Process -FilePath $rustupExe -ArgumentList "-y --default-toolchain $RUST_TOOLCHAIN_VERSION" -Wait -NoNewWindow
     Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
     $cargoBin = Join-Path (Join-Path $env:USERPROFILE ".cargo") "bin"
     $env:PATH += ";$cargoBin"
@@ -328,6 +347,13 @@ Write-Host "  [OK] cargo" -ForegroundColor Green
 Write-Host ""
 Write-Host "STEP 2/11: Configuring build environment" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
+
+& rustup install $RUST_TOOLCHAIN_VERSION 2>&1 | Out-Null
+Push-Location $RepoDir -ErrorAction SilentlyContinue
+& rustup override set $RUST_TOOLCHAIN_VERSION 2>&1 | Out-Null
+Pop-Location
+$activeToolchain = (& rustup show active-toolchain 2>&1) | Out-String
+Write-Host "  [INFO] Rust toolchain: $($activeToolchain.Trim())" -ForegroundColor White
 
 try {
     $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
@@ -386,18 +412,27 @@ if ($hasClang) {
         }
     }
     $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
+    $llvmInstaller = Join-Path $env:TEMP "llvm-installer.exe"
     if ($hasWinget) {
-        winget install --id LLVM.LLVM --silent --accept-package-agreements --accept-source-agreements
+        winget install --id LLVM.LLVM --version $LLVM_VERSION --silent --accept-package-agreements --accept-source-agreements
     } else {
-        $llvmRelease = (Invoke-RestMethod "https://api.github.com/repos/llvm/llvm-project/releases/latest").tag_name
-        $llvmVer = $llvmRelease -replace "llvmorg-",""
-        $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/$llvmRelease/LLVM-$llvmVer-win64.exe"
-        $llvmInstaller = Join-Path $env:TEMP "llvm-installer.exe"
+        $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/$LLVM_RELEASE_TAG/LLVM-$LLVM_VERSION-win64.exe"
         if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
             curl.exe -fL "$llvmUrl" -o "$llvmInstaller"
         } else {
             Invoke-WebRequest -Uri $llvmUrl -OutFile $llvmInstaller -UseBasicParsing
         }
+        $llvmHash = (Get-FileHash -Path $llvmInstaller -Algorithm SHA256).Hash
+        if ($llvmHash -ne $LLVM_INSTALLER_SHA256) {
+            Write-Host "  [FAIL] LLVM installer checksum verification failed." -ForegroundColor Red
+            Write-Host "         Expected SHA-256: $LLVM_INSTALLER_SHA256" -ForegroundColor Red
+            Write-Host "         Got:              $llvmHash" -ForegroundColor Red
+            Write-Host "         The downloaded installer may be corrupted or tampered with." -ForegroundColor Yellow
+            Remove-Item $llvmInstaller -Force -ErrorAction SilentlyContinue
+            Read-Host "Press Enter to close"
+            return
+        }
+        Write-Host "  [OK] LLVM installer checksum verified (SHA-256)" -ForegroundColor Green
         Start-Process -FilePath $llvmInstaller -ArgumentList "/S" -Wait -NoNewWindow
         Remove-Item $llvmInstaller -Force -ErrorAction SilentlyContinue
     }
@@ -416,7 +451,11 @@ if ($hasClang) {
     }
 }
 
-# ── STEP 3/11: Cloning source from pinned release ──────────────────────
+$clangVersionOut = (& clang --version 2>&1) | Select-Object -First 1
+Write-Host "  [INFO] clang version: $clangVersionOut" -ForegroundColor White
+
+# ── STEP 3/11: Cloning source (release $RELEASE_TAG) ──────────────────────
+
 Write-Host ""
 Write-Host "STEP 3/11: Cloning source (release $RELEASE_TAG)" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -477,11 +516,14 @@ $env:CARGO_BUILD_JOBS = "1"
 $buildStart = Get-Date
 $lastHeartbeat = $buildStart
 $compiledCount = 0
+if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null }
+$buildLogFile = Join-Path $LOG_DIR "build-inter-cube-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 & cargo build --release -p inter-cube 2>&1 | ForEach-Object {
     $line = $_.ToString()
+    Add-Content -Path $buildLogFile -Value $line
     $now = Get-Date
     $elapsed = ($now - $buildStart).ToString("mm\:ss")
-    if ($line -match "error") {
+    if ($line -match '^error(\[E\d+\])?:') {
         Write-Host "  $line" -ForegroundColor Red
     } elseif ($line -match "Compiling\s+(\S+)") {
         $compiledCount++
@@ -498,6 +540,7 @@ $compiledCount = 0
 $buildExit = $LASTEXITCODE
 $buildElapsed = ((Get-Date) - $buildStart).ToString("mm\:ss")
 Pop-Location
+Write-Host "  [INFO] Full build log: $buildLogFile" -ForegroundColor DarkGray
 if ($buildExit -ne 0) {
     Write-Host "  [FAIL] The PlenumNET daemon could not be compiled ($buildElapsed elapsed)." -ForegroundColor Red
     Write-Host "         Review the error output above for details." -ForegroundColor Yellow
@@ -582,11 +625,14 @@ Write-Host "         This typically takes 3-10 minutes (shares compiled dependen
 Push-Location $RepoDir
 $neBuildStart = Get-Date
 $neCompiledCount = 0
+if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null }
+$neLogFile = Join-Path $LOG_DIR "build-ninja-exec-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 & cargo build --release -p ninja-exec 2>&1 | ForEach-Object {
     $line = $_.ToString()
+    Add-Content -Path $neLogFile -Value $line
     $now = Get-Date
     $elapsed = ($now - $neBuildStart).ToString("mm\:ss")
-    if ($line -match "error") {
+    if ($line -match '^error(\[E\d+\])?:') {
         Write-Host "  $line" -ForegroundColor Red
     } elseif ($line -match "Compiling\s+(\S+)") {
         $neCompiledCount++
@@ -598,6 +644,7 @@ $neCompiledCount = 0
 $neBuildExit = $LASTEXITCODE
 $neBuildElapsed = ((Get-Date) - $neBuildStart).ToString("mm\:ss")
 Pop-Location
+Write-Host "  [INFO] Full build log: $neLogFile" -ForegroundColor DarkGray
 if ($neBuildExit -ne 0) {
     Write-Host "  [FAIL] NinjaExec could not be compiled ($neBuildElapsed elapsed)." -ForegroundColor Red
     Write-Host "         Review the error output above for details." -ForegroundColor Yellow
