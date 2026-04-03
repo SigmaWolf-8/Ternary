@@ -423,7 +423,7 @@ Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Path $RepoDir)) {
     Write-Host "  [INFO] Cloning PlenumNET repository (tag $RELEASE_TAG)..." -ForegroundColor White
-    $null = & git clone --branch $RELEASE_TAG --depth 1 $RepoUrl $RepoDir 2>&1
+    $null = & git clone --branch main --depth 1 $RepoUrl $RepoDir 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  [FAIL] Could not download PlenumNET source code." -ForegroundColor Red
         Write-Host "         Check your internet connection and firewall settings, then try again." -ForegroundColor Yellow
@@ -436,17 +436,18 @@ if (-not (Test-Path $RepoDir)) {
     Push-Location $RepoDir
     $null = & git init 2>&1
     $null = & git remote add origin $RepoUrl 2>&1
-    $null = & git fetch origin tag $RELEASE_TAG --depth 1 2>&1
-    $null = & git reset --hard $RELEASE_TAG 2>&1
+    $null = & git fetch origin main --depth 1 2>&1
+    $null = & git reset --hard origin/main 2>&1
     Pop-Location
 } else {
-    Write-Host "  [INFO] Updating source to $RELEASE_TAG..." -ForegroundColor White
+    Write-Host "  [INFO] Updating source to latest main..." -ForegroundColor White
     Push-Location $RepoDir
-    $null = & git fetch origin tag $RELEASE_TAG --force 2>&1
-    $null = & git checkout $RELEASE_TAG 2>&1
+    $null = & git fetch origin main --force 2>&1
+    $null = & git checkout main 2>&1
+    $null = & git reset --hard origin/main 2>&1
     Pop-Location
 }
-Write-Host "  [OK] Source ready (pinned to $RELEASE_TAG)" -ForegroundColor Green
+Write-Host "  [OK] Source ready (latest main)" -ForegroundColor Green
 
 # ── STEP 4/11: Building inter-cube daemon ───────────────────────────────
 Write-Host ""
