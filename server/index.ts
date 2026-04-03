@@ -2371,6 +2371,16 @@ function startPqtiService(): ChildProcess | null {
 
   const relayMonitorClients = new Set<WebSocket>();
 
+  function broadcastToMonitors(msg: object) {
+    if (relayMonitorClients.size === 0) return;
+    const payload = JSON.stringify(msg);
+    for (const mws of relayMonitorClients) {
+      if (mws.readyState === WebSocket.OPEN) {
+        mws.send(payload);
+      }
+    }
+  }
+
   wss.on("connection", (ws: WebSocket) => {
     let authenticated = false;
     let isMonitor = false;
@@ -2530,6 +2540,7 @@ function startPqtiService(): ChildProcess | null {
           }
 
           ws.send(JSON.stringify({ type: "auth_ok", address: nodeAddress, connectedPeers: Array.from(relayClients.keys()).filter(a => a !== nodeAddress) }));
+          broadcastToMonitors({ type: "peer-online", address: toDottedAddr(nodeAddress), peerCount: relayClients.size, ts: Date.now() });
           return;
         }
         ws.send(JSON.stringify(makeErrorResponse("ERR_NOT_AUTHENTICATED", msg.type)));
@@ -2900,6 +2911,7 @@ function startPqtiService(): ChildProcess | null {
             notifiedCount++;
           }
         }
+        broadcastToMonitors({ type: "peer-offline", address: toDottedAddr(nodeAddress), peerCount: relayClients.size, ts: Date.now() });
         recordRelayAuditEvent({ eventType: "relay.peer_offline", address: nodeAddress, timestamp: new Date().toISOString(), details: { notifiedPeers: notifiedCount } });
       }
     });

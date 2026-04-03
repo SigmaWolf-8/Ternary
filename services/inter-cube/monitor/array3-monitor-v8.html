@@ -982,12 +982,8 @@ function connectRelayWss(){
 }
 
 function sendOpsMessage(msg){
-  if(!relayWs||relayWs.readyState!==WebSocket.OPEN){
-    console.warn('[ws-relay] Not connected — cannot send ops message');
-    return false;
-  }
-  relayWs.send(JSON.stringify(msg));
-  return true;
+  console.warn('[ws-relay] Monitor mode — ops messages use HTTP only, not WSS');
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════

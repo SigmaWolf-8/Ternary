@@ -997,7 +997,7 @@ foreach ($cfg in $daemonConfigs) {
     $logFile = Join-Path $LOG_DIR "array3-node-$($cfg.Id).log"
     $wrapperBat = Join-Path $wrapperDir "array3-node-$($cfg.Id)-start.bat"
 
-    $slotRegistryFile = Join-Path $IdentityBase "slot-registry-$($cfg.Id).json"
+    $slotRegistryFile = Join-Path $OpsBase "slot-registry-$($cfg.Id).json"
     if (-not (Test-Path $slotRegistryFile)) {
         if ($cfg.Mode -eq "crs") {
             $slotRegistryJson = '{"2.2.2": "gateway", "1.1.1": "crs"}'
