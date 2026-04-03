@@ -1,0 +1,46 @@
+PASS — Architecture & Flow
+The 11-step structure is clean. Coordinator-first startup with health check polling before worker registration is correct. Identity migration with integrity verification (SHA-256 compare) is solid. The try/catch wrapper with partial service cleanup on failure is the right pattern.
+
+CRITICAL — Bugs
+1. Source pinning is broken. Step 3 says "release $RELEASE_TAG" and $RELEASE_TAG = "v2.4.1", but the actual git commands use --branch main and git reset --hard origin/main. It never checks out the tag. The banner lies — you're always deploying HEAD of main, not the pinned release.
+powershell# Line ~350: Says "pinned to v2.4.1" but does:
+$null = & git fetch origin main --force 2>&1
+$null = & git reset --hard origin/main 2>&1
+Fix: Either git checkout $RELEASE_TAG after fetch, or change the messaging to say "latest main."
+2. cargo clean -p inter-cube before build deletes compiled deps. Line ~390 says "forces monitor HTML refresh" but cargo clean -p inter-cube only cleans that one crate — which is correct for the stated purpose. However, if the include_str! path hasn't changed, Cargo may not recompile. The comment is misleading. Verify that updating the HTML file at the include_str! path actually triggers recompilation without a full clean.
+3. NinjaExec --headless flag — unverified. Line in the wrapper .bat:
+"$NinjaExecPath" run --port 21027 --headless --data-dir "$neKeystoreDir"
+The user just showed that ninja-exec run --help doesn't work — it just starts the server. If --headless isn't a valid flag, the binary may silently ignore it or crash. The earlier terminal output showed Mode: Interactive even after the deploy. Verify --headless is an actual flag.
+
+HIGH — Security
+4. Passphrases written to .bat files in plaintext. Line ~830+:
+set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
+The wrapper .bat files contain node passphrases in cleartext. Anyone with read access to C:\PlenumNET\services\wrappers\ can read all three node passphrases. The ACL restriction (Restrict-FileAcl) helps but if any process runs as SYSTEM or Administrator, it has full access. Consider using Windows Credential Manager or encrypted environment variables in the service registry instead.
+5. $plainPass cleared but $nodePassphrase persists in memory. The NinjaExec passphrase is nulled ($plainPass = $null) but node passphrases loaded from .passphrase files persist in $daemonConfigs[].Passphrase for the entire script lifetime, including being written to the deployment payload JSON. Not a file leak but a memory hygiene issue.
+
+MEDIUM — Logic Issues
+6. Slot registry doesn't include the gateway service_type. The registry files are:
+jsonNode 1: {"2.2.2": "gateway", "1.1.1": "crs"}
+Node 2: {"2.2.2": "gateway"}
+Node 3: {"2.2.2": "gateway"}
+But the /slots response showed "service_type": null for slot (2,2,2) even with is_primary_gateway: true. Either the daemon doesn't read PLENUM_SLOT_REGISTRY_FILE, or the env var isn't reaching the process. Verify: after deploy, hit http://localhost:11124/api/salvi/inter-cube/slots and check if (2,2,2) now returns "service_type": "gateway".
+7. Worker CRS_URL is localhost but relay is remote. Workers set:
+set CUBE_CRS_URL=http://localhost:11124
+set RELAY_URL=https://plenumnet.replit.app
+This only works when all 3 nodes are on the same machine. If you ever split nodes across machines, CUBE_CRS_URL needs to be the coordinator's actual IP. Not a bug today but a deployment assumption that should be documented.
+8. Watchdog port list is incomplete. The watchdog tracks gateway AND terminal ports:
+powershell$watchdogPortList = ($daemonConfigs | ForEach-Object { $_.GatewayPort; $_.TerminalPort }) -join ', '
+This is correct. But the orphan detection only checks inter-cube-daemon processes. NinjaExec orphans are not detected or cleaned. If the NinjaExec service crashes and a stale process stays, the watchdog won't catch it.
+**9. LLM restart command uses unvalidated path.** `Test-LlmExecutable` validates the executable name against an allowlist and blocks paths under `C:\Users`, `env:PUBLIC‘,‘env:PUBLIC`, `
+env:PUBLIC‘,‘env:TEMP`, and `C:\Windows\Temp`. But `env:PUBLIC‘and‘env:PUBLIC` and `
+env:PUBLIC‘and‘env:TEMP` are expanded *inside the watchdog script string* — they may not expand correctly when the watchdog runs as SYSTEM (different env vars). Use `[System.Environment]::GetFolderPath()` or hardcode the expanded paths at generation time.
+
+
+LOW — Cosmetic / Minor
+10. The version probe in Step 6 uses CUBE_MODE=keygen to extract a version string by parsing output. Fragile — if the output format changes, version detection silently fails to "unknown." Consider a dedicated --version flag.
+11. The deployment payload sent to the Node Registry includes $cfg.Passphrase indirectly through $daemonConfigs (it's in the array). Verify the JSON serialization at line ~1190 doesn't leak passphrases. It appears to only serialize selected fields (Id, GatewayPort, PublicKey, etc.) but confirm Passphrase isn't included in the $daemonsArray.
+12. Desktop launcher paths use [Environment]::GetFolderPath("Desktop") which may resolve to OneDrive-synced Desktop. The deploy log shows C:\Users\Sigma\OneDrive\Desktop\. If OneDrive sync is active, the .cmd files may trigger sync conflicts or be uploaded to the cloud. Not a security risk (they don't contain secrets) but worth noting.
+
+Summary
+SeverityCountKey ItemsCritical3Tag not checked out, cargo clean may not trigger rebuild, --headless unverifiedHigh2Plaintext passphrases in .bat, memory hygieneMedium4Slot registry may not load, localhost assumption, watchdog gaps, env var expansionLow3Version probe fragile, payload leak check, OneDrive desktop
+The script is well-structured and the security hardening (ACLs, integrity checks, operator registration) is above average for a PowerShell deployer. The critical items are the tag pinning lie and the --headless flag — both can cause the exact symptoms you've been hitting (wrong binary version, NinjaExec in Interactive mode). Fix those two and most of the session's debugging pain goes away.
