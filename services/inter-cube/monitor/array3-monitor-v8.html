@@ -250,7 +250,7 @@
     <div class="dd-grid">
       <div class="dd-cell"><div class="dd-k">Uptime</div><div class="dd-v" id="d-up">—</div></div>
       <div class="dd-cell"><div class="dd-k">Heartbeat</div><div class="dd-v" id="d-hb">—</div></div>
-      <div class="dd-cell"><div class="dd-k">TL-DSA events</div><div class="dd-v" id="d-td">—</div></div>
+      <div class="dd-cell"><div class="dd-k">Service Detail</div><div class="dd-v" id="d-td">—</div></div>
       <div class="dd-cell"><div class="dd-k">Latency</div><div class="dd-v" id="d-la">—</div></div>
     </div>
   </div>
@@ -567,7 +567,7 @@ function transformNode(nodeData,ni){
         statusLabel:apiSlot.status_label||'',
         ld:0,pt:apiSlot.port,
         up:h.status==='ok'?'running':'—',
-        la:0,td:0,hb:0,
+        la:apiSlot.latency_us||0,td:0,hb:apiSlot.heartbeat_count||0,uptimeSecs:apiSlot.uptime_secs||0,serviceDetail:apiSlot.service_detail||null,
         isPrimaryGW:apiSlot.is_primary_gateway||false,
         mode:h.mode||'unknown',
         version:h.version||'',
@@ -1362,16 +1362,18 @@ function showDet(idx){
   document.getElementById('d-what').textContent=know.what;
 
   // Where
+  function formatUptime(s){if(!s)return'—';const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);const sec=s%60;return h>0?h+'h '+m+'m':m>0?m+'m '+sec+'s':sec+'s'}
+  function formatDetail(svc,d){if(!d)return'—';if(svc==='Crs')return d.registered_nodes+' nodes registered';if(svc==='Con')return(d.tunnels_up||0)+' tunnels up'+(d.verified_neighbors?', '+d.verified_neighbors+' verified':'');if(svc==='Fts')return(d.neighbors_up||0)+' up, '+(d.neighbors_suspect||0)+' suspect, '+(d.neighbors_down||0)+' down';if(svc==='Glb')return(d.live_neighbors||0)+' live, '+(d.total_forwards||0)+' fwd';if(svc==='Gateway')return d.role||'active';return JSON.stringify(d)}
   document.getElementById('d-node').textContent=`${s.nn} : ${s.np}`;
   document.getElementById('d-rc').textContent=`(${s.rc.join(', ')})`;
   document.getElementById('d-pt').textContent=s.pt||'—';
   document.getElementById('d-slot').textContent=`${(s.rc[0]-1)*9+(s.rc[1]-1)*3+(s.rc[2]-1)+1} of 27`;
 
   // When
-  document.getElementById('d-up').textContent=s.up;
-  document.getElementById('d-hb').textContent=s.hb?s.hb+'s ago':'—';
-  document.getElementById('d-td').textContent=s.td?s.td.toLocaleString():'—';
-  document.getElementById('d-la').textContent=s.la?s.la+' ms':'—';
+  document.getElementById('d-up').textContent=s.uptimeSecs?formatUptime(s.uptimeSecs):s.up;
+  document.getElementById('d-hb').textContent=s.hb?'#'+s.hb+' ('+formatUptime(s.uptimeSecs||0)+')':'—';
+  document.getElementById('d-td').textContent=s.serviceDetail?formatDetail(s.svc,s.serviceDetail):'—';
+  document.getElementById('d-la').textContent=s.la?(s.la/1000).toFixed(1)+' ms':'—';
 
   // How
   document.getElementById('d-ldpct').textContent=s.occ?Math.round(s.ld*100)+'%':'—';

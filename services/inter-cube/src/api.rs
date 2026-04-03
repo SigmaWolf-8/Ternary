@@ -94,6 +94,10 @@ pub struct AppState {
     pub mode: String,
     /// Daemon-level config (auth, slot registry, probing).
     pub daemon_config: DaemonConfig,
+    /// Process start time for uptime tracking.
+    pub start_time: std::time::Instant,
+    /// Monotonic heartbeat counter (incremented each /slots poll).
+    pub heartbeat_counter: std::sync::atomic::AtomicU64,
 }
 
 impl AppState {
@@ -113,6 +117,8 @@ impl AppState {
             local_address,
             mode: "crs".to_string(),
             daemon_config: DaemonConfig::from_env(),
+            start_time: std::time::Instant::now(),
+            heartbeat_counter: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -131,6 +137,8 @@ impl AppState {
             local_address,
             mode: "cube".to_string(),
             daemon_config: DaemonConfig::from_env(),
+            start_time: std::time::Instant::now(),
+            heartbeat_counter: std::sync::atomic::AtomicU64::new(0),
         })
     }
 }
@@ -690,6 +698,11 @@ pub struct SlotInfo {
     pub status: SlotStatus,
     pub status_label: String,
     pub is_primary_gateway: bool,
+    pub uptime_secs: u64,
+    pub heartbeat_count: u64,
+    pub latency_us: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_detail: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -947,6 +960,9 @@ pub async fn get_slot_inventory(
         available: 0,
     };
 
+    let uptime_secs = state.start_time.elapsed().as_secs();
+    let hb = state.heartbeat_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
     for (idx, status) in statuses.into_iter().enumerate() {
         let (slot, port, service_type, is_primary_gw) = &slot_meta[idx];
         let status_label = match &status {
@@ -963,6 +979,60 @@ pub async fn get_slot_inventory(
             SlotStatus::Offline => { summary.occupied += 1; summary.offline += 1; }
         }
 
+        let (slot_uptime, slot_hb, slot_latency, detail) = match service_type.as_deref() {
+            Some("crs") => {
+                let detail = if let Some(crs_mutex) = &state.crs {
+                    let crs = crs_mutex.lock().unwrap();
+                    let count = crs.registered_count();
+                    Some(serde_json::json!({"registered_nodes": count}))
+                } else {
+                    None
+                };
+                (uptime_secs, hb, 0u64, detail)
+            }
+            Some("con") => {
+                let con = state.con.lock().unwrap();
+                let cs = con.stats();
+                let latency = cs.avg_rtt_ms.map(|r| (r * 1000.0) as u64).unwrap_or(0);
+                let detail = Some(serde_json::json!({
+                    "tunnels_up": cs.tunnels_up,
+                    "tunnels_down": cs.tunnels_down,
+                    "verified_neighbors": cs.verified_neighbors,
+                    "bytes_in": cs.total_bytes_in,
+                    "bytes_out": cs.total_bytes_out,
+                    "avg_rtt_ms": cs.avg_rtt_ms,
+                }));
+                (uptime_secs, hb, latency, detail)
+            }
+            Some("fts") => {
+                let fts = state.fts.lock().unwrap();
+                let (up, suspect, down, recovering) = fts.state_counts();
+                let detail = Some(serde_json::json!({
+                    "neighbors_up": up,
+                    "neighbors_suspect": suspect,
+                    "neighbors_down": down,
+                    "neighbors_recovering": recovering,
+                }));
+                (uptime_secs, hb, 0u64, detail)
+            }
+            Some("glb") => {
+                let glb = state.glb.lock().unwrap();
+                let gs = glb.stats();
+                let live = glb.live_neighbor_count();
+                let detail = Some(serde_json::json!({
+                    "live_neighbors": live,
+                    "active_flows": gs.active_flows,
+                    "total_forwards": gs.total_forwards,
+                    "detours_computed": gs.detours_computed,
+                }));
+                (uptime_secs, hb, 0u64, detail)
+            }
+            Some("gateway") if *is_primary_gw => {
+                (uptime_secs, hb, 0u64, Some(serde_json::json!({"role": "primary"})))
+            }
+            _ => (0u64, 0u64, 0u64, None),
+        };
+
         slots.push(SlotInfo {
             address: [slot.plane, slot.role, slot.instance],
             port: *port,
@@ -970,6 +1040,10 @@ pub async fn get_slot_inventory(
             status,
             status_label,
             is_primary_gateway: *is_primary_gw,
+            uptime_secs: slot_uptime,
+            heartbeat_count: slot_hb,
+            latency_us: slot_latency,
+            service_detail: detail,
         });
     }
 
@@ -1231,6 +1305,10 @@ mod slots_tests {
                 status: SlotStatus::Online,
                 status_label: "Healthy".to_string(),
                 is_primary_gateway: true,
+                uptime_secs: 120,
+                heartbeat_count: 24,
+                latency_us: 0,
+                service_detail: None,
             }],
             summary: SlotSummary {
                 occupied: 1,
@@ -1264,6 +1342,10 @@ mod slots_tests {
             status: SlotStatus::Available,
             status_label: "Unassigned".to_string(),
             is_primary_gateway: false,
+            uptime_secs: 0,
+            heartbeat_count: 0,
+            latency_us: 0,
+            service_detail: None,
         };
         let json = serde_json::to_value(&info).unwrap();
         assert!(json["service_type"].is_null());
