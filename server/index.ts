@@ -23,6 +23,8 @@ let yodaReplayGuard: Map<string, Set<number>> | null = null;
 let yodaRateWindows: Map<string, number[]> | null = null;
 let yodaPipelineHandler: YodaPipelineHandler | null = null;
 
+const PLENUMNET_VERSION = "2.4.8";
+
 const _originalProcessExit = process.exit.bind(process);
 let _serverListening = false;
 (process as any).exit = ((code?: number) => {
@@ -1026,7 +1028,7 @@ function startPqtiService(): ChildProcess | null {
           health: {
             status: isWsConnected ? "healthy" : "unreachable",
             uptime: telem?.process_uptime_seconds || 0,
-            version: "2.4.8",
+            version: PLENUMNET_VERSION,
             telemetry: telem ? {
               cpu_pct: telem.cpu_pct,
               ram_pct: telem.ram_pct,
@@ -1241,7 +1243,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   const CRS_ADDRESS = "111.111.111.111.1";
-  const CRS_VERSION = "2.4.8";
+  const CRS_VERSION = PLENUMNET_VERSION;
 
   const crsCircuitBreaker = new CircuitBreaker("crs-verification", 5, 30_000, (name, state) => {
     const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
