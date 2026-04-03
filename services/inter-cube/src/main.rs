@@ -2,16 +2,20 @@
 // Patent(s) Pending — All Rights Reserved
 // Applied Physics Division
 //
-// PlenumNET Inter-Cube Infrastructure Daemon v2.4.1
+// PlenumNET Inter-Cube Infrastructure Daemon v2.4.3
 //
 // MODES (controlled by CUBE_MODE env var):
-//   "crs"    — Central Registration Service. Allocates addresses,
-//              accepts registrations, serves full API.
-//   "cube"   — Worker cube. Registers with a remote CRS on boot,
-//              gets a unique address, heartbeats every 30s,
-//              serves local stats API.
-//   "all"    — Same as "crs" (backward compat).
-//   "keygen" — Generate PT26-DSA identity keypair and exit.
+//   "crs"     — Central Registration Service. Allocates addresses,
+//               accepts registrations, serves full API.
+//   "cube"    — Worker cube. Registers with a remote CRS on boot,
+//               gets a unique address, heartbeats every 30s,
+//               serves local stats API.
+//   "all"     — Same as "crs" (backward compat).
+//   "keygen"  — Generate PT26-DSA identity keypair and exit.
+//   "hash"    — TIS-27 hash a file (set CUBE_HASH_TARGET). Exits.
+//   "version" — Print daemon version and exit.
+//   "sign"    — TL-DSA sign a payload (set CUBE_IDENTITY_DIR,
+//               CUBE_SIGN_PAYLOAD). Exits.
 //
 // GATEWAY ARCHITECTURE (1 outbound port per node, at center of 27-slot cube):
 //   Node #1: gateway 11124 (center slot [2,2,2], 1 hop to all 26 neighbors)
@@ -20,7 +24,7 @@
 //   Formula: gateway = 11111 + ((CUBE_NODE_ID - 1) × 27) + 13
 //
 // ENV VARS:
-//   CUBE_MODE                  — "crs", "cube", "all", or "keygen" (default: "all")
+//   CUBE_MODE                  — "crs", "cube", "all", "keygen", "hash", "version", or "sign" (default: "all")
 //   CUBE_CRS_URL               — CRS base URL (required for cube mode)
 //   RELAY_URL                  — WebSocket relay URL (default: CUBE_CRS_URL)
 //                                Set to remote relay (e.g. https://plenumnet.replit.app)
@@ -2360,9 +2364,38 @@ async fn main() {
         "crs" | "all" => run_crs_mode().await,
         "cube" => run_cube_mode().await,
         "keygen" => inter_cube::daemon_identity::run_keygen(),
+        "hash" => {
+            let target = env::var("CUBE_HASH_TARGET").unwrap_or_default();
+            if target.is_empty() {
+                eprintln!("ERROR: CUBE_HASH_TARGET not set. Provide the file path to hash.");
+                std::process::exit(1);
+            }
+            match std::fs::read(&target) {
+                Ok(data) => {
+                    let hash = inter_cube::yoda_chat::compute_payload_hash(&data);
+                    println!("TIS-27 hash: {}", hash.trim_start_matches("tis27:"));
+                }
+                Err(e) => {
+                    eprintln!("ERROR: Cannot read '{}': {}", target, e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        "version" => {
+            println!("version: {}", VERSION);
+        }
+        "sign" => {
+            let identity_dir = env::var("CUBE_IDENTITY_DIR").unwrap_or_default();
+            let payload = env::var("CUBE_SIGN_PAYLOAD").unwrap_or_default();
+            if identity_dir.is_empty() || payload.is_empty() {
+                eprintln!("ERROR: CUBE_IDENTITY_DIR and CUBE_SIGN_PAYLOAD must be set.");
+                std::process::exit(1);
+            }
+            inter_cube::daemon_identity::run_sign(&identity_dir, &payload);
+        }
         other => {
             println!(
-                "ERROR: Unknown CUBE_MODE '{}'. Use 'crs', 'cube', 'keygen', or 'all'.",
+                "ERROR: Unknown CUBE_MODE '{}'. Use 'crs', 'cube', 'keygen', 'hash', 'version', 'sign', or 'all'.",
                 other
             );
             std::process::exit(1);

@@ -227,6 +227,16 @@ pub fn run_keygen() {
     println!("Set CUBE_IDENTITY_PASSPHRASE to override the encryption passphrase.");
 }
 
+pub fn run_sign(ident_dir: &str, payload: &str) {
+    std::env::set_var("CUBE_IDENTITY_DIR", ident_dir);
+    let identity = DaemonIdentity::init();
+    let mut sign_input = Vec::with_capacity(identity.master_secret.as_bytes().len() + payload.len());
+    sign_input.extend_from_slice(identity.master_secret.as_bytes());
+    sign_input.extend_from_slice(payload.as_bytes());
+    let sig_hex = ternary_math::tlsponge385::hash_hex_tis(&sign_input);
+    println!("TL-DSA sig: {}", sig_hex);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
