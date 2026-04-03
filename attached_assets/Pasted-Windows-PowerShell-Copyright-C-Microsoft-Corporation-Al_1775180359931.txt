@@ -1,0 +1,34 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> Restart-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+Restart-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-1 on computer '.'.
+At line:1 char:1
++ Restart-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Arr ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Restart-Service]
+   , ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+Restart-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-2 on computer '.'.
+At line:1 char:1
++ Restart-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Arr ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Restart-Service]
+   , ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+Restart-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-3 on computer '.'.
+At line:1 char:1
++ Restart-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Arr ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Restart-Service]
+   , ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.RestartServiceCommand
+
+PS C:\windows\system32>
