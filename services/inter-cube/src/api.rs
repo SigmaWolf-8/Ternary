@@ -919,15 +919,15 @@ pub async fn get_slot_inventory(
 
                 slot_meta.push((slot, port, service_type.clone(), is_primary_gw));
 
+                let is_self_hosted = match service_type.as_deref() {
+                    Some("crs") => is_gateway_node,
+                    Some("gateway") => is_primary_gw,
+                    _ => false,
+                };
+
                 if service_type.is_none() {
                     probe_futures.push(Box::pin(async move { SlotStatus::Available }));
-                } else if is_primary_gw && port == api_port {
-                    // Skip probing the gateway slot when this daemon IS the process on
-                    // that port. Two reasons:
-                    //   1. Wasted probe: we know the daemon is online (we're handling this request).
-                    //   2. Connection-pool exhaustion: under high load, all inbound connections
-                    //      could be occupied by requests, leaving none for a self-directed TCP
-                    //      connect — a subtle deadlock vector.
+                } else if is_self_hosted {
                     probe_futures.push(Box::pin(async move { SlotStatus::Online }));
                 } else {
                     probe_futures.push(Box::pin(probe_slot(port, timeout)));
