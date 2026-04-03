@@ -1,0 +1,96 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> cd C:\PlenumNET
+>> git pull
+>> .\services\inter-cube\deploy-yoda.ps1
+remote: Enumerating objects: 59, done.
+remote: Counting objects: 100% (59/59), done.
+remote: Compressing objects: 100% (14/14), done.
+remote: Total 42 (delta 32), reused 36 (delta 26), pack-reused 0 (from 0)
+Unpacking objects: 100% (42/42), 34.31 KiB | 325.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   977b0da9..66407f38  main       -> origin/main
+Updating 977b0da9..66407f38
+Fast-forward
+ .../src/.generated/mockup-components.ts            |    4 +-
+ ...-head-meta-charset-UTF-8-meta_1775175134969.txt | 1435 ++++++++++++++++++++
+ ...strator-PlenumN-1775173749445_1775173749445.txt |   87 ++
+ ...strator-PlenumN-1775173865903_1775173865903.txt |  164 +++
+ ...strator-PlenumN-1775174429479_1775174429480.txt |  166 +++
+ ...ht-C-Microsoft-Corporation-Al_1775172312605.txt |  207 +++
+ server/index.ts                                    |   15 +
+ server/storage.ts                                  |    6 +
+ services/inter-cube/Cargo.toml                     |    3 +
+ services/inter-cube/deploy-yoda.ps1                |   57 +
+ services/inter-cube/monitor/array3-monitor-v8.html | 1435 ++++++++++++++++++++
+ services/inter-cube/src/main.rs                    |   21 +-
+ 12 files changed, 3594 insertions(+), 6 deletions(-)
+ create mode 100644 attached_assets/Pasted--DOCTYPE-html-html-lang-en-head-meta-charset-UTF-8-meta_1775175134969.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775173749445_1775173749445.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775173865903_1775173865903.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775174429479_1775174429480.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775172312605.txt
+ create mode 100644 services/inter-cube/monitor/array3-monitor-v8.html
+
+==========================================================
+  PlenumNET Array3 Deployer v0.6.0
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v0.6.0
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+  Continue? (Y/n): y
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: ARM64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v0.6.0)
+---
+  [INFO] Updating source to v0.6.0...
+  [OK] Source ready (pinned to v0.6.0)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [WARN] Stopping 3 running daemon process(es)...
+         Connected relay clients will be temporarily disconnected.
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:00] Compiling ternary-math (#1)
+  [00:11] Compiling plenumlan (#2)
+  [00:12] Compiling inter-cube (#3)
+  [01:47] Still building... (3 crates compiled so far)
+  [01:47]     Finished `release` profile [optimized] target(s) in 1m 47s
+  [OK] Build successful (5.9 MB, 01:47 elapsed, 3 crates)
+  [OK] Binary SHA-256: 071D3F83305696ED79EA52BE3F33B28F1C5D35D978D35508795FF9355CF60903
+  [WARN] TIS-27 hash not available from daemon -- using SHA-256 as fallback
+
+STEP 5/11: Building and configuring NinjaExec signing agent
+---
+  [INFO] Building NinjaExec signing agent...
+         This typically takes 3-10 minutes (shares compiled dependencies).
+  [00:00] Compiling ternary-math (#1)
+  [00:09] Compiling ninja-exec (#2)
+  [00:34]     Finished `release` profile [optimized] target(s) in 34.74s
+  [OK] NinjaExec build successful (1.8 MB, 00:34 elapsed, 2 new crates)
+  [OK] NinjaExec SHA-256: 940AF2A48A5E0425CDAD9AA49B629785FF1B20832FA152C0390659E4839756D4
+  [OK] Existing NinjaExec keystore found -- skipping init
+
+  [FAIL] Deployment interrupted or failed: Cannot bind argument to parameter 'Path' because it is null.
+  Re-run the deployer after resolving the issue.
+
+Press Enter to close this window. Your nodes are running as services and will continue.:
