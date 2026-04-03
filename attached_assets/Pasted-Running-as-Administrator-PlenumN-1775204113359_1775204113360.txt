@@ -1,0 +1,103 @@
+Running as Administrator...
+
+==========================================================
+  PlenumNET Array3 Deployer v2.4.4
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v2.4.4
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+  Continue? (Y/n): y
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v2.4.4)
+---
+  [INFO] Updating source to v2.4.4...
+  [OK] Source ready (pinned to v2.4.4)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [WARN] Stopping 3 running daemon process(es)...
+         Connected relay clients will be temporarily disconnected.
+  [INFO] Cleaning inter-cube cache (forces monitor HTML refresh)...
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:01] Compiling ternary-math (#1)
+  [00:09] Compiling plenumlan (#2)
+  [00:10] Compiling inter-cube (#3)
+  [01:34] Still building... (3 crates compiled so far)
+  [01:34]     Finished `release` profile [optimized] target(s) in 1m 34s
+  [OK] Build successful (6.4 MB, 01:34 elapsed, 3 crates)
+  [OK] Binary SHA-256: C45D5A250AA9CD86A142FBD033AF18C5B5042BB23BDCE4681AAD1EA6A0088E69
+  [OK] Binary TIS-27: ee7a8abd7b3ed25ab229520c7f7399b427ee07a2e70aa0972acd60ce4b6090405a8cc16e75d40430f0d2328aa600bf8205
+
+STEP 5/11: Building and configuring NinjaExec signing agent
+---
+  [WARN] Stopping running NinjaExec process...
+  [INFO] Building NinjaExec signing agent...
+         This typically takes 3-10 minutes (shares compiled dependencies).
+  [00:00] Compiling ternary-math (#1)
+  [00:07] Compiling ninja-exec (#2)
+  [00:29]     Finished `release` profile [optimized] target(s) in 29.89s
+  [OK] NinjaExec build successful (1.8 MB, 00:29 elapsed, 2 new crates)
+  [OK] NinjaExec SHA-256: 8F7BD94874FD5D56BE8105F51F6FD2E4E3C7030D25F7B2A586A044398455AB38
+  [OK] Existing NinjaExec keystore found -- skipping init
+
+STEP 6/11: Verifying version alignment
+---
+  [INFO] Local node    : v2.4.3
+  [INFO] CRS reference : v2.4.1
+  [WARN] Version mismatch -- local v2.4.3 vs CRS v2.4.1
+         The deployer is pinned to v2.4.4. If you need a different version,
+         update $RELEASE_TAG in the script and re-run.
+
+STEP 7/11: Detecting local network
+---
+  [OK] Local IP: 10.0.0.42
+
+STEP 8/11: Generating 3 node identities
+---
+  [OK] Operations channel directories created
+  [OK] Existing ops-config.json preserved
+
+=== Ops Sandbox Hardening ===
+  [OK] ACL hardening applied to C:\PlenumNET\plenumnet-data\.plenumnet (SYSTEM + Administrators only)
+  [OK] SeAssignPrimaryTokenPrivilege detected in security policy
+  [INFO] AppLocker not running -- exec sandbox: Reduced (ACLs only)
+  [INFO] Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...
+  [OK] Node #1 passphrase loaded
+  [OK] Node #1 identity exists
+  [OK] Node #2 passphrase loaded
+  [OK] Node #2 identity exists
+  [OK] Node #3 passphrase loaded
+  [OK] Node #3 identity exists
+
+STEP 9/11: Registering and starting Windows Services
+---
+  [OK] Node #1 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-1.json)
+  [OK] Node #1 registered as service 'PlenumNET-Array3-1'
+  [OK] Node #2 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-2.json)
+  [OK] Node #2 registered as service 'PlenumNET-Array3-2'
+  [OK] Node #3 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-3.json)
+  [OK] Node #3 registered as service 'PlenumNET-Array3-3'
+
+  [INFO] Starting Node #1 (coordinator) first...
+  [INFO] Waiting for coordinator to be ready...
+         Waiting for coordinator... (attempt 1/15)
+  [OK] Coordinator ready at http://localhost:11124
+  [OK] Node #2 service started
+  [OK] Node #3 service started
