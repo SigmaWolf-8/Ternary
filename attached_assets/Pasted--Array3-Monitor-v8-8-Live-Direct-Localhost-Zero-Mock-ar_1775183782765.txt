@@ -1,0 +1,58 @@
+⬡ Array3 Monitor v8.8 — Live · Direct Localhost · Zero Mock
+array3-monitor-v8.8.html:1464   Auto-detect host · Ports 11124 · 11151 · 11178 · 5s poll
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:957 WebSocket connection to 'wss://plenumnet.replit.app/ws/relay' failed: Error during WebSocket handshake: Unexpected response code: 429
+connectRelayWss @ array3-monitor-v8.8.html:957
+array3-monitor-v8.8.html:960 [ws-relay] Error: Event
+relayWs.onerror @ array3-monitor-v8.8.html:960
+2array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+2array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+
+array3-monitor-v8.8.html:959 [ws-relay] Disconnected
+array3-monitor-v8.8.html:958 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
