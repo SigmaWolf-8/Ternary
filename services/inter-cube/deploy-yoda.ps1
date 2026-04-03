@@ -464,6 +464,8 @@ if ($runningDaemons) {
     Start-Sleep -Seconds 2
 }
 
+Write-Host "  [INFO] Cleaning inter-cube cache (forces monitor HTML refresh)..." -ForegroundColor DarkGray
+& cargo clean -p inter-cube 2>&1 | Out-Null
 Write-Host "  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)..." -ForegroundColor White
 Write-Host "         This typically takes 10-30 minutes for a release build." -ForegroundColor DarkGray
 Push-Location $RepoDir
