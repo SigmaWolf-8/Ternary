@@ -920,7 +920,7 @@ pub async fn get_slot_inventory(
                 slot_meta.push((slot, port, service_type.clone(), is_primary_gw));
 
                 let is_self_hosted = match service_type.as_deref() {
-                    Some("crs") => is_gateway_node,
+                    Some("crs") | Some("con") | Some("fts") | Some("glb") => true,
                     Some("gateway") => is_primary_gw,
                     _ => false,
                 };

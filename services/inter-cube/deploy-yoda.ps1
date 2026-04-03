@@ -1025,15 +1025,37 @@ foreach ($cfg in $daemonConfigs) {
     $slotRegistryFile = Join-Path $OpsBase "slot-registry-$($cfg.Id).json"
     if (-not (Test-Path $slotRegistryFile)) {
         if ($cfg.Mode -eq "crs") {
-            $slotRegistryJson = '{"2.2.2": "gateway", "1.1.1": "crs"}'
+            $slotRegistryJson = '{"2.2.2": "gateway", "1.1.1": "crs", "1.1.2": "con", "1.1.3": "fts", "1.2.1": "glb"}'
         } else {
-            $slotRegistryJson = '{"2.2.2": "gateway"}'
+            $slotRegistryJson = '{"2.2.2": "gateway", "1.1.2": "con", "1.1.3": "fts", "1.2.1": "glb"}'
         }
         [System.IO.File]::WriteAllText($slotRegistryFile, $slotRegistryJson, (New-Object System.Text.UTF8Encoding $false))
         Write-Host "  [OK] Node #$($cfg.Id) slot registry created ($slotRegistryFile)" -ForegroundColor Green
     } else {
-        Write-Host "  [OK] Node #$($cfg.Id) slot registry exists ($slotRegistryFile)" -ForegroundColor Green
-    }
+          $existingRaw = [System.IO.File]::ReadAllText($slotRegistryFile)
+          $existingRaw = $existingRaw.TrimStart([char]0xFEFF)
+          try {
+              $existingReg = $existingRaw | ConvertFrom-Json
+              $builtinServices = @{"1.1.2"="con"; "1.1.3"="fts"; "1.2.1"="glb"}
+              if ($cfg.Mode -eq "crs") { $builtinServices["1.1.1"] = "crs" }
+              $merged = $false
+              foreach ($k in $builtinServices.Keys) {
+                  if (-not ($existingReg.PSObject.Properties.Name -contains $k)) {
+                      $existingReg | Add-Member -NotePropertyName $k -NotePropertyValue $builtinServices[$k]
+                      $merged = $true
+                  }
+              }
+              if ($merged) {
+                  $updatedJson = $existingReg | ConvertTo-Json -Compress
+                  [System.IO.File]::WriteAllText($slotRegistryFile, $updatedJson, (New-Object System.Text.UTF8Encoding $false))
+                  Write-Host "  [OK] Node #$($cfg.Id) slot registry updated with built-in services ($slotRegistryFile)" -ForegroundColor Green
+              } else {
+                  Write-Host "  [OK] Node #$($cfg.Id) slot registry exists ($slotRegistryFile)" -ForegroundColor Green
+              }
+          } catch {
+              Write-Host "  [OK] Node #$($cfg.Id) slot registry exists ($slotRegistryFile)" -ForegroundColor Green
+          }
+      }
 
     $peerListForNode = @()
     foreach ($other in $daemonConfigs) {
