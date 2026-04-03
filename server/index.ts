@@ -2660,7 +2660,7 @@ function startPqtiService(): ChildProcess | null {
 
             try {
               let responseContent: string;
-              const handler = yodaPipelineHandler;
+              const handler = yodaPipelineHandler as YodaPipelineHandler | null;
               if (handler) {
                 responseContent = await handler(messageText, sessionId, sequence, daemonRepC);
               } else {
