@@ -1,0 +1,51 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Get-EventLog -LogName System -Source "Service Control Manager" -Newest 10 | Where-Object { $_.Message -match "PlenumNET" } | Format-List TimeGenerated, Message
+
+
+TimeGenerated : 2026-04-03 2:43:06 AM
+Message       : The PlenumNET Array3 Node #1 (coordinator) service failed to start due to the following error:
+                %%1053
+
+TimeGenerated : 2026-04-03 2:43:06 AM
+Message       : A timeout was reached (30000 milliseconds) while waiting for the PlenumNET Array3 Node #1
+                (coordinator) service to connect.
+
+TimeGenerated : 2026-04-03 2:41:41 AM
+Message       : The PlenumNET Array3 Node #3 (worker) service failed to start due to the following error:
+                %%1053
+
+TimeGenerated : 2026-04-03 2:41:41 AM
+Message       : A timeout was reached (30000 milliseconds) while waiting for the PlenumNET Array3 Node #3 (worker)
+                service to connect.
+
+TimeGenerated : 2026-04-03 2:41:41 AM
+Message       : The PlenumNET Array3 Node #2 (worker) service failed to start due to the following error:
+                %%1053
+
+TimeGenerated : 2026-04-03 2:41:41 AM
+Message       : A timeout was reached (30000 milliseconds) while waiting for the PlenumNET Array3 Node #2 (worker)
+                service to connect.
+
+TimeGenerated : 2026-04-03 2:41:41 AM
+Message       : The PlenumNET Array3 Node #1 (coordinator) service failed to start due to the following error:
+                %%1053
+
+TimeGenerated : 2026-04-03 2:41:41 AM
+Message       : A timeout was reached (30000 milliseconds) while waiting for the PlenumNET Array3 Node #1
+                (coordinator) service to connect.
+
+TimeGenerated : 2026-04-03 2:34:10 AM
+Message       : The PlenumNET NinjaExec Signing Agent service failed to start due to the following error:
+                %%1053
+
+TimeGenerated : 2026-04-03 2:34:10 AM
+Message       : A timeout was reached (30000 milliseconds) while waiting for the PlenumNET NinjaExec Signing Agent
+                service to connect.
+
+
+
+PS C:\Users\Sigma>
