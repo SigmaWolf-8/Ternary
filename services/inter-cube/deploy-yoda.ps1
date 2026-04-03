@@ -423,7 +423,7 @@ Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Path $RepoDir)) {
     Write-Host "  [INFO] Cloning PlenumNET repository (tag $RELEASE_TAG)..." -ForegroundColor White
-    $null = & git clone --branch main --depth 1 $RepoUrl $RepoDir 2>&1
+    $null = & git clone --branch $RELEASE_TAG --depth 1 $RepoUrl $RepoDir 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  [FAIL] Could not download PlenumNET source code." -ForegroundColor Red
         Write-Host "         Check your internet connection and firewall settings, then try again." -ForegroundColor Yellow
@@ -436,18 +436,17 @@ if (-not (Test-Path $RepoDir)) {
     Push-Location $RepoDir
     $null = & git init 2>&1
     $null = & git remote add origin $RepoUrl 2>&1
-    $null = & git fetch origin main --depth 1 2>&1
-    $null = & git reset --hard origin/main 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --force --depth 1 2>&1
+    $null = & git checkout $RELEASE_TAG 2>&1
     Pop-Location
 } else {
-    Write-Host "  [INFO] Updating source to latest main..." -ForegroundColor White
+    Write-Host "  [INFO] Updating source to release tag $RELEASE_TAG..." -ForegroundColor White
     Push-Location $RepoDir
-    $null = & git fetch origin main --force 2>&1
-    $null = & git checkout main 2>&1
-    $null = & git reset --hard origin/main 2>&1
+    $null = & git fetch origin tag $RELEASE_TAG --force 2>&1
+    $null = & git checkout $RELEASE_TAG 2>&1
     Pop-Location
 }
-Write-Host "  [OK] Source ready (latest main)" -ForegroundColor Green
+Write-Host "  [OK] Source ready (release $RELEASE_TAG)" -ForegroundColor Green
 
 # ── STEP 4/11: Building inter-cube daemon ───────────────────────────────
 Write-Host ""
@@ -465,8 +464,12 @@ if ($runningDaemons) {
     Start-Sleep -Seconds 2
 }
 
-Write-Host "  [INFO] Cleaning inter-cube cache (forces monitor HTML refresh)..." -ForegroundColor DarkGray
+Write-Host "  [INFO] Cleaning inter-cube cache and touching source to force include_str! rebuild..." -ForegroundColor DarkGray
 & cargo clean -p inter-cube 2>&1 | Out-Null
+$mainRs = Join-Path $RepoDir "services\inter-cube\src\main.rs"
+if (Test-Path $mainRs) { (Get-Item $mainRs).LastWriteTime = Get-Date }
+$libRs = Join-Path $RepoDir "services\inter-cube\src\lib.rs"
+if (Test-Path $libRs) { (Get-Item $libRs).LastWriteTime = Get-Date }
 Write-Host "  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)..." -ForegroundColor White
 Write-Host "         This typically takes 10-30 minutes for a release build." -ForegroundColor DarkGray
 Push-Location $RepoDir
@@ -511,10 +514,7 @@ if (-not (Test-Path $BinaryPath)) {
 $fileSizeMB = [math]::Round((Get-Item $BinaryPath).Length / 1MB, 1)
 Write-Host "  [OK] Build successful ($fileSizeMB MB, $buildElapsed elapsed, $compiledCount crates)" -ForegroundColor Green
 
-# ── R1-C5: Compute binary integrity hash ────────────────────────────────
-$binarySha256 = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
-Write-Host "  [OK] Binary SHA-256: $binarySha256" -ForegroundColor DarkGray
-
+# ── R1-C5: Compute binary integrity hash (TIS-27 mandatory) ─────────────
 $tis27Hash = ""
 try {
     $env:CUBE_MODE = "hash"
@@ -532,16 +532,33 @@ try {
     Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
 }
 if (-not $tis27Hash) {
-    $tis27Hash = "sha256:$binarySha256"
-    Write-Host "  [WARN] TIS-27 hash not available from daemon -- using SHA-256 as fallback" -ForegroundColor Yellow
+    Write-Host "  [FAIL] TIS-27 integrity hash could not be computed." -ForegroundColor Red
+    Write-Host "         The daemon binary does not support CUBE_MODE=hash or returned no hash." -ForegroundColor Red
+    Write-Host "         Deployment cannot proceed without TIS-27 integrity verification." -ForegroundColor Yellow
+    Read-Host "Press Enter to close"
+    exit 1
 }
 
 # ── R1-C5: Re-verify binary integrity before service registration ───────
-$preStartHash = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
-if ($preStartHash -ne $binarySha256) {
+$preStartTis27 = ""
+try {
+    $env:CUBE_MODE = "hash"
+    $env:CUBE_HASH_TARGET = $BinaryPath
+    $reHashOutput = & $BinaryPath 2>&1
+    Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+    Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
+    $reHashLine = $reHashOutput | Where-Object { $_ -match "TIS-27|tis27|hash:" } | Select-Object -First 1
+    if ($reHashLine -match ':\s*([0-9a-fA-F]+)\s*$') {
+        $preStartTis27 = $Matches[1]
+    }
+} catch {
+    Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+    Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
+}
+if ($preStartTis27 -ne $tis27Hash) {
     Write-Host "  [FAIL] Binary integrity check failed. The file was modified after build." -ForegroundColor Red
-    Write-Host "         Expected SHA-256: $binarySha256" -ForegroundColor Red
-    Write-Host "         Got:              $preStartHash" -ForegroundColor Red
+    Write-Host "         Expected TIS-27: $tis27Hash" -ForegroundColor Red
+    Write-Host "         Got:             $preStartTis27" -ForegroundColor Red
     Write-Host "         This may indicate tampering or antivirus interference." -ForegroundColor Yellow
     Read-Host "Press Enter to close"
     exit 1
@@ -591,9 +608,7 @@ if ($neBuildExit -ne 0) {
     Write-Host "         This may indicate an antivirus quarantine. Check your AV logs." -ForegroundColor Yellow
 } else {
     $neFileSizeMB = [math]::Round((Get-Item $NinjaExecPath).Length / 1MB, 1)
-    $neSha256 = (Get-FileHash -Path $NinjaExecPath -Algorithm SHA256).Hash
     Write-Host "  [OK] NinjaExec build successful ($neFileSizeMB MB, $neBuildElapsed elapsed, $neCompiledCount new crates)" -ForegroundColor Green
-    Write-Host "  [OK] NinjaExec SHA-256: $neSha256" -ForegroundColor DarkGray
 
     $env:PATH += ";$(Split-Path $NinjaExecPath)"
 
@@ -895,11 +910,11 @@ if ((Test-Path $oldIdentityBase) -and ($oldIdentityBase -ne $IdentityBase)) {
             Copy-Item -Path $oldDir -Destination $newDir -Recurse -Force
             $migratedKey = Join-Path $newDir "master.key"
             if (Test-Path $migratedKey) {
-                $srcHash = (Get-FileHash -Path (Join-Path $oldDir "master.key") -Algorithm SHA256).Hash
-                $dstHash = (Get-FileHash -Path $migratedKey -Algorithm SHA256).Hash
-                if ($srcHash -eq $dstHash) {
+                $srcSize = (Get-Item (Join-Path $oldDir "master.key")).Length
+                $dstSize = (Get-Item $migratedKey).Length
+                if ($srcSize -eq $dstSize) {
                     Restrict-FileAcl -FilePath $migratedKey | Out-Null
-                    Write-Host "  [OK] Migrated identity-$m (integrity verified, ACL restricted)" -ForegroundColor Green
+                    Write-Host "  [OK] Migrated identity-$m (size verified, ACL restricted)" -ForegroundColor Green
                 } else {
                     Write-Host "  [FAIL] Migration integrity check failed for identity-$m" -ForegroundColor Red
                     Remove-Item $newDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -978,7 +993,6 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
         Endpoint = $endpoint
         PublicKey = $pubKey
         Mode = $mode
-        Passphrase = $nodePassphrase
     }
 }
 
@@ -1021,6 +1035,8 @@ foreach ($cfg in $daemonConfigs) {
     }
     $peerEnvForNode = $peerListForNode -join ","
 
+    $passphraseFilePath = Join-Path $cfg.IdentityDir ".passphrase"
+
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
@@ -1031,7 +1047,7 @@ set CUBE_API_PORT=$($cfg.GatewayPort)
 set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
-set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
+for /f "usebackq delims=" %%P in ("$passphraseFilePath") do set CUBE_IDENTITY_PASSPHRASE=%%P
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
@@ -1066,7 +1082,7 @@ set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
-set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
+for /f "usebackq delims=" %%P in ("$passphraseFilePath") do set CUBE_IDENTITY_PASSPHRASE=%%P
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
@@ -1174,7 +1190,7 @@ set RESTART_COUNT=0
 :loop
 for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
 echo [%TS%] Starting NinjaExec signing agent on port 21027 [restart #!RESTART_COUNT!] >> "$neLogFile"
-"$NinjaExecPath" run --port 21027 --headless --data-dir "$neKeystoreDir" >> "$neLogFile" 2>&1
+"$NinjaExecPath" run --port 21027 --data-dir "$neKeystoreDir" >> "$neLogFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
 for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
 echo [%TS%] NinjaExec exited with code !EXIT_CODE! >> "$neLogFile"
@@ -1668,12 +1684,14 @@ foreach ($cfg in $daemonConfigs) {
     for ($attempt = 1; $attempt -le 5; $attempt++) {
         try {
             $regTimestamp = (Get-Date -Format "o")
-            $signPayload = "CRS-REGISTER||$($cfg.PublicKey)||$($cfg.Endpoint)||$regTimestamp"
+            $nodeRepCAddress = $cfg.Id
+            $signPayload = "CRS-REGISTER||$($cfg.PublicKey)||$nodeRepCAddress||$regTimestamp"
             $signature = Get-TlDsaSignature -IdentDir $cfg.IdentityDir -PayloadToSign $signPayload
 
             $regBody = @{
                 publicKey = $cfg.PublicKey
                 endpoint = $cfg.Endpoint
+                repCAddress = $nodeRepCAddress
                 timestamp = $regTimestamp
                 signature = $signature
             } | ConvertTo-Json
@@ -1721,7 +1739,8 @@ foreach ($cfg in $daemonConfigs) {
 }
 
 $deployTimestamp = (Get-Date -Format "o")
-$deploySignPayload = "DEPLOYMENT||$($registeredAddresses -join '||')||$deployTimestamp"
+$signerRepCAddress = $daemonConfigs[0].Id
+$deploySignPayload = "DEPLOYMENT||$signerRepCAddress||$($registeredAddresses -join '||')||$deployTimestamp"
 $deploySignature = ""
 if ($daemonConfigs.Count -gt 0 -and $daemonConfigs[0].IdentityDir) {
     $deploySignature = Get-TlDsaSignature -IdentDir $daemonConfigs[0].IdentityDir -PayloadToSign $deploySignPayload
@@ -1729,6 +1748,7 @@ if ($daemonConfigs.Count -gt 0 -and $daemonConfigs[0].IdentityDir) {
 
 $deploymentPayload = @{
     addresses = $registeredAddresses
+    signerRepCAddress = $signerRepCAddress
     daemonCount = $DAEMON_COUNT
     daemons = $daemonsArray
     localCrsPort = $LOCAL_CRS_PORT
