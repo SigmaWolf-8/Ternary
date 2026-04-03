@@ -1,0 +1,189 @@
+Running as Administrator...
+
+==========================================================
+  PlenumNET Array3 Deployer v2.4.6
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v2.4.6
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+  Continue? (Y/n): y
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v2.4.6)
+---
+  [INFO] Updating source to v2.4.6...
+  [OK] Source ready (pinned to v2.4.6)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [WARN] Stopping 3 running daemon process(es)...
+         Connected relay clients will be temporarily disconnected.
+  [INFO] Cleaning inter-cube cache (forces monitor HTML refresh)...
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:01] Compiling ternary-math (#1)
+  [00:11] Compiling plenumlan (#2)
+  [00:11] Compiling inter-cube (#3)
+  [01:56] Still building... (3 crates compiled so far)
+  [01:56]     Finished `release` profile [optimized] target(s) in 1m 56s
+  [OK] Build successful (6.5 MB, 01:56 elapsed, 3 crates)
+  [OK] Binary SHA-256: 65C51D8E294B1CD73A9E1D7597B503C35783693E67AE469CAEA8DAF93FC8A696
+  [OK] Binary TIS-27: df97ef57a256a4ed63ed79cc5712554726d66136366d07b0915c642159da54e4bcd3ebd4afec3a236ef20b066f192d6f10
+
+STEP 5/11: Building and configuring NinjaExec signing agent
+---
+  [WARN] Stopping running NinjaExec process...
+  [INFO] Building NinjaExec signing agent...
+         This typically takes 3-10 minutes (shares compiled dependencies).
+  [00:00] Compiling ternary-math (#1)
+  [00:11] Compiling ninja-exec (#2)
+  [00:42]     Finished `release` profile [optimized] target(s) in 41.77s
+  [OK] NinjaExec build successful (1.8 MB, 00:42 elapsed, 2 new crates)
+  [OK] NinjaExec SHA-256: 739DAC8BD0B8C6463642397E469D3E9F22535D2C9D4DDD28781434C38BC94712
+  [OK] Existing NinjaExec keystore found -- skipping init
+
+STEP 6/11: Verifying version alignment
+---
+  [INFO] Local node    : v2.4.6
+  [INFO] CRS reference : v2.4.6
+  [OK] Version aligned
+
+STEP 7/11: Detecting local network
+---
+  [OK] Local IP: 10.0.0.42
+
+STEP 8/11: Generating 3 node identities
+---
+  [OK] Operations channel directories created
+  [OK] Existing ops-config.json preserved
+
+=== Ops Sandbox Hardening ===
+  [OK] ACL hardening applied to C:\PlenumNET\plenumnet-data\.plenumnet (SYSTEM + Administrators only)
+  [OK] SeAssignPrimaryTokenPrivilege detected in security policy
+  [INFO] AppLocker not running -- exec sandbox: Reduced (ACLs only)
+  [INFO] Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...
+  [OK] Node #1 passphrase loaded
+  [OK] Node #1 identity exists
+  [OK] Node #2 passphrase loaded
+  [OK] Node #2 identity exists
+  [OK] Node #3 passphrase loaded
+  [OK] Node #3 identity exists
+
+STEP 9/11: Registering and starting Windows Services
+---
+  [OK] Node #1 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-1.json)
+  [OK] Node #1 registered as service 'PlenumNET-Array3-1'
+  [OK] Node #2 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-2.json)
+  [OK] Node #2 registered as service 'PlenumNET-Array3-2'
+  [OK] Node #3 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-3.json)
+  [OK] Node #3 registered as service 'PlenumNET-Array3-3'
+
+  [INFO] Starting Node #1 (coordinator) first...
+  [INFO] Waiting for coordinator to be ready...
+         Waiting for coordinator... (attempt 1/15)
+  [OK] Coordinator ready at http://localhost:11124
+  [OK] Node #2 service started
+  [OK] Node #3 service started
+  [OK] NinjaExec registered and started as service 'PlenumNET-NinjaExec'
+  [OK] Signing API: http://localhost:21027/sign
+
+STEP 10/11: Configuring watchdog and LLM engines
+---
+  [WARN] No AI model file (.gguf) was found on this machine.
+         To enable AI inference, download a compatible model file and place it
+         in C:\PlenumNET\models\. The watchdog will automatically configure it.
+         For model recommendations, visit https://plenumnet.com/docs/models
+  [OK] LLM engine config written to C:\ProgramData\PlenumNET\llm-engines.json (ACL: SYSTEM + Administrators only)
+  [OK] C:\ProgramData\PlenumNET ACL restricted (SYSTEM + Administrators)
+  [OK] Watchdog scheduled task registered: PlenumNET-Array3-Watchdog
+       Checks every 2 minutes + on boot
+       Watchdog log: C:\PlenumNET\plenumnet-data\logs\watchdog.log
+  [OK] Node #1 (coordinator) address: 1111111111111
+  [OK] Node #2 registered -> address: 1211111111111
+  [OK] Node #3 registered -> address: 2211111111111
+  [OK] Address map written to C:\PlenumNET\plenumnet-data\.plenumnet\address-map.json
+  [OK] Slot registry verified: 5 occupied slots (4 from registry + gateway)
+
+STEP 11/11: Deployment summary and desktop launchers
+---
+  [WARN] Could not register this deployment with the Node Registry.
+         Your cluster is running normally -- registry notification can be retried later.
+
+  [OK] Start launcher created: C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.cmd
+  [OK] Stop launcher created: C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.cmd
+
+==========================================================
+  PlenumNET Array3 Deployment Complete
+  Capomastro Holdings Ltd.
+  Deployer v2.4.6 | Release v2.4.6
+  NinjaExec signing agent included
+==========================================================
+
+  Cluster Status
+  Node #1 (coordinator): gateway 11124, terminal 11122, address 1111111111111
+  Node #2 (worker)      : gateway 11151, terminal 11149, address 1211111111111
+  Node #3 (worker)      : gateway 11178, terminal 11176, address 2211111111111
+
+  API Endpoints
+  VM API           : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway port)
+  Cluster Shell    : /cluster/exec, /cluster/peers (on gateway port)
+  Coordinator      : http://localhost:11124 (Node #1)
+  Relay            : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Node Registry    : https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+
+  Management
+  Services         : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+  Startup          : Automatic (survives reboots + terminal close)
+  Watchdog         : PlenumNET-Array3-Watchdog (every 2 min + on boot)
+  Start Launcher   : C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.cmd
+  Stop Launcher    : C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.cmd
+
+  NinjaExec Signing Agent
+  Binary           : C:\PlenumNET\target\release\ninja-exec.exe
+  Service          : PlenumNET-NinjaExec (Automatic)
+  Signing API      : http://localhost:21027/sign
+  Keystore         : C:\Users\Sigma\AppData\Roaming\NinjaExec\ninja-exec.keystore (initialized)
+
+  Operations Channel
+  Ops Config       : C:\PlenumNET\plenumnet-data\.plenumnet\ops-config.json
+  Ops Enabled      : false
+  Audit Log        : C:\PlenumNET\plenumnet-data\.plenumnet\ops-audit.jsonl
+  Ops Directories  : ops/, logs/, configs/, transfers/
+
+  Files and Logs
+  Binary           : C:\PlenumNET\target\release\inter-cube-daemon.exe (6.5 MB)
+  Binary Hash      : df97ef57a256a4ed63ed79cc5712554726d66136366d07b0915c642159da54e4bcd3ebd4afec3a236ef20b066f192d6f10
+  Logs             : C:\PlenumNET\plenumnet-data\logs
+  Watchdog Log     : C:\PlenumNET\plenumnet-data\logs\watchdog.log
+  Release Tag      : v2.4.6
+
+  Closing this window will NOT stop the nodes -- they run as services.
+  Applications (e.g. YODA) connect via the relay to reach these nodes.
+
+  â €â€ Upgrade Notes (v2.4.5) â€â€
+  What changed (cumulative v2.4.4 + v2.4.5):
+    - Slot registry: BOM-tolerant JSON parser, BOM-free file writes
+    - CRS slot (1.1.1) now probes correctly (self-hosted service detection)
+    - Gateway slot 2.2.2 auto-registered on coordinator node
+    - [SLOTS-N*] diagnostic logging for slot registry loading
+    - Monitor sends auth header and shows per-node error details
+    - Deployer verifies slot counts with retry (3 attempts)
+  Re-running this deployer on an existing cluster is safe:
+    - Existing data and identity keys are preserved
+    - The .bat script always downloads the latest deployer
+    - Services are stopped, updated, and restarted cleanly

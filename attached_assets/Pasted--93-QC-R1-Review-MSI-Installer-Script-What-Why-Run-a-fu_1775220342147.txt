@@ -1,0 +1,46 @@
+#93 - QC-R1 Review: MSI Installer Script
+What & Why
+Run a full QC-R1 (Round 1 Technical Verification) review against the PlenumNET MSI Installer script. The review must cover BOTH versions of the script:
+
+The served version: client/public/install/install-plenumnet-msi.ps1 (724 lines, served to users via /api/install-msi)
+The root version: install-plenumnet-msi.ps1 (527 lines, appears to be an older/diverged copy)
+The .bat launcher generated inline in server/index.ts at the /api/install-msi.bat route
+Additionally, the review must evaluate the product manifest files that define what gets installed:
+
+tools/plenum-launcher/plenum-app.toml (Launcher manifest, defines kind = "tray_agent")
+ninja-exec/plenum-app.toml (NinjaExec manifest, defines kind = "tray_agent")
+Known Issues to Evaluate
+The following issues have been identified and MUST be assessed by the reviewers:
+
+Missing products in served installer: The served version (client/public/install/) only builds and installs the Launcher. NinjaExec and Inter-Cube Daemon are completely absent from $Products and $allCrates. The root version includes all three. This divergence means users get an incomplete installation.
+
+Tray agent behavior undisclosed: Both the Launcher and NinjaExec are defined as kind = "tray_agent" with autostart = true in their manifests. The installer never tells the user that these applications will run from the Windows system tray, auto-start with Windows, or what the tray icon represents.
+
+Unicode encoding crash: Em dash characters (U+2014) on lines 30 and 140 of the served .ps1 cause Windows PowerShell 5.1 to fail with parse errors when the file is downloaded via Invoke-WebRequest. This is the root cause of the "instant crash on click" bug.
+
+Script divergence: Two different copies of the installer exist with different $Products, $allCrates, $ErrorActionPreference settings, and different Test-Command implementations. Which is authoritative?
+
+Done looks like
+Three QC-R1 agent reviews produced (Security Engineer, DevOps Automator, PlenumNET Integration Specialist)
+Consolidated findings table in qc-r1-consolidated.md
+Each agent's review addresses the known issues above in addition to their standard review scope
+All findings use standard severity levels (CRITICAL/IMPORTANT/MINOR) with Finding IDs
+Out of scope
+QC-R2 and QC-R3 rounds (those follow after R1 findings are addressed)
+Fixing the issues found — this is review only
+Reviewing the legacy .bat installer (Install-PlenumNET.bat) or Unix installer
+Tasks
+Read both installer script versions, the .bat launcher code, and both product manifest files in full
+Execute all three QC-R1 agents (Security Engineer, DevOps Automator, PlenumNET Integration Specialist) following the QC-R1 review protocol
+Consolidate findings into the standard consolidation table and produce qc-r1-consolidated.md
+Relevant files
+client/public/install/install-plenumnet-msi.ps1
+install-plenumnet-msi.ps1
+server/index.ts:1796-1841
+tools/plenum-launcher/plenum-app.toml
+ninja-exec/plenum-app.toml
+tools/plenum-launcher/src/main.rs:343
+.agents/skills/qc-r1-review/SKILL.md
+.agents/skills/security-engineer/SKILL.md
+.agents/skills/devops-automator/SKILL.md
+.agents/skills/plenumnet-integration/SKILL.md

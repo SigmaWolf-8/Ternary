@@ -1,0 +1,23 @@
+#92 - Fix MSI Installer Instant Failure
+What & Why
+The MSI installer (install-plenumnet-msi.bat / install-plenumnet-msi.ps1) fails instantly when users click it on Windows. The root cause is Unicode em dash characters (U+2014) in executable lines of the PowerShell script. When Windows PowerShell 5.1 downloads the file via Invoke-WebRequest, the em dashes get mangled (UTF-8 bytes misinterpreted as Windows-1252), causing cascading parse errors that prevent the script from executing at all. The .bat wrapper's UAC elevation escaping is also fragile for paths with spaces.
+
+Done looks like
+Clicking the downloaded .bat file on Windows 10/11 successfully launches the installer (UAC prompt appears, PowerShell banner prints, prerequisite checks begin)
+No parse errors on Windows PowerShell 5.1 with default encoding settings
+The .bat wrapper handles file paths containing spaces correctly during UAC re-elevation
+UTF-8 BOM is preserved when the server serves the .ps1 file
+Out of scope
+Functional changes to what the installer builds or installs
+Changes to comment-only lines (non-ASCII in comments is harmless)
+Changes to the legacy .bat installer (Install-PlenumNET.bat) or Unix installer
+Tasks
+In client/public/install/install-plenumnet-msi.ps1, replace all non-ASCII characters in executable (non-comment) lines with ASCII equivalents: line 30 em dash in trap block string, and any other executable lines with non-ASCII. Line 140 comment em dash should also be fixed for consistency.
+In the server-generated .bat wrapper (/api/install-msi.bat route in server/index.ts), replace the em dash in the echo line with a plain hyphen, and fix the UAC self-elevation escaping to properly handle file paths that contain spaces (the \\"%~f0\\" pattern needs quoting-safe escaping).
+Ensure the /api/install-msi server route serves the .ps1 with charset=utf-8 and preserves the BOM. Consider adding Content-Type: text/plain; charset=utf-8 and a X-Content-Type-Options: nosniff header.
+Sync the fix to the root-level copy at install-plenumnet-msi.ps1 so both copies are consistent.
+Verify the .bat wrapper's PowerShell download command uses -Encoding UTF8 or equivalent to ensure the BOM and encoding are preserved when saving the temp .ps1 file.
+Relevant files
+client/public/install/install-plenumnet-msi.ps1:30,140
+server/index.ts:1796-1841
+install-plenumnet-msi.ps1:25-45
