@@ -756,7 +756,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   app.get("/api/salvi/inter-cube/monitor", (_req, res) => {
-    const monitorPath = path.resolve(process.cwd(), "services/inter-cube/monitor/array3-monitor-v8.html");
+    const monitorPath = path.resolve(process.cwd(), "services/inter-cube/monitor/array3-monitor-v9.html");
     res.setHeader("Content-Type", "text/html");
     res.setHeader("Cache-Control", "no-store");
     res.sendFile(monitorPath);
