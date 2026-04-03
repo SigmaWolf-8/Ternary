@@ -1,0 +1,136 @@
+#92 - Fix MSI Installer — Full Scope (Encoding + Products + Manifests)
+What & Why
+The MSI installer has multiple issues discovered during QC-R1 review:
+
+Script divergence — Two copies exist: the served version (client/public/install/install-plenumnet-msi.ps1, 724 lines) only installs the Launcher. The root version (install-plenumnet-msi.ps1, 527 lines) installs all three products (Launcher, Inter-Cube Daemon, NinjaExec). The served version is what users get. They're getting an incomplete installation.
+
+Missing products — The served installer's $Products array contains only PlenumNET-Launcher. NinjaExec and Inter-Cube Daemon are completely absent from $Products and $allCrates. The root version has all three.
+
+Unicode encoding crash — Em dash characters (U+2014) on lines 30 and 140 of the served .ps1 cause Windows PowerShell 5.1 to fail with parse errors when downloaded via Invoke-WebRequest.
+
+ErrorActionPreference divergence — Root version uses "Stop" (correct for installer). Served version uses "Continue" (errors are silently swallowed).
+
+.bat wrapper bugs — Em dash in echo line. UAC self-elevation doesn't handle paths with spaces. No -Encoding UTF8 on the download command.
+
+Tray agent behavior undisclosed — Both Launcher and NinjaExec are kind = "tray_agent" with autostart = true. The installer never tells the user these apps will auto-start in the Windows system tray.
+
+QC-R1 Findings (6 agents reviewed)
+Agent 1: Security Engineer
+Finding R1-A1-1
+Section: NinjaExec passphrase handling in first_run
+Severity: CRITICAL
+Finding: The NinjaExec manifest (ninja-exec/plenum-app.toml) defines type = "prompt_passphrase" in first_run actions, then passes it via env_passphrase = "PLENUM_PASSPHRASE" to ninja-exec init. The passphrase is set as an environment variable, which persists in the process environment table. On Windows, environment variables are visible via Get-Process | ForEach-Object { $_.StartInfo.EnvironmentVariables } and in crash dumps. The passphrase should be passed via stdin pipe or a temp file with restricted ACLs, not an environment variable.
+Recommendation: Change the first_run action to pass the passphrase via stdin: type = "pipe_stdin" instead of env_passphrase. The ninja-exec init command should read from stdin, not an environment variable. If env var is kept, it must be zeroed immediately after use: [System.Environment]::SetEnvironmentVariable("PLENUM_PASSPHRASE", $null).
+Verification: After ninja-exec init completes, verify $env:PLENUM_PASSPHRASE is null. Verify no crash dump contains the passphrase.
+Finding R1-A1-2
+Section: .bat wrapper UAC elevation (server/index.ts:1827)
+Severity: IMPORTANT
+Finding: The UAC self-elevation uses Start-Process cmd.exe -Verb RunAs -ArgumentList '/c \"%~f0\"'. If the .bat file path contains spaces (e.g., C:\Users\John Smith\Downloads\install-plenumnet-msi.bat), the quoting breaks and cmd executes the wrong path. The \" escaping inside the PowerShell string is fragile.
+Recommendation: Use double-quoting: -ArgumentList '/c """%~f0"""' or save to a known path without spaces first.
+Verification: Download the .bat to C:\Users\Test User\Downloads\. Double-click it. Verify UAC prompt appears and the installer runs.
+Finding R1-A1-3
+Section: Served .ps1 ErrorActionPreference = "Continue" (line 25)
+Severity: IMPORTANT
+Finding: The served version uses $ErrorActionPreference = "Continue", which means errors in prerequisite checks (Git, Rust, MSVC, .NET) are silently swallowed. The installer may proceed with missing tools and fail later with a confusing error. The root version correctly uses "Stop".
+Recommendation: Change to "Stop" to match the root version. All prerequisite checks should halt on failure.
+Verification: Remove Git from PATH. Run the installer. Verify it stops with a clear error message at the Git check, not later during git clone.
+Finding R1-A1-4
+Section: .bat wrapper download encoding (server/index.ts:1832)
+Severity: IMPORTANT
+Finding: The Invoke-WebRequest command doesn't specify -Encoding UTF8. Windows PowerShell 5.1 defaults to the system's ANSI codepage. The UTF-8 BOM in the .ps1 file may be stripped or misinterpreted, causing the em dash characters to produce parse errors.
+Recommendation: Use [System.IO.File]::WriteAllText($psFile, (Invoke-WebRequest ...).Content, [System.Text.Encoding]::UTF8) or use Invoke-RestMethod with explicit encoding.
+Verification: On a Windows 10 machine with default ANSI codepage (Windows-1252), download and run the .bat. Verify no parse errors.
+Agent 2: DevOps Automator
+Finding R1-A2-1
+Section: Script divergence — two installer copies
+Severity: CRITICAL
+Finding: The root version (install-plenumnet-msi.ps1, 527 lines) contains all 3 products and 4 crates. The served version (client/public/install/install-plenumnet-msi.ps1, 724 lines) contains only the Launcher and 2 crates. Users downloading from /api/install-msi get an incomplete installation. There is no build step or CI check that ensures these are synchronized.
+Recommendation: Eliminate one copy. The root version should be the single source of truth. The server route should serve the root version directly: res.sendFile(path.resolve(process.cwd(), "install-plenumnet-msi.ps1")). Delete the served copy or replace it with a symlink.
+Verification: diff install-plenumnet-msi.ps1 client/public/install/install-plenumnet-msi.ps1 should show no differences (or one should not exist).
+Finding R1-A2-2
+Section: Missing Inter-Cube Daemon in served $Products
+Severity: CRITICAL
+Finding: The Inter-Cube Daemon (inter-cube crate) is in the root version's $Products but absent from the served version. Users get no daemon installation. The CI test test-inter-cube.ps1 exists but is never exercised by the served installer.
+Recommendation: Add Inter-Cube Daemon to the served version's $Products array, or eliminate the served copy per R1-A2-1.
+Verification: Run the served installer. Verify inter-cube-daemon.exe is built and installed.
+Finding R1-A2-3
+Section: Missing NinjaExec in served $Products
+Severity: CRITICAL
+Finding: NinjaExec (ninja-exec crate) is in the root version's $Products but absent from the served version. Users get no signing agent. The CI test test-ninja-exec.ps1 exists and expects registry entries, install dir, and passphrase handling — all unreachable from the served installer.
+Recommendation: Add NinjaExec to the served version's $Products array, or eliminate the served copy per R1-A2-1.
+Verification: Run the served installer. Verify ninja-exec.exe is built and installed.
+Finding R1-A2-4
+Section: Unicode em dash in executable lines (lines 30, 140)
+Severity: IMPORTANT
+Finding: Em dash characters (U+2014) on lines 30 and 140 of the served .ps1 cause parse errors on Windows PowerShell 5.1 when the file encoding is mangled during download. This is the root cause of the "instant crash on click" bug.
+Recommendation: Replace all U+2014 em dashes with ASCII hyphens (- or --) in executable lines. Line 30: "FATAL ERROR — installer crashed" → "FATAL ERROR -- installer crashed". Line 140: same pattern.
+Verification: Download via Invoke-WebRequest on PowerShell 5.1. Verify no parse errors.
+Finding R1-A2-5
+Section: .bat wrapper em dash (server/index.ts:1818)
+Severity: IMPORTANT
+Finding: The .bat echo line contains Capomastro Holdings Ltd. — Applied Physics Division with a Unicode em dash. cmd.exe may not render this correctly depending on the console codepage.
+Recommendation: Replace with ASCII: Capomastro Holdings Ltd. -- Applied Physics Division.
+Verification: Run the .bat on a default Windows 10 console. Verify the banner displays correctly.
+Agent 3: PlenumNET Integration Specialist
+Finding R1-A3-1
+Section: Tray agent autostart undisclosed
+Severity: IMPORTANT
+Finding: Both plenum-app.toml manifests define kind = "tray_agent" with autostart = true. The installer builds and installs these but never tells the user: (a) these apps will run in the Windows system tray, (b) they will auto-start with Windows, (c) what the tray icon means, (d) how to stop/disable autostart. For NinjaExec specifically, a signing agent running silently in the tray without user awareness is a security concern.
+Recommendation: The installer should display a summary before MSI installation: "The following will be installed and auto-start with Windows: PlenumNET Launcher (system tray hub), NinjaExec (signing agent)." Add a prompt or at minimum a clear banner.
+Verification: Run the installer. Verify a pre-install summary shows all products, their tray behavior, and autostart status.
+Finding R1-A3-2
+Section: NinjaExec passphrase prompt in first_run
+Severity: IMPORTANT
+Finding: The NinjaExec manifest specifies type = "prompt_passphrase" with min_length = 12 and confirm = true. This is a good UX pattern, but the plenum-pack build tool must implement this prompt type. If plenum-pack doesn't support it yet, the first_run action silently fails and NinjaExec starts without key material. Cross-reference: the CI test test-ninja-exec.ps1 passes the passphrase via a temp file (PASSPHRASE_FILE), not via the prompt mechanism.
+Recommendation: Verify that plenum-pack implements the prompt_passphrase first_run action type. If not implemented, file a blocking dependency.
+Verification: Run plenum-pack build for NinjaExec in dry-run mode. Verify the passphrase prompt appears during first_run.
+Finding R1-A3-3
+Section: Inter-Cube Daemon manifest missing
+Severity: IMPORTANT
+Finding: The root $Products array references ManifestDir = "services/inter-cube" for the Inter-Cube Daemon, but no plenum-app.toml exists at services/inter-cube/plenum-app.toml. The daemon uses deploy-yoda.ps1 for deployment, not the MSI framework. Either a manifest needs to be created, or the daemon should be excluded from the MSI installer with documentation explaining why.
+Recommendation: Create services/inter-cube/plenum-app.toml defining the daemon as kind = "service" (not tray_agent), or remove it from the root $Products and document that daemon deployment uses deploy-yoda.ps1 instead.
+Verification: Check services/inter-cube/plenum-app.toml exists and is valid, OR confirm the daemon is intentionally excluded with documented rationale.
+QC-R1 Consolidation Table
+#	Finding ID	Agent	Severity	Finding Summary
+1	R1-A1-1	Security	CRITICAL	NinjaExec passphrase exposed via env var
+2	R1-A2-1	DevOps	CRITICAL	Two divergent installer copies, served is incomplete
+3	R1-A2-2	DevOps	CRITICAL	Inter-Cube Daemon missing from served installer
+4	R1-A2-3	DevOps	CRITICAL	NinjaExec missing from served installer
+5	R1-A1-2	Security	IMPORTANT	.bat UAC elevation breaks on paths with spaces
+6	R1-A1-3	Security	IMPORTANT	ErrorActionPreference = "Continue" swallows errors
+7	R1-A1-4	Security	IMPORTANT	.bat download doesn't preserve UTF-8 encoding
+8	R1-A2-4	DevOps	IMPORTANT	Unicode em dash causes PowerShell 5.1 parse errors
+9	R1-A2-5	DevOps	IMPORTANT	.bat echo line has Unicode em dash
+10	R1-A3-1	Integration	IMPORTANT	Tray agent autostart behavior not disclosed to user
+11	R1-A3-2	Integration	IMPORTANT	NinjaExec prompt_passphrase may not be implemented
+12	R1-A3-3	Integration	IMPORTANT	Inter-Cube Daemon has no plenum-app.toml manifest
+QC-R1 Verdict: FAIL (4 CRITICAL)
+Done looks like
+Single source of truth: ONE installer script (root version) served by the Express route
+All three products in $Products: Launcher, NinjaExec, Inter-Cube Daemon (or daemon excluded with documented rationale)
+All four crates in $allCrates: plenum-launcher, plenum-launcher-elevate, inter-cube (if included), ninja-exec
+Em dashes replaced with ASCII in all executable lines
+$ErrorActionPreference = "Stop"
+.bat wrapper: ASCII-only, paths-with-spaces safe, UTF-8 download
+Inter-Cube Daemon either has a plenum-app.toml or is explicitly excluded from MSI (uses deploy-yoda.ps1)
+Pre-install summary banner showing all products, tray behavior, and autostart status
+NinjaExec passphrase handling via stdin or ACL-protected temp file, not env var
+Tasks
+Eliminate script divergence — Make the server route serve the root install-plenumnet-msi.ps1 directly. Delete or replace client/public/install/install-plenumnet-msi.ps1 with a copy of root.
+Fix encoding — Replace all Unicode em dashes with ASCII in executable lines of the authoritative script.
+Fix ErrorActionPreference — Ensure the authoritative script uses "Stop".
+Fix .bat wrapper — ASCII em dash, paths-with-spaces UAC elevation, UTF-8 download encoding.
+Verify/create Inter-Cube manifest — Either create services/inter-cube/plenum-app.toml or document exclusion.
+Add pre-install summary — Banner showing products, tray behavior, autostart status.
+Fix NinjaExec passphrase delivery — Change from env var to stdin pipe or ACL-protected temp file.
+Verify prompt_passphrase implementation — Confirm plenum-pack supports this first_run action type.
+Relevant files
+install-plenumnet-msi.ps1 (root — authoritative, 527 lines, 3 products)
+client/public/install/install-plenumnet-msi.ps1 (served — diverged, 724 lines, 1 product)
+server/index.ts:1796-1841 (.bat and .ps1 routes)
+tools/plenum-launcher/plenum-app.toml (Launcher manifest)
+ninja-exec/plenum-app.toml (NinjaExec manifest)
+services/inter-cube/deploy-yoda.ps1 (daemon deployer)
+tools/plenum-pack/ci-tests/test-ninja-exec.ps1
+tools/plenum-pack/ci-tests/test-plenum-launcher.ps1
+tools/plenum-pack/ci-tests/test-inter-cube.ps1
