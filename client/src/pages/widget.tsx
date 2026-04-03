@@ -1,3 +1,7 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+
 import { LauncherProvider } from "@/components/LauncherPanel";
 
 export default function WidgetPage() {

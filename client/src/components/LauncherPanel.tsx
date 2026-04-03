@@ -1,3 +1,7 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+
 /**
  * PlenumNET Launcher — slide-up panel for managing PlenumNET applications.
  *
@@ -1095,7 +1099,7 @@ function LauncherPanelInner() {
           .then((res) => {
             if (res.ok) {
               return res.json().then((data: Record<string, unknown>) => {
-                const newStatus = typeof data.status === "string" ? data.status as ProductStatusPayload["status"] : (action === "stop" ? "stopped" : "running");
+                const newStatus: Product["status"] = typeof data.status === "string" ? data.status as Product["status"] : (action === "stop" ? "stopped" : "running");
                 setProducts((ps) => ps.map((p) => (p.id === id ? { ...p, status: newStatus } : p)));
               });
             }

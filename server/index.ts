@@ -2660,8 +2660,9 @@ function startPqtiService(): ChildProcess | null {
 
             try {
               let responseContent: string;
-              if (yodaPipelineHandler) {
-                responseContent = await yodaPipelineHandler(messageText, sessionId, sequence, daemonRepC);
+              const handler = yodaPipelineHandler;
+              if (handler) {
+                responseContent = await handler(messageText, sessionId, sequence, daemonRepC);
               } else {
                 responseContent = `Message received in session ${sessionId} (seq #${sequence}). Yoda relay is active — AI pipeline integration pending cloud-side deployment.`;
               }
