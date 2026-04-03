@@ -69,8 +69,8 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v0.6.0"
-$RELEASE_TAG      = "v0.6.0"
+$DEPLOYER_VERSION = "v2.4.1"
+$RELEASE_TAG      = "v2.4.1"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
 $BASE_PORT        = 11111
@@ -548,6 +548,14 @@ if ($preStartHash -ne $binarySha256) {
 Write-Host ""
 Write-Host "STEP 5/11: Building and configuring NinjaExec signing agent" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
+
+Stop-Service -Name "PlenumNET-NinjaExec" -Force -ErrorAction SilentlyContinue
+$runningNinja = Get-Process -Name "ninja-exec" -ErrorAction SilentlyContinue
+if ($runningNinja) {
+    Write-Host "  [WARN] Stopping running NinjaExec process..." -ForegroundColor Yellow
+    $runningNinja | Stop-Process -Force
+    Start-Sleep -Seconds 2
+}
 
 Write-Host "  [INFO] Building NinjaExec signing agent..." -ForegroundColor White
 Write-Host "         This typically takes 3-10 minutes (shares compiled dependencies)." -ForegroundColor DarkGray
