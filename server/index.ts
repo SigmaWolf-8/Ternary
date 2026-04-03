@@ -1117,7 +1117,7 @@ function startPqtiService(): ChildProcess | null {
   });
 
   const CRS_ADDRESS = "111.111.111.111.1";
-  const CRS_VERSION = "2.4.4";
+  const CRS_VERSION = "2.4.5";
 
   const crsCircuitBreaker = new CircuitBreaker("crs-verification", 5, 30_000, (name, state) => {
     const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;

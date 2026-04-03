@@ -69,8 +69,8 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v2.4.4"
-$RELEASE_TAG      = "v2.4.4"
+$DEPLOYER_VERSION = "v2.4.5"
+$RELEASE_TAG      = "v2.4.5"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
 $BASE_PORT        = 11111
@@ -2088,10 +2088,12 @@ Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  ── Upgrade Notes (v2.4.4) ──" -ForegroundColor Cyan
-Write-Host "  What changed:" -ForegroundColor DarkGray
-Write-Host "    - Slot registry loading now logs diagnostic messages ([SLOTS-N*] prefix)" -ForegroundColor DarkGray
+Write-Host "  ── Upgrade Notes (v2.4.5) ──" -ForegroundColor Cyan
+Write-Host "  What changed (cumulative v2.4.4 + v2.4.5):" -ForegroundColor DarkGray
+Write-Host "    - Slot registry: BOM-tolerant JSON parser, BOM-free file writes" -ForegroundColor DarkGray
+Write-Host "    - CRS slot (1.1.1) now probes correctly (self-hosted service detection)" -ForegroundColor DarkGray
 Write-Host "    - Gateway slot 2.2.2 auto-registered on coordinator node" -ForegroundColor DarkGray
+Write-Host "    - [SLOTS-N*] diagnostic logging for slot registry loading" -ForegroundColor DarkGray
 Write-Host "    - Monitor sends auth header and shows per-node error details" -ForegroundColor DarkGray
 Write-Host "    - Deployer verifies slot counts with retry (3 attempts)" -ForegroundColor DarkGray
 Write-Host "  Re-running this deployer on an existing cluster is safe:" -ForegroundColor DarkGray
