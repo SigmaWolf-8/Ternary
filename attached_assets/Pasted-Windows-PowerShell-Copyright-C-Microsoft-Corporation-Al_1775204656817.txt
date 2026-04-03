@@ -1,0 +1,79 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> # Set the env vars and run the daemon directly
+>> $env:CUBE_MODE="crs"
+>> $env:CUBE_NODE_ID="1"
+>> $env:CUBE_API_PORT="11124"
+>> $env:CUBE_TERMINAL_PORT="11122"
+>> $env:CUBE_ENDPOINT="10.0.0.42:11124"
+>> $env:CUBE_IDENTITY_DIR="C:\PlenumNET\plenumnet-data\identity-1"
+>> $env:CUBE_IDENTITY_PASSPHRASE=(Get-Content "C:\PlenumNET\plenumnet-data\identity-1\.passphrase")
+>> $env:PLENUM_SLOT_REGISTRY_FILE="C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-1.json"
+>> $env:RELAY_URL="https://plenumnet.replit.app"
+>> $env:CUBE_ARRAY3_PEERS="127.0.0.1:11149,127.0.0.1:11176"
+>> Set-Location "C:\PlenumNET"
+>> & "C:\PlenumNET\target\release\inter-cube-daemon.exe" 2>&1 | Select-Object -First 50
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v2.4.3
+  Wire Protocol: V3
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[IDENTITY] WARNING: Failed to decrypt C:\PlenumNET\plenumnet-data\identity-1\master.key: decryption failed (wrong passphrase or corrupted)
+[IDENTITY] Generating fresh master secret
+[IDENTITY] Master secret encrypted and saved to C:\PlenumNET\plenumnet-data\identity-1\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0203010302010102...)
+[CRS] Registered with address: 1111111111111
+[CRS] PT26-DSA identity: 0203010302010102...
+[CRS] 26 neighbors: 0 registered, 26 awaiting
+[CON] Overlay: 0 up, 26 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: db39e44d5e2731ba...)
+[IDENTITY] CRS registry updated with address-bound key
+
+=== Inter-Cube Stack Active ===
+  Address:       111.111.111.111.1 (1111111111111)
+  Address space: 1 / 1594323 used
+  Dimensions:    13
+  Neighbors:     26
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Wire:          V3 (min V2)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+  Node ID:       1 (Rep C)
+  Array3 peers:  127.0.0.1:11149, 127.0.0.1:11176
+
+  CRS -> CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+inter-cube-daemon.exe : [SLOTS] Slots endpoint serving unauthenticated traffic ΓÇö set PLENUM_SLOTS_AUTH_REQUIRED=true
+and PLENUM_API_KEY to enforce auth
+At line:13 char:1
++ & "C:\PlenumNET\target\release\inter-cube-daemon.exe" 2>&1 | Select-O ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([SLOTS] Slots e...to enforce auth:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+[SLOTS] WARNING: Failed to parse PLENUM_SLOT_REGISTRY JSON: expected value at line 1 column 1. All slots will have
+service_type: null
+  Relay:         https://plenumnet.replit.app (WebSocket, TL-DSA-87 challenge-response)
+
+[ws-relay] Establishing relay connection to https://plenumnet.replit.app...
+[ws-relay] Inference dispatch target: http://127.0.0.1:11125/v1/chat/completions
+
+=== HTTP Server (CRS) ===
+  http://127.0.0.1:11124
+  Peer port:     11123
+  Terminal port: 11122 (WebSocket PTY)
+  14 API + 5 VM + 3 cluster routes active
+  Ready for cube registrations. Ctrl+C to stop.
+
+[ops] Operations handler initialized for node 1111111111111
+[yoda-chat] Verifier initialized for daemon 1111111111111 with 0 authorized operators
+[CRS] FATAL: Cannot bind to 127.0.0.1:11124 ΓÇö Only one usage of each socket address (protocol/network address/port)
+is normally permitted. (os error 10048). Check that the port is not already in use and that you have permission to
+bind.
+PS C:\PlenumNET>
