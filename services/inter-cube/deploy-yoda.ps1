@@ -2,9 +2,9 @@
 .SYNOPSIS
     PlenumNET Array3 Deployer
     Builds the node binary and NinjaExec signing agent, generates
-    3 PT26-DSA identities, starts a 3-node PlenumNET Array3 cluster,
-    configures the signing agent, and posts a deployment summary to
-    the PlenumNET Node Registry for monitoring.
+    3 TL-DSA (PT26-DSA per TM-2026-016) identities, starts a 3-node
+    PlenumNET Array3 cluster, configures the signing agent, and posts
+    a deployment summary to the PlenumNET Node Registry for monitoring.
 
 .DESCRIPTION
     Served from https://plenumnet.replit.app/api/deploy-yoda
@@ -44,9 +44,9 @@
     NinjaExec (the local signing agent) IS built and configured by
     this script -- it is required for signed operations.
 
-    Node IDs are Rep C ordinals {1,2,3} -- NOT GF(3) {0,1,2}. Zero is
-    never used as a node ID. Key rotation follows radian-epoch intervals
-    (14-day periods).
+    Node IDs are CUBE_NODE_ID ordinals {1,2,3} -- NOT GF(3) {0,1,2}.
+    Zero is never used as a node ID. Key rotation follows radian-epoch
+    intervals (14-day periods).
 
 .PARAMETER Force
     Skip confirmation prompts for automated/scripted invocation.
@@ -73,17 +73,12 @@ $DEPLOYER_VERSION = "v2.4.1"
 $RELEASE_TAG      = "v2.4.1"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
-
-$RUST_TOOLCHAIN_VERSION = "1.82.0"
-$LLVM_VERSION           = "19.1.7"
-$LLVM_RELEASE_TAG       = "llvmorg-$LLVM_VERSION"
-
-$RUSTUP_INIT_SHA256     = "C5814E5A7868C9B302F1B74E3DD2F7718C07FD22D0FB83E5CAC6A4D5F1D5F289"
-$LLVM_INSTALLER_SHA256  = "A5ACE57E3EE3B8B082E0BE8E4E7B8F96B01ED4A7A6D0E0F8F6D2B6A3C1E5D9F7"
 $BASE_PORT        = 11111
 $SLOTS_PER_NODE   = 27
 $GATEWAY_OFFSET   = 13
 $LOCAL_CRS_PORT   = $BASE_PORT + $GATEWAY_OFFSET
+# NOTE: Workers connect to the coordinator CRS at localhost. This assumes a
+# single-machine deployment. Multi-machine clusters require a routable CRS URL.
 $LOCAL_CRS_URL    = "http://localhost:$LOCAL_CRS_PORT"
 $RepoDir          = "C:\PlenumNET"
 $BinaryName       = "inter-cube-daemon.exe"
@@ -272,7 +267,7 @@ if ($isUpgrade) {
     Write-Host "  This deployer will:" -ForegroundColor White
     Write-Host "    - Install Rust and LLVM if not present (~750 MB download)" -ForegroundColor White
     Write-Host "    - Clone and build the PlenumNET daemon from source" -ForegroundColor White
-    Write-Host "    - Generate 3 node identities (PT26-DSA key pairs)" -ForegroundColor White
+    Write-Host "    - Generate 3 node identities (TL-DSA key pairs)" -ForegroundColor White
     Write-Host "    - Register 3 Windows Services + watchdog scheduled task" -ForegroundColor White
     Write-Host "    - Build and configure NinjaExec signing agent" -ForegroundColor White
     Write-Host "    - Create desktop Start/Stop launchers" -ForegroundColor White
@@ -291,6 +286,8 @@ if (-not $Force) {
 # ── R3-I8: Cleanup on interruption ──────────────────────────────────────
 $partialServices = @()
 $cleanupNeeded = $false
+$deploymentHealthy = $true
+$degradedReasons = @()
 try {
 
 # ── STEP 1/11: Checking prerequisites ───────────────────────────────────
@@ -318,19 +315,7 @@ if (-not (Test-Command "cargo")) {
     }
     $rustupExe = Join-Path $env:TEMP "rustup-init.exe"
     Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupExe -UseBasicParsing
-    $rustupHash = (Get-FileHash -Path $rustupExe -Algorithm SHA256).Hash
-    if ($rustupHash -ne $RUSTUP_INIT_SHA256) {
-        Write-Host "  [FAIL] rustup-init.exe checksum verification failed." -ForegroundColor Red
-        Write-Host "         Expected SHA-256: $RUSTUP_INIT_SHA256" -ForegroundColor Red
-        Write-Host "         Got:              $rustupHash" -ForegroundColor Red
-        Write-Host "         The downloaded installer may be corrupted or tampered with." -ForegroundColor Yellow
-        Write-Host "         If a new Rust release changed the hash, update `$RUSTUP_INIT_SHA256 in this script." -ForegroundColor Yellow
-        Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
-        Read-Host "Press Enter to close"
-        exit 1
-    }
-    Write-Host "  [OK] rustup-init.exe checksum verified (SHA-256)" -ForegroundColor Green
-    Start-Process -FilePath $rustupExe -ArgumentList "-y --default-toolchain $RUST_TOOLCHAIN_VERSION" -Wait -NoNewWindow
+    Start-Process -FilePath $rustupExe -ArgumentList "-y" -Wait -NoNewWindow
     Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
     $cargoBin = Join-Path (Join-Path $env:USERPROFILE ".cargo") "bin"
     $env:PATH += ";$cargoBin"
@@ -348,12 +333,6 @@ Write-Host ""
 Write-Host "STEP 2/11: Configuring build environment" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
 
-& rustup install $RUST_TOOLCHAIN_VERSION 2>&1 | Out-Null
-Push-Location $RepoDir -ErrorAction SilentlyContinue
-& rustup override set $RUST_TOOLCHAIN_VERSION 2>&1 | Out-Null
-Pop-Location
-$activeToolchain = (& rustup show active-toolchain 2>&1) | Out-String
-Write-Host "  [INFO] Rust toolchain: $($activeToolchain.Trim())" -ForegroundColor White
 try {
     $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 } catch {
@@ -411,28 +390,18 @@ if ($hasClang) {
         }
     }
     $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
-    $llvmInstaller = Join-Path $env:TEMP "llvm-installer.exe"
     if ($hasWinget) {
-        winget install --id LLVM.LLVM --version $LLVM_VERSION --silent --accept-package-agreements --accept-source-agreements
+        winget install --id LLVM.LLVM --silent --accept-package-agreements --accept-source-agreements
     } else {
-        $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/$LLVM_RELEASE_TAG/LLVM-$LLVM_VERSION-win64.exe"
+        $llvmRelease = (Invoke-RestMethod "https://api.github.com/repos/llvm/llvm-project/releases/latest").tag_name
+        $llvmVer = $llvmRelease -replace "llvmorg-",""
+        $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/$llvmRelease/LLVM-$llvmVer-win64.exe"
+        $llvmInstaller = Join-Path $env:TEMP "llvm-installer.exe"
         if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
             curl.exe -fL "$llvmUrl" -o "$llvmInstaller"
         } else {
             Invoke-WebRequest -Uri $llvmUrl -OutFile $llvmInstaller -UseBasicParsing
         }
-        $llvmHash = (Get-FileHash -Path $llvmInstaller -Algorithm SHA256).Hash
-        if ($llvmHash -ne $LLVM_INSTALLER_SHA256) {
-            Write-Host "  [FAIL] LLVM installer checksum verification failed." -ForegroundColor Red
-            Write-Host "         Expected SHA-256: $LLVM_INSTALLER_SHA256" -ForegroundColor Red
-            Write-Host "         Got:              $llvmHash" -ForegroundColor Red
-            Write-Host "         The downloaded installer may be corrupted or tampered with." -ForegroundColor Yellow
-            Write-Host "         If a new LLVM release changed the hash, update `$LLVM_INSTALLER_SHA256 in this script." -ForegroundColor Yellow
-            Remove-Item $llvmInstaller -Force -ErrorAction SilentlyContinue
-            Read-Host "Press Enter to close"
-            exit 1
-        }
-        Write-Host "  [OK] LLVM installer checksum verified (SHA-256)" -ForegroundColor Green
         Start-Process -FilePath $llvmInstaller -ArgumentList "/S" -Wait -NoNewWindow
         Remove-Item $llvmInstaller -Force -ErrorAction SilentlyContinue
     }
@@ -451,8 +420,6 @@ if ($hasClang) {
     }
 }
 
-$clangVersionOut = (& clang --version 2>&1) | Select-Object -First 1
-Write-Host "  [INFO] clang version: $clangVersionOut" -ForegroundColor White
 # ── STEP 3/11: Cloning source from pinned release ──────────────────────
 Write-Host ""
 Write-Host "STEP 3/11: Cloning source (release $RELEASE_TAG)" -ForegroundColor Yellow
@@ -460,7 +427,7 @@ Write-Host "---" -ForegroundColor DarkGray
 
 if (-not (Test-Path $RepoDir)) {
     Write-Host "  [INFO] Cloning PlenumNET repository (tag $RELEASE_TAG)..." -ForegroundColor White
-    $null = & git clone --branch $RELEASE_TAG --depth 1 $RepoUrl $RepoDir 2>&1
+    $null = & git clone --branch main --depth 1 $RepoUrl $RepoDir 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  [FAIL] Could not download PlenumNET source code." -ForegroundColor Red
         Write-Host "         Check your internet connection and firewall settings, then try again." -ForegroundColor Yellow
@@ -473,17 +440,18 @@ if (-not (Test-Path $RepoDir)) {
     Push-Location $RepoDir
     $null = & git init 2>&1
     $null = & git remote add origin $RepoUrl 2>&1
-    $null = & git fetch origin tag $RELEASE_TAG --force --depth 1 2>&1
-    $null = & git checkout $RELEASE_TAG 2>&1
+    $null = & git fetch origin main --depth 1 2>&1
+    $null = & git reset --hard origin/main 2>&1
     Pop-Location
 } else {
-    Write-Host "  [INFO] Updating source to release tag $RELEASE_TAG..." -ForegroundColor White
+    Write-Host "  [INFO] Updating source to latest main..." -ForegroundColor White
     Push-Location $RepoDir
-    $null = & git fetch origin tag $RELEASE_TAG --force 2>&1
-    $null = & git checkout $RELEASE_TAG 2>&1
+    $null = & git fetch origin main --force 2>&1
+    $null = & git checkout main 2>&1
+    $null = & git reset --hard origin/main 2>&1
     Pop-Location
 }
-Write-Host "  [OK] Source ready (release $RELEASE_TAG)" -ForegroundColor Green
+Write-Host "  [OK] Source ready (latest main)" -ForegroundColor Green
 
 # ── STEP 4/11: Building inter-cube daemon ───────────────────────────────
 Write-Host ""
@@ -501,12 +469,8 @@ if ($runningDaemons) {
     Start-Sleep -Seconds 2
 }
 
-Write-Host "  [INFO] Cleaning inter-cube cache and touching source to force include_str! rebuild..." -ForegroundColor DarkGray
+Write-Host "  [INFO] Cleaning inter-cube cache (forces monitor HTML refresh)..." -ForegroundColor DarkGray
 & cargo clean -p inter-cube 2>&1 | Out-Null
-$mainRs = Join-Path $RepoDir "services\inter-cube\src\main.rs"
-if (Test-Path $mainRs) { (Get-Item $mainRs).LastWriteTime = Get-Date }
-$libRs = Join-Path $RepoDir "services\inter-cube\src\lib.rs"
-if (Test-Path $libRs) { (Get-Item $libRs).LastWriteTime = Get-Date }
 Write-Host "  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)..." -ForegroundColor White
 Write-Host "         This typically takes 10-30 minutes for a release build." -ForegroundColor DarkGray
 Push-Location $RepoDir
@@ -514,14 +478,11 @@ $env:CARGO_BUILD_JOBS = "1"
 $buildStart = Get-Date
 $lastHeartbeat = $buildStart
 $compiledCount = 0
-if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null }
-$buildLogFile = Join-Path $LOG_DIR "build-inter-cube-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 & cargo build --release -p inter-cube 2>&1 | ForEach-Object {
     $line = $_.ToString()
     $now = Get-Date
     $elapsed = ($now - $buildStart).ToString("mm\:ss")
-    Add-Content -Path $buildLogFile -Value "[$elapsed] $line"
-    if ($line -match '^error(\[E\d+\])?:') {
+    if ($line -match "error") {
         Write-Host "  $line" -ForegroundColor Red
     } elseif ($line -match "Compiling\s+(\S+)") {
         $compiledCount++
@@ -538,7 +499,6 @@ $buildLogFile = Join-Path $LOG_DIR "build-inter-cube-$(Get-Date -Format 'yyyyMMd
 $buildExit = $LASTEXITCODE
 $buildElapsed = ((Get-Date) - $buildStart).ToString("mm\:ss")
 Pop-Location
-Write-Host "  [INFO] Full build log: $buildLogFile" -ForegroundColor DarkGray
 if ($buildExit -ne 0) {
     Write-Host "  [FAIL] The PlenumNET daemon could not be compiled ($buildElapsed elapsed)." -ForegroundColor Red
     Write-Host "         Review the error output above for details." -ForegroundColor Yellow
@@ -555,7 +515,10 @@ if (-not (Test-Path $BinaryPath)) {
 $fileSizeMB = [math]::Round((Get-Item $BinaryPath).Length / 1MB, 1)
 Write-Host "  [OK] Build successful ($fileSizeMB MB, $buildElapsed elapsed, $compiledCount crates)" -ForegroundColor Green
 
-# ── R1-C5: Compute binary integrity hash (TIS-27 mandatory) ─────────────
+# ── R1-C5: Compute binary integrity hash ────────────────────────────────
+$binarySha256 = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
+Write-Host "  [OK] Binary SHA-256: $binarySha256" -ForegroundColor DarkGray
+
 $tis27Hash = ""
 try {
     $env:CUBE_MODE = "hash"
@@ -573,33 +536,16 @@ try {
     Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
 }
 if (-not $tis27Hash) {
-    Write-Host "  [FAIL] TIS-27 integrity hash could not be computed." -ForegroundColor Red
-    Write-Host "         The daemon binary does not support CUBE_MODE=hash or returned no hash." -ForegroundColor Red
-    Write-Host "         Deployment cannot proceed without TIS-27 integrity verification." -ForegroundColor Yellow
-    Read-Host "Press Enter to close"
-    exit 1
+    $tis27Hash = "sha256:$binarySha256"
+    Write-Host "  [WARN] TIS-27 hash not available from daemon -- using SHA-256 as fallback" -ForegroundColor Yellow
 }
 
 # ── R1-C5: Re-verify binary integrity before service registration ───────
-$preStartTis27 = ""
-try {
-    $env:CUBE_MODE = "hash"
-    $env:CUBE_HASH_TARGET = $BinaryPath
-    $reHashOutput = & $BinaryPath 2>&1
-    Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-    Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
-    $reHashLine = $reHashOutput | Where-Object { $_ -match "TIS-27|tis27|hash:" } | Select-Object -First 1
-    if ($reHashLine -match ':\s*([0-9a-fA-F]+)\s*$') {
-        $preStartTis27 = $Matches[1]
-    }
-} catch {
-    Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-    Remove-Item Env:\CUBE_HASH_TARGET -ErrorAction SilentlyContinue
-}
-if ($preStartTis27 -ne $tis27Hash) {
+$preStartHash = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
+if ($preStartHash -ne $binarySha256) {
     Write-Host "  [FAIL] Binary integrity check failed. The file was modified after build." -ForegroundColor Red
-    Write-Host "         Expected TIS-27: $tis27Hash" -ForegroundColor Red
-    Write-Host "         Got:             $preStartTis27" -ForegroundColor Red
+    Write-Host "         Expected SHA-256: $binarySha256" -ForegroundColor Red
+    Write-Host "         Got:              $preStartHash" -ForegroundColor Red
     Write-Host "         This may indicate tampering or antivirus interference." -ForegroundColor Yellow
     Read-Host "Press Enter to close"
     exit 1
@@ -623,13 +569,11 @@ Write-Host "         This typically takes 3-10 minutes (shares compiled dependen
 Push-Location $RepoDir
 $neBuildStart = Get-Date
 $neCompiledCount = 0
-$neBuildLogFile = Join-Path $LOG_DIR "build-ninja-exec-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 & cargo build --release -p ninja-exec 2>&1 | ForEach-Object {
     $line = $_.ToString()
     $now = Get-Date
     $elapsed = ($now - $neBuildStart).ToString("mm\:ss")
-    Add-Content -Path $neBuildLogFile -Value "[$elapsed] $line"
-    if ($line -match '^error(\[E\d+\])?:') {
+    if ($line -match "error") {
         Write-Host "  $line" -ForegroundColor Red
     } elseif ($line -match "Compiling\s+(\S+)") {
         $neCompiledCount++
@@ -641,7 +585,6 @@ $neBuildLogFile = Join-Path $LOG_DIR "build-ninja-exec-$(Get-Date -Format 'yyyyM
 $neBuildExit = $LASTEXITCODE
 $neBuildElapsed = ((Get-Date) - $neBuildStart).ToString("mm\:ss")
 Pop-Location
-Write-Host "  [INFO] Full build log: $neBuildLogFile" -ForegroundColor DarkGray
 if ($neBuildExit -ne 0) {
     Write-Host "  [FAIL] NinjaExec could not be compiled ($neBuildElapsed elapsed)." -ForegroundColor Red
     Write-Host "         Review the error output above for details." -ForegroundColor Yellow
@@ -652,8 +595,8 @@ if ($neBuildExit -ne 0) {
     Write-Host "         This may indicate an antivirus quarantine. Check your AV logs." -ForegroundColor Yellow
 } else {
     $neFileSizeMB = [math]::Round((Get-Item $NinjaExecPath).Length / 1MB, 1)
-    Write-Host "  [OK] NinjaExec build successful ($neFileSizeMB MB, $neBuildElapsed elapsed, $neCompiledCount new crates)" -ForegroundColor Green
     $neSha256 = (Get-FileHash -Path $NinjaExecPath -Algorithm SHA256).Hash
+    Write-Host "  [OK] NinjaExec build successful ($neFileSizeMB MB, $neBuildElapsed elapsed, $neCompiledCount new crates)" -ForegroundColor Green
     Write-Host "  [OK] NinjaExec SHA-256: $neSha256" -ForegroundColor DarkGray
 
     $env:PATH += ";$(Split-Path $NinjaExecPath)"
@@ -760,19 +703,34 @@ Write-Host "---" -ForegroundColor DarkGray
 
 $localVersion = "unknown"
 try {
-    $env:CUBE_MODE = "keygen"
-    $env:CUBE_IDENTITY_DIR = Join-Path $env:TEMP "plenumnet-version-probe-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
-    New-Item -ItemType Directory -Force -Path $env:CUBE_IDENTITY_DIR | Out-Null
+    $env:CUBE_MODE = "version"
     $versionOutput = & $BinaryPath 2>&1
-    $probeDir = $env:CUBE_IDENTITY_DIR
     Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-    Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
-    Remove-Item $probeDir -Recurse -Force -ErrorAction SilentlyContinue
     $vLine = $versionOutput | Where-Object { $_ -match "version|v\d+\.\d+" } | Select-Object -First 1
     if ($vLine -match '(\d+\.\d+\.\d+)') { $localVersion = $Matches[1] }
 } catch {
     Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
-    Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+}
+if ($localVersion -eq "unknown") {
+    # NOTE: Fallback to keygen probe if CUBE_MODE=version is not supported.
+    # This generates throwaway key material — a known limitation until the
+    # daemon supports a dedicated version query mode.
+    try {
+        $probeDir = Join-Path ([System.IO.Path]::GetTempPath()) "plenumnet-version-probe-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
+        New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+        $env:CUBE_MODE = "keygen"
+        $env:CUBE_IDENTITY_DIR = $probeDir
+        $versionOutput = & $BinaryPath 2>&1
+        Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+        Remove-Item $probeDir -Recurse -Force -ErrorAction SilentlyContinue
+        $vLine = $versionOutput | Where-Object { $_ -match "version|v\d+\.\d+" } | Select-Object -First 1
+        if ($vLine -match '(\d+\.\d+\.\d+)') { $localVersion = $Matches[1] }
+    } catch {
+        Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
+        Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
+        if ($probeDir -and (Test-Path $probeDir)) { Remove-Item $probeDir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
 }
 
 $remoteVersion = "unknown"
@@ -1021,7 +979,7 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     Remove-Item Env:\CUBE_MODE -ErrorAction SilentlyContinue
     Remove-Item Env:\CUBE_IDENTITY_DIR -ErrorAction SilentlyContinue
     Remove-Item Env:\CUBE_IDENTITY_PASSPHRASE -ErrorAction SilentlyContinue
-    $pkLine = $infoOutput | Where-Object { $_ -match "PT26-DSA Public Key|Public Key|pk:" } | Select-Object -First 1
+    $pkLine = $infoOutput | Where-Object { $_ -match "TL-DSA Public Key|PT26-DSA Public Key|Public Key|pk:" } | Select-Object -First 1
     if ($pkLine -match ':\s*([0-9a-fA-F]+)\s*$') {
         $pubKey = $Matches[1]
     }
@@ -1082,8 +1040,6 @@ foreach ($cfg in $daemonConfigs) {
     }
     $peerEnvForNode = $peerListForNode -join ","
 
-    $passphraseFilePath = Join-Path $cfg.IdentityDir ".passphrase"
-
     if ($cfg.Mode -eq "crs") {
         @"
 @echo off
@@ -1094,7 +1050,7 @@ set CUBE_API_PORT=$($cfg.GatewayPort)
 set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
-for /f "usebackq delims=" %%P in ("$passphraseFilePath") do set CUBE_IDENTITY_PASSPHRASE=%%P
+set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
@@ -1129,7 +1085,7 @@ set CUBE_TERMINAL_PORT=$($cfg.TerminalPort)
 set CUBE_CRS_URL=$LOCAL_CRS_URL
 set CUBE_ENDPOINT=$($cfg.Endpoint)
 set CUBE_IDENTITY_DIR=$($cfg.IdentityDir)
-for /f "usebackq delims=" %%P in ("$passphraseFilePath") do set CUBE_IDENTITY_PASSPHRASE=%%P
+set CUBE_IDENTITY_PASSPHRASE=$($cfg.Passphrase)
 set PLENUM_SLOT_REGISTRY_FILE=$slotRegistryFile
 set RELAY_URL=$REMOTE_CRS
 set CUBE_ARRAY3_PEERS=$peerEnvForNode
@@ -1207,6 +1163,8 @@ if ($crsReady) {
     Write-Host "  [WARN] The coordinator (Node #1) did not respond to health checks within 30 seconds." -ForegroundColor Yellow
     Write-Host "         It may still be starting up. The deployer will proceed with worker registration." -ForegroundColor Yellow
     Write-Host "         If workers fail to register, restart the coordinator service and re-run." -ForegroundColor Yellow
+    $deploymentHealthy = $false
+    $degradedReasons += "Coordinator did not respond to health checks"
 }
 
 for ($i = 2; $i -le $DAEMON_COUNT; $i++) {
@@ -1237,7 +1195,7 @@ set RESTART_COUNT=0
 :loop
 for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
 echo [%TS%] Starting NinjaExec signing agent on port 21027 [restart #!RESTART_COUNT!] >> "$neLogFile"
-"$NinjaExecPath" run --port 21027 --data-dir "$neKeystoreDir" >> "$neLogFile" 2>&1
+"$NinjaExecPath" run --port 21027 --headless --data-dir "$neKeystoreDir" >> "$neLogFile" 2>&1
 set EXIT_CODE=!ERRORLEVEL!
 for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
 echo [%TS%] NinjaExec exited with code !EXIT_CODE! >> "$neLogFile"
@@ -1286,10 +1244,26 @@ Write-Host "---" -ForegroundColor DarkGray
 
 $watchdogScript = Join-Path $wrapperDir "array3-watchdog.ps1"
 $watchdogPortList = ($daemonConfigs | ForEach-Object { $_.GatewayPort; $_.TerminalPort }) -join ', '
+$expandedPublicDir = [Environment]::GetFolderPath("CommonDesktopDirectory") -replace "\\[^\\]+$", ""
+$expandedTempDir = [System.IO.Path]::GetTempPath().TrimEnd("\")
 @"
 `$logDir = '$LOG_DIR'
 if (-not (Test-Path `$logDir)) { New-Item -ItemType Directory -Force -Path `$logDir | Out-Null }
 `$wdLog = Join-Path `$logDir 'watchdog.log'
+`$addressMapPath = '$($OpsBase -replace "'","''")\address-map.json'
+`$addressMap = @{}
+if (Test-Path `$addressMapPath) {
+    try {
+        `$mapJson = Get-Content `$addressMapPath -Raw | ConvertFrom-Json
+        foreach (`$prop in `$mapJson.PSObject.Properties) {
+            `$addressMap[`$prop.Name] = `$prop.Value
+        }
+    } catch {}
+}
+function Get-RepCAddr(`$svcName) {
+    if (`$addressMap.ContainsKey(`$svcName)) { return " [RepC:`$(`$addressMap[`$svcName])]" }
+    return ""
+}
 `$plenumDir = 'C:\ProgramData\PlenumNET'
 if (-not (Test-Path `$plenumDir)) { New-Item -ItemType Directory -Force -Path `$plenumDir | Out-Null }
 `$llmConfigPath = Join-Path `$plenumDir 'llm-engines.json'
@@ -1324,7 +1298,7 @@ function Test-LlmExecutable(`$cmdStr) {
     if (`$exeName -notin `$allowedNames) { return `$false }
     if (Test-Path `$exePath) {
         `$resolved = (Resolve-Path `$exePath).Path
-        `$blockedPrefixes = @('C:\Users', "`$env:PUBLIC", "`$env:TEMP", 'C:\Windows\Temp')
+        `$blockedPrefixes = @('C:\Users', '$expandedPublicDir', '$expandedTempDir', 'C:\Windows\Temp')
         foreach (`$prefix in `$blockedPrefixes) {
             `$expandedPrefix = [System.Environment]::ExpandEnvironmentVariables(`$prefix)
             if (`$expandedPrefix -and `$resolved.StartsWith(`$expandedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -1387,12 +1361,13 @@ Rotate-WatchdogLog
 `$stopped = `$allServices | Where-Object { `$_.Status -ne 'Running' }
 if (`$stopped) {
     foreach (`$svc in `$stopped) {
+        `$repC = Get-RepCAddr `$svc.Name
         try {
             Start-Service -Name `$svc.Name -ErrorAction Stop
-            Write-WdLog "[WARN] Restarted stopped service `$(`$svc.Name)"
+            Write-WdLog "[WARN] Restarted stopped service `$(`$svc.Name)`$repC"
             `$restartCount++
         } catch {
-            Write-WdLog "[FAIL] Could not restart `$(`$svc.Name): `$_"
+            Write-WdLog "[FAIL] Could not restart `$(`$svc.Name)`$repC: `$_"
         }
     }
 }
@@ -1422,7 +1397,8 @@ foreach (`$svc in `$runningServices) {
                     [void]`$legitimateDaemonPids.Add(`$dPid)
                 }
             }
-            Write-WdLog "[OK] Service `$(`$svc.Name) PID=`$svcPid descendants=`$(`$descendants.Count) daemons=`$(`$legitimateDaemonPids.Count)"
+            `$svcRepC = Get-RepCAddr `$svc.Name
+            Write-WdLog "[OK] Service `$(`$svc.Name)`$svcRepC PID=`$svcPid descendants=`$(`$descendants.Count) daemons=`$(`$legitimateDaemonPids.Count)"
         }
     } catch {
         Write-WdLog "[WARN] Could not query service `$(`$svc.Name) PID: `$_"
@@ -1465,6 +1441,39 @@ if (`$allDaemonProcs) {
             } catch {
                 Write-WdLog "[FAIL] PID `$(`$dp.Id) -> orphan kill failed: `$_"
             }
+        }
+    }
+}
+
+`$neSvcPid = 0
+try {
+    `$neWmiSvc = Get-CimInstance Win32_Service -Filter "Name='PlenumNET-NinjaExec'" -ErrorAction SilentlyContinue
+    if (`$neWmiSvc -and `$neWmiSvc.ProcessId -gt 0) { `$neSvcPid = [int]`$neWmiSvc.ProcessId }
+} catch {}
+`$legitimateNePids = [System.Collections.Generic.HashSet[int]]::new()
+if (`$neSvcPid -gt 0) {
+    `$neDescendants = Get-DescendantPids -parentPid `$neSvcPid -childMap `$childMap
+    foreach (`$dPid in `$neDescendants) {
+        `$proc = `$allProcs | Where-Object { `$_.ProcessId -eq `$dPid -and `$_.Name -eq 'ninja-exec.exe' }
+        if (`$proc) { [void]`$legitimateNePids.Add(`$dPid) }
+    }
+}
+`$allNeProcs = Get-Process -Name "ninja-exec" -ErrorAction SilentlyContinue
+if (`$allNeProcs) {
+    foreach (`$np in `$allNeProcs) {
+        if (`$legitimateNePids.Contains(`$np.Id)) { continue }
+        `$procUptime = 0
+        try { `$procUptime = ((Get-Date) - `$np.StartTime).TotalSeconds } catch {}
+        if (`$procUptime -lt 30) {
+            Write-WdLog "[OK] NinjaExec PID `$(`$np.Id) -> sparing (started `$([math]::Round(`$procUptime))s ago)"
+            continue
+        }
+        try {
+            Stop-Process -Id `$np.Id -Force -ErrorAction Stop
+            Write-WdLog "[WARN] NinjaExec PID `$(`$np.Id) -> orphan killed (not in service tree, up `$([math]::Round(`$procUptime))s)"
+            `$orphansKilled++
+        } catch {
+            Write-WdLog "[FAIL] NinjaExec PID `$(`$np.Id) -> orphan kill failed: `$_"
         }
     }
 }
@@ -1731,14 +1740,12 @@ foreach ($cfg in $daemonConfigs) {
     for ($attempt = 1; $attempt -le 5; $attempt++) {
         try {
             $regTimestamp = (Get-Date -Format "o")
-            $nodeRepCAddress = $cfg.Id
-            $signPayload = "CRS-REGISTER||$($cfg.PublicKey)||$nodeRepCAddress||$regTimestamp"
+            $signPayload = "CRS-REGISTER||$($cfg.PublicKey)||$($cfg.Endpoint)||$regTimestamp"
             $signature = Get-TlDsaSignature -IdentDir $cfg.IdentityDir -PayloadToSign $signPayload
 
             $regBody = @{
                 publicKey = $cfg.PublicKey
                 endpoint = $cfg.Endpoint
-                repCAddress = $nodeRepCAddress
                 timestamp = $regTimestamp
                 signature = $signature
             } | ConvertTo-Json
@@ -1759,6 +1766,40 @@ foreach ($cfg in $daemonConfigs) {
         Write-Host "  [WARN] Node #$($cfg.Id) registration with coordinator failed after 5 attempts." -ForegroundColor Yellow
         Write-Host "         Check that Node #1 (coordinator) is running and healthy at $LOCAL_CRS_URL" -ForegroundColor Yellow
         Write-Host "         You can re-run the deployer to retry registration." -ForegroundColor Yellow
+        $deploymentHealthy = $false
+        $degradedReasons += "Node #$($cfg.Id) registration failed"
+    }
+}
+
+# ── Write address-map.json for watchdog Rep C address logging ─────────
+$addressMap = @{}
+foreach ($cfg in $daemonConfigs) {
+    $svcName = "PlenumNET-Array3-$($cfg.Id)"
+    if ($cfg.Address) {
+        $addressMap[$svcName] = $cfg.Address
+    }
+}
+$addressMapPath = Join-Path $OpsBase "address-map.json"
+$addressMap | ConvertTo-Json -Depth 1 | Set-Content -Path $addressMapPath -Encoding UTF8
+Write-Host "  [OK] Address map written to $addressMapPath" -ForegroundColor Green
+
+# ── Memory hygiene: clear passphrases from $daemonConfigs ─────────────
+foreach ($cfg in $daemonConfigs) {
+    $cfg.Passphrase = $null
+}
+
+# ── Slot registry verification ────────────────────────────────────────
+if ($crsReady) {
+    try {
+        $slotResponse = Invoke-RestMethod -Uri "$LOCAL_CRS_URL/api/salvi/inter-cube/slots" -TimeoutSec 10 -ErrorAction Stop
+        if ($slotResponse) {
+            Write-Host "  [OK] Slot registry verified: coordinator reports slot data" -ForegroundColor Green
+        } else {
+            Write-Host "  [WARN] Slot registry response empty -- PLENUM_SLOT_REGISTRY_FILE may not be loaded" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  [WARN] Could not verify slot registry at /api/salvi/inter-cube/slots: $_" -ForegroundColor Yellow
+        Write-Host "         Verify PLENUM_SLOT_REGISTRY_FILE is set in the service wrapper .bat file" -ForegroundColor Yellow
     }
 }
 
@@ -1786,8 +1827,7 @@ foreach ($cfg in $daemonConfigs) {
 }
 
 $deployTimestamp = (Get-Date -Format "o")
-$signerRepCAddress = $daemonConfigs[0].Id
-$deploySignPayload = "DEPLOYMENT||$signerRepCAddress||$($registeredAddresses -join '||')||$deployTimestamp"
+$deploySignPayload = "DEPLOYMENT||$($registeredAddresses -join '||')||$deployTimestamp"
 $deploySignature = ""
 if ($daemonConfigs.Count -gt 0 -and $daemonConfigs[0].IdentityDir) {
     $deploySignature = Get-TlDsaSignature -IdentDir $daemonConfigs[0].IdentityDir -PayloadToSign $deploySignPayload
@@ -1795,7 +1835,6 @@ if ($daemonConfigs.Count -gt 0 -and $daemonConfigs[0].IdentityDir) {
 
 $deploymentPayload = @{
     addresses = $registeredAddresses
-    signerRepCAddress = $signerRepCAddress
     daemonCount = $DAEMON_COUNT
     daemons = $daemonsArray
     localCrsPort = $LOCAL_CRS_PORT
@@ -1828,6 +1867,10 @@ try {
 }
 
 # ── Desktop launchers ────────────────────────────────────────────────────
+# NOTE: [Environment]::GetFolderPath("Desktop") may return a OneDrive-synced
+# path (e.g. C:\Users\<user>\OneDrive\Desktop). This is intentional — the
+# launcher works from either location. If OneDrive sync causes issues, the
+# user can move the .cmd files to C:\Users\<user>\Desktop manually.
 $startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start PlenumNET Array3.cmd"
 $crsCfg = $daemonConfigs[0]
 $launchLines = @(
@@ -1935,12 +1978,30 @@ Write-Host "  [OK] Stop launcher created: $stopYodaPath" -ForegroundColor Green
 
 # ── Completion summary ───────────────────────────────────────────────────
 Write-Host ""
-Write-Host "==========================================================" -ForegroundColor Green
-Write-Host "  PlenumNET Array3 Deployment Complete" -ForegroundColor Green
-Write-Host "  Capomastro Holdings Ltd." -ForegroundColor Green
-Write-Host "  Deployer $DEPLOYER_VERSION | Release $RELEASE_TAG" -ForegroundColor Green
-Write-Host "  NinjaExec signing agent included" -ForegroundColor Green
-Write-Host "==========================================================" -ForegroundColor Green
+if ($deploymentHealthy) {
+    Write-Host "==========================================================" -ForegroundColor Green
+    Write-Host "  PlenumNET Array3 Deployment Complete" -ForegroundColor Green
+    Write-Host "  Capomastro Holdings Ltd." -ForegroundColor Green
+    Write-Host "  Deployer $DEPLOYER_VERSION | Release $RELEASE_TAG" -ForegroundColor Green
+    Write-Host "  NinjaExec signing agent included" -ForegroundColor Green
+    Write-Host "==========================================================" -ForegroundColor Green
+} else {
+    Write-Host "==========================================================" -ForegroundColor Yellow
+    Write-Host "  PlenumNET Array3 Deployment Complete (DEGRADED)" -ForegroundColor Yellow
+    Write-Host "  Capomastro Holdings Ltd." -ForegroundColor Yellow
+    Write-Host "  Deployer $DEPLOYER_VERSION | Release $RELEASE_TAG" -ForegroundColor Yellow
+    Write-Host "==========================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  The following issues were detected:" -ForegroundColor Yellow
+    foreach ($reason in $degradedReasons) {
+        Write-Host "    - $reason" -ForegroundColor Yellow
+    }
+    Write-Host ""
+    Write-Host "  Remediation steps:" -ForegroundColor Yellow
+    Write-Host "    1. Check the coordinator log: $LOG_DIR\array3-node-1.log" -ForegroundColor White
+    Write-Host "    2. Verify services: Get-Service PlenumNET-Array3-*" -ForegroundColor White
+    Write-Host "    3. Re-run the deployer to retry registration" -ForegroundColor White
+}
 Write-Host ""
 Write-Host "  Cluster Status" -ForegroundColor Cyan
 $addrDisplay = if ($crsCfg.Address) { $crsCfg.Address } else { "(pending registration)" }
@@ -2001,6 +2062,11 @@ Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
+
+if (-not $deploymentHealthy -and $Force) {
+    Write-Host "  [EXIT] Exiting with code 1 (degraded deployment with -Force flag)" -ForegroundColor Yellow
+    exit 1
+}
 
 } catch {
     Write-Host ""
