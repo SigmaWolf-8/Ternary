@@ -44,6 +44,7 @@
 
 use axum::response::Html;
 use axum::routing::get as axum_get;
+use tower_http::cors::{CorsLayer, Any};
 use inter_cube::*;
 use inter_cube::api::{
     AppState, crs_router, cube_router, parse_address_string, yoda_router,
@@ -775,14 +776,20 @@ async fn run_crs_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../monitor/array3-monitor-v7.html"))
+            Html(include_str!("../monitor/array3-monitor-v8.html"))
         }));
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     let app = crs_router(shared_state)
         .merge(vm_routes)
         .merge(inter_cube::cluster_shell::cluster_shell_router(cluster_shell.clone()))
         .merge(yoda_router(crs_yoda_verifier.clone(), crs_yoda_relay_tx.clone(), crs_yoda_waiters.clone()))
-        .merge(monitor_route);
+        .merge(monitor_route)
+        .layer(cors);
     let listen_addr: SocketAddr = format!("{}:{}", slots_bind, port).parse().unwrap_or_else(|_| {
         eprintln!("[CRS] WARNING: Invalid PLENUM_BIND_ADDR '{}', falling back to 127.0.0.1", slots_bind);
         format!("127.0.0.1:{}", port).parse().unwrap()
@@ -1283,14 +1290,20 @@ async fn run_cube_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../monitor/array3-monitor-v7.html"))
+            Html(include_str!("../monitor/array3-monitor-v8.html"))
         }));
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     let app = cube_router(shared_state)
         .merge(vm_routes)
         .merge(cluster_routes)
         .merge(yoda_router(yoda_verifier, yoda_relay_tx, yoda_waiters))
-        .merge(monitor_route);
+        .merge(monitor_route)
+        .layer(cors);
     let listen_addr: SocketAddr = format!("{}:{}", slots_bind, port).parse().unwrap_or_else(|_| {
         eprintln!("[CUBE] WARNING: Invalid PLENUM_BIND_ADDR '{}', falling back to 127.0.0.1", slots_bind);
         format!("127.0.0.1:{}", port).parse().unwrap()

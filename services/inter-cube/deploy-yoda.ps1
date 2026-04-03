@@ -682,6 +682,62 @@ if ($neBuildExit -ne 0) {
     }
 }
 
+
+if (Test-Path $NinjaExecPath) {
+    $neSvcName = "PlenumNET-NinjaExec"
+    $neLogFile = Join-Path $LOG_DIR "ninja-exec.log"
+    $neWrapperBat = Join-Path $wrapperDir "ninja-exec-start.bat"
+    $neKeystoreDir = Join-Path $env:APPDATA "NinjaExec"
+
+    @"
+@echo off
+setlocal enabledelayedexpansion
+set RESTART_DELAY=5
+set RESTART_COUNT=0
+:loop
+for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
+echo [%TS%] Starting NinjaExec signing agent on port 21027 [restart #!RESTART_COUNT!] >> "$neLogFile"
+"$NinjaExecPath" run --port 21027 --headless --data-dir "$neKeystoreDir" >> "$neLogFile" 2>&1
+set EXIT_CODE=!ERRORLEVEL!
+for /f "tokens=1-4 delims=/ " %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-ddTHH:mm:sszzz'"') do set TS=%%a
+echo [%TS%] NinjaExec exited with code !EXIT_CODE! >> "$neLogFile"
+if !EXIT_CODE! equ 0 goto :eof
+set /a RESTART_COUNT+=1
+if !RESTART_COUNT! leq 3 set RESTART_DELAY=5
+if !RESTART_COUNT! gtr 3 if !RESTART_COUNT! leq 6 set RESTART_DELAY=10
+if !RESTART_COUNT! gtr 6 set RESTART_DELAY=30
+echo [%TS%] Restarting in !RESTART_DELAY!s (attempt !RESTART_COUNT!) >> "$neLogFile"
+timeout /t !RESTART_DELAY! /nobreak >nul 2>&1
+goto :loop
+"@ | Set-Content -Path $neWrapperBat -Encoding ASCII
+
+    Restrict-FileAcl -FilePath $neWrapperBat | Out-Null
+
+    $existingNeSvc = Get-Service -Name $neSvcName -ErrorAction SilentlyContinue
+    if ($existingNeSvc) {
+        Stop-Service -Name $neSvcName -Force -ErrorAction SilentlyContinue
+        & sc.exe delete $neSvcName | Out-Null
+        Start-Sleep -Seconds 2
+    }
+
+    try {
+        $neSvcBinPath = "cmd.exe /s /c `" `"$neWrapperBat`" `""
+        New-Service -Name $neSvcName `
+            -BinaryPathName $neSvcBinPath `
+            -DisplayName "PlenumNET NinjaExec Signing Agent" `
+            -Description "PlenumNET NinjaExec local TL-DSA signing agent - Capomastro Holdings Ltd." `
+            -StartupType Automatic | Out-Null
+
+        & sc.exe failure $neSvcName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
+
+        Start-Service -Name $neSvcName -ErrorAction SilentlyContinue
+        Write-Host "  [OK] NinjaExec registered and started as service '$neSvcName'" -ForegroundColor Green
+        Write-Host "  [OK] Signing API: http://localhost:21027/sign" -ForegroundColor Green
+    } catch {
+        Write-Host "  [WARN] Could not register NinjaExec as a Windows Service: $_" -ForegroundColor Yellow
+        Write-Host "         Run manually: $NinjaExecPath run --port 21027" -ForegroundColor Yellow
+    }
+}
 # ── STEP 6/11: Verifying version alignment ──────────────────────────────
 Write-Host ""
 Write-Host "STEP 6/11: Verifying version alignment" -ForegroundColor Yellow
@@ -1818,6 +1874,7 @@ Write-Host ""
 Write-Host "  NinjaExec Signing Agent" -ForegroundColor Cyan
 if (Test-Path $NinjaExecPath) {
     Write-Host "  Binary           : $NinjaExecPath" -ForegroundColor White
+    Write-Host "  Service          : PlenumNET-NinjaExec (Automatic)" -ForegroundColor White
     Write-Host "  Signing API      : http://localhost:21027/sign" -ForegroundColor White
     $neKeystoreCheck = Join-Path $env:APPDATA "NinjaExec\ninja-exec.keystore"
     if (Test-Path $neKeystoreCheck) {

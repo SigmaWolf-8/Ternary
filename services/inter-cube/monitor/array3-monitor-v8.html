@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Array3 Monitor v8 — PlenumNET</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+  :root {
+    /* ── BRAND: Backgrounds ── */
+    --bg-page: #0F0C0A;
+    --bg-panel: #181411;
+    --bg-surface: #1D1915;
+    --bg-border: #272220;
+    /* ── BRAND: Text ── */
+    --text-heading: #F0EDE8;
+    --text-nav: #E4DFD5;
+    --text-body: #C9C1B4;
+    --text-label: #998F82;
+    --text-faint: #6B655E;
+    /* ── BRAND: Accent ── */
+    --accent-blue: #4A9EF5;
+    --accent-hover: #38BDF8;
+    --accent-iron: #3D444B;
+    --accent-slate: #78828C;
+    /* ── EXTENDED: Lime (data flow) ── */
+    --accent-lime: #8BA633;
+    /* ── EXTENDED: Primary gateway ── */
+    --accent-gold: #FFCC44;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg-page);color:#E4DFD5;font-family:'Inter',system-ui,sans-serif;overflow:hidden;cursor:grab;font-size:15px}
+  body.dragging{cursor:grabbing}
+  canvas{display:block}
+
+  #topbar{
+    position:absolute;top:0;left:0;right:0;height:48px;
+    background:linear-gradient(180deg,rgba(15,12,10,0.97),rgba(15,12,10,0.8));
+    backdrop-filter:blur(16px);border-bottom:1px solid var(--bg-border);
+    display:flex;align-items:center;padding:0 20px;z-index:100;
+  }
+  .logo{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:800;color:#E4DFD5;letter-spacing:0.12em;text-transform:uppercase}
+  .logo span{color:var(--accent-blue)}
+  .tsub{font-family:'Inter',system-ui,sans-serif;font-size:12px;color:var(--text-label);margin-left:14px}
+  .pills{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .pill{font-family:'JetBrains Mono','Fira Code',monospace;font-size:11px;padding:4px 10px;border-radius:8px}
+  .pill.on{background:rgba(74,158,245,0.12);color:var(--accent-blue);border:1px solid rgba(74,158,245,0.25)}
+  .pill.dm{background:rgba(240,237,232,0.04);color:var(--text-label);border:1px solid var(--bg-border)}
+
+  #panel-toggle{
+    position:absolute;top:58px;right:14px;z-index:110;
+    width:38px;height:38px;border-radius:8px;
+    background:var(--bg-panel);border:1px solid var(--bg-border);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;color:var(--text-label);font-size:18px;
+    transition:all 0.2s;user-select:none;
+  }
+  #panel-toggle:hover{background:rgba(74,158,245,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
+  #panel-toggle.active{color:var(--accent-blue);border-color:rgba(74,158,245,0.3)}
+
+  #panel{
+    position:absolute;top:58px;right:58px;width:300px;
+    background:rgba(24,20,17,0.96);backdrop-filter:blur(24px);
+    border:1px solid var(--bg-border);border-radius:10px;padding:16px;z-index:100;
+    font-family:'Inter',system-ui,sans-serif;font-size:13px;
+    max-height:calc(100vh - 72px);overflow-y:auto;
+    transition:opacity 0.2s,transform 0.2s;
+  }
+  #panel.hidden{opacity:0;pointer-events:none;transform:translateX(10px)}
+  .sec{margin-bottom:14px}.sec:last-child{margin-bottom:0}
+  .stit{font-family:'JetBrains Mono','Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text-label);margin-bottom:8px;font-weight:400}
+
+  .node-tabs{display:flex;gap:5px;margin-bottom:10px}
+  .ntab{
+    flex:1;text-align:center;font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:600;padding:7px 0;
+    border-radius:6px;border:1px solid var(--bg-border);
+    background:rgba(29,25,21,0.6);color:var(--text-label);cursor:pointer;
+    transition:all 0.15s;user-select:none;
+  }
+  .ntab.active{border-color:var(--accent-blue);color:var(--accent-blue);background:rgba(74,158,245,0.08)}
+
+  .svc-dropdown{position:relative}
+  .svc-trigger{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 12px;border-radius:6px;border:1px solid var(--bg-border);
+    background:rgba(29,25,21,0.7);cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-size:13px;color:#E4DFD5;
+    transition:all 0.15s;user-select:none;
+  }
+  .svc-trigger:hover{border-color:var(--accent-iron)}
+  .svc-trigger .arrow{font-size:10px;color:var(--text-faint);transition:transform 0.2s}
+  .svc-trigger .arrow.open{transform:rotate(180deg)}
+  .svc-list{
+    position:absolute;top:100%;left:0;right:0;
+    background:rgba(24,20,17,0.98);border:1px solid var(--bg-border);
+    border-radius:6px;margin-top:4px;padding:6px 0;
+    max-height:260px;overflow-y:auto;z-index:120;display:none;
+  }
+  .svc-list.open{display:block}
+  .svc-item{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;transition:background 0.1s;font-family:'Inter',system-ui,sans-serif;font-size:13px}
+  .svc-item:hover{background:rgba(240,237,232,0.04)}
+  .svc-item .svc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .svc-item .svc-name{flex:1;color:#E4DFD5}
+  .svc-item .svc-count{font-family:'JetBrains Mono','Fira Code',monospace;font-size:11px;color:var(--text-label)}
+  .svc-item .svc-check{width:16px;height:16px;border-radius:3px;border:1px solid var(--accent-iron);display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;transition:all 0.15s}
+  .svc-item.active .svc-check{background:rgba(74,158,245,0.2);border-color:var(--accent-blue);color:var(--accent-blue)}
+
+  .sr{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .sr .sl{flex:0 0 82px;font-family:'Inter',system-ui,sans-serif;color:#E4DFD5;font-size:13px;font-weight:400}
+  .sr input[type="range"]{flex:1;height:3px;-webkit-appearance:none;appearance:none;background:var(--bg-border);border-radius:2px;outline:none}
+  .sr input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent-blue);border-radius:50%;cursor:pointer;border:2px solid var(--bg-page)}
+  .sr .sv{flex:0 0 28px;text-align:right;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--text-label);font-size:11px}
+
+  .ck{display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;user-select:none}
+  .ck input{accent-color:var(--accent-blue);width:14px;height:14px}
+  .ck span{font-family:'Inter',system-ui,sans-serif;color:#E4DFD5;font-size:13px;font-weight:400}
+
+  /* ── DEEP-DIVE PANEL ── */
+  #detail{
+    position:absolute;top:48px;left:0;bottom:0;width:380px;
+    background:rgba(24,20,17,0.98);backdrop-filter:blur(24px);
+    border-right:1px solid var(--bg-border);
+    z-index:100;font-family:'Inter',system-ui,sans-serif;
+    display:none;overflow-y:auto;
+    transition:transform 0.25s ease;
+  }
+  #detail.show{display:block}
+  #detail::-webkit-scrollbar{width:4px}
+  #detail::-webkit-scrollbar-track{background:transparent}
+  #detail::-webkit-scrollbar-thumb{background:var(--bg-border);border-radius:2px}
+
+  .dd-header{padding:22px 22px 18px;border-bottom:1px solid var(--bg-border)}
+  .dd-toprow{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .dd-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+  .dd-title{font-family:'Inter',system-ui,sans-serif;font-size:22px;font-weight:700;color:#E4DFD5}
+  .dd-close{margin-left:auto;cursor:pointer;color:var(--text-label);font-size:20px;padding:4px 10px;border-radius:4px;border:none;background:none;font-family:inherit}
+  .dd-close:hover{color:#E4DFD5;background:var(--bg-surface)}
+  .dd-subtitle{font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:400;color:var(--accent-blue)}
+  .dd-status{display:inline-block;font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:600;padding:4px 12px;border-radius:12px;margin-top:10px}
+
+  .dd-section{padding:18px 22px;border-bottom:1px solid var(--bg-border)}
+  .dd-section:last-child{border-bottom:none}
+  .dd-stitle{font-family:'JetBrains Mono','Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--accent-blue);margin-bottom:12px;font-weight:400}
+  .dd-desc{font-family:'Inter',system-ui,sans-serif;font-size:15px;font-weight:400;color:#E4DFD5;line-height:1.75}
+
+  .dd-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .dd-cell .dd-k{font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--text-label);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
+  .dd-cell .dd-v{font-family:'JetBrains Mono','Fira Code',monospace;font-size:15px;font-weight:600;color:#E4DFD5}
+  .dd-cell .dd-v.accent{color:var(--accent-blue)}
+
+  .dd-dep{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .dd-dep .dd-arrow{color:var(--accent-blue);font-size:16px;flex-shrink:0;width:22px;text-align:center}
+  .dd-dep .dd-dep-label{font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--text-label);flex:0 0 70px}
+  .dd-dep .dd-dep-value{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:400;color:#E4DFD5}
+
+  .dd-impact{font-family:'Inter',system-ui,sans-serif;font-size:15px;font-weight:400;color:#E4DFD5;line-height:1.75;padding:14px;background:var(--bg-surface);border-radius:6px;border-left:3px solid var(--accent-blue)}
+
+  .dd-loadbar{width:100%;height:6px;background:var(--bg-surface);border-radius:3px;margin-top:8px;overflow:hidden}
+  .dd-loadfill{height:100%;border-radius:3px;transition:width 0.3s}
+
+  #tip{
+    position:absolute;pointer-events:none;background:rgba(15,12,10,0.96);
+    border:1px solid var(--bg-border);border-radius:5px;padding:6px 10px;
+    font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:400;color:#E4DFD5;
+    display:none;z-index:150;white-space:nowrap;
+  }
+  #panel::-webkit-scrollbar{width:4px}
+  #panel::-webkit-scrollbar-track{background:transparent}
+  #panel::-webkit-scrollbar-thumb{background:var(--bg-border);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="logo">Plenum<span>NET</span></div>
+  <div class="tsub">Array3 · 3-Node Encrypted Cluster</div>
+  <div class="pills">
+    <div class="pill dm">81 tunnels</div>
+    <div class="pill dm" id="p-occ">—</div>
+    <div class="pill on">N1</div><div class="pill on">N2</div><div class="pill on">N3</div>
+  </div>
+</div>
+<div id="panel-toggle" title="Toggle panel (P)">⚙</div>
+<div id="panel">
+  <div class="sec">
+    <div class="stit">Connection</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">localhost:11124 · 11151 · 11178</div>
+    <div style="margin-bottom:6px">
+      <input type="text" id="inp-url" placeholder="Relay URL (for restart ops)" value="https://plenumnet.replit.app" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:4px">
+      <input type="password" id="inp-key" placeholder="API key (for ops commands)" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none">
+    </div>
+    <button id="btn-connect" style="width:100%;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Refresh cluster</button>
+    <div id="conn-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center">Auto-connecting to local daemons...</div>
+  </div>
+  <div class="sec"><div class="stit">Focus Node</div>
+    <div class="node-tabs">
+      <div class="ntab active" data-n="all">All</div>
+      <div class="ntab" data-n="0">N1</div>
+      <div class="ntab" data-n="1">N2</div>
+      <div class="ntab" data-n="2">N3</div>
+    </div>
+  </div>
+  <div class="sec"><div class="stit">Services (discovered)</div>
+    <div class="svc-dropdown">
+      <div class="svc-trigger" id="svc-trigger"><span id="svc-summary">All</span><span class="arrow" id="svc-arrow">▾</span></div>
+      <div class="svc-list" id="svc-list"></div>
+    </div>
+  </div>
+  <div class="sec"><div class="stit">View</div>
+    <div class="sr"><span class="sl">Explode</span><input type="range" id="sl-explode" min="0" max="100" value="33"><span class="sv" id="val-explode">33</span></div>
+    <div class="sr"><span class="sl">Rotation</span><input type="range" id="sl-rotation" min="0" max="100" value="13"><span class="sv" id="val-rotation">13</span></div>
+    <div class="sr"><span class="sl">Tunnel size</span><input type="range" id="sl-tsize" min="20" max="100" value="87"><span class="sv" id="val-tsize">87</span></div>
+    <div class="sr"><span class="sl">Cube spread</span><input type="range" id="sl-spread" min="20" max="100" value="53"><span class="sv" id="val-spread">53</span></div>
+    <div class="sr"><span class="sl">Glow</span><input type="range" id="sl-glow" min="0" max="100" value="69"><span class="sv" id="val-glow">69</span></div>
+  </div>
+  <div class="sec"><div class="stit">Display</div>
+    <label class="ck"><input type="checkbox" id="chk-conn" checked><span>Gateway connections</span></label>
+    <label class="ck"><input type="checkbox" id="chk-relay" checked><span>Inter-cube relay</span></label>
+    <label class="ck"><input type="checkbox" id="chk-lab" checked><span>Rep C labels</span></label>
+    <label class="ck"><input type="checkbox" id="chk-empty" checked><span>Empty tunnels</span></label>
+    <label class="ck"><input type="checkbox" id="chk-bound" checked><span>Cube boundaries</span></label>
+  </div>
+</div>
+<div id="detail">
+  <div class="dd-header">
+    <div class="dd-toprow">
+      <div class="dd-dot" id="d-dot"></div>
+      <div class="dd-title" id="d-tit">—</div>
+      <button class="dd-close" id="d-close" title="Close (Esc)">✕</button>
+    </div>
+    <div class="dd-subtitle" id="d-sub">—</div>
+    <div class="dd-status" id="d-badge">—</div>
+  </div>
+
+  <div class="dd-section">
+    <div class="dd-stitle">What is this?</div>
+    <div class="dd-desc" id="d-what">—</div>
+  </div>
+
+  <div class="dd-section">
+    <div class="dd-stitle">Where</div>
+    <div class="dd-grid">
+      <div class="dd-cell"><div class="dd-k">Node</div><div class="dd-v" id="d-node">—</div></div>
+      <div class="dd-cell"><div class="dd-k">Rep C</div><div class="dd-v accent" id="d-rc">—</div></div>
+      <div class="dd-cell"><div class="dd-k">Port</div><div class="dd-v" id="d-pt">—</div></div>
+      <div class="dd-cell"><div class="dd-k">Slot</div><div class="dd-v" id="d-slot">—</div></div>
+    </div>
+  </div>
+
+  <div class="dd-section">
+    <div class="dd-stitle">When</div>
+    <div class="dd-grid">
+      <div class="dd-cell"><div class="dd-k">Uptime</div><div class="dd-v" id="d-up">—</div></div>
+      <div class="dd-cell"><div class="dd-k">Heartbeat</div><div class="dd-v" id="d-hb">—</div></div>
+      <div class="dd-cell"><div class="dd-k">TL-DSA events</div><div class="dd-v" id="d-td">—</div></div>
+      <div class="dd-cell"><div class="dd-k">Latency</div><div class="dd-v" id="d-la">—</div></div>
+    </div>
+  </div>
+
+  <div class="dd-section">
+    <div class="dd-stitle">How (health)</div>
+    <div class="dd-grid">
+      <div class="dd-cell" style="grid-column:span 2">
+        <div class="dd-k">Load</div>
+        <div class="dd-v" id="d-ldpct">—</div>
+        <div class="dd-loadbar"><div class="dd-loadfill" id="d-ld"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dd-section">
+    <div class="dd-stitle">Who (dependencies)</div>
+    <div id="d-deps">—</div>
+  </div>
+
+  <div class="dd-section">
+    <div class="dd-stitle">Why (if this goes down)</div>
+    <div class="dd-impact" id="d-impact">—</div>
+  </div>
+</div>
+<div id="tip"></div>
+<canvas id="hud-canvas" style="position:absolute;top:0;left:0;pointer-events:none;z-index:5"></canvas>
+
+<!-- RESTART CONFIRMATION DIALOG -->
+<div id="restart-overlay" style="display:none;position:absolute;inset:0;background:rgba(15,12,10,0.85);z-index:200;display:none;align-items:center;justify-content:center">
+  <div id="restart-dialog" style="background:#181411;border:1px solid #272220;border-radius:12px;padding:28px;width:400px;font-family:'Inter',system-ui,sans-serif">
+    <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:800;color:#4A9EF5;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:16px">Restart Service</div>
+    <div id="restart-msg" style="font-size:15px;color:#E4DFD5;line-height:1.7;margin-bottom:20px">—</div>
+    <div id="restart-status" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#998F82;margin-bottom:16px;min-height:18px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button id="restart-cancel" style="padding:8px 20px;background:transparent;border:1px solid #272220;border-radius:6px;color:#998F82;font-family:'Inter',system-ui,sans-serif;font-size:13px;cursor:pointer">Cancel</button>
+      <button id="restart-confirm" style="padding:8px 20px;background:rgba(74,158,245,0.15);border:1px solid rgba(74,158,245,0.3);border-radius:6px;color:#4A9EF5;font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:600;cursor:pointer">Confirm restart</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// BRAND PALETTE (hex values for Three.js)
+// ═══════════════════════════════════════════════════════
+const BRAND={
+  bgPage:0x0F0C0A, bgPanel:0x181411, bgSurface:0x1D1915, bgBorder:0x272220,
+  textHead:0xF0EDE8, textBody:0xC9C1B4, textLabel:0x998F82, textFaint:0x6B655E,
+  blue:0x4A9EF5, blueActive:0x38BDF8, hover:0x38BDF8, iron:0x3D444B, slate:0x78828C,
+  lime:0x8BA633, gold:0xFFCC44,
+};
+const CSS={
+  blue:'#4A9EF5',blueActive:'#38BDF8',hover:'#38BDF8',iron:'#3D444B',slate:'#78828C',
+  lime:'#8BA633',gold:'#FFCC44',faint:'#6B655E',label:'#998F82',
+  body:'#C9C1B4',head:'#F0EDE8',surface:'#1D1915',border:'#272220',
+};
+
+// ═══════════════════════════════════════════════════════
+// PRETEXT-STYLE TEXT ENGINE (Canvas-cached, arithmetic layout)
+// ═══════════════════════════════════════════════════════
+const TextEngine=(()=>{
+  const _cache=new Map();
+  const _c=document.createElement('canvas');
+  const _x=_c.getContext('2d');
+  function prepare(text,font){
+    const k=text+'|'+font;
+    if(_cache.has(k))return _cache.get(k);
+    _x.font=font;
+    const m=_x.measureText(text);
+    const w=m.width;
+    const asc=m.actualBoundingBoxAscent||10;
+    const desc=m.actualBoundingBoxDescent||3;
+    const lh=(asc+desc)*1.45;
+    const r={text,font,width:w,lineHeight:lh,ascent:asc};
+    _cache.set(k,r);return r;
+  }
+  function render(ctx,text,font,x,y,color){
+    const p=prepare(text,font);
+    ctx.font=p.font;ctx.fillStyle=color||CSS.body;
+    ctx.textBaseline='top';ctx.fillText(text,x,y);
+  }
+  function clear(){_cache.clear()}
+  return{prepare,render,clear};
+})();
+
+// HUD Canvas setup
+const hudCanvas=document.getElementById('hud-canvas');
+const hudCtx=hudCanvas.getContext('2d');
+let hudW,hudH;
+function resizeHud(){
+  hudW=innerWidth*devicePixelRatio;hudH=innerHeight*devicePixelRatio;
+  hudCanvas.width=hudW;hudCanvas.height=hudH;
+  hudCanvas.style.width=innerWidth+'px';hudCanvas.style.height=innerHeight+'px';
+  hudCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+resizeHud();
+
+// Simulated telemetry (replaced by WSS in production)
+const telemetry={
+  cpu:[22,18,12],ram:[45,38,29],gpu:[83,0,0],
+  relayLat:[1.2,1.8,1.4],throughput:[2400,1800,1200],
+  signingRate:[38,22,15],qcRound:'R2',agentsActive:9,agentsTotal:153,
+};
+
+function drawHud(t){
+  hudCtx.clearRect(0,0,innerWidth,innerHeight);
+  const barH=68;const barY=innerHeight-barH;
+
+  // Background bar
+  hudCtx.fillStyle='rgba(15,12,10,0.92)';
+  hudCtx.fillRect(0,barY,innerWidth,barH);
+  hudCtx.fillStyle=CSS.border;
+  hudCtx.fillRect(0,barY,innerWidth,1);
+
+  // Simulated fluctuations
+  const lt=[
+    (1.2+Math.sin(t*0.7)*0.3).toFixed(1),
+    (1.8+Math.sin(t*0.5+1)*0.4).toFixed(1),
+    (1.4+Math.sin(t*0.6+2)*0.2).toFixed(1),
+  ];
+  const tp=[
+    Math.floor(2400+Math.sin(t*0.8)*400),
+    Math.floor(1800+Math.sin(t*0.6+1)*300),
+    Math.floor(1200+Math.sin(t*0.9+2)*200),
+  ];
+  const cpu=[
+    Math.floor(22+Math.sin(t*0.4)*8),
+    Math.floor(18+Math.sin(t*0.35+1)*6),
+    Math.floor(12+Math.sin(t*0.3+2)*4),
+  ];
+
+  const cells=[
+    {label:'TUNNELS',value:`${allSlots.filter(s=>s.occ).length}/81`,sub:'occupied',color:CSS.blue},
+    {label:'N1↔N2',value:`${lt[0]}ms`,sub:`${tp[0]} msg/s`,color:CSS.blue},
+    {label:'N2↔N3',value:`${lt[1]}ms`,sub:`${tp[1]} msg/s`,color:CSS.blueActive},
+    {label:'N1↔N3',value:`${lt[2]}ms`,sub:`${tp[2]} msg/s`,color:CSS.lime},
+    {label:'CPU',value:`${cpu[0]}% / ${cpu[1]}% / ${cpu[2]}%`,sub:'N1 / N2 / N3',color:CSS.blue},
+    {label:'YODA QC',value:telemetry.qcRound,sub:`${telemetry.agentsActive}/${telemetry.agentsTotal} agents`,color:CSS.gold},
+  ];
+
+  const cellW=Math.min(200,(innerWidth-40)/cells.length);
+  const startX=20;
+  const titleFont='400 9px JetBrains Mono';
+  const valFont='700 18px JetBrains Mono';
+  const subFont='400 11px JetBrains Mono';
+
+  cells.forEach((cell,i)=>{
+    const cx=startX+i*cellW;
+    TextEngine.render(hudCtx,cell.label,titleFont,cx,barY+10,CSS.label);
+    TextEngine.render(hudCtx,cell.value,valFont,cx,barY+24,cell.color);
+    TextEngine.render(hudCtx,cell.sub,subFont,cx,barY+48,CSS.label);
+    if(i<cells.length-1){
+      hudCtx.fillStyle='rgba(39,34,32,0.6)';
+      hudCtx.fillRect(cx+cellW-1,barY+8,1,barH-16);
+    }
+  });
+
+  // Alive pulse
+  const pr=3+Math.sin(t*3)*1;
+  hudCtx.beginPath();
+  hudCtx.arc(innerWidth-16,barY+barH/2,pr,0,Math.PI*2);
+  hudCtx.fillStyle=`rgba(139,166,51,${0.5+Math.sin(t*3)*0.3})`;
+  hudCtx.fill();
+}
+
+// ═══════════════════════════════════════════════════════
+// LEADER LINES — connect deep-dive panel to 3D nodes
+// ═══════════════════════════════════════════════════════
+function project3Dto2D(pos3D,cam,w,h){
+  const v=pos3D.clone().project(cam);
+  return{x:(v.x*0.5+0.5)*w, y:(-v.y*0.5+0.5)*h};
+}
+
+let leaderTargets=[]; // [{mesh, label, color}]
+
+function drawLeaderLines(t){
+  if(selected===-1||!detail.classList.contains('show')||!leaderTargets.length)return;
+  const panelRight=384;
+  const panelTopY=200;
+
+  leaderTargets.forEach((lt,i)=>{
+    // Re-project 3D position each frame (camera orbits)
+    const worldPos=new THREE.Vector3();
+    lt.mesh.getWorldPosition(worldPos);
+    const screen=project3Dto2D(worldPos,camera,innerWidth,innerHeight);
+    const ex=screen.x,ey=screen.y;
+
+    // Skip if target is behind camera or off-screen
+    if(ex<0||ex>innerWidth||ey<0||ey>innerHeight)return;
+
+    const sx=panelRight;
+    const sy=panelTopY+i*32;
+
+    // Curved leader line from panel edge to 3D projected position
+    const midX=(sx+ex)*0.5;
+    hudCtx.beginPath();
+    hudCtx.moveTo(sx,sy);
+    hudCtx.quadraticCurveTo(midX,sy*0.7+ey*0.3,ex,ey);
+    hudCtx.strokeStyle=lt.color||CSS.blue;
+    hudCtx.lineWidth=1.2;
+    hudCtx.globalAlpha=0.25+Math.sin(t*2+i*0.7)*0.1;
+    hudCtx.setLineDash([4,4]);
+    hudCtx.stroke();
+    hudCtx.setLineDash([]);
+    hudCtx.globalAlpha=1;
+
+    // Target dot with pulse
+    const dotR=4+Math.sin(t*3+i)*1.5;
+    hudCtx.beginPath();
+    hudCtx.arc(ex,ey,dotR,0,Math.PI*2);
+    hudCtx.fillStyle=lt.color||CSS.blue;
+    hudCtx.globalAlpha=0.5;
+    hudCtx.fill();
+    hudCtx.globalAlpha=1;
+
+    // Label near target
+    TextEngine.render(hudCtx,lt.label,'500 10px JetBrains Mono',ex+10,ey-6,lt.color||CSS.blue);
+
+    // Small label at panel edge
+    hudCtx.beginPath();
+    hudCtx.arc(sx-4,sy,3,0,Math.PI*2);
+    hudCtx.fillStyle=lt.color;hudCtx.globalAlpha=0.6;
+    hudCtx.fill();hudCtx.globalAlpha=1;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// STATUS SYSTEM — multi-channel, brand-only colors
+// ═══════════════════════════════════════════════════════
+const STATUS={
+  online:   {color:BRAND.blue, glow:1.2, haloOp:0.08, breathAmp:0.05, breathSpeed:1.2, scale:1.0, opacity:1.0, css:CSS.blue, label:'Healthy'},
+  degraded: {color:BRAND.iron, glow:0.25, haloOp:0,    breathAmp:0.01, breathSpeed:0.4, scale:0.85,opacity:0.6, css:CSS.slate,label:'Degraded'},
+  offline:  {color:BRAND.bgSurface,glow:0.05,haloOp:0,  breathAmp:0,    breathSpeed:0,   scale:0.7, opacity:0.25,css:CSS.iron, label:'Unreachable'},
+  available:{color:BRAND.bgBorder, glow:0,   haloOp:0,   breathAmp:0,    breathSpeed:0,   scale:1.0, opacity:0.12,css:CSS.faint,label:'Unassigned'},
+};
+
+// Service visual properties — auto-discovered, all use blue when online
+const SVC_DEFAULTS={hex:BRAND.blue,css:CSS.blue};
+
+// ═══════════════════════════════════════════════════════
+// LIVE DATA LAYER — direct localhost to all 3 daemons
+// ═══════════════════════════════════════════════════════
+
+// Production node ports (gateway ports per deploy-daemon.ps1: 11111 + (nodeId-1)*27 + 13)
+const NODE_PORTS=[11124,11151,11178];
+
+// Connection state
+let isLive=false;
+let pollTimer=null;
+let relayUrl='https://plenumnet.replit.app'; // relay used only for ops/exec pipeline
+let apiKey='';
+const connStatus=document.getElementById('conn-status');
+const connBtn=document.getElementById('btn-connect');
+
+// Fetch /slots and /health from a single daemon
+async function fetchNode(port){
+  const timeout=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
+  try{
+    const [slotsResp,healthResp]=await Promise.all([
+      Promise.race([fetch(`http://localhost:${port}/api/salvi/inter-cube/slots`),timeout(3000)]),
+      Promise.race([fetch(`http://localhost:${port}/health`),timeout(3000)])
+    ]);
+    if(!slotsResp.ok)throw new Error(`/slots ${slotsResp.status}`);
+    if(!healthResp.ok)throw new Error(`/health ${healthResp.status}`);
+    const slots=await slotsResp.json();
+    const health=await healthResp.json();
+    return {slots,health,port,alive:true};
+  }catch(e){
+    console.warn(`[node:${port}] Fetch failed:`,e.message);
+    return {slots:null,health:null,port,alive:false,error:e.message};
+  }
+}
+
+// Transform API /slots response into internal slot format
+function transformNode(nodeData,ni){
+  const result=[];
+  const h=nodeData.health||{};
+  const nodeName=`Node ${h.node_id||ni+1}`;
+  const nodePort=nodeData.port;
+  const isUp=nodeData.alive;
+
+  if(nodeData.slots&&nodeData.slots.slots){
+    nodeData.slots.slots.forEach(apiSlot=>{
+      const [x,y,z]=apiSlot.address;
+      const svcRaw=apiSlot.service_type;
+      const svc=svcRaw?svcRaw.charAt(0).toUpperCase()+svcRaw.slice(1):null;
+      result.push({
+        rc:[x,y,z],ni:ni,nn:nodeName,np:nodePort,
+        occ:!!svc,svc:svc,
+        st:apiSlot.status==='available'?'available':apiSlot.status,
+        statusLabel:apiSlot.status_label||'',
+        ld:0,pt:apiSlot.port,
+        up:h.status==='ok'?'running':'—',
+        la:0,td:0,hb:0,
+        isPrimaryGW:apiSlot.is_primary_gateway||false,
+        mode:h.mode||'unknown',
+        version:h.version||'',
+        address:h.address||'',
+      });
+    });
+  } else {
+    // Node unreachable — build 27 offline slots
+    for(let x=1;x<=3;x++) for(let y=1;y<=3;y++) for(let z=1;z<=3;z++){
+      const isCenter=x===2&&y===2&&z===2;
+      result.push({
+        rc:[x,y,z],ni:ni,nn:nodeName,np:nodePort,
+        occ:isCenter,svc:isCenter?'Gateway':null,
+        st:'offline',statusLabel:'Node unreachable',
+        ld:0,pt:0,up:'—',la:0,td:0,hb:0,
+        isPrimaryGW:false,mode:'unknown',version:'',address:'',
+      });
+    }
+  }
+  return result;
+}
+
+// Fetch all 3 nodes and build allSlots
+async function fetchAllNodes(){
+  try{
+    const results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)));
+    const upCount=results.filter(r=>r.alive).length;
+
+    allSlots.length=0;
+    results.forEach((nodeData,ni)=>{
+      const slots=transformNode(nodeData,ni);
+      slots.forEach(s=>allSlots.push(s));
+    });
+
+    // Update connection status
+    const summaries=results.map((r,i)=>{
+      if(!r.alive)return `N${i+1}:down`;
+      const occ=r.slots?r.slots.summary?.occupied||0:0;
+      return `N${i+1}:${occ}svc`;
+    });
+    connStatus.textContent=`Live · ${upCount}/3 nodes · ${summaries.join(' · ')}`;
+    connStatus.style.color=upCount===3?CSS.lime:upCount>0?CSS.blueActive:CSS.slate;
+
+    return true;
+  }catch(e){
+    console.warn('Fetch all nodes failed:',e.message);
+    connStatus.textContent=`Fetch failed: ${e.message}`;connStatus.style.color=CSS.slate;
+    return false;
+  }
+}
+
+// Initialize — fetch live data immediately
+let allSlots=[];
+const P={explode:0.33,rotation:0.13,tsize:0.87,spread:0.53,glow:0.69};
+let focusNode='all';
+let discovered=new Map();
+let activeFilters=new Set();
+
+// Refresh scene from current allSlots
+function refreshScene(){
+  discovered.clear();
+  allSlots.forEach(s=>{if(s.occ&&s.svc){if(!discovered.has(s.svc))discovered.set(s.svc,{count:0});discovered.get(s.svc).count++}});
+  discovered.forEach((_,k)=>{if(!activeFilters.has(k))activeFilters.add(k)});
+  rebuildSvcDropdown();
+  document.getElementById('p-occ').textContent=allSlots.filter(s=>s.occ).length+' occupied';
+  buildAll();
+}
+
+// Connect button — start live polling
+connBtn.addEventListener('click',async()=>{
+  relayUrl=document.getElementById('inp-url').value.replace(/\/$/,'');
+  apiKey=document.getElementById('inp-key').value;
+  connStatus.textContent='Connecting to local daemons...';connStatus.style.color=CSS.blueActive;
+  connBtn.disabled=true;connBtn.textContent='Connecting...';
+
+  const ok=await fetchAllNodes();
+  if(ok){
+    isLive=true;
+    refreshScene();
+    connBtn.textContent='Refresh';connBtn.disabled=false;
+
+    if(pollTimer)clearInterval(pollTimer);
+    pollTimer=setInterval(async()=>{
+      const fresh=await fetchAllNodes();
+      if(fresh)refreshScene();
+    },5000);
+  } else {
+    isLive=false;
+    connBtn.textContent='Retry';connBtn.disabled=false;
+  }
+});
+
+// Auto-connect on load
+(async()=>{
+  const ok=await fetchAllNodes();
+  if(ok){isLive=true;refreshScene();
+    pollTimer=setInterval(async()=>{const f=await fetchAllNodes();if(f)refreshScene()},5000);
+  } else {
+    // No daemons reachable — show empty cubes
+    NODE_PORTS.forEach((port,ni)=>{
+      for(let x=1;x<=3;x++) for(let y=1;y<=3;y++) for(let z=1;z<=3;z++){
+        allSlots.push({rc:[x,y,z],ni:ni,nn:`Node ${ni+1}`,np:port,occ:false,svc:null,st:'available',statusLabel:'Unassigned',ld:0,pt:0,up:'—',la:0,td:0,hb:0});
+      }
+    });
+    refreshScene();
+  }
+})();
+
+// ═══════════════════════════════════════════════════════
+// PANEL TOGGLE
+// ═══════════════════════════════════════════════════════
+const panelEl=document.getElementById('panel'),toggleBtn=document.getElementById('panel-toggle');
+let panelVis=true;
+function togglePanel(){panelVis=!panelVis;panelEl.classList.toggle('hidden',!panelVis);toggleBtn.classList.toggle('active',panelVis)}
+toggleBtn.addEventListener('click',togglePanel);
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='p'&&!e.ctrlKey&&!e.metaKey&&document.activeElement===document.body)togglePanel()});
+
+// Service dropdown
+const svcTrigger=document.getElementById('svc-trigger'),svcArrow=document.getElementById('svc-arrow');
+const svcList=document.getElementById('svc-list'),svcSummary=document.getElementById('svc-summary');
+let dropOpen=false;
+function updateSvcSum(){const t=discovered.size,a=activeFilters.size;svcSummary.textContent=a===t?`All ${t} services`:`${a} of ${t}`}
+function rebuildSvcDropdown(){
+  svcList.innerHTML='';
+  discovered.forEach((info,name)=>{
+    const item=document.createElement('div');
+    item.className='svc-item'+(activeFilters.has(name)?' active':'');
+    item.innerHTML=`<div class="svc-dot" style="background:${CSS.blue};box-shadow:0 0 4px ${CSS.blue}"></div><span class="svc-name">${name}</span><span class="svc-count">×${info.count}</span><div class="svc-check">✓</div>`;
+    item.addEventListener('click',e=>{e.stopPropagation();if(activeFilters.has(name)){activeFilters.delete(name);item.classList.remove('active')}else{activeFilters.add(name);item.classList.add('active')}updateSvcSum();applyVis()});
+    svcList.appendChild(item);
+  });
+  updateSvcSum();
+}
+rebuildSvcDropdown();
+svcTrigger.addEventListener('click',()=>{dropOpen=!dropOpen;svcList.classList.toggle('open',dropOpen);svcArrow.classList.toggle('open',dropOpen)});
+addEventListener('click',e=>{if(dropOpen&&!svcTrigger.contains(e.target)&&!svcList.contains(e.target)){dropOpen=false;svcList.classList.remove('open');svcArrow.classList.remove('open')}});
+
+// ═══════════════════════════════════════════════════════
+// THREE.JS
+// ═══════════════════════════════════════════════════════
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(BRAND.bgPage);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.1,600);
+camera.position.set(8,7,14);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.4;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x1a1a22,0.5));
+const kl=new THREE.DirectionalLight(0xffffff,0.6);kl.position.set(5,8,4);scene.add(kl);
+scene.add(new THREE.PointLight(BRAND.blue,0.3,60).translateX(-8).translateY(3).translateZ(6));
+scene.add(new THREE.PointLight(0x665544,0.15,40).translateY(4).translateZ(-8));
+
+// Camera orbit
+let orb={th:0.6,ph:0.85,r:16},orbTgt={th:0.6,ph:0.85,r:16};
+let isDrag=false,prevM={x:0,y:0},clickStart={x:0,y:0},wasDrag=false;const pivot=new THREE.Vector3(0,0,0);
+renderer.domElement.addEventListener('mousedown',e=>{if(e.button===0){isDrag=true;wasDrag=false;prevM={x:e.clientX,y:e.clientY};clickStart={x:e.clientX,y:e.clientY};document.body.classList.add('dragging')}});
+addEventListener('mousemove',e=>{if(isDrag){const dx=e.clientX-prevM.x,dy=e.clientY-prevM.y;orbTgt.th-=dx*0.004;orbTgt.ph=Math.max(0.15,Math.min(Math.PI-0.15,orbTgt.ph-dy*0.004));prevM={x:e.clientX,y:e.clientY};if(Math.abs(e.clientX-clickStart.x)>5||Math.abs(e.clientY-clickStart.y)>5)wasDrag=true}});
+addEventListener('mouseup',()=>{isDrag=false;document.body.classList.remove('dragging')});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();orbTgt.r=Math.max(5,Math.min(35,orbTgt.r+e.deltaY*0.01))},{passive:false});
+let tch=null;
+renderer.domElement.addEventListener('touchstart',e=>{if(e.touches.length===1)tch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:false});
+renderer.domElement.addEventListener('touchmove',e=>{e.preventDefault();if(tch&&e.touches.length===1){orbTgt.th-=(e.touches[0].clientX-tch.x)*0.004;orbTgt.ph=Math.max(0.15,Math.min(Math.PI-0.15,orbTgt.ph-(e.touches[0].clientY-tch.y)*0.004));tch={x:e.touches[0].clientX,y:e.touches[0].clientY}}},{passive:false});
+renderer.domElement.addEventListener('touchend',()=>{tch=null});
+function updateCam(){const L=0.07;orb.th+=(orbTgt.th-orb.th)*L;orb.ph+=(orbTgt.ph-orb.ph)*L;orb.r+=(orbTgt.r-orb.r)*L;camera.position.set(pivot.x+orb.r*Math.sin(orb.ph)*Math.cos(orb.th),pivot.y+orb.r*Math.cos(orb.ph),pivot.z+orb.r*Math.sin(orb.ph)*Math.sin(orb.th));camera.lookAt(pivot)}
+
+// Geometry
+function cubeSpacing(){return 1.2+P.explode*2.2}
+function nodeDistance(){return 4+P.spread*8}
+const nodeAngles=[Math.PI*7/6,Math.PI/2,Math.PI*11/6];
+function nodeOrigin(ni){const d=nodeDistance();return new THREE.Vector3(Math.cos(nodeAngles[ni])*d,0,Math.sin(nodeAngles[ni])*d)}
+function slotPos(slot){const s=cubeSpacing();return new THREE.Vector3((slot.rc[0]-2)*s,(slot.rc[1]-2)*s,(slot.rc[2]-2)*s).add(nodeOrigin(slot.ni))}
+function gwPos(ni){return nodeOrigin(ni)}
+
+const boxGeo=new THREE.BoxGeometry(1,1,1),sphGeo=new THREE.SphereGeometry(1,24,24),icoGeo=new THREE.IcosahedronGeometry(1,2);
+
+function mkLabel(text,color){
+  const c=document.createElement('canvas');c.width=256;c.height=56;
+  const ctx=c.getContext('2d');ctx.font='600 24px monospace';ctx.fillStyle=color;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,128,28);
+  const t=new THREE.CanvasTexture(c);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,opacity:0.65}));
+  s.scale.set(0.9,0.22,1);return s;
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD
+// ═══════════════════════════════════════════════════════
+const root=new THREE.Group();scene.add(root);
+let nds=[],connLines=[],relayTubes=[],relayPulses=[],boundGroups=[],nodeLabels=[];
+
+function buildAll(){
+  while(root.children.length)root.remove(root.children[0]);
+  nds=[];connLines=[];relayTubes=[];relayPulses=[];boundGroups=[];nodeLabels=[];
+
+  allSlots.forEach((slot,i)=>{
+    const pos=slotPos(slot);
+    const isGW=slot.svc==='Gateway';
+    const isPrimary=isGW&&slot.ni===0;
+    const stDef=STATUS[slot.st]||STATUS.available;
+    const tSc=(isGW?0.4:0.28)*P.tsize;
+
+    // Tunnel wireframe — always brand border color, opacity varies by status
+    const eMat=new THREE.LineBasicMaterial({color:slot.occ?stDef.color:BRAND.bgBorder,transparent:true,opacity:slot.occ?Math.max(stDef.opacity*0.5,0.08):0.08});
+    const edges=new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo),eMat);
+    edges.scale.setScalar(tSc);edges.position.copy(pos);root.add(edges);
+
+    // Click target
+    const fMat=new THREE.MeshStandardMaterial({color:BRAND.bgBorder,transparent:true,opacity:0.02,roughness:0.9,metalness:0.3,side:THREE.DoubleSide});
+    const face=new THREE.Mesh(boxGeo,fMat);
+    face.scale.setScalar(tSc);face.position.copy(pos);face.userData={idx:i};root.add(face);
+
+    // Service sphere — color and behavior from STATUS system
+    let inner=null,halo=null,ring=null,ringGlow=null,primaryLabel=null;
+    if(slot.occ){
+      const sphereColor=isPrimary?BRAND.gold:stDef.color;
+      const sphereGlow=isPrimary?2.4:stDef.glow;
+      const iMat=new THREE.MeshStandardMaterial({
+        color:sphereColor,emissive:sphereColor,emissiveIntensity:sphereGlow,
+        roughness:isPrimary?0.05:(isGW?0.1:0.25),metalness:isPrimary?0.98:(isGW?0.95:0.75),
+        transparent:stDef.opacity<1,opacity:stDef.opacity,
+      });
+      const iSc=(isPrimary?tSc*0.7:(isGW?tSc*0.55:tSc*0.42))*stDef.scale;
+      inner=new THREE.Mesh(isGW?icoGeo:sphGeo,iMat);
+      inner.scale.setScalar(iSc);inner.position.copy(pos);inner.userData={idx:i};root.add(inner);
+
+      // Halo — only for online status
+      if(stDef.haloOp>0){
+        const hMat=new THREE.MeshBasicMaterial({color:isPrimary?BRAND.gold:stDef.color,transparent:true,opacity:stDef.haloOp*P.glow*2,side:THREE.BackSide});
+        halo=new THREE.Mesh(sphGeo,hMat);
+        halo.scale.setScalar(isPrimary?iSc*4.5:iSc*3.5);halo.position.copy(pos);root.add(halo);
+      }
+
+      // Primary gateway ring
+      if(isPrimary){
+        const rGeo=new THREE.TorusGeometry(iSc*2.2,0.015,8,64);
+        ring=new THREE.Mesh(rGeo,new THREE.MeshStandardMaterial({color:BRAND.gold,emissive:BRAND.gold,emissiveIntensity:1.8,roughness:0.1,metalness:0.95,transparent:true,opacity:0.8}));
+        ring.position.copy(pos);ring.rotation.x=Math.PI*0.35;root.add(ring);
+        ringGlow=new THREE.Mesh(new THREE.TorusGeometry(iSc*2.2,0.06,8,64),new THREE.MeshBasicMaterial({color:BRAND.gold,transparent:true,opacity:0.08,side:THREE.DoubleSide}));
+        ringGlow.position.copy(pos);ringGlow.rotation.x=Math.PI*0.35;root.add(ringGlow);
+        primaryLabel=mkLabel('OUTBOUND GATEWAY','#FFCC44');
+        primaryLabel.position.copy(pos);primaryLabel.position.y+=tSc*1.6;primaryLabel.scale.set(1.4,0.38,1);root.add(primaryLabel);
+      }
+    }
+
+    const labColor=isPrimary?CSS.gold:(slot.occ?stDef.css:CSS.faint);
+    const lab=mkLabel(`(${slot.rc.join(',')})`,labColor);
+    lab.position.copy(pos);lab.position.y-=tSc*1.4;root.add(lab);
+    nds.push({face,edges,inner,halo,lab,slot,tSc,isGW,isPrimary,ring,ringGlow,primaryLabel,stDef});
+  });
+
+  // Derive node list from allSlots
+  const nodeIndices=[...new Set(allSlots.map(s=>s.ni))].sort();
+
+  // Intra-cube connections — only for online slots
+  nodeIndices.forEach(ni=>{
+    const gw=gwPos(ni);
+    allSlots.forEach((slot,i)=>{
+      if(slot.ni!==ni||!slot.occ||slot.svc==='Gateway')return;
+      const stDef=STATUS[slot.st]||STATUS.available;
+      if(slot.st==='offline')return; // offline = connection disappears
+      const from=slotPos(slot);
+      const mid=new THREE.Vector3().addVectors(from,gw).multiplyScalar(0.5);
+      const off=new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(from,gw),new THREE.Vector3(0,1,0)).normalize().multiplyScalar(cubeSpacing()*0.1);
+      mid.add(off);
+      const curve=new THREE.QuadraticBezierCurve3(from,mid,gw);
+      // Degraded connections are very faint
+      const op=slot.st==='degraded'?0.05:0.1;
+      const mat=new THREE.LineBasicMaterial({color:stDef.color,transparent:true,opacity:op});
+      const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(30)),mat);
+      line.userData={slotIdx:i,ni:ni};root.add(line);connLines.push(line);
+    });
+  });
+
+  // Inter-cube relay tubes — LIME GREEN for data flow
+  [[0,1],[1,2],[0,2]].forEach(([a,b])=>{
+    const pa=gwPos(a),pb=gwPos(b);
+    const mid=new THREE.Vector3().addVectors(pa,pb).multiplyScalar(0.5);
+    mid.y+=nodeDistance()*0.3;
+    const curve=new THREE.QuadraticBezierCurve3(pa,mid,pb);
+
+    // Tube — lime green, data flow color
+    const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,48,0.04,8,false),
+      new THREE.MeshStandardMaterial({color:BRAND.lime,emissive:BRAND.lime,emissiveIntensity:0.3,roughness:0.3,metalness:0.8,transparent:true,opacity:0.4}));
+    root.add(tube);relayTubes.push(tube);
+    // Glow
+    root.add(new THREE.Mesh(new THREE.TubeGeometry(curve,48,0.1,8,false),new THREE.MeshBasicMaterial({color:BRAND.lime,transparent:true,opacity:0.04,side:THREE.BackSide})));
+
+    // Pulses — lime green data packets
+    const p1=new THREE.Mesh(sphGeo,new THREE.MeshStandardMaterial({color:BRAND.lime,emissive:BRAND.lime,emissiveIntensity:2.5,roughness:0.1,metalness:0.9}));
+    p1.scale.setScalar(0.08);root.add(p1);
+    const p2=new THREE.Mesh(sphGeo,new THREE.MeshStandardMaterial({color:BRAND.lime,emissive:BRAND.lime,emissiveIntensity:1.8,roughness:0.1,metalness:0.9}));
+    p2.scale.setScalar(0.06);root.add(p2);
+    const h1=new THREE.Mesh(sphGeo,new THREE.MeshBasicMaterial({color:BRAND.lime,transparent:true,opacity:0.1,side:THREE.BackSide}));
+    h1.scale.setScalar(0.25);root.add(h1);
+    const h2=new THREE.Mesh(sphGeo,new THREE.MeshBasicMaterial({color:BRAND.lime,transparent:true,opacity:0.06,side:THREE.BackSide}));
+    h2.scale.setScalar(0.2);root.add(h2);
+    relayPulses.push({curve,pulse:p1,pulse2:p2,halo:h1,halo2:h2});
+  });
+
+  // Boundaries + labels — derive node names from allSlots
+  nodeIndices.forEach(ni=>{
+    const nodeSlot=allSlots.find(s=>s.ni===ni&&s.occ)||allSlots.find(s=>s.ni===ni);
+    const nodeName=nodeSlot?nodeSlot.nn:`Node ${ni+1}`;
+    const origin=nodeOrigin(ni);const s=cubeSpacing()*1.15;
+    const grp=new THREE.Group();
+    [[[-1,-1,-1],[1,-1,-1]],[[1,-1,-1],[1,-1,1]],[[1,-1,1],[-1,-1,1]],[[-1,-1,1],[-1,-1,-1]],
+     [[-1,1,-1],[1,1,-1]],[[1,1,-1],[1,1,1]],[[1,1,1],[-1,1,1]],[[-1,1,1],[-1,1,-1]],
+     [[-1,-1,-1],[-1,1,-1]],[[1,-1,-1],[1,1,-1]],[[1,-1,1],[1,1,1]],[[-1,-1,1],[-1,1,1]]].forEach(([a,b])=>{
+      grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(origin.x+a[0]*s,origin.y+a[1]*s,origin.z+a[2]*s),
+        new THREE.Vector3(origin.x+b[0]*s,origin.y+b[1]*s,origin.z+b[2]*s)
+      ]),new THREE.LineBasicMaterial({color:BRAND.bgSurface,transparent:true,opacity:0.35})));
+    });
+    root.add(grp);boundGroups.push(grp);
+    const nl=mkLabel(nodeName,CSS.blue);
+    nl.position.set(origin.x,origin.y+s*1.4,origin.z);nl.scale.set(1.6,0.5,1);
+    root.add(nl);nodeLabels.push(nl);
+  });
+  applyVis();
+}
+
+// ═══════════════════════════════════════════════════════
+// VISIBILITY
+// ═══════════════════════════════════════════════════════
+function applyVis(){
+  const sE=document.getElementById('chk-empty').checked,sC=document.getElementById('chk-conn').checked;
+  const sR=document.getElementById('chk-relay').checked,sL=document.getElementById('chk-lab').checked;
+  const sB=document.getElementById('chk-bound').checked;
+  nds.forEach(nd=>{
+    const s=nd.slot;const nV=focusNode==='all'||parseInt(focusNode)===s.ni;
+    const sV=s.occ?activeFilters.has(s.svc):sE;const vis=nV&&sV;
+    nd.face.visible=vis;nd.edges.visible=vis;
+    if(nd.inner)nd.inner.visible=vis&&activeFilters.has(s.svc);
+    if(nd.halo)nd.halo.visible=vis&&activeFilters.has(s.svc);
+    nd.lab.visible=vis&&sL;
+    if(nd.ring)nd.ring.visible=vis&&activeFilters.has('Gateway');
+    if(nd.ringGlow)nd.ringGlow.visible=vis&&activeFilters.has('Gateway');
+    if(nd.primaryLabel)nd.primaryLabel.visible=vis&&sL&&activeFilters.has('Gateway');
+  });
+  connLines.forEach(l=>{const s=allSlots[l.userData.slotIdx];l.visible=sC&&(focusNode==='all'||parseInt(focusNode)===l.userData.ni)&&activeFilters.has(s.svc)});
+  relayTubes.forEach(t=>t.visible=sR);
+  relayPulses.forEach(rp=>{rp.pulse.visible=sR;rp.pulse2.visible=sR;rp.halo.visible=sR;rp.halo2.visible=sR});
+  boundGroups.forEach((g,i)=>g.visible=sB&&(focusNode==='all'||parseInt(focusNode)===i));
+  nodeLabels.forEach((l,i)=>l.visible=sL&&(focusNode==='all'||parseInt(focusNode)===i));
+}
+buildAll();
+
+// UI bindings
+document.querySelectorAll('.ntab').forEach(tab=>{tab.addEventListener('click',()=>{document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');focusNode=tab.dataset.n;applyVis()})});
+['chk-conn','chk-relay','chk-lab','chk-empty','chk-bound'].forEach(id=>document.getElementById(id).addEventListener('change',applyVis));
+
+[{id:'sl-explode',vid:'val-explode',key:'explode',rb:true},{id:'sl-rotation',vid:'val-rotation',key:'rotation',rb:false},
+ {id:'sl-tsize',vid:'val-tsize',key:'tsize',rb:true},{id:'sl-spread',vid:'val-spread',key:'spread',rb:true},
+ {id:'sl-glow',vid:'val-glow',key:'glow',rb:false}].forEach(d=>{
+  const el=document.getElementById(d.id),vel=document.getElementById(d.vid);
+  el.addEventListener('input',()=>{P[d.key]=el.value/100;vel.textContent=el.value;
+    if(d.key==='glow')nds.forEach(nd=>{if(nd.halo)nd.halo.material.opacity=nd.stDef.haloOp*P.glow*2});
+    if(d.rb)buildAll()});
+});
+
+// ═══════════════════════════════════════════════════════
+// INTERACTION
+// ═══════════════════════════════════════════════════════
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2(-99,-99);
+let hovered=-1,selected=-1;
+const tip=document.getElementById('tip'),detail=document.getElementById('detail');
+
+function targets(){const a=[];nds.forEach(nd=>{if(nd.face.visible)a.push(nd.face);if(nd.inner&&nd.inner.visible)a.push(nd.inner)});return a}
+
+renderer.domElement.addEventListener('mousemove',e=>{
+  mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(mouse,camera);const hits=ray.intersectObjects(targets());
+  if(hits.length){
+    const idx=hits[0].object.userData.idx;hovered=idx;const s=allSlots[idx];
+    const stDef=STATUS[s.st]||STATUS.available;
+    tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-10)+'px';
+    const isPri=s.svc==='Gateway'&&s.ni===0;
+    tip.innerHTML=isPri?`<span style="color:${CSS.gold}">⬡ PRIMARY GATEWAY</span> · ${s.nn}`
+      :s.occ?`<span style="color:${stDef.css}">${s.svc}</span> · <span style="color:${stDef.css}">${stDef.label}</span> · ${s.nn}`
+      :`<span style="color:${CSS.faint}">empty tunnel</span> · ${s.nn} (${s.rc.join(',')})`;
+    renderer.domElement.style.cursor='pointer';
+  } else {hovered=-1;tip.style.display='none';renderer.domElement.style.cursor=isDrag?'grabbing':'grab'}
+});
+
+renderer.domElement.addEventListener('click',()=>{
+  if(wasDrag)return; // drag release — don't close panel
+  ray.setFromCamera(mouse,camera);const hits=ray.intersectObjects(targets());
+  if(hits.length){selected=hits[0].object.userData.idx;showDet(selected)}
+  else{selected=-1;detail.classList.remove('show');leaderTargets=[]}
+});
+addEventListener('keydown',e=>{if(e.key==='Escape'){selected=-1;detail.classList.remove('show');leaderTargets=[];hideRestartDialog()}});
+
+// ═══════════════════════════════════════════════════════
+// WSS RELAY CONNECTION
+// ═══════════════════════════════════════════════════════
+let relayWs=null;
+let relayConnected=false;
+
+function connectRelayWss(){
+  const wsUrl=relayUrl.replace(/^http/,'ws')+'/ws/relay';
+  try{
+    relayWs=new WebSocket(wsUrl);
+    relayWs.onopen=()=>{relayConnected=true;console.log('[ws-relay] Connected to',wsUrl)};
+    relayWs.onclose=()=>{relayConnected=false;console.log('[ws-relay] Disconnected');setTimeout(connectRelayWss,5000)};
+    relayWs.onerror=e=>{console.warn('[ws-relay] Error:',e)};
+    relayWs.onmessage=e=>{
+      try{
+        const msg=JSON.parse(e.data);
+        if(msg.msg_type==='exec-result'){handleExecResult(msg)}
+        if(msg.msg_type==='telemetry'){handleTelemetry(msg)}
+      }catch(err){/* non-JSON message */}
+    };
+  }catch(e){console.warn('[ws-relay] Failed to connect:',e.message)}
+}
+
+function sendOpsMessage(msg){
+  if(!relayWs||relayWs.readyState!==WebSocket.OPEN){
+    console.warn('[ws-relay] Not connected — cannot send ops message');
+    return false;
+  }
+  relayWs.send(JSON.stringify(msg));
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════
+// NINJAEXEC SIGNING BRIDGE (localhost:21027)
+// ═══════════════════════════════════════════════════════
+const NINJA_URL='http://127.0.0.1:21027';
+
+async function ninjaSign(payload){
+  try{
+    const payloadStr=typeof payload==='string'?payload:JSON.stringify(payload);
+    const payloadB64=btoa(unescape(encodeURIComponent(payloadStr)));
+    const resp=await fetch(`${NINJA_URL}/sign`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({payload_b64:payloadB64,context:'exec: restart'})
+    });
+    if(!resp.ok){
+      const errBody=await resp.text().catch(()=>'');
+      throw new Error(`NinjaExec returned ${resp.status}: ${errBody}`);
+    }
+    const data=await resp.json();
+    return {signature:data.signature_b64,public_key:data.pubkey_b64};
+  }catch(e){
+    console.warn('[ninja] Signing failed:',e.message);
+    throw e;
+  }
+}
+
+async function ninjaStatus(){
+  try{
+    const resp=await fetch(`${NINJA_URL}/status`);
+    if(!resp.ok)return null;
+    return await resp.json();
+  }catch(e){return null}
+}
+
+// ═══════════════════════════════════════════════════════
+// RESTART FLOW — double-click → confirm → sign → exec → poll
+// ═══════════════════════════════════════════════════════
+const restartOverlay=document.getElementById('restart-overlay');
+const restartMsg=document.getElementById('restart-msg');
+const restartStatus=document.getElementById('restart-status');
+const restartConfirmBtn=document.getElementById('restart-confirm');
+const restartCancelBtn=document.getElementById('restart-cancel');
+let restartTarget=null; // {slotIdx, nodeId, nodeName, svc}
+let restartPollTimer=null;
+
+function showRestartDialog(slot){
+  restartTarget={
+    slotIdx:slot.ni,
+    nodeId:slot.ni+1,
+    nodeName:slot.nn,
+    svc:slot.svc||'daemon',
+    port:slot.np
+  };
+  restartMsg.innerHTML=`Restart <strong>${restartTarget.svc}</strong> on <strong>${restartTarget.nodeName}</strong> (port ${restartTarget.port})?<br><br><span style="font-size:13px;color:#998F82">This sends a signed exec command through the relay to restart the service. NinjaExec (localhost:21027) will be contacted for TL-DSA signing.</span>`;
+  restartStatus.textContent='';
+  restartConfirmBtn.disabled=false;
+  restartConfirmBtn.textContent='Confirm restart';
+  restartOverlay.style.display='flex';
+}
+
+function hideRestartDialog(){
+  restartOverlay.style.display='none';
+  restartTarget=null;
+  if(restartPollTimer){clearInterval(restartPollTimer);restartPollTimer=null}
+}
+
+restartCancelBtn.addEventListener('click',hideRestartDialog);
+
+restartConfirmBtn.addEventListener('click',async()=>{
+  if(!restartTarget)return;
+  restartConfirmBtn.disabled=true;
+  restartConfirmBtn.textContent='Signing...';
+  restartStatus.textContent='Contacting NinjaExec for TL-DSA signature...';
+  restartStatus.style.color=CSS.blueActive;
+
+  // Step 1: Check NinjaExec is alive
+  const ninjaAlive=await ninjaStatus();
+  if(!ninjaAlive){
+    restartStatus.textContent='NinjaExec not reachable at 127.0.0.1:21027 — is it running?';
+    restartStatus.style.color='#E24B4A';
+    restartConfirmBtn.disabled=false;
+    restartConfirmBtn.textContent='Retry';
+    return;
+  }
+
+  // Step 2: Build the exec command (PlenumNET-Cube-{N} per deploy-daemon.ps1)
+  const cmd=`Restart-Service PlenumNET-Cube-${restartTarget.nodeId}`;
+
+  const execPayload={
+    msg_type:'exec',
+    target_node:restartTarget.nodeId,
+    script:cmd,
+    timestamp:Date.now()
+  };
+
+  // Step 3: Sign with NinjaExec
+  try{
+    restartStatus.textContent='Signing exec payload...';
+    const signed=await ninjaSign(execPayload);
+    execPayload.signature=signed.signature;
+    execPayload.public_key=signed.public_key;
+    restartStatus.textContent='Signed. Sending to relay...';
+  }catch(e){
+    restartStatus.textContent=`Signing failed: ${e.message}`;
+    restartStatus.style.color='#E24B4A';
+    restartConfirmBtn.disabled=false;
+    restartConfirmBtn.textContent='Retry';
+    return;
+  }
+
+  // Step 4: Build auth headers and ensure ops channel is enabled
+  const opsHeaders={'Content-Type':'application/json'};
+  if(apiKey)opsHeaders['Authorization']=`Bearer ${apiKey}`;
+  try{
+    await fetch(`${relayUrl}/api/ops/enable`,{method:'POST',headers:opsHeaders});
+  }catch(e){console.warn('[ops] Could not enable ops channel:',e.message)}
+
+  // Step 5: Send exec via HTTP to relay (forwarded to daemon WebSocket)
+  let delivered=false;
+  try{
+    const execResp=await fetch(`${relayUrl}/api/ops/exec`,{
+      method:'POST',
+      headers:opsHeaders,
+      body:JSON.stringify({
+        script:cmd,
+        target_node_id:String(restartTarget.nodeId),
+        signature:execPayload.signature,
+        public_key:execPayload.public_key,
+        context:`Array3 Monitor restart ${restartTarget.nodeName}`
+      })
+    });
+    if(!execResp.ok){
+      const errBody=await execResp.json().catch(()=>({}));
+      if(errBody.error==='NODE_DISCONNECTED'){
+        const nodes=(errBody.connected_nodes||[]).join(', ');
+        throw new Error(`Node ${restartTarget.nodeId} not connected to relay. Connected: [${nodes}]`);
+      }
+      throw new Error(`Relay returned ${execResp.status}: ${errBody.error||errBody.message||'unknown'}`);
+    }
+    const execResult=await execResp.json();
+    restartStatus.textContent=`Exec delivered to ${restartTarget.nodeName} (id: ${execResult.request_id||'—'}). Watching for recovery...`;
+    restartStatus.style.color=CSS.lime;
+    delivered=true;
+  }catch(e){
+    // Fallback: try WSS relay
+    console.warn('[exec] HTTP failed, trying WSS:',e.message);
+    if(!relayConnected){connectRelayWss();await new Promise(r=>setTimeout(r,2000))}
+    const sent=sendOpsMessage(execPayload);
+    if(sent){
+      restartStatus.textContent='Command sent via WebSocket relay. Watching for recovery...';
+      restartStatus.style.color=CSS.lime;
+      delivered=true;
+    }else{
+      restartStatus.textContent=`Could not reach relay: ${e.message}`;
+      restartStatus.style.color='#E24B4A';
+      restartConfirmBtn.disabled=false;
+      restartConfirmBtn.textContent='Retry';
+      return;
+    }
+  }
+
+  if(!delivered)return;
+  restartConfirmBtn.textContent='Waiting...';
+
+  // Step 6: Poll cluster-health for recovery (no auth needed, checks specific node by port)
+  const targetPort=restartTarget.port;
+  let elapsed=0;
+  restartPollTimer=setInterval(async()=>{
+    elapsed+=3;
+    restartStatus.textContent=`Watching for ${restartTarget.nodeName} (port ${targetPort}) recovery... ${elapsed}s`;
+    if(elapsed>=60){
+      clearInterval(restartPollTimer);restartPollTimer=null;
+      restartStatus.textContent=`Timeout — ${restartTarget.nodeName} did not reconnect within 60s. The Windows watchdog will attempt recovery within 5 minutes.`;
+      restartStatus.style.color=CSS.label;
+      restartConfirmBtn.disabled=false;
+      restartConfirmBtn.textContent='Close';
+      restartConfirmBtn.onclick=hideRestartDialog;
+      return;
+    }
+    try{
+      const healthResp=await fetch(`http://localhost:${targetPort}/health`);
+      if(healthResp.ok){
+        const health=await healthResp.json();
+        if(health.status==='ok'){
+          clearInterval(restartPollTimer);restartPollTimer=null;
+          restartStatus.innerHTML=`<span style="color:${CSS.lime}">${restartTarget.nodeName} is back online (v${health.version}, mode: ${health.mode}).</span>`;
+          restartConfirmBtn.disabled=false;
+          restartConfirmBtn.textContent='Done';
+          restartConfirmBtn.onclick=()=>{hideRestartDialog();fetchAllNodes().then(r=>{if(r)refreshScene()})};
+          return;
+        }
+      }
+    }catch(e){/* keep polling */}
+  },3000);
+});
+
+function handleExecResult(msg){
+  console.log('[ops] exec-result:',msg);
+  if(restartTarget&&msg.node_id===restartTarget.nodeId){
+    restartStatus.textContent=`Exec result from Node ${msg.node_id}: ${msg.success?'success':'failed'} — ${msg.output||''}`;
+    restartStatus.style.color=msg.success?CSS.lime:'#E24B4A';
+  }
+}
+
+function handleTelemetry(msg){
+  // Future: update HUD with real telemetry data
+  if(restartTarget&&msg.node_id===restartTarget.nodeId){
+    console.log('[ops] Telemetry from restarted node — confirmed alive');
+  }
+}
+
+// DOUBLE-CLICK HANDLER — restart down/offline nodes
+let lastClickTime=0,lastClickIdx=-1;
+renderer.domElement.addEventListener('click',()=>{
+  if(wasDrag)return;
+  ray.setFromCamera(mouse,camera);const hits=ray.intersectObjects(targets());
+  if(!hits.length)return;
+  const idx=hits[0].object.userData.idx;
+  const now=Date.now();
+  if(idx===lastClickIdx&&now-lastClickTime<400){
+    // Double-click detected
+    const slot=allSlots[idx];
+    if(slot&&(slot.st==='offline'||slot.st==='available'||(slot.svc==='Gateway'&&!slot.occ))){
+      // Only offer restart for nodes that have services
+      if(slot.occ||slot.svc){
+        showRestartDialog(slot);
+      }
+    } else if(slot&&slot.st==='degraded'){
+      showRestartDialog(slot);
+    }
+    lastClickIdx=-1;lastClickTime=0;
+  } else {
+    lastClickIdx=idx;lastClickTime=now;
+  }
+},{capture:true});
+
+// Connect WSS when HTTP connection succeeds
+const origConnBtn=connBtn.onclick;
+connBtn.addEventListener('click',()=>{setTimeout(()=>{if(isLive)connectRelayWss()},3000)});
+
+// ═══════════════════════════════════════════════════════
+// SERVICE KNOWLEDGE BASE — plain English, dependencies, impact
+// ═══════════════════════════════════════════════════════
+const KNOWLEDGE={
+  Gateway:{
+    what:"The Gateway is the sole outbound exit point for this Array3 cluster. Every packet entering or leaving the cluster routes through this encrypted tunnel. It handles TL-DSA signature verification on all inbound traffic and signs all outbound traffic before it hits the relay. It also serves as the API surface for external monitoring and management connections.",
+    dependsOn:[],
+    dependedBy:["All services — every slot routes through the Gateway"],
+    impact:"Critical. If the Gateway goes down, the entire cluster is network-isolated. No traffic in or out. Internal inter-slot communication continues, but nothing reaches other nodes or the outside world. This is the single most important tunnel in the cube."
+  },
+  CRS:{
+    what:"The Certificate Registration Service manages node identity within the PlenumNET TDNS namespace. It handles the registration, validation, renewal, and revocation of node certificates. When a new node joins the network, CRS issues its cryptographic identity. When a certificate expires, CRS handles renewal. It maintains the registry of all known node identities for this cluster's region of the TDNS address space.",
+    dependsOn:["Gateway (outbound registration sync)","TL-DSA (signing certificates)"],
+    dependedBy:["All nodes joining the network","GLB (routes based on registered identities)"],
+    impact:"New node registrations will fail. Existing nodes continue operating with their current certificates, but cannot renew when they expire. If CRS is down for longer than the certificate rotation period, nodes will start losing their identity validation."
+  },
+  GLB:{
+    what:"The Global Load Balancer distributes incoming requests across available service instances within the cluster. It monitors backend health for every registered service, detects when an instance goes down, and automatically reroutes traffic to healthy instances. GLB maintains a real-time routing table and applies weighted distribution based on each instance's reported load and latency.",
+    dependsOn:["Gateway (receives inbound traffic)","CRS (knows which services are registered)","FTS (receives health signals)"],
+    dependedBy:["All inbound client requests","CON (routing coordination)"],
+    impact:"Inbound traffic loses intelligent routing. Requests may hit overloaded or degraded instances instead of being spread evenly. If all GLB instances are down, inbound request routing falls back to the Gateway's default round-robin, which has no health awareness."
+  },
+  CON:{
+    what:"The Conductor orchestrates inter-node communication within the Array3 cluster. It manages tunnel establishment between slots, coordinates the Service Cube's internal routing, and maintains the mesh of encrypted connections between all 27 tunnels. CON is responsible for ensuring that every occupied slot can reach the Gateway and that inter-slot traffic follows the shortest path through the cube topology.",
+    dependsOn:["Gateway (outbound coordination)","CRS (identity verification for tunnel setup)"],
+    dependedBy:["All inter-slot communication","Relay tubes (CON establishes the relay connections)"],
+    impact:"Inter-slot communication degrades. New tunnel connections cannot be established. Existing tunnels continue operating but if any drop, CON cannot re-establish them. The cube's internal mesh begins fragmenting over time."
+  },
+  FTS:{
+    what:"The Fault Tolerance Service continuously monitors the health of every node and service in the cluster. It maintains a suspect list, a confirmed-dead list, and manages the recovery process when services come back online. FTS uses a gossip-based protocol to detect failures quickly — if a node misses heartbeats, FTS marks it as suspect. If it remains unresponsive past the prune threshold, FTS declares it dead and notifies all other services to stop routing to it.",
+    dependsOn:["CON (heartbeat transport)","Gateway (cross-node health signals)"],
+    dependedBy:["GLB (health-aware routing)","Monitoring dashboards","Alert systems"],
+    impact:"The cluster loses failure detection. Dead or degraded services are not automatically discovered. GLB continues routing to instances that may be down, causing request failures. Operators lose visibility into cluster health until they check manually."
+  },
+  YODA:{
+    what:"YODA is the multi-agent AI orchestration system. It manages a pool of specialized agents (currently 153 from The Agency), routes tasks to the most appropriate agent based on capability matching, and runs every output through a multi-round Quality Control pipeline (R1 → R2 → R3). YODA handles task queuing, agent assignment with deterministic tie-breaking (Capomastro-preferred, then lexicographic), CancellationToken lifecycle per task, and the unified 106-entry keyword table for routing decisions.",
+    dependsOn:["LLM (inference backend for agent reasoning)","Gateway (receives task requests)","CON (inter-slot communication)"],
+    dependedBy:["All AI-powered features","Task consumers waiting for results"],
+    impact:"All AI task processing stops. Queued tasks remain in the queue but no new assignments are made. Agents become idle. Any in-flight QC rounds are interrupted — tasks in R1/R2/R3 stall. The LLM backend continues running but receives no inference requests from the orchestrator."
+  },
+  LLM:{
+    what:"The LLM tunnel hosts the local language model inference endpoint. It runs the currently loaded model, serves chat completion requests from YODA agents, and manages the GPU resources for inference. The daemon forwards requests to the llama-server process on the configured LLM port. This is the compute-heavy slot — it's the reason the GPU is busy.",
+    dependsOn:["Gateway (receives inference requests routed from YODA)","GPU hardware (actual inference compute)"],
+    dependedBy:["YODA (all agent reasoning requires LLM inference)"],
+    impact:"All AI inference stops immediately. YODA agents can still be assigned tasks but cannot reason about them — every agent that sends a prompt to the LLM will timeout or error. The GPU goes idle. This effectively disables all AI capabilities in the cluster until the model is reloaded."
+  },
+};
+const EMPTY_KNOWLEDGE={
+  what:"This tunnel is currently unoccupied. It's an available encrypted channel in the Service Cube, ready to host a new service. The tunnel infrastructure (port, Rep C address, encryption) exists and is active — it just doesn't have a service assigned to it yet.",
+  dependsOn:[],
+  dependedBy:[],
+  impact:"No impact — this tunnel is not running a service. It represents available capacity in the cluster."
+};
+
+document.getElementById('d-close').addEventListener('click',()=>{selected=-1;detail.classList.remove('show');leaderTargets=[]});
+
+function showDet(idx){
+  const s=allSlots[idx];const stDef=STATUS[s.st]||STATUS.available;
+  const isPri=s.svc==='Gateway'&&s.ni===0;
+  const col=isPri?CSS.gold:stDef.css;
+  const know=s.occ&&s.svc?KNOWLEDGE[s.svc]||{what:`${s.svc} service running on this tunnel.`,dependsOn:['Gateway'],dependedBy:[],impact:'Impact unknown — service type not in knowledge base.'}:EMPTY_KNOWLEDGE;
+
+  // Header
+  const dot=document.getElementById('d-dot');dot.style.background=col;dot.style.boxShadow=`0 0 8px ${col}`;
+  document.getElementById('d-tit').textContent=s.occ?s.svc:'Empty Tunnel';
+  document.getElementById('d-sub').textContent=`${s.nn} · Tunnel (${s.rc.join(', ')})${isPri?' · Primary Outbound':''}`;
+
+  // Status badge
+  const badge=document.getElementById('d-badge');
+  badge.textContent=stDef.label;
+  badge.style.background=`${col}18`;badge.style.color=col;badge.style.border=`1px solid ${col}33`;
+
+  // What
+  document.getElementById('d-what').textContent=know.what;
+
+  // Where
+  document.getElementById('d-node').textContent=`${s.nn} : ${s.np}`;
+  document.getElementById('d-rc').textContent=`(${s.rc.join(', ')})`;
+  document.getElementById('d-pt').textContent=s.pt||'—';
+  document.getElementById('d-slot').textContent=`${(s.rc[0]-1)*9+(s.rc[1]-1)*3+(s.rc[2]-1)+1} of 27`;
+
+  // When
+  document.getElementById('d-up').textContent=s.up;
+  document.getElementById('d-hb').textContent=s.hb?s.hb+'s ago':'—';
+  document.getElementById('d-td').textContent=s.td?s.td.toLocaleString():'—';
+  document.getElementById('d-la').textContent=s.la?s.la+' ms':'—';
+
+  // How
+  document.getElementById('d-ldpct').textContent=s.occ?Math.round(s.ld*100)+'%':'—';
+  const b=document.getElementById('d-ld');
+  b.style.width=(s.ld*100)+'%';
+  b.style.background=s.ld>0.8?CSS.blue:s.ld>0.5?CSS.slate:CSS.iron;
+
+  // Who (dependencies)
+  const depsEl=document.getElementById('d-deps');
+  let depsHTML='';
+  if(know.dependsOn.length){
+    know.dependsOn.forEach(d=>{depsHTML+=`<div class="dd-dep"><span class="dd-arrow">↑</span><span class="dd-dep-label">Needs</span><span class="dd-dep-value">${d}</span></div>`});
+  }
+  if(know.dependedBy.length){
+    know.dependedBy.forEach(d=>{depsHTML+=`<div class="dd-dep"><span class="dd-arrow">↓</span><span class="dd-dep-label">Serves</span><span class="dd-dep-value">${d}</span></div>`});
+  }
+  if(!depsHTML)depsHTML='<div style="font-size:12px;color:var(--text-faint);font-style:italic">No dependencies — standalone tunnel</div>';
+  depsEl.innerHTML=depsHTML;
+
+  // Why (impact)
+  document.getElementById('d-impact').textContent=know.impact;
+
+  // LEADER LINES — find dependency services in 3D scene and project to screen
+  leaderTargets=[];
+  const depSvcNames=[];
+  know.dependsOn.forEach(d=>{
+    // Extract service name from dependency string (e.g. "Gateway (outbound...)" → "Gateway")
+    const match=d.match(/^(\w+)/);
+    if(match)depSvcNames.push({name:match[1],label:d.split('(')[0].trim(),dir:'needs'});
+  });
+  know.dependedBy.forEach(d=>{
+    const match=d.match(/^(\w+)/);
+    if(match&&match[1]!=='All')depSvcNames.push({name:match[1],label:d.split('(')[0].trim(),dir:'serves'});
+  });
+
+  // Find matching 3D nodes (same node first, then any node)
+  depSvcNames.forEach(dep=>{
+    const targetNd=nds.find(nd=>nd.slot.svc===dep.name&&nd.slot.ni===s.ni&&nd.inner)||
+                    nds.find(nd=>nd.slot.svc===dep.name&&nd.inner);
+    if(targetNd&&targetNd.inner){
+      const depColor=dep.dir==='needs'?CSS.blueActive:CSS.lime;
+      leaderTargets.push({mesh:targetNd.inner,label:dep.label,color:depColor});
+    }
+  });
+
+  detail.classList.add('show');
+}
+
+
+// ═══════════════════════════════════════════════════════
+// ANIMATE — multi-channel status
+// ═══════════════════════════════════════════════════════
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t=clock.getElapsedTime();
+  if(!isDrag)orbTgt.th+=0.0008*P.rotation*4;
+  updateCam();
+
+  nds.forEach((nd,i)=>{
+    const s=nd.slot;if(!nd.inner||!s.occ)return;
+    const st=STATUS[s.st]||STATUS.available;
+
+    // BREATHING — amplitude and speed from status
+    const breathPhase=t*st.breathSpeed+i*0.6;
+    // Degraded gets irregular rhythm (two overlapping frequencies)
+    const breathVal=s.st==='degraded'
+      ? 1+st.breathAmp*(Math.sin(breathPhase)+0.5*Math.sin(breathPhase*2.7))
+      : 1+st.breathAmp*Math.sin(breathPhase)*(1+s.ld);
+
+    const tSc=(nd.isGW?0.4:0.28)*P.tsize;
+    const baseISc=(nd.isPrimary?tSc*0.7:(nd.isGW?tSc*0.55:tSc*0.42))*st.scale;
+    nd.inner.scale.setScalar(baseISc*breathVal);
+
+    // ACTIVE STATE — hover/select shifts to Nav Hover Blue (#38BDF8)
+    if(i===selected){
+      if(!nd.isPrimary){nd.inner.material.color.setHex(BRAND.blueActive);nd.inner.material.emissive.setHex(BRAND.blueActive)}
+      nd.inner.material.emissiveIntensity=st.glow*(1.4+Math.sin(t*3)*0.3);
+      nd.edges.material.color.setHex(BRAND.blueActive);
+      nd.edges.material.opacity=0.6;
+    } else if(i===hovered){
+      if(!nd.isPrimary){nd.inner.material.color.setHex(BRAND.blueActive);nd.inner.material.emissive.setHex(BRAND.blueActive)}
+      nd.inner.material.emissiveIntensity=st.glow*1.5;
+      nd.edges.material.color.setHex(BRAND.blueActive);
+      nd.edges.material.opacity=0.45;
+    } else {
+      // Restore to status color (primary gateway stays gold)
+      const restoreColor=nd.isPrimary?BRAND.gold:st.color;
+      nd.inner.material.color.setHex(restoreColor);nd.inner.material.emissive.setHex(restoreColor);
+      nd.inner.material.emissiveIntensity=st.glow;
+      nd.edges.material.color.setHex(s.occ?st.color:BRAND.bgBorder);
+      nd.edges.material.opacity=Math.max(st.opacity*0.5,0.08);
+    }
+
+    // Gateway rotation
+    if(nd.isGW&&s.st==='online'){nd.inner.rotation.y=t*0.3;nd.inner.rotation.x=t*0.15}
+
+    // Primary gateway ring
+    if(nd.isPrimary&&nd.ring){
+      nd.ring.rotation.z=t*0.6;nd.ring.rotation.x=Math.PI*0.35+Math.sin(t*0.4)*0.1;
+      nd.ring.material.emissiveIntensity=1.5+Math.sin(t*2.5)*0.6;nd.ring.material.opacity=0.6+Math.sin(t*2)*0.2;
+      if(nd.ringGlow){nd.ringGlow.rotation.z=t*0.6;nd.ringGlow.rotation.x=Math.PI*0.35+Math.sin(t*0.4)*0.1}
+      nd.inner.rotation.y=t*0.5;nd.inner.rotation.x=t*0.25;
+    }
+  });
+
+  // LIME GREEN relay pulses — data flow
+  relayPulses.forEach((rp,i)=>{
+    const t1=((t*0.4+i*0.33)%1);rp.pulse.position.copy(rp.curve.getPoint(t1));rp.halo.position.copy(rp.curve.getPoint(t1));
+    rp.pulse.material.emissiveIntensity=2.0+Math.sin(t*6)*0.8;
+    const t2=((t*0.35+i*0.33+0.5)%1);rp.pulse2.position.copy(rp.curve.getPoint(1-t2));rp.halo2.position.copy(rp.curve.getPoint(1-t2));
+    rp.pulse2.material.emissiveIntensity=1.5+Math.sin(t*5+2)*0.6;
+    rp.pulse.scale.setScalar(0.06+Math.sin(t*4)*0.02);rp.pulse2.scale.setScalar(0.05+Math.sin(t*3.5+1)*0.015);
+  });
+
+  connLines.forEach(l=>{if(l.userData.slotIdx===selected)l.material.opacity=0.3+Math.sin(t*4)*0.1});
+  relayTubes.forEach((tube,i)=>{tube.material.emissiveIntensity=0.25+Math.sin(t*2+i)*0.12});
+
+  renderer.render(scene,camera);
+
+  // HUD overlay — Pretext-powered, zero DOM reflows
+  const hudT=clock.getElapsedTime();
+  drawHud(hudT);
+  drawLeaderLines(hudT);
+}
+animate();
+
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);resizeHud();TextEngine.clear()});
+console.log('%c⬡ Array3 Monitor v8 — Live · Direct Localhost · Zero Mock','color:#8BA633;font-weight:bold;font-size:14px');
+console.log('%c  Ports 11124 · 11151 · 11178 · Auto-connect · 5s poll','color:#8BA633;font-size:11px');
+</script>
+</body>
+</html>
