@@ -503,10 +503,12 @@ const SVC_DEFAULTS={hex:BRAND.blue,css:CSS.blue};
 // ═══════════════════════════════════════════════════════
 
 // Auto-detect hostname from how the page was loaded
-const DAEMON_HOST=window.location.hostname||'localhost';
-const DAEMON_PROTO=window.location.protocol||'http:';
+const _isLocal=window.location.protocol==='file:'||!window.location.hostname||window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1';
+const DAEMON_HOST=_isLocal?'127.0.0.1':(window.location.hostname);
+const DAEMON_PROTO=_isLocal?'http:':(window.location.protocol);
 const NODE_PORTS=[11124,11151,11178];
 function nodeUrl(port,path){return `${DAEMON_PROTO}//${DAEMON_HOST}:${port}${path}`}
+console.log(`[monitor] Daemon target: ${DAEMON_PROTO}//${DAEMON_HOST}:${NODE_PORTS[0]} (isLocal=${_isLocal})`);
 
 // Connection state
 let isLive=false;

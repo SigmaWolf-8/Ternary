@@ -1,0 +1,116 @@
+monitor:1479 ⬡ Array3 Monitor v8.8 — Live · Direct Localhost · Zero Mock
+monitor:1480   Auto-detect host · Ports 11124 · 11151 · 11178 · 5s poll
+favicon.ico:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+monitor:974 [ws-relay] Disconnected — reconnecting in 5s
+monitor:969 [ws-relay] Connected to wss://plenumnet.replit.app/ws/relay
+monitor:982 [ws-relay] Monitor mode active — peers: 0
+
