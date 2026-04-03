@@ -755,6 +755,13 @@ function startPqtiService(): ChildProcess | null {
     res.sendFile(filePath);
   });
 
+  app.get("/api/salvi/inter-cube/monitor", (_req, res) => {
+    const monitorPath = path.resolve(process.cwd(), "services/inter-cube/monitor/array3-monitor-v8.html");
+    res.setHeader("Content-Type", "text/html");
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(monitorPath);
+  });
+
   const DIMENSIONS = 13;
   const crsRegistry = new Map<string, { publicKey: string; endpoint: string; lastSeen: number; tlDsaPk?: string }>();
   const publicKeyAddressMap = new Map<string, string>();
@@ -952,6 +959,44 @@ function startPqtiService(): ChildProcess | null {
       return res.json({ status: "ok", address: normalizedAddr, addressDotted: toDottedAddr(normalizedAddr), timestamp: Date.now() });
     }
     return res.status(404).json({ error: "Address not registered — include publicKey param" });
+  });
+
+  const slotInventoryCache = new Map<number, { nodeId: number; slots: any; health: any; receivedAt: number }>();
+
+  app.post("/api/salvi/inter-cube/relay/slot-report", async (req, res) => {
+    try {
+      const { nodeId, slots, health } = req.body;
+      if (!nodeId || !slots) {
+        return res.status(400).json({ error: "nodeId and slots required" });
+      }
+      slotInventoryCache.set(nodeId, { nodeId, slots, health: health || null, receivedAt: Date.now() });
+      return res.json({ status: "ok", nodeId, cached: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/salvi/inter-cube/relay/slot-inventory", async (_req, res) => {
+    try {
+      const now = Date.now();
+      const staleThresholdMs = 60000;
+      const nodes: any[] = [];
+      for (const [nid, cached] of slotInventoryCache.entries()) {
+        const ageMs = now - cached.receivedAt;
+        const isStale = ageMs > staleThresholdMs;
+        nodes.push({
+          nodeId: nid,
+          slots: cached.slots,
+          health: cached.health,
+          receivedAt: cached.receivedAt,
+          ageMs,
+          stale: isStale,
+        });
+      }
+      return res.json({ nodes, count: nodes.length, timestamp: now });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
   });
 
   const peerRegistry = new Map<string, { address: string; ip: string; peerPort: number; lastSeen: number }>();

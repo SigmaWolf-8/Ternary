@@ -508,7 +508,7 @@ const DAEMON_HOST=_isLocal?'127.0.0.1':(window.location.hostname);
 const DAEMON_PROTO=_isLocal?'http:':(window.location.protocol);
 const NODE_PORTS=[11124,11151,11178];
 function nodeUrl(port,path){return `${DAEMON_PROTO}//${DAEMON_HOST}:${port}${path}`}
-console.log(`[monitor] Daemon target: ${DAEMON_PROTO}//${DAEMON_HOST}:${NODE_PORTS[0]} (isLocal=${_isLocal})`);
+console.log(`[monitor] Mode: ${_isLocal?'Direct localhost':'Relay'} (${DAEMON_PROTO}//${DAEMON_HOST}:${NODE_PORTS[0]})`);
 
 // Connection state
 let isLive=false;
@@ -591,9 +591,36 @@ function transformNode(nodeData,ni){
 }
 
 // Fetch all 3 nodes and build allSlots
+let useRelay=!_isLocal;
+const RELAY_URL='https://plenumnet.replit.app';
+
+async function fetchFromRelay(){
+  try{
+    const resp=await Promise.race([fetch(RELAY_URL+'/api/salvi/inter-cube/relay/slot-inventory'),new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))]);
+    if(!resp.ok)return null;
+    const data=await resp.json();
+    if(!data.nodes||data.nodes.length===0)return null;
+    console.log('[monitor] Relay returned '+data.nodes.length+' node(s)');
+    return data.nodes.map(n=>({slots:n.slots,health:n.health,port:0,alive:!n.stale}));
+  }catch(e){console.warn('[monitor] Relay fetch failed:',e.message);return null}
+}
+
 async function fetchAllNodes(){
   try{
-    const results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)));
+    let results;
+    if(useRelay){
+      const relayData=await fetchFromRelay();
+      if(relayData&&relayData.length>0){results=relayData}
+      else{results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)))}
+    }else{
+      results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)));
+      const localUp=results.filter(r=>r.alive).length;
+      if(localUp===0){
+        console.log('[monitor] Local daemons unreachable, trying relay...');
+        const relayData=await fetchFromRelay();
+        if(relayData&&relayData.length>0){results=relayData;useRelay=true}
+      }
+    }
     const upCount=results.filter(r=>r.alive).length;
 
     allSlots.length=0;
@@ -1502,7 +1529,7 @@ function animate(){
 animate();
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);resizeHud();TextEngine.clear()});
-console.log('%c⬡ Array3 Monitor v8.8 — Live · Direct Localhost · Zero Mock','color:#8BA633;font-weight:bold;font-size:14px');
+console.log('%c⬡ Array3 Monitor v8.9 — Live · Relay + Direct · Real Telemetry','color:#8BA633;font-weight:bold;font-size:14px');
 console.log('%c  Auto-detect host · Ports 11124 · 11151 · 11178 · 5s poll','color:#8BA633;font-size:11px');
 </script>
 </body>

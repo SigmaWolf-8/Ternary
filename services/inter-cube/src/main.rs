@@ -815,6 +815,40 @@ async fn run_crs_mode() {
     let peers = new_peer_registry();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), None, None);
 
+    {
+        let relay_base = relay_url(None).unwrap_or_else(|| "https://plenumnet.replit.app".to_string());
+        let crs_api_port = port;
+        tokio::spawn(async move {
+            let client = reqwest::Client::builder()
+                .user_agent(format!("PlenumNET-InterCube/{}", env!("CARGO_PKG_VERSION")))
+                .build()
+                .expect("slot-report HTTP client");
+            let node_id: u8 = std::env::var("CUBE_NODE_ID")
+                .ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+            let slots_url = format!("http://127.0.0.1:{}/api/salvi/inter-cube/slots", crs_api_port);
+            let health_url = format!("http://127.0.0.1:{}/health", crs_api_port);
+            let report_url = format!("{}/api/salvi/inter-cube/relay/slot-report", relay_base);
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            loop {
+                let slots_resp = client.get(&slots_url).send().await;
+                let health_resp = client.get(&health_url).send().await;
+                if let (Ok(sr), Ok(hr)) = (slots_resp, health_resp) {
+                    if sr.status().is_success() && hr.status().is_success() {
+                        if let (Ok(sj), Ok(hj)) = (
+                            sr.json::<serde_json::Value>().await,
+                            hr.json::<serde_json::Value>().await,
+                        ) {
+                            let _ = client.post(&report_url)
+                                .json(&serde_json::json!({"nodeId": node_id, "slots": sj, "health": hj}))
+                                .send().await;
+                        }
+                    }
+                }
+                tokio::time::sleep(Duration::from_secs(30)).await;
+            }
+        });
+    }
+
     let terminal_mux = pty_mux::new_shared_mux(16);
     let term_bind_addr = env::var("CUBE_TERMINAL_BIND").unwrap_or_else(|_| "127.0.0.1".to_string());
     let terminal_bind: SocketAddr = format!("{}:{}", term_bind_addr, t_port).parse().unwrap();
@@ -1232,6 +1266,36 @@ async fn run_cube_mode() {
                 }
                 Err(e) => {
                     println!("[HEARTBEAT] Failed: {}", e);
+                }
+            }
+
+            let node_id: u8 = std::env::var("CUBE_NODE_ID")
+                .ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+            let api_port: u16 = std::env::var("CUBE_API_PORT")
+                .or_else(|_| std::env::var("API_PORT"))
+                .ok().and_then(|v| v.parse().ok()).unwrap_or(11124);
+            let slots_url = format!("http://127.0.0.1:{}/api/salvi/inter-cube/slots", api_port);
+            let health_url = format!("http://127.0.0.1:{}/health", api_port);
+            let report_url = format!("{}/api/salvi/inter-cube/relay/slot-report", crs_url_for_heartbeat);
+
+            let slots_resp = hb_client.get(&slots_url).send().await;
+            let health_resp = hb_client.get(&health_url).send().await;
+
+            if let (Ok(sr), Ok(hr)) = (slots_resp, health_resp) {
+                if sr.status().is_success() && hr.status().is_success() {
+                    if let (Ok(slots_json), Ok(health_json)) = (
+                        sr.json::<serde_json::Value>().await,
+                        hr.json::<serde_json::Value>().await,
+                    ) {
+                        let _ = hb_client.post(&report_url)
+                            .json(&serde_json::json!({
+                                "nodeId": node_id,
+                                "slots": slots_json,
+                                "health": health_json,
+                            }))
+                            .send()
+                            .await;
+                    }
                 }
             }
         }
