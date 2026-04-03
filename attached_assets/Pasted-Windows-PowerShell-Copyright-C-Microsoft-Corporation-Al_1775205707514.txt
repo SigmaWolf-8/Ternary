@@ -1,0 +1,36 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\windows\system32> $f = "C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-1.json"
+>> [System.IO.File]::WriteAllText($f, '{"2.2.2": "gateway", "1.1.1": "crs"}', (New-Object System.Text.UTF8Encoding $false))
+PS C:\windows\system32> Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-1 on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-2 on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot start service PlenumNET-Array3-3 on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+PS C:\windows\system32>
