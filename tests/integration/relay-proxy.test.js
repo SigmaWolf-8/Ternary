@@ -104,14 +104,27 @@ describe('Relay HTTP Proxy — /api/salvi/inter-cube/slots', () => {
     for (let i = 0; i < 35; i++) {
       const res = await request('/api/salvi/inter-cube/slots');
       results.push(res.status);
-      if (res.status === 429 && res.body.error === 'Too many requests') {
+      if (res.status === 429) {
         expect(res.body).toEqual({
-          error: 'Too many requests',
-          hint: 'Rate limit is 30 requests per minute. Wait and retry.',
+          error: 'Too many concurrent requests',
+          hint: 'Wait a few seconds and retry. Check for duplicate monitor instances.',
         });
         break;
       }
     }
     expect(results).toContain(429);
+  }, 30000);
+
+  test('429 from rate limiter uses standardized { error, hint } contract', async () => {
+    for (let i = 0; i < 35; i++) {
+      const res = await request('/api/salvi/inter-cube/slots');
+      if (res.status === 429) {
+        expect(Object.keys(res.body).sort()).toEqual(['error', 'hint']);
+        expect(typeof res.body.error).toBe('string');
+        expect(typeof res.body.hint).toBe('string');
+        return;
+      }
+    }
+    throw new Error('Expected 429 but never received it');
   }, 30000);
 });

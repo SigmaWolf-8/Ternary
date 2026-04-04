@@ -968,7 +968,7 @@ function startPqtiService(): ChildProcess | null {
   app.get("/api/salvi/inter-cube/slots", async (req, res) => {
     const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
     if (!checkProxyRateLimit(clientIp)) {
-      return res.status(429).json({ error: "Too many requests", hint: "Rate limit is 30 requests per minute. Wait and retry." });
+      return res.status(429).json({ error: "Too many concurrent requests", hint: "Wait a few seconds and retry. Check for duplicate monitor instances." });
     }
     const RELAY_API_TOKEN = process.env.RELAY_API_TOKEN;
     if (!RELAY_API_TOKEN) {
@@ -1961,17 +1961,22 @@ function startPqtiService(): ChildProcess | null {
             clearTimeout(timer);
             pendingProxies.delete(requestId);
             if (result) {
-              try {
-                const parsed = JSON.parse(result.body);
-                nodeResults.push({
-                  node_id: toDottedAddr(addr),
-                  node_id_num: parsed.node_id,
-                  status: "ok",
-                  slots: parsed.slots,
-                  summary: parsed.summary,
-                });
-              } catch {
-                nodeResults.push({ node_id: toDottedAddr(addr), status: "ok", slots: [], summary: {} });
+              const httpStatus = result.status || 0;
+              if (httpStatus >= 200 && httpStatus < 300) {
+                try {
+                  const parsed = JSON.parse(result.body);
+                  nodeResults.push({
+                    node_id: toDottedAddr(addr),
+                    node_id_num: parsed.node_id,
+                    status: "ok",
+                    slots: parsed.slots,
+                    summary: parsed.summary,
+                  });
+                } catch {
+                  nodeResults.push({ node_id: toDottedAddr(addr), status: "error", error: "invalid response body" });
+                }
+              } else {
+                nodeResults.push({ node_id: toDottedAddr(addr), status: "error", error: `daemon returned HTTP ${httpStatus}` });
               }
             } else {
               nodeResults.push({ node_id: toDottedAddr(addr), status: "timeout" });
