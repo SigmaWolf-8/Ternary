@@ -968,6 +968,7 @@ function startPqtiService(): ChildProcess | null {
   app.get("/api/salvi/inter-cube/slots", async (req, res) => {
     const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
     if (!checkProxyRateLimit(clientIp)) {
+      console.log(`[proxy] 429 rate-limit for ${clientIp} (30/min exceeded)`);
       return res.status(429).json({ error: "Too many concurrent requests", hint: "Wait a few seconds and retry. Check for duplicate monitor instances." });
     }
     const RELAY_API_TOKEN = process.env.RELAY_API_TOKEN;
@@ -1926,6 +1927,7 @@ function startPqtiService(): ChildProcess | null {
       }
 
       if (activeProxyRequests >= PROXY_CONCURRENT_CAP) {
+        console.log(`[proxy] 429 concurrent-cap (${activeProxyRequests}/${PROXY_CONCURRENT_CAP} in flight)`);
         return outerResolve({ statusCode: 429, body: { error: "Too many concurrent requests", hint: "Wait a few seconds and retry. Check for duplicate monitor instances." } });
       }
 
