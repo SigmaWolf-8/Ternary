@@ -965,6 +965,33 @@ function startPqtiService(): ChildProcess | null {
 
   const slotInventoryCache = new Map<number, { nodeId: number; slots: any; health: any; receivedAt: number }>();
 
+  app.get("/api/salvi/inter-cube/slots", async (req, res) => {
+    const RELAY_API_TOKEN = process.env.RELAY_API_TOKEN;
+    if (!RELAY_API_TOKEN) {
+      return res.status(500).json({ error: "Internal relay proxy error", hint: "Contact the Array3 operator." });
+    }
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Invalid or missing relay token", hint: "Verify your RELAY_AUTH_TOKEN matches the server's RELAY_API_TOKEN." });
+    }
+    const token = authHeader.slice(7);
+    try {
+      const tokenBuf = Buffer.from(token);
+      const expectedBuf = Buffer.from(RELAY_API_TOKEN);
+      if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
+        return res.status(401).json({ error: "Invalid or missing relay token", hint: "Verify your RELAY_AUTH_TOKEN matches the server's RELAY_API_TOKEN." });
+      }
+    } catch {
+      return res.status(401).json({ error: "Invalid or missing relay token", hint: "Verify your RELAY_AUTH_TOKEN matches the server's RELAY_API_TOKEN." });
+    }
+    try {
+      const result = await proxyToAllDaemons("/api/salvi/inter-cube/slots");
+      return res.status(result.statusCode).json(result.body);
+    } catch (err: any) {
+      return res.status(500).json({ error: "Internal relay proxy error", hint: "Contact the Array3 operator." });
+    }
+  });
+
   app.post("/api/salvi/inter-cube/relay/slot-report", async (req, res) => {
     try {
       const { nodeId, slots, health } = req.body;
@@ -1851,6 +1878,101 @@ function startPqtiService(): ChildProcess | null {
   const opsTerminalClients = new Set<WebSocket>();
   (globalThis as any).__opsTerminalClients = opsTerminalClients;
   (globalThis as any).__relayClients = relayClients;
+
+  const PROXY_CONCURRENT_CAP = 5;
+  const PROXY_TIMEOUT_MS = 5000;
+  const pendingProxies = new Map<string, { resolve: (v: { status: number; body: string } | null) => void; timer: ReturnType<typeof setTimeout>; daemonAddr: string }>();
+  (globalThis as any).__pendingProxies = pendingProxies;
+
+  function proxyToAllDaemons(path: string): Promise<{ statusCode: number; body: any }> {
+    return new Promise(async (outerResolve) => {
+      const connectedDaemons: Array<[string, WebSocket]> = [];
+      for (const [addr, ws] of relayClients.entries()) {
+        if (ws.readyState === WebSocket.OPEN) connectedDaemons.push([addr, ws]);
+      }
+
+      if (connectedDaemons.length === 0) {
+        return outerResolve({ statusCode: 503, body: { error: "No Array3 daemons connected to relay", hint: "Verify Array3 services are running on the host machine and connected to the relay." } });
+      }
+
+      let activeCount = 0;
+      for (const v of pendingProxies.values()) activeCount++;
+      if (activeCount >= PROXY_CONCURRENT_CAP) {
+        return outerResolve({ statusCode: 429, body: { error: "Too many concurrent requests", hint: "Wait a few seconds and retry. Check for duplicate monitor instances." } });
+      }
+
+      const nodeResults: Array<{ node_id: string; status: string; slots?: any; summary?: any; node_id_num?: number; error?: string }> = [];
+      let responsesReceived = 0;
+      const totalExpected = connectedDaemons.length;
+      let resolved = false;
+
+      const checkComplete = () => {
+        if (resolved) return;
+        if (responsesReceived >= totalExpected) {
+          resolved = true;
+          const responding = nodeResults.filter(n => n.status === "ok").length;
+          if (responding === 0) {
+            return outerResolve({ statusCode: 504, body: { error: "All daemons timed out", hint: "Daemons are connected but not responding. Check daemon logs on the host machine." } });
+          }
+          outerResolve({
+            statusCode: 200,
+            body: {
+              cluster: {
+                total_nodes: totalExpected,
+                responding_nodes: responding,
+                nodes: nodeResults,
+              }
+            }
+          });
+        }
+      };
+
+      for (const [addr, ws] of connectedDaemons) {
+        const requestId = `proxy_${crypto.randomUUID()}`;
+        const timer = setTimeout(() => {
+          pendingProxies.delete(requestId);
+          nodeResults.push({ node_id: toDottedAddr(addr), status: "timeout" });
+          responsesReceived++;
+          checkComplete();
+        }, PROXY_TIMEOUT_MS);
+
+        pendingProxies.set(requestId, {
+          resolve: (result) => {
+            clearTimeout(timer);
+            pendingProxies.delete(requestId);
+            if (result) {
+              try {
+                const parsed = JSON.parse(result.body);
+                nodeResults.push({
+                  node_id: toDottedAddr(addr),
+                  node_id_num: parsed.node_id,
+                  status: "ok",
+                  slots: parsed.slots,
+                  summary: parsed.summary,
+                });
+              } catch {
+                nodeResults.push({ node_id: toDottedAddr(addr), status: "ok", slots: [], summary: {} });
+              }
+            } else {
+              nodeResults.push({ node_id: toDottedAddr(addr), status: "error", error: "empty response" });
+            }
+            responsesReceived++;
+            checkComplete();
+          },
+          timer,
+          daemonAddr: addr,
+        });
+
+        const proxyEnvelope = JSON.stringify({
+          type: "relay",
+          from: "__relay_server__",
+          msgType: "http_proxy_req",
+          payload: JSON.stringify({ request_id: requestId, method: "GET", path, timestamp: Date.now() }),
+        });
+        ws.send(proxyEnvelope);
+      }
+    });
+  }
   (globalThis as any).__relayConnectedAt = relayConnectedAt;
   (globalThis as any).__pendingMessages = pendingMessages;
 
@@ -2865,6 +2987,28 @@ function startPqtiService(): ChildProcess | null {
         return;
       }
 
+      if (msg.type === "relay" && msg.from === "__relay_server__") {
+        console.log(`[ws-relay] REJECTED: peer ${toDottedAddr(nodeAddress)} attempted to spoof __relay_server__ sentinel`);
+        recordRelayAuditEvent({ eventType: "relay.error", address: nodeAddress, timestamp: new Date().toISOString(), details: { code: "ERR_SENTINEL_SPOOF", msgType: msg.msgType } });
+        return;
+      }
+
+      if (msg.type === "relay" && msg.msgType === "http_proxy_res" && msg.payload) {
+        try {
+          const proxyRes = JSON.parse(msg.payload);
+          const rid = proxyRes.request_id;
+          if (rid && pendingProxies.has(rid)) {
+            const entry = pendingProxies.get(rid)!;
+            if (entry.daemonAddr !== nodeAddress) {
+              console.log(`[ws-relay] REJECTED http_proxy_res: request_id=${rid} expected from ${toDottedAddr(entry.daemonAddr)} but received from ${toDottedAddr(nodeAddress)}`);
+            } else {
+              entry.resolve({ status: proxyRes.status || 200, body: proxyRes.body || "{}" });
+            }
+          }
+        } catch {}
+        return;
+      }
+
       if (msg.type === "relay" && msg.to && msg.payload) {
         const targetWs = relayClients.get(normalizeTernaryAddr(msg.to));
         const envelope = JSON.stringify({ type: "relay", from: nodeAddress, msgType: msg.msgType || "data", payload: msg.payload });
@@ -3013,6 +3157,14 @@ function startPqtiService(): ChildProcess | null {
         return;
       }
       if (nodeAddress) {
+        for (const [rid, entry] of pendingProxies.entries()) {
+          if (entry.daemonAddr === nodeAddress) {
+            clearTimeout(entry.timer);
+            entry.resolve(null);
+            pendingProxies.delete(rid);
+          }
+        }
+
         relayClients.delete(nodeAddress);
         relayAddressByWs.delete(ws);
         relayConnectedAt.delete(nodeAddress);

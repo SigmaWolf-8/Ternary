@@ -577,42 +577,112 @@ function transformNode(nodeData,ni){
 let useRelay=!_isLocal;
 const RELAY_URL=_isLocal?'https://plenumnet.replit.app':window.location.origin;
 
-async function fetchFromRelay(){
-  try{
-    const resp=await Promise.race([
-      fetch(RELAY_URL+'/api/salvi/inter-cube/relay/slot-inventory'),
-      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
-    ]);
-    if(!resp.ok)return null;
-    const data=await resp.json();
+// Token is intentionally client-embedded. Data is non-secret operational status.
+// See rotation procedure in ops docs.
+const RELAY_AUTH_TOKEN='<paste-your-relay-api-token-here>';
 
-    // [T3] STALENESS CHECK — reject responses older than 60 seconds
-    if(data.timestamp&&Math.abs(Date.now()-data.timestamp)>60000){
-      const skew=Math.abs(Date.now()-data.timestamp);
-      console.warn(`[monitor] Relay data rejected — clock skew ${skew}ms exceeds 60s threshold`);
+let relayErrorState=null;
+let relayBackoffMs=0;
+
+function isRelayTokenConfigured(){
+  return RELAY_AUTH_TOKEN&&RELAY_AUTH_TOKEN!=='<paste-your-relay-api-token-here>';
+}
+
+function showRelayError(statusCode,errorObj){
+  relayErrorState={statusCode,error:errorObj};
+  const messages={
+    401:{icon:'\u{1F512}',color:'#E53E3E',title:'Authentication Failed',desc:'Check that your relay token matches the server.'},
+    429:{icon:'\u26A0\uFE0F',color:'#DD6B20',title:'Too Many Requests',desc:'Retrying with backoff...'},
+    503:{icon:'\u{1F50C}',color:'#718096',title:'No Daemons Connected',desc:'Verify Array3 services are running on the host machine.'},
+    504:{icon:'\u23F3',color:'#D69E2E',title:'Daemons Not Responding',desc:'Check host machine logs for errors.'},
+  };
+  const m=messages[statusCode]||{icon:'\u2757',color:'#E53E3E',title:'Relay Error',desc:errorObj?.hint||'Contact the Array3 operator.'};
+  connStatus.textContent=`${m.icon} ${m.title}`;
+  connStatus.style.color=m.color;
+  if(statusCode===429){
+    relayBackoffMs=Math.min((relayBackoffMs||2000)*2,30000);
+  }else if(statusCode===503){
+    relayBackoffMs=5000;
+  }else{
+    relayBackoffMs=0;
+  }
+}
+
+function clearRelayError(){
+  relayErrorState=null;
+  relayBackoffMs=0;
+}
+
+async function fetchRelayStatus(){
+  try{
+    const resp=await fetch(RELAY_URL+'/api/salvi/inter-cube/relay/status');
+    if(!resp.ok)return null;
+    return await resp.json();
+  }catch{return null}
+}
+
+async function fetchFromRelay(){
+  if(!isRelayTokenConfigured()){
+    connStatus.textContent='\u{1F527} Relay token not configured — set RELAY_AUTH_TOKEN';
+    connStatus.style.color='#DD6B20';
+    return null;
+  }
+
+  try{
+    const relayStatus=await fetchRelayStatus();
+    if(relayStatus){
+      const connected=relayStatus.connectedNodes||0;
+      const nodeAddrs=relayStatus.nodes?relayStatus.nodes.filter(n=>n.connected).map(n=>n.address).join(', '):'';
+      console.log('[monitor] Relay status: '+connected+' daemon(s) connected'+(nodeAddrs?' ['+nodeAddrs+']':''));
+      if(connected===0){
+        connStatus.textContent='\u{1F50C} Relay active — 0 daemons connected';
+        connStatus.style.color='#718096';
+      }
+    }
+
+    const resp=await Promise.race([
+      fetch(RELAY_URL+'/api/salvi/inter-cube/slots',{
+        headers:{'Authorization':'Bearer '+RELAY_AUTH_TOKEN}
+      }),
+      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000))
+    ]);
+
+    if(!resp.ok){
+      let errBody=null;
+      try{errBody=await resp.json()}catch{}
+      showRelayError(resp.status,errBody);
       return null;
     }
 
-    if(!data.nodes||data.nodes.length===0)return null;
-    console.log('[monitor] Relay returned '+data.nodes.length+' node(s)');
-    return data.nodes.map((n,i)=>{
+    clearRelayError();
+    const data=await resp.json();
+
+    if(!data.cluster||!data.cluster.nodes||data.cluster.nodes.length===0)return null;
+    console.log('[monitor] Relay proxy returned '+data.cluster.responding_nodes+'/'+data.cluster.total_nodes+' node(s)');
+
+    return data.cluster.nodes.map((n,i)=>{
+      if(n.status==='timeout'){
+        const nodeIdx=i;
+        return{slots:null,health:{status:'timeout'},port:0,alive:false,nodeIndex:nodeIdx,errorType:'timeout'};
+      }
+
       let slotsObj=n.slots;
-      let nodeIdx=i; // fallback: array position
+      let nodeIdx=n.node_id_num?n.node_id_num-1:i;
 
       if(Array.isArray(slotsObj)){
         const apiSlots=slotsObj.map(s=>{
           let addr=s.address;
-          if(typeof addr==='string'){const p=addr.split('.').map(Number);addr=p.length===3?p:[i+1,1,1]}
+          if(typeof addr==='string'){const p=addr.split('.').map(Number);addr=p.length===3?p:[nodeIdx+1,1,1]}
           return{
             address:addr,service_type:s.service||s.service_type||null,
             status:s.status||'active',status_label:s.status_label||s.status||'',
             port:s.port||0,latency_us:s.latency_us||0,heartbeat_count:s.heartbeat_count||0,
             uptime_secs:s.uptime_secs||0,service_detail:s.service_detail||null,
             is_primary_gateway:s.service==='Gateway'||s.is_primary_gateway||false,
+            last_heartbeat_epoch:s.last_heartbeat_epoch||null,load_pct:s.load_pct||0,
           };
         });
 
-        // [T6] RELAY NODE INDEX — derive from first slot's address, not array position
         if(apiSlots.length>0){
           const firstAddr=apiSlots[0]?.address;
           if(Array.isArray(firstAddr)&&firstAddr.length>0){
@@ -621,9 +691,8 @@ async function fetchFromRelay(){
           }
         }
 
-        slotsObj={summary:{total:27,occupied:apiSlots.filter(s=>s.service_type).length},slots:apiSlots};
+        slotsObj={summary:n.summary||{total:27,occupied:apiSlots.filter(s=>s.service_type).length},slots:apiSlots};
       }else if(slotsObj&&slotsObj.slots&&slotsObj.slots.length>0){
-        // [T6] slotsObj already normalized — still derive nodeIdx
         const firstAddr=slotsObj.slots[0]?.address;
         if(Array.isArray(firstAddr)&&firstAddr.length>0){
           const parsed=parseInt(firstAddr[0])-1;
@@ -631,11 +700,13 @@ async function fetchFromRelay(){
         }
       }
 
-      const health=n.health||{};
-      if(n.wsConnected&&health.status!=='ok')health.status='ok';
-      return{slots:slotsObj,health,port:0,alive:!n.stale&&(n.wsConnected||n.source==='slot-report'),nodeIndex:nodeIdx};
+      return{slots:slotsObj,health:{status:'ok'},port:0,alive:true,nodeIndex:nodeIdx};
     });
-  }catch(e){console.warn('[monitor] Relay fetch failed:',e.message);return null}
+  }catch(e){
+    console.warn('[monitor] Relay fetch failed:',e.message);
+    showRelayError(504,{error:'Relay unreachable',hint:e.message});
+    return null;
+  }
 }
 
 // [T5] FETCH-IN-FLIGHT MUTEX — prevents concurrent poll race conditions
@@ -731,7 +802,10 @@ connBtn.addEventListener('click',async()=>{
     isLive=true;refreshScene();
     connBtn.textContent='Refresh';connBtn.disabled=false;
     if(pollTimer)clearInterval(pollTimer);
-    pollTimer=setInterval(async()=>{const fresh=await fetchAllNodes();if(fresh)refreshScene()},5000);
+    pollTimer=setInterval(async()=>{
+      if(relayBackoffMs>0){await new Promise(r=>setTimeout(r,relayBackoffMs))}
+      const fresh=await fetchAllNodes();if(fresh)refreshScene()
+    },5000);
   }else{
     isLive=false;connBtn.textContent='Retry';connBtn.disabled=false;
   }
@@ -740,7 +814,10 @@ connBtn.addEventListener('click',async()=>{
 (async()=>{
   const ok=await fetchAllNodes();
   if(ok){isLive=true;refreshScene();
-    pollTimer=setInterval(async()=>{const f=await fetchAllNodes();if(f)refreshScene()},5000);
+    pollTimer=setInterval(async()=>{
+      if(relayBackoffMs>0){await new Promise(r=>setTimeout(r,relayBackoffMs))}
+      const f=await fetchAllNodes();if(f)refreshScene()
+    },5000);
   }else{
     NODE_PORTS.forEach((port,ni)=>{
       for(let x=1;x<=3;x++)for(let y=1;y<=3;y++)for(let z=1;z<=3;z++){

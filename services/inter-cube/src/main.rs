@@ -1728,6 +1728,129 @@ fn spawn_relay_client(
                             break;
                         }
 
+                        if msg_type == "http_proxy_req" && from == "__relay_server__" {
+                            const ALLOWED_PROXY_PATHS: &[&str] = &["/api/salvi/inter-cube/slots"];
+                            let reply_tx = client.outgoing_tx.clone();
+                            let local_addr = address.clone();
+                            let local_port = api_port();
+
+                            tokio::spawn(async move {
+                                let parsed: serde_json::Value = serde_json::from_str(&payload_str).unwrap_or_default();
+                                let request_id = parsed.get("request_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let method = parsed.get("method").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let path = parsed.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let timestamp = parsed.get("timestamp").and_then(|v| v.as_u64()).unwrap_or(0);
+
+                                if method != "GET" {
+                                    println!("[http-proxy] REJECTED: method '{}' not allowed — only GET (request_id={})", method, request_id);
+                                    let err_body = serde_json::json!({
+                                        "request_id": request_id,
+                                        "status": 405,
+                                        "body": "{\"error\":\"method not allowed\"}"
+                                    });
+                                    let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
+                                        msg_type: "relay".to_string(),
+                                        relay_msg_type: Some("http_proxy_res".to_string()),
+                                        from: Some(local_addr.to_dotted()),
+                                        payload: Some(err_body.to_string()),
+                                        to: None, address: None, public_key: None,
+                                        nonce: None, signature: None, error: None,
+                                        delivered: None, connected_peers: None, ts: None, connected: None,
+                                    });
+                                    return;
+                                }
+
+                                let now_ms = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .map(|d| d.as_millis() as u64)
+                                    .unwrap_or(0);
+                                let age_ms = if now_ms > timestamp { now_ms - timestamp } else { timestamp - now_ms };
+
+                                if age_ms > 10_000 {
+                                    println!("[http-proxy] REJECTED: stale request (age={}ms, request_id={})", age_ms, request_id);
+                                    if age_ms > 10_000 && age_ms <= 30_000 {
+                                        println!("[http-proxy] WARNING: clock skew {}ms between relay and daemon — consider sync", age_ms);
+                                    }
+                                    let err_body = serde_json::json!({
+                                        "request_id": request_id,
+                                        "status": 400,
+                                        "body": "{\"error\":\"stale request\"}"
+                                    });
+                                    let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
+                                        msg_type: "relay".to_string(),
+                                        relay_msg_type: Some("http_proxy_res".to_string()),
+                                        from: Some(local_addr.to_dotted()),
+                                        payload: Some(err_body.to_string()),
+                                        to: None, address: None, public_key: None,
+                                        nonce: None, signature: None, error: None,
+                                        delivered: None, connected_peers: None, ts: None, connected: None,
+                                    });
+                                    return;
+                                }
+
+                                if !ALLOWED_PROXY_PATHS.contains(&path.as_str()) {
+                                    println!("[http-proxy] REJECTED: path '{}' not in allowlist (request_id={})", path, request_id);
+                                    let err_body = serde_json::json!({
+                                        "request_id": request_id,
+                                        "status": 403,
+                                        "body": "{\"error\":\"path not allowed\"}"
+                                    });
+                                    let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
+                                        msg_type: "relay".to_string(),
+                                        relay_msg_type: Some("http_proxy_res".to_string()),
+                                        from: Some(local_addr.to_dotted()),
+                                        payload: Some(err_body.to_string()),
+                                        to: None, address: None, public_key: None,
+                                        nonce: None, signature: None, error: None,
+                                        delivered: None, connected_peers: None, ts: None, connected: None,
+                                    });
+                                    return;
+                                }
+
+                                let url = format!("http://127.0.0.1:{}{}", local_port, path);
+                                println!("[http-proxy] Proxying GET {} (request_id={})", url, request_id);
+
+                                let http_client = reqwest::Client::builder()
+                                    .timeout(std::time::Duration::from_secs(4))
+                                    .build()
+                                    .unwrap_or_else(|_| reqwest::Client::new());
+
+                                let (status, body) = match http_client.get(&url).send().await {
+                                    Ok(resp) => {
+                                        let st = resp.status().as_u16();
+                                        let b = resp.text().await.unwrap_or_else(|_| "{}".to_string());
+                                        (st, b)
+                                    }
+                                    Err(e) => {
+                                        println!("[http-proxy] Request failed: {} (request_id={})", e, request_id);
+                                        (502, format!("{{\"error\":\"proxy fetch failed: {}\"}}", e))
+                                    }
+                                };
+
+                                let res_body = serde_json::json!({
+                                    "request_id": request_id,
+                                    "status": status,
+                                    "body": body
+                                });
+                                let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
+                                    msg_type: "relay".to_string(),
+                                    relay_msg_type: Some("http_proxy_res".to_string()),
+                                    from: Some(local_addr.to_dotted()),
+                                    payload: Some(res_body.to_string()),
+                                    to: None, address: None, public_key: None,
+                                    nonce: None, signature: None, error: None,
+                                    delivered: None, connected_peers: None, ts: None, connected: None,
+                                });
+                                println!("[http-proxy] Response sent: status={} (request_id={})", status, request_id);
+                            });
+                            continue;
+                        }
+
+                        if msg_type == "http_proxy_req" && from != "__relay_server__" {
+                            println!("[http-proxy] REJECTED: http_proxy_req from non-relay source '{}' — only __relay_server__ may issue proxy requests", from);
+                            continue;
+                        }
+
                         if msg_type == "terminal-open" || msg_type == "terminal-input" || msg_type == "terminal-resize" || msg_type == "terminal-close" || msg_type == "plenumnet-builtin" {
                             let (authorized, reject_reason) = is_terminal_authorized(&from, &client.peers).await;
                             if !authorized {
