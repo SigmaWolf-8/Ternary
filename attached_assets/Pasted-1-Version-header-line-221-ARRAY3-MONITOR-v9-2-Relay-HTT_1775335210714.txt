@@ -1,0 +1,83 @@
+1. Version header — line 221
+// ARRAY3 MONITOR v9.2 — Relay HTTP proxy + setup banner + error overlays
+→
+// ARRAY3 MONITOR v9.3 — Relay HTTP proxy + server-hosted token-free mode + error overlays
+2. Changelog block — lines 222–230
+Add v9.3 entries:
+//   [v9.3] Server-hosted token-free mode — no RELAY_AUTH_TOKEN needed when served from relay origin
+//   [v9.3] Setup banner for file:// users missing token
+//   [v9.3] Relay error overlays (401/429/503/504) with backoff
+3. Token comment — line 584
+// Token is intentionally client-embedded. Data is non-secret operational status.
+// See rotation procedure in ops docs.
+→
+// Token only used in file:// mode. Server-hosted mode skips token entirely —
+// the relay authenticates by origin. Never embed secrets in client-served HTML.
+4. Gateway filter key mismatch — applyVis() three occurrences
+After [T7] uppercased all keys, activeFilters stores 'GATEWAY' but three checks still reference 'Gateway'. Primary ring, ring glow, and label are permanently invisible.
+Find all three:
+jsactiveFilters.has('Gateway')
+Replace all three with:
+jsactiveFilters.has('GATEWAY')
+5. _isServerHosted detection — line ~588
+jsconst _isServerHosted = !_isLocal && window.location.pathname.startsWith('/api/salvi/inter-cube/monitor');
+→
+jsconst _isServerHosted = !_isLocal && (
+  window.location.origin.includes('plenumnet.replit.app') ||
+  window.location.pathname.startsWith('/api/salvi/inter-cube/monitor')
+);
+This ensures Replit-hosted copies (served at / or /monitor.html) are recognized as server-hosted and skip the token requirement.
+6. Duplicate connBtn click listener — line ~932
+jsconnBtn.addEventListener('click', () => { setTimeout(() => { if (isLive) connectRelayWss() }, 3000) });
+Remove this entirely. Move the WSS connect call into the existing connBtn click handler at line ~510, inside the success branch:
+jsif (ok) {
+  isLive = true; refreshScene();
+  connectRelayWss();  // ← add here
+  ...
+}
+7. WSS relay not established on auto-connect — bottom of IIFE at line ~560
+The initial auto-connect IIFE never calls connectRelayWss(). Add it:
+js(async () => {
+  const ok = await fetchAllNodes();
+  if (ok) {
+    isLive = true; refreshScene();
+    connectRelayWss();  // ← add here
+    pollTimer = setInterval(async () => { ... }, 5000);
+  } else { ... }
+})();
+8. Throughput calculation assumes fixed 5s interval — _prevBytes section
+Track the actual timestamp between polls:
+jsconst _prevBytes = {};
+const _prevBytesTime = {};
+In conThroughput(ni):
+jsconst now = Date.now();
+const prevTime = _prevBytesTime[ni] || 0;
+_prevBytesTime[ni] = now;
+const elapsed = prevTime ? (now - prevTime) / 1000 : 5;
+const bps = Math.round(delta / elapsed);
+9. Relay 504 error message misleading for client-side timeouts — showRelayError
+Change the catch block in fetchFromRelay() from:
+jsshowRelayError(504, { error: 'Relay unreachable', hint: e.message });
+→
+jsshowRelayError(0, { error: 'Relay unreachable', hint: e.message });
+And add a 0 entry to the messages map:
+js0: { icon: '🔌', color: '#718096', title: 'Relay Unreachable', desc: 'Cannot reach the relay server. Check your network and relay URL.' },
+10. nodeIndex collision guard — relay transform path
+After deriving nodeIndex from the first slot address, deduplicate:
+jsconst usedIndices = new Set();
+results.forEach((nodeData, i) => {
+  let ni = nodeData.nodeIndex ?? i;
+  while (usedIndices.has(ni) && ni < 3) ni++;
+  if (usedIndices.has(ni)) ni = i; // absolute fallback
+  usedIndices.add(ni);
+  const slots = transformNode(nodeData, ni);
+  slots.forEach(s => allSlots.push(s));
+  if (nodeData.alive) updateHudFromHealth(nodeData, ni);
+});
+11. formatUptime float safety — inside showDet
+jsconst h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+→
+jsconst si = Math.floor(s);
+const h = Math.floor(si / 3600), m = Math.floor((si % 3600) / 60), sec = si % 60;
+
+That's eleven items. 
