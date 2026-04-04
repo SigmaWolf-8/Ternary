@@ -218,7 +218,7 @@
 
 <script>
 // ═══════════════════════════════════════════════════════
-// ARRAY3 MONITOR v9.2 — Relay HTTP proxy + setup banner + error overlays
+// ARRAY3 MONITOR v9.3 — Server-hosted token-free mode
 // Changes from v8.9:
 //   [T1] NinjaExec auto-approval removed — window.open + 60s timeout
 //   [T2] Plaintext HTTP + API key blocked with early return
@@ -227,6 +227,9 @@
 //   [T5] fetchAllNodes() fetch-in-flight mutex
 //   [T6] Relay node index derived from slot address, not array position
 //   [T7] KNOWLEDGE keys uppercase; lookup via .toUpperCase()
+// v9.3:
+//   [T8] Server-hosted monitor uses /monitor/slots (no client token)
+//   [T9] Setup banner only shown for file:// copies missing a token
 // ═══════════════════════════════════════════════════════
 
 const BRAND={
@@ -578,7 +581,7 @@ let useRelay=!_isLocal;
 const RELAY_URL=_isLocal?'https://plenumnet.replit.app':window.location.origin;
 const _isServerHosted=!_isLocal&&window.location.pathname.startsWith('/api/salvi/inter-cube/monitor');
 
-// Token is intentionally client-embedded. Data is non-secret operational status.
+// Token only needed for file:// copies. Server-hosted monitor uses /monitor/slots instead.
 // See rotation procedure in ops docs.
 const RELAY_AUTH_TOKEN='<paste-your-relay-api-token-here>';
 
