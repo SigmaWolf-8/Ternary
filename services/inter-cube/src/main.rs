@@ -112,6 +112,26 @@ fn env_or(primary: &str, alias: &str, default: &str) -> String {
         .unwrap_or_else(|_| default.to_string())
 }
 
+const MONITOR_FALLBACK: &str = include_str!("../monitor/array3-monitor-v9.html");
+
+fn load_monitor_html() -> String {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    let candidates = [
+        exe_dir.as_ref().map(|d| d.join("monitor").join("array3-monitor-v9.html")),
+        exe_dir.as_ref().map(|d| d.join("array3-monitor-v9.html")),
+        Some(std::path::PathBuf::from("services/inter-cube/monitor/array3-monitor-v9.html")),
+        Some(std::path::PathBuf::from("monitor/array3-monitor-v9.html")),
+    ];
+    for candidate in candidates.iter().flatten() {
+        if let Ok(contents) = std::fs::read_to_string(candidate) {
+            return contents;
+        }
+    }
+    MONITOR_FALLBACK.to_string()
+}
+
 fn api_port() -> u16 {
     env::var("CUBE_API_PORT")
         .or_else(|_| env::var("API_PORT"))
@@ -781,7 +801,8 @@ async fn run_crs_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../monitor/array3-monitor-v9.html"))
+            let html = load_monitor_html();
+            Html(html)
         }));
 
     let cors = CorsLayer::new()
@@ -1376,7 +1397,8 @@ async fn run_cube_mode() {
 
     let monitor_route = axum::Router::new()
         .route("/monitor", axum_get(|| async {
-            Html(include_str!("../monitor/array3-monitor-v9.html"))
+            let html = load_monitor_html();
+            Html(html)
         }));
 
     let cors = CorsLayer::new()
