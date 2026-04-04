@@ -759,9 +759,23 @@ function startPqtiService(): ChildProcess | null {
 
   app.get("/api/salvi/inter-cube/monitor", (_req, res) => {
     const monitorPath = path.resolve(process.cwd(), "services/inter-cube/monitor/array3-monitor-v9.html");
-    res.setHeader("Content-Type", "text/html");
-    res.setHeader("Cache-Control", "no-store");
-    res.sendFile(monitorPath);
+    const token = process.env.RELAY_API_TOKEN || "";
+    try {
+      let html = fs.readFileSync(monitorPath, "utf-8");
+      if (token) {
+        html = html.replace(
+          "const RELAY_AUTH_TOKEN='<paste-your-relay-api-token-here>';",
+          `const RELAY_AUTH_TOKEN='${token}';`
+        );
+      }
+      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Cache-Control", "no-store");
+      res.send(html);
+    } catch {
+      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Cache-Control", "no-store");
+      res.sendFile(monitorPath);
+    }
   });
 
   const DIMENSIONS = 13;
