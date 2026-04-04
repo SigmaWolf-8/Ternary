@@ -1,9 +1,12 @@
 [app]
 name = "PlenumNET-Launcher"
-display_name = "PlenumNET Launcher"
+display_name = "PlenumNET Launcher -- Application Hub"
 description = "Central hub for managing all installed PlenumNET applications"
 version = "1.0.0"
 publisher = "Capomastro Holdings Ltd."
+publisher_url = "https://capomastro.com"
+help_url = "https://plenumnet.replit.app/support"
+update_url = "https://plenumnet.replit.app/api/install-msi"
 binary = "plenum-launcher.exe"
 icon = "assets/plenum-launcher.ico"
 license = "Proprietary"
@@ -20,7 +23,7 @@ extra_binaries = ["plenum-launcher-elevate.exe"]
 kind = "tray_agent"
 autostart = true
 tray_icon = "assets/plenum-launcher-tray.ico"
-tray_tooltip = "PlenumNET Launcher — Application Hub"
+tray_tooltip = "PlenumNET Launcher -- Application Hub"
 
 [shortcuts]
 start_menu = [

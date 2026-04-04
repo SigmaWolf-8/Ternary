@@ -89,9 +89,9 @@ pub fn format_tray_tooltip(apps: &[crate::discovery::InstalledApp]) -> String {
         .count();
     let total = apps.len();
     if total == 0 {
-        return "PlenumNET Launcher — No apps installed".to_string();
+        return "PlenumNET Launcher -- No apps installed".to_string();
     }
-    let mut tip = format!("PlenumNET Launcher — {}/{} active\n", active, total);
+    let mut tip = format!("PlenumNET Launcher -- {}/{} active\n", active, total);
     for app in apps {
         tip.push_str(&format!(
             "\n{}: {}",

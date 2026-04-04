@@ -1,9 +1,12 @@
 [app]
 name = "NinjaExec"
-display_name = "NinjaExec — PlenumNET Signing Agent"
+display_name = "NinjaExec -- PlenumNET Signing Agent"
 description = "Securely signs and authenticates PlenumNET operations with post-quantum cryptography"
 version = "1.0.0"
 publisher = "Capomastro Holdings Ltd."
+publisher_url = "https://capomastro.com"
+help_url = "https://plenumnet.replit.app/support"
+update_url = "https://plenumnet.replit.app/api/install-msi"
 binary = "ninja-exec.exe"
 icon = "assets/ninja-exec.ico"
 license = "Proprietary"
@@ -19,16 +22,16 @@ architecture = ["aarch64", "x86_64"]
 kind = "tray_agent"
 autostart = true
 tray_icon = "assets/ninja-exec-tray.ico"
-tray_tooltip = "NinjaExec — PlenumNET Signing Agent"
+tray_tooltip = "NinjaExec -- PlenumNET Signing Agent"
 configure_command = ""
 status_port = 21027
 
 [first_run]
 actions = [
-    { type = "prompt_passphrase", min_length = 12, confirm = true },
+    { type = "passphrase_file", min_length = 12, confirm = true },
     { type = "run_command",
       command = "ninja-exec init",
-      env_passphrase = "PLENUM_PASSPHRASE" },
+      passphrase_file = "PASSPHRASE_FILE" },
     { type = "copy_to_clipboard",
       command = "ninja-exec export-operator",
       message = "Your public signing key has been copied. Provide it to your PlenumNET administrator to authorize this machine for signing operations." },

@@ -1,9 +1,12 @@
 [app]
 name = "InterCubeDaemon"
-display_name = "Inter-Cube Daemon — PlenumNET Network Service"
+display_name = "Inter-Cube Daemon -- PlenumNET Network Service"
 description = "Provides geometric routing and secure communication across the PlenumNET cube network"
 version = "1.0.0"
 publisher = "Capomastro Holdings Ltd."
+publisher_url = "https://capomastro.com"
+help_url = "https://plenumnet.replit.app/support"
+update_url = "https://plenumnet.replit.app/api/install-msi"
 binary = "inter-cube-daemon.exe"
 icon = "assets/inter-cube.ico"
 license = "Proprietary"
@@ -20,11 +23,23 @@ kind = "service"
 autostart = true
 service_account = "NT SERVICE\\InterCubeDaemon"
 
+[service]
+instances = [
+    { id = 1, port = 11124, cube_node_id = "1" },
+    { id = 2, port = 11151, cube_node_id = "2" },
+    { id = 3, port = 11178, cube_node_id = "3" },
+]
+watchdog_enabled = true
+watchdog_interval_secs = 30
+restart_on_failure = true
+restart_delay_secs = 5
+advanced_deploy_script = "deploy-yoda.ps1"
+
 [first_run]
 actions = [
     { type = "run_command",
       command = "inter-cube-daemon init --crs-endpoint {{CRS_ENDPOINT}}",
-      env_passphrase = "" },
+      passphrase_file = "" },
 ]
 
 [shortcuts]

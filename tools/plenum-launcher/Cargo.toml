@@ -2,7 +2,7 @@
 name = "plenum-launcher"
 version = "1.0.0"
 edition = "2021"
-description = "PlenumNET Launcher — system tray hub for all installed PlenumNET applications"
+description = "PlenumNET Launcher -- system tray hub for all installed PlenumNET applications"
 license = "Proprietary"
 publish = false
 
@@ -22,6 +22,6 @@ windows = { version = "0.52", features = [
     "Win32_Foundation",
     "Win32_System_Registry",
 ] }
-tray-item = "0.10"
 tao = "0.31"
 wry = "0.47"
+image = { version = "0.25", default-features = false, features = ["png"] }
