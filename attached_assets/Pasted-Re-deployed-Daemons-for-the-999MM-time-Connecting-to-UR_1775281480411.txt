@@ -1,0 +1,80 @@
+Re-deployed Daemons for the 999MM time...
+
+Connecting to '<URL>' violates the following Content Security Policy directive: "connect-src 'self' <URL> <URL> <URL> <URL> wss:". The action has been blocked.
+
+Connecting to '<URL>' violates the following Content Security Policy directive: "connect-src 'self' <URL> <URL> <URL> <URL> wss:". The action has been blocked.
+
+Connecting to '<URL>' violates the following Content Security Policy directive: "connect-src 'self' <URL> <URL> <URL> <URL> wss:". The action has been blocked.
+
+Connecting to '<URL>' violates the following Content Security Policy directive: "connect-src 'self' <URL> <URL> <URL> <URL> wss:". The action has been blocked.
+
+Connecting to '<URL>' violates the following Content Security Policy directive: "connect-src 'self' <URL> <URL> <URL> <URL> wss:". The action has been blocked.
+
+sw.js:30 Fetch API cannot load https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap. Refused to connect because it violates the document's Content Security Policy.
+
+(anonymous) @ sw.js:30
+
+The FetchEvent for "<URL>" resulted in a network error response: the promise was rejected.
+
+The FetchEvent for "<URL>" resulted in a network error response: the promise was rejected.
+
+The FetchEvent for "<URL>" resulted in a network error response: the promise was rejected.
+
+The FetchEvent for "<URL>" resulted in a network error response: the promise was rejected.
+
+The FetchEvent for "<URL>" resulted in a network error response: the promise was rejected.
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:30 Fetch API cannot load https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap. Refused to connect because it violates the document's Content Security Policy.
+
+(anonymous) @ sw.js:30
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:30 Fetch API cannot load https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap. Refused to connect because it violates the document's Content Security Policy.
+
+(anonymous) @ sw.js:30
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:30 Fetch API cannot load https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap. Refused to connect because it violates the document's Content Security Policy.
+
+(anonymous) @ sw.js:30
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+css2:1  Failed to load resource: net::ERR_FAILED
+
+monitor:1388 ⬡ Array3 Monitor v9.1 — Live · Relay + Direct · QC-R1+R2 Clean
+
+monitor:1389   T1 NinjaExec manual approval · T2 HTTP block · T3 staleness · T4 click merge · T5 mutex · T6 node index · T7 keys
+
+monitor:597 [monitor] Relay returned 1 node(s)
+
+monitor:597 [monitor] Relay returned 1 node(s)
+
+sw.js:30 Fetch API cannot load https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap. Refused to connect because it violates the document's Content Security Policy.
+
+(anonymous) @ sw.js:30
+
+Promise.then
+
+(anonymous) @ sw.js:29
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+sw.js:1 Uncaught (in promise) TypeError: Failed to convert value to 'Response'.
+
+monitor:597 [monitor] Relay returned 1 node(s)
+
+monitor:597 [monitor] Relay returned 1 node(s)
+

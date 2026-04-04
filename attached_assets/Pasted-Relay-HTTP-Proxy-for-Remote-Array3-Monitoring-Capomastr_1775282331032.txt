@@ -1,0 +1,592 @@
+Relay HTTP Proxy for Remote Array3 Monitoring
+Capomastro Holdings Ltd. — Applied Physics Division
+Author: Lo Sono Capomastro
+Status: SPECIFICATION — Ready for Replit implementation
+Affects: plenumnet.replit.app (Replit server), services/inter-cube/src/main.rs (daemon)
+Date: 2026-04-03
+
+1. Problem Statement
+The Array3 Monitor (array3-monitor-v9.html) is a remote network monitor intended to be
+accessible from anywhere in the world. It communicates with the daemon in two modes:
+
+Direct mode: http://127.0.0.1:11124/api/salvi/inter-cube/slots — works locally only.
+Relay mode: https://plenumnet.replit.app/api/salvi/inter-cube/slots — intended for
+remote access, but this endpoint does not exist. It returns 404.
+
+The daemon is already connected to the Replit relay over an authenticated TL-DSA WebSocket
+(wss://plenumnet.replit.app/ws/relay). The relay server therefore already has a live,
+authenticated channel to the coordinator daemon. It just does not expose that channel as an
+HTTP endpoint.
+This spec defines exactly what to add to make remote monitoring work.
+
+2. Architecture Overview
+Remote Browser
+      │
+      │  GET /api/salvi/inter-cube/slots
+      │  Authorization: Bearer <token>
+      ▼
+┌─────────────────────────────────────┐
+│   plenumnet.replit.app              │
+│   Express.js server                 │
+│                                     │
+│  NEW: GET /api/salvi/inter-cube/slots│
+│    1. Validate bearer token         │
+│    2. Look up coordinator WS conn   │
+│    3. Send http_proxy_req over WS   │
+│    4. Await http_proxy_res (5s)     │
+│    5. Return JSON to browser        │
+│                                     │
+│  EXISTING: /ws/relay                │
+│    - Maintains authenticated WS     │
+│      connections from daemons       │
+│    - NEW: routes http_proxy_res     │
+│      back to pending request map    │
+└─────────────────────────────────────┘
+      │
+      │  WebSocket (already open, TL-DSA authenticated)
+      │  Coordinator address: 1111111111111
+      ▼
+┌─────────────────────────────────────┐
+│   Windows ARM64 — Local Machine     │
+│   inter-cube-daemon.exe             │
+│   Port 11124 (Node 1 coordinator)   │
+│                                     │
+│  EXISTING: ws_relay WsRelayClient   │
+│  NEW: handle relay_msg_type         │
+│       "http_proxy_req" in main.rs   │
+│    1. Deserialise HttpProxyReq      │
+│    2. Execute local reqwest GET     │
+│       → http://127.0.0.1:11124/...  │
+│    3. Send http_proxy_res back      │
+└─────────────────────────────────────┘
+
+3. Relay Message Protocol — New Message Types
+The existing RelayEnvelope (defined in ws_relay.rs) carries application messages as:
+json{
+  "type": "relay",
+  "to": "<target_address>",
+  "from": "<sender_address>",
+  "msgType": "<application_msg_type>",
+  "payload": "<json_string>"
+}
+Two new msgType values are added:
+3.1 http_proxy_req — Server → Daemon
+Sent by the Replit server directly over the coordinator's open WebSocket connection.
+The to field is set to the coordinator's address; from is set to the special sentinel
+address __relay_server__ so the daemon knows to respond back to the server, not a peer.
+Envelope:
+json{
+  "type": "relay",
+  "to": "1111111111111",
+  "from": "__relay_server__",
+  "msgType": "http_proxy_req",
+  "payload": "<HttpProxyReq as JSON string>"
+}
+HttpProxyReq payload (JSON-stringified into the payload field):
+json{
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "method": "GET",
+  "path": "/api/salvi/inter-cube/slots",
+  "ts": 1743600000000
+}
+FieldTypeDescriptionrequest_idUUIDv4 stringCorrelation ID. Server generates; daemon echoes back.methodstringHTTP method. Only "GET" is supported in v1.pathstringPath on the local daemon API. Must start with /api/salvi/.tsu64 (ms epoch)Request timestamp. Daemon rejects requests older than 10 seconds.
+3.2 http_proxy_res — Daemon → Server
+Sent by the daemon back to the server in response to a http_proxy_req.
+The daemon sets to: "__relay_server__" so the server routes it to the pending
+request map rather than forwarding to a peer.
+Envelope:
+json{
+  "type": "relay",
+  "to": "__relay_server__",
+  "from": "1111111111111",
+  "msgType": "http_proxy_res",
+  "payload": "<HttpProxyRes as JSON string>"
+}
+HttpProxyRes payload (JSON-stringified into the payload field):
+Success:
+json{
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": 200,
+  "body": { ...full SlotInventory JSON... },
+  "error": null
+}
+Failure:
+json{
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": 500,
+  "body": null,
+  "error": "reqwest: connection refused"
+}
+FieldTypeDescriptionrequest_idUUIDv4 stringMust match the request_id from the corresponding http_proxy_req.statusu16HTTP status code returned by the local daemon endpoint.bodyJSON object or nullParsed JSON response body on success; null on error.errorstring or nullError message on failure; null on success.
+
+4. Replit Server Changes
+4.1 Files to Modify
+server/routes.ts          — Add GET /api/salvi/inter-cube/slots route
+server/relay-manager.ts   — NEW FILE: pending request map + proxy dispatch
+If the WebSocket relay is implemented in a separate file (e.g., server/ws-relay-server.ts
+or inline in routes.ts), the connection registry update described in §4.3 goes there.
+4.2 Bearer Token Authentication
+The new HTTP endpoint requires a bearer token. This prevents the world from polling your
+cluster data without credentials.
+Token derivation: Use the existing RELAY_API_TOKEN environment secret already present
+in the Replit project (add it if not present). This is a static pre-shared token stored
+as a Replit Secret. Value: a 64-character hex string generated once and stored in both
+the Replit Secret and the Array3 Monitor's configuration.
+Validation (TypeScript):
+typescriptfunction validateRelayToken(req: Request, res: Response): boolean {
+  const auth = req.headers['authorization'] ?? '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token || token !== process.env.RELAY_API_TOKEN) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return false;
+  }
+  return true;
+}
+The monitor already sends Authorization: Bearer <token> in its relay fetch — verify
+this is wired with the matching token value. If not, add it to the monitor's
+RELAY_AUTH_TOKEN constant at the top of the HTML file.
+4.3 Connection Registry
+The WebSocket relay server must maintain a map of authenticated daemon connections,
+keyed by daemon address. Add this to wherever WebSocket connections are stored:
+typescript// In relay-manager.ts (new file) or wherever WS connections are managed
+
+interface ConnectedDaemon {
+  ws: WebSocket;               // The raw WebSocket connection
+  address: string;             // e.g. "1111111111111"
+  connectedAt: number;         // Date.now()
+  lastSeen: number;            // Updated on every message
+}
+
+// Global registry — persists across requests
+const connectedDaemons = new Map<string, ConnectedDaemon>();
+
+// Pending HTTP proxy requests
+// request_id → { resolve, reject, timer }
+interface PendingProxy {
+  resolve: (res: HttpProxyRes) => void;
+  reject: (err: Error) => void;
+  timer: NodeJS.Timeout;
+}
+const pendingProxies = new Map<string, PendingProxy>();
+
+export function registerDaemon(address: string, ws: WebSocket): void {
+  connectedDaemons.set(address, { ws, address, connectedAt: Date.now(), lastSeen: Date.now() });
+}
+
+export function deregisterDaemon(address: string): void {
+  connectedDaemons.delete(address);
+}
+
+export function touchDaemon(address: string): void {
+  const d = connectedDaemons.get(address);
+  if (d) d.lastSeen = Date.now();
+}
+
+export function getCoordinatorWs(): WebSocket | null {
+  // The coordinator is always address 1111111111111 (Node 1, slot [2,2,2] gateway)
+  const COORDINATOR_ADDRESS = '1111111111111';
+  const d = connectedDaemons.get(COORDINATOR_ADDRESS);
+  if (!d) return null;
+  if (d.ws.readyState !== WebSocket.OPEN) {
+    connectedDaemons.delete(COORDINATOR_ADDRESS);
+    return null;
+  }
+  return d.ws;
+}
+Wire up registerDaemon / deregisterDaemon: In the existing WebSocket relay handler,
+when a connection successfully completes the TL-DSA challenge-response auth sequence and
+sends auth_ok back, call registerDaemon(address, ws). On connection close or error,
+call deregisterDaemon(address).
+4.4 Relay Message Router Update
+In the existing WebSocket message handler (the part that receives messages from daemons),
+add a branch for http_proxy_res messages addressed to __relay_server__:
+typescript// In the existing ws.on('message', ...) handler:
+
+const env = JSON.parse(data.toString()) as RelayEnvelope;
+
+if (env.type === 'relay' && env.to === '__relay_server__' && env.msgType === 'http_proxy_res') {
+  // This is a response to an outbound proxy request we initiated
+  touchDaemon(env.from ?? '');
+  try {
+    const res: HttpProxyRes = JSON.parse(env.payload ?? '{}');
+    const pending = pendingProxies.get(res.request_id);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingProxies.delete(res.request_id);
+      pending.resolve(res);
+    }
+    // If not found — either already timed out or duplicate. Silently discard.
+  } catch (e) {
+    console.error('[relay-proxy] Failed to parse http_proxy_res payload:', e);
+  }
+  return; // Do NOT forward this to any peer
+}
+
+// ... existing routing logic for peer-to-peer relay messages ...
+4.5 Proxy Dispatch Function
+typescript// In relay-manager.ts
+
+const PROXY_TIMEOUT_MS = 5000;
+
+export interface HttpProxyReq {
+  request_id: string;
+  method: string;
+  path: string;
+  ts: number;
+}
+
+export interface HttpProxyRes {
+  request_id: string;
+  status: number;
+  body: unknown | null;
+  error: string | null;
+}
+
+export function proxyToCoordinator(path: string): Promise<HttpProxyRes> {
+  return new Promise((resolve, reject) => {
+    const ws = getCoordinatorWs();
+    if (!ws) {
+      return reject(new Error('Coordinator not connected to relay'));
+    }
+
+    const request_id = crypto.randomUUID(); // Node 18+ built-in
+
+    const timer = setTimeout(() => {
+      pendingProxies.delete(request_id);
+      reject(new Error(`Proxy request timed out after ${PROXY_TIMEOUT_MS}ms`));
+    }, PROXY_TIMEOUT_MS);
+
+    pendingProxies.set(request_id, { resolve, reject, timer });
+
+    const req: HttpProxyReq = {
+      request_id,
+      method: 'GET',
+      path,
+      ts: Date.now(),
+    };
+
+    const envelope = {
+      type: 'relay',
+      to: '1111111111111',
+      from: '__relay_server__',
+      msgType: 'http_proxy_req',
+      payload: JSON.stringify(req),
+    };
+
+    try {
+      ws.send(JSON.stringify(envelope));
+    } catch (e) {
+      clearTimeout(timer);
+      pendingProxies.delete(request_id);
+      reject(new Error(`Failed to send proxy request: ${e}`));
+    }
+  });
+}
+4.6 New HTTP Route
+Add to server/routes.ts (or the appropriate router file):
+typescriptimport { proxyToCoordinator } from './relay-manager';
+
+// GET /api/salvi/inter-cube/slots
+// Remote relay proxy — returns the coordinator's full slot inventory.
+// Requires: Authorization: Bearer <RELAY_API_TOKEN>
+app.get('/api/salvi/inter-cube/slots', async (req, res) => {
+  if (!validateRelayToken(req, res)) return;
+
+  try {
+    const result = await proxyToCoordinator('/api/salvi/inter-cube/slots');
+
+    if (result.error) {
+      return res.status(result.status || 502).json({
+        error: result.error,
+        source: 'daemon',
+      });
+    }
+
+    // Pass-through: return exactly what the daemon returned
+    return res.status(result.status).json(result.body);
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+
+    if (message.includes('not connected')) {
+      return res.status(503).json({
+        error: 'Coordinator daemon is not connected to relay',
+        hint: 'Verify PlenumNET Array3 services are running on the host machine',
+      });
+    }
+    if (message.includes('timed out')) {
+      return res.status(504).json({
+        error: 'Proxy request timed out — daemon did not respond within 5 seconds',
+      });
+    }
+
+    console.error('[relay-proxy] Unexpected error:', err);
+    return res.status(500).json({ error: 'Internal relay proxy error' });
+  }
+});
+
+5. Daemon Changes (main.rs)
+5.1 Location
+In main.rs, find the section that handles incoming relay messages from the
+incoming_rx channel. This is the loop that processes RelayEnvelope messages
+of type "relay". It currently handles yoda_chat messages and similar.
+Add a new branch for relay_msg_type == "http_proxy_req".
+5.2 Types to Add
+Add near the top of main.rs (or in a new inline module):
+rust#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct HttpProxyReq {
+    request_id: String,
+    method: String,
+    path: String,
+    ts: u64,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct HttpProxyRes {
+    request_id: String,
+    status: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body: Option<serde_json::Value>,
+    error: Option<String>,
+}
+5.3 Handler Logic
+rust// In the relay message processing loop, inside the match on relay_msg_type:
+
+Some(ref msg_type) if msg_type == "http_proxy_req" => {
+    // Only accept requests from the relay server itself
+    let from = envelope.from.as_deref().unwrap_or("");
+    if from != "__relay_server__" {
+        println!("[http-proxy] Rejected http_proxy_req from non-server sender: {}", from);
+        continue;
+    }
+
+    let payload_str = match envelope.payload.as_deref() {
+        Some(p) => p.to_string(),
+        None => {
+            println!("[http-proxy] Missing payload in http_proxy_req");
+            continue;
+        }
+    };
+
+    let req: HttpProxyReq = match serde_json::from_str(&payload_str) {
+        Ok(r) => r,
+        Err(e) => {
+            println!("[http-proxy] Failed to parse HttpProxyReq: {}", e);
+            continue;
+        }
+    };
+
+    // Staleness check: reject requests older than 10 seconds
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    if now_ms.saturating_sub(req.ts) > 10_000 {
+        println!("[http-proxy] Rejected stale request {} (age {}ms)", req.request_id, now_ms - req.ts);
+        continue;
+    }
+
+    // Only allow GET requests to /api/salvi/ paths
+    if req.method != "GET" || !req.path.starts_with("/api/salvi/") {
+        println!("[http-proxy] Rejected disallowed method/path: {} {}", req.method, req.path);
+        let error_res = HttpProxyRes {
+            request_id: req.request_id.clone(),
+            status: 403,
+            body: None,
+            error: Some("Only GET /api/salvi/* is permitted via proxy".to_string()),
+        };
+        let _ = send_proxy_response(&relay_client, &error_res).await;
+        continue;
+    }
+
+    // Spawn the HTTP call so it doesn't block the relay loop
+    let request_id = req.request_id.clone();
+    let path = req.path.clone();
+    let gateway_port = BASE_PORT + GATEWAY_OFFSET; // 11124
+    let relay_tx = relay_client.outgoing_tx.clone();
+
+    tokio::spawn(async move {
+        let url = format!("http://127.0.0.1:{}{}", gateway_port, path);
+        println!("[http-proxy] Proxying {} to {}", request_id, url);
+
+        let response = match reqwest::Client::new()
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(4))
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let status = resp.status().as_u16();
+                match resp.json::<serde_json::Value>().await {
+                    Ok(body) => HttpProxyRes {
+                        request_id,
+                        status,
+                        body: Some(body),
+                        error: None,
+                    },
+                    Err(e) => HttpProxyRes {
+                        request_id,
+                        status: 502,
+                        body: None,
+                        error: Some(format!("Failed to parse daemon response: {}", e)),
+                    },
+                }
+            }
+            Err(e) => HttpProxyRes {
+                request_id,
+                status: 503,
+                body: None,
+                error: Some(format!("Local HTTP call failed: {}", e)),
+            },
+        };
+
+        // Send response back to relay server
+        let payload = match serde_json::to_string(&response) {
+            Ok(p) => p,
+            Err(e) => {
+                println!("[http-proxy] Failed to serialise HttpProxyRes: {}", e);
+                return;
+            }
+        };
+
+        let envelope = crate::ws_relay::RelayEnvelope {
+            msg_type: "relay".to_string(),
+            to: Some("__relay_server__".to_string()),
+            from: None,
+            relay_msg_type: Some("http_proxy_res".to_string()),
+            payload: Some(payload),
+            address: None,
+            public_key: None,
+            nonce: None,
+            signature: None,
+            error: None,
+            delivered: None,
+            connected_peers: None,
+            ts: None,
+            connected: None,
+        };
+
+        if let Err(e) = relay_tx.send(envelope).await {
+            println!("[http-proxy] Failed to send proxy response: {}", e);
+        }
+        println!("[http-proxy] Proxy response sent for request {}", response.request_id);
+    });
+}
+5.4 Crate Dependency Check
+Ensure reqwest is in services/inter-cube/Cargo.toml with JSON feature enabled:
+tomlreqwest = { version = "0.11", features = ["json"], default-features = false }
+If reqwest is already present (used elsewhere), verify the json feature is included.
+If it is not present at all, add it. The default-features = false + json + implicit
+tokio runtime is the minimal footprint required.
+
+6. Monitor Changes (array3-monitor-v9.html)
+The monitor already has relay fallback logic. Two small changes are needed:
+6.1 Add the Bearer Token
+At the top of the monitor's JavaScript configuration block, add:
+javascript// Relay authentication token — must match RELAY_API_TOKEN in Replit Secrets
+const RELAY_AUTH_TOKEN = 'YOUR_64_CHAR_HEX_TOKEN_HERE';
+6.2 Update Relay Fetch to Send Authorization Header
+Find the relay fetch call in the monitor (the one that hits
+https://plenumnet.replit.app/api/salvi/inter-cube/slots) and add the header:
+javascriptconst response = await fetch(RELAY_SLOTS_URL, {
+  headers: {
+    'Authorization': `Bearer ${RELAY_AUTH_TOKEN}`,
+    'Accept': 'application/json',
+  },
+  signal: AbortSignal.timeout(6000),
+});
+
+7. RELAY_API_TOKEN Setup
+
+Generate the token once (run in any terminal):
+
+bash   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+Add the output as a Replit Secret named RELAY_API_TOKEN.
+Paste the same value into RELAY_AUTH_TOKEN constant in array3-monitor-v9.html.
+Do NOT commit the token value to the repository.
+
+
+8. Complete Message Flow (Sequence)
+Browser                   Replit Server              Daemon (11124)
+  │                            │                           │
+  │  GET /api/salvi/inter-cube/slots                       │
+  │  Authorization: Bearer <token>                        │
+  │ ─────────────────────────► │                           │
+  │                            │  Validate token           │
+  │                            │  Look up coordinator WS   │
+  │                            │  Generate request_id=UUID │
+  │                            │  Store pending[UUID]      │
+  │                            │                           │
+  │                            │  {type:"relay",           │
+  │                            │   to:"1111111111111",     │
+  │                            │   from:"__relay_server__",│
+  │                            │   msgType:"http_proxy_req"│
+  │                            │   payload:{UUID,GET,path}}│
+  │                            │ ─────────────────────────►│
+  │                            │                           │
+  │                            │                           │  Validate from == "__relay_server__"
+  │                            │                           │  Validate ts freshness
+  │                            │                           │  Validate path prefix
+  │                            │                           │  GET http://127.0.0.1:11124/api/salvi/inter-cube/slots
+  │                            │                           │  ◄── 200 OK {node_id,slots,summary}
+  │                            │                           │
+  │                            │  {type:"relay",           │
+  │                            │   to:"__relay_server__",  │
+  │                            │   from:"1111111111111",   │
+  │                            │   msgType:"http_proxy_res"│
+  │                            │   payload:{UUID,200,body}}│
+  │                            │ ◄─────────────────────────│
+  │                            │                           │
+  │                            │  Match pending[UUID]      │
+  │                            │  Resolve promise          │
+  │                            │  Delete pending[UUID]     │
+  │                            │                           │
+  │  200 OK                    │                           │
+  │  {node_id,slots,summary}   │                           │
+  │ ◄──────────────────────── │                           │
+  │                            │                           │
+
+9. Error Cases and HTTP Response Codes
+ConditionHTTP StatusResponse bodyMissing or invalid bearer token401{ "error": "Unauthorized" }Coordinator WebSocket not in registry503{ "error": "Coordinator daemon is not connected to relay", "hint": "..." }Daemon did not respond within 5 seconds504{ "error": "Proxy request timed out..." }Daemon returned non-200Pass-throughOriginal daemon status + bodyDaemon local HTTP call failed (reqwest error)503{ "error": "Local HTTP call failed: ..." }Unexpected server error500{ "error": "Internal relay proxy error" }
+
+10. Security Constraints
+
+Only __relay_server__ may send http_proxy_req messages. The daemon checks
+envelope.from == "__relay_server__" and silently drops any message from a peer
+address with this msgType. Peers cannot trigger proxy requests on each other.
+Path allowlist on the daemon. Only GET /api/salvi/* is permitted. The daemon
+returns 403 for any other method or path prefix. This prevents a compromised relay
+server from making arbitrary HTTP calls on the daemon host.
+Staleness check on the daemon. The daemon rejects http_proxy_req messages
+with ts older than 10 seconds. This limits replay window.
+Bearer token on the HTTP endpoint. The Replit endpoint is not public. The
+RELAY_API_TOKEN must be held by the monitor client.
+No TL-DSA signature on proxy messages. The proxy messages are server-initiated
+(the server cannot hold a daemon identity keypair), so no TL-DSA signature is
+applied to http_proxy_req. The from: "__relay_server__" sentinel is trusted
+because the daemon receives it over the server's own WebSocket relay — not from
+a peer. The server sets the from field server-side; a peer cannot spoof it.
+
+
+11. Testing the Endpoint
+Once deployed, verify from PowerShell:
+powershell# Replace token with your actual RELAY_API_TOKEN value
+$headers = @{ Authorization = "Bearer YOUR_64_CHAR_TOKEN_HERE" }
+(Invoke-WebRequest `
+  -Uri "https://plenumnet.replit.app/api/salvi/inter-cube/slots" `
+  -Headers $headers `
+  -UseBasicParsing).Content
+Expected: the full slot inventory JSON (same as http://127.0.0.1:11124/api/salvi/inter-cube/slots)
+including node_id, slots array with 27 entries (5 occupied, 22 available), and summary.
+
+12. Commit Convention
+"relay: add HTTP proxy endpoint for remote slot monitoring (TM-2026-027)"
+Files changed:
+
+server/relay-manager.ts — NEW: pending map + proxyToCoordinator()
+server/routes.ts — ADD: GET /api/salvi/inter-cube/slots route
+server/[ws-relay-handler].ts — ADD: registerDaemon/deregisterDaemon calls + http_proxy_res routing
+services/inter-cube/src/main.rs — ADD: http_proxy_req handler in relay loop
+services/inter-cube/Cargo.toml — VERIFY: reqwest with json feature
+services/inter-cube/monitor/array3-monitor-v9.html — ADD: Authorization header in relay fetch
