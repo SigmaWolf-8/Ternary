@@ -591,14 +591,25 @@ function isRelayTokenConfigured(){
 function showRelayError(statusCode,errorObj){
   relayErrorState={statusCode,error:errorObj};
   const messages={
-    401:{icon:'\u{1F512}',color:'#E53E3E',title:'Authentication Failed',desc:'Check that your relay token matches the server.'},
-    429:{icon:'\u26A0\uFE0F',color:'#DD6B20',title:'Too Many Requests',desc:'Retrying with backoff...'},
+    401:{icon:'\u{1F512}',color:'#E53E3E',title:'Authentication Failed',desc:'Check that your relay token matches the server\u2019s RELAY_API_TOKEN.'},
+    429:{icon:'\u26A0\uFE0F',color:'#DD6B20',title:'Too Many Requests',desc:'Rate limit exceeded (30/min). Retrying with backoff\u2026'},
     503:{icon:'\u{1F50C}',color:'#718096',title:'No Daemons Connected',desc:'Verify Array3 services are running on the host machine.'},
-    504:{icon:'\u23F3',color:'#D69E2E',title:'Daemons Not Responding',desc:'Check host machine logs for errors.'},
+    504:{icon:'\u23F3',color:'#D69E2E',title:'Daemons Not Responding',desc:'Connected but silent. Check daemon logs on the host machine.'},
   };
   const m=messages[statusCode]||{icon:'\u2757',color:'#E53E3E',title:'Relay Error',desc:errorObj?.hint||'Contact the Array3 operator.'};
   connStatus.textContent=`${m.icon} ${m.title}`;
   connStatus.style.color=m.color;
+
+  let overlay=document.getElementById('relay-error-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='relay-error-overlay';
+    overlay.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9998;background:rgba(24,20,17,0.96);border:1px solid '+m.color+';border-radius:10px;padding:16px 28px;text-align:center;font-family:Inter,system-ui,sans-serif;max-width:400px;backdrop-filter:blur(12px);';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.borderColor=m.color;
+  overlay.innerHTML=`<div style="font-size:24px;margin-bottom:6px">${m.icon}</div><div style="font-size:14px;font-weight:600;color:${m.color};margin-bottom:4px">${m.title}</div><div style="font-size:12px;color:#C9C1B4;line-height:1.5">${m.desc}</div>`;
+
   if(statusCode===429){
     relayBackoffMs=Math.min((relayBackoffMs||2000)*2,30000);
   }else if(statusCode===503){
@@ -611,6 +622,30 @@ function showRelayError(statusCode,errorObj){
 function clearRelayError(){
   relayErrorState=null;
   relayBackoffMs=0;
+  const overlay=document.getElementById('relay-error-overlay');
+  if(overlay)overlay.remove();
+}
+
+let setupBannerShown=false;
+function showSetupBanner(){
+  if(setupBannerShown)return;
+  setupBannerShown=true;
+  connStatus.textContent='\u{1F527} Setup required — paste your relay token';
+  connStatus.style.color='#DD6B20';
+  const banner=document.createElement('div');
+  banner.id='setup-banner';
+  banner.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(24,20,17,0.98);border:2px solid #DD6B20;border-radius:12px;padding:32px 40px;max-width:480px;text-align:center;font-family:Inter,system-ui,sans-serif;';
+  banner.innerHTML=`
+    <div style="font-size:36px;margin-bottom:12px">\u{1F527}</div>
+    <div style="font-size:18px;font-weight:700;color:#F0EDE8;margin-bottom:8px">Relay Token Required</div>
+    <div style="font-size:13px;color:#C9C1B4;line-height:1.6;margin-bottom:16px">
+      To monitor Array3 nodes remotely, paste your <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_API_TOKEN</code> into this file.<br><br>
+      Open <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">array3-monitor-v9.html</code> and replace the placeholder value of <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_AUTH_TOKEN</code> on line ~582.
+    </div>
+    <div style="font-size:11px;color:#6B655E;border-top:1px solid #272220;padding-top:12px">
+      Local monitoring (file://) still works without a token when daemons are on localhost.
+    </div>`;
+  document.body.appendChild(banner);
 }
 
 async function fetchRelayStatus(){
@@ -718,13 +753,18 @@ async function fetchAllNodes(){
   try{
     let results;
     if(useRelay){
+      if(!isRelayTokenConfigured()){
+        showSetupBanner();
+        fetchInFlight=false;
+        return false;
+      }
       const relayData=await fetchFromRelay();
       if(relayData&&relayData.length>0){results=relayData}
       else{results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)))}
     }else{
       results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)));
       const localUp=results.filter(r=>r.alive).length;
-      if(localUp===0){
+      if(localUp===0&&isRelayTokenConfigured()){
         const relayData=await fetchFromRelay();
         if(relayData&&relayData.length>0){results=relayData;useRelay=true}
       }

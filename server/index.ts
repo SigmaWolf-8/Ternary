@@ -966,6 +966,10 @@ function startPqtiService(): ChildProcess | null {
   const slotInventoryCache = new Map<number, { nodeId: number; slots: any; health: any; receivedAt: number }>();
 
   app.get("/api/salvi/inter-cube/slots", async (req, res) => {
+    const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+    if (!checkProxyRateLimit(clientIp)) {
+      return res.status(429).json({ error: "Too many requests", hint: "Rate limit is 30 requests per minute. Wait and retry." });
+    }
     const RELAY_API_TOKEN = process.env.RELAY_API_TOKEN;
     if (!RELAY_API_TOKEN) {
       return res.status(500).json({ error: "Internal relay proxy error", hint: "Contact the Array3 operator." });
@@ -1881,8 +1885,23 @@ function startPqtiService(): ChildProcess | null {
 
   const PROXY_CONCURRENT_CAP = 5;
   const PROXY_TIMEOUT_MS = 5000;
+  let activeProxyRequests = 0;
   const pendingProxies = new Map<string, { resolve: (v: { status: number; body: string } | null) => void; timer: ReturnType<typeof setTimeout>; daemonAddr: string }>();
   (globalThis as any).__pendingProxies = pendingProxies;
+
+  const proxyRateLimiter = new Map<string, number[]>();
+  const PROXY_RATE_LIMIT = 30;
+  const PROXY_RATE_WINDOW_MS = 60_000;
+
+  function checkProxyRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const timestamps = proxyRateLimiter.get(ip) || [];
+    const recent = timestamps.filter(t => now - t < PROXY_RATE_WINDOW_MS);
+    if (recent.length >= PROXY_RATE_LIMIT) return false;
+    recent.push(now);
+    proxyRateLimiter.set(ip, recent);
+    return true;
+  }
 
   function proxyToAllDaemons(path: string): Promise<{ statusCode: number; body: any }> {
     return new Promise(async (outerResolve) => {
@@ -1895,11 +1914,11 @@ function startPqtiService(): ChildProcess | null {
         return outerResolve({ statusCode: 503, body: { error: "No Array3 daemons connected to relay", hint: "Verify Array3 services are running on the host machine and connected to the relay." } });
       }
 
-      let activeCount = 0;
-      for (const v of pendingProxies.values()) activeCount++;
-      if (activeCount >= PROXY_CONCURRENT_CAP) {
+      if (activeProxyRequests >= PROXY_CONCURRENT_CAP) {
         return outerResolve({ statusCode: 429, body: { error: "Too many concurrent requests", hint: "Wait a few seconds and retry. Check for duplicate monitor instances." } });
       }
+
+      activeProxyRequests++;
 
       const nodeResults: Array<{ node_id: string; status: string; slots?: any; summary?: any; node_id_num?: number; error?: string }> = [];
       let responsesReceived = 0;
@@ -1910,6 +1929,7 @@ function startPqtiService(): ChildProcess | null {
         if (resolved) return;
         if (responsesReceived >= totalExpected) {
           resolved = true;
+          activeProxyRequests--;
           const responding = nodeResults.filter(n => n.status === "ok").length;
           if (responding === 0) {
             return outerResolve({ statusCode: 504, body: { error: "All daemons timed out", hint: "Daemons are connected but not responding. Check daemon logs on the host machine." } });
@@ -1954,7 +1974,7 @@ function startPqtiService(): ChildProcess | null {
                 nodeResults.push({ node_id: toDottedAddr(addr), status: "ok", slots: [], summary: {} });
               }
             } else {
-              nodeResults.push({ node_id: toDottedAddr(addr), status: "error", error: "empty response" });
+              nodeResults.push({ node_id: toDottedAddr(addr), status: "timeout" });
             }
             responsesReceived++;
             checkComplete();
