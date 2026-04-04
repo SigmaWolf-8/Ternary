@@ -1,0 +1,51 @@
+I've gone through the full v9.3 source. Here's what I found — organized by severity.
+
+Critical Issues (likely causing Replit breakage)
+
+Relay token placeholder blocks all remote fetches. RELAY_AUTH_TOKEN is set to the literal string '<paste-your-relay-api-token-here>'. The guard isRelayTokenConfigured() correctly catches this for the setup banner path, but in fetchFromRelay() there's a separate code path for _isServerHosted that bypasses the token entirely — it sends no Authorization header. If Replit's relay endpoint does require auth (which it likely does given the 401 error handling), the server-hosted path silently sends unauthenticated requests and gets rejected.
+_isServerHosted detection is wrong for Replit. Line ~588:
+
+js   const _isServerHosted = !_isLocal && window.location.pathname.startsWith('/api/salvi/inter-cube/monitor');
+On Replit, the monitor HTML is served at a path like / or /monitor.html — not under /api/salvi/inter-cube/monitor. So _isServerHosted is always false on Replit, which means every fetch goes through the token-required path. If the token placeholder hasn't been replaced, the setup banner appears and all polling stops.
+
+RELAY_URL derivation uses window.location.origin for non-local, but falls back to hardcoded URL for local. Line ~580:
+
+js   const RELAY_URL = _isLocal ? 'https://plenumnet.replit.app' : window.location.origin;
+On Replit, window.location.origin is something like https://plenumnet.replit.app — that's correct. But the fetch path appended is /api/salvi/inter-cube/slots, and if the Replit app's actual relay endpoint is at a different path (e.g., /ws/relay or /api/salvi/inter-cube/relay/slots), this 404s silently and falls through to the direct-daemon path, which also fails because localhost daemons aren't reachable from Replit's container.
+
+Double event listener on connBtn. There are two connBtn.addEventListener('click', ...) blocks — one at line ~510 (the credential-block handler with the early return) and another at line ~932 (the WSS relay connect). Both fire on every click. The second one calls connectRelayWss() after a 3-second delay regardless of whether the first handler succeeded or was blocked. Not a crash, but it spawns orphan WebSocket connections on failure.
+
+
+Moderate Issues
+
+fetchFromRelay() doesn't handle the case where data.cluster exists but data.cluster.nodes is an empty array. The guard is:
+
+js   if (!data.cluster || !data.cluster.nodes || data.cluster.nodes.length === 0) return null;
+This is fine, but the caller in fetchAllNodes() then falls through to Promise.all(NODE_PORTS.map(p => fetchNode(p))) — which will also fail on Replit since localhost daemons aren't reachable. The result: 0 nodes up, allSlots gets populated with 81 offline placeholders, and isLive stays false. No error is shown to the user beyond the connection status line.
+
+nodeIndex collision risk. In the relay transform path, if two nodes report slots starting with the same first-position trit (e.g., both start with [2,x,x]), nodeIndex for both gets set to 1, and one node's data overwrites the other in allSlots. The comment says "[T6] Use nodeIndex from relay response," but the fallback parsing from firstAddr[0] is fragile — it assumes the relay always returns slots sorted by node.
+showRelayError(504, ...) is called for generic fetch failures, but 504 in the overlay message map says "Daemons Not Responding" with "Connected but silent." A network timeout to the relay itself isn't a 504 from the relay — it's a client-side timeout. The error message is misleading.
+_prevBytes throughput calculation assumes exactly 5-second poll intervals, but the actual interval varies due to relayBackoffMs delays, fetch latency, and the fetchInFlight mutex. The B/s calculation will be wrong whenever the interval isn't exactly 5 seconds.
+SVC_NORM doesn't include 'gateway' → 'GATEWAY' consistently with SVC_DISPLAY. normaliseService('Gateway') → lowercase 'gateway' → SVC_NORM['gateway'] → 'GATEWAY'. But then SVC_DISPLAY['GATEWAY'] returns 'Gateway — Outbound Router'. Meanwhile, the code also does activeFilters.has('Gateway') in applyVis() — but after normalisation, the filter key would be 'GATEWAY', not 'Gateway'. This means the Gateway visibility toggle and the ring/ringGlow visibility checks reference a key that may not exist in activeFilters.
+Actually wait — let me re-read. normaliseService returns 'GATEWAY' for the raw string 'Gateway'. Then discovered.set('GATEWAY', ...) and activeFilters.add('GATEWAY'). But in applyVis():
+
+js   if(nd.ring) nd.ring.visible = vis && activeFilters.has('Gateway');
+That's checking for 'Gateway' (capital G, mixed case) — but the filter key is 'GATEWAY'. The primary gateway ring is never visible. Same bug hits ringGlow and primaryLabel. This is a real rendering bug.
+
+connectRelayWss() is only called after connBtn click, never on initial auto-connect. The WSS relay for live exec-result and telemetry messages is never established on page load.
+
+
+Minor / Style
+
+The formatUptime function inside showDet uses integer modulo (s%60) but uptimeSecs could be a float from the API. Should floor it.
+handleExecResult and handleTelemetry are empty stubs — fine for now, but the WSS message handler silently discards all telemetry data.
+The Three.js r128 blob is ~750KB inlined. If Replit has response size limits or CDN caching issues, this could cause partial loads where the script tag gets truncated, breaking everything downstream.
+
+
+Recommended Fixes (priority order)
+For the Replit breakage specifically, the fix is likely items #9 (Gateway filter key mismatch) and #3 (relay URL path). But the most impactful single fix is making the applyVis() filter checks use the normalised key consistently:
+js// In applyVis(), change all instances of:
+activeFilters.has('Gateway')
+// to:
+activeFilters.has('GATEWAY')
+And for the relay path, confirm what endpoint Replit's relay actually serves the cluster slots from — is it /api/salvi/inter-cube/slots or something else?
