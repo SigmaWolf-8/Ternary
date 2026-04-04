@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Array3 Monitor v9.1 — PlenumNET</title>
+<title>Array3 Monitor v9.2 — PlenumNET</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   :root {
@@ -218,7 +218,7 @@
 
 <script>
 // ═══════════════════════════════════════════════════════
-// ARRAY3 MONITOR v9.1 — QC-R1+R2 + real HUD data + version bump
+// ARRAY3 MONITOR v9.2 — Relay HTTP proxy + setup banner + error overlays
 // Changes from v8.9:
 //   [T1] NinjaExec auto-approval removed — window.open + 60s timeout
 //   [T2] Plaintext HTTP + API key blocked with early return
@@ -1502,7 +1502,7 @@ animate();
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);resizeHud();TextEngine.clear()});
 
-console.log('%c⬡ Array3 Monitor v9.1 — Live · Relay + Direct · QC-R1+R2 Clean','color:#8BA633;font-weight:bold;font-size:14px');
+console.log('%c⬡ Array3 Monitor v9.2 — Live · Relay HTTP Proxy + Direct · QC-R1+R2 Clean','color:#8BA633;font-weight:bold;font-size:14px');
 console.log('%c  T1 NinjaExec manual approval · T2 HTTP block · T3 staleness · T4 click merge · T5 mutex · T6 node index · T7 keys','color:#8BA633;font-size:11px');
 </script>
 </body>
