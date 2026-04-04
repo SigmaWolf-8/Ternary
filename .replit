@@ -75,7 +75,6 @@ integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_openai_ai_int
 KONG_KONNECT_TOKEN = "kpat_wNYrrD2A47tLxKMUU1O4soQp5gesU03f1XSLs7TJPbIhBzeiA"
 GIT_COMMIT = "2cf6ba2"
 TSA_NOTIFICATION_PHASE = "3"
-RELAY_API_TOKEN = "b2a99bb5061a5d719c8957d9a7668c75866917f93b162122f0a91c5614d43834"
 
 [postMerge]
 path = "scripts/post-merge.sh"
