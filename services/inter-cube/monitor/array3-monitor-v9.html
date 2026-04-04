@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Array3 Monitor v9.2 — PlenumNET</title>
+<title>Array3 Monitor v9.3 — PlenumNET</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   :root {
@@ -576,6 +576,7 @@ function transformNode(nodeData,ni){
 
 let useRelay=!_isLocal;
 const RELAY_URL=_isLocal?'https://plenumnet.replit.app':window.location.origin;
+const _isServerHosted=!_isLocal&&window.location.pathname.startsWith('/api/salvi/inter-cube/monitor');
 
 // Token is intentionally client-embedded. Data is non-secret operational status.
 // See rotation procedure in ops docs.
@@ -657,7 +658,7 @@ async function fetchRelayStatus(){
 }
 
 async function fetchFromRelay(){
-  if(!isRelayTokenConfigured()){
+  if(!_isServerHosted&&!isRelayTokenConfigured()){
     connStatus.textContent='\u{1F527} Relay token not configured — set RELAY_AUTH_TOKEN';
     connStatus.style.color='#DD6B20';
     return null;
@@ -675,10 +676,14 @@ async function fetchFromRelay(){
       }
     }
 
+    const fetchUrl=_isServerHosted
+      ?RELAY_URL+'/api/salvi/inter-cube/monitor/slots'
+      :RELAY_URL+'/api/salvi/inter-cube/slots';
+    const fetchOpts=_isServerHosted
+      ?{}
+      :{headers:{'Authorization':'Bearer '+RELAY_AUTH_TOKEN}};
     const resp=await Promise.race([
-      fetch(RELAY_URL+'/api/salvi/inter-cube/slots',{
-        headers:{'Authorization':'Bearer '+RELAY_AUTH_TOKEN}
-      }),
+      fetch(fetchUrl,fetchOpts),
       new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000))
     ]);
 
@@ -753,7 +758,7 @@ async function fetchAllNodes(){
   try{
     let results;
     if(useRelay){
-      if(!isRelayTokenConfigured()){
+      if(!_isServerHosted&&!isRelayTokenConfigured()){
         showSetupBanner();
         fetchInFlight=false;
         return false;
@@ -1502,7 +1507,7 @@ animate();
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);resizeHud();TextEngine.clear()});
 
-console.log('%c⬡ Array3 Monitor v9.2 — Live · Relay HTTP Proxy + Direct · QC-R1+R2 Clean','color:#8BA633;font-weight:bold;font-size:14px');
+console.log('%c⬡ Array3 Monitor v9.3 — Live · Relay + Direct · Server-hosted token-free mode','color:#8BA633;font-weight:bold;font-size:14px');
 console.log('%c  T1 NinjaExec manual approval · T2 HTTP block · T3 staleness · T4 click merge · T5 mutex · T6 node index · T7 keys','color:#8BA633;font-size:11px');
 </script>
 </body>

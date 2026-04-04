@@ -759,23 +759,9 @@ function startPqtiService(): ChildProcess | null {
 
   app.get("/api/salvi/inter-cube/monitor", (_req, res) => {
     const monitorPath = path.resolve(process.cwd(), "services/inter-cube/monitor/array3-monitor-v9.html");
-    const token = process.env.RELAY_API_TOKEN || "";
-    try {
-      let html = fs.readFileSync(monitorPath, "utf-8");
-      if (token) {
-        html = html.replace(
-          "const RELAY_AUTH_TOKEN='<paste-your-relay-api-token-here>';",
-          `const RELAY_AUTH_TOKEN='${token}';`
-        );
-      }
-      res.setHeader("Content-Type", "text/html");
-      res.setHeader("Cache-Control", "no-store");
-      res.send(html);
-    } catch {
-      res.setHeader("Content-Type", "text/html");
-      res.setHeader("Cache-Control", "no-store");
-      res.sendFile(monitorPath);
-    }
+    res.setHeader("Content-Type", "text/html");
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(monitorPath);
   });
 
   const DIMENSIONS = 13;
@@ -978,6 +964,27 @@ function startPqtiService(): ChildProcess | null {
   });
 
   const slotInventoryCache = new Map<number, { nodeId: number; slots: any; health: any; receivedAt: number }>();
+
+  app.get("/api/salvi/inter-cube/monitor/slots", async (req, res) => {
+    const referer = req.headers.referer || "";
+    const origin = req.headers.origin || "";
+    const host = req.headers.host || "";
+    const isMonitorReferer = referer.includes("/api/salvi/inter-cube/monitor");
+    const isSameOrigin = referer.startsWith(`https://${host}`) || referer.startsWith(`http://${host}`) || origin === `https://${host}` || origin === `http://${host}`;
+    if (!isMonitorReferer || !isSameOrigin) {
+      return res.status(403).json({ error: "Forbidden", hint: "This endpoint is only accessible from the server-hosted monitor." });
+    }
+    const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+    if (!checkProxyRateLimit(clientIp)) {
+      return res.status(429).json({ error: "Too many concurrent requests", hint: "Wait a few seconds and retry. Check for duplicate monitor instances." });
+    }
+    try {
+      const result = await proxyToAllDaemons("/api/salvi/inter-cube/slots");
+      return res.status(result.statusCode).json(result.body);
+    } catch {
+      return res.status(500).json({ error: "Internal relay proxy error", hint: "Contact the Array3 operator." });
+    }
+  });
 
   app.get("/api/salvi/inter-cube/slots", async (req, res) => {
     const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown").split(",")[0].trim();
