@@ -1188,6 +1188,17 @@ function startPqtiService(): ChildProcess | null {
     res.json({ connectedNodes: 0, nodes: [], pendingQueues: 0 });
   });
 
+  if (process.env.NODE_ENV === "development") {
+    app.post("/api/salvi/inter-cube/crs/test-register", express.json(), (req, res) => {
+      const { address, publicKey } = req.body;
+      if (!address || !publicKey) return res.status(400).json({ error: "address and publicKey required" });
+      const normalAddr = normalizeTernaryAddr(address);
+      crsRegistry.set(normalAddr, { publicKey, endpoint: "test-mock", lastSeen: Date.now() });
+      publicKeyAddressMap.set(publicKey, normalAddr);
+      res.json({ ok: true, address: normalAddr });
+    });
+  }
+
   function purgeStaleRegistrations(maxAgeMs: number): { purged: number; remaining: number; purgedAddresses: string[] } {
     const now = Date.now();
     const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
@@ -1931,7 +1942,8 @@ function startPqtiService(): ChildProcess | null {
           resolved = true;
           activeProxyRequests--;
           const responding = nodeResults.filter(n => n.status === "ok").length;
-          if (responding === 0) {
+          const timedOut = nodeResults.filter(n => n.status === "timeout").length;
+          if (timedOut === totalExpected) {
             return outerResolve({ statusCode: 504, body: { error: "All daemons timed out", hint: "Daemons are connected but not responding. Check daemon logs on the host machine." } });
           }
           outerResolve({
