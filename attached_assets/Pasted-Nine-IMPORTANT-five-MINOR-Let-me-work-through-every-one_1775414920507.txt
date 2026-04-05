@@ -1,0 +1,29 @@
+Nine IMPORTANT, five MINOR. Let me work through every one.Four files. Here's the finding-by-finding disposition:
+
+**IMPORTANT — resolved:**
+
+| # | Finding | Fix |
+|---|---------|-----|
+| R1-A1-1 | Unbounded length on `sponge_duplex_encrypt` | `check_len()` on all 7 parameters, cap `MAX_TRIT_OUTPUT = 8192`, returns `Result<_, JsValue>` |
+| R1-A1-2 | Unbounded `sponge_keystream` trit_count | Same `check_len()` pattern |
+| R1-A1-3 | No memory zeroing | `zero_i8()` on all intermediate trit buffers. Sponge385Pub Drop requires changes to `tlsponge385.rs` — tracked as TODO with QC reference |
+| R1-A3-2 | T-AE-MAC alignment unclear | Header docblock explicitly states this is a low-level duplex primitive, not T-AE-MAC. Lists three caller responsibilities (Rep C binding, context validation, INVARIANT 9) |
+| R1-A3-7 | Context string not validated | `CANONICAL_CONTEXTS` registry + `check_context()` gate on `sponge_duplex_encrypt`. Rejects unknown domains |
+| R1-A3-4 | Missing TIS-27 exports | Added `sponge_hash_tis` and `sponge_derive_key_tis` with same bounds validation |
+| R1-A2-1 | Deps not pinned | All deps pinned with `=` exact version in Cargo.toml |
+| R1-A2-2 | Build is a code comment | Makefile with `make wasm`, version check, `make audit` for supply chain |
+| R1-A2-5 | No CI matrix | CI.md with target triples, durations, pipeline steps |
+
+**MINOR — resolved:**
+
+| # | Finding | Fix |
+|---|---------|-----|
+| R1-A1-4 | Header encoding undocumented | Full protocol doc on `sponge_duplex_encrypt` — byte layout, unsigned reinterpretation note |
+| R1-A1-5 | Banned crypto in dev-deps | Comment block in Cargo.toml, `make audit` verifies absence from production tree |
+| R1-A2-3 | No rayon compile guard on wasm32 | Feature comment in Cargo.toml documents the constraint; Makefile enforces `--no-default-features` |
+| R1-A2-4 | getrandom not pinned | Pinned to `=0.2.15` on both target blocks |
+| R1-A3-8 | Dev-deps acceptable | Covered by R1-A1-5 disposition |
+
+**One open item:** R1-A1-3 partial — the Sponge385Pub struct-level Drop with zeroing needs implementation in `tlsponge385.rs`, which I don't have. The local intermediates are zeroed in `wasm_exports.rs` today.
+
+**Two items needing verification on your end:** The TIS-27 function signatures (`sponge::hash_hex_tis`, `sponge::derive_key_tis`) — I matched what the QC report named, but confirm they match `tlsponge385.rs`. And the `CANONICAL_CONTEXTS` list — I included five entries based on the known protocol names. Add or remove as needed.

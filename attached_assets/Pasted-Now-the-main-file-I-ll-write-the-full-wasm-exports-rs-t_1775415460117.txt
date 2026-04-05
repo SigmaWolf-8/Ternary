@@ -1,0 +1,19 @@
+Now the main file — I'll write the full `wasm_exports.rs` to disk:Five files. R2 finding disposition:
+
+| # | Finding | Fix |
+|---|---------|-----|
+| **R2-A4-1 / R2-A5-1** CRITICAL | `sponge_hash_tis` won't compile | Wrapper now calls `sponge::hash_tis(input, output_len)`. Kernel function in `hash_tis_kernel_snippet.rs` — add to `tlsponge385.rs` alongside `hash_hex_tis` |
+| **R2-A4-2 / R2-A5-2** | Zeroing optimized away; `zero_u8` dead code | Replaced manual loops with `zeroize` crate (`.zeroize()` uses volatile writes). Dead `zero_u8` removed. `zeroize = "=1.8.1"` added to Cargo.toml |
+| **R2-A4-3** | `sponge_keystream` no context check | `check_context(domain)?` added — consistent with `sponge_duplex_encrypt` |
+| **R2-A4-4** | Zero test coverage | 15 test functions: getter verification (all 80+ constants), prediction formulas, bounds rejection, context rejection, CODATA validation. WASM-specific tests provided as commented template for `wasm_bindgen_test` |
+| **R2-A5-3** | `--locked` mismatch | Makefile now uses `--locked` everywhere. CI.md documents Cargo.lock committed to VCS |
+| **R2-A6-1** | Audit grep misses transitives | Removed `^` anchor — now `grep -qE "(rsa\|sha2\|aes-gcm)"` catches any depth |
+| **R2-A5-4** MINOR | wasm-pack version not enforced | Makefile now does numeric major.minor.patch comparison, exits 1 if below minimum |
+| **R2-A6-2** MINOR | Error message references Rust constant | Error now lists all five valid context strings |
+| **R2-A6-3** MINOR | CI step 8 duplicates audit | CI.md step 7 is now `make audit` — single source |
+| **R2-A6-4** MINOR | WASM output undocumented | Makefile `wasm` target prints output paths; comment lists the three files |
+| **R2-A5-5** MINOR | NaN not validated | Doc comment on §B.3 conversion section: "NaN input produces NaN output (IEEE 754)" |
+
+**One dependency for compilation:** `hash_tis_kernel_snippet.rs` must be added to `tlsponge385.rs` before `sponge_hash_tis` compiles. The snippet mirrors `hash()` but uses `Sponge385Pub::new_tis()`. Verify the trit-to-byte conversion matches your existing pattern.
+
+**One remaining TODO:** Sponge385Pub `Drop` with zeroing in `tlsponge385.rs` — tracked at two locations in the code. Local buffers are now reliably zeroed via `zeroize`.

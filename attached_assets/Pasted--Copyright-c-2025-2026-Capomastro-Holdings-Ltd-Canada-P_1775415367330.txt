@@ -1,0 +1,774 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved — Applied Physics Division
+//
+// TM-2026-030 v3: Coprime Periodic Transform Engine
+// ternary-math/src/cpd.rs
+//
+// QC-R2 findings applied:
+//   R2-A4-1: Spec §8 updated to match this implementation (predefined-group scoring)
+//   R2-A5-2: VERSION_CPT constant added; archives with Mode 4/5 use version 0x05
+//   R2-A5-5: parse_header validates moduli ≥ 2 and ≤ 128 (Finding 3)
+//   R2-A4-2: Deterministic overflow tests (fits=false and fits=true asserted) (Finding 4)
+//   R2-A4-3: Varint boundary tests for full ±255 range (Finding 5)
+//   R2-A5-4: make_cpt_lz77_payload helper; LZ77-on-biased-residuals documented (Finding 6)
+//   R2-A6-1: CpdDiagnostics struct for CompressionResult (Finding 7)
+//   R2-A5-3: predict() return type documented (Finding 8)
+//   R2-A4-4: Dead imports removed; test-only imports in #[cfg(test)] (Finding 9)
+//   R2-A4-5: Negative-path test for factorize_to_members (Finding 10)
+//   R2-A6-2: CpdError enum replaces raw String (Finding 11)
+//   R2-A6-4: Overhead bound documented as heuristic (Finding 12)
+
+//! # CPT — Coprime Periodic Transform
+//!
+//! Additive ANOVA on T(m₁,...,mₖ) using pairwise-coprime moduli selected
+//! from the canonical arrays in `ternary_math::constants`. Marginal means
+//! (u8) + residual (i16). Lossless.
+//!
+//! ## Probe algorithm (matches TM-2026-030 v3 §8 exactly)
+//!
+//! 1. Compute autocorrelation at 10 member strides {3,4,5,7,8,9,11,13,14,15}
+//! 2. Score each of 18 canonical groups (7 triples + 2 quads + 5 quints + 4 sexts)
+//!    by minimum AC across members (weakest-link scoring)
+//! 3. Select group with best (score / header_cost), subject to CCP bridge budget
+//! 4. Optionally detect non-canonical small periods (2–128, AC > 0.40)
+//! 5. Fallback: speculative [7,11,13] if budget ≥ 33 and no group passed AC gate
+//! 6. Coprimality guaranteed by compile-time assertions — zero runtime gcd checks
+//!
+//! ## Version compatibility
+//!
+//! Archives containing Mode 4/5 chunks MUST use VERSION_CPT (0x05).
+//! Pre-CPT decompressors reject 0x05 with `UnsupportedVersion`.
+//! Pre-CPT code encountering unknown chunk modes produces:
+//!   "Unknown chunk mode N. Archive may require TTC v5.0+. Supported: 0–3."
+
+use crate::constants::{
+    COPRIME_TRIPLES,
+    COPRIME_QUADRUPLES,
+    COPRIME_QUINTUPLES,
+    COPRIME_SEXTUPLES,
+    DEFICIT_RATE_DEN,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// VERSION
+// ═══════════════════════════════════════════════════════════════
+
+/// Container version byte for archives containing CPT chunks (Mode 4/5).
+/// Pre-CPT decompressors reject this cleanly with UnsupportedVersion(0x05).
+/// (R2-A5-2 / R2-A6-3)
+pub const VERSION_CPT: u8 = 0x05;
+
+// ═══════════════════════════════════════════════════════════════
+// ERROR TYPE (R2-A6-2: structured errors, not raw String)
+// ═══════════════════════════════════════════════════════════════
+
+/// CPT-specific errors. Mapped to TtcError::CpdError in integration.
+#[derive(Debug, Clone)]
+pub enum CpdError {
+    /// Payload is empty or truncated before factor count.
+    PayloadEmpty,
+    /// Factor count k = 0 or payload truncated after factor count.
+    InvalidFactorCount(u8),
+    /// A modulus value is outside the valid range [2, 128].
+    /// (R2-A5-5: prevents division-by-zero from malformed input)
+    InvalidModulus(u8),
+    /// Payload truncated before grand mean could be read.
+    TruncatedGrandMean,
+    /// Payload truncated before all marginal mean bytes could be read.
+    TruncatedMarginal { modulus: u32, available: usize },
+}
+
+impl core::fmt::Display for CpdError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::PayloadEmpty => write!(f, "CPT: payload empty"),
+            Self::InvalidFactorCount(k) => write!(f, "CPT: invalid factor count {k}"),
+            Self::InvalidModulus(m) => write!(f, "CPT: modulus {m} outside valid range [2, 128]"),
+            Self::TruncatedGrandMean => write!(f, "CPT: truncated at grand mean"),
+            Self::TruncatedMarginal { modulus, available } =>
+                write!(f, "CPT: truncated at marginal for modulus {modulus} ({available} bytes available)"),
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DIAGNOSTICS (R2-A6-1: operator-visible CPT probe information)
+// ═══════════════════════════════════════════════════════════════
+
+/// Per-chunk CPT diagnostic. Stored in ChunkDescriptor for operator visibility.
+#[derive(Debug, Clone, Default)]
+pub struct CpdChunkDiag {
+    /// Whether CPT was attempted on this chunk.
+    pub attempted: bool,
+    /// Whether CPT won the competitive selection for this chunk.
+    pub selected: bool,
+    /// Which canonical group was selected (empty string if none).
+    pub group_name: String,
+    /// Number of decomposition factors.
+    pub factor_count: u8,
+    /// Header cost in bytes.
+    pub header_bytes: u16,
+    /// Highest autocorrelation among tested strides.
+    pub best_ac: f64,
+}
+
+/// Aggregate CPT diagnostics across all chunks. Added to CompressionResult.
+#[derive(Debug, Clone, Default)]
+pub struct CpdDiagnostics {
+    /// Number of chunks where CPT was attempted (probe returned moduli).
+    pub chunks_attempted: u32,
+    /// Number of chunks where CPT won competitive selection.
+    pub chunks_selected: u32,
+    /// Number of chunks where Mode 4 (CptAns) was selected.
+    pub mode4_count: u32,
+    /// Number of chunks where Mode 5 (CptLz77Ans) was selected.
+    pub mode5_count: u32,
+    /// Average autocorrelation across attempted chunks.
+    pub avg_ac: f64,
+}
+
+// ═══════════════════════════════════════════════════════════════
+// §1  PROBE
+// ═══════════════════════════════════════════════════════════════
+
+/// CPT analysis result. Stored in Phase1Result.
+#[derive(Debug, Clone)]
+pub struct CpdAnalysis {
+    pub moduli: Vec<u32>,
+    pub header_bytes: usize,
+    pub group_source: GroupSource,
+    /// Highest AC detected (for diagnostics).
+    pub best_ac: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum GroupSource {
+    None,
+    Triple(usize),
+    Quadruple(usize),
+    Quintuple(usize),
+    Sextuple(usize),
+    Detected(u32),
+}
+
+impl GroupSource {
+    pub fn name(&self) -> String {
+        match self {
+            Self::None => "none".into(),
+            Self::Triple(i) => format!("COPRIME_TRIPLES[{}]", i),
+            Self::Quadruple(i) => format!("COPRIME_QUADRUPLES[{}]", i),
+            Self::Quintuple(i) => format!("COPRIME_QUINTUPLES[{}]", i),
+            Self::Sextuple(i) => format!("COPRIME_SEXTUPLES[{}]", i),
+            Self::Detected(p) => format!("detected({})", p),
+        }
+    }
+}
+
+const MEMBER_STRIDES: [u32; 10] = [3, 4, 5, 7, 8, 9, 11, 13, 14, 15];
+const AC_FLOOR: f64 = 0.15;
+const AC_STRONG: f64 = 0.40;
+
+fn autocorrelation(data: &[u8], m: usize) -> f64 {
+    if m == 0 || m >= data.len() { return 0.0; }
+    let mut hits = 0u64;
+    for i in m..data.len() { hits += (data[i] == data[i - m]) as u64; }
+    hits as f64 / (data.len() - m) as f64
+}
+
+/// Weakest-link scoring: minimum AC across group members.
+fn group_score(members: &[u32], ac_table: &[(u32, f64)]) -> f64 {
+    let mut min_ac = f64::MAX;
+    for &m in members {
+        let ac = ac_table.iter().find(|&&(s, _)| s == m).map(|&(_, a)| a).unwrap_or(0.0);
+        if ac < min_ac { min_ac = ac; }
+    }
+    if min_ac == f64::MAX { 0.0 } else { min_ac }
+}
+
+fn hdr(members: &[u32]) -> usize { 2 + members.iter().map(|&m| m as usize).sum::<usize>() }
+
+/// Probe a chunk for coprime-periodic structure.
+///
+/// Implements TM-2026-030 v3 §8 exactly:
+///   Step 1: AC at 10 member strides
+///   Step 2: Score 18 canonical groups by min-AC
+///   Step 3: Non-canonical small-period scan (AC > 0.40)
+///   Step 4: Select by max(score / header_cost), within budget
+///   Step 5: Fallback speculative [7,11,13] if budget ≥ 33
+///
+/// Budget = chunk.len() / DEFICIT_RATE_DEN (integer floor division).
+/// The overhead bound (header ≤ chunk/91) is a structural heuristic (R2-A6-4),
+/// not an information-theoretic guarantee. The competitive gate (§6.3) is the
+/// actual safety net ensuring CPT never produces worse output than LZ77.
+pub fn probe(chunk: &[u8]) -> CpdAnalysis {
+    let none = CpdAnalysis { moduli: vec![], header_bytes: 0, group_source: GroupSource::None, best_ac: 0.0 };
+    if chunk.len() < DEFICIT_RATE_DEN as usize { return none; }
+
+    let sample = &chunk[..chunk.len().min(4096)];
+    let budget = chunk.len() / DEFICIT_RATE_DEN as usize;
+
+    // Step 1: AC at each member stride
+    let ac_table: Vec<(u32, f64)> = MEMBER_STRIDES.iter()
+        .filter(|&&m| (m as usize) < sample.len())
+        .map(|&m| (m, autocorrelation(sample, m as usize)))
+        .collect();
+
+    let best_ac_overall = ac_table.iter().map(|&(_, a)| a).fold(0.0f64, f64::max);
+
+    // Step 2: Score canonical groups
+    struct Candidate { moduli: Vec<u32>, header: usize, score: f64, source: GroupSource }
+    let mut candidates: Vec<Candidate> = Vec::with_capacity(18);
+
+    for (i, triple) in COPRIME_TRIPLES.iter().enumerate() {
+        let h = hdr(triple); if h > budget { continue; }
+        let s = group_score(triple, &ac_table);
+        if s >= AC_FLOOR { candidates.push(Candidate { moduli: triple.to_vec(), header: h, score: s, source: GroupSource::Triple(i) }); }
+    }
+    for (i, quad) in COPRIME_QUADRUPLES.iter().enumerate() {
+        let h = hdr(quad); if h > budget { continue; }
+        let s = group_score(quad, &ac_table);
+        if s >= AC_FLOOR { candidates.push(Candidate { moduli: quad.to_vec(), header: h, score: s, source: GroupSource::Quadruple(i) }); }
+    }
+    for (i, quint) in COPRIME_QUINTUPLES.iter().enumerate() {
+        let h = hdr(quint); if h > budget { continue; }
+        let s = group_score(quint, &ac_table);
+        if s >= AC_FLOOR { candidates.push(Candidate { moduli: quint.to_vec(), header: h, score: s, source: GroupSource::Quintuple(i) }); }
+    }
+    for (i, sext) in COPRIME_SEXTUPLES.iter().enumerate() {
+        let h = hdr(sext); if h > budget { continue; }
+        let s = group_score(sext, &ac_table);
+        if s >= AC_FLOOR { candidates.push(Candidate { moduli: sext.to_vec(), header: h, score: s, source: GroupSource::Sextuple(i) }); }
+    }
+
+    // Step 3: Non-canonical small periods
+    for p in (2u32..=128).filter(|p| !MEMBER_STRIDES.contains(p)) {
+        if (p as usize) >= sample.len() { break; }
+        let ac = autocorrelation(sample, p as usize);
+        if ac > AC_STRONG {
+            if let Some(factors) = factorize_to_members(p) {
+                let h = hdr(&factors);
+                if h <= budget {
+                    candidates.push(Candidate { moduli: factors, header: h, score: ac, source: GroupSource::Detected(p) });
+                }
+            }
+        }
+    }
+
+    // Step 4: Select best
+    if let Some(best) = candidates.iter().max_by(|a, b| {
+        (a.score / a.header as f64).partial_cmp(&(b.score / b.header as f64)).unwrap_or(std::cmp::Ordering::Equal)
+    }) {
+        let mut moduli = best.moduli.clone();
+        moduli.sort();
+        return CpdAnalysis { moduli, header_bytes: best.header, group_source: best.source, best_ac: best_ac_overall };
+    }
+
+    // Step 5: Fallback
+    if budget >= 33 {
+        return CpdAnalysis { moduli: vec![7, 11, 13], header_bytes: 33, group_source: GroupSource::Triple(0), best_ac: best_ac_overall };
+    }
+    none
+}
+
+fn factorize_to_members(p: u32) -> Option<Vec<u32>> {
+    for &a in &MEMBER_STRIDES {
+        if p > a && p % a == 0 {
+            let b = p / a;
+            if b > 1 && gcd(a, b) == 1 && b <= 128 {
+                let mut f = vec![a, b]; f.sort(); return Some(f);
+            }
+        }
+    }
+    None
+}
+
+fn gcd(mut a: u32, mut b: u32) -> u32 { while b != 0 { let t = b; b = a % b; a = t; } a }
+
+// ═══════════════════════════════════════════════════════════════
+// §2  FORWARD TRANSFORM
+// ═══════════════════════════════════════════════════════════════
+
+fn compute_marginals(data: &[u8], moduli: &[u32], gm: u8) -> Vec<Vec<u8>> {
+    moduli.iter().map(|&m| {
+        let mu = m as usize;
+        let mut sums = vec![0u64; mu];
+        let mut counts = vec![0u32; mu];
+        for (i, &b) in data.iter().enumerate() { sums[i % mu] += b as u64; counts[i % mu] += 1; }
+        (0..mu).map(|j| {
+            if counts[j] > 0 { (sums[j] as f64 / counts[j] as f64).round().clamp(0.0, 255.0) as u8 }
+            else { gm }
+        }).collect()
+    }).collect()
+}
+
+fn grand_mean(data: &[u8]) -> u8 {
+    (data.iter().map(|&b| b as u64).sum::<u64>() as f64 / data.len().max(1) as f64)
+        .round().clamp(0.0, 255.0) as u8
+}
+
+/// Integer prediction from u8 marginals and u8 grand mean.
+///
+/// Returns i16 (not u8) because the caller computes `d[i] as i16 - pred`
+/// for the residual, and i16 avoids a cast at every call site. The clamped
+/// value always fits in u8 (range [0, 255]) but i16 is chosen for
+/// residual arithmetic compatibility. (R2-A5-3)
+#[inline]
+fn predict(i: usize, moduli: &[u32], marginals: &[Vec<u8>], k: usize, gm: u8) -> i16 {
+    let mut p: i32 = 0;
+    for (j, &m) in moduli.iter().enumerate() { p += marginals[j][i % m as usize] as i32; }
+    p -= (k as i32 - 1) * gm as i32;
+    p.clamp(0, 255) as i16
+}
+
+/// Mode 4 (CptAns): CPT + zigzag-varint residual.
+pub fn encode_chunk(data: &[u8], moduli: &[u32]) -> Vec<u8> {
+    let n = data.len();
+    let k = moduli.len();
+    let gm = grand_mean(data);
+    let marginals = compute_marginals(data, moduli, gm);
+    let header_sz = 4 + 1 + 1 + k + 1 + marginals.iter().map(|m| m.len()).sum::<usize>();
+    let mut out = Vec::with_capacity(header_sz + n * 2);
+    out.extend_from_slice(&(n as u32).to_be_bytes());
+    out.push(0x04);
+    out.push(k as u8);
+    for &m in moduli { out.push(m as u8); }
+    out.push(gm);
+    for mg in &marginals { out.extend_from_slice(mg); }
+    for (i, &b) in data.iter().enumerate() {
+        let r = b as i16 - predict(i, moduli, &marginals, k, gm);
+        encode_varint_u16(&mut out, zigzag_encode(r));
+    }
+    out
+}
+
+/// Mode 5 preparation: CPT header + residual bytes for LZ77.
+///
+/// Returns `(cpd_header, residual_bytes, fits_u8)`.
+/// `fits_u8` is true iff ALL residuals ∈ [-128, 127].
+/// **Caller MUST NOT produce Mode 5 if fits_u8 is false.** (R2-A4-2)
+///
+/// The residual bytes are biased around 128 (value = r + 128).
+/// Note: LZ77 tokenization of these biased residuals uses the standard
+/// cost model. The bias shifts the byte distribution but does not change
+/// the LZ77 match/literal decision logic — matches are still exact
+/// substring matches, and the entropy coder adapts to the shifted
+/// distribution. No special cost model is needed. (R2-A5-4)
+pub fn encode_for_lz77(data: &[u8], moduli: &[u32]) -> (Vec<u8>, Vec<u8>, bool) {
+    let n = data.len();
+    let k = moduli.len();
+    let gm = grand_mean(data);
+    let marginals = compute_marginals(data, moduli, gm);
+    let mut hdr = Vec::with_capacity(1 + k + 1 + marginals.iter().map(|m| m.len()).sum::<usize>());
+    hdr.push(k as u8);
+    for &m in moduli { hdr.push(m as u8); }
+    hdr.push(gm);
+    for mg in &marginals { hdr.extend_from_slice(mg); }
+    let mut res = Vec::with_capacity(n);
+    let mut fits = true;
+    for (i, &b) in data.iter().enumerate() {
+        let r = b as i16 - predict(i, moduli, &marginals, k, gm);
+        if r < -128 || r > 127 { fits = false; }
+        res.push((r + 128).clamp(0, 255) as u8);
+    }
+    (hdr, res, fits)
+}
+
+/// Construct the complete Mode 5 chunk payload. (R2-A5-4: extracted helper)
+///
+/// Called from phase2_compress after LZ77 + rANS encoding of the residual.
+/// Prevents manual inline payload construction that could diverge from
+/// the chunk envelope format.
+pub fn make_cpt_lz77_payload(original_size: usize, cpd_header: &[u8], lz77_rans_payload: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(4 + 1 + 2 + cpd_header.len() + lz77_rans_payload.len());
+    out.extend_from_slice(&(original_size as u32).to_be_bytes());
+    out.push(0x05); // CptLz77Ans
+    out.extend_from_slice(&(cpd_header.len() as u16).to_be_bytes());
+    out.extend_from_slice(cpd_header);
+    out.extend_from_slice(lz77_rans_payload);
+    out
+}
+
+// ═══════════════════════════════════════════════════════════════
+// §3  INVERSE TRANSFORM
+// ═══════════════════════════════════════════════════════════════
+
+/// Parse and validate CPT header. (R2-A5-5: validates modulus range)
+fn parse_header(data: &[u8]) -> Result<(Vec<u32>, Vec<Vec<u8>>, u8, usize), CpdError> {
+    if data.is_empty() { return Err(CpdError::PayloadEmpty); }
+    let mut p = 0;
+    let k = data[p]; p += 1;
+    if k == 0 || p + k as usize >= data.len() { return Err(CpdError::InvalidFactorCount(k)); }
+    let mut moduli = Vec::with_capacity(k as usize);
+    for j in 0..k as usize {
+        let m = data[p + j];
+        if m < 2 || m > 128 { return Err(CpdError::InvalidModulus(m)); }
+        moduli.push(m as u32);
+    }
+    p += k as usize;
+    if p >= data.len() { return Err(CpdError::TruncatedGrandMean); }
+    let gm = data[p]; p += 1;
+    let mut marginals: Vec<Vec<u8>> = Vec::with_capacity(k as usize);
+    for &m in &moduli {
+        let m_usize = m as usize;
+        if p + m_usize > data.len() {
+            return Err(CpdError::TruncatedMarginal { modulus: m, available: data.len() - p });
+        }
+        marginals.push(data[p..p + m_usize].to_vec());
+        p += m_usize;
+    }
+    Ok((moduli, marginals, gm, p))
+}
+
+/// Decode Mode 4 (CptAns).
+pub fn decode_chunk(payload: &[u8], original_size: usize) -> Result<Vec<u8>, CpdError> {
+    let (moduli, marginals, gm, mut pos) = parse_header(payload)?;
+    let k = moduli.len();
+    let mut out = Vec::with_capacity(original_size);
+    for i in 0..original_size {
+        let (zz, br) = if pos < payload.len() { decode_varint_u16(&payload[pos..]) } else { (0, 0) };
+        pos += br;
+        let r = zigzag_decode(zz);
+        out.push((predict(i, &moduli, &marginals, k, gm) + r).clamp(0, 255) as u8);
+    }
+    Ok(out)
+}
+
+/// Decode Mode 5 (CptLz77Ans).
+pub fn decode_from_residual(cpd_header: &[u8], residual: &[u8]) -> Result<Vec<u8>, CpdError> {
+    let (moduli, marginals, gm, _) = parse_header(cpd_header)?;
+    let k = moduli.len();
+    let mut out = Vec::with_capacity(residual.len());
+    for (i, &rb) in residual.iter().enumerate() {
+        let r = rb as i16 - 128;
+        out.push((predict(i, &moduli, &marginals, k, gm) + r).clamp(0, 255) as u8);
+    }
+    Ok(out)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// §4  VARINT + ZIGZAG (base-128 LSB-first, per TM-2026-030 v3 §7.1)
+// ═══════════════════════════════════════════════════════════════
+
+#[inline] fn zigzag_encode(r: i16) -> u16 { ((r << 1) ^ (r >> 15)) as u16 }
+#[inline] fn zigzag_decode(zz: u16) -> i16 { ((zz >> 1) as i16) ^ -((zz & 1) as i16) }
+
+#[inline]
+fn encode_varint_u16(out: &mut Vec<u8>, mut v: u16) {
+    loop {
+        let mut b = (v & 0x7F) as u8;
+        v >>= 7;
+        if v > 0 { b |= 0x80; }
+        out.push(b);
+        if v == 0 { break; }
+    }
+}
+
+/// Decode a base-128 varint. If more than 3 bytes have continuation bits set,
+/// truncation occurs (returns the accumulated value). This bounds the decoder
+/// to u16 range regardless of malformed input. (R2-A4-3)
+#[inline]
+fn decode_varint_u16(data: &[u8]) -> (u16, usize) {
+    let (mut r, mut s) = (0u16, 0u32);
+    for (i, &b) in data.iter().enumerate() {
+        r |= ((b & 0x7F) as u16).wrapping_shl(s);
+        s += 7;
+        if b & 0x80 == 0 || s >= 16 { return (r, i + 1); }
+    }
+    (r, data.len())
+}
+
+// ═══════════════════════════════════════════════════════════════
+// §5  WIRING INTO ttc.rs
+// ═══════════════════════════════════════════════════════════════
+
+/*
+PATCH 1 — ChunkMode enum + error type
+    CptAns = 4,
+    CptLz77Ans = 5,
+
+    from_u8:
+        4 => Ok(Self::CptAns),
+        5 => Ok(Self::CptLz77Ans),
+        n @ 6..=255 => Err(TtcError::DecompressionError(
+            format!("Unknown chunk mode {n}. Archive may require TTC v5.0+. Supported: 0–5.")
+        )),
+
+    Add to TtcError:
+        CpdError(cpd::CpdError),
+
+PATCH 2 — Phase1Result + phase1_analyze
+    Add field: cpd: cpd::CpdAnalysis,
+    In phase1_analyze(): let cpd_analysis = cpd::probe(chunk);
+
+PATCH 3 — phase2_compress (uses make_cpt_lz77_payload helper — R2-A5-4)
+    if !p1.cpd.moduli.is_empty() {
+        // Mode 4
+        candidates.push((ChunkMode::CptAns, cpd::encode_chunk(chunk, &p1.cpd.moduli)));
+        // Mode 5 (only if residuals fit in u8)
+        let (hdr, res, fits) = cpd::encode_for_lz77(chunk, &p1.cpd.moduli);
+        if fits {
+            let res_tokens = tokenize_chunk(&res, 0, cfg, ChunkMode::TernaryAns);
+            let res_ser = serialize_tans(&res_tokens, cfg.window_size);
+            candidates.push((ChunkMode::CptLz77Ans,
+                cpd::make_cpt_lz77_payload(chunk.len(), &hdr, &res_ser)));
+        }
+    }
+
+PATCH 4 — Decompression dispatch
+    ChunkMode::CptAns => cpd::decode_chunk(cp, orig_size)
+        .map_err(TtcError::CpdError)?,
+    ChunkMode::CptLz77Ans => {
+        let hl = u16::from_be_bytes([cp[0], cp[1]]) as usize;
+        let hdr = &cp[2..2+hl];
+        let lz = &cp[2+hl..];
+        let toks = deserialize_tans(lz, ws)?;
+        let res = decompress_tokens(&toks, &[]);
+        cpd::decode_from_residual(hdr, &res).map_err(TtcError::CpdError)?
+    },
+
+PATCH 5 — Version: use cpd::VERSION_CPT (0x05) in build_container when
+    any chunk has mode CptAns or CptLz77Ans. Otherwise use VERSION_V3 (0x04).
+
+PATCH 6 — CompressionResult (R2-A6-1)
+    Add field: pub cpd_diagnostics: cpd::CpdDiagnostics,
+    Populate in ttc_compress() from per-chunk CpdChunkDiag.
+*/
+
+// ═══════════════════════════════════════════════════════════════
+// §6  TESTS
+// ═══════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::constants::{
+        COPRIME_PAIR_LCMS, ARC_ROOT_SEMI,
+        UNIT_CIRCLE_AREA, RADIAN_CIRCLE_AREA, SQUARED_SIDE_SQ_RADIAN,
+    };
+
+    // ── Mode 4 round-trip ──
+
+    #[test] fn rt_constant() {
+        let d = vec![42u8; 2048];
+        let p = encode_chunk(&d, &[7, 11, 13]);
+        assert_eq!(d, decode_chunk(&p[5..], d.len()).unwrap());
+    }
+    #[test] fn rt_ramp() {
+        let d: Vec<u8> = (0..4096).map(|i| (i % 256) as u8).collect();
+        let p = encode_chunk(&d, &[7, 11, 13]);
+        assert_eq!(d, decode_chunk(&p[5..], d.len()).unwrap());
+    }
+    #[test] fn rt_periodic() {
+        let pat: Vec<u8> = (0..11).map(|i| (i * 23 + 7) as u8).collect();
+        let d: Vec<u8> = pat.iter().cycle().take(2200).cloned().collect();
+        let p = encode_chunk(&d, &[7, 11, 13]);
+        assert_eq!(d, decode_chunk(&p[5..], d.len()).unwrap());
+    }
+    #[test] fn rt_two_factors() {
+        let d: Vec<u8> = (0..1540).map(|i| ((i * 3 + i / 7 * 5) % 256) as u8).collect();
+        let p = encode_chunk(&d, &[7, 11]);
+        assert_eq!(d, decode_chunk(&p[5..], d.len()).unwrap());
+    }
+    #[test] fn rt_sextuple() {
+        let d: Vec<u8> = (0..8192).map(|i| (i % 256) as u8).collect();
+        let p = encode_chunk(&d, &[5, 7, 8, 9, 11, 13]);
+        assert_eq!(d, decode_chunk(&p[5..], d.len()).unwrap());
+    }
+
+    // ── Mode 5 round-trip ──
+
+    #[test] fn rt_mode5_cascade() {
+        // Constant-ish data: predictions close to actual → small residuals → fits
+        let d = vec![100u8; 2048];
+        let (hdr, res, fits) = encode_for_lz77(&d, &[7, 11, 13]);
+        assert!(fits, "Constant data must produce fits=true");
+        assert_eq!(d, decode_from_residual(&hdr, &res).unwrap());
+    }
+
+    // ── Overflow guard: deterministic negative case (R2-A4-2) ──
+
+    #[test] fn overflow_fits_false_deterministic() {
+        // Construct data where prediction is 0 but actual is 255 at specific positions.
+        // With moduli (3, 5): μ₃[0] = mean of positions 0,3,6,9,... and μ₅[0] = mean of 0,5,10,...
+        // Set position 0 = 255, all others = 0. Grand mean ≈ 0.
+        // μ₃[0] = mean(255, 0, 0, 0, ...) ≈ small, μ₅[0] = mean(255, 0, 0, ...) ≈ small
+        // pred[0] ≈ small + small - 0 = small. r[0] = 255 - small ≈ 200+. Exceeds 127.
+        let mut d = vec![0u8; 1000];
+        d[0] = 255;
+        let (_, _, fits) = encode_for_lz77(&d, &[3, 5]);
+        assert!(!fits, "Single spike in zero field MUST produce fits=false (r[0] > 127)");
+        // Mode 4 still works
+        let p = encode_chunk(&d, &[3, 5]);
+        assert_eq!(d, decode_chunk(&p[5..], d.len()).unwrap());
+    }
+
+    #[test] fn overflow_fits_true_deterministic() {
+        // Constant data: all predictions = data value → all residuals = 0
+        let d = vec![128u8; 1000];
+        let (_, _, fits) = encode_for_lz77(&d, &[3, 5]);
+        assert!(fits, "Constant data MUST produce fits=true (all residuals = 0)");
+    }
+
+    // ── Varint boundary tests (R2-A4-3) ──
+
+    #[test] fn varint_zigzag_boundary_values() {
+        let test_values: &[i16] = &[0, 1, -1, 63, -64, 127, -128, 128, -129, 255, -255];
+        for &r in test_values {
+            let zz = zigzag_encode(r);
+            let mut buf = Vec::new();
+            encode_varint_u16(&mut buf, zz);
+            let (decoded_zz, bytes_read) = decode_varint_u16(&buf);
+            assert_eq!(decoded_zz, zz, "Varint round-trip failed for zz={} (r={})", zz, r);
+            assert_eq!(bytes_read, buf.len(), "Bytes consumed mismatch for r={}", r);
+            let decoded_r = zigzag_decode(decoded_zz);
+            assert_eq!(decoded_r, r, "Zigzag round-trip failed for r={}", r);
+        }
+    }
+
+    #[test] fn varint_specific_encodings() {
+        // r=0 → zz=0 → [0x00]
+        assert_eq!(zigzag_encode(0), 0);
+        let mut buf = Vec::new(); encode_varint_u16(&mut buf, 0);
+        assert_eq!(buf, vec![0x00]);
+
+        // r=255 → zz=510 → [0xFE, 0x03]
+        assert_eq!(zigzag_encode(255), 510);
+        buf.clear(); encode_varint_u16(&mut buf, 510);
+        assert_eq!(buf, vec![0xFE, 0x03]);
+
+        // r=-255 → zz=509 → [0xFD, 0x03]
+        assert_eq!(zigzag_encode(-255), 509);
+        buf.clear(); encode_varint_u16(&mut buf, 509);
+        assert_eq!(buf, vec![0xFD, 0x03]);
+    }
+
+    #[test] fn varint_malformed_truncation() {
+        // 3+ continuation bytes: decoder should truncate at u16 range
+        let malformed = [0x80u8, 0x80, 0x80, 0x01]; // would be >16 bits
+        let (val, consumed) = decode_varint_u16(&malformed);
+        // Should not panic. Value is truncated to u16.
+        assert!(consumed <= 4);
+        let _ = val; // value is implementation-defined for malformed input
+    }
+
+    // ── parse_header validation (R2-A5-5) ──
+
+    #[test] fn parse_header_rejects_zero_modulus() {
+        let payload = [2u8, 0, 13, 128, 0, 0, 0, 0]; // k=2, moduli=[0, 13]
+        let result = parse_header(&payload);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CpdError::InvalidModulus(0)));
+    }
+
+    #[test] fn parse_header_rejects_modulus_1() {
+        let payload = [1u8, 1, 128]; // k=1, modulus=1
+        let result = parse_header(&payload);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CpdError::InvalidModulus(1)));
+    }
+
+    #[test] fn parse_header_rejects_modulus_129() {
+        let payload = [1u8, 129, 128]; // k=1, modulus=129
+        let result = parse_header(&payload);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CpdError::InvalidModulus(129)));
+    }
+
+    // ── factorize_to_members negative path (R2-A4-5) ──
+
+    #[test] fn factorize_returns_none_for_prime() {
+        assert!(factorize_to_members(97).is_none(), "97 is prime > max member stride");
+    }
+
+    #[test] fn factorize_returns_none_for_power_of_two() {
+        assert!(factorize_to_members(64).is_none(), "64 = 2^6 has no coprime split in members");
+    }
+
+    #[test] fn factorize_output_sorted() {
+        if let Some(f) = factorize_to_members(77) {
+            let mut s = f.clone(); s.sort();
+            assert_eq!(f, s);
+        }
+    }
+
+    // ── Probe ──
+
+    #[test] fn probe_selects_canonical() {
+        let mut d = vec![0u8; 5000];
+        for i in 0..5000 { d[i] = (i % 7 * 30) as u8; }
+        let a = probe(&d);
+        assert!(!a.moduli.is_empty());
+        assert!(a.moduli.contains(&7));
+    }
+
+    #[test] fn probe_tiny_empty() {
+        assert!(probe(b"Hi!").moduli.is_empty());
+    }
+
+    #[test] fn probe_small_chunk_empty() {
+        let d: Vec<u8> = (0..500).map(|i| (i % 7 * 30) as u8).collect();
+        assert!(probe(&d).moduli.is_empty(), "500-byte chunk: budget 5, no group fits");
+    }
+
+    #[test] fn probe_budget_respected() {
+        for &sz in &[1000usize, 3000, 5000, 10000, 50000] {
+            let d: Vec<u8> = (0..sz).map(|i| (i % 7 * 30) as u8).collect();
+            let a = probe(&d);
+            if !a.moduli.is_empty() {
+                assert!(a.header_bytes <= sz / DEFICIT_RATE_DEN as usize,
+                    "Header {} > budget {} at size {}", a.header_bytes, sz / 91, sz);
+            }
+        }
+    }
+
+    // ── Worked example (TM-2026-030 v3 §9) ──
+
+    #[test] fn worked_example() {
+        let d: Vec<u8> = vec![10, 20, 30, 10, 20, 30, 10, 20];
+        let gm = grand_mean(&d);
+        assert_eq!(gm, 19);
+        let marginals = compute_marginals(&d, &[2, 3], gm);
+        assert_eq!(marginals[0], vec![18, 20]);
+        assert_eq!(marginals[1], vec![10, 20, 30]);
+        let expected_pred: [i16; 8] = [9, 21, 29, 11, 19, 31, 9, 21];
+        for (i, &ep) in expected_pred.iter().enumerate() {
+            assert_eq!(predict(i, &[2, 3], &marginals, 2, gm), ep, "pred[{}]", i);
+        }
+        let payload = encode_chunk(&d, &[2, 3]);
+        assert_eq!(d, decode_chunk(&payload[5..], d.len()).unwrap());
+    }
+
+    // ── Squared circle ties ──
+
+    #[test] fn squared_circle_ties() {
+        assert_eq!(UNIT_CIRCLE_AREA, 2 * COPRIME_TRIPLES[0][0]);
+        assert_eq!(RADIAN_CIRCLE_AREA, COPRIME_PAIR_LCMS[6]);
+        assert_eq!(SQUARED_SIDE_SQ_RADIAN, COPRIME_PAIR_LCMS[6]);
+        assert_eq!(RADIAN_CIRCLE_AREA, ARC_ROOT_SEMI);
+    }
+
+    // ── Group scoring ──
+
+    #[test] fn score_min_semantics() {
+        assert_eq!(group_score(&[7, 11, 13], &[(7, 0.5), (11, 0.0), (13, 0.8)]), 0.0);
+    }
+    #[test] fn score_strong() {
+        assert!((group_score(&[7, 11, 13], &[(7, 0.6), (11, 0.5), (13, 0.7)]) - 0.5).abs() < 1e-10);
+    }
+
+    // ── Entropy reduction ──
+
+    #[test] fn entropy_drops() {
+        let pat: Vec<u8> = (0..13).map(|i| (i * 19 + 42) as u8).collect();
+        let d: Vec<u8> = pat.iter().cycle().take(2600).cloned().collect();
+        let h_in = h(&d);
+        let (_, res, _) = encode_for_lz77(&d, &[7, 11, 13]);
+        assert!(h(&res) < h_in, "Entropy must drop on periodic data");
+    }
+
+    fn h(data: &[u8]) -> f64 {
+        let mut c = [0u64; 256]; for &b in data { c[b as usize] += 1; }
+        let n = data.len() as f64;
+        c.iter().filter(|&&v| v > 0).map(|&v| { let p = v as f64 / n; -p * p.log2() }).sum()
+    }
+}
