@@ -381,7 +381,9 @@ Write-Host "---"
 
 if (-not (Test-Path $RepoDir)) {
     Write-Log "  Cloning PlenumNET repository..." "White"
+    $prevEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
     $null = & git clone --depth 1 $RepoUrl $RepoDir 2>&1
+    $ErrorActionPreference = $prevEAP
     if ($LASTEXITCODE -ne 0) {
         Write-Log "  Error: Repository could not be downloaded." "Red"
         Write-Log "  Check your internet connection and try again." "Red"
@@ -391,15 +393,19 @@ if (-not (Test-Path $RepoDir)) {
 } elseif (-not (Test-Path (Join-Path $RepoDir ".git"))) {
     Write-Log "  Converting to git repo..." "Yellow"
     Push-Location $RepoDir
+    $prevEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
     $null = & git init 2>&1
     $null = & git remote add origin $RepoUrl 2>&1
     $null = & git fetch origin main 2>&1
     $null = & git reset --hard origin/main 2>&1
+    $ErrorActionPreference = $prevEAP
     Pop-Location
 } else {
     Write-Log "  Updating source..." "White"
     Push-Location $RepoDir
+    $prevEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
     $null = & git pull origin main --ff-only 2>&1
+    $ErrorActionPreference = $prevEAP
     Pop-Location
 }
 Write-Log "  [OK] Source ready at $RepoDir" "Green"
