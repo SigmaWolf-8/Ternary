@@ -69,8 +69,8 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v2.4.8"
-$RELEASE_TAG      = "v2.4.8"
+$DEPLOYER_VERSION = "v2.4.9"
+$RELEASE_TAG      = "v2.4.9"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
 $BASE_PORT        = 11111
@@ -2149,8 +2149,8 @@ Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  ── Upgrade Notes (v2.4.8) ──" -ForegroundColor Cyan
-Write-Host "  What changed (cumulative v2.4.6 → v2.4.8):" -ForegroundColor DarkGray
+Write-Host "  ── Upgrade Notes (v2.4.9) ──" -ForegroundColor Cyan
+Write-Host "  What changed (cumulative v2.4.6 → v2.4.9):" -ForegroundColor DarkGray
 Write-Host "    - Monitor v9.3.1: baked into daemon via include_str! (no file drops)" -ForegroundColor DarkGray
 Write-Host "    - Watchdog: relay connectivity check (auto-restart after 120s disconnect)" -ForegroundColor DarkGray
 Write-Host "    - MSI installer: fixed UAC self-elevation quoting + git stderr handling" -ForegroundColor DarkGray
