@@ -1,0 +1,45 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Invoke-WebRequest -Uri "https://plenumnet.replit.app/api/salvi/inter-cube/monitor" -OutFile "$HOME\Downloads\array3-monitor-v9.html"
+PS C:\Users\Sigma> Get-Service PlenumNET-Node*
+PS C:\Users\Sigma> Get-Service PlenumNET-Array3-*
+
+Status   Name               DisplayName
+------   ----               -----------
+Stopped  PlenumNET-Array3-1 PlenumNET Array3 Node #1 (coordinator)
+Stopped  PlenumNET-Array3-2 PlenumNET Array3 Node #2 (worker)
+Stopped  PlenumNET-Array3-3 PlenumNET Array3 Node #3 (worker)
+
+
+PS C:\Users\Sigma> Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+Start-Service : Service 'PlenumNET Array3 Node #1 (coordinator) (PlenumNET-Array3-1)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-1 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #2 (worker) (PlenumNET-Array3-2)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-2 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+Start-Service : Service 'PlenumNET Array3 Node #3 (worker) (PlenumNET-Array3-3)' cannot be started due to the
+following error: Cannot open PlenumNET-Array3-3 service on computer '.'.
+At line:1 char:1
++ Start-Service PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OpenError: (System.ServiceProcess.ServiceController:ServiceController) [Start-Service],
+   ServiceCommandException
+    + FullyQualifiedErrorId : CouldNotStartService,Microsoft.PowerShell.Commands.StartServiceCommand
+
+PS C:\Users\Sigma>
