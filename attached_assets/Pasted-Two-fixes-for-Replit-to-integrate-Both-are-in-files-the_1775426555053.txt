@@ -1,0 +1,38 @@
+Two fixes for Replit to integrate. Both are in files they have access to.
+
+---
+
+**Fix 1: `scripts/build-wasm.ps1` — Smoke test uses wrong path**
+
+The build script writes a temporary JS test file to `$env:TEMP` (e.g., `C:\Users\Sigma\AppData\Local\Temp\plenumnet-wasm-test.js`). That file contains `require('./pkg/ternary_math.js')` — a relative path. But the working directory when node runs is the temp directory, not `ternary-math/`. So it can't find `./pkg/`.
+
+Find the line in `build-wasm.ps1` that writes the smoke test file (it will contain something like `require('./pkg/ternary_math.js')`). Change the require path to use the absolute path to the pkg directory:
+
+```
+require('$crateDir/pkg/ternary_math.js')
+```
+
+Where `$crateDir` is the variable the script already defines (shown in the build output as `C:\PlenumNET\ternary-math`). Use forward slashes or escaped backslashes since it's a JS string inside a PS1 heredoc.
+
+Alternatively, the simpler fix: change the node invocation to set the working directory to `$crateDir` before running the test file. Either approach works.
+
+---
+
+**Fix 2: `ternary-math/Cargo.toml` — `wasm-opt = false` must be permanent**
+
+The Windows ARM64 (Snapdragon) machine has no prebuilt `wasm-opt` binary. We appended the fix via `Add-Content` from PowerShell, which means it was tacked onto the end of the file outside of any proper section ordering. It needs to be committed as a permanent part of `Cargo.toml`.
+
+Verify the following block exists in `ternary-math/Cargo.toml` and is cleanly placed (not duplicated, not appended multiple times):
+
+```toml
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+```
+
+If `Add-Content` was run more than once, there may be duplicate entries at the bottom of the file. Remove any duplicates. The block should appear exactly once, ideally after the `[package]` section and before `[lib]`, or at the end of the file — either location works, but only one instance.
+
+This is required for any ARM64 Windows target (including the Snapdragon YODA node). x86_64 Linux (Replit's environment) does have `wasm-opt` available, so this setting is harmless there — it just skips the optional size optimization pass. The WASM output is functionally identical, roughly 10-15% larger.
+
+---
+
+Both fixes should be committed to `main` so future builds work cleanly on the Snapdragon machine without manual intervention.
