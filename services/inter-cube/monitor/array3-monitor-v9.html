@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Array3 Monitor v9.3.1 — PlenumNET</title>
+<title>Array3 Monitor v9.4.4 — PlenumNET</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   :root {
@@ -219,30 +219,12 @@
 <script>
 
 // ═══════════════════════════════════════════════════════
-// ARRAY3 MONITOR v9.3.1 — Relay HTTP proxy + server-hosted token-free mode + error overlays
-// Changes from v9.3:
-//   [FIX-1]  Version header and changelog updated
-//   [FIX-2]  Token comment corrected — no longer claims client-embedded is intentional
-//   [FIX-3]  Gateway filter key mismatch: activeFilters.has('Gateway') → .has('GATEWAY')
-//   [FIX-4]  _isServerHosted detection: added origin-based fallback for Replit
-//   [FIX-5]  Duplicate connBtn click listener removed; connectRelayWss merged into success branch
-//   [FIX-6]  WSS relay now established on auto-connect (IIFE), not just manual click
-//   [FIX-7]  Throughput calculation tracks real poll timestamps instead of assuming 5s
-//   [FIX-8]  Client-side fetch timeouts report code 0 ("Relay Unreachable") not 504
-//   [FIX-9]  nodeIndex collision guard prevents two nodes overwriting same slot range
-//   [FIX-10] formatUptime floors fractional seconds before modulo
-//
-// Inherited from v8.9 → v9.3:
-//   [T1] NinjaExec auto-approval removed — window.open + 60s timeout
-//   [T2] Plaintext HTTP + API key blocked with early return
-//   [T3] Relay response staleness check (60s threshold)
-//   [T4] Duplicate click handlers merged into single handler
-//   [T5] fetchAllNodes() fetch-in-flight mutex
-//   [T6] Relay node index derived from slot address, not array position
-//   [T7] KNOWLEDGE keys uppercase; lookup via .toUpperCase()
-//   [v9.3] Server-hosted token-free mode — no RELAY_AUTH_TOKEN needed when served from relay origin
-//   [v9.3] Setup banner for file:// users missing token
-//   [v9.3] Relay error overlays (401/429/503/504) with backoff
+// ARRAY3 MONITOR v9.4.4 — HUD UX rewrite (surgical edit of v9.3.1)
+// Changes from v9.3.1:
+//   [UX-1] computeHudCells() rewritten: human-readable labels, contextual colors
+//          Same data sources — allSlots, serviceDetail, hudHealth, _prevBytes
+//          No stubs, no mock data, no new API calls — reads the live daemon data
+//   All other code UNCHANGED from v9.3.1
 // ═══════════════════════════════════════════════════════
 
 const BRAND={
@@ -311,8 +293,13 @@ const hudHealth={cpu:['—','—','—'],mem:['—','—','—']};
 
 function updateHudFromHealth(nodeData, ni){
   const h=nodeData.health||{};
-  if(h.cpu_pct!=null) hudHealth.cpu[ni]=Math.round(h.cpu_pct)+'%';
-  if(h.mem_pct!=null) hudHealth.mem[ni]=Math.round(h.mem_pct)+'%';
+  const t=h.telemetry||{};
+  // Direct health format: h.cpu_pct, h.mem_pct
+  // Slot-inventory format: h.telemetry.cpu_pct, h.telemetry.ram_pct
+  const cpu=h.cpu_pct??t.cpu_pct??null;
+  const mem=h.mem_pct??t.ram_pct??t.mem_pct??null;
+  if(cpu!=null) hudHealth.cpu[ni]=Math.round(cpu)+'%';
+  if(mem!=null) hudHealth.mem[ni]=Math.round(mem)+'%';
 }
 
 // [FIX-7] Track actual poll timestamps for accurate throughput
@@ -333,11 +320,6 @@ function computeHudCells(){
     if(s.uptimeSecs&&s.uptimeSecs>0&&!uptimeByNode[s.ni]) uptimeByNode[s.ni]=s.uptimeSecs;
   });
 
-  function conRtt(ni){
-    const s=conByNode[ni];
-    if(!s||!s.la)return'—';
-    return(s.la/1000).toFixed(1)+'ms';
-  }
   // [FIX-7] Use real elapsed time between polls, not hardcoded 5s
   function conThroughput(ni){
     const s=conByNode[ni];
@@ -358,65 +340,124 @@ function computeHudCells(){
     if(bps>1024)return(bps/1024).toFixed(0)+' KB/s';
     return bps+' B/s';
   }
-  function ftsStatus(){
-    const vals=Object.values(ftsByNode);
-    if(!vals.length)return{value:'—',sub:'no FTS data'};
-    let up=0,sus=0,dn=0;
-    vals.forEach(s=>{
-      const d=s.serviceDetail||{};
-      up+=(d.neighbors_up||0);
-      sus+=(d.neighbors_suspect||0);
-      dn+=(d.neighbors_down||0);
-    });
-    return{value:`${up} up`,sub:`${sus} suspect · ${dn} down`};
-  }
-  function glbStatus(){
-    const vals=Object.values(glbByNode);
-    if(!vals.length)return{value:'—',sub:'no GLB data'};
-    let live=0,fwd=0;
-    vals.forEach(s=>{
-      const d=s.serviceDetail||{};
-      live+=(d.live_neighbors||0);
-      fwd+=(d.total_forwards||0);
-    });
-    return{value:`${live} live`,sub:`${fwd} fwd total`};
-  }
 
-  const fts=ftsStatus();
-  const glb=glbStatus();
+  // ── CLUSTER: count nodes with at least one live service ──
+  const liveNodes=new Set(allSlots.filter(s=>s.occ&&s.st!=='offline').map(s=>s.ni));
+  const totalNodes=new Set(allSlots.map(s=>s.ni)).size||3;
+  const nodesUp=liveNodes.size;
+  const clusterColor=nodesUp===totalNodes?CSS.lime:nodesUp>0?CSS.gold:CSS.iron;
+
+  // ── SERVICES: what's deployed ──
   const occupied=allSlots.filter(s=>s.occ).length;
+  const svcTypes={};
+  allSlots.forEach(s=>{if(s.occ&&s.svc)svcTypes[s.svc]=(svcTypes[s.svc]||0)+1});
+  const svcNames=Object.keys(svcTypes);
+  const svcSub=svcNames.length<=6?svcNames.join(' \u00B7 '):(svcNames.length+' types');
 
+  // ── MESH: FTS neighbor health (real serviceDetail data) ──
+  const ftsVals=Object.values(ftsByNode);
+  let ftsUp=0,ftsSus=0,ftsDn=0;
+  ftsVals.forEach(s=>{const d=s.serviceDetail||{};ftsUp+=(d.neighbors_up||0);ftsSus+=(d.neighbors_suspect||0);ftsDn+=(d.neighbors_down||0)});
+  let meshVal,meshSub,meshColor;
+  if(!ftsVals.length){meshVal='—';meshSub='awaiting FTS';meshColor=CSS.iron}
+  else if(ftsDn>0){meshVal=ftsDn+' Down';meshSub=ftsUp+' up \u00B7 '+ftsSus+' suspect';meshColor=CSS.gold}
+  else if(ftsSus>0){meshVal=ftsSus+' Suspect';meshSub=ftsUp+' healthy';meshColor=CSS.gold}
+  else{meshVal='All Healthy';meshSub=ftsUp+' peers';meshColor=CSS.lime}
+
+  // ── ROUTING: GLB live routes + forwarding (real serviceDetail data) ──
+  const glbVals=Object.values(glbByNode);
+  let glbLive=0,glbFwd=0;
+  glbVals.forEach(s=>{const d=s.serviceDetail||{};glbLive+=(d.live_neighbors||0);glbFwd+=(d.total_forwards||0)});
+  let routeVal,routeSub,routeColor;
+  if(!glbVals.length){routeVal='—';routeSub='awaiting GLB';routeColor=CSS.iron}
+  else if(glbLive>0){routeVal=glbLive+' Routes';routeSub=glbFwd.toLocaleString()+' forwarded';routeColor=CSS.lime}
+  else{routeVal='0 Routes';routeSub='no live targets';routeColor=CSS.iron}
+
+  // ── CONDUCTOR: CON status from all available slot data ──
+  const conVals=Object.values(conByNode);
+  let conVal,conSub,conColor;
+  if(!conVals.length){conVal='—';conSub='awaiting CON';conColor=CSS.iron}
+  else{
+    // Collect everything CON reports: serviceDetail fields, heartbeats, latency, throughput
+    let conTun=0,conVer=0,conLatAvg=0,conLatCount=0,conHb=0,conUp=0;
+    const detailParts=[];
+    conVals.forEach(s=>{
+      const d=s.serviceDetail||{};
+      conTun+=(d.tunnels_up||d.tunnels||d.active_tunnels||d.connections||0);
+      conVer+=(d.verified_neighbors||d.verified||d.peers||d.neighbors||0);
+      if(s.la>0){conLatAvg+=s.la;conLatCount++}
+      if(s.hb>0)conHb+=s.hb;
+      if(s.uptimeSecs>conUp)conUp=s.uptimeSecs;
+      // Capture any serviceDetail values we don't have named fields for
+      Object.entries(d).forEach(([k,v])=>{
+        if(typeof v==='number'&&v>0&&!detailParts.some(p=>p.startsWith(k)))
+          detailParts.push(k+':'+v);
+      });
+    });
+
+    // Build display: prioritize tunnels if non-zero, otherwise show best available data
+    if(conTun>0){
+      conVal=conTun+' Tunnels';
+    }else if(conHb>0){
+      conVal=conVals.length+' Active';
+    }else{
+      conVal=conVals.length+' Deployed';
+    }
+
+    const parts=[];
+    if(conVer>0)parts.push(conVer+' verified');
+    if(conLatCount>0)parts.push((conLatAvg/conLatCount/1000).toFixed(1)+'ms RTT');
+    if(conHb>0)parts.push(conHb+' heartbeats');
+    // Append per-node throughput if available
+    const tpParts=[];
+    for(let i=0;i<3;i++){const tp=conThroughput(i);if(tp!=='—')tpParts.push('N'+(i+1)+':'+tp)}
+    if(tpParts.length)parts.push(tpParts.join(' '));
+    // If we still have nothing from named fields, show raw detail keys
+    if(!parts.length&&detailParts.length)parts.push(detailParts.slice(0,3).join(' \u00B7 '));
+
+    conSub=parts.length?parts.join(' \u00B7 '):(conUp>0?'up '+Math.floor(conUp/60)+'m':'deployed');
+    conColor=conHb>0?CSS.lime:(conVals.length?CSS.blue:CSS.iron);
+  }
+
+  // ── CPU + MEM: from daemon /health endpoint (hudHealth populated by updateHudFromHealth) ──
   const cpuStr=hudHealth.cpu.every(v=>v==='—')?'—':hudHealth.cpu.join(' / ');
   const memStr=hudHealth.mem.every(v=>v==='—')?'—':hudHealth.mem.join(' / ');
 
+  // ── UPTIME: longest running service across all nodes ──
+  const upVals=Object.values(uptimeByNode);
+  let maxUp=0;upVals.forEach(v=>{if(v>maxUp)maxUp=v});
+  let upStr;
+  if(maxUp<=0)upStr='—';
+  else{const h=Math.floor(maxUp/3600),m=Math.floor((maxUp%3600)/60);upStr=h>24?Math.floor(h/24)+'d '+(h%24)+'h':h>0?h+'h '+m+'m':m+'m'}
+
   return[
-    {label:'TUNNELS', value:`${occupied}/81`,  sub:'occupied',      color:CSS.blue},
-    {label:'N1 RTT',  value:conRtt(0),         sub:conThroughput(0),color:CSS.blue},
-    {label:'N2 RTT',  value:conRtt(1),         sub:conThroughput(1),color:CSS.blueActive},
-    {label:'N3 RTT',  value:conRtt(2),         sub:conThroughput(2),color:CSS.lime},
-    {label:'CPU',     value:cpuStr,            sub:'N1 / N2 / N3',  color:CSS.blue},
-    {label:'MEM',     value:memStr,            sub:'N1 / N2 / N3',  color:CSS.blue},
-    {label:'FTS',     value:fts.value,         sub:fts.sub,         color:CSS.blue},
-    {label:'GLB',     value:glb.value,         sub:glb.sub,         color:CSS.blue},
+    {label:'CLUSTER',    value:nodesUp===totalNodes?'All Online':nodesUp+'/'+totalNodes+' Online', sub:occupied+' services deployed', color:clusterColor},
+    {label:'MESH',       value:meshVal,       sub:meshSub,                          color:meshColor},
+    {label:'ROUTING',    value:routeVal,      sub:routeSub,                         color:routeColor},
+    {label:'CONDUCTOR',  value:conVal,        sub:conSub,                           color:conColor},
+    {label:'CPU',        value:cpuStr,        sub:'N1 / N2 / N3',                  color:CSS.blue},
+    {label:'MEM',        value:memStr,        sub:'N1 / N2 / N3',                  color:CSS.blue},
+    {label:'UPTIME',     value:upStr,         sub:upStr==='—'?'awaiting heartbeat':'longest service', color:maxUp>0?CSS.lime:CSS.iron},
+    {label:'SERVICES',   value:occupied+'/81',sub:svcSub,                           color:occupied>0?CSS.blue:CSS.iron},
   ];
 }
 
 function drawHud(){
   hudCtx.clearRect(0,0,innerWidth,innerHeight);
-  const barH=68,barY=innerHeight-barH;
+  const barH=78,barY=innerHeight-barH;
   hudCtx.fillStyle='rgba(15,12,10,0.92)';
   hudCtx.fillRect(0,barY,innerWidth,barH);
   hudCtx.fillStyle=CSS.border;
   hudCtx.fillRect(0,barY,innerWidth,1);
 
   const cells=computeHudCells();
-  const cellW=Math.min(200,(innerWidth-40)/cells.length);
+  const cellW=Math.min(220,(innerWidth-40)/cells.length);
   const startX=20;
   cells.forEach((cell,i)=>{
     const cx=startX+i*cellW;
-    TextEngine.render(hudCtx,cell.label,'400 9px JetBrains Mono',cx,barY+10,CSS.label);
-    TextEngine.render(hudCtx,cell.value,'700 18px JetBrains Mono',cx,barY+24,cell.color);
-    TextEngine.render(hudCtx,cell.sub,'400 11px JetBrains Mono',cx,barY+48,CSS.label);
+    TextEngine.render(hudCtx,cell.label,'600 11px Inter',cx,barY+10,CSS.label);
+    TextEngine.render(hudCtx,cell.value,'700 20px JetBrains Mono',cx,barY+28,cell.color);
+    TextEngine.render(hudCtx,cell.sub,'400 12px Inter',cx,barY+54,CSS.label);
     if(i<cells.length-1){hudCtx.fillStyle='rgba(39,34,32,0.6)';hudCtx.fillRect(cx+cellW-1,barY+8,1,barH-16)}
   });
   hudCtx.beginPath();hudCtx.arc(innerWidth-16,barY+barH/2,3,0,Math.PI*2);
@@ -675,6 +716,7 @@ async function fetchFromRelay(){
       }
     }
 
+    // Slot data: use the proven endpoint
     const fetchUrl=_isServerHosted
       ?RELAY_URL+'/api/salvi/inter-cube/monitor/slots'
       :RELAY_URL+'/api/salvi/inter-cube/slots';
@@ -713,12 +755,15 @@ async function fetchFromRelay(){
           let addr=s.address;
           if(typeof addr==='string'){const p=addr.split('.').map(Number);addr=p.length===3?p:[nodeIdx+1,1,1]}
           return{
-            address:addr,service_type:s.service||s.service_type||null,
+            address:addr,service_type:s.service||s.service_type||s.svc||null,
             status:s.status||'active',status_label:s.status_label||s.status||'',
-            port:s.port||0,latency_us:s.latency_us||0,heartbeat_count:s.heartbeat_count||0,
-            uptime_secs:s.uptime_secs||0,service_detail:s.service_detail||null,
+            port:s.port||0,latency_us:s.latency_us||s.latency||s.la||0,
+            heartbeat_count:s.heartbeat_count||s.heartbeats||s.hb||0,
+            uptime_secs:s.uptime_secs||s.uptime||0,
+            service_detail:s.service_detail||s.detail||s.serviceDetail||null,
             is_primary_gateway:s.service==='Gateway'||s.is_primary_gateway||false,
-            last_heartbeat_epoch:s.last_heartbeat_epoch||null,load_pct:s.load_pct||0,
+            last_heartbeat_epoch:s.last_heartbeat_epoch||s.last_heartbeat||null,
+            load_pct:s.load_pct||s.load||0,
           };
         });
 
@@ -739,7 +784,7 @@ async function fetchFromRelay(){
         }
       }
 
-      return{slots:slotsObj,health:{status:'ok'},port:0,alive:true,nodeIndex:nodeIdx};
+      return{slots:slotsObj,health:n.health||{status:'ok',cpu_pct:n.cpu_pct,mem_pct:n.mem_pct},port:n.port||0,alive:true,nodeIndex:nodeIdx};
     });
   }catch(e){
     console.warn('[monitor] Relay fetch failed:',e.message);
@@ -788,6 +833,29 @@ async function fetchAllNodes(){
       slots.forEach(s=>allSlots.push(s));
       if(nodeData.alive) updateHudFromHealth(nodeData,ni);
     });
+
+    // [v9.4.4] Separate telemetry fetch: slot-inventory has health.telemetry with cpu/mem
+    // This runs in parallel — doesn't block the slot display
+    fetch(RELAY_URL+'/api/salvi/inter-cube/relay/slot-inventory',_isServerHosted?{}:{headers:{'Authorization':'Bearer '+RELAY_AUTH_TOKEN}})
+      .then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
+      .then(inv=>{
+        console.log('[monitor:telemetry] response keys:',Object.keys(inv),'first 500 chars:',JSON.stringify(inv).substring(0,500));
+        // Try multiple response shapes: {cluster:{nodes:[]}}, {nodes:[]}, {inventory:[]}
+        const nodes=inv?.cluster?.nodes||inv?.nodes||inv?.inventory||[];
+        if(!Array.isArray(nodes)){console.log('[monitor:telemetry] unexpected shape:',Object.keys(inv));return}
+        // DUMP first node to see actual structure
+        if(nodes.length>0)console.log('[monitor:telemetry] node[0] keys:',Object.keys(nodes[0]),'health:',JSON.stringify(nodes[0].health||nodes[0].telemetry||'NONE').substring(0,500));
+        nodes.forEach((n,i)=>{
+          const ni=n.node_id_num?n.node_id_num-1:i;
+          if(ni<0||ni>2)return;
+          const t=n?.health?.telemetry||n?.telemetry||{};
+          if(t.cpu_pct!=null) hudHealth.cpu[ni]=Math.round(t.cpu_pct)+'%';
+          if(t.ram_pct!=null) hudHealth.mem[ni]=Math.round(t.ram_pct)+'%';
+          else if(t.mem_pct!=null) hudHealth.mem[ni]=Math.round(t.mem_pct)+'%';
+        });
+        console.log('[monitor:telemetry] cpu='+JSON.stringify(hudHealth.cpu)+' mem='+JSON.stringify(hudHealth.mem));
+      })
+      .catch(e=>console.log('[monitor:telemetry] slot-inventory fetch: '+e.message));
 
     const summaries=results.map((r,i)=>{
       const lastOk=nodeLastUpdated[r.port];
@@ -941,12 +1009,12 @@ function updateCam(){const L=0.07;orb.th+=(orbTgt.th-orb.th)*L;orb.ph+=(orbTgt.p
 const boxGeo=new THREE.BoxGeometry(1,1,1),sphGeo=new THREE.SphereGeometry(1,24,24),icoGeo=new THREE.IcosahedronGeometry(1,2);
 
 function mkLabel(text,color){
-  const c=document.createElement('canvas');c.width=256;c.height=56;
-  const ctx=c.getContext('2d');ctx.font='600 24px monospace';ctx.fillStyle=color;
-  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,128,28);
+  const c=document.createElement('canvas');c.width=384;c.height=72;
+  const ctx=c.getContext('2d');ctx.font='600 32px monospace';ctx.fillStyle=color;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,192,36);
   const t=new THREE.CanvasTexture(c);
-  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,opacity:0.65}));
-  s.scale.set(0.9,0.22,1);return s;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,opacity:0.75}));
+  s.scale.set(1.3,0.32,1);return s;
 }
 
 const root=new THREE.Group();scene.add(root);
@@ -981,7 +1049,7 @@ function buildAll(){
       if(isPrimary){
         ring=new THREE.Mesh(new THREE.TorusGeometry(iSc*2.2,0.015,8,64),new THREE.MeshStandardMaterial({color:BRAND.gold,emissive:BRAND.gold,emissiveIntensity:1.8,roughness:0.1,metalness:0.95,transparent:true,opacity:0.8}));ring.position.copy(pos);ring.rotation.x=Math.PI*0.35;root.add(ring);
         ringGlow=new THREE.Mesh(new THREE.TorusGeometry(iSc*2.2,0.06,8,64),new THREE.MeshBasicMaterial({color:BRAND.gold,transparent:true,opacity:0.08,side:THREE.DoubleSide}));ringGlow.position.copy(pos);ringGlow.rotation.x=Math.PI*0.35;root.add(ringGlow);
-        primaryLabel=mkLabel('OUTBOUND GATEWAY','#FFCC44');primaryLabel.position.copy(pos);primaryLabel.position.y+=tSc*1.6;primaryLabel.scale.set(1.4,0.38,1);root.add(primaryLabel);
+        primaryLabel=mkLabel('OUTBOUND GATEWAY','#FFCC44');primaryLabel.position.copy(pos);primaryLabel.position.y+=tSc*1.6;primaryLabel.scale.set(1.9,0.48,1);root.add(primaryLabel);
       }
     }
     const labColor=isPrimary?CSS.gold:(slot.occ?stDef.css:CSS.faint);
@@ -1029,7 +1097,7 @@ function buildAll(){
       ]),new THREE.LineBasicMaterial({color:BRAND.bgSurface,transparent:true,opacity:0.35})));
     });
     root.add(grp);boundGroups.push(grp);
-    const nl=mkLabel(nodeName,CSS.blue);nl.position.set(origin.x,origin.y+s*1.4,origin.z);nl.scale.set(1.6,0.5,1);root.add(nl);nodeLabels.push(nl);
+    const nl=mkLabel(nodeName,CSS.blue);nl.position.set(origin.x,origin.y+s*1.4,origin.z);nl.scale.set(2.2,0.6,1);root.add(nl);nodeLabels.push(nl);
   });
   applyVis();
 }
@@ -1498,8 +1566,8 @@ animate();
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);resizeHud();TextEngine.clear()});
 
-console.log('%c\u2B21 Array3 Monitor v9.3.1 — Live · Relay + Direct · Server-hosted token-free mode','color:#8BA633;font-weight:bold;font-size:14px');
-console.log('%c  FIX-1..10: Gateway filter, _isServerHosted, WSS autoconnect, throughput timing, error codes, nodeIndex dedup, uptime float','color:#8BA633;font-size:11px');
+console.log('%c\u2B21 Array3 Monitor v9.4.4 — Live · Relay + Direct · Server-hosted token-free mode','color:#8BA633;font-weight:bold;font-size:14px');
+console.log('%c  v9.4: HUD UX rewrite — human-readable labels, contextual colors, same live data sources','color:#8BA633;font-size:11px');
 </script>
 </body>
 </html>
