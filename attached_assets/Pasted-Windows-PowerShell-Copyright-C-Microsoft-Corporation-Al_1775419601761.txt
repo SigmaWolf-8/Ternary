@@ -1,0 +1,692 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git checkout main
+Previous HEAD position was 9e445348 fix(relay): send auth_ok BEFORE operator sync messages
+Switched to branch 'main'
+Your branch is behind 'origin/main' by 82 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+PS C:\PlenumNET> git pull origin main
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+Updating d918efe5..8a9da427
+Fast-forward
+ .agents/agent_assets_metadata.toml                 |    6 +
+ .replit                                            |    4 +-
+ Cargo.lock                                         |  562 ++--
+ Cargo.toml                                         |    5 +
+ VERSION                                            |    1 +
+ ...-LANDSCAPE-TM-2-1775404909586_1775404909587.txt |   61 +
+ ...8-CCP-Bridge-Analysis-Complet_1775406861231.txt |  471 +++
+ ...omastro-Holdings-Ltd-Canada-P_1775409895815.txt | 1636 +++++++++++
+ ...omastro-Holdings-Ltd-Canada-P_1775409908583.txt | 1236 ++++++++
+ ...omastro-Holdings-Ltd-Canada-P_1775413915638.txt |  356 +++
+ ...omastro-Holdings-Ltd-Canada-P_1775415367330.txt |  774 +++++
+ ...D-Spatial-Data-Indexing-Deriv_1775380288467.txt |  354 +++
+ ...D-Spatial-Data-Indexing-Deriv_1775380338188.txt |  354 +++
+ ...D-Spatial-Data-Indexing-Deriv_1775386376329.txt |  354 +++
+ ...ric-Framework-From-the-Axiom-_1775375846648.txt |  964 ++++++
+ ...g-Architecture-Coprime-Walk-S_1775386404601.txt |  303 ++
+ ...apomastro-Holdings-Ltd-Applie_1775359271351.txt |   83 +
+ ...apomastro-Holdings-Ltd-Applie_1775362035668.txt |   88 +
+ ...apomastro-Holdings-Ltd-Applie_1775363108685.txt |  176 ++
+ ...apomastro-Holdings-Ltd-Applie_1775366262713.txt |  215 ++
+ ...rotocol-Specification-Tribona_1775415353740.txt |  274 ++
+ ...n-Complete-Instructions-Crate_1775416133338.txt |  731 +++++
+ ...n-Complete-Instructions-Crate_1775417263627.txt |  731 +++++
+ ...evious-review-are-correctly-r_1775389793479.txt |  102 +
+ ...ist-All-required-edits-to-Tas_1775391845542.txt |   90 +
+ ...-One-critical-finding-not-in-_1775390998574.txt |   44 +
+ ...spec-It-should-be-there-it-s-_1775388038849.txt |  121 +
+ ...spec-It-should-be-there-it-s-_1775389602719.txt |  121 +
+ ...-Spatial-Data-Indexing-Derive_1775379784829.txt |  197 ++
+ ...Let-me-work-through-every-one_1775414920507.txt |   29 +
+ ...te-the-full-wasm-exports-rs-t_1775415460117.txt |   19 +
+ ...strator-PlenumN-1775359785089_1775359785090.txt |  194 ++
+ ...strator-PlenumN-1775363290238_1775363290239.txt |   51 +
+ ...strator-PlenumN-1775365641488_1775365641488.txt |  368 +++
+ ...strator-PlenumN-1775386004881_1775386004882.txt |  289 ++
+ ...strator-PlenumN-1775396031170_1775396031171.txt | 1195 ++++++++
+ ...ture-is-clean-the-derivation-_1775387883651.txt |   70 +
+ ...u-22-CENTER-Everything-connec_1775393215639.txt |   41 +
+ ...-constant-The-HModal-signal-m_1775392204004.txt |   64 +
+ ...e-task-decomposition-is-clean_1775380022792.txt |   31 +
+ ...-MAGIC-CONSTANT-assertion-is-_1775387482585.txt |   40 +
+ ...d-Rule-1-No-assert-in-product_1775393629379.txt |   72 +
+ ...A-Framework-for-Synthesis-The_1775383541561.txt | 1097 +++++++
+ ...ht-C-Microsoft-Corporation-Al_1775402851712.txt |   45 +
+ ...ht-C-Microsoft-Corporation-Al_1775418781870.txt |  164 ++
+ ...on-root-package-will-be-ignor_1775363187528.txt |  185 ++
+ .../PlenumNET_HModal_Signaling_1775379027120.md    |  303 ++
+ .../PlenumNET_HModal_Signaling_1775379045508.md    |  303 ++
+ .../TM-2026-017-v6_PlenumNET_1775376159126.md      |  964 ++++++
+ .../TM-2026-017-v6_PlenumNET_1775378092860.md      | 1040 +++++++
+ .../TM-2026-017-v6_PlenumNET_1775379020540.md      | 1040 +++++++
+ .../TM-2026-017-v6_PlenumNET_1775379761151.md      | 1040 +++++++
+ attached_assets/WASSM_files_1775414334105.zip      |  Bin 0 -> 15068 bytes
+ attached_assets/WASSM_files_1775414622109.zip      |  Bin 0 -> 8415 bytes
+ attached_assets/WASSM_files_1775415477853.zip      |  Bin 0 -> 10161 bytes
+ .../array3-monitor-v9.4.4_1775375517817.html       | 1573 ++++++++++
+ attached_assets/branding-1775365824341.json        |  152 +
+ attached_assets/content-1775365825804.md           |  404 +++
+ attached_assets/content-1775365843217.md           |   15 +
+ attached_assets/favicon.png                        |  Bin 0 -> 1145 bytes
+ attached_assets/image_1775365820699.png            |  Bin 0 -> 154501 bytes
+ attached_assets/image_1775386055903.png            |  Bin 0 -> 261652 bytes
+ attached_assets/ogImage.png                        |  Bin 0 -> 875105 bytes
+ attached_assets/screenshot-1775365828172.png       |  Bin 0 -> 163662 bytes
+ attached_assets/screenshot-1775365836619.png       |  Bin 0 -> 79955 bytes
+ client/public/array3-monitor.html                  | 3083 ++++++++++----------
+ client/src/pages/terminal.tsx                      |   51 +-
+ .../TM-2026-017-Extended-Geometric-Framework.md    | 1771 ++++++-----
+ .../TM-2026-028-HModal-Signaling-Architecture.md   |  303 ++
+ .../TM-2026-028a-Perfect-Hash-Spatial-Indexing.md  |  354 +++
+ install-plenumnet-msi.ps1                          | 1506 +++++-----
+ package-lock.json                                  |   23 +
+ package.json                                       |    2 +
+ plenumlan/src/cube/constants.rs                    |    4 +-
+ plenumlan/src/cube/freshness.rs                    |    1 +
+ plenumlan/src/cube/node.rs                         |    2 +-
+ plenumlan/src/cube/routing.rs                      |    4 +-
+ plenumlan/src/cube/windows_roles.rs                |    3 +-
+ .../rustlib/x86_64-unknown-linux-gnu/bin/rust-lld  |  Bin 0 -> 8205560 bytes
+ .../rustlib/x86_64-unknown-linux-gnu/bin/rust-lld  |  Bin 0 -> 8205560 bytes
+ scripts/build-wasm.ps1                             |  400 +++
+ scripts/deploy-clean.sh                            |   12 +
+ server/index.ts                                    |   75 +-
+ services/inter-cube/Cargo.toml                     |    2 +-
+ services/inter-cube/build.rs                       |   30 +
+ services/inter-cube/deploy-yoda.ps1                |   75 +-
+ services/inter-cube/src/api.rs                     |    2 +-
+ services/inter-cube/src/crs.rs                     |    4 +-
+ services/inter-cube/src/dimension_tracker.rs       |    2 +-
+ services/inter-cube/src/glb.rs                     |    2 +-
+ services/inter-cube/src/identity.rs                |    1 +
+ services/inter-cube/src/lattice_mixer.rs           |    2 +-
+ services/inter-cube/src/lib.rs                     |    2 +-
+ services/inter-cube/src/main.rs                    |   70 +-
+ services/inter-cube/src/ops_handler.rs             |   82 +-
+ services/inter-cube/src/overlay.rs                 |    2 +
+ services/inter-cube/src/persistence.rs             |    2 +-
+ services/inter-cube/src/pt26_parallel.rs           |    8 +-
+ services/inter-cube/src/sampling.rs                |    4 +-
+ services/inter-cube/src/vm_service.rs              |    1 +
+ services/inter-cube/src/wire_ecc.rs                |    3 +
+ src/kernel/Cargo.toml                              |   10 -
+ src/kernel/src/browser/color.rs                    |    1 +
+ src/kernel/src/distributor/coprime_polygon_pair.rs |    7 +
+ src/kernel/src/distributor/coprime_walk.rs         |    1 +
+ src/kernel/src/distributor/puv_spectral.rs         |    9 +-
+ ternary-math/CI.md                                 |   27 +
+ ternary-math/Cargo.toml                            |   28 +-
+ ternary-math/Makefile                              |   50 +
+ ternary-math/napi/Cargo.toml                       |    5 -
+ ternary-math/src/constants.rs                      | 1476 +++++++++-
+ ternary-math/src/gf3_algebra.rs                    |    2 +
+ ternary-math/src/lib.rs                            |    1 -
+ ternary-math/src/plenum_square.rs                  |  115 +-
+ ternary-math/src/pt26_walk.rs                      |    2 +-
+ ternary-math/src/tlsponge385.rs                    |    8 +
+ ternary-math/src/ttc.rs                            |   29 +-
+ ternary-math/src/wasm_exports.rs                   |  450 ++-
+ ternary-math/target_wasm/.rustc_info.json          |    1 +
+ ternary-math/target_wasm/CACHEDIR.TAG              |    3 +
+ ternary-math/target_wasm/release/.cargo-lock       |    0
+ .../bumpalo-d122384f2ca052c2/dep-lib-bumpalo       |  Bin 0 -> 8 bytes
+ .../bumpalo-d122384f2ca052c2/invoked.timestamp     |    1 +
+ .../bumpalo-d122384f2ca052c2/lib-bumpalo           |    1 +
+ .../bumpalo-d122384f2ca052c2/lib-bumpalo.json      |    1 +
+ .../build-script-build-script-build                |    1 +
+ .../build-script-build-script-build.json           |    1 +
+ .../dep-build-script-build-script-build            |  Bin 0 -> 8 bytes
+ .../libm-d81fac63fe56db0a/invoked.timestamp        |    1 +
+ .../dep-lib-proc_macro2                            |  Bin 0 -> 8 bytes
+ .../proc-macro2-35a3816d9d500c2e/invoked.timestamp |    1 +
+ .../proc-macro2-35a3816d9d500c2e/lib-proc_macro2   |    1 +
+ .../lib-proc_macro2.json                           |    1 +
+ .../build-script-build-script-build                |    1 +
+ .../build-script-build-script-build.json           |    1 +
+ .../dep-build-script-build-script-build            |  Bin 0 -> 8 bytes
+ .../proc-macro2-540c1dc3a35a0cf8/invoked.timestamp |    1 +
+ .../run-build-script-build-script-build            |    1 +
+ .../run-build-script-build-script-build.json       |    1 +
+ .../build-script-build-script-build                |    1 +
+ .../build-script-build-script-build.json           |    1 +
+ .../dep-build-script-build-script-build            |  Bin 0 -> 8 bytes
+ .../quote-2399d41953aeb45a/invoked.timestamp       |    1 +
+ .../quote-c3b936c16cc65639/dep-lib-quote           |  Bin 0 -> 8 bytes
+ .../quote-c3b936c16cc65639/invoked.timestamp       |    1 +
+ .../.fingerprint/quote-c3b936c16cc65639/lib-quote  |    1 +
+ .../quote-c3b936c16cc65639/lib-quote.json          |    1 +
+ .../run-build-script-build-script-build            |    1 +
+ .../run-build-script-build-script-build.json       |    1 +
+ .../dep-lib-rustversion                            |  Bin 0 -> 72 bytes
+ .../rustversion-623b4cec9b9b2e79/invoked.timestamp |    1 +
+ .../rustversion-623b4cec9b9b2e79/lib-rustversion   |    1 +
+ .../lib-rustversion.json                           |    1 +
+ .../run-build-script-build-script-build            |    1 +
+ .../run-build-script-build-script-build.json       |    1 +
+ .../build-script-build-script-build                |    1 +
+ .../build-script-build-script-build.json           |    1 +
+ .../dep-build-script-build-script-build            |  Bin 0 -> 8 bytes
+ .../rustversion-d3d10db382179814/invoked.timestamp |    1 +
+ .../.fingerprint/syn-8952a58d521ca45f/dep-lib-syn  |  Bin 0 -> 8 bytes
+ .../syn-8952a58d521ca45f/invoked.timestamp         |    1 +
+ .../.fingerprint/syn-8952a58d521ca45f/lib-syn      |    1 +
+ .../.fingerprint/syn-8952a58d521ca45f/lib-syn.json |    1 +
+ .../dep-lib-unicode_ident                          |  Bin 0 -> 8 bytes
+ .../invoked.timestamp                              |    1 +
+ .../lib-unicode_ident                              |    1 +
+ .../lib-unicode_ident.json                         |    1 +
+ .../build-script-build-script-build                |    1 +
+ .../build-script-build-script-build.json           |    1 +
+ .../dep-build-script-build-script-build            |  Bin 0 -> 8 bytes
+ .../invoked.timestamp                              |    1 +
+ .../dep-lib-wasm_bindgen_macro                     |  Bin 0 -> 8 bytes
+ .../invoked.timestamp                              |    1 +
+ .../lib-wasm_bindgen_macro                         |    1 +
+ .../lib-wasm_bindgen_macro.json                    |    1 +
+ .../dep-lib-wasm_bindgen_macro_support             |  Bin 0 -> 8 bytes
+ .../invoked.timestamp                              |    1 +
+ .../lib-wasm_bindgen_macro_support                 |    1 +
+ .../lib-wasm_bindgen_macro_support.json            |    1 +
+ .../run-build-script-build-script-build            |    1 +
+ .../run-build-script-build-script-build.json       |    1 +
+ .../dep-lib-wasm_bindgen_shared                    |  Bin 0 -> 24 bytes
+ .../invoked.timestamp                              |    1 +
+ .../lib-wasm_bindgen_shared                        |    1 +
+ .../lib-wasm_bindgen_shared.json                   |    1 +
+ .../build-script-build-script-build                |    1 +
+ .../build-script-build-script-build.json           |    1 +
+ .../dep-build-script-build-script-build            |  Bin 0 -> 8 bytes
+ .../invoked.timestamp                              |    1 +
+ .../build/libm-d81fac63fe56db0a/build-script-build |  Bin 0 -> 567952 bytes
+ .../build_script_build-d81fac63fe56db0a            |  Bin 0 -> 567952 bytes
+ .../build_script_build-d81fac63fe56db0a.d          |    6 +
+ .../build-script-build                             |  Bin 0 -> 642920 bytes
+ .../build_script_build-540c1dc3a35a0cf8            |  Bin 0 -> 642920 bytes
+ .../build_script_build-540c1dc3a35a0cf8.d          |    5 +
+ .../proc-macro2-ecc0a1297151b34e/invoked.timestamp |    1 +
+ .../build/proc-macro2-ecc0a1297151b34e/output      |    5 +
+ .../build/proc-macro2-ecc0a1297151b34e/root-output |    1 +
+ .../build/proc-macro2-ecc0a1297151b34e/stderr      |    0
+ .../quote-2399d41953aeb45a/build-script-build      |  Bin 0 -> 575736 bytes
+ .../build_script_build-2399d41953aeb45a            |  Bin 0 -> 575736 bytes
+ .../build_script_build-2399d41953aeb45a.d          |    5 +
+ .../build/quote-f2b6eb0c4185f3bc/invoked.timestamp |    1 +
+ .../release/build/quote-f2b6eb0c4185f3bc/output    |    3 +
+ .../build/quote-f2b6eb0c4185f3bc/root-output       |    1 +
+ .../release/build/quote-f2b6eb0c4185f3bc/stderr    |    0
+ .../rustversion-b22f0df793793a65/invoked.timestamp |    1 +
+ .../rustversion-b22f0df793793a65/out/version.expr  |    5 +
+ .../build/rustversion-b22f0df793793a65/output      |    1 +
+ .../build/rustversion-b22f0df793793a65/root-output |    1 +
+ .../build/rustversion-b22f0df793793a65/stderr      |    0
+ .../build-script-build                             |  Bin 0 -> 629360 bytes
+ .../build_script_build-d3d10db382179814            |  Bin 0 -> 629360 bytes
+ .../build_script_build-d3d10db382179814.d          |    6 +
+ .../build-script-build                             |  Bin 0 -> 502976 bytes
+ .../build_script_build-831cc42f802fff0a            |  Bin 0 -> 502976 bytes
+ .../build_script_build-831cc42f802fff0a.d          |    5 +
+ .../invoked.timestamp                              |    1 +
+ .../wasm-bindgen-shared-1590068ac4b97b24/output    |    1 +
+ .../root-output                                    |    1 +
+ .../wasm-bindgen-shared-1590068ac4b97b24/stderr    |    0
+ .../build-script-build                             |  Bin 0 -> 585728 bytes
+ .../build_script_build-d4b002b4020c1250            |  Bin 0 -> 585728 bytes
+ .../build_script_build-d4b002b4020c1250.d          |    5 +
+ .../release/deps/bumpalo-d122384f2ca052c2.d        |    9 +
+ .../release/deps/libbumpalo-d122384f2ca052c2.rlib  |  Bin 0 -> 343916 bytes
+ .../release/deps/libbumpalo-d122384f2ca052c2.rmeta |  Bin 0 -> 282135 bytes
+ .../deps/libproc_macro2-35a3816d9d500c2e.rlib      |  Bin 0 -> 1161128 bytes
+ .../deps/libproc_macro2-35a3816d9d500c2e.rmeta     |  Bin 0 -> 331840 bytes
+ .../release/deps/libquote-c3b936c16cc65639.rlib    |  Bin 0 -> 494450 bytes
+ .../release/deps/libquote-c3b936c16cc65639.rmeta   |  Bin 0 -> 265064 bytes
+ .../deps/librustversion-623b4cec9b9b2e79.so        |  Bin 0 -> 902104 bytes
+ .../release/deps/libsyn-8952a58d521ca45f.rlib      |  Bin 0 -> 11829244 bytes
+ .../release/deps/libsyn-8952a58d521ca45f.rmeta     |  Bin 0 -> 4649639 bytes
+ .../deps/libunicode_ident-971cbe351d043c8d.rlib    |  Bin 0 -> 177148 bytes
+ .../deps/libunicode_ident-971cbe351d043c8d.rmeta   |  Bin 0 -> 160749 bytes
+ .../deps/libwasm_bindgen_macro-e180468ef0646db1.so |  Bin 0 -> 6115104 bytes
+ ...asm_bindgen_macro_support-083289cf33b0454d.rlib |  Bin 0 -> 7316666 bytes
+ ...sm_bindgen_macro_support-083289cf33b0454d.rmeta |  Bin 0 -> 882524 bytes
+ .../libwasm_bindgen_shared-79c16c866d1e45b8.rlib   |  Bin 0 -> 330980 bytes
+ .../libwasm_bindgen_shared-79c16c866d1e45b8.rmeta  |  Bin 0 -> 96531 bytes
+ .../release/deps/proc_macro2-35a3816d9d500c2e.d    |   15 +
+ .../release/deps/quote-c3b936c16cc65639.d          |   13 +
+ .../release/deps/rustversion-623b4cec9b9b2e79.d    |   20 +
+ .../release/deps/syn-8952a58d521ca45f.d            |   59 +
+ .../release/deps/unicode_ident-971cbe351d043c8d.d  |    8 +
+ .../deps/wasm_bindgen_macro-e180468ef0646db1.d     |    5 +
+ .../wasm_bindgen_macro_support-083289cf33b0454d.d  |   14 +
+ .../deps/wasm_bindgen_shared-79c16c866d1e45b8.d    |   12 +
+ .../wasm32-unknown-unknown/CACHEDIR.TAG            |    3 +
+ .../wasm32-unknown-unknown/release/.cargo-lock     |    0
+ .../cfg-if-8e0689e5c3a1ef36/dep-lib-cfg_if         |  Bin 0 -> 8 bytes
+ .../cfg-if-8e0689e5c3a1ef36/invoked.timestamp      |    1 +
+ .../cfg-if-8e0689e5c3a1ef36/lib-cfg_if             |    1 +
+ .../cfg-if-8e0689e5c3a1ef36/lib-cfg_if.json        |    1 +
+ .../getrandom-5d7f2c37652ff89b/dep-lib-getrandom   |  Bin 0 -> 8 bytes
+ .../getrandom-5d7f2c37652ff89b/invoked.timestamp   |    1 +
+ .../getrandom-5d7f2c37652ff89b/lib-getrandom       |    1 +
+ .../getrandom-5d7f2c37652ff89b/lib-getrandom.json  |    1 +
+ .../js-sys-d67fb5ef1cf00501/dep-lib-js_sys         |  Bin 0 -> 8 bytes
+ .../js-sys-d67fb5ef1cf00501/invoked.timestamp      |    1 +
+ .../js-sys-d67fb5ef1cf00501/lib-js_sys             |    1 +
+ .../js-sys-d67fb5ef1cf00501/lib-js_sys.json        |    1 +
+ .../run-build-script-build-script-build            |    1 +
+ .../run-build-script-build-script-build.json       |    1 +
+ .../libm-c5e71818e39c328f/dep-lib-libm             |  Bin 0 -> 8 bytes
+ .../libm-c5e71818e39c328f/invoked.timestamp        |    1 +
+ .../.fingerprint/libm-c5e71818e39c328f/lib-libm    |    1 +
+ .../libm-c5e71818e39c328f/lib-libm.json            |    1 +
+ .../once_cell-963bcd24c9e2b185/dep-lib-once_cell   |  Bin 0 -> 8 bytes
+ .../once_cell-963bcd24c9e2b185/invoked.timestamp   |    1 +
+ .../once_cell-963bcd24c9e2b185/lib-once_cell       |    1 +
+ .../once_cell-963bcd24c9e2b185/lib-once_cell.json  |    1 +
+ .../invoked.timestamp                              |    1 +
+ .../output-lib-ternary-math                        |    6 +
+ .../dep-lib-unicode_ident                          |  Bin 0 -> 8 bytes
+ .../invoked.timestamp                              |    1 +
+ .../lib-unicode_ident                              |    1 +
+ .../lib-unicode_ident.json                         |    1 +
+ .../run-build-script-build-script-build            |    1 +
+ .../run-build-script-build-script-build.json       |    1 +
+ .../dep-lib-wasm_bindgen                           |  Bin 0 -> 8 bytes
+ .../invoked.timestamp                              |    1 +
+ .../wasm-bindgen-805421c73b9b81ed/lib-wasm_bindgen |    1 +
+ .../lib-wasm_bindgen.json                          |    1 +
+ .../run-build-script-build-script-build            |    1 +
+ .../run-build-script-build-script-build.json       |    1 +
+ .../dep-lib-wasm_bindgen_shared                    |  Bin 0 -> 24 bytes
+ .../invoked.timestamp                              |    1 +
+ .../lib-wasm_bindgen_shared                        |    1 +
+ .../lib-wasm_bindgen_shared.json                   |    1 +
+ .../zeroize-4a323acdc7439a9b/dep-lib-zeroize       |  Bin 0 -> 8 bytes
+ .../zeroize-4a323acdc7439a9b/invoked.timestamp     |    1 +
+ .../zeroize-4a323acdc7439a9b/lib-zeroize           |    1 +
+ .../zeroize-4a323acdc7439a9b/lib-zeroize.json      |    1 +
+ .../build/libm-5c2045128700b20e/invoked.timestamp  |    1 +
+ .../release/build/libm-5c2045128700b20e/output     |   14 +
+ .../build/libm-5c2045128700b20e/root-output        |    1 +
+ .../release/build/libm-5c2045128700b20e/stderr     |    0
+ .../invoked.timestamp                              |    1 +
+ .../build/wasm-bindgen-22f62c47251d3078/output     |    3 +
+ .../wasm-bindgen-22f62c47251d3078/root-output      |    1 +
+ .../build/wasm-bindgen-22f62c47251d3078/stderr     |    0
+ .../invoked.timestamp                              |    1 +
+ .../wasm-bindgen-shared-1cb9c4b0beac78a3/output    |    1 +
+ .../root-output                                    |    1 +
+ .../wasm-bindgen-shared-1cb9c4b0beac78a3/stderr    |    0
+ .../release/deps/cfg_if-8e0689e5c3a1ef36.d         |    7 +
+ .../release/deps/getrandom-5d7f2c37652ff89b.d      |   10 +
+ .../release/deps/js_sys-d67fb5ef1cf00501.d         |    7 +
+ .../release/deps/libcfg_if-8e0689e5c3a1ef36.rlib   |  Bin 0 -> 7762 bytes
+ .../release/deps/libcfg_if-8e0689e5c3a1ef36.rmeta  |  Bin 0 -> 5506 bytes
+ .../deps/libgetrandom-5d7f2c37652ff89b.rlib        |  Bin 0 -> 267094 bytes
+ .../deps/libgetrandom-5d7f2c37652ff89b.rmeta       |  Bin 0 -> 216130 bytes
+ .../release/deps/libjs_sys-d67fb5ef1cf00501.rlib   |  Bin 0 -> 12580238 bytes
+ .../release/deps/libjs_sys-d67fb5ef1cf00501.rmeta  |  Bin 0 -> 10197269 bytes
+ .../release/deps/liblibm-c5e71818e39c328f.rlib     |  Bin 0 -> 1524856 bytes
+ .../release/deps/liblibm-c5e71818e39c328f.rmeta    |  Bin 0 -> 1247530 bytes
+ .../release/deps/libm-c5e71818e39c328f.d           |  145 +
+ .../deps/libonce_cell-963bcd24c9e2b185.rlib        |  Bin 0 -> 79010 bytes
+ .../deps/libonce_cell-963bcd24c9e2b185.rmeta       |  Bin 0 -> 76743 bytes
+ .../release/deps/libternary_math.rlib              |  Bin 0 -> 4583186 bytes
+ .../deps/libunicode_ident-094ecb84fc7443d5.rlib    |  Bin 0 -> 194404 bytes
+ .../deps/libunicode_ident-094ecb84fc7443d5.rmeta   |  Bin 0 -> 170764 bytes
+ .../deps/libwasm_bindgen-805421c73b9b81ed.rlib     |  Bin 0 -> 2854574 bytes
+ .../deps/libwasm_bindgen-805421c73b9b81ed.rmeta    |  Bin 0 -> 2704117 bytes
+ .../libwasm_bindgen_shared-f34988d1dd038eab.rlib   |  Bin 0 -> 176558 bytes
+ .../libwasm_bindgen_shared-f34988d1dd038eab.rmeta  |  Bin 0 -> 96970 bytes
+ .../release/deps/libzeroize-4a323acdc7439a9b.rlib  |  Bin 0 -> 141500 bytes
+ .../release/deps/libzeroize-4a323acdc7439a9b.rmeta |  Bin 0 -> 127043 bytes
+ .../release/deps/once_cell-963bcd24c9e2b185.d      |    7 +
+ .../deps/ternary_math.2s7r3g5uijrioxy9.rcgu.o      |  Bin 0 -> 3584 bytes
+ .../release/deps/ternary_math.d                    |   30 +
+ ...math.ternary_math.28bd8500c2dd0a8d-cgu.0.rcgu.o |  Bin 0 -> 1830844 bytes
+ .../release/deps/unicode_ident-094ecb84fc7443d5.d  |    8 +
+ .../release/deps/wasm_bindgen-805421c73b9b81ed.d   |   21 +
+ .../deps/wasm_bindgen_shared-f34988d1dd038eab.d    |   12 +
+ .../release/deps/zeroize-4a323acdc7439a9b.d        |    7 +
+ tools/plenum-launcher/Cargo.toml                   |    4 +-
+ tools/plenum-launcher/src/main.rs                  |  290 +-
+ 340 files changed, 28488 insertions(+), 3705 deletions(-)
+ create mode 100644 VERSION
+ create mode 100644 attached_assets/Pasted--7-COPRIME-WALK-LANDSCAPE-TM-2-1775404909586_1775404909587.txt
+ create mode 100644 attached_assets/Pasted--7-Coprime-Walk-Landscape-8-CCP-Bridge-Analysis-Complet_1775406861231.txt
+ create mode 100644 attached_assets/Pasted--Copyright-c-2025-2026-Capomastro-Holdings-Ltd-Canada-P_1775409895815.txt
+ create mode 100644 attached_assets/Pasted--Copyright-c-2025-2026-Capomastro-Holdings-Ltd-Canada-P_1775409908583.txt
+ create mode 100644 attached_assets/Pasted--Copyright-c-2025-2026-Capomastro-Holdings-Ltd-Canada-P_1775413915638.txt
+ create mode 100644 attached_assets/Pasted--Copyright-c-2025-2026-Capomastro-Holdings-Ltd-Canada-P_1775415367330.txt
+ create mode 100644 attached_assets/Pasted--New-Perfect-Hash-for-2D-3D-Spatial-Data-Indexing-Deriv_1775380288467.txt
+ create mode 100644 attached_assets/Pasted--New-Perfect-Hash-for-2D-3D-Spatial-Data-Indexing-Deriv_1775380338188.txt
+ create mode 100644 attached_assets/Pasted--New-Perfect-Hash-for-2D-3D-Spatial-Data-Indexing-Deriv_1775386376329.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-Extended-Geometric-Framework-From-the-Axiom-_1775375846648.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-HModal-Signaling-Architecture-Coprime-Walk-S_1775386404601.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-MSI-Installer-Capomastro-Holdings-Ltd-Applie_1775359271351.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-MSI-Installer-Capomastro-Holdings-Ltd-Applie_1775362035668.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-MSI-Installer-Capomastro-Holdings-Ltd-Applie_1775363108685.txt
+ create mode 100644 attached_assets/Pasted--PlenumNET-MSI-Installer-Capomastro-Holdings-Ltd-Applie_1775366262713.txt
+ create mode 100644 attached_assets/Pasted--TM-2026-030-v3-TTC-v5-0-Protocol-Specification-Tribona_1775415353740.txt
+ create mode 100644 attached_assets/Pasted--WASM-Bridge-Implementation-Complete-Instructions-Crate_1775416133338.txt
+ create mode 100644 attached_assets/Pasted--WASM-Bridge-Implementation-Complete-Instructions-Crate_1775417263627.txt
+ create mode 100644 attached_assets/Pasted-All-six-issues-from-the-previous-review-are-correctly-r_1775389793479.txt
+ create mode 100644 attached_assets/Pasted-Here-s-the-complete-edit-list-All-required-edits-to-Tas_1775391845542.txt
+ create mode 100644 attached_assets/Pasted-Here-s-the-complete-review-One-critical-finding-not-in-_1775390998574.txt
+ create mode 100644 attached_assets/Pasted-Missing-entirely-from-the-spec-It-should-be-there-it-s-_1775388038849.txt
+ create mode 100644 attached_assets/Pasted-Missing-entirely-from-the-spec-It-should-be-there-it-s-_1775389602719.txt
+ create mode 100644 attached_assets/Pasted-New-Perfect-Hash-for-2D-3D-Spatial-Data-Indexing-Derive_1775379784829.txt
+ create mode 100644 attached_assets/Pasted-Nine-IMPORTANT-five-MINOR-Let-me-work-through-every-one_1775414920507.txt
+ create mode 100644 attached_assets/Pasted-Now-the-main-file-I-ll-write-the-full-wasm-exports-rs-t_1775415460117.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775359785089_1775359785090.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775363290238_1775363290239.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775365641488_1775365641488.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775386004881_1775386004882.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775396031170_1775396031171.txt
+ create mode 100644 attached_assets/Pasted-Solid-spec-Salvi-The-structure-is-clean-the-derivation-_1775387883651.txt
+ create mode 100644 attached_assets/Pasted-The-Plenum-Square-is-Lo-Shu-22-CENTER-Everything-connec_1775393215639.txt
+ create mode 100644 attached_assets/Pasted-This-is-deeper-than-a-trit-constant-The-HModal-signal-m_1775392204004.txt
+ create mode 100644 attached_assets/Pasted-This-is-well-structured-The-task-decomposition-is-clean_1775380022792.txt
+ create mode 100644 attached_assets/Pasted-Three-errors-found-Error-1-MAGIC-CONSTANT-assertion-is-_1775387482585.txt
+ create mode 100644 attached_assets/Pasted-Two-rules-cleanly-separated-Rule-1-No-assert-in-product_1775393629379.txt
+ create mode 100644 attached_assets/Pasted-Use-this-framework-Part-1-A-Framework-for-Synthesis-The_1775383541561.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775402851712.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775418781870.txt
+ create mode 100644 attached_assets/Pasted-warning-profiles-for-the-non-root-package-will-be-ignor_1775363187528.txt
+ create mode 100644 attached_assets/PlenumNET_HModal_Signaling_1775379027120.md
+ create mode 100644 attached_assets/PlenumNET_HModal_Signaling_1775379045508.md
+ create mode 100644 attached_assets/TM-2026-017-v6_PlenumNET_1775376159126.md
+ create mode 100644 attached_assets/TM-2026-017-v6_PlenumNET_1775378092860.md
+ create mode 100644 attached_assets/TM-2026-017-v6_PlenumNET_1775379020540.md
+ create mode 100644 attached_assets/TM-2026-017-v6_PlenumNET_1775379761151.md
+ create mode 100644 attached_assets/WASSM_files_1775414334105.zip
+ create mode 100644 attached_assets/WASSM_files_1775414622109.zip
+ create mode 100644 attached_assets/WASSM_files_1775415477853.zip
+ create mode 100644 attached_assets/array3-monitor-v9.4.4_1775375517817.html
+ create mode 100644 attached_assets/branding-1775365824341.json
+ create mode 100644 attached_assets/content-1775365825804.md
+ create mode 100644 attached_assets/content-1775365843217.md
+ create mode 100644 attached_assets/favicon.png
+ create mode 100644 attached_assets/image_1775365820699.png
+ create mode 100644 attached_assets/image_1775386055903.png
+ create mode 100644 attached_assets/ogImage.png
+ create mode 100644 attached_assets/screenshot-1775365828172.png
+ create mode 100644 attached_assets/screenshot-1775365836619.png
+ create mode 100644 docs/monographs/TM-2026-028-HModal-Signaling-Architecture.md
+ create mode 100644 docs/monographs/TM-2026-028a-Perfect-Hash-Spatial-Indexing.md
+ create mode 100755 rust-1.77.2-x86_64-unknown-linux-gnu/rustc/lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld
+ create mode 100755 rustc-1.77.2-x86_64-unknown-linux-gnu/rustc/lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld
+ create mode 100644 scripts/build-wasm.ps1
+ create mode 100755 scripts/deploy-clean.sh
+ create mode 100644 services/inter-cube/build.rs
+ create mode 100644 ternary-math/CI.md
+ create mode 100644 ternary-math/Makefile
+ create mode 100644 ternary-math/target_wasm/.rustc_info.json
+ create mode 100644 ternary-math/target_wasm/CACHEDIR.TAG
+ create mode 100644 ternary-math/target_wasm/release/.cargo-lock
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/dep-lib-bumpalo
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/lib-bumpalo
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/lib-bumpalo.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/dep-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/dep-lib-proc_macro2
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/lib-proc_macro2
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/lib-proc_macro2.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/dep-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-ecc0a1297151b34e/run-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-ecc0a1297151b34e/run-build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/dep-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/dep-lib-quote
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/lib-quote
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/lib-quote.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-f2b6eb0c4185f3bc/run-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-f2b6eb0c4185f3bc/run-build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/dep-lib-rustversion
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/lib-rustversion
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/lib-rustversion.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-b22f0df793793a65/run-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-b22f0df793793a65/run-build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/dep-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/dep-lib-syn
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/lib-syn
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/lib-syn.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/dep-lib-unicode_ident
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/lib-unicode_ident
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/lib-unicode_ident.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/dep-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/dep-lib-wasm_bindgen_macro
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/lib-wasm_bindgen_macro
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/lib-wasm_bindgen_macro.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/dep-lib-wasm_bindgen_macro_support
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/lib-wasm_bindgen_macro_support
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/lib-wasm_bindgen_macro_support.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-1590068ac4b97b24/run-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-1590068ac4b97b24/run-build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/dep-lib-wasm_bindgen_shared
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/lib-wasm_bindgen_shared
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/lib-wasm_bindgen_shared.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/dep-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/invoked.timestamp
+ create mode 100755 ternary-math/target_wasm/release/build/libm-d81fac63fe56db0a/build-script-build
+ create mode 100755 ternary-math/target_wasm/release/build/libm-d81fac63fe56db0a/build_script_build-d81fac63fe56db0a
+ create mode 100644 ternary-math/target_wasm/release/build/libm-d81fac63fe56db0a/build_script_build-d81fac63fe56db0a.d
+ create mode 100755 ternary-math/target_wasm/release/build/proc-macro2-540c1dc3a35a0cf8/build-script-build
+ create mode 100755 ternary-math/target_wasm/release/build/proc-macro2-540c1dc3a35a0cf8/build_script_build-540c1dc3a35a0cf8
+ create mode 100644 ternary-math/target_wasm/release/build/proc-macro2-540c1dc3a35a0cf8/build_script_build-540c1dc3a35a0cf8.d
+ create mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/output
+ create mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/root-output
+ create mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/stderr
+ create mode 100755 ternary-math/target_wasm/release/build/quote-2399d41953aeb45a/build-script-build
+ create mode 100755 ternary-math/target_wasm/release/build/quote-2399d41953aeb45a/build_script_build-2399d41953aeb45a
+ create mode 100644 ternary-math/target_wasm/release/build/quote-2399d41953aeb45a/build_script_build-2399d41953aeb45a.d
+ create mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/output
+ create mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/root-output
+ create mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/stderr
+ create mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/out/version.expr
+ create mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/output
+ create mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/root-output
+ create mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/stderr
+ create mode 100755 ternary-math/target_wasm/release/build/rustversion-d3d10db382179814/build-script-build
+ create mode 100755 ternary-math/target_wasm/release/build/rustversion-d3d10db382179814/build_script_build-d3d10db382179814
+ create mode 100644 ternary-math/target_wasm/release/build/rustversion-d3d10db382179814/build_script_build-d3d10db382179814.d
+ create mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-831cc42f802fff0a/build-script-build
+ create mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-831cc42f802fff0a/build_script_build-831cc42f802fff0a
+ create mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-831cc42f802fff0a/build_script_build-831cc42f802fff0a.d
+ create mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/output
+ create mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/root-output
+ create mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/stderr
+ create mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-shared-d4b002b4020c1250/build-script-build
+ create mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-shared-d4b002b4020c1250/build_script_build-d4b002b4020c1250
+ create mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-d4b002b4020c1250/build_script_build-d4b002b4020c1250.d
+ create mode 100644 ternary-math/target_wasm/release/deps/bumpalo-d122384f2ca052c2.d
+ create mode 100644 ternary-math/target_wasm/release/deps/libbumpalo-d122384f2ca052c2.rlib
+ create mode 100644 ternary-math/target_wasm/release/deps/libbumpalo-d122384f2ca052c2.rmeta
+ create mode 100644 ternary-math/target_wasm/release/deps/libproc_macro2-35a3816d9d500c2e.rlib
+ create mode 100644 ternary-math/target_wasm/release/deps/libproc_macro2-35a3816d9d500c2e.rmeta
+ create mode 100644 ternary-math/target_wasm/release/deps/libquote-c3b936c16cc65639.rlib
+ create mode 100644 ternary-math/target_wasm/release/deps/libquote-c3b936c16cc65639.rmeta
+ create mode 100755 ternary-math/target_wasm/release/deps/librustversion-623b4cec9b9b2e79.so
+ create mode 100644 ternary-math/target_wasm/release/deps/libsyn-8952a58d521ca45f.rlib
+ create mode 100644 ternary-math/target_wasm/release/deps/libsyn-8952a58d521ca45f.rmeta
+ create mode 100644 ternary-math/target_wasm/release/deps/libunicode_ident-971cbe351d043c8d.rlib
+ create mode 100644 ternary-math/target_wasm/release/deps/libunicode_ident-971cbe351d043c8d.rmeta
+ create mode 100755 ternary-math/target_wasm/release/deps/libwasm_bindgen_macro-e180468ef0646db1.so
+ create mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_macro_support-083289cf33b0454d.rlib
+ create mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_macro_support-083289cf33b0454d.rmeta
+ create mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_shared-79c16c866d1e45b8.rlib
+ create mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_shared-79c16c866d1e45b8.rmeta
+ create mode 100644 ternary-math/target_wasm/release/deps/proc_macro2-35a3816d9d500c2e.d
+ create mode 100644 ternary-math/target_wasm/release/deps/quote-c3b936c16cc65639.d
+ create mode 100644 ternary-math/target_wasm/release/deps/rustversion-623b4cec9b9b2e79.d
+ create mode 100644 ternary-math/target_wasm/release/deps/syn-8952a58d521ca45f.d
+ create mode 100644 ternary-math/target_wasm/release/deps/unicode_ident-971cbe351d043c8d.d
+ create mode 100644 ternary-math/target_wasm/release/deps/wasm_bindgen_macro-e180468ef0646db1.d
+ create mode 100644 ternary-math/target_wasm/release/deps/wasm_bindgen_macro_support-083289cf33b0454d.d
+ create mode 100644 ternary-math/target_wasm/release/deps/wasm_bindgen_shared-79c16c866d1e45b8.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/CACHEDIR.TAG
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.cargo-lock
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/dep-lib-cfg_if
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/lib-cfg_if
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/lib-cfg_if.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/dep-lib-getrandom
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/lib-getrandom
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/lib-getrandom.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/dep-lib-js_sys
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/lib-js_sys
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/lib-js_sys.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-5c2045128700b20e/run-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-5c2045128700b20e/run-build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/dep-lib-libm
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/lib-libm
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/lib-libm.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/dep-lib-once_cell
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/lib-once_cell
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/lib-once_cell.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/ternary-math-4a28abf846e43010/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/ternary-math-4a28abf846e43010/output-lib-ternary-math
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/dep-lib-unicode_ident
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/lib-unicode_ident
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/lib-unicode_ident.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-22f62c47251d3078/run-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-22f62c47251d3078/run-build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/dep-lib-wasm_bindgen
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/lib-wasm_bindgen
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/lib-wasm_bindgen.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-1cb9c4b0beac78a3/run-build-script-build-script-build
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-1cb9c4b0beac78a3/run-build-script-build-script-build.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/dep-lib-wasm_bindgen_shared
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/lib-wasm_bindgen_shared
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/lib-wasm_bindgen_shared.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/dep-lib-zeroize
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/lib-zeroize
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/lib-zeroize.json
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/output
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/root-output
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/stderr
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/output
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/root-output
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/stderr
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/invoked.timestamp
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/output
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/root-output
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/stderr
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/cfg_if-8e0689e5c3a1ef36.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/getrandom-5d7f2c37652ff89b.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/js_sys-d67fb5ef1cf00501.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libcfg_if-8e0689e5c3a1ef36.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libcfg_if-8e0689e5c3a1ef36.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libgetrandom-5d7f2c37652ff89b.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libgetrandom-5d7f2c37652ff89b.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libjs_sys-d67fb5ef1cf00501.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libjs_sys-d67fb5ef1cf00501.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/liblibm-c5e71818e39c328f.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/liblibm-c5e71818e39c328f.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libm-c5e71818e39c328f.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libonce_cell-963bcd24c9e2b185.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libonce_cell-963bcd24c9e2b185.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libternary_math.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libunicode_ident-094ecb84fc7443d5.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libunicode_ident-094ecb84fc7443d5.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen-805421c73b9b81ed.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen-805421c73b9b81ed.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen_shared-f34988d1dd038eab.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen_shared-f34988d1dd038eab.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libzeroize-4a323acdc7439a9b.rlib
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libzeroize-4a323acdc7439a9b.rmeta
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/once_cell-963bcd24c9e2b185.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/ternary_math.2s7r3g5uijrioxy9.rcgu.o
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/ternary_math.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/ternary_math.ternary_math.28bd8500c2dd0a8d-cgu.0.rcgu.o
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/unicode_ident-094ecb84fc7443d5.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/wasm_bindgen-805421c73b9b81ed.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/wasm_bindgen_shared-f34988d1dd038eab.d
+ create mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/zeroize-4a323acdc7439a9b.d
+PS C:\PlenumNET> .\scripts\build-wasm.ps1
+At C:\PlenumNET\scripts\build-wasm.ps1:127 char:1
++ } else {
++ ~
+Unexpected token '}' in expression or statement.
+At C:\PlenumNET\scripts\build-wasm.ps1:167 char:70
++ ...       Write-Warn "  cmd /c `"$($vcvars.FullName)`" amd64 `"&&`" power ...
++                                                                ~~
+The token '&&' is not a valid statement separator in this version.
+At C:\PlenumNET\scripts\build-wasm.ps1:249 char:17
++             try {
++                 ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:400 char:14
++ Write-Host ""
++              ~
+The Try statement is missing its Catch or Finally block.
+At C:\PlenumNET\scripts\build-wasm.ps1:248 char:22
++         if ($winget) {
++                      ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:217 char:21
++     if ($cmp -lt 0) {
++                     ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:214 char:33
++ if ($wasmPack -and -not $Force) {
++                                 ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:162 char:22
++         if ($vsPath) {
++                      ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:160 char:29
++     if (Test-Path $vsWhere) {
++                             ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:158 char:24
++ if (-not $hasCompiler) {
++                        ~
+Missing closing '}' in statement block or type definition.
+    + CategoryInfo          : ParserError: (:) [], ParseException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\PlenumNET>

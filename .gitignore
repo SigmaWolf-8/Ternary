@@ -5,6 +5,10 @@ server/public
 vite.config.ts.*
 *.tar.gz
 **/target/
+**/target_wasm/
+**/pkg/
+rust-1.77.2-*/
+rustc-1.77.2-*/
 
 # Confidential internal strategy documents — NEVER commit to public repo
 TRADEMARK-STRATEGY-INTERNAL.md
