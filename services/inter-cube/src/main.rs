@@ -1733,7 +1733,7 @@ fn spawn_relay_client(
                         if msg_type == "http_proxy_req" && from == "__relay_server__" {
                             const ALLOWED_PROXY_PATHS: &[&str] = &["/api/salvi/inter-cube/slots"];
                             let reply_tx = client.outgoing_tx.clone();
-                            let local_addr = address.clone();
+                            let local_addr: String = address.clone();
                             let local_port = api_port();
 
                             tokio::spawn(async move {
@@ -1753,7 +1753,7 @@ fn spawn_relay_client(
                                     let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
                                         msg_type: "relay".to_string(),
                                         relay_msg_type: Some("http_proxy_res".to_string()),
-                                        from: Some(local_addr.to_dotted()),
+                                        from: Some(local_addr.clone()),
                                         payload: Some(err_body.to_string()),
                                         to: None, address: None, public_key: None,
                                         nonce: None, signature: None, error: None,
@@ -1781,7 +1781,7 @@ fn spawn_relay_client(
                                     let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
                                         msg_type: "relay".to_string(),
                                         relay_msg_type: Some("http_proxy_res".to_string()),
-                                        from: Some(local_addr.to_dotted()),
+                                        from: Some(local_addr.clone()),
                                         payload: Some(err_body.to_string()),
                                         to: None, address: None, public_key: None,
                                         nonce: None, signature: None, error: None,
@@ -1800,7 +1800,7 @@ fn spawn_relay_client(
                                     let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
                                         msg_type: "relay".to_string(),
                                         relay_msg_type: Some("http_proxy_res".to_string()),
-                                        from: Some(local_addr.to_dotted()),
+                                        from: Some(local_addr.clone()),
                                         payload: Some(err_body.to_string()),
                                         to: None, address: None, public_key: None,
                                         nonce: None, signature: None, error: None,
@@ -1837,7 +1837,7 @@ fn spawn_relay_client(
                                 let _ = reply_tx.send(inter_cube::ws_relay::RelayEnvelope {
                                     msg_type: "relay".to_string(),
                                     relay_msg_type: Some("http_proxy_res".to_string()),
-                                    from: Some(local_addr.to_dotted()),
+                                    from: Some(local_addr.clone()),
                                     payload: Some(res_body.to_string()),
                                     to: None, address: None, public_key: None,
                                     nonce: None, signature: None, error: None,
