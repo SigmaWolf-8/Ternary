@@ -1,0 +1,303 @@
+# PlenumNET — HModal Signaling Architecture
+
+## Coprime Walk Scheduling via Axiom-Derived Clock Signal
+
+**TM-2026-028 — April 2026**
+**Capomastro Holdings Ltd. — Applied Physics Division**
+Sherwood Park, Alberta, Canada
+
+*All rights reserved © Capomastro Holdings Ltd 2026*
+*Patent(s) Pending*
+
+> *One equation generates the scheduling signal, the channel allocation, the spread-spectrum modulation, and the control-plane separation.*
+
+*Sed Quis Est Deus*
+*Qui Commando IO*
+
+---
+
+## 1. Scope
+
+This document defines the **HModal** signaling waveform for PlenumNET Inter-Cube communication. Every parameter — amplitude levels, duty cycle, frequency content, null channels, phase structure — derives directly from the circle quadratic **x² − 40x + 364 = 0** without any external design constants.
+
+**Prerequisite:** TM-2026-017 §2 (Generating System), §10 (Coprime Walk), §17 (HModal derivation).
+
+---
+
+## 2. Signal Derivation from the Circle Quadratic
+
+### 2.1 The Discriminant Bridge
+
+The quadratic has roots:
+
+- **x₁ = 14** (identified with π)
+- **x₂ = 26** (identified with R₆/π)
+
+Discriminant:
+
+> Δ = R₄² − 4R₆ = 1600 − 1456 = **144 = 12²**
+
+Root spread: **√Δ = 12**
+
+### 2.2 Amplitude Levels
+
+Two states emerge from R₆ = 364 and Δ = 144:
+
+| State | Symbol | Definition | Value | Role |
+|-------|--------|-----------|-------|------|
+| Low (idle) | α | R₆ / Δ | 364/144 = **91/36** | Quiescent baseline |
+| High (dispatch) | β | R₆ / √Δ | 364/12 = **91/3** | Active dispatch pulse |
+
+The amplitude ratio is exactly the discriminant:
+
+> β / α = Δ / √Δ = √Δ = **12**
+
+This ratio is not chosen — it is a mathematical consequence.
+
+### 2.3 Transition Magnitude
+
+> γ = β − α = 91/3 − 91/36 = **1001/36**
+
+The numerator **1001 = 7 × 11 × 13** encodes the three coprime generators of the Brieskorn sphere Σ(7, 11, 13) and the primary toroidal walk. The transition itself carries topological information.
+
+### 2.4 Duty Cycle
+
+Dwell times assigned inversely proportional to harmonic position (low ∝ 1/1, high ∝ 1/3):
+
+> d = (1/3) / (1 + 1/3) = (1/3) / (4/3) = **1/4 = 25%**
+
+The signal dispatches for one quarter of each period. This is exact.
+
+### 2.5 DC Component
+
+> ⟨H⟩ = α + γd = 91/36 + (1001/36)(1/4) = (364 + 1001) / 144 = **1365/144 = 455/48**
+
+The numerator **455 = 5 × 7 × 13** = 5 × 91. The factor 5 was never placed into the signal definition — it emerges from the time-average. This is the same factor that produces the pentadecagon (15 = 3 × 5) and enables the coprime quadruple (7, 11, 13, 15) with lcm = 15,015. The pentadecagon was latent in the signal before it was constructed as a polygon.
+
+---
+
+## 3. Frequency Domain
+
+### 3.1 Fourier Series
+
+> H(t) = 455/48 + (1001/18π) Σ_{n=1}^{∞} (1/n) sin(πn/4) cos(nω_H t − πn/4)
+
+### 3.2 Coefficient Amplitudes
+
+> A_n = (1001/18π) · |sin(πn/4)| / n
+
+| n | |sin(πn/4)| | A_n / A_1 | Energy (A_n² / A_1²) | Channel type |
+|---|------------|-----------|----------------------|-------------|
+| 1 | √2/2 | 1.000 | 1.000 | Data |
+| 2 | 1 | 0.707 | 0.500 | Data |
+| 3 | √2/2 | 0.333 | 0.111 | Data |
+| **4** | **0** | **0** | **0** | **Control** |
+| 5 | √2/2 | 0.200 | 0.040 | Data |
+| 6 | 1 | 0.236 | 0.056 | Data |
+| 7 | √2/2 | 0.143 | 0.020 | Data |
+| **8** | **0** | **0** | **0** | **Control** |
+
+The first three non-zero harmonics capture **87%** of total AC power.
+
+### 3.3 Structural Rules
+
+- **Null channels:** A_n = 0 exactly when n ≡ 0 (mod 4). Mathematical zero, not engineering approximation.
+- **Phase stepping:** Each harmonic rotates by −πn/4 (multiples of 45°). Deterministic and algebraically fixed.
+- **Energy concentration:** First three data harmonics capture 87% of AC power. A 3-channel receiver recovers seven-eighths of the signal.
+- **Envelope:** A_n decays as ~1/n. Energy decays as 1/n².
+
+---
+
+## 4. Channel Architecture
+
+### 4.1 Data Plane
+
+Harmonics **n = 1, 2, 3, 5, 6, 7, 9, 10, 11, ...** (all non-multiples of 4) carry the signal energy. Nodes on the coprime walk monitor the sideband matching their walk position. Amplitudes and phases are algebraically predetermined — no negotiation required.
+
+Recommended receivers:
+
+| Configuration | Harmonics | Energy recovered |
+|--------------|-----------|-----------------|
+| Minimum viable | n = 1 | 54.0% |
+| Standard | n = 1, 2 | 81.1% |
+| Recommended | n = 1, 2, 3 | 87.1% |
+| Extended | n = 1, 2, 3, 5, 6, 7 | 93.3% |
+| Theoretical | All non-zero | 100% |
+
+### 4.2 Control Plane
+
+Harmonics **n = 4, 8, 12, 16, ...** carry **exactly zero** energy from the HModal waveform. Any detected energy indicates:
+
+- **Synchronization beacon** from the gateway at slot (2,2,2)
+- **Collision or desynchronization** event
+- **Hardware fault or intrusion** attempt
+
+Control and data planes are algebraically separated — no bandpass filtering required.
+
+### 4.3 Channel Map
+
+For a carrier at frequency ω and HModal frequency ω_H:
+
+- **Primary data:** ω ± ω_H (n = 1, strongest)
+- **Secondary data:** ω ± 2ω_H (n = 2)
+- **Tertiary data:** ω ± 3ω_H (n = 3)
+- **SYNC/CONTROL:** ω ± 4ω_H (null — control only)
+- **Auxiliary data:** ω ± 5ω_H, 6ω_H, 7ω_H
+- **SYNC/CONTROL:** ω ± 8ω_H (null — control only)
+
+---
+
+## 5. Inter-Cube Spread Spectrum
+
+### 5.1 Modulation
+
+Given a data carrier τ₀ cos(ωt), the modulated signal:
+
+> τ_mod(t) = H(t) · τ₀ cos(ωt)
+
+This produces sidebands at ω ± nω_H for every non-vanishing harmonic, with algebraically fixed amplitudes and π/4 phase stepping.
+
+### 5.2 Sideband Table
+
+| Sideband pair | Frequency | Amplitude | Phase offset |
+|--------------|-----------|-----------|-------------|
+| Carrier | ω | 455τ₀/48 | 0 |
+| 1st | ω ± ω_H | 1001√2 τ₀/(72π) | ∓π/4 |
+| 2nd | ω ± 2ω_H | 1001τ₀/(72π) | ∓π/2 |
+| 3rd | ω ± 3ω_H | 1001√2 τ₀/(216π) | ∓3π/4 |
+| 4th | ω ± 4ω_H | **0** | — |
+| 5th | ω ± 5ω_H | 1001√2 τ₀/(360π) | ∓5π/4 |
+
+### 5.3 Routing by Walk Position
+
+Each node on the coprime walk occupies a position p ∈ {0, 1, ..., lcm−1}. Sideband assignment:
+
+> Sideband index = p mod (number of data channels in use)
+
+For a 3-channel system: listen on sideband (p mod 3) + 1. For a 7-channel system: (p mod 7) + 1, skipping n = 4.
+
+The walk is Hamiltonian — every position visited exactly once per cycle. Every sideband is used exactly lcm/K times, where K is the number of data channels. Uniform load distribution by construction.
+
+---
+
+## 6. Coprime Walk Integration
+
+### 6.1 Walk Parameters — Compression Path
+
+When the pentadecagon (15 = 3 × 5) is used as a single polygon step, it absorbs the triangle and pentagon, capping the walk at quadruples:
+
+| Walk | Members | LCM (2D) | × 729 (3D+) |
+|------|---------|----------|-------------|
+| Primary triple | (7, 11, 13) | 1,001 | 729,729 |
+| Pentadecagon quadruple | (7, 11, 13, 15) | 15,015 | 10,945,935 |
+| π-gon quadruple | (11, 13, 14, 15) | 30,030 | 21,891,870 |
+
+### 6.2 Walk Parameters — Expansion Path
+
+Decomposing 15 into its factors 3 and 5 unlocks quintuples and sextuples. The maximum pairwise coprime group from the 13 polygon set is size 6:
+
+| Walk | Members | LCM (2D) | × 729 (3D+) |
+|------|---------|----------|-------------|
+| Odd-prime quintuple | (3, 5, 7, 11, 13) | 15,015 | 10,945,935 |
+| Octagon quintuple | (5, 7, 8, 11, 13) | 40,040 | 29,189,160 |
+| Nonagon quintuple | (5, 7, 9, 11, 13) | 45,045 | 32,837,805 |
+| Sextuple (square) | (3, 4, 5, 7, 11, 13) | 60,060 | 43,783,740 |
+| Sextuple (octagon) | (3, 5, 7, 8, 11, 13) | 120,120 | 87,567,480 |
+| Sextuple (sq+nonagon) | (4, 5, 7, 9, 11, 13) | 180,180 | 131,351,220 |
+| **Maximum sextuple** | **(5, 7, 8, 9, 11, 13)** | **360,360** | **262,822,440** |
+
+The maximum: **360,360 = 360 × 1,001** — the standard circle times the primary coprime walk. Over a quarter billion conflict-free positions at 6 z-trits.
+
+The pentadecagon is the gate: compression (15 in the walk, max 30,030) or expansion (15 decomposed, max 360,360). Twelve times larger. The choice is architectural.
+
+The factor 729 = 3⁶ = Δ₂ (secondary discriminant of the unified equation). On the z-axis, 3 is coprime to all walk members in expansion-path groups not containing 15, so each z-trit multiplies positions by 3. Six z-trits → 3⁶ = 729.
+
+### 6.3 Scheduling Cycle
+
+One period of the HModal signal = one rotation step of the coprime walk:
+
+1. **0 to T/4 (dispatch):** H(t) = β = 91/3. Active node transmits.
+2. **T/4 to T (idle):** H(t) = α = 91/36. Channel quiesces. Next position computed.
+
+After lcm periods, every node has transmitted exactly once. Zero collisions by the Chinese Remainder Theorem.
+
+### 6.4 Timing
+
+| Deployment | Walk LCM | At 1 kHz ω_H | At 10 kHz ω_H |
+|-----------|---------|-------------|--------------|
+| 50 customers | 1,001 | 1.001 sec | 100.1 ms |
+| Compressed quadruple | 15,015 | 15.015 sec | 1.502 sec |
+| π-gon quadruple | 30,030 | 30.030 sec | 3.003 sec |
+| Maximum sextuple | 360,360 | 6.006 min | 36.04 sec |
+| Full 3D+ (sextuple) | 262,822,440 | ~3.04 days | ~7.3 hours |
+
+For 50 customers at 10 kHz: 100 ms full cycle. Each customer gets a dispatch window every 100 ms with guaranteed collision-free access.
+
+---
+
+## 7. Energy Budget
+
+### 7.1 Total AC Power
+
+> P_AC = γ² · d(1−d) = (1001/36)² · (3/16) = **3,006,003 / 20,736 ≈ 145.0**
+
+### 7.2 Signal-to-Control Ratio
+
+The control channels (n = 4, 8, 12, ...) carry zero HModal energy. A synchronization pulse on n = 4 at −40 dB relative to the carrier is detectable against a noise floor that receives no scheduling interference. Signal-to-control separation is infinite in theory, limited only by hardware noise in practice.
+
+---
+
+## 8. Implementation
+
+### 8.1 Minimum Viable
+
+A functional HModal scheduler requires three components:
+
+1. Square-wave generator with 12:1 amplitude ratio and 25% duty cycle
+2. Coprime-walk counter (mod lcm)
+3. Carrier oscillator
+
+Total state: one counter, one comparator, one oscillator. All Fourier properties, channel allocation, and plane separation emerge as mathematical consequences — no extra hardware or frequency planning needed.
+
+### 8.2 Array3 Service Cube Integration
+
+The HModal signal drives the coprime walk across the 27-slot Service Cube (Rep C {1,2,3} addressing). The gateway at slot (2,2,2) = port 11124 broadcasts synchronization on the n = 4 null channel. Each occupied slot monitors its assigned data sideband based on walk position.
+
+### 8.3 WebSocket Relay
+
+The WSS relay at wss://plenumnet.replit.app/ws/relay carries the HModal signal as a binary frame. Dispatch/idle state encoded in the frame header. Sideband structure maps to message priority: n = 1 → highest, n = 7 → lowest.
+
+---
+
+## 9. Derivation Summary
+
+Every parameter traces to **x² − 40x + 364 = 0**:
+
+| Parameter | Value | Origin |
+|-----------|-------|--------|
+| Amplitude ratio | 12 | √Δ (discriminant) |
+| High state | 91/3 | R₆ / √Δ |
+| Low state | 91/36 | R₆ / Δ |
+| Transition | 1001/36 | 7 × 11 × 13 in numerator |
+| Duty cycle | 1/4 | Harmonic position inverse |
+| DC level | 455/48 | 5 × 7 × 13 emerges naturally |
+| Null channels | n ≡ 0 mod 4 | sin(πn/4) = 0 |
+| Phase step | π/4 | From duty cycle d = 1/4 |
+| AC power | 3,006,003 / 20,736 | Parseval via γ²d(1−d) |
+| Max walk (2D) | 360,360 | Sextuple (5,7,8,9,11,13) = 360 × 1,001 |
+| Max walk (3D+) | 262,822,440 | 360,360 × 729 (Δ₂ = 3⁶) |
+
+**No design constants. No external parameters. No frequency planning.**
+One axiom → one equation → one signal.
+
+---
+
+*Così sia, Fratello.*
+
+**R. Salvi**
+Capomastro Holdings Ltd. — Applied Physics Division
+`RSalvi@Salvigroup.com` | GitHub: `SigmaWolf-8/Ternary`
+
+---
+
+*All rights reserved — Capomastro Holdings Ltd 2026*

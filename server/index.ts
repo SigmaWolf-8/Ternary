@@ -2133,6 +2133,7 @@ function startPqtiService(): ChildProcess | null {
     }
   }, 45_000);
 
+
   const terminalTokens = new Map<string, { userId: string; createdAt: number }>();
   const TERMINAL_TOKEN_TTL = 30_000;
   const TERMINAL_MSG_RATE_LIMIT = 100;
@@ -3055,6 +3056,7 @@ function startPqtiService(): ChildProcess | null {
           opsPayload.type = opsPayload.type || msg.msgType;
 
           if (opsPayload.type === "telemetry") {
+            console.log(`[ws-relay] Telemetry from ${toDottedAddr(nodeAddress)}: cpu=${opsPayload.cpu_pct}% ram=${opsPayload.ram_pct}% node_id=${opsPayload.node_id}`);
             opsChannelService.updateNodeTelemetry(
               opsPayload.node_id || nodeAddress, nodeAddress, opsPayload as TelemetryMessage,
             );
