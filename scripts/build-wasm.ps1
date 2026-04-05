@@ -1,7 +1,7 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    PlenumNET WASM Build Script — ternary-math crate
+    PlenumNET WASM Build Script -- ternary-math crate
     Copyright (c) 2025-2026 Capomastro Holdings Ltd.
 
 .DESCRIPTION
@@ -98,7 +98,7 @@ $errorCount = 0
 Write-Step "1/5" "Checking Rust toolchain..."
 $rustup = Get-Command rustup -ErrorAction SilentlyContinue
 if (-not $rustup) {
-    Write-Info "rustup not found — installing Rust toolchain..."
+    Write-Info "rustup not found -- installing Rust toolchain..."
     $rustupInit = Join-Path $env:TEMP "rustup-init.exe"
     try {
         Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile $rustupInit -UseBasicParsing
@@ -118,7 +118,7 @@ if ($rustup) {
     $rustVer = (rustc --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
     $cmp = Compare-SemVer $rustVer $RUST_MIN
     if ($cmp -lt 0) {
-        Write-Warn "Rust $rustVer below minimum $RUST_MIN — updating..."
+        Write-Warn "Rust $rustVer below minimum $RUST_MIN -- updating..."
         rustup update stable 2>&1 | Out-Null
         Refresh-Path
         $rustVer = (rustc --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
@@ -163,8 +163,8 @@ if (-not $hasCompiler) {
             $vcvars = Get-ChildItem -Path $vsPath -Recurse -Filter "vcvarsall.bat" -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($vcvars) {
                 Write-OK "VS Build Tools found at $vsPath (vcvarsall.bat available)"
-                Write-Warn "cl.exe not in PATH — run from Developer Command Prompt or execute:"
-                Write-Warn "  cmd /c `"$($vcvars.FullName)`" amd64 `"&&`" powershell -File $($MyInvocation.MyCommand.Path)"
+                Write-Warn "cl.exe not in PATH -- run from Developer Command Prompt or execute:"
+                Write-Warn ('  cmd /c "' + $vcvars.FullName + '" amd64 "&&" powershell -File ' + $MyInvocation.MyCommand.Path)
                 $hasCompiler = $true
             }
         }
@@ -172,7 +172,7 @@ if (-not $hasCompiler) {
 }
 
 if (-not $hasCompiler) {
-    Write-Info "No C compiler found — installing LLVM/Clang via winget..."
+    Write-Info "No C compiler found -- installing LLVM/Clang via winget..."
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if ($winget) {
         try {
@@ -215,7 +215,7 @@ if ($wasmPack -and -not $Force) {
     $wpVer = (wasm-pack --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
     $cmp = Compare-SemVer $wpVer $WASM_PACK_MIN
     if ($cmp -lt 0) {
-        Write-Warn "wasm-pack $wpVer below minimum $WASM_PACK_MIN — reinstalling..."
+        Write-Warn "wasm-pack $wpVer below minimum $WASM_PACK_MIN -- reinstalling..."
         $wasmPack = $null
     } else {
         Write-OK "wasm-pack $wpVer (minimum: $WASM_PACK_MIN)"
@@ -243,7 +243,7 @@ if ($node) {
     Write-OK "Node.js $nodeVer"
 } else {
     if (-not $SkipTest) {
-        Write-Info "Node.js not found — installing via winget..."
+        Write-Info "Node.js not found -- installing via winget..."
         $winget = Get-Command winget -ErrorAction SilentlyContinue
         if ($winget) {
             try {
@@ -269,14 +269,14 @@ if ($node) {
                         }
                     }
                     if (-not $node) {
-                        Write-Warn "Node.js installed but not in PATH — restart terminal, or use -SkipTest"
+                        Write-Warn "Node.js installed but not in PATH -- restart terminal, or use -SkipTest"
                     }
                 }
             } catch {
-                Write-Warn "Node.js install failed — smoke test will be skipped"
+                Write-Warn "Node.js install failed -- smoke test will be skipped"
             }
         } else {
-            Write-Warn "Node.js not found and winget unavailable — smoke test will be skipped"
+            Write-Warn "Node.js not found and winget unavailable -- smoke test will be skipped"
             Write-Info "Install manually: https://nodejs.org/en/download/"
         }
     } else {
@@ -287,7 +287,7 @@ if ($node) {
 Write-Host ""
 
 if ($errorCount -gt 0) {
-    Write-Fail "Cannot proceed — $errorCount dependency check(s) failed"
+    Write-Fail "Cannot proceed -- $errorCount dependency check(s) failed"
     Write-Info "Fix the issues above and re-run this script"
     exit 1
 }
