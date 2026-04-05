@@ -154,7 +154,7 @@ pub use wire::{
 };
 
 /// Library version.
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = include_str!("../../../VERSION");
 
 /// The framework identifier.
 pub const FRAMEWORK: &str = "PlenumNET Inter-Cube Infrastructure";

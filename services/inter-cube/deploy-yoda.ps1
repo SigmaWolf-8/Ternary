@@ -69,8 +69,17 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v2.4.12"
-$RELEASE_TAG      = "v2.4.10"
+$_versionFile = Join-Path "C:\PlenumNET" "VERSION"
+if (Test-Path $_versionFile) {
+    $DEPLOYER_VERSION = "v" + (Get-Content $_versionFile -ErrorAction SilentlyContinue | Select-Object -First 1).Trim()
+} else {
+    try {
+        $DEPLOYER_VERSION = "v" + (Invoke-RestMethod -Uri "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/VERSION" -TimeoutSec 5).Trim()
+    } catch {
+        Write-Host "  [FAIL] Cannot determine version — no local repo and GitHub unreachable" -ForegroundColor Red; exit 1
+    }
+}
+$RELEASE_TAG      = $DEPLOYER_VERSION
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
 $BASE_PORT        = 11111
@@ -452,6 +461,13 @@ if (-not (Test-Path $RepoDir)) {
     Pop-Location
 }
 Write-Host "  [OK] Source ready (pinned to $RELEASE_TAG)" -ForegroundColor Green
+
+# Re-read VERSION from cloned repo (handles first-install case)
+$_versionFile = Join-Path $RepoDir "VERSION"
+if (Test-Path $_versionFile) {
+    $DEPLOYER_VERSION = "v" + (Get-Content $_versionFile -ErrorAction SilentlyContinue | Select-Object -First 1).Trim()
+    $RELEASE_TAG = $DEPLOYER_VERSION
+}
 
 # ── STEP 4/11: Building inter-cube daemon ───────────────────────────────
 Write-Host ""
