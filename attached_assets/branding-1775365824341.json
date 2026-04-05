@@ -1,0 +1,152 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Inter",
+      "role": "body"
+    },
+    {
+      "family": "Orbitron",
+      "role": "heading"
+    },
+    {
+      "family": "JetBrains Mono",
+      "role": "monospace"
+    }
+  ],
+  "colors": {
+    "primary": "#555B68",
+    "secondary": "#0073E6",
+    "accent": "#0073E6",
+    "background": "#FFFFFF",
+    "textPrimary": "#1F242E",
+    "link": "#1F242E"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Inter",
+      "heading": "Orbitron"
+    },
+    "fontStacks": {
+      "heading": [
+        "Inter",
+        "system-ui",
+        "sans-serif"
+      ],
+      "body": [
+        "Inter",
+        "system-ui",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Inter",
+        "system-ui",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "48px",
+      "h2": "14px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "6px"
+  },
+  "components": {
+    "input": {
+      "background": "#FFFFFF",
+      "textColor": "#1F242E",
+      "borderColor": "#DDDFE3",
+      "borderRadius": "6px",
+      "borderRadiusCorners": {
+        "topLeft": "6px",
+        "topRight": "6px",
+        "bottomRight": "6px",
+        "bottomLeft": "6px"
+      },
+      "shadow": "none"
+    },
+    "buttonPrimary": {
+      "background": "#0073E6",
+      "textColor": "#FFFFFF",
+      "borderColor": "#005EBD",
+      "borderRadius": "6px",
+      "borderRadiusCorners": {
+        "topLeft": "6px",
+        "topRight": "6px",
+        "bottomRight": "6px",
+        "bottomLeft": "6px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#FFFFFF",
+      "textColor": "#C2410C",
+      "borderColor": "#E6E6E6",
+      "borderRadius": "6px",
+      "borderRadiusCorners": {
+        "topLeft": "6px",
+        "topRight": "6px",
+        "bottomRight": "6px",
+        "bottomLeft": "6px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": "File saved at: attached_assets/ogImage.png"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": -1,
+    "reasoning": "No candidate clearly represents the brand 'PlenumNET' in a visible and appropriate manner. Candidate #0 is large but lacks clear branding indicators, and the others are too small or not in the header.",
+    "confidence": 0.3,
+    "rejected": true,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 1,
+      "text": "Legacy Installer (Linux)",
+      "reasoning": "Button #2 has a vibrant blue background (#0073E6), which is a strong indicator of a primary CTA. The text 'Legacy Installer (Linux)' suggests an action-oriented purpose, aligning with primary CTA characteristics."
+    },
+    "secondary": {
+      "index": 0,
+      "text": "Restart Nodes",
+      "reasoning": "Button #0 has a white background (#FFFFFF) and a less prominent action ('Restart Nodes'), making it suitable as a secondary button. It contrasts with the primary button's vibrant color."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "developers and IT professionals"
+  },
+  "designSystem": {
+    "framework": "tailwind",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": -1,
+        "selectedLogoReasoning": "No candidate clearly represents the brand 'PlenumNET' in a visible and appropriate manner. Candidate #0 is large but lacks clear branding indicators, and the others are too small or not in the header.",
+        "confidence": 0.3
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}

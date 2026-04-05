@@ -1,0 +1,368 @@
+Running as Administrator...
+
+==========================================================
+  PlenumNET Array3 Deployer v2.4.10
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v2.4.10
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+  Continue? (Y/n): y
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v2.4.10)
+---
+  [INFO] Updating source to v2.4.10...
+  [OK] Source ready (pinned to v2.4.10)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [INFO] Cleaning inter-cube cache (forces monitor HTML refresh)...
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:06] Compiling cfg-if (#1)
+  [00:06] Compiling smallvec (#2)
+  [00:06] Compiling windows-link (#3)
+  [00:06] Compiling bytes (#4)
+  [00:07] Compiling pin-project-lite (#5)
+  [00:07] Compiling futures-core (#6)
+  [00:07] Compiling itoa (#7)
+  [00:08] Compiling windows_aarch64_msvc (#8)
+  [00:08] Compiling windows_aarch64_msvc (#9)
+  [00:08] Compiling zerofrom (#10)
+  [00:08] Compiling windows-targets (#11)
+  [00:08] Compiling windows-targets (#12)
+  [00:08] Compiling scopeguard (#13)
+  [00:08] Compiling stable_deref_trait (#14)
+  [00:08] Compiling yoke (#15)
+  [00:09] Compiling lock_api (#16)
+  [00:09] Compiling windows-sys (#17)
+  [00:10] Compiling windows-sys (#18)
+  [00:11] Compiling parking_lot_core (#19)
+  [00:12] Compiling zerovec (#20)
+  [00:13] Compiling parking_lot (#21)
+  [00:14] Compiling socket2 (#22)
+  [00:15] Compiling mio (#23)
+  [00:16] Compiling http (#24)
+  [00:17] Compiling num_cpus (#25)
+  [00:17] Compiling futures-sink (#26)
+  [00:17] Compiling tokio (#27)
+  [00:25] Compiling log (#28)
+  [00:25] Compiling slab (#29)
+  [00:25] Compiling once_cell (#30)
+  [00:25] Compiling libc (#31)
+  [00:25] Compiling tinystr (#32)
+  [00:26] Compiling litemap (#33)
+  [00:26] Compiling writeable (#34)
+  [00:26] Compiling icu_locid (#35)
+  [00:28] Compiling futures-task (#36)
+  [00:28] Compiling futures-util (#37)
+  [00:32] Compiling icu_provider (#38)
+  [00:32] Compiling icu_locid_transform_data (#39)
+  [00:33] Compiling percent-encoding (#40)
+  [00:33] Compiling icu_locid_transform (#41)
+  [00:34] Compiling icu_properties_data (#42)
+  [00:36] Compiling serde_core (#43)
+  [00:38] Compiling tracing-core (#44)
+  [00:39] Compiling icu_collections (#45)
+  [00:39] Compiling http-body (#46)
+  [00:39] Compiling getrandom (#47)
+  [00:40] Compiling tower-service (#48)
+  [00:40] Compiling tracing (#49)
+  [00:40] Compiling icu_properties (#50)
+  [00:42] Compiling httparse (#51)
+  [00:42] Compiling icu_normalizer_data (#52)
+  [00:42] Compiling typenum (#53)
+  [00:43] Compiling windows-sys (#54)
+  [00:46] Compiling utf8_iter (#55)
+  [00:46] Compiling write16 (#56)
+  [00:46] Compiling utf16_iter (#57)
+  [00:47] Compiling pin-utils (#58)
+  [00:47] Compiling icu_normalizer (#59)
+  [00:48] Compiling schannel (#60)
+  [00:49] Compiling generic-array (#61)
+  [00:49] Compiling windows_aarch64_msvc (#62)
+  [00:49] Compiling form_urlencoded (#63)
+  [00:49] Compiling hashbrown (#64)
+  [00:50] Compiling tower-layer (#65)
+  [00:50] Compiling equivalent (#66)
+  [00:50] Compiling indexmap (#67)
+  [00:51] Compiling serde (#68)
+  [00:52] Compiling windows-targets (#69)
+  [00:52] Compiling native-tls (#70)
+  [00:52] Compiling zerocopy (#71)
+  [00:56] Compiling idna_adapter (#72)
+  [00:56] Compiling crossbeam-utils (#73)
+  [00:57] Compiling tokio-util (#74)
+  [00:58] Compiling try-lock (#75)
+  [00:58] Compiling fnv (#76)
+  [00:58] Compiling atomic-waker (#77)
+  [00:58] Compiling h2 (#78)
+  [01:03] Compiling want (#79)
+     Compiling thiserror v1.0.57
+  [01:03] Compiling crossbeam-epoch (#80)
+  [01:04] Compiling idna (#81)
+  [01:05] Compiling ppv-lite86 (#82)
+  [01:05] Compiling windows-sys (#83)
+  [01:06] Compiling block-buffer (#84)
+  [01:06] Compiling crypto-common (#85)
+  [01:06] Compiling rand_core (#86)
+  [01:06] Compiling http-body-util (#87)
+  [01:07] Compiling futures-channel (#88)
+  [01:07] Compiling sync_wrapper (#89)
+  [01:07] Compiling httpdate (#90)
+  [01:08] Compiling hyper (#91)
+  [01:10] Compiling rand_chacha (#92)
+  [01:11] Compiling digest (#93)
+  [01:11] Compiling socket2 (#94)
+  [01:12] Compiling url (#95)
+  [01:13] Compiling crossbeam-deque (#96)
+  [01:13] Compiling winapi (#97)
+  [01:15] Compiling zmij (#98)
+  [01:15] Compiling tokio-native-tls (#99)
+  [01:15] Compiling serial-core (#100)
+  [01:16] Compiling ipnet (#101)
+  [01:16] Compiling unicode-ident (#102)
+  [01:16] Compiling base64 (#103)
+  [01:17] Compiling memchr (#104)
+  [01:18] Compiling cpufeatures (#105)
+  [01:18] Compiling sha1 (#106)
+  [01:18] Compiling serde_json (#107)
+  [01:20] Compiling hyper-util (#108)
+  [01:22] Compiling wasm-bindgen-shared (#109)
+  [01:22] Compiling serial-windows (#110)
+  [01:22] Compiling rayon-core (#111)
+  [01:24] Compiling rand (#112)
+  [01:24] Compiling memoffset (#113)
+  [01:25] Compiling byteorder (#114)
+  [01:25] Compiling lazy_static (#115)
+  [01:25] Compiling bitflags (#116)
+  [01:25] Compiling utf-8 (#117)
+  [01:25] Compiling ryu (#118)
+  [01:26] Compiling bitflags (#119)
+  [01:26] Compiling either (#120)
+  [01:26] Compiling data-encoding (#121)
+  [01:27] Compiling tungstenite (#122)
+  [01:30] Compiling rayon (#123)
+  [01:32] Compiling serde_urlencoded (#124)
+  [01:33] Compiling nix (#125)
+  [01:33] Compiling shared_library (#126)
+  [01:33] Compiling pin-project (#127)
+  [01:33] Compiling wasm-bindgen (#128)
+  [01:34] Compiling serial (#129)
+  [01:34] Compiling winreg (#130)
+  [01:35] Compiling libm (#131)
+  [01:37] Compiling anyhow (#132)
+  [01:38] Compiling filedescriptor (#133)
+  [01:38] Compiling tower (#134)
+  [01:39] Compiling mime (#135)
+  [01:39] Compiling downcast-rs (#136)
+  [01:39] Compiling shell-words (#137)
+  [01:39] Compiling zeroize (#138)
+  [01:39] Compiling iri-string (#139)
+  [01:41] Compiling tower-http (#140)
+  [01:42] Compiling rustls-pki-types (#141)
+  [01:43] Compiling portable-pty (#142)
+  [01:44] Compiling axum-core (#143)
+  [01:45] Compiling ternary-math (#144)
+  [01:53] Compiling num-traits (#145)
+  [01:54] Compiling tower (#146)
+  [01:54] Compiling tokio-tungstenite (#147)
+  [01:55] Compiling hyper-tls (#148)
+     Compiling serde_path_to_error v0.1.20
+  [01:55] Compiling matchit (#149)
+  [01:56] Compiling sync_wrapper (#150)
+  [01:56] Compiling static_assertions (#151)
+  [01:56] Compiling plenumlan (#152)
+  [01:56] Compiling axum (#153)
+  [02:01] Compiling reqwest (#154)
+  [02:08] Compiling pty-mux (#155)
+  [02:09] Compiling chrono (#156)
+  [02:11] Compiling tower-http (#157)
+  [02:12] Compiling uuid (#158)
+  [02:12] Compiling hex (#159)
+  [02:12] Compiling subtle (#160)
+  [02:12] Compiling inter-cube (#161)
+  [03:15]     Finished `release` profile [optimized] target(s) in 3m 15s
+  [03:15] Still building... (161 crates compiled so far)
+  [OK] Build successful (4.1 MB, 03:15 elapsed, 161 crates)
+  [OK] Binary SHA-256: 949593AC9F927FAEEA811362C762CA8425EC585D424DFB51C9F8423566E5E92B
+  [OK] Binary TIS-27: 216e484a323dd020d5b1d7e0a78bc3bed62815879b8d1f1496e3233829c3ac838a34c84d77aaecabe20bd1637112cc0308
+
+STEP 5/11: Building and configuring NinjaExec signing agent
+---
+  [WARN] Stopping running NinjaExec process...
+  [INFO] Building NinjaExec signing agent...
+         This typically takes 3-10 minutes (shares compiled dependencies).
+  [00:00] Compiling tokio (#1)
+  [00:04] Compiling tracing (#2)
+  [00:04] Compiling tokio-util (#3)
+  [00:05] Compiling futures-task (#4)
+  [00:05] Compiling h2 (#5)
+  [00:10] Compiling futures-util (#6)
+  [00:11] Compiling serde (#7)
+  [00:12] Compiling hyper (#8)
+  [00:14] Compiling pin-project (#9)
+  [00:14] Compiling sync_wrapper (#10)
+  [00:14] Compiling axum-core (#11)
+  [00:16] Compiling serde_urlencoded (#12)
+  [00:16] Compiling wasm-bindgen (#13)
+  [00:17] Compiling tower (#14)
+  [00:17] Compiling hyper-util (#15)
+  [00:17] Compiling getrandom (#16)
+  [00:17] Compiling axum (#17)
+  [00:21] Compiling ternary-math (#18)
+  [00:27] Compiling chrono (#19)
+  [00:29] Compiling libc (#20)
+  [00:29] Compiling ninja-exec (#21)
+  [00:47]     Finished `release` profile [optimized] target(s) in 47.68s
+  [OK] NinjaExec build successful (1.2 MB, 00:47 elapsed, 21 new crates)
+  [OK] NinjaExec SHA-256: 7F64295521099298FA4EEC2611456E7EEA3ECAFAA0D15B1111E8A30BDD9A5C94
+  [OK] Existing NinjaExec keystore found -- skipping init
+
+STEP 6/11: Verifying version alignment
+---
+  [INFO] Local node    : v2.4.10
+  [INFO] CRS reference : v2.4.10
+  [OK] Version aligned
+
+STEP 7/11: Detecting local network
+---
+  [OK] Local IP: 10.0.0.42
+
+STEP 8/11: Generating 3 node identities
+---
+  [OK] Operations channel directories created
+  [OK] Existing ops-config.json preserved
+
+=== Ops Sandbox Hardening ===
+  [OK] ACL hardening applied to C:\PlenumNET\plenumnet-data\.plenumnet (SYSTEM + Administrators only)
+  [OK] SeAssignPrimaryTokenPrivilege detected in security policy
+  [INFO] AppLocker not running -- exec sandbox: Reduced (ACLs only)
+  [INFO] Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...
+  [OK] Node #1 passphrase loaded
+  [OK] Node #1 identity exists
+  [OK] Node #2 passphrase loaded
+  [OK] Node #2 identity exists
+  [OK] Node #3 passphrase loaded
+  [OK] Node #3 identity exists
+
+STEP 9/11: Registering and starting Windows Services
+---
+  [OK] Node #1 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-1.json)
+  [OK] Node #1 registered as service 'PlenumNET-Array3-1'
+  [OK] Node #2 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-2.json)
+  [OK] Node #2 registered as service 'PlenumNET-Array3-2'
+  [OK] Node #3 slot registry exists (C:\PlenumNET\plenumnet-data\.plenumnet\slot-registry-3.json)
+  [OK] Node #3 registered as service 'PlenumNET-Array3-3'
+
+  [INFO] Starting Node #1 (coordinator) first...
+  [INFO] Waiting for coordinator to be ready...
+         Waiting for coordinator... (attempt 1/15)
+  [OK] Coordinator ready at http://localhost:11124
+  [OK] Node #2 service started
+  [OK] Node #3 service started
+  [OK] NinjaExec registered and started as service 'PlenumNET-NinjaExec'
+  [OK] Signing API: http://localhost:21027/sign
+
+STEP 10/11: Configuring watchdog and LLM engines
+---
+  [WARN] No AI model file (.gguf) was found on this machine.
+         To enable AI inference, download a compatible model file and place it
+         in C:\PlenumNET\models\. The watchdog will automatically configure it.
+         For model recommendations, visit https://plenumnet.com/docs/models
+  [OK] LLM engine config written to C:\ProgramData\PlenumNET\llm-engines.json (ACL: SYSTEM + Administrators only)
+  [OK] C:\ProgramData\PlenumNET ACL restricted (SYSTEM + Administrators)
+  [OK] Watchdog scheduled task registered: PlenumNET-Array3-Watchdog
+       Checks every 2 minutes + on boot
+       Watchdog log: C:\PlenumNET\plenumnet-data\logs\watchdog.log
+  [OK] Node #1 (coordinator) address: 1111111111111
+  [OK] Node #2 registered -> address: 1211111111111
+  [OK] Node #3 registered -> address: 2211111111111
+  [OK] Address map written to C:\PlenumNET\plenumnet-data\.plenumnet\address-map.json
+  [OK] Slot registry verified: 5 occupied slots (4 from registry + gateway)
+
+STEP 11/11: Deployment summary and desktop launchers
+---
+  [WARN] Could not register this deployment with the Node Registry.
+         Your cluster is running normally -- registry notification can be retried later.
+
+  [OK] Start launcher created: C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.cmd
+  [OK] Stop launcher created: C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.cmd
+
+==========================================================
+  PlenumNET Array3 Deployment Complete
+  Capomastro Holdings Ltd.
+  Deployer v2.4.10 | Release v2.4.10
+  NinjaExec signing agent included
+==========================================================
+
+  Cluster Status
+  Node #1 (coordinator): gateway 11124, terminal 11122, address 1111111111111
+  Node #2 (worker)      : gateway 11151, terminal 11149, address 1211111111111
+  Node #3 (worker)      : gateway 11178, terminal 11176, address 2211111111111
+
+  API Endpoints
+  VM API           : /vm/exec, /vm/status, /vm/registers, /vm/reset (on gateway port)
+  Cluster Shell    : /cluster/exec, /cluster/peers (on gateway port)
+  Coordinator      : http://localhost:11124 (Node #1)
+  Relay            : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Node Registry    : https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+
+  Management
+  Services         : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+  Startup          : Automatic (survives reboots + terminal close)
+  Watchdog         : PlenumNET-Array3-Watchdog (every 2 min + on boot)
+  Start Launcher   : C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.cmd
+  Stop Launcher    : C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.cmd
+
+  NinjaExec Signing Agent
+  Binary           : C:\PlenumNET\target\release\ninja-exec.exe
+  Service          : PlenumNET-NinjaExec (Automatic)
+  Signing API      : http://localhost:21027/sign
+  Keystore         : C:\Users\Sigma\AppData\Roaming\NinjaExec\ninja-exec.keystore (initialized)
+
+  Operations Channel
+  Ops Config       : C:\PlenumNET\plenumnet-data\.plenumnet\ops-config.json
+  Ops Enabled      : false
+  Audit Log        : C:\PlenumNET\plenumnet-data\.plenumnet\ops-audit.jsonl
+  Ops Directories  : ops/, logs/, configs/, transfers/
+
+  Files and Logs
+  Binary           : C:\PlenumNET\target\release\inter-cube-daemon.exe (4.1 MB)
+  Binary Hash      : 216e484a323dd020d5b1d7e0a78bc3bed62815879b8d1f1496e3233829c3ac838a34c84d77aaecabe20bd1637112cc0308
+  Logs             : C:\PlenumNET\plenumnet-data\logs
+  Watchdog Log     : C:\PlenumNET\plenumnet-data\logs\watchdog.log
+  Release Tag      : v2.4.10
+
+  Closing this window will NOT stop the nodes -- they run as services.
+  Applications (e.g. YODA) connect via the relay to reach these nodes.
+
+  â €â€ Upgrade Notes (v2.4.10) â€â€
+  What changed in v2.4.10:
+    - Monitor v9.3.1: baked into daemon via include_str! (no file drops)
+    - Watchdog: relay connectivity check (auto-restart after 120s disconnect)
+    - MSI installer: fixed UAC self-elevation quoting + git stderr handling
+    - Relay status endpoint for watchdog health monitoring
+    - Deployer: git stderr no longer triggers NativeCommandError
+    - test-monitor.ps1: git pull + file-system preview for pre-publish testing
+  Re-running this deployer on an existing cluster is safe:
+    - Existing data and identity keys are preserved
+    - The .bat script always downloads the latest deployer
+    - Services are stopped, updated, and restarted cleanly
+
+Press Enter to close this window. Your nodes are running as services and will continue.:
