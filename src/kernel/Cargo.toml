@@ -110,12 +110,6 @@ name = "qudit-ft-bench"
 path = "benchmarks/qudit_ft_benchmark.rs"
 required-features = ["bench-tools"]
 
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-panic = "abort"
-
 [[bench]]
 name = "salvi_benchmarks"
 harness = false
@@ -127,7 +121,3 @@ harness = false
 [[bench]]
 name = "tldsa_bench"
 harness = false
-
-[profile.bench]
-opt-level = 3
-debug = false
