@@ -1,0 +1,100 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> curl http://localhost:11124/slots
+curl : The remote server returned an error: (404) Not Found.
+At line:1 char:1
++ curl http://localhost:11124/slots
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-WebRequest], WebExc
+   eption
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
+
+PS C:\Users\Sigma> curl http://localhost:11124/api/salvi/inter-cube/slots
+
+Security Warning: Script Execution Risk
+Invoke-WebRequest parses the content of the web page. Script code in the web page might be run when the page is
+parsed.
+      RECOMMENDED ACTION:
+      Use the -UseBasicParsing switch to avoid script code execution.
+
+      Do you want to continue?
+
+[Y] Yes  [A] Yes to All  [N] No  [L] No to All  [S] Suspend  [?] Help (default is "N"): a
+
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"node_id":1,"slots":[{"address":[1,1,1],"port":11111,"service_type":"crs","status":"online","statu
+                    s_label":"Healthy","is_primary_gateway":false,"uptime_secs":76663,"heartbeat_count":2252,"latency_u
+                    s"...
+RawContent        : HTTP/1.1 200 OK
+                    vary: origin, access-control-request-method, access-control-request-headers
+                    Content-Length: 5366
+                    Cache-Control: no-store
+                    Content-Type: application/json
+                    Date: Sun, 05 Apr 2026 02:5...
+Forms             : {}
+Headers           : {[vary, origin, access-control-request-method, access-control-request-headers], [Content-Length,
+                    5366], [Cache-Control, no-store], [Content-Type, application/json]...}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 5366
+
+
+
+PS C:\Users\Sigma> curl http://localhost:11124/health
+
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"status":"ok","service":"PlenumNET Inter-Cube Infrastructure","version":"2.4.6","mode":"crs","addr
+                    ess":"1111111111111","wire_protocol":3,"wire_protocol_min":2,"node_id":1}
+RawContent        : HTTP/1.1 200 OK
+                    vary: origin, access-control-request-method, access-control-request-headers
+                    Content-Length: 172
+                    Content-Type: application/json
+                    Date: Sun, 05 Apr 2026 02:58:39 GMT
+
+                    {"status":"ok"...
+Forms             : {}
+Headers           : {[vary, origin, access-control-request-method, access-control-request-headers], [Content-Length,
+                    172], [Content-Type, application/json], [Date, Sun, 05 Apr 2026 02:58:39 GMT]}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 172
+
+
+
+PS C:\Users\Sigma> curl http://localhost:11124/health
+
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"status":"ok","service":"PlenumNET Inter-Cube Infrastructure","version":"2.4.6","mode":"crs","addr
+                    ess":"1111111111111","wire_protocol":3,"wire_protocol_min":2,"node_id":1}
+RawContent        : HTTP/1.1 200 OK
+                    vary: origin, access-control-request-method, access-control-request-headers
+                    Content-Length: 172
+                    Content-Type: application/json
+                    Date: Sun, 05 Apr 2026 03:00:51 GMT
+
+                    {"status":"ok"...
+Forms             : {}
+Headers           : {[vary, origin, access-control-request-method, access-control-request-headers], [Content-Length,
+                    172], [Content-Type, application/json], [Date, Sun, 05 Apr 2026 03:00:51 GMT]}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 172
+
+
+
+PS C:\Users\Sigma>
