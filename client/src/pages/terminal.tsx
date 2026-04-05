@@ -6,6 +6,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { ClipboardAddon } from "@xterm/addon-clipboard";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -564,7 +566,7 @@ export default function TerminalPage() {
         background: "#0a0a0f",
         foreground: "#e2e8f0",
         cursor: "#60a5fa",
-        selectionBackground: "#1e293b",
+        selectionBackground: "rgba(96, 165, 250, 0.3)",
         black: "#0a0a0f",
         red: "#f87171",
         green: "#60a5fa",
@@ -584,10 +586,13 @@ export default function TerminalPage() {
       },
       allowProposedApi: true,
       scrollback: 5000,
+      rightClickSelectsWord: true,
     });
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    term.loadAddon(new ClipboardAddon());
+    term.loadAddon(new WebLinksAddon());
     term.open(termRef.current);
 
     setTimeout(() => {
@@ -599,20 +604,41 @@ export default function TerminalPage() {
 
     term.attachCustomKeyEventHandler((ev) => {
       if (ev.type !== "keydown") return true;
-      if (ev.ctrlKey && ev.key === "c" && term.hasSelection()) {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "c" && term.hasSelection()) {
         navigator.clipboard.writeText(term.getSelection());
+        term.clearSelection();
         return false;
       }
-      if (ev.ctrlKey && ev.key === "v") {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "v") {
         navigator.clipboard.readText().then((text) => {
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
+          if (text && wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: "input", data: text }));
           }
-        });
+        }).catch(() => {});
+        return false;
+      }
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "a") {
+        term.selectAll();
         return false;
       }
       return true;
     });
+
+    const termContainer = termRef.current;
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      if (term.hasSelection()) {
+        navigator.clipboard.writeText(term.getSelection());
+        term.clearSelection();
+      } else {
+        navigator.clipboard.readText().then((text) => {
+          if (text && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "input", data: text }));
+          }
+        }).catch(() => {});
+      }
+    };
+    termContainer.addEventListener("contextmenu", handleContextMenu);
 
     term.onData((data) => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -634,6 +660,7 @@ export default function TerminalPage() {
     connectWebSocket();
 
     return () => {
+      termContainer.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("resize", handleResize);
       term.dispose();
       if (wsRef.current) {
