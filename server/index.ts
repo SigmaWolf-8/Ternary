@@ -23,7 +23,7 @@ let yodaReplayGuard: Map<string, Set<number>> | null = null;
 let yodaRateWindows: Map<string, number[]> | null = null;
 let yodaPipelineHandler: YodaPipelineHandler | null = null;
 
-const PLENUMNET_VERSION = "2.4.10";
+const PLENUMNET_VERSION = "2.4.11";
 
 const _originalProcessExit = process.exit.bind(process);
 let _serverListening = false;
