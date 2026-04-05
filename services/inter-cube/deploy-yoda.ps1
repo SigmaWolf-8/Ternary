@@ -2149,14 +2149,14 @@ Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  ── Upgrade Notes (v2.4.5) ──" -ForegroundColor Cyan
-Write-Host "  What changed (cumulative v2.4.4 + v2.4.5):" -ForegroundColor DarkGray
-Write-Host "    - Slot registry: BOM-tolerant JSON parser, BOM-free file writes" -ForegroundColor DarkGray
-Write-Host "    - CRS slot (1.1.1) now probes correctly (self-hosted service detection)" -ForegroundColor DarkGray
-Write-Host "    - Gateway slot 2.2.2 auto-registered on coordinator node" -ForegroundColor DarkGray
-Write-Host "    - [SLOTS-N*] diagnostic logging for slot registry loading" -ForegroundColor DarkGray
-Write-Host "    - Monitor sends auth header and shows per-node error details" -ForegroundColor DarkGray
-Write-Host "    - Deployer verifies slot counts with retry (3 attempts)" -ForegroundColor DarkGray
+Write-Host "  ── Upgrade Notes (v2.4.8) ──" -ForegroundColor Cyan
+Write-Host "  What changed (cumulative v2.4.6 → v2.4.8):" -ForegroundColor DarkGray
+Write-Host "    - Monitor v9.3.1: baked into daemon via include_str! (no file drops)" -ForegroundColor DarkGray
+Write-Host "    - Watchdog: relay connectivity check (auto-restart after 120s disconnect)" -ForegroundColor DarkGray
+Write-Host "    - MSI installer: fixed UAC self-elevation quoting + git stderr handling" -ForegroundColor DarkGray
+Write-Host "    - Relay status endpoint for watchdog health monitoring" -ForegroundColor DarkGray
+Write-Host "    - Deployer: git stderr no longer triggers NativeCommandError" -ForegroundColor DarkGray
+Write-Host "    - test-monitor.ps1: git pull + file-system preview for pre-publish testing" -ForegroundColor DarkGray
 Write-Host "  Re-running this deployer on an existing cluster is safe:" -ForegroundColor DarkGray
 Write-Host "    - Existing data and identity keys are preserved" -ForegroundColor DarkGray
 Write-Host "    - The .bat script always downloads the latest deployer" -ForegroundColor DarkGray
