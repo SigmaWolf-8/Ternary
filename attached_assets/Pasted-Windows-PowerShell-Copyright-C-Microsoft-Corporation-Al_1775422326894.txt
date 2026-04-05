@@ -1,0 +1,59 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> git pull origin main
+fatal: not a git repository (or any of the parent directories): .git
+PS C:\Users\Sigma> powershell -ExecutionPolicy Bypass -File .\scripts\build-wasm.ps1
+The argument '.\scripts\build-wasm.ps1' to the -File parameter does not exist. Provide the path to an existing '.ps1' file as an argument to the -File parameter.
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd c:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+remote: Enumerating objects: 20, done.
+remote: Counting objects: 100% (20/20), done.
+remote: Compressing objects: 100% (4/4), done.
+remote: Total 13 (delta 8), reused 13 (delta 8), pack-reused 0 (from 0)
+Unpacking objects: 100% (13/13), 39.89 KiB | 252.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   1a20b664..d303644c  main       -> origin/main
+Updating 1a20b664..d303644c
+Fast-forward
+ .agents/agent_assets_metadata.toml  |   6 ++++++
+ .canvas/assets/ternary-math-src.zip | Bin 0 -> 38737 bytes
+ scripts/build-wasm.ps1              |  22 +++++++++++++---------
+ 3 files changed, 19 insertions(+), 9 deletions(-)
+ create mode 100644 .canvas/assets/ternary-math-src.zip
+PS C:\PlenumNET> powershell -ExecutionPolicy Bypass -File .\scripts\build-wasm.ps1
+
+==========================================
+ PlenumNET WASM Build System
+ Capomastro Holdings Ltd.
+==========================================
+
+Repo root:    C:\PlenumNET
+Crate dir:    C:\PlenumNET\ternary-math
+
+[1/5] Checking Rust toolchain...
+  OK  Rust 1.94.1
+ (minimum: 1.77.0)
+[2/5] Checking wasm32-unknown-unknown target...
+  OK  wasm32-unknown-unknown target installed
+[3/5] Checking C/C++ compiler...
+  ... No C compiler found -- installing LLVM/Clang via winget...
+  OK  LLVM installed at C:\Program Files\LLVM\bin (added to session PATH)
+[4/5] Checking wasm-pack...
+  ... Installing wasm-pack via cargo...
+cargo.exe :     Updating crates.io index
+At C:\PlenumNET\scripts\build-wasm.ps1:226 char:17
++     $cargoOut = & cargo install wasm-pack 2>&1 | Out-String
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Updating crates.io index:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+PS C:\PlenumNET>
