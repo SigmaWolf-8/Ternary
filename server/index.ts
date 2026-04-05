@@ -499,10 +499,14 @@ function startPqtiService(): ChildProcess | null {
 
   const OPS_ADMIN_SUBS = new Set((process.env.OPS_ADMIN_SUBS || '').split(',').filter(Boolean));
   const requireOpsAuth = (req: Request, res: Response, next: NextFunction) => {
+    const isDev = process.env.NODE_ENV === "development";
     const authReq = req as Request & { user?: { claims?: { sub?: string; role?: string; is_admin?: boolean } }; isAuthenticated?: () => boolean };
     const user = authReq.user;
     const sub = user?.claims?.sub;
     const isAuthed = authReq.isAuthenticated?.() && sub;
+    if (isDev && !isAuthed) {
+      return next();
+    }
     if (!isAuthed || !sub) {
       return res.status(401).json({ error: "Authentication required for ops endpoints" });
     }
