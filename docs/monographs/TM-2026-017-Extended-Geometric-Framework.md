@@ -982,7 +982,7 @@ The null structure and the non-zero harmonics define a natural channel allocatio
 | n = 2 | 0.707 | 0.500 |
 | n = 3 | 0.333 | 0.111 |
 | n = 5 | 0.200 | 0.040 |
-| n = 6 | 0.118 | 0.014 |
+| n = 6 | 0.236 | 0.056 |
 | n = 7 | 0.143 | 0.020 |
 
 **Control channels** (null harmonics): n = 4, 8, 12, 16, ...
@@ -1010,7 +1010,7 @@ By Parseval's theorem, the AC power:
 
 > P_AC = γ² · d(1 − d) = (1001/36)² · (1/4)(3/4) = 1001² · 3 / (36² · 16) = **3,006,003 / 20,736**
 
-The first three non-zero harmonics (n = 1, 2, 3) capture 76% of total AC power. For a practical implementation, a 3-channel receiver recovers three-quarters of the signal energy. Each additional channel adds diminishing returns following the 1/n² envelope.
+The first three non-zero harmonics (n = 1, 2, 3) capture 87% of total AC power. A 3-channel receiver recovers seven-eighths of the signal energy. Each additional channel adds diminishing returns following the 1/n² envelope.
 
 ### 17.8 Architectural Summary
 
