@@ -66,6 +66,10 @@ pub const CHUNK_MAP_ENTRY_SIZE_V3: usize = 9;
 pub const CHUNK_MAP_ENTRY_SIZE_V2_LEGACY: usize = 16;
 pub const CHUNK_MAP_ENTRY_SIZE: usize = CHUNK_MAP_ENTRY_SIZE_V3;
 pub const VERSION_V3: u8 = 0x04;
+/// TTC v5.0: stride-delta preprocessing via coprime periodic detection.
+/// Container format identical to v3; version bump ensures old decompressors
+/// reject cleanly with UnsupportedVersion(0x05) instead of InvalidDeltaFlag(7).
+pub const VERSION_V5: u8 = 0x05;
 pub const TAU: f64 = 1.839_286_755_214_161_1;
 pub const GOLDEN_ANGLE: f64 = 139.035_628;
 pub const PHI: f64 = 1.618_033_988_749_895;
@@ -325,7 +329,9 @@ impl DeltaFlag {
     pub const ORDER2_B: Self = Self(0b100);
     pub const ORDER2_A: Self = Self(0b101);
     pub const ORDER2_C: Self = Self(0b110);
-    #[inline] pub fn order(self) -> u8 { match self.0 { 0 => 0, 1..=3 => 1, 4..=6 => 2, _ => 0 } }
+    /// Stride delta: delta at detected periodic stride. Stride stored in first 2 bytes of delta data.
+    pub const STRIDE: Self = Self(0b111);
+    #[inline] pub fn order(self) -> u8 { match self.0 { 0 => 0, 1..=3 => 1, 4..=6 => 2, 7 => 1, _ => 0 } }
     #[inline] pub fn rep(self) -> Option<GfRep> { match self.0 { 0 => None, 1|4 => Some(GfRep::B), 2|5 => Some(GfRep::A), 3|6 => Some(GfRep::C), _ => None } }
     #[inline] pub fn rep_name(self) -> &'static str { match self.rep() { None => "none", Some(GfRep::A) => "A", Some(GfRep::B) => "B", Some(GfRep::C) => "C" } }
 }
@@ -367,6 +373,15 @@ fn apply_delta_encode(data: &[u8], flag: DeltaFlag, out: &mut Vec<u8>, scratch: 
         4 => { delta_encode_b(data, scratch); delta_encode_b(scratch, out); }
         5 => { delta_encode_a(data, scratch); delta_encode_a(scratch, out); }
         6 => { delta_encode_c(data, scratch); delta_encode_c(scratch, out); }
+        7 => {
+            // Stride delta: detect stride and encode. Stride embedded in output.
+            let (stride, _) = crate::cpd::detect_stride(data);
+            if stride > 0 {
+                crate::cpd::stride_delta_encode(data, stride, out);
+            } else {
+                out.clear(); out.extend_from_slice(data);
+            }
+        }
         _ => { out.clear(); out.extend_from_slice(data); }
     }
 }
@@ -380,7 +395,12 @@ fn apply_delta_decode(data: &[u8], flag: DeltaFlag) -> TtcResult<Vec<u8>> {
         4 => { delta_decode_b(data, &mut buf); delta_decode_b(&buf, &mut buf2); Ok(buf2) }
         5 => { delta_decode_a(data, &mut buf); delta_decode_a(&buf, &mut buf2); Ok(buf2) }
         6 => { delta_decode_c(data, &mut buf); delta_decode_c(&buf, &mut buf2); Ok(buf2) }
-        7 => Err(TtcError::InvalidDeltaFlag(7)), _ => Err(TtcError::InvalidDeltaFlag(flag.0)),
+        7 => {
+            // Stride delta: stride embedded in first 2 bytes
+            crate::cpd::stride_delta_decode(data, &mut buf);
+            Ok(buf)
+        }
+        _ => Err(TtcError::InvalidDeltaFlag(flag.0)),
     }
 }
 
@@ -402,6 +422,18 @@ fn select_delta(chunk: &[u8], mode: CompressionMode) -> DeltaFlag {
             (DeltaFlag::ORDER2_C, delta_encode_c as fn(&[u8], &mut Vec<u8>))] {
             enc(sample, &mut buf); enc(&buf, &mut buf2);
             let h = compute_entropy(&buf2); if h < best_h && (h_raw - h) >= delta_threshold { best_h = h; best_flag = flag; }
+        }
+    }
+    // Stride delta: detect periodic structure and try stride-based delta.
+    // Uses coprime framework distances (7, 11, 13, 77, ...) plus general scan.
+    let (stride, _ac) = crate::cpd::detect_stride(chunk);
+    if stride > 1 && crate::cpd::stride_beats_order1(chunk, stride) {
+        // Verify stride delta actually reduces entropy on the sample
+        crate::cpd::stride_delta_encode(sample, stride, &mut buf);
+        let h = compute_entropy(&buf);
+        if h < best_h && (h_raw - h) >= delta_threshold {
+            best_h = h;
+            best_flag = DeltaFlag::STRIDE;
         }
     }
     best_flag
@@ -1835,7 +1867,10 @@ fn build_container(chunks: &[ChunkResult], orig_size: u64, crc: u32, mode: Compr
     let comp_size = HEADER_SIZE + cm_size + total_payload;
     let mut out = Vec::with_capacity(comp_size);
     out.extend_from_slice(&MAGIC_TTC1);
-    out.push(VERSION_V3);
+    // Use VERSION_V5 if any chunk uses stride delta (DeltaFlag 7).
+    // Old v4.2 decompressors will reject 0x05 with UnsupportedVersion — clean failure.
+    let version = if chunks.iter().any(|c| c.delta_flag.0 == 7) { VERSION_V5 } else { VERSION_V3 };
+    out.push(version);
     out.push(mode as u8);
     out.extend_from_slice(&orig_size.to_be_bytes());
     out.extend_from_slice(&crc.to_be_bytes());
@@ -1971,9 +2006,10 @@ pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<Compressio
         delta_flag: c.delta_flag.0, delta_order: c.delta_flag.order(), delta_rep: c.delta_flag.rep_name().into(),
         domain_transform: c.domain_transform.0 }).collect();
     let csz = best_compressed.len() as u64;
+    let ver_str = if best_chunks.iter().any(|c| c.delta_flag.0 == 7) { "5.0" } else { "3.0" };
     Ok(CompressionResult { compressed: best_compressed, original_size: data.len() as u64, compressed_size: csz,
         compression_ratio: if csz>0{data.len() as f64/csz as f64}else{1.0}, crc32: crc,
-        mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: "3.0".into(),
+        mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: ver_str.into(),
         level: opts.level, level_name: effective_cfg.tier_name.into(), chunks: descs,
         avg_tau: at, avg_delta: ad, base_distribution: bd, predominant_base: pb,
         independent_chunks: opts.independent_chunks, adaptive_rep_used: adaptive_rep, fibonacci_analysis: fib })
@@ -1991,7 +2027,7 @@ pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
     if compressed[0..4] != MAGIC_TTC1 { return Err(TtcError::InvalidMagic); }
     let version = compressed[0x04];
 
-    if version == VERSION_V3 {
+    if version == VERSION_V3 || version == VERSION_V5 {
         return ttc_decompress_v3(compressed);
     }
     if version != VERSION_V2 && version != VERSION_V1 { return Err(TtcError::UnsupportedVersion(version)); }
@@ -2074,7 +2110,6 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
         let o = cm_off + i * CHUNK_MAP_ENTRY_SIZE_V3;
         let comp = u32::from_be_bytes(compressed[o+4..o+8].try_into().unwrap());
         let pk = compressed[o+8]; let df = (pk>>5)&0x07; let dt = pk&0x07;
-        if df == 7 { return Err(TtcError::InvalidDeltaFlag(df)); }
         if dt == 7 { return Err(TtcError::InvalidDomainTransform(dt)); }
         entries.push(CME { comp, dflag: DeltaFlag(df), dxform: DomainTransform(dt) });
     }
@@ -2107,8 +2142,10 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
         if !fname.is_empty() { (content.to_vec(), Some(fname)) } else { (final_data, None) }
     } else { (final_data, None) };
     let computed_crc = crc32(&actual_data);
+    let ver_byte = compressed[0x04];
+    let ver_str = if ver_byte == VERSION_V5 { "5.0" } else { "3.0" };
     Ok(DecompressionResult { data: actual_data, original_file_name, original_size: orig_size,
-        compressed_size: compressed.len() as u64, version: "3.0".into(),
+        compressed_size: compressed.len() as u64, version: ver_str.into(),
         level: Some(level),
         level_name: level_config(level).ok().map(|c| c.tier_name.into()),
         crc32_verified: computed_crc == stored_crc })
