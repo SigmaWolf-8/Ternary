@@ -1,0 +1,51 @@
+Running as Administrator...
+
+==========================================================
+  PlenumNET Array3 Deployer v2.4.9
+  Capomastro Holdings Ltd.
+==========================================================
+
+  Existing deployment detected. This will:
+    - Rebuild the daemon binary from release tag v2.4.9
+    - Restart all 3 Windows Services
+    - Preserve existing node identities
+    - Rebuild NinjaExec signing agent
+    - Overwrite desktop launchers and watchdog script
+
+  Continue? (Y/n): y
+
+STEP 1/11: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/11: Configuring build environment
+---
+  [INFO] Architecture: Arm64
+  [OK] clang
+
+STEP 3/11: Cloning source (release v2.4.9)
+---
+  [INFO] Updating source to v2.4.9...
+  [OK] Source ready (pinned to v2.4.9)
+
+STEP 4/11: Building inter-cube daemon
+---
+  [WARN] Stopping 3 running daemon process(es)...
+         Connected relay clients will be temporarily disconnected.
+  [INFO] Cleaning inter-cube cache (forces monitor HTML refresh)...
+  [INFO] Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+         This typically takes 10-30 minutes for a release build.
+  [00:02] Compiling ternary-math (#1)
+  [00:11] Compiling plenumlan (#2)
+  [00:12] Compiling inter-cube (#3)
+  error[E0599]: no method named `to_dotted` found for struct `std::string::String` in the current scope
+  error[E0599]: no method named `to_dotted` found for struct `std::string::String` in the current scope
+  error[E0599]: no method named `to_dotted` found for struct `std::string::String` in the current scope
+  error[E0599]: no method named `to_dotted` found for struct `std::string::String` in the current scope
+  For more information about this error, try `rustc --explain E0599`.
+  error: could not compile `inter-cube` (bin "inter-cube-daemon") due to 4 previous errors; 1 warning emitted
+  [FAIL] The PlenumNET daemon could not be compiled (00:38 elapsed).
+         Review the error output above for details.
+         If a build tool is missing, install it and re-run the deployer.
+Press Enter to close. Re-run the deployer after resolving the issue above.:
