@@ -1,0 +1,58 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> powershell -ExecutionPolicy Bypass -File .\scripts\build-wasm.ps1
+The argument '.\scripts\build-wasm.ps1' to the -File parameter does not exist. Provide the path to an existing '.ps1' file as an argument to the -File parameter.
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd c:\PlenumNET
+PS C:\PlenumNET> powershell -ExecutionPolicy Bypass -File .\scripts\build-wasm.ps1
+At C:\PlenumNET\scripts\build-wasm.ps1:127 char:1
++ } else {
++ ~
+Unexpected token '}' in expression or statement.
+At C:\PlenumNET\scripts\build-wasm.ps1:167 char:70
++ ...       Write-Warn "  cmd /c `"$($vcvars.FullName)`" amd64 `"&&`" power ...
++                                                                ~~
+The token '&&' is not a valid statement separator in this version.
+At C:\PlenumNET\scripts\build-wasm.ps1:249 char:17
++             try {
++                 ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:400 char:14
++ Write-Host ""
++              ~
+The Try statement is missing its Catch or Finally block.
+At C:\PlenumNET\scripts\build-wasm.ps1:248 char:22
++         if ($winget) {
++                      ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:217 char:21
++     if ($cmp -lt 0) {
++                     ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:214 char:33
++ if ($wasmPack -and -not $Force) {
++                                 ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:162 char:22
++         if ($vsPath) {
++                      ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:160 char:29
++     if (Test-Path $vsWhere) {
++                             ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:158 char:24
++ if (-not $hasCompiler) {
++                        ~
+Missing closing '}' in statement block or type definition.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\PlenumNET>
