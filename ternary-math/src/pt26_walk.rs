@@ -12,7 +12,7 @@
 //! of per-step sponge commitments.
 
 use crate::cube_addr::CubeAddr;
-use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+use crate::plenum_square::{MAGIC_CONSTANT};
 use crate::pt26_dsa::{
     DIMENSIONS, Schedule, trit_diff, step_token, walk_token, walk_parity,
 };

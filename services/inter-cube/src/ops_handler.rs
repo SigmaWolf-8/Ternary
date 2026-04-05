@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use ternary_math::tl_dsa;
 
@@ -473,7 +473,7 @@ impl OpsHandler {
             cmd.env("PLENUMNET_REQUEST_ID", &request_id);
             cmd.current_dir(&ops_dir);
 
-            let mut child = match cmd.spawn() {
+            let child = match cmd.spawn() {
                 Ok(c) => c,
                 Err(e) => {
                     self.write_audit_entry(&OpsAuditEntry {

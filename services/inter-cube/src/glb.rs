@@ -269,7 +269,7 @@ impl GeometricLoadBalancer {
     /// Total path length: d + 2 instead of d.
     fn compute_detour(
         &self,
-        destination: &CubeAddr,
+        _destination: &CubeAddr,
         delta: &[usize],
     ) -> Result<ForwardResult, ForwardError> {
         // Try dimensions NOT in delta — go sideways

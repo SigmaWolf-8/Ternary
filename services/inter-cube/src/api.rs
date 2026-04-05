@@ -926,7 +926,7 @@ pub async fn get_slot_inventory(
     // Future enhancement: distinguish between per-probe connect timeout and overall
     // handler timeout for finer-grained control. For now, a single timeout is sufficient.
 
-    let api_port: u16 = std::env::var("CUBE_API_PORT")
+    let _api_port: u16 = std::env::var("CUBE_API_PORT")
         .or_else(|_| std::env::var("API_PORT"))
         .ok()
         .and_then(|v| v.parse().ok())

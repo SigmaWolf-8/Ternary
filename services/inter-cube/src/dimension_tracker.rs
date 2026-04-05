@@ -221,7 +221,7 @@ impl DimensionTracker {
             entropy_sum += entropy;
 
             let counts = [c1, c2, c3];
-            let min_c = *counts.iter().min().unwrap();
+            let _min_c = *counts.iter().min().unwrap();
             let max_c = *counts.iter().max().unwrap();
 
             let least_pop = if c1 <= c2 && c1 <= c3 {

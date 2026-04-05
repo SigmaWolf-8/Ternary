@@ -46,7 +46,7 @@
 //! This binds the tunnel key to the geometric relationship between
 //! the two endpoints — not just their raw addresses.
 
-use crate::cube_addr::{CubeAddr, DIMENSIONS};
+use crate::cube_addr::{CubeAddr};
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONSTANTS (from T-04 Plenum Square)

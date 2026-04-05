@@ -57,7 +57,7 @@
 
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::cube_addr::CubeAddr;

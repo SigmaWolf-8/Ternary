@@ -10,13 +10,13 @@
 //!
 //! **PT26 = Parallel Traversals × 26 ports.**
 
-use std::collections::HashMap;
+
 
 use ternary_math::cube_addr::CubeAddr;
 use ternary_math::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
 use ternary_math::pt26_dsa::{
-    DIMENSIONS, NUM_SIGMAS, STEP_COMMIT_LEN, SIG_COMMIT_LEN,
-    DOMAIN_MSG, DOMAIN_SIG,
+    DIMENSIONS, NUM_SIGMAS, STEP_COMMIT_LEN,
+    DOMAIN_MSG,
     Pt26PublicKey, Pt26Signature, Pt26Error,
     compute_step_commit, compute_sig_commit,
     derive_destination, hamming_distance,
@@ -81,7 +81,7 @@ pub fn execute_port_verify(task: &PortVerifyTask) -> PortVerifyResult {
         for step_pos in 0..task.walk_length {
             // Construct candidate (current, next) for this dimension at this step
             // Simplified model: assume this dimension is fixed at step_pos
-            let mut current_trits = addr_bytes;
+            let current_trits = addr_bytes;
             let mut next_trits = addr_bytes;
             next_trits[dim] = dest_bytes[dim];
 
