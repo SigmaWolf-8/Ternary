@@ -432,3 +432,9 @@ id = "r86XS5YtsZfndi1xoJVOQ"
 uri = "file://docs/crs-daemon-management.md"
 type = "text"
 title = "Task #76 — CRS Daemon Startup & Management Reference"
+
+[[outputs]]
+id = "zln5qbyLqieARU8LpQiAm"
+uri = "file://.local/downloads/grounding-files.tar.gz"
+type = "unspecified"
+title = "Grounding Files (Cargo.toml + lib.rs + constants.ts)"
