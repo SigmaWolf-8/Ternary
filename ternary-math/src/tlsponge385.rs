@@ -482,6 +482,14 @@ pub fn hash_hex_tis(input: &[u8]) -> String {
     let mut s = Sponge385Pub::new_tis(); s.absorb_bytes(input);
     trits_to_bytes(&s.squeeze(243))[..49].iter().map(|b| format!("{:02x}", b)).collect()
 }
+/// TIS-27 variable-length hash — mirrors `hash()` but uses 4-round mode.
+/// For scan hash, identity verification, HMAC fast-path.
+/// NOT for primary key derivation or authenticated encryption.
+pub fn hash_tis(input: &[u8], output_len: usize) -> Vec<u8> {
+    let mut s = Sponge385Pub::new_tis();
+    s.absorb_bytes(input);
+    trits_to_bytes(&s.squeeze(output_len * 5))[..output_len].to_vec()
+}
 pub fn derive_key(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
     let total = context.len() + material.len();
     if total <= 256 {
