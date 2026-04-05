@@ -47,6 +47,7 @@ pub mod pt26_dsa;
 pub mod pt26_walk;
 pub mod ttc;
 pub mod cpd;
+pub mod container_decomp;
 pub mod ternary_lattice;
 pub mod tl_kem;
 pub mod phase_encryption;

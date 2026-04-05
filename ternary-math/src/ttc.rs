@@ -66,9 +66,7 @@ pub const CHUNK_MAP_ENTRY_SIZE_V3: usize = 9;
 pub const CHUNK_MAP_ENTRY_SIZE_V2_LEGACY: usize = 16;
 pub const CHUNK_MAP_ENTRY_SIZE: usize = CHUNK_MAP_ENTRY_SIZE_V3;
 pub const VERSION_V3: u8 = 0x04;
-/// TTC v5.0: stride-delta preprocessing via coprime periodic detection.
-/// Container format identical to v3; version bump ensures old decompressors
-/// reject cleanly with UnsupportedVersion(0x05) instead of InvalidDeltaFlag(7).
+/// TTC v5.0.2: stride-delta + container decomposition + structured auto-detect.
 pub const VERSION_V5: u8 = 0x05;
 pub const TAU: f64 = 1.839_286_755_214_161_1;
 pub const GOLDEN_ANGLE: f64 = 139.035_628;
@@ -1152,6 +1150,8 @@ pub struct DomainTransform(pub u8);
 impl DomainTransform {
     pub const NONE: Self = Self(0); pub const AUDIO_LP: Self = Self(1); pub const IMAGE_MED: Self = Self(2);
     pub const GENOMIC: Self = Self(3); pub const SOURCE: Self = Self(4); pub const LOG: Self = Self(5); pub const STRUCTURED: Self = Self(6);
+    /// Container decomposition: inflate internal streams in ZIP/PDF/GZIP/PNG.
+    pub const CONTAINER_DECOMP: Self = Self(7);
 }
 
 fn audio_lp_encode(data: &[u8]) -> (Vec<u8>, [i16; 4]) {
@@ -1469,7 +1469,29 @@ fn apply_domain_preprocess(data: &[u8], mode: CompressionMode, image_width: Opti
         CompressionMode::Source => (source_encode(data), DomainTransform::SOURCE, None, None),
         CompressionMode::Log => (log_encode(data), DomainTransform::LOG, None, None),
         CompressionMode::Structured => (structured_encode(data), DomainTransform::STRUCTURED, None, None),
-        _ => (data.to_vec(), DomainTransform::NONE, None, None),
+        _ => {
+            // Auto-detect containers (ZIP/DOCX/XLSX/PDF/GZIP/PNG) regardless of mode.
+            if crate::container_decomp::is_container(data) {
+                (crate::container_decomp::decompose(data), DomainTransform::CONTAINER_DECOMP, None, None)
+            }
+            // Auto-detect structured text (JSON/CSV/XML) in Basic/Temporal/Financial.
+            // The Structured mode arm above handles explicit mode selection;
+            // this gives the same benefit when users send Basic (the common case).
+            else if data.len() >= 2 {
+                let trimmed = &data[data.iter().position(|&b| b != b' ' && b != b'\t' && b != b'\n' && b != b'\r').unwrap_or(0)..];
+                if trimmed.starts_with(b"{") || trimmed.starts_with(b"[") {
+                    (structured_encode(data), DomainTransform::STRUCTURED, None, None)
+                } else if trimmed.starts_with(b"<") {
+                    (structured_encode(data), DomainTransform::STRUCTURED, None, None)
+                } else if looks_like_csv(data) {
+                    (structured_encode(data), DomainTransform::STRUCTURED, None, None)
+                } else {
+                    (data.to_vec(), DomainTransform::NONE, None, None)
+                }
+            } else {
+                (data.to_vec(), DomainTransform::NONE, None, None)
+            }
+        }
     }
 }
 fn reverse_domain_preprocess(data: &[u8], xform: DomainTransform, coeffs: Option<&[i16; 4]>, iw: Option<u64>) -> TtcResult<Vec<u8>> {
@@ -1477,7 +1499,8 @@ fn reverse_domain_preprocess(data: &[u8], xform: DomainTransform, coeffs: Option
         1 => Ok(audio_lp_decode(data, coeffs.ok_or_else(|| TtcError::DecompressionError("Missing LP coefficients".into()))?)),
         2 => Ok(image_med_decode(data, iw.ok_or(TtcError::ImageWidthRequired)? as usize)),
         3 => Ok(genomic_decode(data)), 4 => Ok(source_decode(data)), 5 => Ok(log_decode(data)), 6 => Ok(structured_decode(data)),
-        7 => Err(TtcError::InvalidDomainTransform(7)), _ => Err(TtcError::InvalidDomainTransform(xform.0)) }
+        7 => crate::container_decomp::reconstruct(data).map_err(|e| TtcError::DecompressionError(e)),
+        _ => Err(TtcError::InvalidDomainTransform(xform.0)) }
 }
 
 // ─── LZ77 (§4) ─────────────────────────────────────────────────────────────
@@ -1867,9 +1890,9 @@ fn build_container(chunks: &[ChunkResult], orig_size: u64, crc: u32, mode: Compr
     let comp_size = HEADER_SIZE + cm_size + total_payload;
     let mut out = Vec::with_capacity(comp_size);
     out.extend_from_slice(&MAGIC_TTC1);
-    // Use VERSION_V5 if any chunk uses stride delta (DeltaFlag 7).
-    // Old v4.2 decompressors will reject 0x05 with UnsupportedVersion — clean failure.
-    let version = if chunks.iter().any(|c| c.delta_flag.0 == 7) { VERSION_V5 } else { VERSION_V3 };
+    // Use VERSION_V5 if any chunk uses stride delta (DeltaFlag 7) or container decomposition (DomainTransform 7).
+    let uses_v5 = chunks.iter().any(|c| c.delta_flag.0 == 7 || c.domain_transform.0 == 7);
+    let version = if uses_v5 { VERSION_V5 } else { VERSION_V3 };
     out.push(version);
     out.push(mode as u8);
     out.extend_from_slice(&orig_size.to_be_bytes());
@@ -2006,7 +2029,7 @@ pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<Compressio
         delta_flag: c.delta_flag.0, delta_order: c.delta_flag.order(), delta_rep: c.delta_flag.rep_name().into(),
         domain_transform: c.domain_transform.0 }).collect();
     let csz = best_compressed.len() as u64;
-    let ver_str = if best_chunks.iter().any(|c| c.delta_flag.0 == 7) { "5.0" } else { "3.0" };
+    let ver_str = if best_chunks.iter().any(|c| c.delta_flag.0 == 7 || c.domain_transform.0 == 7) { "5.0.2" } else { "3.0" };
     Ok(CompressionResult { compressed: best_compressed, original_size: data.len() as u64, compressed_size: csz,
         compression_ratio: if csz>0{data.len() as f64/csz as f64}else{1.0}, crc32: crc,
         mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: ver_str.into(),
@@ -2110,7 +2133,6 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
         let o = cm_off + i * CHUNK_MAP_ENTRY_SIZE_V3;
         let comp = u32::from_be_bytes(compressed[o+4..o+8].try_into().unwrap());
         let pk = compressed[o+8]; let df = (pk>>5)&0x07; let dt = pk&0x07;
-        if dt == 7 { return Err(TtcError::InvalidDomainTransform(dt)); }
         entries.push(CME { comp, dflag: DeltaFlag(df), dxform: DomainTransform(dt) });
     }
     let ws = if level>=1&&level<=9 { level_config(level).ok().map(|c| c.window_size) } else { None }.unwrap_or(243*1024);
@@ -2143,7 +2165,7 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
     } else { (final_data, None) };
     let computed_crc = crc32(&actual_data);
     let ver_byte = compressed[0x04];
-    let ver_str = if ver_byte == VERSION_V5 { "5.0" } else { "3.0" };
+    let ver_str = if ver_byte == VERSION_V5 { "5.0.2" } else { "3.0" };
     Ok(DecompressionResult { data: actual_data, original_file_name, original_size: orig_size,
         compressed_size: compressed.len() as u64, version: ver_str.into(),
         level: Some(level),
@@ -2181,12 +2203,13 @@ pub fn ttc_compress_multi(files: &[(&str, &[u8])], opts: &CompressOptions) -> Tt
     for (_, arc, _, _) in &archives { out.extend_from_slice(arc); }
     let n = files.len().max(1) as f64;
     let pb = if bd.base_364>0{364} else if bd.base_70>0{70} else if bd.base_28>0{28} else if bd.base_13>0{13} else {3};
+    let multi_ver = if archives.iter().any(|(_, arc, _, _)| arc.len() >= 5 && arc[4] == VERSION_V5) { "5.0.2" } else { "3.0" };
     Ok(MultiFileResult { total_compressed_size: out.len() as u64, compressed: out, total_original_size: to,
         compression_ratio: if tc_sum>0{to as f64/tc_sum as f64}else{1.0}, file_count: files.len(),
         files: archives.iter().map(|(n,_,o,c)| FileEntry { name: n.clone(), original_size: *o, compressed_size: *c,
             ratio: if *c>0{*o as f64/ *c as f64}else{1.0} }).collect(),
         avg_tau: ts/n, avg_delta: ds/n, base_distribution: bd, predominant_base: pb,
-        mode_name: opts.mode.name().into(), version: "3.0".into(), level: opts.level, level_name: cfg.tier_name.into(),
+        mode_name: opts.mode.name().into(), version: multi_ver.into(), level: opts.level, level_name: cfg.tier_name.into(),
         adaptive_rep_used: any_ar, fibonacci_analysis: if opts.compute_fibonacci{Some(fibonacci_analysis(to as usize))}else{None} })
 }
 pub fn ttc_decompress_multi(compressed: &[u8]) -> TtcResult<Vec<(String, Vec<u8>)>> {
@@ -2252,7 +2275,7 @@ mod tests {
             apply_delta_encode(&data, df, &mut out, &mut scratch);
             let dec = apply_delta_decode(&out, df).unwrap();
             assert_eq!(data, dec, "Delta round-trip failed for flag={flag}"); } }
-    #[test] fn test_delta_flag_7_rejected() { assert!(apply_delta_decode(&[0u8;10], DeltaFlag(7)).is_err()); }
+    #[test] fn test_delta_flag_8_rejected() { assert!(apply_delta_decode(&[0u8;10], DeltaFlag(8)).is_err()); }
     #[test] fn test_entropy_bounds() {
         let uniform: Vec<u8> = (0..=255).collect(); assert!((compute_entropy(&uniform)-8.0).abs()<0.01);
         assert!(compute_entropy(&vec![42u8;1000]) < 0.01); }
