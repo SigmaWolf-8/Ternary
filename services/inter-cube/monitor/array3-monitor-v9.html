@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Array3 Monitor v9.3 — PlenumNET</title>
+<title>Array3 Monitor v9.3.1 — PlenumNET</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   :root {
@@ -217,9 +217,22 @@
 </script>
 
 <script>
+
 // ═══════════════════════════════════════════════════════
-// ARRAY3 MONITOR v9.3 — Server-hosted token-free mode
-// Changes from v8.9:
+// ARRAY3 MONITOR v9.3.1 — Relay HTTP proxy + server-hosted token-free mode + error overlays
+// Changes from v9.3:
+//   [FIX-1]  Version header and changelog updated
+//   [FIX-2]  Token comment corrected — no longer claims client-embedded is intentional
+//   [FIX-3]  Gateway filter key mismatch: activeFilters.has('Gateway') → .has('GATEWAY')
+//   [FIX-4]  _isServerHosted detection: added origin-based fallback for Replit
+//   [FIX-5]  Duplicate connBtn click listener removed; connectRelayWss merged into success branch
+//   [FIX-6]  WSS relay now established on auto-connect (IIFE), not just manual click
+//   [FIX-7]  Throughput calculation tracks real poll timestamps instead of assuming 5s
+//   [FIX-8]  Client-side fetch timeouts report code 0 ("Relay Unreachable") not 504
+//   [FIX-9]  nodeIndex collision guard prevents two nodes overwriting same slot range
+//   [FIX-10] formatUptime floors fractional seconds before modulo
+//
+// Inherited from v8.9 → v9.3:
 //   [T1] NinjaExec auto-approval removed — window.open + 60s timeout
 //   [T2] Plaintext HTTP + API key blocked with early return
 //   [T3] Relay response staleness check (60s threshold)
@@ -227,9 +240,9 @@
 //   [T5] fetchAllNodes() fetch-in-flight mutex
 //   [T6] Relay node index derived from slot address, not array position
 //   [T7] KNOWLEDGE keys uppercase; lookup via .toUpperCase()
-// v9.3:
-//   [T8] Server-hosted monitor uses /monitor/slots (no client token)
-//   [T9] Setup banner only shown for file:// copies missing a token
+//   [v9.3] Server-hosted token-free mode — no RELAY_AUTH_TOKEN needed when served from relay origin
+//   [v9.3] Setup banner for file:// users missing token
+//   [v9.3] Relay error overlays (401/429/503/504) with backoff
 // ═══════════════════════════════════════════════════════
 
 const BRAND={
@@ -293,17 +306,7 @@ resizeHud();
 
 // ═══════════════════════════════════════════════════════
 // HUD — reads only from allSlots (daemon data)
-// Fields available per daemon api.rs:
-//   CON slot → latency_us (avg_rtt_ms×1000), serviceDetail.bytes_in/out, tunnels_up
-//   FTS slot → serviceDetail.neighbors_up/suspect/down/recovering
-//   GLB slot → serviceDetail.live_neighbors, active_flows, total_forwards
-//   CRS slot → serviceDetail.registered_nodes
-//   All slots → uptime_secs, heartbeat_count
-//   Health   → version, mode, node_id, cpu_pct, mem_pct (when daemon exposes)
-// Nothing is fabricated.
 // ═══════════════════════════════════════════════════════
-
-// CPU and MEM per node — populated from health response when daemon exposes cpu_pct / mem_pct
 const hudHealth={cpu:['—','—','—'],mem:['—','—','—']};
 
 function updateHudFromHealth(nodeData, ni){
@@ -312,11 +315,11 @@ function updateHudFromHealth(nodeData, ni){
   if(h.mem_pct!=null) hudHealth.mem[ni]=Math.round(h.mem_pct)+'%';
 }
 
-// Track bytes between polls to compute throughput delta
+// [FIX-7] Track actual poll timestamps for accurate throughput
 const _prevBytes={};
+const _prevBytesTime={};
 
 function computeHudCells(){
-  // One entry per node (ni=0,1,2)
   const conByNode={};
   const ftsByNode={};
   const glbByNode={};
@@ -330,30 +333,31 @@ function computeHudCells(){
     if(s.uptimeSecs&&s.uptimeSecs>0&&!uptimeByNode[s.ni]) uptimeByNode[s.ni]=s.uptimeSecs;
   });
 
-  // CON RTT per node (latency_us → ms)
   function conRtt(ni){
     const s=conByNode[ni];
     if(!s||!s.la)return'—';
     return(s.la/1000).toFixed(1)+'ms';
   }
-  // CON throughput per node (bytes_in+bytes_out, delta over poll interval)
+  // [FIX-7] Use real elapsed time between polls, not hardcoded 5s
   function conThroughput(ni){
     const s=conByNode[ni];
     if(!s||!s.serviceDetail)return'—';
     const d=s.serviceDetail;
     const total=(d.bytes_in||0)+(d.bytes_out||0);
+    const now=Date.now();
     const prev=_prevBytes[ni]||0;
+    const prevTime=_prevBytesTime[ni]||0;
     _prevBytes[ni]=total;
-    if(!prev)return'—';
+    _prevBytesTime[ni]=now;
+    if(!prev||!prevTime)return'—';
     const delta=total-prev;
     if(delta<0)return'—';
-    // 5s poll interval → bytes/s
-    const bps=Math.round(delta/5);
+    const elapsed=Math.max((now-prevTime)/1000,0.5);
+    const bps=Math.round(delta/elapsed);
     if(bps>1048576)return(bps/1048576).toFixed(1)+' MB/s';
     if(bps>1024)return(bps/1024).toFixed(0)+' KB/s';
     return bps+' B/s';
   }
-  // FTS health across all nodes
   function ftsStatus(){
     const vals=Object.values(ftsByNode);
     if(!vals.length)return{value:'—',sub:'no FTS data'};
@@ -366,7 +370,6 @@ function computeHudCells(){
     });
     return{value:`${up} up`,sub:`${sus} suspect · ${dn} down`};
   }
-  // GLB status across all nodes
   function glbStatus(){
     const vals=Object.values(glbByNode);
     if(!vals.length)return{value:'—',sub:'no GLB data'};
@@ -416,7 +419,6 @@ function drawHud(){
     TextEngine.render(hudCtx,cell.sub,'400 11px JetBrains Mono',cx,barY+48,CSS.label);
     if(i<cells.length-1){hudCtx.fillStyle='rgba(39,34,32,0.6)';hudCtx.fillRect(cx+cellW-1,barY+8,1,barH-16)}
   });
-  // Live indicator — solid, no animation
   hudCtx.beginPath();hudCtx.arc(innerWidth-16,barY+barH/2,3,0,Math.PI*2);
   hudCtx.fillStyle=isLive?CSS.lime:CSS.iron;hudCtx.fill();
 }
@@ -501,27 +503,16 @@ async function fetchNode(port){
 
 // ═══════════════════════════════════════════════════════
 // SERVICE NAME NORMALISATION
-// Maps whatever string the daemon returns to a canonical
-// 3-4 letter key used for KNOWLEDGE lookup and display.
-// Add entries here when new service types appear.
 // ═══════════════════════════════════════════════════════
 const SVC_NORM={
-  // Gateway variants
   gateway:'GATEWAY',gw:'GATEWAY',outbound:'GATEWAY',
-  // Certificate Registration Service
   crs:'CRS','certificate-registration':'CRS','certificate':'CRS',certificateregistration:'CRS',
-  // Global Load Balancer
   glb:'GLB','load-balancer':'GLB','loadbalancer':'GLB','global-load-balancer':'GLB',
-  // Conductor (inter-node routing)
   con:'CON',conductor:'CON','inter-cube':'CON',intercube:'CON',
-  // Fault Tolerance Service
   fts:'FTS','fault-tolerance':'FTS','faulttolerance':'FTS','fault':'FTS',
-  // YODA AI Orchestration
   yoda:'YODA',orchestrator:'YODA','ai-orchestrator':'YODA',
-  // LLM Inference
   llm:'LLM','language-model':'LLM',inference:'LLM','llm-inference':'LLM',
 };
-// Human-readable full names shown in the detail panel header
 const SVC_DISPLAY={
   GATEWAY:'Gateway — Outbound Router',
   CRS:'CRS — Certificate Registration',
@@ -533,10 +524,8 @@ const SVC_DISPLAY={
 };
 function normaliseService(raw){
   if(!raw)return null;
-  // Try exact lowercase match first, then strip hyphens/underscores
   const lo=raw.toLowerCase();
   return SVC_NORM[lo]||SVC_NORM[lo.replace(/[-_\s]/g,'')]
-    // Fallback: title-case the raw string (as before) — keeps unknown services visible
     ||(raw.charAt(0).toUpperCase()+raw.slice(1));
 }
 
@@ -568,7 +557,7 @@ function transformNode(nodeData,ni){
     for(let x=1;x<=3;x++)for(let y=1;y<=3;y++)for(let z=1;z<=3;z++){
       const isCenter=x===2&&y===2&&z===2;
       result.push({
-        rc:[x,y,z],ni,nn:nodeName,np:nodePort,occ:isCenter,svc:isCenter?'Gateway':null,
+        rc:[x,y,z],ni,nn:nodeName,np:nodePort,occ:isCenter,svc:isCenter?'GATEWAY':null,
         st:'offline',statusLabel:'Node unreachable',ld:0,pt:0,up:'—',la:0,td:0,hb:0,
         isPrimaryGW:false,mode:'unknown',version:'',address:'',
       });
@@ -579,10 +568,15 @@ function transformNode(nodeData,ni){
 
 let useRelay=!_isLocal;
 const RELAY_URL=_isLocal?'https://plenumnet.replit.app':window.location.origin;
-const _isServerHosted=!_isLocal&&window.location.pathname.startsWith('/api/salvi/inter-cube/monitor');
 
-// Token only needed for file:// copies. Server-hosted monitor uses /monitor/slots instead.
-// See rotation procedure in ops docs.
+// [FIX-4] _isServerHosted: detect Replit by origin as well as pathname
+const _isServerHosted=!_isLocal&&(
+  window.location.origin.includes('plenumnet.replit.app')||
+  window.location.pathname.startsWith('/api/salvi/inter-cube/monitor')
+);
+
+// [FIX-2] Token only used in file:// mode. Server-hosted mode skips token entirely —
+// the relay authenticates by origin. Never embed secrets in client-served HTML.
 const RELAY_AUTH_TOKEN='<paste-your-relay-api-token-here>';
 
 let relayErrorState=null;
@@ -595,6 +589,8 @@ function isRelayTokenConfigured(){
 function showRelayError(statusCode,errorObj){
   relayErrorState={statusCode,error:errorObj};
   const messages={
+    // [FIX-8] Code 0 = client-side network failure (distinct from server 504)
+    0:  {icon:'\u{1F50C}',color:'#718096',title:'Relay Unreachable',desc:'Cannot reach the relay server. Check your network and relay URL.'},
     401:{icon:'\u{1F512}',color:'#E53E3E',title:'Authentication Failed',desc:'Check that your relay token matches the server\u2019s RELAY_API_TOKEN.'},
     429:{icon:'\u26A0\uFE0F',color:'#DD6B20',title:'Too Many Requests',desc:'Rate limit exceeded (30/min). Retrying with backoff\u2026'},
     503:{icon:'\u{1F50C}',color:'#718096',title:'No Daemons Connected',desc:'Verify Array3 services are running on the host machine.'},
@@ -644,7 +640,7 @@ function showSetupBanner(){
     <div style="font-size:18px;font-weight:700;color:#F0EDE8;margin-bottom:8px">Relay Token Required</div>
     <div style="font-size:13px;color:#C9C1B4;line-height:1.6;margin-bottom:16px">
       To monitor Array3 nodes remotely, paste your <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_API_TOKEN</code> into this file.<br><br>
-      Open <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">array3-monitor-v9.html</code> and replace the placeholder value of <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_AUTH_TOKEN</code> on line ~582.
+      Open <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">array3-monitor.html</code> and replace the placeholder value of <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_AUTH_TOKEN</code>.
     </div>
     <div style="font-size:11px;color:#6B655E;border-top:1px solid #272220;padding-top:12px">
       Local monitoring (file://) still works without a token when daemons are on localhost.
@@ -747,12 +743,13 @@ async function fetchFromRelay(){
     });
   }catch(e){
     console.warn('[monitor] Relay fetch failed:',e.message);
-    showRelayError(504,{error:'Relay unreachable',hint:e.message});
+    // [FIX-8] Client-side failures use code 0, not 504
+    showRelayError(0,{error:'Relay unreachable',hint:e.message});
     return null;
   }
 }
 
-// [T5] FETCH-IN-FLIGHT MUTEX — prevents concurrent poll race conditions
+// [T5] FETCH-IN-FLIGHT MUTEX
 let fetchInFlight=false;
 
 async function fetchAllNodes(){
@@ -780,9 +777,13 @@ async function fetchAllNodes(){
     const upCount=results.filter(r=>r.alive).length;
     allSlots.length=0;
 
-    // [T6] Use nodeIndex from relay response when available
+    // [FIX-9] Deduplicate node indices to prevent slot overwrites
+    const usedIndices=new Set();
     results.forEach((nodeData,i)=>{
-      const ni=nodeData.nodeIndex??i;
+      let ni=nodeData.nodeIndex??i;
+      while(usedIndices.has(ni)&&ni<3)ni++;
+      if(usedIndices.has(ni))ni=i; // absolute fallback
+      usedIndices.add(ni);
       const slots=transformNode(nodeData,ni);
       slots.forEach(s=>allSlots.push(s));
       if(nodeData.alive) updateHudFromHealth(nodeData,ni);
@@ -822,11 +823,12 @@ function refreshScene(){
   buildAll();
 }
 
-// [T2] CREDENTIAL BLOCK — early return on plaintext HTTP with API key
+// [FIX-5] Single click handler for connBtn — includes [T2] HTTP credential block
 connBtn.addEventListener('click',async()=>{
   relayUrl=document.getElementById('inp-url').value.replace(/\/$/,'');
   apiKey=document.getElementById('inp-key').value;
 
+  // [T2] Block plaintext HTTP with API key
   if(apiKey){
     const isSafeOrigin=
       relayUrl.startsWith('https://')||
@@ -837,7 +839,7 @@ connBtn.addEventListener('click',async()=>{
       connStatus.textContent='Connection blocked — API key cannot be sent over unencrypted HTTP. Use https:// or connect without an API key.';
       connStatus.style.color='#E24B4A';
       connBtn.disabled=false;connBtn.textContent='Retry';
-      return; // hard stop — no fetch
+      return;
     }
   }
 
@@ -848,6 +850,8 @@ connBtn.addEventListener('click',async()=>{
   const ok=await fetchAllNodes();
   if(ok){
     isLive=true;refreshScene();
+    // [FIX-5] WSS relay established here, not in a separate duplicate listener
+    connectRelayWss();
     connBtn.textContent='Refresh';connBtn.disabled=false;
     if(pollTimer)clearInterval(pollTimer);
     pollTimer=setInterval(async()=>{
@@ -859,9 +863,11 @@ connBtn.addEventListener('click',async()=>{
   }
 });
 
+// [FIX-6] Auto-connect IIFE now also establishes WSS relay
 (async()=>{
   const ok=await fetchAllNodes();
   if(ok){isLive=true;refreshScene();
+    connectRelayWss();
     pollTimer=setInterval(async()=>{
       if(relayBackoffMs>0){await new Promise(r=>setTimeout(r,relayBackoffMs))}
       const f=await fetchAllNodes();if(f)refreshScene()
@@ -957,7 +963,7 @@ function buildAll(){
   nds=[];connLines=[];relayTubes=[];relayPulses=[];boundGroups=[];nodeLabels=[];
   allSlots.forEach((slot,i)=>{
     const pos=slotPos(slot);
-    const isGW=slot.svc==='Gateway',isPrimary=isGW&&slot.ni===0;
+    const isGW=slot.svc==='GATEWAY',isPrimary=isGW&&slot.ni===0;
     const stDef=STATUS[slot.st]||STATUS.available;
     const tSc=(isGW?0.4:0.28)*P.tsize;
     const eMat=new THREE.LineBasicMaterial({color:slot.occ?stDef.color:BRAND.bgBorder,transparent:true,opacity:slot.occ?Math.max(stDef.opacity*0.5,0.08):0.08});
@@ -986,7 +992,7 @@ function buildAll(){
   nodeIndices.forEach(ni=>{
     const gw=gwPos(ni);
     allSlots.forEach((slot,i)=>{
-      if(slot.ni!==ni||!slot.occ||slot.svc==='Gateway'||slot.st==='offline')return;
+      if(slot.ni!==ni||!slot.occ||slot.svc==='GATEWAY'||slot.st==='offline')return;
       const stDef=STATUS[slot.st]||STATUS.available;
       const from=slotPos(slot),mid=new THREE.Vector3().addVectors(from,gw).multiplyScalar(0.5);
       const off=new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(from,gw),new THREE.Vector3(0,1,0)).normalize().multiplyScalar(cubeSpacing()*0.1);mid.add(off);
@@ -1028,6 +1034,7 @@ function buildAll(){
   applyVis();
 }
 
+// [FIX-3] All filter checks use uppercase 'GATEWAY' to match normalised keys
 function applyVis(){
   const sE=document.getElementById('chk-empty').checked,sC=document.getElementById('chk-conn').checked;
   const sR=document.getElementById('chk-relay').checked,sL=document.getElementById('chk-lab').checked;
@@ -1039,9 +1046,9 @@ function applyVis(){
     if(nd.inner)nd.inner.visible=vis&&activeFilters.has(s.svc);
     if(nd.halo)nd.halo.visible=vis&&activeFilters.has(s.svc);
     nd.lab.visible=vis&&sL;
-    if(nd.ring)nd.ring.visible=vis&&activeFilters.has('Gateway');
-    if(nd.ringGlow)nd.ringGlow.visible=vis&&activeFilters.has('Gateway');
-    if(nd.primaryLabel)nd.primaryLabel.visible=vis&&sL&&activeFilters.has('Gateway');
+    if(nd.ring)nd.ring.visible=vis&&activeFilters.has('GATEWAY');
+    if(nd.ringGlow)nd.ringGlow.visible=vis&&activeFilters.has('GATEWAY');
+    if(nd.primaryLabel)nd.primaryLabel.visible=vis&&sL&&activeFilters.has('GATEWAY');
   });
   connLines.forEach(l=>{const s=allSlots[l.userData.slotIdx];l.visible=sC&&(focusNode==='all'||parseInt(focusNode)===l.userData.ni)&&activeFilters.has(s.svc)});
   relayTubes.forEach(t=>t.visible=sR);
@@ -1077,7 +1084,7 @@ renderer.domElement.addEventListener('mousemove',e=>{
     const idx=hits[0].object.userData.idx;hovered=idx;const s=allSlots[idx];
     const stDef=STATUS[s.st]||STATUS.available;
     tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-10)+'px';
-    const isPri=s.svc==='Gateway'&&s.ni===0;
+    const isPri=s.svc==='GATEWAY'&&s.ni===0;
     tip.innerHTML=isPri?`<span style="color:${CSS.gold}">⬡ PRIMARY GATEWAY</span> · ${s.nn}`
       :s.occ?`<span style="color:${stDef.css}">${s.svc}</span> · <span style="color:${stDef.css}">${stDef.label}</span> · ${s.nn}`
       :`<span style="color:${CSS.faint}">empty tunnel</span> · ${s.nn} (${s.rc.join(',')})`;
@@ -1085,7 +1092,6 @@ renderer.domElement.addEventListener('mousemove',e=>{
   }else{hovered=-1;tip.style.display='none';renderer.domElement.style.cursor=isDrag?'grabbing':'grab'}
 });
 
-// [T4] MERGED CLICK HANDLER — single: select+showDet; double: restart dialog
 let lastClickTime=0,lastClickIdx=-1;
 renderer.domElement.addEventListener('click',()=>{
   if(wasDrag)return;
@@ -1093,7 +1099,6 @@ renderer.domElement.addEventListener('click',()=>{
   const hits=ray.intersectObjects(targets());
 
   if(!hits.length){
-    // Clicked empty space — deselect
     selected=-1;detail.classList.remove('show');leaderTargets=[];
     lastClickIdx=-1;lastClickTime=0;
     return;
@@ -1103,11 +1108,10 @@ renderer.domElement.addEventListener('click',()=>{
   const now=Date.now();
 
   if(idx===lastClickIdx&&now-lastClickTime<400){
-    // Double-click — restart dialog for eligible slots
     const slot=allSlots[idx];
     const eligible=slot&&(
       slot.st==='offline'||slot.st==='degraded'||slot.st==='available'||
-      (slot.svc==='Gateway'&&!slot.occ)
+      (slot.svc==='GATEWAY'&&!slot.occ)
     )&&(slot.occ||slot.svc);
     if(eligible){
       detail.classList.remove('show');leaderTargets=[];
@@ -1115,7 +1119,6 @@ renderer.domElement.addEventListener('click',()=>{
     }
     lastClickIdx=-1;lastClickTime=0;
   }else{
-    // Single click — select
     selected=idx;showDet(selected);
     lastClickIdx=idx;lastClickTime=now;
   }
@@ -1147,10 +1150,7 @@ function connectRelayWss(){
 }
 
 // ═══════════════════════════════════════════════════════
-// NINJAEXEC — [T1] AUTO-APPROVAL REMOVED
-// /sign blocks until the operator approves in the NinjaExec UI.
-// We open the confirmation page in a new tab and wait 60 seconds.
-// An AbortController lets the Cancel button abort the pending /sign fetch.
+// NINJAEXEC — [T1] MANUAL APPROVAL
 // ═══════════════════════════════════════════════════════
 const NINJA_URL='http://127.0.0.1:21027';
 let signAbortController=null;
@@ -1161,15 +1161,12 @@ async function ninjaSign(payload){
     const payloadStr=typeof payload==='string'?payload:JSON.stringify(payload);
     const payloadB64=btoa(unescape(encodeURIComponent(payloadStr)));
 
-    // Open NinjaExec confirmation page — human must approve here
     const tab=window.open('http://127.0.0.1:21027/confirm','_blank');
     if(!tab){
-      // Popup blocker active — show manual fallback
       restartStatus.textContent='Popup blocked — open http://127.0.0.1:21027/confirm manually to approve, then wait here.';
       restartStatus.style.color=CSS.label;
     }
 
-    // /sign blocks until NinjaExec operator approves or rejects
     const signFetch=fetch(`${NINJA_URL}/sign`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1177,7 +1174,6 @@ async function ninjaSign(payload){
       signal:signAbortController.signal,
     });
 
-    // 60-second hard timeout
     const timeoutP=new Promise((_,rej)=>setTimeout(()=>rej(new Error('signing-timeout')),60000));
 
     const resp=await Promise.race([signFetch,timeoutP]);
@@ -1220,7 +1216,6 @@ function showRestartDialog(slot){
 }
 
 function hideRestartDialog(){
-  // Abort any pending NinjaExec /sign fetch
   if(signAbortController){signAbortController.abort();signAbortController=null}
   if(restartPollTimer){clearInterval(restartPollTimer);restartPollTimer=null}
   restartOverlay.style.display='none';
@@ -1252,7 +1247,7 @@ async function handleRestartConfirm(){
   try{
     const signed=await ninjaSign(execPayload);
     execPayload.signature=signed.signature;execPayload.public_key=signed.public_key;
-    restartStatus.textContent='Signed ✓ — sending to relay...';restartStatus.style.color=CSS.lime;
+    restartStatus.textContent='Signed \u2713 — sending to relay...';restartStatus.style.color=CSS.lime;
   }catch(e){
     if(e.name==='AbortError'||e.message==='signing-timeout'){
       restartStatus.textContent=e.message==='signing-timeout'
@@ -1282,7 +1277,7 @@ async function handleRestartConfirm(){
       throw new Error(`Relay returned ${execResp.status}: ${errBody.error||errBody.message||'unknown'}`);
     }
     const execResult=await execResp.json();
-    restartStatus.textContent=`Exec delivered to ${restartTarget.nodeName} (id: ${execResult.request_id||'—'}). Watching for recovery...`;
+    restartStatus.textContent=`Exec delivered to ${restartTarget.nodeName} (id: ${execResult.request_id||'\u2014'}). Watching for recovery...`;
     restartStatus.style.color=CSS.lime;delivered=true;
   }catch(e){
     console.warn('[exec] HTTP failed:',e.message);
@@ -1322,11 +1317,8 @@ async function handleRestartConfirm(){
 function handleExecResult(msg){console.log('[ops] exec-result:',msg)}
 function handleTelemetry(msg){}
 
-connBtn.addEventListener('click',()=>{setTimeout(()=>{if(isLive)connectRelayWss()},3000)});
-
 // ═══════════════════════════════════════════════════════
-// SERVICE KNOWLEDGE BASE
-// [T7] ALL KEYS UPPERCASE — lookup via s.svc.toUpperCase()
+// SERVICE KNOWLEDGE BASE — [T7] ALL KEYS UPPERCASE
 // ═══════════════════════════════════════════════════════
 const KNOWLEDGE={
   GATEWAY:{
@@ -1360,20 +1352,20 @@ const KNOWLEDGE={
     impact:"The cluster loses failure detection. Dead or degraded services are not automatically discovered. GLB continues routing to instances that may be down, causing request failures. Operators lose visibility into cluster health until they check manually."
   },
   YODA:{
-    what:"YODA is the multi-agent AI orchestration system. It manages a pool of specialized agents (currently 153 from The Agency), routes tasks to the most appropriate agent based on capability matching, and runs every output through a multi-round Quality Control pipeline (R1 → R2 → R3). YODA handles task queuing, agent assignment with deterministic tie-breaking (Capomastro-preferred, then lexicographic), CancellationToken lifecycle per task, and the unified 106-entry keyword table for routing decisions.",
+    what:"YODA is the multi-agent AI orchestration system. It manages a pool of specialized agents (currently 153 from The Agency), routes tasks to the most appropriate agent based on capability matching, and runs every output through a multi-round Quality Control pipeline (R1 \u2192 R2 \u2192 R3). YODA handles task queuing, agent assignment with deterministic tie-breaking (Capomastro-preferred, then lexicographic), CancellationToken lifecycle per task, and the unified 106-entry keyword table for routing decisions.",
     dependsOn:["LLM (inference backend for agent reasoning)","Gateway (receives task requests)","CON (inter-slot communication)"],
     dependedBy:["All AI-powered features","Task consumers waiting for results"],
     impact:"All AI task processing stops. Queued tasks remain in the queue but no new assignments are made. Agents become idle. Any in-flight QC rounds are interrupted — tasks in R1/R2/R3 stall. The LLM backend continues running but receives no inference requests from the orchestrator."
   },
   LLM:{
-    what:"The LLM tunnel hosts the local language model inference endpoint. It runs the currently loaded model, serves chat completion requests from YODA agents, and manages the GPU resources for inference. The daemon forwards requests to the llama-server process on the configured LLM port. This is the compute-heavy slot — it's the reason the GPU is busy.",
+    what:"The LLM tunnel hosts the local language model inference endpoint. It runs the currently loaded model, serves chat completion requests from YODA agents, and manages the GPU resources for inference. The daemon forwards requests to the llama-server process on the configured LLM port. This is the compute-heavy slot — it\u2019s the reason the GPU is busy.",
     dependsOn:["Gateway (receives inference requests routed from YODA)","GPU hardware (actual inference compute)"],
     dependedBy:["YODA (all agent reasoning requires LLM inference)"],
     impact:"All AI inference stops immediately. YODA agents can still be assigned tasks but cannot reason about them — every agent that sends a prompt to the LLM will timeout or error. The GPU goes idle. This effectively disables all AI capabilities in the cluster until the model is reloaded."
   },
 };
 const EMPTY_KNOWLEDGE={
-  what:"This tunnel is currently unoccupied. It's an available encrypted channel in the Service Cube, ready to host a new service. The tunnel infrastructure (port, Rep C address, encryption) exists and is active — it just doesn't have a service assigned to it yet.",
+  what:"This tunnel is currently unoccupied. It\u2019s an available encrypted channel in the Service Cube, ready to host a new service. The tunnel infrastructure (port, Rep C address, encryption) exists and is active — it just doesn\u2019t have a service assigned to it yet.",
   dependsOn:[],dependedBy:[],
   impact:"No impact — this tunnel is not running a service. It represents available capacity in the cluster."
 };
@@ -1382,26 +1374,24 @@ document.getElementById('d-close').addEventListener('click',()=>{selected=-1;det
 
 function showDet(idx){
   const s=allSlots[idx];const stDef=STATUS[s.st]||STATUS.available;
-  const isPri=s.svc==='Gateway'&&s.ni===0;
+  const isPri=s.svc==='GATEWAY'&&s.ni===0;
   const col=isPri?CSS.gold:stDef.css;
 
-  // [T7] KNOWLEDGE key lookup via .toUpperCase() — svc is already normalised
   const svcKey=s.svc?s.svc.toUpperCase():null;
   const know=s.occ&&svcKey
-    ?KNOWLEDGE[svcKey]||{what:`${SVC_DISPLAY[svcKey]||s.svc} is running on this tunnel. No detailed description is available for this service type — add it to the KNOWLEDGE object to see full documentation here.`,dependsOn:['Gateway'],dependedBy:[],impact:'Impact unknown — add this service to the KNOWLEDGE object for impact analysis.'}
+    ?KNOWLEDGE[svcKey]||{what:`${SVC_DISPLAY[svcKey]||s.svc} is running on this tunnel. No detailed description is available for this service type — add it to the KNOWLEDGE object to see full documentation here.`,dependsOn:['GATEWAY'],dependedBy:[],impact:'Impact unknown — add this service to the KNOWLEDGE object for impact analysis.'}
     :EMPTY_KNOWLEDGE;
 
   const dot=document.getElementById('d-dot');dot.style.background=col;dot.style.boxShadow=`0 0 8px ${col}`;
-  // Show friendly full name if available, otherwise raw svc name
   document.getElementById('d-tit').textContent=s.occ?(SVC_DISPLAY[svcKey]||s.svc):'Empty Tunnel';
   document.getElementById('d-sub').textContent=`${s.nn} · Tunnel (${s.rc.join(', ')})${isPri?' · Primary Outbound':''}`;
   const badge=document.getElementById('d-badge');badge.textContent=stDef.label;badge.style.background=`${col}18`;badge.style.color=col;badge.style.border=`1px solid ${col}33`;
   document.getElementById('d-what').textContent=know.what;
 
-  function formatUptime(s){if(!s)return'—';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return h>0?h+'h '+m+'m':m>0?m+'m '+sec+'s':sec+'s'}
+  // [FIX-10] Floor fractional seconds before modulo
+  function formatUptime(s){if(!s)return'\u2014';const si=Math.floor(s);const h=Math.floor(si/3600),m=Math.floor((si%3600)/60),sec=si%60;return h>0?h+'h '+m+'m':m>0?m+'m '+sec+'s':sec+'s'}
   function formatDetail(svc,d){
-    if(!d)return'—';
-    // svc is now normalised canonical key (e.g. 'CRS', 'CON')
+    if(!d)return'\u2014';
     const k=svc?svc.toUpperCase():'';
     if(k==='CRS')return d.registered_nodes+' nodes registered';
     if(k==='CON')return(d.tunnels_up||0)+' tunnels up'+(d.verified_neighbors?', '+d.verified_neighbors+' verified':'');
@@ -1413,12 +1403,10 @@ function showDet(idx){
 
   document.getElementById('d-node').textContent=`${s.nn} : ${s.np}`;
   document.getElementById('d-rc').textContent=`(${s.rc.join(', ')})`;
-  document.getElementById('d-pt').textContent=s.pt||'—';
+  document.getElementById('d-pt').textContent=s.pt||'\u2014';
   document.getElementById('d-slot').textContent=`${(s.rc[0]-1)*9+(s.rc[1]-1)*3+(s.rc[2]-1)+1} of 27`;
   document.getElementById('d-up').textContent=s.uptimeSecs?formatUptime(s.uptimeSecs):s.up;
-  // Heartbeat count — just the number, no uptime in parentheses
-  document.getElementById('d-hb').textContent=s.hb?'#'+s.hb:'—';
-  // Last seen — seconds since last heartbeat (if epoch available), or derived from uptime interval
+  document.getElementById('d-hb').textContent=s.hb?'#'+s.hb:'\u2014';
   if(s.lastHbEpoch){
     const ageSecs=Math.round((Date.now()/1000)-s.lastHbEpoch);
     const ageStr=ageSecs<5?'just now':ageSecs<60?ageSecs+'s ago':formatUptime(ageSecs)+' ago';
@@ -1427,26 +1415,26 @@ function showDet(idx){
     el.textContent=ageStr;
     el.style.color=stale?'#E24B4A':CSS.lime;
   }else{
-    document.getElementById('d-hb-age').textContent=s.hb?'epoch not exposed':'—';
+    document.getElementById('d-hb-age').textContent=s.hb?'epoch not exposed':'\u2014';
   }
-  document.getElementById('d-td').textContent=s.serviceDetail?formatDetail(s.svc,s.serviceDetail):'—';
-  document.getElementById('d-la').textContent=s.la?(s.la/1000).toFixed(1)+' ms':'—';
-  document.getElementById('d-ldpct').textContent=s.occ?Math.round(s.ld*100)+'%':'—';
+  document.getElementById('d-td').textContent=s.serviceDetail?formatDetail(s.svc,s.serviceDetail):'\u2014';
+  document.getElementById('d-la').textContent=s.la?(s.la/1000).toFixed(1)+' ms':'\u2014';
+  document.getElementById('d-ldpct').textContent=s.occ?Math.round(s.ld*100)+'%':'\u2014';
   const b=document.getElementById('d-ld');b.style.width=(s.ld*100)+'%';b.style.background=s.ld>0.8?CSS.blue:s.ld>0.5?CSS.slate:CSS.iron;
 
   const depsEl=document.getElementById('d-deps');let depsHTML='';
-  if(know.dependsOn.length)know.dependsOn.forEach(d=>{depsHTML+=`<div class="dd-dep"><span class="dd-arrow">↑</span><span class="dd-dep-label">Needs</span><span class="dd-dep-value">${d}</span></div>`});
-  if(know.dependedBy.length)know.dependedBy.forEach(d=>{depsHTML+=`<div class="dd-dep"><span class="dd-arrow">↓</span><span class="dd-dep-label">Serves</span><span class="dd-dep-value">${d}</span></div>`});
+  if(know.dependsOn.length)know.dependsOn.forEach(d=>{depsHTML+=`<div class="dd-dep"><span class="dd-arrow">\u2191</span><span class="dd-dep-label">Needs</span><span class="dd-dep-value">${d}</span></div>`});
+  if(know.dependedBy.length)know.dependedBy.forEach(d=>{depsHTML+=`<div class="dd-dep"><span class="dd-arrow">\u2193</span><span class="dd-dep-label">Serves</span><span class="dd-dep-value">${d}</span></div>`});
   if(!depsHTML)depsHTML='<div style="font-size:12px;color:var(--text-faint);font-style:italic">No dependencies — standalone tunnel</div>';
   depsEl.innerHTML=depsHTML;
   document.getElementById('d-impact').textContent=know.impact;
 
   leaderTargets=[];
   const depSvcNames=[];
-  know.dependsOn.forEach(d=>{const m=d.match(/^(\w+)/);if(m)depSvcNames.push({name:m[1],label:d.split('(')[0].trim(),dir:'needs'})});
-  know.dependedBy.forEach(d=>{const m=d.match(/^(\w+)/);if(m&&m[1]!=='All')depSvcNames.push({name:m[1],label:d.split('(')[0].trim(),dir:'serves'})});
+  know.dependsOn.forEach(d=>{const m=d.match(/^(\w+)/);if(m)depSvcNames.push({name:m[1].toUpperCase(),label:d.split('(')[0].trim(),dir:'needs'})});
+  know.dependedBy.forEach(d=>{const m=d.match(/^(\w+)/);if(m&&m[1]!=='All')depSvcNames.push({name:m[1].toUpperCase(),label:d.split('(')[0].trim(),dir:'serves'})});
   depSvcNames.forEach(dep=>{
-    const targetNd=nds.find(nd=>nd.slot.svc===dep.name&&nd.slot.ni===s.ni&&nd.inner)||nds.find(nd=>nd.slot.svc===dep.name&&nd.inner);
+    const targetNd=nds.find(nd=>nd.slot.svc&&nd.slot.svc.toUpperCase()===dep.name&&nd.slot.ni===s.ni&&nd.inner)||nds.find(nd=>nd.slot.svc&&nd.slot.svc.toUpperCase()===dep.name&&nd.inner);
     if(targetNd&&targetNd.inner)leaderTargets.push({mesh:targetNd.inner,label:dep.label,color:dep.dir==='needs'?CSS.blueActive:CSS.lime});
   });
   detail.classList.add('show');
@@ -1510,8 +1498,8 @@ animate();
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);resizeHud();TextEngine.clear()});
 
-console.log('%c⬡ Array3 Monitor v9.3 — Live · Relay + Direct · Server-hosted token-free mode','color:#8BA633;font-weight:bold;font-size:14px');
-console.log('%c  T1 NinjaExec manual approval · T2 HTTP block · T3 staleness · T4 click merge · T5 mutex · T6 node index · T7 keys','color:#8BA633;font-size:11px');
+console.log('%c\u2B21 Array3 Monitor v9.3.1 — Live · Relay + Direct · Server-hosted token-free mode','color:#8BA633;font-weight:bold;font-size:14px');
+console.log('%c  FIX-1..10: Gateway filter, _isServerHosted, WSS autoconnect, throughput timing, error codes, nodeIndex dedup, uptime float','color:#8BA633;font-size:11px');
 </script>
 </body>
 </html>
