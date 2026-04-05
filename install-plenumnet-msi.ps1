@@ -171,6 +171,17 @@
   Write-Log "STEP 1/5: Detecting existing installations" "Yellow"
   Write-Host "---"
 
+  Write-Log "  Checking internet connectivity..." "White"
+  try {
+      $null = Invoke-WebRequest -Uri "https://api.github.com" -Method Head -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+      Write-Log "  [OK] Internet connectivity" "Green"
+  } catch {
+      Write-Log "  Error: Cannot reach GitHub. Check your internet connection." "Red"
+      Write-Log "  PlenumNET packages are downloaded from GitHub Releases." "Red"
+      Read-Host "Press Enter to close"
+      exit 1
+  }
+
   $installedProducts = Get-InstalledProducts
   $anyInstalled = $false
   $allInstalled = $true
