@@ -1595,7 +1595,6 @@ fn spawn_relay_client(
                         loop {
                             interval.tick().await;
                             if !*ops_telem_connected.lock().await { break; }
-                            if !ops_telem_handler.is_enabled().await { continue; }
                             let telemetry = ops_telem_handler.collect_telemetry().await;
                             let env = inter_cube::ws_relay::RelayEnvelope {
                                 msg_type: "relay".to_string(),

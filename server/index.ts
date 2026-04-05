@@ -1039,13 +1039,36 @@ function startPqtiService(): ChildProcess | null {
       const nodes: any[] = [];
       const relayClientsRef = (globalThis as any).__relayClients as Map<string, WebSocket> | undefined;
 
+      const opsStatus = opsChannelService.getOpsStatus();
+      const opsTelemetryByNodeId = new Map<string, any>();
+      for (const nodeSnapshot of opsStatus.nodes) {
+        const telem = nodeSnapshot.last_telemetry as any;
+        if (telem) {
+          opsTelemetryByNodeId.set(String(nodeSnapshot.node_id), telem);
+          if (nodeSnapshot.address) opsTelemetryByNodeId.set(nodeSnapshot.address, telem);
+        }
+      }
+
       for (const [nid, cached] of slotInventoryCache.entries()) {
         const ageMs = now - cached.receivedAt;
         const isStale = ageMs > staleThresholdMs;
+        const telem = opsTelemetryByNodeId.get(String(nid));
+        const health = cached.health ? { ...cached.health } : {};
+        if (telem) {
+          health.telemetry = {
+            cpu_pct: telem.cpu_pct,
+            ram_pct: telem.ram_pct,
+            ram_used_mb: telem.ram_used_mb,
+            disk_pct: telem.disk_pct,
+            gpu_pct: telem.gpu_pct,
+            gpu_name: telem.gpu_name,
+            process_uptime_seconds: telem.process_uptime_seconds,
+          };
+        }
         nodes.push({
           nodeId: nid,
           slots: cached.slots,
-          health: cached.health,
+          health,
           receivedAt: cached.receivedAt,
           ageMs,
           stale: isStale,
@@ -1053,11 +1076,11 @@ function startPqtiService(): ChildProcess | null {
         });
       }
 
-      const opsStatus = opsChannelService.getOpsStatus();
+      const cachedNodeIds = new Set(Array.from(slotInventoryCache.keys()).map(String));
       for (const nodeSnapshot of opsStatus.nodes) {
         const addr = nodeSnapshot.address || "";
-        const alreadyCached = nodes.some((n: any) => n.nodeId === addr || n.nodeId === nodeSnapshot.node_id);
-        if (alreadyCached) continue;
+        const nid = String(nodeSnapshot.node_id);
+        if (cachedNodeIds.has(addr) || cachedNodeIds.has(nid)) continue;
 
         const isWsConnected = relayClientsRef?.has(addr) && relayClientsRef.get(addr)!.readyState === 1;
         const crsEntry = crsRegistry.get(addr);
@@ -1090,6 +1113,7 @@ function startPqtiService(): ChildProcess | null {
               disk_pct: telem.disk_pct,
               gpu_pct: telem.gpu_pct,
               gpu_name: telem.gpu_name,
+              process_uptime_seconds: telem.process_uptime_seconds,
             } : null,
           },
           receivedAt: new Date(nodeSnapshot.last_seen).getTime(),
