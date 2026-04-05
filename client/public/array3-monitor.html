@@ -846,12 +846,14 @@ async function fetchAllNodes(){
         // DUMP first node to see actual structure
         if(nodes.length>0)console.log('[monitor:telemetry] node[0] keys:',Object.keys(nodes[0]),'health:',JSON.stringify(nodes[0].health||nodes[0].telemetry||'NONE').substring(0,500));
         nodes.forEach((n,i)=>{
-          const ni=n.node_id_num?n.node_id_num-1:i;
+          const ni=n.node_id_num?n.node_id_num-1:(n.nodeId?n.nodeId-1:i);
           if(ni<0||ni>2)return;
-          const t=n?.health?.telemetry||n?.telemetry||{};
-          if(t.cpu_pct!=null) hudHealth.cpu[ni]=Math.round(t.cpu_pct)+'%';
-          if(t.ram_pct!=null) hudHealth.mem[ni]=Math.round(t.ram_pct)+'%';
-          else if(t.mem_pct!=null) hudHealth.mem[ni]=Math.round(t.mem_pct)+'%';
+          const h=n?.health||{};
+          const t=h.telemetry||n?.telemetry||{};
+          const cpu=h.cpu_pct??t.cpu_pct??null;
+          const mem=h.mem_pct??t.ram_pct??t.mem_pct??null;
+          if(cpu!=null) hudHealth.cpu[ni]=Math.round(cpu)+'%';
+          if(mem!=null) hudHealth.mem[ni]=Math.round(mem)+'%';
         });
         console.log('[monitor:telemetry] cpu='+JSON.stringify(hudHealth.cpu)+' mem='+JSON.stringify(hudHealth.mem));
       })
