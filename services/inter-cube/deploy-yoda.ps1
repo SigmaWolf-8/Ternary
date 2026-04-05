@@ -69,7 +69,7 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v2.4.11"
+$DEPLOYER_VERSION = "v2.4.12"
 $RELEASE_TAG      = "v2.4.10"
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
