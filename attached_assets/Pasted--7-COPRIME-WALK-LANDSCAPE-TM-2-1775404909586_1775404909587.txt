@@ -1,0 +1,61 @@
+/ ══════════════════════════════════════════════════════════════
+// §7  COPRIME WALK LANDSCAPE (TM-2026-017 §10)
+// ══════════════════════════════════════════════════════════════
+
+/// Primary coprime generators from the arc factorizations.
+/// 182 = 2×7×13 and 286 = 2×11×13 → reduced ratio 7:11.
+pub const COPRIME_TRIPLE: [u32; 3] = [7, 11, 13];
+
+/// Pentadecagon = 15 = 3 × 5. Bridges triangle and pentagon families.
+pub const PENTADECAGON: u32 = 15;
+
+/// The (7, 14) exclusion — gcd(7, 14) = 7 ≠ 1.
+/// The only excluded pair from key polygon set {7, 11, 13, 14, 15}.
+/// 14 = 2 × 7 = 2 × COPRIME_TRIPLE[0].
+pub const EXCLUDED_PAIR: (u32, u32) = (7, 14);
+
+/// Sextuple A: [3, 4, 5, 7, 11, 13] → LCM = 60,060.
+pub const SEXTUPLE_A: [u32; 6] = [3, 4, 5, 7, 11, 13];
+
+/// Sextuple B: [3, 5, 7, 8, 11, 13] → LCM = 120,120.
+pub const SEXTUPLE_B: [u32; 6] = [3, 5, 7, 8, 11, 13];
+
+/// Sextuple C: [4, 5, 7, 9, 11, 13] → LCM = 180,180.
+pub const SEXTUPLE_C: [u32; 6] = [4, 5, 7, 9, 11, 13];
+
+/// Maximum pairwise coprime sextuple: [5, 7, 8, 9, 11, 13] → LCM = 360,360.
+/// No group of 7 exists from the polygon set — this is the structural limit.
+pub const SEXTUPLE_MAX: [u32; 6] = [5, 7, 8, 9, 11, 13];
+
+/// LCM of primary coprime triple: 7 × 11 × 13 = 1,001.
+pub const LCM_PRIMARY: u32 = 1_001;
+
+/// LCM of odd-prime quadruple: 3 × 5 × 7 × 11 × 13 = 15 × 1001 = 15,015.
+pub const LCM_QUAD_ODD: u32 = 15_015;
+
+/// LCM of π-gon quadruple: 2 × 3 × 5 × 7 × 11 × 13 = 2 × 15015 = 30,030.
+pub const LCM_QUAD_PI: u32 = 30_030;
+
+/// LCM of sextuple A: 3 × 4 × 5 × 7 × 11 × 13 = 60,060.
+pub const LCM_SEXT_A: u32 = 60_060;
+
+/// LCM of sextuple B: 3 × 5 × 7 × 8 × 11 × 13 = 120,120.
+pub const LCM_SEXT_B: u32 = 120_120;
+
+/// LCM of sextuple C: 4 × 5 × 7 × 9 × 11 × 13 = 180,180.
+pub const LCM_SEXT_C: u32 = 180_180;
+
+/// LCM of maximum sextuple: 360 × 1,001 = 360,360.
+pub const LCM_SEXT_MAX: u32 = 360_360;
+
+/// 3D position count (primary): 1,001 × 729.
+pub const POS_3D_PRIMARY: u64 = 729_729;
+
+/// 3D position count (odd-prime quadruple): 15,015 × 729.
+pub const POS_3D_QUAD_ODD: u64 = 10_945_935;
+
+/// 3D position count (π-gon quadruple): 30,030 × 729.
+pub const POS_3D_QUAD_PI: u64 = 21_891_870;
+
+/// 3D position count (maximum sextuple): 360,360 × 729.
+pub const POS_3D_SEXT_MAX: u64 = 262_702_440;
