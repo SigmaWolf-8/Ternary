@@ -1590,10 +1590,18 @@ fn spawn_relay_client(
                     let ops_telem_tx = client.outgoing_tx.clone();
                     let ops_telem_connected = client.connected.clone();
                     tokio::spawn(async move {
+                        println!("[ops] Telemetry background task started (60s interval)");
                         let mut interval = tokio::time::interval(Duration::from_secs(60));
                         loop {
-                            if !*ops_telem_connected.lock().await { break; }
+                            if !*ops_telem_connected.lock().await {
+                                println!("[ops] Telemetry task: relay disconnected, stopping");
+                                break;
+                            }
+                            println!("[ops] Collecting telemetry...");
                             let telemetry = ops_telem_handler.collect_telemetry().await;
+                            println!("[ops] Telemetry collected, sending to relay (cpu={}, ram={})",
+                                telemetry.get("cpu_pct").and_then(|v| v.as_f64()).unwrap_or(-1.0),
+                                telemetry.get("ram_pct").and_then(|v| v.as_f64()).unwrap_or(-1.0));
                             let env = inter_cube::ws_relay::RelayEnvelope {
                                 msg_type: "relay".to_string(),
                                 to: None,
@@ -1604,7 +1612,10 @@ fn spawn_relay_client(
                                 delivered: None, connected_peers: None,
                                 ts: None, connected: None,
                             };
-                            if ops_telem_tx.send(env).await.is_err() { break; }
+                            if ops_telem_tx.send(env).await.is_err() {
+                                println!("[ops] Telemetry send failed (channel closed)");
+                                break;
+                            }
                             ops_telem_handler.cleanup_stale_transfers().await;
                             interval.tick().await;
                         }

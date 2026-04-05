@@ -803,14 +803,14 @@ impl OpsHandler {
     pub async fn collect_telemetry(&self) -> serde_json::Value {
         let uptime = self.process_start.elapsed().as_secs();
 
-        let (cpu_pct, ram_pct, ram_used_mb, ram_total_mb) =
-            Self::get_system_metrics().await;
-
-        let (disk_pct, disk_used_gb, disk_total_gb) =
-            Self::get_disk_metrics().await;
-
-        let (gpu_pct, gpu_name, gpu_vram_used, gpu_vram_total) =
-            Self::get_gpu_metrics().await;
+        let (sys_res, disk_res, gpu_res) = tokio::join!(
+            Self::get_system_metrics(),
+            Self::get_disk_metrics(),
+            Self::get_gpu_metrics(),
+        );
+        let (cpu_pct, ram_pct, ram_used_mb, ram_total_mb) = sys_res;
+        let (disk_pct, disk_used_gb, disk_total_gb) = disk_res;
+        let (gpu_pct, gpu_name, gpu_vram_used, gpu_vram_total) = gpu_res;
 
         let os_version = Self::get_os_version();
 
@@ -2008,23 +2008,27 @@ impl OpsHandler {
             let mut ram_used = 0u64;
             let mut ram_total = 0u64;
 
-            if let Ok(output) = tokio::process::Command::new("powershell.exe")
+            let ps_future = tokio::process::Command::new("powershell.exe")
                 .args(["-NoProfile", "-Command",
                     "@{cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; mem=Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize,FreePhysicalMemory} | ConvertTo-Json"])
-                .output().await
-            {
-                if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-                    cpu_pct = parsed.get("cpu").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    if let Some(mem) = parsed.get("mem") {
-                        let total_kb = mem.get("TotalVisibleMemorySize").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let free_kb = mem.get("FreePhysicalMemory").and_then(|v| v.as_u64()).unwrap_or(0);
-                        ram_total = total_kb / 1024;
-                        ram_used = (total_kb - free_kb) / 1024;
-                        if total_kb > 0 {
-                            ram_pct = ((total_kb - free_kb) as f64 / total_kb as f64) * 100.0;
+                .output();
+            match tokio::time::timeout(std::time::Duration::from_secs(10), ps_future).await {
+                Ok(Ok(output)) => {
+                    if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
+                        cpu_pct = parsed.get("cpu").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        if let Some(mem) = parsed.get("mem") {
+                            let total_kb = mem.get("TotalVisibleMemorySize").and_then(|v| v.as_u64()).unwrap_or(0);
+                            let free_kb = mem.get("FreePhysicalMemory").and_then(|v| v.as_u64()).unwrap_or(0);
+                            ram_total = total_kb / 1024;
+                            ram_used = (total_kb - free_kb) / 1024;
+                            if total_kb > 0 {
+                                ram_pct = ((total_kb - free_kb) as f64 / total_kb as f64) * 100.0;
+                            }
                         }
                     }
                 }
+                Ok(Err(e)) => { println!("[telemetry] system metrics command failed: {}", e); }
+                Err(_) => { println!("[telemetry] system metrics timed out (10s)"); }
             }
             (cpu_pct, ram_pct, ram_used, ram_total)
         }
@@ -2086,19 +2090,23 @@ impl OpsHandler {
     async fn get_disk_metrics() -> (f64, f64, f64) {
         #[cfg(target_os = "windows")]
         {
-            if let Ok(output) = tokio::process::Command::new("powershell.exe")
+            let ps_future = tokio::process::Command::new("powershell.exe")
                 .args(["-NoProfile", "-Command",
                     "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | Select-Object Size,FreeSpace | ConvertTo-Json"])
-                .output().await
-            {
-                if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-                    let total = parsed.get("Size").and_then(|v| v.as_u64()).unwrap_or(0);
-                    let free = parsed.get("FreeSpace").and_then(|v| v.as_u64()).unwrap_or(0);
-                    let total_gb = total as f64 / (1024.0 * 1024.0 * 1024.0);
-                    let used_gb = (total - free) as f64 / (1024.0 * 1024.0 * 1024.0);
-                    let pct = if total > 0 { ((total - free) as f64 / total as f64) * 100.0 } else { 0.0 };
-                    return (pct, used_gb, total_gb);
+                .output();
+            match tokio::time::timeout(std::time::Duration::from_secs(10), ps_future).await {
+                Ok(Ok(output)) => {
+                    if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
+                        let total = parsed.get("Size").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let free = parsed.get("FreeSpace").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let total_gb = total as f64 / (1024.0 * 1024.0 * 1024.0);
+                        let used_gb = (total - free) as f64 / (1024.0 * 1024.0 * 1024.0);
+                        let pct = if total > 0 { ((total - free) as f64 / total as f64) * 100.0 } else { 0.0 };
+                        return (pct, used_gb, total_gb);
+                    }
                 }
+                Ok(Err(e)) => { println!("[telemetry] disk metrics command failed: {}", e); }
+                Err(_) => { println!("[telemetry] disk metrics timed out (10s)"); }
             }
             (0.0, 0.0, 0.0)
         }
@@ -2130,11 +2138,11 @@ impl OpsHandler {
     async fn get_gpu_metrics() -> (Option<f64>, Option<String>, Option<u64>, Option<u64>) {
         #[cfg(target_os = "windows")]
         {
-            if let Ok(output) = tokio::process::Command::new("nvidia-smi")
+            let gpu_future = tokio::process::Command::new("nvidia-smi")
                 .args(["--query-gpu=utilization.gpu,name,memory.used,memory.total", "--format=csv,noheader,nounits"])
-                .output().await
-            {
-                if output.status.success() {
+                .output();
+            match tokio::time::timeout(std::time::Duration::from_secs(10), gpu_future).await {
+                Ok(Ok(output)) if output.status.success() => {
                     let line = String::from_utf8_lossy(&output.stdout);
                     let parts: Vec<&str> = line.trim().split(", ").collect();
                     if parts.len() >= 4 {
@@ -2145,6 +2153,8 @@ impl OpsHandler {
                         return (gpu_pct, name, vram_used, vram_total);
                     }
                 }
+                Ok(Err(_)) | Ok(_) => {}
+                Err(_) => { println!("[telemetry] gpu metrics timed out (10s)"); }
             }
             (None, None, None, None)
         }
