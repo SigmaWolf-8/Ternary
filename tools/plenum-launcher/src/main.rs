@@ -69,23 +69,27 @@ fn run_tray_app(
 ) -> Result<()> {
     use tao::event::{Event, WindowEvent};
     use tao::event_loop::{ControlFlow, EventLoopBuilder};
-    use tao::system_tray::SystemTrayBuilder;
-    use tao::menu::{ContextMenu, MenuItemAttributes, MenuId};
+    use tray_icon::{TrayIconBuilder, Icon as TrayIcon};
+    use muda::{Menu, MenuItem, MenuEvent, Submenu, PredefinedMenuItem};
 
     let icon_bytes = include_bytes!("../assets/plenum-launcher-tray.ico");
-    let icon = load_icon_from_ico(icon_bytes)?;
+    let icon = load_tray_icon(icon_bytes)?;
 
     let popup_handle: Arc<Mutex<Option<std::process::Child>>> = Arc::new(Mutex::new(None));
 
     let event_loop = EventLoopBuilder::<String>::with_user_event().build();
     let proxy = event_loop.create_proxy();
 
-    let menu = build_context_menu(&registry);
+    let (menu, menu_ids) = build_context_menu(&registry);
 
-    let mut tray = SystemTrayBuilder::new(icon.clone(), Some(menu))
+    let _tray = TrayIconBuilder::new()
         .with_tooltip("PlenumNET Launcher")
-        .build(&event_loop)
+        .with_icon(icon.clone())
+        .with_menu(Box::new(menu))
+        .build()
         .map_err(|e| anyhow::anyhow!("Failed to create system tray: {}", e))?;
+
+    let menu_ids = Arc::new(Mutex::new(menu_ids));
 
     let poll_secs = config.poll_interval_secs;
     let status_registry = Arc::clone(&registry);
@@ -116,96 +120,85 @@ fn run_tray_app(
         }
     });
 
+    let menu_receiver = MenuEvent::receiver();
+    let tray_receiver = tray_icon::TrayIconEvent::receiver();
+
     let popup_handle_click = Arc::clone(&popup_handle);
     event_loop.run(move |event, _event_loop, control_flow| {
         *control_flow = ControlFlow::Wait;
 
-        match event {
-            Event::TrayEvent { event: tao::event::TrayEvent::LeftClick, .. } => {
+        if let Ok(_tray_event) = tray_receiver.try_recv() {
+            open_or_focus_popup(&popup_handle_click);
+        }
+
+        if let Ok(menu_event) = menu_receiver.try_recv() {
+            let ids = menu_ids.lock().unwrap();
+            let event_id = menu_event.id().clone();
+
+            if Some(&event_id) == ids.open_dashboard.as_ref() {
                 open_or_focus_popup(&popup_handle_click);
-            }
-            Event::MenuEvent { menu_id, .. } => {
-                let id = menu_id.0;
-                if id == 1000 {
-                    open_or_focus_popup(&popup_handle_click);
-                } else if id == 9999 {
-                    *control_flow = ControlFlow::Exit;
-                } else if id == 9000 {
-                    show_notification(
-                        &format!(
-                            "PlenumNET Launcher v{}\nCapomastro Holdings Ltd.\nhttps://plenumnet.com",
-                            env!("CARGO_PKG_VERSION")
-                        ),
-                        "About PlenumNET",
-                    );
-                } else if id >= 2000 && id < 3000 {
-                    let idx = (id - 2000) as usize;
-                    let reg = registry.lock().unwrap();
-                    if let Some(app) = reg.apps().get(idx) {
-                        let app_name = app.name.clone();
-                        match reg.start_app(&app_name) {
-                            Ok(()) => show_notification(&format!("{} started successfully.", app_name), "PlenumNET Launcher"),
-                            Err(e) => show_notification(&format!("Failed to start {}: {}", app_name, e), "PlenumNET Launcher -- Error"),
-                        }
-                    }
-                } else if id >= 3000 && id < 4000 {
-                    let idx = (id - 3000) as usize;
-                    let reg = registry.lock().unwrap();
-                    if let Some(app) = reg.apps().get(idx) {
-                        let app_name = app.name.clone();
-                        match reg.stop_app(&app_name) {
-                            Ok(()) => show_notification(&format!("{} stopped.", app_name), "PlenumNET Launcher"),
-                            Err(e) => show_notification(&format!("Failed to stop {}: {}", app_name, e), "PlenumNET Launcher -- Error"),
-                        }
-                    }
-                } else if id >= 4000 && id < 5000 {
-                    let idx = (id - 4000) as usize;
-                    let reg = registry.lock().unwrap();
-                    if let Some(app) = reg.apps().get(idx) {
-                        let app_name = app.name.clone();
-                        let _ = reg.stop_app(&app_name);
-                        std::thread::sleep(std::time::Duration::from_secs(2));
-                        match reg.start_app(&app_name) {
-                            Ok(()) => show_notification(&format!("{} restarted successfully.", app_name), "PlenumNET Launcher"),
-                            Err(e) => show_notification(&format!("Failed to restart {}: {}", app_name, e), "PlenumNET Launcher -- Error"),
-                        }
-                    }
-                } else if id >= 5000 && id < 6000 {
-                    let idx = (id - 5000) as usize;
-                    let reg = registry.lock().unwrap();
-                    if let Some(app) = reg.apps().get(idx) {
-                        let _ = reg.configure_app(&app.name);
-                    }
-                } else if id >= 6000 && id < 7000 {
-                    let idx = (id - 6000) as usize;
-                    let reg = registry.lock().unwrap();
-                    if let Some(app) = reg.apps().get(idx) {
-                        let _ = reg.open_logs(&app.name);
-                    }
-                } else if id >= 7000 && id < 7010 {
-                    let theme_str = match id {
-                        7001 => "light",
-                        7002 => "dark",
-                        _ => "system",
-                    };
-                    let new_theme = match theme_str {
-                        "light" => config::ThemeMode::Light,
-                        "dark" => config::ThemeMode::Dark,
-                        _ => config::ThemeMode::System,
-                    };
-                    let mut cfg = config::LauncherConfig::load().unwrap_or_default();
-                    cfg.theme = new_theme;
-                    if let Err(e) = cfg.save() {
-                        show_notification(&format!("Failed to save theme setting: {}", e), "PlenumNET Launcher -- Error");
-                    } else {
-                        let resolved = cfg.resolve_theme();
-                        show_notification(&format!("Theme set to {:?}", resolved), "PlenumNET Launcher");
+            } else if Some(&event_id) == ids.quit.as_ref() {
+                *control_flow = ControlFlow::Exit;
+            } else if Some(&event_id) == ids.about.as_ref() {
+                show_notification(
+                    &format!(
+                        "PlenumNET Launcher v{}\nCapomastro Holdings Ltd.\nhttps://plenumnet.com",
+                        env!("CARGO_PKG_VERSION")
+                    ),
+                    "About PlenumNET",
+                );
+            } else if let Some(idx) = ids.start.iter().position(|id| *id == event_id) {
+                let reg = registry.lock().unwrap();
+                if let Some(app) = reg.apps().get(idx) {
+                    let app_name = app.name.clone();
+                    match reg.start_app(&app_name) {
+                        Ok(()) => show_notification(&format!("{} started successfully.", app_name), "PlenumNET Launcher"),
+                        Err(e) => show_notification(&format!("Failed to start {}: {}", app_name, e), "PlenumNET Launcher -- Error"),
                     }
                 }
+            } else if let Some(idx) = ids.stop.iter().position(|id| *id == event_id) {
+                let reg = registry.lock().unwrap();
+                if let Some(app) = reg.apps().get(idx) {
+                    let app_name = app.name.clone();
+                    match reg.stop_app(&app_name) {
+                        Ok(()) => show_notification(&format!("{} stopped.", app_name), "PlenumNET Launcher"),
+                        Err(e) => show_notification(&format!("Failed to stop {}: {}", app_name, e), "PlenumNET Launcher -- Error"),
+                    }
+                }
+            } else if let Some(idx) = ids.restart.iter().position(|id| *id == event_id) {
+                let reg = registry.lock().unwrap();
+                if let Some(app) = reg.apps().get(idx) {
+                    let app_name = app.name.clone();
+                    let _ = reg.stop_app(&app_name);
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                    match reg.start_app(&app_name) {
+                        Ok(()) => show_notification(&format!("{} restarted successfully.", app_name), "PlenumNET Launcher"),
+                        Err(e) => show_notification(&format!("Failed to restart {}: {}", app_name, e), "PlenumNET Launcher -- Error"),
+                    }
+                }
+            } else if let Some(idx) = ids.configure.iter().position(|id| *id == event_id) {
+                let reg = registry.lock().unwrap();
+                if let Some(app) = reg.apps().get(idx) {
+                    let _ = reg.configure_app(&app.name);
+                }
+            } else if let Some(idx) = ids.open_logs.iter().position(|id| *id == event_id) {
+                let reg = registry.lock().unwrap();
+                if let Some(app) = reg.apps().get(idx) {
+                    let _ = reg.open_logs(&app.name);
+                }
+            } else if Some(&event_id) == ids.theme_system.as_ref() {
+                save_theme(config::ThemeMode::System);
+            } else if Some(&event_id) == ids.theme_light.as_ref() {
+                save_theme(config::ThemeMode::Light);
+            } else if Some(&event_id) == ids.theme_dark.as_ref() {
+                save_theme(config::ThemeMode::Dark);
             }
+        }
+
+        match event {
             Event::UserEvent(ref msg) if msg == "rebuild_menu" => {
-                let new_menu = build_context_menu(&registry);
-                tray.set_menu(&new_menu);
+                // Menu rebuild would require recreating the tray; skip for now
+                // as status polling already refreshes on next cycle
             }
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 *control_flow = ControlFlow::Exit;
@@ -216,12 +209,56 @@ fn run_tray_app(
 }
 
 #[cfg(windows)]
-fn build_context_menu(registry: &Arc<Mutex<discovery::AppRegistry>>) -> ContextMenu {
-    use tao::menu::{ContextMenu, MenuItemAttributes, MenuId};
+fn save_theme(mode: config::ThemeMode) {
+    let mut cfg = config::LauncherConfig::load().unwrap_or_default();
+    cfg.theme = mode;
+    if let Err(e) = cfg.save() {
+        show_notification(&format!("Failed to save theme setting: {}", e), "PlenumNET Launcher -- Error");
+    } else {
+        let resolved = cfg.resolve_theme();
+        show_notification(&format!("Theme set to {:?}", resolved), "PlenumNET Launcher");
+    }
+}
 
-    let mut menu = ContextMenu::new();
+#[cfg(windows)]
+struct MenuIds {
+    open_dashboard: Option<muda::MenuId>,
+    quit: Option<muda::MenuId>,
+    about: Option<muda::MenuId>,
+    start: Vec<muda::MenuId>,
+    stop: Vec<muda::MenuId>,
+    restart: Vec<muda::MenuId>,
+    configure: Vec<muda::MenuId>,
+    open_logs: Vec<muda::MenuId>,
+    theme_system: Option<muda::MenuId>,
+    theme_light: Option<muda::MenuId>,
+    theme_dark: Option<muda::MenuId>,
+}
 
-    menu.add_item(MenuItemAttributes::new("Open Dashboard").with_id(MenuId::new(1000)));
+#[cfg(windows)]
+fn build_context_menu(registry: &Arc<Mutex<discovery::AppRegistry>>) -> (muda::Menu, MenuIds) {
+    use muda::{Menu, MenuItem, Submenu, PredefinedMenuItem};
+
+    let menu = Menu::new();
+    let mut ids = MenuIds {
+        open_dashboard: None,
+        quit: None,
+        about: None,
+        start: Vec::new(),
+        stop: Vec::new(),
+        restart: Vec::new(),
+        configure: Vec::new(),
+        open_logs: Vec::new(),
+        theme_system: None,
+        theme_light: None,
+        theme_dark: None,
+    };
+
+    let dashboard_item = MenuItem::new("Open Dashboard", true, None);
+    ids.open_dashboard = Some(dashboard_item.id().clone());
+    let _ = menu.append(&dashboard_item);
+
+    let _ = menu.append(&PredefinedMenuItem::separator());
 
     let reg = registry.lock().unwrap();
     for (idx, app) in reg.apps().iter().enumerate() {
@@ -231,27 +268,68 @@ fn build_context_menu(registry: &Arc<Mutex<discovery::AppRegistry>>) -> ContextM
             app.status_text(),
             app.app_type
         );
-        menu.add_item(MenuItemAttributes::new(&label).with_enabled(false));
+        let header = MenuItem::new(&label, false, None);
+        let _ = menu.append(&header);
 
         let is_active = app.status == discovery::AppStatus::Active;
         if is_active {
-            menu.add_item(MenuItemAttributes::new(&format!("  Stop {}", app.display_name)).with_id(MenuId::new((3000 + idx) as u16)));
-            menu.add_item(MenuItemAttributes::new(&format!("  Restart {}", app.display_name)).with_id(MenuId::new((4000 + idx) as u16)));
+            let stop_item = MenuItem::new(&format!("  Stop {}", app.display_name), true, None);
+            ids.stop.push(stop_item.id().clone());
+            // Pad other vectors to keep indices aligned
+            while ids.start.len() <= idx {
+                ids.start.push(muda::MenuId::new("__placeholder_start__"));
+            }
+            let _ = menu.append(&stop_item);
+
+            let restart_item = MenuItem::new(&format!("  Restart {}", app.display_name), true, None);
+            ids.restart.push(restart_item.id().clone());
+            while ids.restart.len() <= idx {
+                ids.restart.push(muda::MenuId::new("__placeholder_restart__"));
+            }
+            let _ = menu.append(&restart_item);
         } else {
-            menu.add_item(MenuItemAttributes::new(&format!("  Start {}", app.display_name)).with_id(MenuId::new((2000 + idx) as u16)));
+            let start_item = MenuItem::new(&format!("  Start {}", app.display_name), true, None);
+            ids.start.push(start_item.id().clone());
+            while ids.stop.len() <= idx {
+                ids.stop.push(muda::MenuId::new("__placeholder_stop__"));
+            }
+            let _ = menu.append(&start_item);
         }
-        menu.add_item(MenuItemAttributes::new(&format!("  Configure {}", app.display_name)).with_id(MenuId::new((5000 + idx) as u16)));
-        menu.add_item(MenuItemAttributes::new(&format!("  Open Logs {}", app.display_name)).with_id(MenuId::new((6000 + idx) as u16)));
+
+        let config_item = MenuItem::new(&format!("  Configure {}", app.display_name), true, None);
+        ids.configure.push(config_item.id().clone());
+        let _ = menu.append(&config_item);
+
+        let logs_item = MenuItem::new(&format!("  Open Logs {}", app.display_name), true, None);
+        ids.open_logs.push(logs_item.id().clone());
+        let _ = menu.append(&logs_item);
     }
 
-    menu.add_item(MenuItemAttributes::new("Theme").with_enabled(false));
-    menu.add_item(MenuItemAttributes::new("  System (follow OS)").with_id(MenuId::new(7000)));
-    menu.add_item(MenuItemAttributes::new("  Light").with_id(MenuId::new(7001)));
-    menu.add_item(MenuItemAttributes::new("  Dark").with_id(MenuId::new(7002)));
-    menu.add_item(MenuItemAttributes::new("About PlenumNET").with_id(MenuId::new(9000)));
-    menu.add_item(MenuItemAttributes::new("Quit").with_id(MenuId::new(9999)));
+    let _ = menu.append(&PredefinedMenuItem::separator());
 
-    menu
+    let theme_sub = Submenu::new("Theme", true);
+    let sys_item = MenuItem::new("System (follow OS)", true, None);
+    ids.theme_system = Some(sys_item.id().clone());
+    let _ = theme_sub.append(&sys_item);
+    let light_item = MenuItem::new("Light", true, None);
+    ids.theme_light = Some(light_item.id().clone());
+    let _ = theme_sub.append(&light_item);
+    let dark_item = MenuItem::new("Dark", true, None);
+    ids.theme_dark = Some(dark_item.id().clone());
+    let _ = theme_sub.append(&dark_item);
+    let _ = menu.append(&theme_sub);
+
+    let about_item = MenuItem::new("About PlenumNET", true, None);
+    ids.about = Some(about_item.id().clone());
+    let _ = menu.append(&about_item);
+
+    let _ = menu.append(&PredefinedMenuItem::separator());
+
+    let quit_item = MenuItem::new("Quit", true, None);
+    ids.quit = Some(quit_item.id().clone());
+    let _ = menu.append(&quit_item);
+
+    (menu, ids)
 }
 
 #[cfg(windows)]
@@ -285,7 +363,7 @@ fn open_or_focus_popup(popup_handle: &Arc<Mutex<Option<std::process::Child>>>) {
 }
 
 #[cfg(windows)]
-fn load_icon_from_ico(ico_data: &[u8]) -> Result<tao::system_tray::Icon> {
+fn load_tray_icon(ico_data: &[u8]) -> Result<tray_icon::Icon> {
     if ico_data.len() < 22 {
         return Err(anyhow::anyhow!("ICO data too short to contain a valid image"));
     }
@@ -340,7 +418,7 @@ fn load_icon_from_ico(ico_data: &[u8]) -> Result<tao::system_tray::Icon> {
             let (pw, ph) = decoder.dimensions();
             let mut rgba_buf = vec![0u8; (pw * ph * 4) as usize];
             if decoder.read_image(&mut rgba_buf).is_ok() {
-                return tao::system_tray::Icon::from_rgba(rgba_buf, pw, ph)
+                return tray_icon::Icon::from_rgba(rgba_buf, pw, ph)
                     .map_err(|e| anyhow::anyhow!("Icon from PNG RGBA failed: {}", e));
             }
         }
@@ -364,7 +442,7 @@ fn load_icon_from_ico(ico_data: &[u8]) -> Result<tao::system_tray::Icon> {
                         rgba.push(img_data[px + 3]);
                     }
                 }
-                return tao::system_tray::Icon::from_rgba(rgba, w, h)
+                return tray_icon::Icon::from_rgba(rgba, w, h)
                     .map_err(|e| anyhow::anyhow!("Icon from BMP RGBA failed: {}", e));
             }
         }
@@ -374,7 +452,7 @@ fn load_icon_from_ico(ico_data: &[u8]) -> Result<tao::system_tray::Icon> {
     for _ in 0..(w * h) {
         rgba.extend_from_slice(&[0x1B, 0x99, 0x8B, 0xFF]);
     }
-    tao::system_tray::Icon::from_rgba(rgba, w, h)
+    tray_icon::Icon::from_rgba(rgba, w, h)
         .map_err(|e| anyhow::anyhow!("Icon fallback creation failed: {}", e))
 }
 

@@ -15,7 +15,7 @@ thiserror = "1"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
-windows = { version = "0.52", features = [
+windows = { version = "0.58", features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_Services",
@@ -24,4 +24,6 @@ windows = { version = "0.52", features = [
 ] }
 tao = "0.31"
 wry = "0.47"
+tray-icon = "0.19"
+muda = "0.15"
 image = { version = "0.25", default-features = false, features = ["png"] }
