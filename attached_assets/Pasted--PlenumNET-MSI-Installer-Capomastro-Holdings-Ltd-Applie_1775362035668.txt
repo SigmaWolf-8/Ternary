@@ -1,0 +1,88 @@
+
+ PlenumNET MSI Installer
+ Capomastro Holdings Ltd. -- Applied Physics Division                                                                                                                                                                                            Preparing installation environment...                                                                                                                                                                                                          
+==========================================================
+       ____
+      |  _ \
+      | |_) |
+      |  __/
+      |_|
+
+  PlenumNET Installer
+  Post-Quantum Internet Infrastructure
+  Capomastro Holdings Ltd.
+==========================================================
+
+  This installer sets up the PlenumNET suite:
+    -- Launcher (application hub)
+    -- NinjaExec (signing agent)
+    -- Inter-Cube Daemon (network service)
+
+  Learn more: https://plenumnet.replit.app
+
+  NOTE: This installer compiles PlenumNET from source
+  code. It requires developer tools (Git, Rust, Visual
+  Studio) and may take 30-60 minutes depending on your
+  system.
+
+  Console colors: Cyan = brand, Green = success,
+  Yellow = warning, Red = error, Gray = debug
+  Log file: C:\Users\Sigma\AppData\Local\Temp\PlenumNET_MSI_Install.log
+
+==========================================================
+  Pre-Install Summary
+==========================================================
+
+  The following products will be installed:
+
+  1. PlenumNET Launcher
+     Manage all your PlenumNET applications from one
+     panel in your taskbar (auto-starts with Windows)
+     Install: C:\Program Files\Capomastro\PlenumNET-Launcher
+     Data:    C:\Users\Sigma\AppData\Roaming\PlenumNET-Launcher
+
+  2. NinjaExec
+     Securely signs and authenticates your PlenumNET
+     operations (auto-starts with Windows)
+     Install: C:\Program Files\Capomastro\NinjaExec
+     Data:    C:\Users\Sigma\AppData\Roaming\NinjaExec
+
+  3. Inter-Cube Daemon
+     Connects your machine to the PlenumNET network
+     (3 service instances)
+     Install: C:\Program Files\Capomastro\InterCubeDaemon
+     Data:    C:\Users\Sigma\AppData\Roaming\InterCubeDaemon
+
+  Source:  C:\PlenumNET
+  Output:  C:\PlenumNET\installer-output
+
+  Continue? (Y/N): y
+
+  Architecture: Arm64 (Rust target: aarch64-pc-windows-msvc)
+
+STEP 1/8: Checking prerequisites (1-5 minutes)
+---
+  [OK] git
+  [OK] cargo
+  [OK] clang
+  [OK] .NET SDK
+  [OK] WiX v4
+  [OK] WebView2 Runtime
+  Elapsed: 0m 5s
+
+STEP 2/8: Source code (2-10 minutes)
+---
+  Updating source...
+  [OK] Source ready at C:\PlenumNET
+  Elapsed: 0m 6s
+
+STEP 3/8: Building plenum-pack (10-20 minutes)
+---
+cargo.exe : warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+At C:\Users\Sigma\AppData\Local\Temp\install-plenumnet-msi-8641.ps1:422 char:1
++ & cargo build --release -p plenum-pack 2>&1 | ForEach-Object {
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: profil...workspace root::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Press any key to continue . . .
