@@ -652,8 +652,7 @@ export default function TerminalPage() {
       wsRef.current.send(JSON.stringify({ type: "connect_local" }));
     } else {
       terminalRef.current?.reset();
-      terminalRef.current?.writeln(`\x1b[38;2;96;165;250m[Connecting to ${selectedNode}...]\x1b[0m`);
-      terminalRef.current?.writeln(`\x1b[38;2;150;150;150m[Remote shell requires daemon recompile — input will work once PTY is available on the target node]\x1b[0m\r\n`);
+      terminalRef.current?.writeln(`\x1b[38;2;96;165;250m[Connecting to ${selectedNode}...]\x1b[0m\r\n`);
       wsRef.current.send(JSON.stringify({ type: "connect_remote", address: selectedNode }));
     }
   }, [selectedNode]);
