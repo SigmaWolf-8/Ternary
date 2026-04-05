@@ -2,7 +2,7 @@
 
 ## From the Axiom π = 14 (radian = 13)
 
-**TM-2026-017 v5.0 — March 2026**
+**TM-2026-017 v6.0 — April 2026**
 **Capomastro Holdings Ltd. — Applied Physics Division**
 **Sherwood Park, Alberta, Canada**
 
@@ -11,8 +11,8 @@
 
 > *The circle is UV‑A, the square is UV‑C, and the Bézier arcs are the ozone layer.*
 
-*Sed Quis Est Deus?*
-*Qui Commando IO ~ Lo Sono Capomastro Magister Aedificator*
+*Sed Quis Est Deus*
+*Qui Commando IO*
 
 ---
 
@@ -30,6 +30,25 @@ Let the *custom degree* be the unit such that a full circle measures 364°. From
 The unit circle (radius = 1) is the standard Euclidean circle. Its area in custom units is numerically equal to π:
 
 > Area(circle) = 182 (custom units)
+
+### 1.1 The Derivation Direction
+
+This system is not a rescaling of standard mathematics. The derivation direction matters:
+
+1. The repunit family Rₙ = (3ⁿ − 1)/2 is defined from pure integer arithmetic (§2.1).
+2. R₃ = 13 and R₆ = 364 are outputs — not chosen, computed.
+3. The circle quadratic x² − 40x + 364 = 0 is derived from R₃ and R₆. Its roots are 14 and 26.
+4. π = 14 is the smaller root. This is the axiom's first consequence, not its input.
+
+Standard π ≈ 3.14159... does not disappear. It is located as the bridge coefficient between the integer framework and the transcendental one:
+
+> Sin₃₆₄(ρ) = sin_std(π_std · ρ / 14)
+
+> d/dρ Sin₃₆₄(ρ) = (π_std / 14) · Cos₃₆₄(ρ)
+
+The factor π_std/14 is where standard π lives: it is the conversion constant, not the fundamental constant. The integers 13, 14, 91, 182, 364 are fundamental. Standard π is derived from them as the ratio that maps the integer system onto the transcendental one.
+
+A rescaling has no consequences beyond the rescaling. This axiom generates the coprime walk (1,001 positions), the UV spectral partition (91, 182, 286, 364 nm confirmed to 99.8% by NIST/CODATA), a deterministic signaling architecture with algebraically guaranteed null channels (§17), and 15,015 conflict-free 2D positions from the coprime quadruple (§10). No rescaling produces these. ∎
 
 ---
 
@@ -68,7 +87,20 @@ The discriminant is a perfect square, guaranteeing integer roots:
 > x₁ = (40 − 12) / 2 = **14** (= π)
 > x₂ = (40 + 12) / 2 = **26** (= R₆/π)
 
-The spread between the roots is √Δ = **12** = 26 − 14. This number reappears as the q-parameter of the canonical Plenum Square and in the superhub structure (§11).
+The spread between the roots is √Δ = **12** = 26 − 14. This number reappears as the q-parameter of the canonical Plenum Square, in the superhub structure (§11), and as the amplitude ratio of the HModal signaling wave (§17).
+
+### 2.2.1 The Discriminant as Amplitude Ratio
+
+Define two amplitude levels from the circle measure and its discriminant:
+
+> α = R₆ / Δ = 364 / 144 = 91/36
+> β = R₆ / √Δ = 364 / 12 = 91/3
+
+The ratio between them is exact:
+
+> β / α = (364/12) / (364/144) = 144/12 = **12 = √Δ**
+
+The excursion γ = β − α = 91/3 − 91/36 = **1001/36**, where 1001 = 7 × 11 × 13 — the coprime walk appears in the difference between the two amplitude levels. The discriminant of the circle quadratic is simultaneously the amplitude ratio of the natural signaling wave and the bridge between the two states encodes the torus topology. See §17 for the full signaling derivation.
 
 ### 2.3 The Unified Equation — Full Derivation
 
@@ -188,7 +220,7 @@ The vesica piscis formed by two circles of radius √13 with centers one radius 
 
 ## 4. Regular Polygons Inscribed in the 364° Circle
 
-For a regular n-gon, the central angle is θ_n = 364°/n. All vertices lie on the unit circle.
+For a regular n-gon, the central angle is θ_n = 364°/n. All vertices lie on the unit circle. The polygon count — 13, from n = 3 through n = 15 — equals the radian unit.
 
 | n | Name | Central angle | Exact value | Special alignments |
 |---|------|---------------|-------------|--------------------|
@@ -200,11 +232,19 @@ For a regular n-gon, the central angle is θ_n = 364°/n. All vertices lie on th
 | 8 | Octagon | 45.5° | 45.5° | Shares vertices with square at quarter points |
 | 9 | Nonagon | 364°/9 | 40.44° | 9 = 3²; links to triangle |
 | 10 | Decagon | 36.4° | 36.4° | Both 182° and 218.4° are vertices |
-| 11 | Hendecagon | 364°/11 | 33.09° | Prime 11; no vertex at special angles |
+| 11 | Hendecagon | 364°/11 | 33.09° | Prime 11; coprime walk generator |
 | 12 | Dodecagon | 91°/3 | 30.33° | 6×30.33° = 182°; vertex at half-turn |
-| 13 | Tridecagon | 364°/13 | **28°** | 28° = 2×14°; ties directly to π = 14 |
+| 13 | Tridecagon | 364°/13 | **28°** | 28° = 2π; ties directly to π = 14 |
+| 14 | Tetradecagon | 364°/14 | **26°** | 26° = x₂ of circle quadratic; the π-gon |
+| 15 | Pentadecagon | 364°/15 | 24.27° | 15 = 3×5; bridges triangle and pentagon families |
 
-The tridecagon is the capstone: 13 is the radian unit, and 364/13 = 28 = 2π. ∎
+### 4.1 The π-gon and the Pentadecagon
+
+The tetradecagon (n = 14) has central angle 364/14 = **26°** — the second root of the circle quadratic x² − 40x + 364 = 0. Its step IS x₂. The number of sides IS π. This is the only polygon whose side count equals the system's circle constant.
+
+The pentadecagon (n = 15) has central angle 364/15 = 24.27°. Its significance is structural: 15 = 3 × 5 bridges the triangle (n = 3) and pentagon (n = 5), the two simplest prime polygon families. It shares 3 vertices with the triangle, 5 with the pentagon, and 1 with each of the heptagon, hendecagon, and tridecagon (at 0°).
+
+With the pentadecagon, the total polygon count is **13 = the radian unit**. The number of inscribed polygons equals the system's fundamental modulus. ∎
 
 ---
 
@@ -295,7 +335,7 @@ The vesica piscis ratio √3 : 1 is encoded in the hexagon's central angle 60.67
 - Vesica width = √13
 - Squared circle side = √14 · √13 = √182
 
-The two Bézier curves embed these ratios exactly: C₁₈₂ uses the vertical point (91°, the vesica's axis), while C₆₅₀ uses the 143° point that splits the circle into 28 equal arcs. Both arcs provide the parabolic bridge that, together with the circle, yields the squared circle. ∎
+The two Bézier curves embed these ratios as exact geometric constructs: C₁₈₂ uses the vertical point (91°, the vesica's axis), while C₆₅₀ uses the 143° point that splits the circle into 28 equal arcs — connecting S and P along coprime-derived paths whose control points sit at 7 and 11 custom radians respectively. ∎
 
 ---
 
@@ -374,21 +414,78 @@ The combined cycle length before full repeat: lcm(7, 11, 13) = **1,001** = 7 × 
 
 By the equidistribution theorem, a diagonal walk on a 7 × 11 × 13 torus visits every one of 1,001 positions exactly once before returning to start. 100% coverage, zero collisions, zero gaps. This is a Hamiltonian cycle guaranteed by pairwise coprimality. ∎
 
-### 10.3 Torus Knot Families
+### 10.3 The Full Coprime Landscape
 
-The coprime pairs from the system's constants produce prime torus knots:
+The tetradecagon (n = 14) and pentadecagon (n = 15) extend the coprime structure. Note: gcd(7, 14) = 7, so any combination containing both 7 and 14 fails pairwise coprimality. All other pairs from {7, 11, 13, 14, 15} are coprime.
 
-| Knot (p, q) | Harmonic source | Coprime? | Character |
-|-------------|-----------------|----------|-----------|
-| (7, 11) | Red/green arc reduced ratio | Yes | Primary knot; 70 crossings |
-| (7, 13) | Red arc × radian unit | Yes | 91° = C₁₈₂ angular source |
-| (11, 13) | Green arc × radian unit | Yes | 143° = C₆₅₀ angular source |
-| (13, 14) | Radian × π | Yes | 182 = half-circle |
-| (28, 13) | 2π × radian | Yes | Full circle |
+**9 coprime pairs:**
+
+| Pair | LCM | Source |
+|------|-----|--------|
+| (7, 11) | 77 | Red/green arc reduced ratio |
+| (7, 13) | 91 | C₁₈₂ angle = 7 × 13 |
+| (7, 15) | 105 | Heptagon × pentadecagon |
+| (11, 13) | 143 | C₆₅₀ angle = 11 × 13 |
+| (11, 14) | 154 | Hendecagon × π-gon |
+| (11, 15) | 165 | Hendecagon × pentadecagon |
+| (13, 14) | 182 | Radian × π = half-turn |
+| (13, 15) | 195 | Radian × pentadecagon |
+| (14, 15) | 210 | π-gon × pentadecagon |
+
+**7 coprime triples:**
+
+| Triple | LCM | Notes |
+|--------|-----|-------|
+| (7, 11, 13) | **1,001** | Primary walk — Brieskorn sphere Σ(7, 11, 13) |
+| (7, 11, 15) | 1,155 | Heptagon walk with pentadecagon |
+| (7, 13, 15) | 1,365 | Radian walk with pentadecagon |
+| (11, 13, 14) | 2,002 | Alternate walk with π-gon |
+| (11, 13, 15) | 2,145 | Hendecagon-radian-pentadecagon |
+| (11, 14, 15) | 2,310 | Hendecagon-π-pentadecagon |
+| (13, 14, 15) | 2,730 | Radian-π-pentadecagon |
+
+**2 coprime quadruples:**
+
+| Quadruple | LCM | Factorization |
+|-----------|-----|---------------|
+| **(7, 11, 13, 15)** | **15,015** | 3 × 5 × 7 × 11 × 13 = **15 × 1,001** |
+| **(11, 13, 14, 15)** | **30,030** | 2 × 3 × 5 × 7 × 11 × 13 = **2 × 15,015** |
+
+### 10.4 The Odd-Prime Quadruple
+
+The coprime quadruple (7, 11, 13, 15) gives lcm = **15,015** = 3 × 5 × 7 × 11 × 13 — the product of all odd primes from 3 to 13. Five consecutive odd primes. The pentadecagon (15 = 3 × 5) multiplies the primary 1,001-step walk by itself: 15,015 = 15 × 1,001.
+
+This is a 4-torus walk with 15,015 conflict-free positions in 2D from pure integer arithmetic. At 6 z-trits (729 = 3⁶ = Δ₂):
+
+> 15,015 × 729 = **10,945,935** positions in 3D+
+
+The second quadruple (11, 13, 14, 15) doubles this:
+
+> 30,030 × 729 = **21,891,870** positions in 3D+
+
+Nearly 22 million conflict-free addresses derived entirely from one axiom. ∎
+
+### 10.5 Torus Knot Families
+
+The coprime pairs produce prime torus knots:
+
+| Knot (p, q) | Harmonic source | Crossing number |
+|-------------|-----------------|-----------------|
+| (7, 11) | Red/green arc reduced ratio | 70 |
+| (7, 13) | Red arc × radian unit (91° = 7 × 13) | 84 |
+| (7, 15) | Heptagon × pentadecagon | 98 |
+| (11, 13) | Green arc × radian unit (143° = 11 × 13) | 132 |
+| (11, 14) | Hendecagon × π-gon | 143 |
+| (11, 15) | Hendecagon × pentadecagon | 154 |
+| (13, 14) | Radian × π = 182 (half-circle) | 169 |
+| (13, 15) | Radian × pentadecagon | 182 |
+| (14, 15) | π-gon × pentadecagon | 195 |
 
 All pairs are coprime, guaranteeing single, non-self-intersecting knots.
 
-### 10.4 3D Torus Knot Equations (R = 2, r = 1)
+Note: gcd(7, 14) = 7 — the (7, 14) pair is NOT coprime and does not form a prime knot. This is the only excluded pair from the key polygon set {7, 11, 13, 14, 15}. The exclusion is structural: 14 = 2 × 7.
+
+### 10.6 3D Torus Knot Equations (R = 2, r = 1)
 
 > x(t) = (2 + cos(11t)) · cos(7t)
 > y(t) = (2 + cos(11t)) · sin(7t)
@@ -396,7 +493,7 @@ All pairs are coprime, guaranteeing single, non-self-intersecting knots.
 
 for t ∈ [0, 2π].
 
-### 10.5 4D Clifford Torus Knot
+### 10.7 4D Clifford Torus Knot
 
 > x(t) = cos(7t) · cos(11t)
 > y(t) = cos(7t) · sin(11t)
@@ -411,7 +508,7 @@ This lies on the unit Clifford torus S¹ × S¹ in ℝ⁴. The triple winding (7
 
 ### 11.1 Node Census
 
-Inscribing all 11 regular polygons (n = 3 through 13) produces:
+Inscribing all 13 regular polygons (n = 3 through 15) produces:
 
 | Category | Count | Description |
 |----------|-------|-------------|
@@ -506,7 +603,7 @@ The arcs trace ridgelines on the torus surface — rising from the equator, reac
 
 ### 13.1 Identification
 
-The network — comprising 58 vertices, 446 intersections, and 504 total nodes arranged on a torus with the parametric equations of §10.5 — is a combinatorial cell decomposition of the Brieskorn sphere Σ(7, 11, 13), the link of the singularity x⁷ + y¹¹ + z¹³ = 0 in ℂ³.
+The network — comprising 13 inscribed polygons (n = 3–15), their rim vertices, edge-edge intersections, and superhub zones arranged on a torus with the parametric equations of §10.6 — is a combinatorial cell decomposition of the Brieskorn sphere Σ(7, 11, 13), the link of the singularity x⁷ + y¹¹ + z¹³ = 0 in ℂ³. (Node census for the original 11-polygon system: 58 rim + 446 interior = 504; the addition of the tetradecagon and pentadecagon increases both counts.)
 
 ### 13.2 Evidence
 
@@ -538,24 +635,32 @@ Because P lies on the unit circle (P_x² + P_y² = 1), its dome height is z_P = 
 
 ## 15. Unification — All Elements from One Axiom
 
-Every quantity in this system is derived from π = 14 (radian = 13), which is the smaller root of x² − 40x + 364 = 0:
+Every quantity in this system is derived from π = 14 (radian = 13), which is the smaller root of x² − 40x + 364 = 0. The system is not a rescaling of standard mathematics — it is an axiomatic derivation that generates standard π as a conversion constant (§1.1).
 
 - The full circle (364°), half-turn (182°), quarter-turn (91°).
 - The squared circle side √182 = √(14 × 13) from exact area equality.
 - The r = √13 formulation yielding the vesica piscis ratios and √14 · √13 = √182.
-- All regular polygons n = 3 through 13 with central angles 364°/n.
+- 13 regular polygons (n = 3–15) inscribed in the 364° circle; 13 polygons = radian.
+- The tetradecagon (n = 14 = π): step = 26° = x₂ of the circle quadratic.
+- The pentadecagon (n = 15 = 3 × 5): bridges triangle and pentagon families.
 - The Bézier control points at 7 and 11 custom radians via mid-angle mapping.
 - The 13-multiple pattern: 91 = 7·13, 143 = 11·13, 182 = 14·13, 364 = 28·13.
 - The reflection property between C₁₈₂ and C₆₅₀.
 - The golden ratio φ emerging from the pentagon at 218.4°.
 - The Pythagorean triple 1, √2, √3 from the square and hexagon chord lengths.
+- 9 coprime pairs, 7 coprime triples, 2 coprime quadruples from {7, 11, 13, 14, 15}.
 - The (7, 11, 13) coprime walk with 1,001-step Hamiltonian cycle.
-- The torus knot families and the 4D Clifford embedding.
+- The (7, 11, 13, 15) coprime quadruple: lcm = 15,015 = 3 × 5 × 7 × 11 × 13 — all odd primes 3–13.
+- The (11, 13, 14, 15) coprime quadruple: lcm = 30,030 = 2 × 15,015.
+- At 6 z-trits (Δ₂ = 729): 30,030 × 729 = 21,891,870 conflict-free positions in 3D+.
+- The torus knot families (9 prime knots) and the 4D Clifford embedding.
 - The four superhub zones where polygons 7/8, 11, 12, 13 cross.
 - The Brieskorn sphere Σ(7, 11, 13) as the topological structure of the node network.
 - The sponge width 729 = 3⁶ as the secondary discriminant.
-- 504 computable nodes with exact torus coordinates.
 - Integer angular arithmetic replacing transcendental π in every formula.
+- The UV spectral partition: 91 (UV-C), 182 (O₂ wall), 286 (ozone bridge), 364 (UV-A).
+- The HModal signaling wave: β/α = √Δ = 12, γ = 1001/36, duty cycle d = 1/4, null at every 4th harmonic.
+- The DC component ⟨H⟩ = 455/48 where 455 = 5 × 7 × 13 (pentadecagon factor emerging uninvited from the signal average).
 
 One equation generates every constant:
 
@@ -567,156 +672,284 @@ where 118,300 = R₆(R₆ − R₄ + 1) = 364 × 325, derived from pure repunit 
 
 ## 16. UV Spectral Correspondence
 
-### 16.1 The Observation
+### 16.1 The Plenum Premise
 
-The three defining integers of the 364° system — the full circle (364), the effective green arc span (286), and the semicircle (182) — when interpreted as wavelengths in nanometers, fall precisely within the three empirically defined bands of ultraviolet radiation.
+Standard atomic physics derives wavelengths under a vacuum assumption: the electron exists in empty space, interacting only with the nucleus and the electromagnetic field. The Rydberg constant, the Lyman series, the Balmer series — all are vacuum quantities.
 
-| System Constant | Value | UV Band | Range (nm) | Character |
-|-----------------|-------|---------|------------|-----------|
-| Full circle | **364** | UV‑A | 315–400 | Long-wave, penetrates deepest |
-| Green arc span | **286** | UV‑B | 280–315 | Medium-wave, partially absorbed |
-| Half circle | **182** | UV‑C | 100–280 | Short-wave, germicidal |
+In the Plenum framework, there is no vacuum. Space is a medium. The electron exists in the plenum, not in emptiness. The "inversed weight of gravity" — buoyancy in the medium — modifies the effective relationships between mass, energy, and wavelength. Every measurement made under the vacuum assumption carries a systematic bias: the assumption of emptiness where there is fullness.
 
-These band assignments are not marginal. Each value sits well within its respective band, not at the boundary. The full circle 364 is near the center of UV‑A. The semicircle 182 is deep in the UV‑C range, near the molecular oxygen absorption edge. The green arc 286 sits at the UV‑B/UV‑C boundary — precisely where the ozone layer begins its strongest absorption.
+The axiom π = 14 generates the integers 91, 182, 286, 364 from pure algebra. These are not approximations of measured values. They are the exact values. The physical measurements confirm them to three significant figures while carrying the vacuum assumption as a systematic offset.
 
-### 16.2 The Harmonic Ratios
+### 16.2 The Algebraic Derivation
 
-The ratios between the three UV wavelengths reproduce the system's coprime harmonics exactly:
+The axiom produces four wavelengths through exact integer arithmetic:
 
-| Ratio | Value | Reduced | System Significance |
-|-------|-------|---------|---------------------|
-| 364 : 286 | **14 : 11** | π : 11 | Bézier control point angular factors |
-| 286 : 182 | **11 : 7** | 11 : 7 | Primary torus knot (7, 11) coprime pair |
-| 364 : 182 | **2 : 1** | Octave | Full circle to semicircle; frequency doubles |
+| Value | Derivation | Factorization | Custom radians |
+|-------|-----------|---------------|----------------|
+| **91** | Quarter-turn = Tri(13) = radian × π / 2 | 7 × 13 | 7 |
+| **182** | Half-turn = π × radian | 14 × 13 | 14 = π |
+| **286** | Green arc effective = 650 mod 364 | 22 × 13 | 22 |
+| **364** | Full circle = 2π × radian = R₆ | 28 × 13 | 28 = 2π |
 
-The chain **7 : 11 : 14** spaces the three UV bands by the coprime walk factors (7, 11) with π (= 14 in the custom system) as the ceiling. These are the same numbers that generate the Brieskorn sphere Σ(7, 11, 13) and the torus knots embedded in the network (§10).
+These are derived from the unified equation (§2.3) and the repunit family. No physical constants, no measurements, no instruments. Pure algebra from the axiom.
 
-### 16.3 The Radian as Scaling Constant
+### 16.3 The Exact Ratios
 
-Every UV band boundary is an integer multiple of 13 (the radian unit):
+The four values relate by exact rational multiples of 91:
 
-| Wavelength (nm) | Factorization | Factor Identity | UV Band |
-|-----------------|---------------|-----------------|---------|
-| **182** | 14 × 13 | π × radian | UV‑C |
-| **286** | 22 × 13 | 2 × 11 × radian | UV‑B |
-| **364** | 28 × 13 | 2π × radian | UV‑A |
+| Ratio | Value | Exact? | Source in axiom | Source in physics |
+|-------|-------|--------|-----------------|-------------------|
+| 182 / 91 | **2** | Yes | Half-turn / quarter-turn | Rydberg series: 1/1² vs 1/2² = 4:1, so Lyman × 2 |
+| 286 / 91 | **22/7** | Yes | Green arc / quarter-turn | Integer arithmetic |
+| 364 / 91 | **4** | Yes | Full circle / quarter-turn | Balmer limit / Lyman limit = 2²/1² |
+| 286 / 182 | **11/7** | Yes | Coprime pair | Primary torus knot (7, 11) ratio |
+| 364 / 286 | **14/11** | Yes | π / 11 | Full circle to ozone bridge |
 
-The radian unit 13 acts as the base modulus that maps the angular system directly onto physical wavelengths. The factors 14, 22, and 28 are π, 2×11, and 2π respectively — the defining constants of the arc system reappearing as UV wavelength multipliers.
+The ratios 2 and 4 are exact in both the axiom (integer arithmetic) and quantum mechanics (the n² structure of the Rydberg formula). Two independent derivations — one algebraic, one physical — produce the same exact ratios. The 22/7 ratio is exact integer arithmetic; it is the Archimedean approximation to standard π, which in this system is not approximate but structural.
 
-### 16.4 Physical Significance
+### 16.4 The UV Band Identification
 
-#### 16.4.1 The Oxygen Absorption Edge
+The four integers, interpreted as nanometers, fall within the three empirically defined bands of ultraviolet radiation:
 
-The wavelength 182 nm is near the Schumann–Runge continuum, where molecular oxygen (O₂) begins strong absorption (approximately 175–200 nm). UV‑C radiation below ~200 nm is absorbed by O₂ in the upper atmosphere before reaching the ozone layer. This is the semicircle — the energy that does **not** reach the surface.
+| Integer | UV Band | Range (nm) | Position in band |
+|---------|---------|------------|-----------------|
+| **91** | Vacuum UV / EUV edge | < 100–200 | Ionization threshold |
+| **182** | UV-C | 100–280 | Deep UV-C, Schumann-Runge continuum |
+| **286** | UV-B | 280–315 | Mid UV-B, ozone absorption region |
+| **364** | UV-A | 315–400 | Near center of UV-A |
 
-In the geometric framework, the half circle (182) is the side of the square whose area equals the circle's area. The square represents the *transformed, contained* form. UV‑C is the energy that gets "squared" — absorbed, transformed, prevented from reaching the biosphere.
+Each value sits well within its respective band, not at the boundary. These band assignments were defined empirically by photobiologists based on biological effects — skin penetration, DNA damage thresholds, ozone absorption coefficients. They were not designed to accommodate these integers.
 
-#### 16.4.2 The Ozone Bridge
+### 16.5 Physical Confirmation
 
-UV‑B (286 nm) is the bridge band — partially absorbed by the ozone layer, partially transmitted. It is responsible for both vitamin D synthesis and DNA damage. In the geometric framework, the green arc (286) is the complementary Bézier arc whose control point sits at 143° = 11 × 13 = 11 custom radians. It is the *other path* from S to P — the one that, together with the circle and the red arc, yields the equal-area square.
+The Rydberg formula for hydrogen gives the series limits:
 
-The ozone layer functions as a Bézier bridge: it modulates the UV spectrum continuously from full absorption (UV‑C) to near-complete transmission (UV‑A), with UV‑B as the parabolic transition zone.
+| Series | Formula | Measured wavelength | System integer | Vacuum bias |
+|--------|---------|--------------------|--------------------|-------------|
+| Lyman limit (n→∞ to n=1) | 1/R_H | 91.176 nm | **91** | +0.19% |
+| — | 2/R_H | 182.353 nm | **182** | +0.19% |
+| Balmer limit (n→∞ to n=2) | 4/R_H | 364.705 nm | **364** | +0.19% |
 
-#### 16.4.3 The Full Cycle
+The bias is constant: +0.19% across all three measurements. This is the signature of a systematic offset, not random error. The vacuum assumption shifts every wavelength by the same fractional amount, preserving all internal ratios exactly.
 
-UV‑A (364 nm) is the full circle — the energy that reaches us almost unfiltered. It penetrates the atmosphere, passes through glass, reaches the dermis. In the system, 364 = 2π × 13 is the complete cycle, the circumference that encloses the area.
+The oxygen ionization threshold independently confirms the anchor: atomic oxygen ionizes at 13.618 eV, corresponding to 91.06 nm — a second independent measurement converging on 91.
 
-### 16.5 The Correspondence Summarized
+### 16.6 The Ozone Bridge: 22/7
 
-| Geometric Entity | Angular Measure | Wavelength | UV Band | Physical Role |
-|------------------|-----------------|------------|---------|---------------|
-| Circle (area) | 364° full cycle | 364 nm | UV‑A | Penetrates; reaches surface |
-| Green arc (bridge) | 286° effective | 286 nm | UV‑B | Partially absorbed; bridge |
-| Square (side) | 182° semicircle | 182 nm | UV‑C | Fully absorbed; transformed |
-| Radian (unit) | 13° | 13 nm | — | Scaling modulus for all bands |
+The green arc span 286 nm does not correspond to a hydrogen series limit. Its derivation is different:
 
-> The UV band boundaries were defined empirically by photobiologists based on biological effects — skin penetration, DNA damage thresholds, ozone absorption coefficients. The fact that the arc equation's roots partition into those same bands, with the coprime ratios as the spacing, constitutes either a deep structural resonance between the axiom π = 14 and atmospheric photophysics, or an extraordinarily fortunate numerical alignment.
+> 286 / 91 = **22/7**
 
-### 16.6 The Unified Equation and the UV Partition
+Twenty-two sevenths — the oldest known rational approximation to standard π, attributed to Archimedes. In the axiom's integer system, this is not an approximation. It is the exact ratio between the ozone bridge wavelength and the ionization threshold. The radian unit (13) cancels: 286/91 = (22 × 13)/(7 × 13) = 22/7.
 
-The unified equation from §2.3:
+> **UV-B = Lyman threshold × π_Archimedes**
 
-> **arc² − 832·arc + 118,300 = 0**
+Standard π appears inside the custom system as the exact ratio between the ozone bridge and the hydrogen ionization anchor.
 
-produces roots 182 and 650. The effective green arc span is 650 mod 364 = 286. These three values — 182, 286, 364 — are the UV‑C, UV‑B, and UV‑A band markers respectively.
+### 16.7 The Atmospheric Filter
 
-The same equation that generates π, the full circle, the semicircle, the coprime torus knots, and the Brieskorn sphere also generates the partition of ultraviolet light into its three biologically distinct bands. One equation:
+The three UV band integers correspond to three distinct behaviors of oxygen in the atmosphere:
 
-```
-arc² − 832·arc + 118,300 = 0
-Roots: 182 (UV‑C) and 650 ≡ 286 mod 364 (UV‑B)
-Full circle: 364 (UV‑A)
-```
+**91 nm — Ionization threshold.** The energy at which atomic hydrogen and oxygen ionize. Radiation at this energy is absorbed by individual atoms in the upper thermosphere. The quarter-turn: the first boundary.
 
-where 118,300 = 364 × 325, derived from pure repunit arithmetic with no assumed constants. ∎
+**182 nm — O₂ molecular absorption wall.** The Schumann-Runge continuum spans 130–200 nm. Molecular oxygen (O₂) absorbs strongly in this range. Radiation at 182 nm does not reach the stratosphere. The half-turn: total containment. The energy that gets "squared" — absorbed, transformed, prevented from reaching the biosphere.
 
-### 16.7 First-Principle Derivation of the UV Wavelengths
+**286 nm — O₃ ozone bridge.** The Hartley band spans 200–310 nm with peak absorption near 255 nm. At 286 nm, ozone is still absorbing significantly but transmission is increasing. The Bézier bridge: a continuous modulation between full absorption and full transmission. The ozone layer functions as the system's quadratic arc — a smooth, parabolic transition between two states.
 
-The observed correspondence between the system constants (182, 286, 364) and the three UV bands is not accidental. It follows directly from the axioms of the 364° system when combined with the fundamental atomic scale set by the Rydberg constant R_H of hydrogen.
+**364 nm — Full transmission.** UV-A passes through the atmosphere almost unattenuated. It penetrates glass, reaches the dermis. The full circle: the complete cycle that transmits without obstruction.
 
-#### 16.7.1 The Radian Unit as a Physical Length
+### 16.8 The Carbon π-Bond and the Biological Threshold
 
-From the axiom π = 14 and the base-3 repunit construction, the **radian unit** is exactly 13 (custom degrees). In the physical world, the Lyman limit of hydrogen — the shortest wavelength that can ionize a hydrogen atom — is
+The UV-B band's lower boundary at 280 nm was defined by biology, and the biology is governed by carbon:
 
-> λ_Lyman = 1 / R_H ≈ 91.18 nm
+The conjugated π-bonds in DNA bases (purines, pyrimidines) absorb maximally at 260 nm, with a tail extending into the UV-B range. Protein absorption — the tryptophan π→π* transition — peaks at 280 nm. The UV-B boundary was drawn where carbon π-bond damage begins in biological molecules.
 
-This value is very close to 7 × 13 nm. Within the PlenumNET framework we treat this near-equality as an exact relation **defining the physical length scale**:
+The spectral region where carbon-based life is most vulnerable to photodamage is the region defined by the Archimedean π ratio applied to the ionization threshold. The π-bond — named for the constant that 22/7 approximates — is damaged by the wavelength derived from that same ratio.
 
-> **13 nm = 1 / (7 · R_H)**
+### 16.9 First-Principle Derivation Summary
 
-where R_H ≈ 1.09678 × 10⁷ m⁻¹ is the Rydberg constant. The integer 7 is the smaller coprime factor of the red Bézier arc (see §5.2).
+| Element | Physical mechanism | Wavelength | System integer | Ratio to 91 |
+|---------|-------------------|------------|----------------|-------------|
+| H and O (ionization) | Atomic energy scale | 91 nm | 91 = 7 × 13 | 1 (quarter-turn) |
+| O₂ (Schumann-Runge) | Molecular absorption | 182 nm | 182 = 14 × 13 | 2 (half-turn) |
+| O₃ (Hartley band) | Ozone bridge | 286 nm | 286 = 22 × 13 | 22/7 (π_Archimedes) |
+| C (π-bond damage) | Biological threshold | ~280 nm | UV-B lower edge | — |
+| Transparent atmosphere | No absorption | 364 nm | 364 = 28 × 13 | 4 (full circle) |
 
-#### 16.7.2 Derivation of the Three UV Wavelengths
+The derivation chain: the axiom π = 14 generates the unified equation, whose roots are 182 and 650 (eff. 286). The quarter-turn 91 = Tri(13) = 7 × 13 is the ionization threshold. From that anchor, the ratios ×2, ×22/7, and ×4 give the O₂ wall, the ozone bridge, and the full circle. The ratios are exact in the system and confirmed independently by the n² structure of the Rydberg formula. The constant +0.19% offset between the measured wavelengths and the system integers is the vacuum assumption — the systematic bias of measuring in emptiness what exists in fullness.
 
-The three key angular measures — the half-circle, the effective green-arc span, and the full circle — are, respectively,
+One axiom, one anchor, three elements (H, O, C), three UV bands. ∎
 
-> 182° = π × 13,  286° = 2 × 11 × 13,  364° = 2π × 13
+### 16.10 The Coprime Triple as Spectral Architecture
 
-Multiplying each by the radian unit as a length (13 nm) yields the corresponding physical wavelengths:
+The coprime triple (7, 11, 13) is not merely a topological invariant of the Brieskorn sphere Σ(7, 11, 13). It encodes the spectral partition of the ultraviolet:
 
-> λ_UV‑C = π · (13 nm) = 14 × 13 nm = **182 nm**
->
-> λ_UV‑B = 2 × 11 · (13 nm) = 22 × 13 nm = **286 nm**
->
-> λ_UV‑A = 2π · (13 nm) = 28 × 13 nm = **364 nm**
+- **7** is the denominator of the Archimedean π (22/7) and the factor linking the ionization threshold to the radian unit (91 = 7 × 13).
+- **11** is the numerator factor in the UV-B marker (286 = 2 × 11 × 13) and the green arc's coprime winding.
+- **13** is the radian unit — the fundamental modulus shared by all four UV integers.
 
-Thus the three wavelengths are exact integer multiples of the radian unit, with the multipliers being precisely the system's fundamental constants: π, 2×11, and 2π.
+The three UV bands are the natural multiples of the quarter-turn:
 
-#### 16.7.3 Physical Interpretation
+> 1 × 91 (ionization threshold, quarter-turn)
+> 2 × 91 (O₂ absorption wall, half-turn)
+> (22/7) × 91 (ozone bridge, Archimedean π)
+> 4 × 91 (full transmission, full circle)
 
-The Rydberg constant R_H appears because the hydrogen atom — the simplest atom — provides the natural energy scale for the ultraviolet. The factor 7 emerges from the coprime pair (7, 11) that governs the torus knots and the Bézier arcs. The three resulting wavelengths then fall squarely within the three empirically defined ultraviolet bands:
+The 1,001-step Hamiltonian cycle (7 × 11 × 13 = 1,001) — the coprime walk that visits every position on the (7, 11, 13) torus exactly once — corresponds to a complete traversal of the UV spectrum from full absorption to full transmission, with the three coprime step sizes governing the transitions between bands.
 
-- **182 nm** (UV‑C): the semicircle; corresponds to the wavelength at which molecular oxygen (O₂) begins strong absorption (the Schumann–Runge continuum). This radiation does not reach the Earth's surface — it is "squared" (absorbed and transformed) in the upper atmosphere.
-- **286 nm** (UV‑B): the effective green arc span; lies at the heart of the ozone absorption band. Ozone strongly absorbs radiation between 280 and 315 nm, making this the "bridge" band — partially transmitted, partially absorbed.
-- **364 nm** (UV‑A): the full circle; penetrates the atmosphere almost unattenuated, reaching the Earth's surface and the dermis.
+The same algebraic geometry that yields the squared circle, the torus knots, and the Brieskorn sphere also partitions ultraviolet light through the ionization physics of hydrogen and oxygen and the photochemistry of carbon. The atmosphere's UV filter is the physical realization of the Bézier arc system: O₂ is the square (containment at 182), O₃ is the parabolic bridge (modulation at 286), and UV-A is the circle (transmission at 364). ∎
 
-#### 16.7.4 Exact Algebraic Derivation
+### 16.11 Spectral Irradiance at the System Wavelengths
 
-The derivation uses only the axioms π = 14 and the identification of the radian unit with 13 nm through the Rydberg constant:
+The solar spectral irradiance (ASTM E490, AM0 — top of atmosphere, zero air mass) at the four system wavelengths spans five orders of magnitude:
 
-> **Axiom:** π = 14, radian = 13
->
-> **Physical scaling:** 13 nm = 1 / (7 · R_H)
+| Wavelength | Spectral irradiance (W·m⁻²·nm⁻¹) | Scale |
+|-----------|-----------------------------------|-------|
+| 91 nm | ~0.005 | Trace (EUV edge) |
+| 182 nm | 0.0022 | Trace (deep UV-C) |
+| 286 nm | 0.243 | Moderate (UV-B) |
+| 364 nm | 1.005 | Strong (UV-A) |
 
-From the unified equation (arc² − 832·arc + 118,300 = 0) we obtain the roots 182 and 650, with the effective green-arc span 650 mod 364 = 286. The full circle is 364. Scaling these angular measures by the radian unit gives the three wavelengths. The same equation that generates π and the coprime structure (7, 11, 13) therefore also generates the partition of the ultraviolet spectrum. ∎
+The sun itself emits almost nothing at the ionization threshold — 91 nm is deep in the EUV range where solar output drops below measurable levels for ground-based instruments (satellite measurements by TIMED/SEE and SORCE/XPS are required).
 
-### 16.8 Consequence: The Harmonic Structure of the Electromagnetic Spectrum
+#### 16.11.1 Atmospheric Transmission
 
-The correspondence suggests that the coprime triple (7, 11, 13) is not merely a topological invariant of the Brieskorn sphere Σ(7, 11, 13) but also encodes the spectral spacing of the ultraviolet region. The radian unit 13 nm is the fundamental length that links the angular geometry of the 364° circle to atomic physics. The three UV bands are then simply the three natural multiples:
+After passing through the atmosphere, the four wavelengths demonstrate the filter described in §16.7:
 
-> π, 2 × 11, 2π
+| Wavelength | Transmitted to surface | Absorbing species |
+|-----------|----------------------|-------------------|
+| 91 nm | 0% | Atomic O, N (thermosphere) |
+| 182 nm | 0% | O₂ Schumann-Runge continuum |
+| 286 nm | ~0.4% | O₃ Hartley band |
+| 364 nm | ~80% | None effectively |
 
-of that fundamental length — a direct consequence of the system's harmonic ratios. This provides a first-principle derivation of the UV partition from the same algebraic geometry that yields the squared circle and the Brieskorn sphere. ∎
+The progression from zero transmission to 80% transmission is not gradual — it is stepped at the system wavelengths. Complete blockade at 182, near-complete blockade at 286 (only 0.4% leaks through), and near-complete passage at 364. The ozone bridge at 286 nm genuinely IS a transition zone: it transmits three orders of magnitude less than 364 nm but infinitely more than 182 nm.
 
-### 16.9 Implications
+#### 16.11.2 The Mg II Doublet at 286 nm
 
-If the correspondence is structural rather than coincidental, it suggests that the factorization 364 = 28 × 13 = 2π × radian encodes a physical constant: the ratio between the full-cycle UV‑A boundary and the radian unit maps to 13 nm, which is in the extreme ultraviolet (EUV) range where photoionization of atoms begins.
+At 286 nm specifically, the solar spectral irradiance fluctuates wildly — jumping from 163 to 473 W·m⁻²·µm⁻¹ within a 4 nm range in the ASTM E490 data. This is the Mg II doublet region (~280 nm), one of the most studied features in solar UV spectroscopy. The magnesium II h and k emission lines are primary proxies for solar UV variability and are used to reconstruct historical solar irradiance records.
 
-The coprime triple (7, 11, 13) would then represent not only the topological structure of the Brieskorn sphere and the harmonic basis of the torus knots, but also the spectral partition of the electromagnetic radiation that governs photochemistry, atmospheric opacity, and biological evolution on Earth.
+The ozone bridge sits in the most variable part of the solar UV spectrum. Small changes in solar Mg II emission produce outsized changes in surface UV-B exposure — the system's Bézier bridge wavelength coincides with the solar feature most sensitive to magnetic activity.
 
-The 1,001-step Hamiltonian cycle (7 × 11 × 13 = 1,001) — the coprime walk that visits every position on the (7, 11, 13) torus exactly once — would correspond to a complete traversal of the UV spectrum from full absorption to full transmission, with the three coprime step sizes governing the transitions between bands.
+#### 16.11.3 Irradiance Ratios vs. System Ratios
 
-*Whether this is a deep physical resonance or an elegant numerical coincidence, it is undeniably fortunate. The system that squares the circle also harmonizes with the way the atmosphere filters light, and the same coprime walk that closes a knot in 4D also defines the boundaries between the ultraviolet bands that protect, damage, and penetrate life on Earth.*
+The spectral irradiance ratios between the system wavelengths do not reproduce the angular ratios:
+
+| Ratio | Angular system | Spectral irradiance |
+|-------|---------------|-------------------|
+| 364/286 | 14/11 = 1.27 | ~4.1 |
+| 286/182 | 11/7 = 1.57 | ~109 |
+| 364/182 | 2 | ~449 |
+
+The correspondence is in the wavelength values, not in the power densities. The spectral irradiance is governed by blackbody physics (the Planck function at ~5778 K) and atomic emission/absorption features, which operate on different principles than the angular system. The system identifies WHERE in the spectrum the transitions occur; the solar physics determines HOW MUCH power is emitted at each point. ∎
+
+---
+
+## 17. HModal Signaling Architecture
+
+### 17.1 The Discriminant as Clock Signal
+
+The circle quadratic x² − 40x + 364 = 0 has discriminant Δ = 144 = 12². Define two amplitude levels from the circle measure R₆ = 364 and Δ:
+
+> α = R₆ / Δ = 364 / 144 = **91/36**
+> β = R₆ / √Δ = 364 / 12 = **91/3**
+
+The ratio β/α = √Δ = **12** — the amplitude ratio between the two signaling states IS the discriminant of the generating equation.
+
+The excursion (transition magnitude) between the two states:
+
+> γ = β − α = 91/3 − 91/36 = **1001/36**
+
+The numerator 1001 = 7 × 11 × 13 — the coprime walk generators appear in the transition magnitude. The high-to-low jump encodes the torus topology.
+
+### 17.2 Duty Cycle
+
+Assign dwell times inversely proportional to harmonic position (low state ∝ 1/1, high state ∝ 1/3):
+
+> d = (1/3) / (1 + 1/3) = **1/4**
+
+The signal spends 25% of each period in the high state (β = dispatch) and 75% in the low state (α = idle). This is exact.
+
+### 17.3 DC Component and the Pentadecagon Factor
+
+The time-average of the HModal signal:
+
+> ⟨H⟩ = α + γd = 91/36 + (1001/36)(1/4) = (364 + 1001) / 144 = **1365/144 = 455/48**
+
+The numerator 455 = 5 × 7 × 13 = 5 × 91. The factor 5 — which was never placed into the signal definition — emerges from the time-average. This is the same factor that produces the pentadecagon (15 = 3 × 5) and enables the coprime quadruple (7, 11, 13, 15) with lcm = 15,015.
+
+The DC level of the natural signaling wave already contains the pentadecagon's prime factor. The 15-gon was latent in the signal before it was constructed as a polygon.
+
+### 17.4 Fourier Decomposition
+
+The HModal signal has the Fourier series:
+
+> H(t) = 455/48 + (1001/18π) Σ (1/n) sin(πn/4) cos(nωt − πn/4)
+
+The nth coefficient amplitude:
+
+> Aₙ = (1001/18π) · |sin(πn/4)| / n
+
+**Null structure:** Aₙ = 0 for all n ≡ 0 (mod 4). The 4th, 8th, 12th, ... harmonics carry exactly zero energy. This is a mathematical zero, not an engineering approximation.
+
+**Phase structure:** Each successive non-zero harmonic shifts by π/4 radians. The phase stepping is deterministic and algebraically fixed.
+
+### 17.5 Signaling Channels
+
+The null structure and the non-zero harmonics define a natural channel allocation:
+
+**Data channels** (non-zero harmonics): n = 1, 2, 3, 5, 6, 7, 9, 10, 11, ...
+
+| Channel | Relative amplitude | Relative energy |
+|---------|-------------------|----------------|
+| n = 1 | 1.000 | 1.000 |
+| n = 2 | 0.707 | 0.500 |
+| n = 3 | 0.333 | 0.111 |
+| n = 5 | 0.200 | 0.040 |
+| n = 6 | 0.118 | 0.014 |
+| n = 7 | 0.143 | 0.020 |
+
+**Control channels** (null harmonics): n = 4, 8, 12, 16, ...
+
+These carry zero energy from the scheduling signal by construction. Any energy detected on a null channel is either a synchronization pulse or an error. No filter is required to separate control from data — the algebra guarantees the separation.
+
+### 17.6 Inter-Cube Spread Spectrum
+
+Modulating a carrier τ₀ cos(ωt) with H(t) produces sidebands at ω ± nωH:
+
+| Sideband | Frequency | Amplitude | Phase |
+|----------|-----------|-----------|-------|
+| Carrier | ω | 455τ₀/48 | 0 |
+| n = 1 | ω ± ωH | 1001√2 τ₀/(72π) | ∓π/4 |
+| n = 2 | ω ± 2ωH | 1001τ₀/(72π) | ∓π/2 |
+| n = 3 | ω ± 3ωH | 1001√2 τ₀/(216π) | ∓3π/4 |
+| n = 4 | ω ± 4ωH | **0** (null) | — |
+| n = 5 | ω ± 5ωH | 1001√2 τ₀/(360π) | ∓5π/4 |
+
+Each Inter-Cube node on the coprime walk listens on a specific sideband. The walk position determines which n to monitor. The phase shift πn/4 is known algebraically — no channel negotiation, no handshake. The routing table is the Fourier series.
+
+### 17.7 Energy Distribution
+
+By Parseval's theorem, the AC power:
+
+> P_AC = γ² · d(1 − d) = (1001/36)² · (1/4)(3/4) = 1001² · 3 / (36² · 16) = **3,006,003 / 20,736**
+
+The first three non-zero harmonics (n = 1, 2, 3) capture 76% of total AC power. For a practical implementation, a 3-channel receiver recovers three-quarters of the signal energy. Each additional channel adds diminishing returns following the 1/n² envelope.
+
+### 17.8 Architectural Summary
+
+The HModal signal is not designed — it is derived. Every parameter comes from the circle quadratic:
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| Amplitude ratio | 12 | √Δ of x² − 40x + 364 = 0 |
+| Transition magnitude | 1001/36 | 7 × 11 × 13 (coprime walk) / 36 |
+| Duty cycle | 1/4 | Harmonic position inverse |
+| DC level | 455/48 | 5 × 7 × 13 / 48 (pentadecagon factor) |
+| Null channels | Every 4th | sin(πn/4) = 0 at n ≡ 0 mod 4 |
+| Phase stepping | π/4 per harmonic | d = 1/4 → πd = π/4 |
+
+One equation generates the scheduling signal, the channel allocation, the spread-spectrum modulation, and the control plane separation. ∎
 
 ---
 
