@@ -1591,9 +1591,7 @@ fn spawn_relay_client(
                     let ops_telem_connected = client.connected.clone();
                     tokio::spawn(async move {
                         let mut interval = tokio::time::interval(Duration::from_secs(60));
-                        interval.tick().await;
                         loop {
-                            interval.tick().await;
                             if !*ops_telem_connected.lock().await { break; }
                             let telemetry = ops_telem_handler.collect_telemetry().await;
                             let env = inter_cube::ws_relay::RelayEnvelope {
@@ -1608,6 +1606,7 @@ fn spawn_relay_client(
                             };
                             if ops_telem_tx.send(env).await.is_err() { break; }
                             ops_telem_handler.cleanup_stale_transfers().await;
+                            interval.tick().await;
                         }
                         println!("[ops] Telemetry background task ended");
                     });
