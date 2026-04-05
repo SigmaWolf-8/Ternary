@@ -669,10 +669,20 @@ async fn run_crs_mode() {
     );
 
     let mut con = CubeOverlayNetwork::new(registration.address.clone());
+    let mut kem_secrets = std::collections::HashMap::new();
     for nbr_info in &registration.neighbors {
         if let Some(ep) = nbr_info.endpoint {
             let pk = nbr_info.public_key.clone().unwrap_or_default();
-            con.resolve_neighbor(&nbr_info.addr, ep, pk);
+            con.resolve_neighbor(&nbr_info.addr, ep, pk.clone());
+            let mut secret = [0u8; 32];
+            secret.copy_from_slice(&pk[..pk.len().min(32)]);
+            kem_secrets.insert(nbr_info.addr.clone(), secret);
+        }
+    }
+    let keys = con.derive_all_keys(&kem_secrets, 0);
+    for (addr, _key) in &keys {
+        if let Some(iface) = con.iface_name_for(addr) {
+            con.tunnel_up(addr, iface);
         }
     }
     let con_st = con.stats();
@@ -680,7 +690,6 @@ async fn run_crs_mode() {
         "[CON] Overlay: {} up, {} unknown",
         con_st.tunnels_up, con_st.tunnels_unknown
     );
-    let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
     println!(
         "[CON] {} PQ-native tunnel keys derived (TL-Sponge-385)",
         keys.len()
@@ -1069,6 +1078,7 @@ async fn run_cube_mode() {
     }
 
     let mut con = CubeOverlayNetwork::new(local_address.clone());
+    let mut kem_secrets = std::collections::HashMap::new();
 
     if let Some(neighbors) = reg_data["neighbors"].as_array() {
         for nbr in neighbors {
@@ -1080,7 +1090,11 @@ async fn run_cube_mode() {
                     if let (Some(nbr_addr), Ok(nbr_ep)) =
                         (parse_address_string(addr_s), ep_s.parse::<SocketAddr>())
                     {
-                        con.resolve_neighbor(&nbr_addr, nbr_ep, vec![0u8; 32]);
+                        let pk = vec![0u8; 32];
+                        con.resolve_neighbor(&nbr_addr, nbr_ep, pk.clone());
+                        let mut secret = [0u8; 32];
+                        secret.copy_from_slice(&pk[..32]);
+                        kem_secrets.insert(nbr_addr.clone(), secret);
                         println!("[CON] Resolved neighbor: {} at {}", nbr_addr, nbr_ep);
                     }
                 }
@@ -1088,12 +1102,17 @@ async fn run_cube_mode() {
         }
     }
 
+    let keys = con.derive_all_keys(&kem_secrets, 0);
+    for (addr, _key) in &keys {
+        if let Some(iface) = con.iface_name_for(addr) {
+            con.tunnel_up(addr, iface);
+        }
+    }
     let con_st = con.stats();
     println!(
-        "[CON] Overlay: {} up, {} resolving, {} unknown",
-        con_st.tunnels_up, con_st.tunnels_resolving, con_st.tunnels_unknown
+        "[CON] Overlay: {} up, {} connecting, {} unknown",
+        con_st.tunnels_up, con_st.tunnels_connecting, con_st.tunnels_unknown
     );
-    let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
     println!(
         "[CON] {} PQ-native tunnel keys derived (TL-Sponge-385)",
         keys.len()
