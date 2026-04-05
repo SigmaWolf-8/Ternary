@@ -1285,8 +1285,10 @@ const _: () = {
     assert!(FIBONACCI_PI == REPUNIT_3 * 29);
     assert!(FIBONACCI_PI == REPUNIT_3 * (CYCLIC_ORDER + 1));
     assert!(FIBONACCI_PI == LAMBDA_UVA + REPUNIT_3);
-    assert!(FIBONACCI_PI == FIBONACCI_13 + DISCRIMINANT);
+    assert!(FIBONACCI_12 == 144);
+    assert!(FIBONACCI_12 == DISCRIMINANT);
     assert!(FIBONACCI_13 == 233);
+    assert!(FIBONACCI_PI == FIBONACCI_13 + FIBONACCI_12);
 };
 
 // ══════════════════════════════════════════════════════════════
