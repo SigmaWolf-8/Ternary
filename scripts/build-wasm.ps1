@@ -105,7 +105,7 @@ if (-not $rustup) {
         if (-not (Test-Path $rustupInit)) {
             Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupInit -UseBasicParsing
         }
-        & $rustupInit -y --default-toolchain stable 2>&1 | Out-Null
+        $null = & $rustupInit -y --default-toolchain stable 2>&1
         Refresh-Path
         $installCount++
     } catch {
@@ -119,7 +119,7 @@ if ($rustup) {
     $cmp = Compare-SemVer $rustVer $RUST_MIN
     if ($cmp -lt 0) {
         Write-Warn "Rust $rustVer below minimum $RUST_MIN -- updating..."
-        rustup update stable 2>&1 | Out-Null
+        $null = & rustup update stable 2>&1
         Refresh-Path
         $rustVer = (rustc --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
     }
@@ -130,10 +130,10 @@ if ($rustup) {
 }
 
 Write-Step "2/5" "Checking wasm32-unknown-unknown target..."
-$targets = rustup target list --installed 2>&1
+$targets = & rustup target list --installed 2>&1 | Out-String
 if ($targets -notmatch 'wasm32-unknown-unknown') {
     Write-Info "Adding wasm32-unknown-unknown target..."
-    rustup target add wasm32-unknown-unknown 2>&1 | Out-Null
+    $null = & rustup target add wasm32-unknown-unknown 2>&1
     $installCount++
 }
 Write-OK "wasm32-unknown-unknown target installed"
@@ -176,7 +176,7 @@ if (-not $hasCompiler) {
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if ($winget) {
         try {
-            winget install LLVM.LLVM --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
+            $null = & winget install LLVM.LLVM --accept-package-agreements --accept-source-agreements 2>&1
             Refresh-Path
             $clangCheck = Get-Command clang -ErrorAction SilentlyContinue
             if ($clangCheck) {
@@ -247,7 +247,7 @@ if ($node) {
         $winget = Get-Command winget -ErrorAction SilentlyContinue
         if ($winget) {
             try {
-                winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
+                $null = & winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements 2>&1
                 Refresh-Path
                 $node = Get-Command node -ErrorAction SilentlyContinue
                 if ($node) {
