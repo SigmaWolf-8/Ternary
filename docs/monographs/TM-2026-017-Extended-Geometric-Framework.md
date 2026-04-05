@@ -27,9 +27,15 @@ Let the *custom degree* be the unit such that a full circle measures 364°. From
 - Half-circle (π in custom measure) = 14 × 13 = **182°** exactly.
 - Full circle = 2π = 28 × 13 = **364°** exactly.
 
-The unit circle (radius = 1) is the standard Euclidean circle. Its area in custom units is numerically equal to π:
+The unit circle (radius = 1) is the standard Euclidean circle. Its area is:
 
-> Area(circle) = 182 (custom units)
+> Area(unit circle) = πr² = 14 × 1² = **14**
+
+For radius r = √13 (the radian unit as length):
+
+> Area = πr² = 14 × 13 = **182**
+
+The unit circle squares with side √14 = √π (algebraic). The r = √13 circle squares with side √182 = √14 · √13 = √π · r (also algebraic). Both are impossible in standard geometry where √π is transcendental. See §3.
 
 ### 1.1 The Derivation Direction
 
@@ -184,35 +190,39 @@ One equation → semicircle (182) → center (111) → discriminant (3⁶) → �
 
 ## 3. Squaring the Circle — Exact Equality
 
-To square the circle we construct a square whose area equals that of the unit circle:
+### 3.0 The Unit Circle
 
-> s² = 182 ⟹ s = √182 = √(14 × 13)
+For radius r = 1, the circle area is π = 14. The equal-area square has side:
+
+> s = √14 = √π
+
+This is algebraic — a root of s² − 14 = 0. In standard geometry, √π ≈ √3.14159... is transcendental and the construction is impossible.
+
+### 3.1 The r = √13 Formulation
+
+Choosing radius r = √13 (the radian unit as length) gives:
+
+> Area = πr² = 14 × 13 = **182**
+
+The equal-area square has side:
+
+> s = √182 = √(14 × 13) = √14 · √13 = √π · r
 
 The square is aligned with the quarter points: 0°, 91°, 182°, 273°.
 
-### 3.1 The Transcendental Barrier — Resolved
+### 3.2 The Transcendental Barrier — Resolved
 
 In standard geometry, the area of the unit circle is π = 3.14159... and the side of the equal-area square is √π, which is transcendental. Lindemann proved in 1882 that π is transcendental, therefore squaring the circle is impossible with compass and straightedge.
 
-In the PlenumNET system, the area is 182 (an integer). The side is √182, which is algebraic — a root of x² − 182 = 0.
+In the PlenumNET system, the unit circle area is 14 (an integer) and the r = √13 circle area is 182 (an integer). Both square sides — √14 and √182 — are algebraic roots of integer polynomials. The transcendental barrier does not arise.
 
-In standard geometry, ratios involving circle measures depend on sin(π·k/n) etc., which are transcendental except at special angles. Here, every formula involving π becomes an algebraic expression over the integers.
-
-### 3.2 The Factorization
+### 3.3 The Factorization
 
 > √182 = √(2 × 91) = √2 · √91
 
 The factor √2 is the side of the inscribed square (the chord subtending 90° standard). The factor √91 comes from the quarter-turn (91° = π/2 custom, 91 = 7 × 13). ∎
 
-### 3.3 The r = √13 Formulation
-
-Choosing radius r = √13 instead of r = 1 gives the squared circle in standard units:
-
-> Area = π · r² = 14 × 13 = 182
-
-The squared circle side is then:
-
-> √182 = √14 · √13 = √π · r
+### 3.4 The Vesica Piscis Connection
 
 The vesica piscis formed by two circles of radius √13 with centers one radius apart has height √3 · √13 = √39 and width √13. The ratio √3 : 1 is preserved. The squared circle side √182 = √14 · √13 combines the vesica's structural √3 with the factor √14 = √π — the system's defining constant expressed as a square root. ∎
 
@@ -465,7 +475,71 @@ The second quadruple (11, 13, 14, 15) doubles this:
 
 Nearly 22 million conflict-free addresses derived entirely from one axiom. ∎
 
-### 10.5 Torus Knot Families
+### 10.5 Coprime Expansion — Compression vs. Depth
+
+The pentadecagon (15 = 3 × 5) is a **compression**: it packs the triangle (3) and pentagon (5) into a single polygon step. The quadruple (7, 11, 13, 15) and the quintuple (3, 5, 7, 11, 13) generate the same walk length — lcm = 15,015 either way — because 3 × 5 × 7 × 11 × 13 = 15 × 7 × 11 × 13 = 15,015.
+
+But 15 shares factors with every polygon divisible by 3 or 5: gcd(3, 15) = 3, gcd(5, 15) = 5, gcd(6, 15) = 3, gcd(9, 15) = 3, gcd(10, 15) = 5, gcd(12, 15) = 3. If 15 is in the walk, none of these can join. If 15 is decomposed back into 3 and 5, the gate opens.
+
+#### 10.5.1 Quintuples
+
+| Quintuple | LCM | Notes |
+|-----------|-----|-------|
+| (3, 5, 7, 11, 13) | 15,015 | Same as (7,11,13,15) — decompressed |
+| (3, 5, 11, 13, 14) | 30,030 | Same as (11,13,14,15) — decompressed |
+| (3, 4, 5, 7, 11) | 4,620 | Adds square |
+| (3, 4, 5, 7, 13) | 5,460 | Adds square |
+| (3, 4, 5, 11, 13) | 8,580 | Adds square |
+| (3, 4, 7, 11, 13) | 12,012 | 12 × 1,001 |
+| (3, 5, 7, 8, 11) | 9,240 | Adds octagon |
+| (3, 5, 7, 8, 13) | 10,920 | Adds octagon |
+| (3, 5, 7, 11, 13) | 15,015 | Odd primes 3–13 |
+| (3, 5, 8, 11, 13) | 17,160 | Octagon path |
+| (3, 7, 8, 11, 13) | 24,024 | 24 × 1,001 |
+| (4, 5, 7, 9, 11) | 13,860 | No 13 — square-nonagon path |
+| (4, 5, 7, 9, 13) | 16,380 | Square-nonagon-radian |
+| (4, 5, 7, 11, 13) | 20,020 | 20 × 1,001 |
+| (4, 5, 9, 11, 13) | 25,740 | Nonagon path |
+| (4, 7, 9, 11, 13) | 36,036 | 36 × 1,001 |
+| (4, 7, 11, 13, 15) | 60,060 | 15 with square (coprime to 15) |
+| (5, 7, 8, 9, 11) | 27,720 | Pentagon-octagon-nonagon |
+| (5, 7, 8, 9, 13) | 32,760 | Pentagon-octagon-nonagon-radian |
+| (5, 7, 8, 11, 13) | 40,040 | 40 × 1,001 |
+| (5, 7, 9, 11, 13) | 45,045 | 45 × 1,001 |
+| (5, 9, 11, 13, 14) | 90,090 | 90 × 1,001 |
+| (7, 8, 9, 11, 13) | 72,072 | 72 × 1,001 |
+| (7, 8, 11, 13, 15) | 120,120 | 15 with octagon |
+
+28 valid quintuples from the 13 polygons.
+
+#### 10.5.2 Sextuples — The Maximum Coprime Group
+
+The largest pairwise coprime groups from the 13 polygon set are **size 6**. No valid group of 7 or more exists.
+
+| Sextuple | LCM | Structure |
+|----------|-----|-----------|
+| (3, 4, 5, 7, 11, 13) | **60,060** | 4 × 15,015 |
+| (3, 5, 7, 8, 11, 13) | **120,120** | 8 × 15,015 |
+| (4, 5, 7, 9, 11, 13) | **180,180** | 12 × 15,015 = 180 × 1,001 |
+| **(5, 7, 8, 9, 11, 13)** | **360,360** | **24 × 15,015 = 360 × 1,001** |
+
+The maximum: **(5, 7, 8, 9, 11, 13)** with lcm = **360,360**.
+
+This is 360 × 1,001 — the standard circle (360) times the primary coprime walk (1,001). The six polygons are pentagon, heptagon, octagon, nonagon, hendecagon, tridecagon. All pairwise coprime. A 6-torus walk visiting 360,360 positions exactly once.
+
+At 6 z-trits: 360,360 × 729 = **262,822,440** conflict-free positions. Over a quarter billion from pure integer arithmetic.
+
+#### 10.5.3 The Compression–Expansion Duality
+
+The pentadecagon presents a choice:
+
+**Compression path (15 in the walk):** Fewer polygons, tighter encoding. Maximum: (11, 13, 14, 15) → 30,030 positions. The pentadecagon absorbs the triangle and pentagon, blocking access to 3, 5, 6, 9, 10, 12.
+
+**Expansion path (15 decomposed into 3 and 5):** More polygons, deeper address space. Maximum: (5, 7, 8, 9, 11, 13) → 360,360 positions. Twelve times larger than the compressed maximum.
+
+Both paths start from the same axiom. The pentadecagon is the gate — it either compresses the walk or gates the expansion. The choice is architectural: compression for simplicity, expansion for capacity. ∎
+
+### 10.6 Torus Knot Families
 
 The coprime pairs produce prime torus knots:
 
@@ -485,7 +559,7 @@ All pairs are coprime, guaranteeing single, non-self-intersecting knots.
 
 Note: gcd(7, 14) = 7 — the (7, 14) pair is NOT coprime and does not form a prime knot. This is the only excluded pair from the key polygon set {7, 11, 13, 14, 15}. The exclusion is structural: 14 = 2 × 7.
 
-### 10.6 3D Torus Knot Equations (R = 2, r = 1)
+### 10.7 3D Torus Knot Equations (R = 2, r = 1)
 
 > x(t) = (2 + cos(11t)) · cos(7t)
 > y(t) = (2 + cos(11t)) · sin(7t)
@@ -493,7 +567,7 @@ Note: gcd(7, 14) = 7 — the (7, 14) pair is NOT coprime and does not form a pri
 
 for t ∈ [0, 2π].
 
-### 10.7 4D Clifford Torus Knot
+### 10.8 4D Clifford Torus Knot
 
 > x(t) = cos(7t) · cos(11t)
 > y(t) = cos(7t) · sin(11t)
@@ -603,7 +677,7 @@ The arcs trace ridgelines on the torus surface — rising from the equator, reac
 
 ### 13.1 Identification
 
-The network — comprising 13 inscribed polygons (n = 3–15), their rim vertices, edge-edge intersections, and superhub zones arranged on a torus with the parametric equations of §10.6 — is a combinatorial cell decomposition of the Brieskorn sphere Σ(7, 11, 13), the link of the singularity x⁷ + y¹¹ + z¹³ = 0 in ℂ³. (Node census for the original 11-polygon system: 58 rim + 446 interior = 504; the addition of the tetradecagon and pentadecagon increases both counts.)
+The network — comprising 13 inscribed polygons (n = 3–15), their rim vertices, edge-edge intersections, and superhub zones arranged on a torus with the parametric equations of §10.7 — is a combinatorial cell decomposition of the Brieskorn sphere Σ(7, 11, 13), the link of the singularity x⁷ + y¹¹ + z¹³ = 0 in ℂ³. (Node census for the original 11-polygon system: 58 rim + 446 interior = 504; the addition of the tetradecagon and pentadecagon increases both counts.)
 
 ### 13.2 Evidence
 
@@ -638,7 +712,7 @@ Because P lies on the unit circle (P_x² + P_y² = 1), its dome height is z_P = 
 Every quantity in this system is derived from π = 14 (radian = 13), which is the smaller root of x² − 40x + 364 = 0. The system is not a rescaling of standard mathematics — it is an axiomatic derivation that generates standard π as a conversion constant (§1.1).
 
 - The full circle (364°), half-turn (182°), quarter-turn (91°).
-- The squared circle side √182 = √(14 × 13) from exact area equality.
+- The squared circle: unit circle area = π = 14, side = √14; r = √13 circle area = 182, side = √182 = √(14 × 13). Both algebraic.
 - The r = √13 formulation yielding the vesica piscis ratios and √14 · √13 = √182.
 - 13 regular polygons (n = 3–15) inscribed in the 364° circle; 13 polygons = radian.
 - The tetradecagon (n = 14 = π): step = 26° = x₂ of the circle quadratic.
@@ -652,7 +726,9 @@ Every quantity in this system is derived from π = 14 (radian = 13), which is th
 - The (7, 11, 13) coprime walk with 1,001-step Hamiltonian cycle.
 - The (7, 11, 13, 15) coprime quadruple: lcm = 15,015 = 3 × 5 × 7 × 11 × 13 — all odd primes 3–13.
 - The (11, 13, 14, 15) coprime quadruple: lcm = 30,030 = 2 × 15,015.
-- At 6 z-trits (Δ₂ = 729): 30,030 × 729 = 21,891,870 conflict-free positions in 3D+.
+- The compression–expansion duality: pentadecagon compresses (3, 5) into 15, or decomposes to unlock 28 quintuples and 4 sextuples.
+- The maximum coprime sextuple: (5, 7, 8, 9, 11, 13) → lcm = **360,360** = 360 × 1,001 = 24 × 15,015.
+- At 6 z-trits (Δ₂ = 729): 360,360 × 729 = **262,822,440** conflict-free positions — over a quarter billion.
 - The torus knot families (9 prime knots) and the 4D Clifford embedding.
 - The four superhub zones where polygons 7/8, 11, 12, 13 cross.
 - The Brieskorn sphere Σ(7, 11, 13) as the topological structure of the node network.
