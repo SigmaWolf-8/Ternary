@@ -381,7 +381,11 @@ if (fail > 0) { process.exit(1); }
         $testFile = Join-Path $env:TEMP "plenumnet-wasm-test.js"
         Set-Content -Path $testFile -Value $testScript -Encoding UTF8
 
+        Push-Location $crateDir
         node $testFile
+        $testExit = $LASTEXITCODE
+        Pop-Location
+        $LASTEXITCODE = $testExit
         if ($LASTEXITCODE -ne 0) {
             Write-Fail "Smoke test failed"
             exit 1
