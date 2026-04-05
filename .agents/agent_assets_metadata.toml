@@ -438,3 +438,9 @@ id = "zln5qbyLqieARU8LpQiAm"
 uri = "file://.local/downloads/grounding-files.tar.gz"
 type = "unspecified"
 title = "Grounding Files (Cargo.toml + lib.rs + constants.ts + wasm_exports.rs)"
+
+[[outputs]]
+id = "vcd1ZXhYwKz2rEWEN-662"
+uri = "file://.canvas/assets/ternary-math-src.zip"
+type = "unspecified"
+title = "ternary-math-src.zip (ttc.rs + lib.rs)"
