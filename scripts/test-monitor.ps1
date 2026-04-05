@@ -1,4 +1,4 @@
-# test-monitor.ps1 — Pull latest & open Array3 Monitor for testing
+# test-monitor.ps1 - Pull latest and open Array3 Monitor for testing
 # Run from any directory on the Windows machine.
 # Usage:  powershell -ExecutionPolicy Bypass -File C:\PlenumNET\scripts\test-monitor.ps1
 
@@ -34,5 +34,5 @@ Write-Host "[3/3] Opening monitor in browser..." -ForegroundColor Cyan
 Start-Process $MonitorFile
 
 Write-Host ""
-Write-Host "Monitor opened as file:// — paste your relay token in the setup banner." -ForegroundColor Yellow
+Write-Host "Monitor opened as file:// - paste your relay token in the setup banner." -ForegroundColor Yellow
 Write-Host "It will connect to the published relay and show live daemon data." -ForegroundColor Yellow
