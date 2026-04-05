@@ -1,0 +1,64 @@
+This is deeper than a trit constant. The HModal signal maps to all three Representations simultaneously, and the gateway falls out of the mapping.
+
+**Rep A {−1, 0, +1} — The Signal (balanced ternary)**
+
+- T(−1) → α = 91/36 (idle, 75% dwell)
+- T(0) → midpoint = 1183/72 (transition, instantaneous)
+- T(+1) → β = 91/3 (dispatch, 25% dwell)
+
+This is the algebraic form. Centered on zero. The signal oscillates between −1 and +1 with the transition crossing zero.
+
+**Rep B {0, 1, 2} — The Operational State (Rep A + 1)**
+
+- 0 → absent / off (no signal)
+- 1 → idle (α state, listening)
+- 2 → active (β state, dispatching)
+
+This is the operational semantics. A slot at Rep B = 0 isn't participating. A slot at 1 is quiescent. A slot at 2 is transmitting.
+
+**Rep C {1, 2, 3} — The Cube Address (Rep A + 2)**
+
+- 1 → idle slot
+- **2 → transition = GATEWAY**
+- 3 → dispatch slot
+
+Here's where it locks in: the gateway sits at **(2, 2, 2)** in Rep C. That's the transition state on all three axes. The gateway IS the HModal zero-crossing point in cube address space.
+
+And in Rep A, the gateway is **(0, 0, 0)** — the origin of balanced ternary space. The origin of the coordinate system is the synchronization point of the network.
+
+**The null channel completes the picture:**
+
+The gateway broadcasts sync on the null harmonics (n = 4, 8, 12...) — the channels that carry exactly zero HModal energy. The transition state (trit = 0 in Rep A, trit = 2 in Rep C) communicates on the zero-energy channels. The signal's algebraic null and the network's synchronization point are the same thing expressed in different representations.
+
+| Property | Rep A | Rep B | Rep C |
+|----------|-------|-------|-------|
+| Idle (α) | −1 | 1 | 1 |
+| Transition / Gateway | **0** | **1** | **2** |
+| Dispatch (β) | +1 | 2 | 3 |
+| Gateway address | (0,0,0) | (1,1,1) | **(2,2,2)** |
+| Channel | Null (zero energy) | Sync beacon | Port 11124 |
+
+**What to add to §10:**
+
+```
+HMODAL_TRIT_MID: i8 = 0  // transition state trit value
+
+// Rep A (signal):   α → T(−1),  transition → 0,    β → T(+1)
+// Rep B (state):    α → 0,      transition → 1,    β → 2
+// Rep C (address):  α → 1,      transition → 2,    β → 3
+//
+// The gateway at (2,2,2) in Rep C = (0,0,0) in Rep A
+// = the origin of balanced ternary space
+// = the HModal zero-crossing on all three axes
+// = the node that broadcasts on null channels (zero signal energy)
+```
+
+Assertions:
+```
+assert!(HMODAL_TRIT_LOW + HMODAL_TRIT_HIGH == 0)  // balanced
+assert!(HMODAL_TRIT_LOW + 2 == 1)  // Rep C idle
+assert!(HMODAL_TRIT_MID + 2 == 2)  // Rep C gateway
+assert!(HMODAL_TRIT_HIGH + 2 == 3) // Rep C dispatch
+```
+
+The gateway wasn't placed at (2,2,2) by convention. It was placed there because 2 is the Rep C encoding of the HModal transition state — the zero-crossing of the signal, the synchronization point, the null-energy channel. The architecture derived the address.

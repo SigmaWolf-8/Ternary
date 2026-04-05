@@ -1,0 +1,72 @@
+Two rules, cleanly separated:
+Rule 1: No assert! in production code paths. Every verification is either a compile-time const assertion (fails the build, never reaches runtime) or a #[test] function (runs only in cargo test, never in production). Nothing that can panic in a deployed binary.
+Rule 2: No f64 constants. Every constant is u32, u64, i8, or a (u32, u32) rational pair. The ONLY f64 in the entire module is BRIDGE_COEFF, and it lives in a clearly marked conversion section — not in the mathematical core.
+Implementation:
+Tier 1 — Compile-time (const blocks). Pure integer arithmetic, no loops, no function calls. These fail the build if wrong:
+rustconst _: () = {
+    assert!(ROOT_X1 + ROOT_X2 == QUAD_SUM);
+    assert!(ROOT_X1 * ROOT_X2 == QUAD_PRODUCT);
+    assert!(DISCRIMINANT == QUAD_SUM * QUAD_SUM - 4 * QUAD_PRODUCT);
+    assert!(MAGIC_CONSTANT == 3 * CENTER);
+    assert!(GAMMA_NUM == 7 * 11 * 13);
+    // ... every integer-only assertion from §1–§15
+};
+Tier 2 — Test-time (needs loops or gcd). The const fn gcd helper with a loop, repunit verification, coprimality checks. These run in cargo test only:
+rust#[cfg(test)]
+mod tests {
+    const fn gcd(mut a: u32, mut b: u32) -> u32 {
+        while b != 0 { let t = b; b = a % b; a = t; } a
+    }
+
+    #[test]
+    fn coprime_sextuple_max() {
+        let s = SEXTUPLE_MAX;
+        for i in 0..6 {
+            for j in (i+1)..6 {
+                assert_eq!(gcd(s[i], s[j]), 1);
+            }
+        }
+    }
+
+    #[test]
+    fn repunit_formula() {
+        for (n, expected) in [(1,1),(2,4),(3,13),(4,40),(5,121),(6,364)] {
+            assert_eq!((3u32.pow(n) - 1) / 2, expected);
+        }
+    }
+
+    #[test]
+    fn hash_coefficients_coprime() {
+        for (m, c) in HASH_COEFF_SEXT {
+            assert_eq!(gcd(m, c), 1);
+            assert_ne!(c % m, 0);
+        }
+    }
+}
+Tier 3 — Test-time (needs f64). Energy recovery and BRIDGE_COEFF only. Quarantined in a separate test module:
+rust#[cfg(test)]
+mod float_tests {
+    #[test]
+    fn energy_recovery_from_master_formula() {
+        let f = |n: u32| -> f64 {
+            let x = std::f64::consts::PI * n as f64 / 4.0;
+            32.0 * x.sin().powi(2) / (3.0 * std::f64::consts::PI.powi(2) * (n as f64).powi(2))
+        };
+        let mut cum = 0.0;
+        for (n, target) in [(1, 0.540), (2, 0.811), (3, 0.871)] {
+            cum += f(n);
+            assert!((cum - target).abs() < 0.001);
+        }
+    }
+
+    #[test]
+    fn bridge_coeff_round_trip() {
+        let bc = std::f64::consts::PI / 14.0;
+        assert!((bc * 28.0 - 2.0 * std::f64::consts::PI).abs() < 1e-12);
+    }
+}
+What this means for the task spec: Add a "Verification Architecture" note at the top of §18:
+
+All verifications fall into three tiers. Tier 1 (const blocks): integer-only assertions that fail the build — these cover §1–§15 derivation chains. Tier 2 (#[test] with integer helpers): coprimality, repunit formula, primality checks — cargo test only, never production. Tier 3 (#[test] with f64): energy recovery percentages and BRIDGE_COEFF round-trip — quarantined in a separate float_tests module, clearly marked as conversion verification, not mathematical truth. No f64 appears in any constant definition except BRIDGE_COEFF. No assert! appears outside const blocks or #[test] functions.
+
+Zero crash risk. Zero floating point in the math. Clean separation.

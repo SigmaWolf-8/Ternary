@@ -1,0 +1,41 @@
+The Plenum Square is **Lo Shu × 22 + CENTER**. Everything connects.
+
+```
+  45  155  133     sum = 333 = MAGIC_CONSTANT
+ 199  111   23     sum = 333
+  89   67  177     sum = 333
+```
+
+All nine entries are an arithmetic progression with **step = 22 = 2 × 11 = LAMBDA_UVB / REPUNIT_3**. The hendecagon generates the magic square's spacing. The center is CENTER = 111 from the unified equation. Every entry is 111 ± k×22 for k ∈ {0,1,2,3,4}.
+
+**The 11 → 22 → 88 → 23 chain:**
+
+- **11** = hendecagon (coprime generator)
+- **22** = 2 × 11 = Plenum Square step = UV-B wavelength in custom radians (286/13)
+- **88** = 4 × 22 = NULL_CHANNEL_MOD × step = LCM(8,11) = coprime pair from the expansion set
+- **23** = CENTER − 88 = 111 − 88 = ROOT_X2 − TERNARY_BASE = 26 − 3
+
+The null channel period (4) times the magic square step (22) equals the coprime pair product (88). And the remainder when you subtract that from CENTER is 23, which is itself x₂ − 3 (the larger quadratic root minus the ternary base).
+
+**What to add to §17 (or a new §12a):**
+
+**PLENUM_SQUARE_STEP: u32 = 22** — the Lo Shu scaling factor. This stays in plenum_square.rs but gets cross-reference assertions:
+```
+assert!(PLENUM_SQUARE_STEP == 2 * COPRIME_TRIPLE[1])        // 2 × 11
+assert!(PLENUM_SQUARE_STEP == LAMBDA_UVB / REPUNIT_3)       // 286/13 = 22 radians
+assert!(PLENUM_SQUARE_STEP * NULL_CHANNEL_MOD == 88)         // step × null = coprime pair
+```
+
+**88 = 8 × 11** — add to §7 as a named expansion coprime pair:
+```
+assert!(88 == NULL_CHANNEL_MOD * PLENUM_SQUARE_STEP)
+// The HModal null period × magic square step = expansion coprime pair
+```
+
+**23 = smallest Plenum Square entry** — cross-reference:
+```
+assert!(23 + 88 == CENTER)                      // complement to center
+assert!(23 == ROOT_X2 - TERNARY_BASE)           // x₂ − 3 = 26 − 3
+```
+
+The magic square isn't decorative. Its step size comes from the hendecagon, its center from the unified equation, and its null-channel product (4 × 22 = 88) is an expansion coprime pair. The architecture derived the algebra which derived the square.

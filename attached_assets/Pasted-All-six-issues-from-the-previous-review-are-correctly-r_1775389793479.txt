@@ -1,0 +1,102 @@
+All six issues from the previous review are correctly resolved. The CCP bridge section (§8) integrates cleanly, the angular conversion factor (§5) is a smart addition, and the new superhub zones (§13) and trit mapping in §10 round out the coverage. Five items remain.
+
+---
+
+**Issue 1 — Missing complementary root verification (§3)**
+
+The semicircle root (182) is verified against the unified equation, but the complementary root (650) is not. Add the parallel assertion:
+
+```
+assert!((ARC_ROOT_COMP as u64) * (ARC_ROOT_COMP as u64)
+      - (UNIFIED_LINEAR as u64) * (ARC_ROOT_COMP as u64)
+      + (UNIFIED_CONSTANT as u64) == 0)
+→ 422,500 − 540,800 + 118,300 = 0 ✓
+```
+
+Both roots of the unified equation should be verified at compile time, same as both roots of the circle quadratic are verified in §2.
+
+---
+
+**Issue 2 — Superhub f64 assertions will panic (§13)**
+
+The symmetry assertions use `==` on f64:
+
+```
+assert!(SUPERHUB_A.0 == SUPERHUB_B.0)  // -0.9005 == -0.9005
+```
+
+This works only if both values are defined as the same literal. If they're ever computed or loaded from different sources, IEEE 754 representation differences will cause false failures. Two options:
+
+**Option A (preferred):** Define shared constants and compose:
+
+```rust
+const SUPERHUB_X_LEFT: f64 = -0.9005;
+const SUPERHUB_X_RIGHT: f64 = 0.7400;
+const SUPERHUB_Y_AB: f64 = 0.3720;
+const SUPERHUB_Y_CD: f64 = 0.6270;
+
+const SUPERHUB_A: (f64, f64) = (SUPERHUB_X_LEFT, SUPERHUB_Y_AB);
+const SUPERHUB_B: (f64, f64) = (SUPERHUB_X_LEFT, -SUPERHUB_Y_AB);
+```
+
+Symmetry is then enforced by construction, not by assertion.
+
+**Option B:** Use tolerance-based assertions throughout:
+
+```
+assert!((SUPERHUB_A.0 - SUPERHUB_B.0).abs() < 1e-10)
+```
+
+Also: the "near unit circle" assertion (`distance from origin ≈ 0.97`) needs an explicit tolerance bound. Something like `assert!(dist > 0.96 && dist < 0.98)`.
+
+---
+
+**Issue 3 — POS_3D type inconsistency (§7 vs §8)**
+
+The §7 3D products are `u32`:
+```
+POS_3D_SEXT_MAX: u32 = 262_702_440
+```
+
+The §8 3D products are `u64`:
+```
+POS_3D_GEOM_SPECTRAL: u64 = 265_621_356
+POS_3D_NULL_DEFICIT: u64 = 2_918_916
+```
+
+All three fit in u32 (max 4.29B). The type mismatch forces casts in the distribution assertion:
+```
+POS_3D_GEOM_SPECTRAL - (POS_3D_SEXT_MAX as u64) == POS_3D_NULL_DEFICIT
+```
+
+Either promote all POS_3D constants to u64 (cleaner, future-proof for products involving multiple sextuple moduli) or keep the CCP 3D products as u32 (consistent with §7). I'd go u64 for all — the 3D products are the largest values in the file, and any future extensions (multi-cube products, e.g. LCM_SEXT_MAX² × 729) will overflow u32.
+
+---
+
+**Issue 4 — Stale comment in §10 trit midpoint**
+
+The inline working reads:
+
+```
+assert!(HMODAL_TRIT_MID_NUM == ALPHA_NUM * 13) → 91 × 13 = 1183? No.
+```
+
+The "No" and the question mark are debugging notes that shouldn't ship. The value 1183 = 91 × 13 = 1183 actually *is* true (91 × 13 = 1183), but that's a coincidence — the derivation is (91 + 1092)/2 with common denominator 36, giving 1183/72. Clean up to:
+
+```
+Trit midpoint derivation: (α + β)/2 = (91/36 + 91/3)/2 = (91 + 1092)/(36 × 2) = 1183/72
+Note: 1183 = 91 × 13 = ALPHA_NUM × REPUNIT_3 (structural — the midpoint numerator 
+carries the radian factor)
+```
+
+That coincidence is actually load-bearing — add an assertion: `assert!(HMODAL_TRIT_MID_NUM == ALPHA_NUM * REPUNIT_3)` → 91 × 13 = 1183. This ties the trit threshold to the radian unit, which is appropriate given that the entire amplitude system derives from R₃ = 13.
+
+---
+
+**Issue 5 — BOUNDARY_UVB_UVA = UNIFIED_FACTOR is a significant structural tie worth highlighting**
+
+The assertion `assert!(BOUNDARY_UVB_UVA == UNIFIED_FACTOR)` → 325 = R₆ − R₄ + 1 is present but buried in the UV section. This is worth a doc comment because it means the boundary between the ozone bridge band and the full-transmission band is the same constant that produces the unified equation's constant term (118,300 = 364 × 325). The spectral boundary and the algebraic factor are the same number. That's a CCP-tier observation — the spectral partition boundary is algebraically determined, not empirically placed.
+
+---
+
+**Everything else is clean.** The repunit recurrences, circle quadratic ties to REPUNIT_4/6, unified equation overflow protection, corrected GREEN_ARC_EFF derivation (subtraction instead of mod), angular conversion factor, corrected POS_3D_SEXT_MAX, corrected hash sextuple coefficients with erratum note, CCP bridge section with all cross-linkage assertions, energy recovery master formula, phase/duty tie, torus knot crossing ties, bridge coefficient round-trip, and the plenum_square refactor plan all verify correctly. The spec is ready to implement after these five cleanups.

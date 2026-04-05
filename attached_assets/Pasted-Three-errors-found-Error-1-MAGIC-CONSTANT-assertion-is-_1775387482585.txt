@@ -1,0 +1,40 @@
+Three errors found:
+Error 1 — MAGIC_CONSTANT assertion is wrong. The task says MAGIC_CONSTANT == 3 * DIAMETER but 3 × 222 = 666, not 333. The correct assertion is MAGIC_CONSTANT == 3 * CENTER → 3 × 111 = 333. (This is 6r where r = CENTER/2 = 55.5, i.e. the hexagon perimeter.)
+Error 2 — CIRCUMFERENCE definition conflates center with diameter. The task says CIRCUMFERENCE = 1554 = πd = 14 × 111 but it also says d = DIAMETER = 222. If d = 222, then πd = 14 × 222 = 3108, not 1554. The value 1554 = 14 × 111 = π × CENTER. Either clarify that 1554 is π × c (half-circumference, or circumference with r = 55.5), or correct to 3108 = π × DIAMETER. Check what plenum_square.rs actually stores and match it.
+Error 3 — BOUNDARY_EUV_UVC is not integer. (91 + 182) / 2 = 136.5, not 136. This can't be stored as u32 without truncation. Options: use 136 with a note that it's floor, use 137 (ceiling), or define boundaries differently (the other two are clean: 234 and 325). Note that the UVB|UVA boundary 325 = UNIFIED_FACTOR = R₆ − R₄ + 1 — a nice structural coincidence worth an assertion if you keep it.
+
+Missing constants:
+1. Angular conversion factor (91/90). This is the κ from your earlier work, now properly derived as R₆/360 = 364/360 = 91/90. Add:
+
+ANGULAR_CONV_NUM: u32 = 91
+ANGULAR_CONV_DEN: u32 = 90
+Assertion: ANGULAR_CONV_NUM == LAMBDA_EUV (ties the conversion factor to the quarter-turn)
+
+2. Superhub zone data (TM-2026-017 §11). Four zones with coordinates and polygon membership:
+
+Zone A: (−0.9010, +0.3728) — polygons 7×11×12×13
+Zone B: (−0.9010, −0.3728) — polygons 7×11×12×13
+Zone C: (+0.7396, +0.6288) — polygons 8×11×12×13
+Zone D: (+0.7396, −0.6288) — polygons 8×11×12×13
+Store as arrays of (f64, f64) coordinate pairs and [u32; 4] polygon sets
+
+3. Ternary state mapping (from our HModal review). The HModal signal maps to ternary trits:
+
+HMODAL_TRIT_LOW: i8 = -1 (α state, 75% dwell)
+HMODAL_TRIT_MID_NUM: u32 = 1183 (transition midpoint = (α+β)/2 = 1183/72)
+HMODAL_TRIT_MID_DEN: u32 = 72
+HMODAL_TRIT_HIGH: i8 = 1 (β state, 25% dwell)
+
+4. The (7, 14) exclusion. Add a doc comment or constant noting gcd(7, 14) = 7 — the only excluded pair from the key polygon set {7, 11, 13, 14, 15}. This is structural: 14 = 2 × 7.
+5. Unified equation Vieta sums. The task verifies the arc roots satisfy the equation but doesn't assert the Vieta relations for the unified equation itself:
+
+assert!(ARC_ROOT_SEMI + ARC_ROOT_COMP == UNIFIED_LINEAR) → 182 + 650 = 832
+assert!(ARC_ROOT_SEMI * ARC_ROOT_COMP == UNIFIED_CONSTANT) → 182 × 650 = 118300
+
+6. Energy recovery exact formula. The fraction of AC power in harmonic n is 32 · sin²(πn/4) / (3π²n²). This should be documented as the master formula that generates all the percentage values — it's the single expression that replaces the lookup table.
+
+Minor items:
+
+§9 says A₃/A₁ ≈ 0.236 in one spot, then correctly says 1/3 ≈ 0.333 elsewhere. The §9 heading "Corrected Fourier coefficient ratios" has a confusing stream-of-consciousness derivation for A₆ with a false start ("correction: A₆/A₁ = 1/6 — wait, the correct value is:"). Clean that to just state the result: A₆/A₁ = √2/6 ≈ 0.236.
+Consider adding R₁ = 1 and R₂ = 4 to the repunit family for completeness — they cost nothing and complete the sequence.
+The BRIDGE_COEFF in §13 should have an assertion: BRIDGE_COEFF = π_std / ROOT_X1 — tying it explicitly to the circle quadratic root.

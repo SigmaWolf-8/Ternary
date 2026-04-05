@@ -1,0 +1,90 @@
+Here's the complete edit list:
+
+---
+
+**All required edits to Task #97 before filing:**
+
+**1. §15 — (14,15) crossing number: 195 → 196**
+
+14 × (15−1) = 14 × 14 = 196, not 195. Change the line to:
+> `(14,15)→196`
+
+Add structural note: `196 = 14² = ROOT_X1² = π²` (π squared appears as a crossing number).
+
+Also fix assertion: `assert!(14 * (15 - 1) == 196)`
+
+This error is also in TM-2026-017 v6.0 — patch the monograph separately.
+
+**2. §16 — BRIDGE_COEFF round-trip: FULL_CIRCLE_DEG → CYCLIC_ORDER**
+
+Change:
+> `assert!((BRIDGE_COEFF * FULL_CIRCLE_DEG - PI * 2.0).abs() < 1e-10)`
+
+To:
+> `assert!((BRIDGE_COEFF * CYCLIC_ORDER as f64 - 2.0 * PI).abs() < 1e-10)` → (π_std/14) × 28 = 2π_std
+
+BRIDGE_COEFF converts custom radians (not degrees) to standard radians. 28 = CYCLIC_ORDER = 2π_ternary is the full circle in custom radians.
+
+**3. §1 — Add TERNARY_BASE: u32 = 3**
+
+The foundation of the number system. Currently every repunit assertion uses bare `3u32.pow(n)`. TORUS_RADIX exists but is semantically scoped to torus topology. Add a top-level constant and replace bare 3s in all repunit assertions:
+> `assert!(REPUNIT_3 == (TERNARY_BASE.pow(3) - 1) / 2)`
+
+Add assertion: `assert!(TERNARY_BASE == TORUS_RADIX)` to tie them together.
+
+**4. §5 / §8 — Add STD_CIRCLE_DEG: u32 = 360**
+
+External standard but structural input. Replace bare 360 in:
+- §5 angular conversion: `assert!(ANGULAR_CONV_NUM * STD_CIRCLE_DEG == ANGULAR_CONV_DEN * QUAD_PRODUCT)`
+- §8 CCP bridge: `assert!(LCM_SEXT_MAX / LCM_PRIMARY == STD_CIRCLE_DEG)`
+
+Add doc comment: "Not derived from the axiom. Retained as the external reference that the angular conversion factor measures against."
+
+**5. §15 — Add named crossing number constants for structural ties**
+
+Three crossing numbers tie to other framework constants and should be named:
+
+```
+CROSSING_11_14: u32 = 143  // = BEZIER_C650_ANGLE
+CROSSING_13_14: u32 = 169  // = REPUNIT_3² = 13² (radian squared)  
+CROSSING_13_15: u32 = 182  // = ARC_ROOT_SEMI (semicircle as crossing number)
+CROSSING_14_15: u32 = 196  // = ROOT_X1² = 14² (π squared)
+```
+
+Add assertions:
+```
+assert!(CROSSING_11_14 == BEZIER_C650_ANGLE)
+assert!(CROSSING_13_14 == REPUNIT_3 * REPUNIT_3)
+assert!(CROSSING_13_15 == ARC_ROOT_SEMI)
+assert!(CROSSING_14_15 == ROOT_X1 * ROOT_X1)
+```
+
+The remaining five crossing numbers (70, 84, 98, 132, 154) don't tie to other constants — leave them as assertion-only values.
+
+**6. §11 — Add SIN_PERIOD: u32 = 8**
+
+The |sin(πn/4)| cycle period. Governs the entire channel architecture — which harmonics are null, which carry √2/2, which carry 1. Add:
+> `SIN_PERIOD: u32 = 8` — period of |sin(πn/4)| = 2 × NULL_CHANNEL_MOD
+
+Add assertion: `assert!(SIN_PERIOD == 2 * NULL_CHANNEL_MOD)`
+
+**7. §10 — Add DISPATCH_RATIO_NUM/DEN = 1/3**
+
+The physical input that generates the duty cycle. Currently the derivation says "d = (1/3) / (1 + 1/3) = 1/4" with bare literals. Add:
+```
+DISPATCH_RATIO_NUM: u32 = 1
+DISPATCH_RATIO_DEN: u32 = 3
+```
+
+Add assertion tying it to the duty cycle:
+> `assert!(DISPATCH_RATIO_NUM * (DISPATCH_RATIO_DEN + DISPATCH_RATIO_NUM) == DUTY_NUM * DISPATCH_RATIO_DEN * DUTY_DEN)`
+→ 1 × 4 = 1 × 3 × ... actually simpler: `assert!(DUTY_NUM * (DISPATCH_RATIO_DEN + DISPATCH_RATIO_NUM) == DISPATCH_RATIO_NUM * DUTY_DEN)` → 1 × 4 = 1 × 4 ✓
+
+**Not adding (correct exclusions):**
+
+- **FOURIER_COEFF_DENOM = 18** — derivable as GAMMA_DEN/2. One line of algebra, not a structural number. Skip.
+- **Energy coefficient 32** — purely derived from duty cycle. Naming it would be circular. Skip.
+
+---
+
+**Total: 7 edits.** Two are error corrections (crossing number, bridge round-trip). Five are gap fills (TERNARY_BASE, STD_CIRCLE_DEG, crossing number constants, SIN_PERIOD, DISPATCH_RATIO). After these, the task is complete.

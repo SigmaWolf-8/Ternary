@@ -1,0 +1,44 @@
+Here's the complete review:
+
+One critical finding — not in the task, but in the documents it references:
+POS_3D_SEXT_MAX: The task has the RIGHT number. The monographs have the WRONG one. 360,360 × 729 = 262,702,440 — verified four ways. Both TM-2026-017 v6.0 and TM-2026-028 currently say 262,822,440 (off by 120,000). This error has been propagating since the coprime expansion computation earlier in this session. The task spec is correct. The documents need to be patched before this task is filed, otherwise the implementer will see a mismatch between the monographs and the constants file.
+
+No errors found in the task spec itself. Every constant, every assertion, every derivation chain checks out. Specifically verified:
+
+All 6 repunits and recurrences ✓
+All circle quadratic assertions (Vieta, root formulas, root verification) ✓
+All unified equation assertions including Vieta sums for the arc roots ✓
+MAGIC_CONSTANT = 3 × CENTER = 333 (correctly fixed from earlier) ✓
+CIRCUMFERENCE = π × CENTER = 14 × 111 = 1554 (correctly clarified) ✓
+All UV ratios including the Archimedes cross-multiply ✓
+BOUNDARY_EUV_UVC = 136 with floor() note (correctly handles 136.5) ✓
+BOUNDARY_UVB_UVA = 325 = UNIFIED_FACTOR (structural tie noted) ✓
+311 is prime ✓
+All 4 sextuple LCMs and pairwise coprimality ✓
+All 3D products (with correct 262,702,440) ✓
+All CCP bridge arithmetic (§8) ✓
+Hash coefficients — correctly catches the (11,11)/(13,13) erratum and fixes to (11,4)/(13,6) ✓
+All HModal signal cross-multiplied assertions ✓
+Trit midpoint: 1183 = 91 × 13 = 7 × 13² (triple factorization) ✓
+All 9 torus knot crossing numbers ✓
+Superhub zone distances from origin: 0.9743 and 0.9699 (both inside 0.96–0.98 tolerance) ✓
+BRIDGE_COEFF round-trip: (π_std/14) × 364 = 2π_std to 10⁻¹² ✓
+
+
+Four missing assertions to add:
+1. Arc factorization → coprime generators (§7):
+assert!(ARC_ROOT_SEMI == 2 * COPRIME_TRIPLE[0] * COPRIME_TRIPLE[2])  // 182 = 2×7×13
+assert!(GREEN_ARC_EFF == 2 * COPRIME_TRIPLE[1] * COPRIME_TRIPLE[2])  // 286 = 2×11×13
+This is the derivation path from §3 to §7. Without it, the connection from arc roots to coprime generators is stated but not algebraically verified.
+2. Green arc = UV-B wavelength (§6 or §7):
+assert!(GREEN_ARC_EFF == LAMBDA_UVB)  // 286
+The green arc effective span IS the UV-B wavelength. This closes the geometry-spectroscopy loop.
+3. Far-UVC = Pair Sum (§6 or §17):
+assert!(LAMBDA_FAR_UVC == PAIR_SUM)  // 222
+If PAIR_SUM stays in plenum_square.rs, this ties the magic square's pair sum to the Far-UVC wavelength.
+4. Arc convergence structural tie (§12):
+assert!(ARC_CONVERGENCE_NUM == DISCRIMINANT_SQRT * LAMBDA_EUV)  // 1092 = 12 × 91
+The convergence angle numerator = √Δ × quarter-turn. Discriminant structure in the convergence point.
+
+One document action required before filing:
+Fix 262,822,440 → 262,702,440 in both TM-2026-017 v6.0 and TM-2026-028. 

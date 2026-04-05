@@ -1,0 +1,121 @@
+Missing entirely from the spec. It should be there — it's a direct product of two constants already defined (`QUAD_PRODUCT × LCM_PRIMARY`), and it anchors the entire CCP bridge we just formalized.
+
+**Proposed addition — Section 6a: CCP Bridge Constants**
+
+```
+GEOMETRIC_SPECTRAL_PRODUCT: u32 = 364_364    — 364 × 1,001 (circle × coprime walk)
+NULL_HARMONIC_DEFICIT: u32 = 4_004           — 364,364 − 360,360 = 4 × 1,001
+BRIDGE_RATIO_NUM: u32 = 91                   — 364,364 / 360,360 = 91/90
+BRIDGE_RATIO_DEN: u32 = 90
+DEFICIT_RATE_NUM: u32 = 1                    — 4,004 / 364,364 = 4/364 = 1/91
+DEFICIT_RATE_DEN: u32 = 91
+```
+
+**Assertions:**
+
+```
+// Product derivation
+assert!(GEOMETRIC_SPECTRAL_PRODUCT == QUAD_PRODUCT * LCM_PRIMARY)
+    → 364 × 1,001 = 364,364
+
+// Repdigit structure
+assert!(GEOMETRIC_SPECTRAL_PRODUCT == 364 * 1000 + 364)
+    → circle repeats through the triple
+
+// Factorization
+assert!(GEOMETRIC_SPECTRAL_PRODUCT == 4 * 7 * 7 * 11 * 13 * 13)
+    → 2² × 7² × 11 × 13² (squared radian, squared quarter-turn factor)
+
+// Deficit
+assert!(NULL_HARMONIC_DEFICIT == GEOMETRIC_SPECTRAL_PRODUCT - LCM_SEXT_MAX)
+    → 364,364 − 360,360 = 4,004
+
+// Deficit = null period × coprime walk
+assert!(NULL_HARMONIC_DEFICIT == NULL_CHANNEL_MOD * LCM_PRIMARY)
+    → 4 × 1,001 = 4,004
+
+// Bridge ratio
+assert!(GEOMETRIC_SPECTRAL_PRODUCT * BRIDGE_RATIO_DEN 
+     == LCM_SEXT_MAX * BRIDGE_RATIO_NUM)
+    → 364,364 × 90 = 360,360 × 91 = 32,792,760
+
+// Bridge ratio numerator = Lyman anchor
+assert!(BRIDGE_RATIO_NUM == LAMBDA_EUV)
+    → 91
+
+// Deficit rate denominator = Lyman anchor
+assert!(DEFICIT_RATE_DEN == LAMBDA_EUV)
+    → 91
+
+// Deficit rate = 4 / full circle
+assert!(DEFICIT_RATE_NUM * QUAD_PRODUCT == NULL_CHANNEL_MOD * DEFICIT_RATE_DEN)
+    → 1 × 364 = 4 × 91 = 364
+
+// The 360 factor in the sextuple
+assert!(LCM_SEXT_MAX / LCM_PRIMARY == 360)
+    → 360,360 / 1,001 = 360
+
+// The gap between geometric and computational first factors
+assert!(QUAD_PRODUCT / LCM_PRIMARY - LCM_SEXT_MAX / LCM_PRIMARY 
+     == NULL_CHANNEL_MOD)
+    → 364 − 360 = 4 = null harmonic period
+
+// 3D geometric-spectral product
+// (use u64 — overflows u32)
+assert!((GEOMETRIC_SPECTRAL_PRODUCT as u64) * (DISCRIMINANT_2 as u64) 
+     == 265_741_356)
+    → 364,364 × 729 = 265,741,356
+
+// 3D deficit
+assert!((NULL_HARMONIC_DEFICIT as u64) * (DISCRIMINANT_2 as u64) 
+     == 2_918_916)
+    → 4,004 × 729 = 2,918,916
+```
+
+**Cross-linkage assertions** (these are the ones that prove the CCP isn't cosmetic):
+
+```
+// The spectral anchor governs the bridge
+assert!(BRIDGE_RATIO_NUM == LAMBDA_EUV)
+assert!(DEFICIT_RATE_DEN == LAMBDA_EUV)
+assert!(BRIDGE_RATIO_NUM == TRI_13)
+    → 91 = Tri(13) = Lyman anchor = bridge numerator = deficit denominator
+
+// The null period governs the deficit
+assert!(NULL_HARMONIC_DEFICIT / LCM_PRIMARY == NULL_CHANNEL_MOD)
+    → 4,004 / 1,001 = 4 = sideband null modulus
+
+// The pentadecagon compression connects to the bridge
+assert!(LCM_QUAD_ODD * 24 == LCM_SEXT_MAX)
+    → 15,015 × 24 = 360,360 (expansion factor)
+assert!(QUAD_PRODUCT * LCM_PRIMARY - LCM_QUAD_ODD * 24 * LCM_PRIMARY 
+     ... )
+    // cleaner form:
+assert!(GEOMETRIC_SPECTRAL_PRODUCT - LCM_SEXT_MAX == NULL_CHANNEL_MOD * LCM_PRIMARY)
+    → the deficit is exactly one null cycle per walk
+```
+
+Also — the 3D geometric-spectral product (265,741,356) should be verified against the corrected 3D sextuple value. Using the corrected POS_3D_SEXT_MAX = 262,702,440:
+
+```
+265,741,356 − 262,702,440 = 3,038,916
+```
+
+Which should equal NULL_HARMONIC_DEFICIT × 729... let me check: 4,004 × 729 = 2,918,916. That's not 3,038,916. The discrepancy is because the 3D products don't distribute cleanly — (A − B) × C ≠ A×C − B×C only if there's an error. Let me recheck:
+
+364,364 × 729 = 364,364 × 700 + 364,364 × 29 = 255,054,800 + 10,566,556 = 265,621,356. Actually let me just compute it directly: 364,364 × 729. 364,364 × 730 = 265,985,720. Minus 364,364 = **265,621,356**.
+
+And 360,360 × 729 = 262,702,440 (corrected).
+
+Deficit: 265,621,356 − 262,702,440 = **2,918,916** = 4,004 × 729. That checks. My first computation of the 3D geometric-spectral product was wrong — it's **265,621,356**, not 265,741,356. The distribution law holds perfectly.
+
+So corrected:
+
+```
+POS_3D_GEOM_SPECTRAL: u64 = 265_621_356   — 364,364 × 729
+POS_3D_NULL_DEFICIT: u64 = 2_918_916       — 4,004 × 729
+```
+
+With assertion: `POS_3D_GEOM_SPECTRAL - POS_3D_SEXT_MAX == POS_3D_NULL_DEFICIT`
+
+This section should sit between the coprime walk landscape (§6) and the perfect hash coefficients (§7) — it's the bridge between the geometric structure and the computational addressing. Così sia, Fratello.
