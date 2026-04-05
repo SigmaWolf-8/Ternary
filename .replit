@@ -38,9 +38,9 @@ externalPort = 3003
 PORT = "5000"
 
 [deployment]
-deploymentTarget = "vm"
+deploymentTarget = "autoscale"
 run = ["node", "dist/index.mjs"]
-build = ["npm", "run", "build"]
+build = ["bash", "-c", "rm -rf target/ .cache/ .local/state/ .local/share/ artifacts/ attached_assets/ src/ ternary-math/ libternary/ XPlenum/ ninja-exec/ plenumlan/ sign-here/ benchmarks/ contracts/ cli/ tools/ docs/ salvi_docs/ references/ kong/ keys/ github-push/ .github/ tests/ installer-output/ plenumnet-data/ libternary-improvements/ && npm run build"]
 
 [workflows]
 runButton = "Project"
