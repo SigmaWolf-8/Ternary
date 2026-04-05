@@ -2108,13 +2108,26 @@ function startPqtiService(): ChildProcess | null {
         if (i === j) continue;
         const [fromAddr] = peers[i];
         const [toAddr, toWs] = peers[j];
+        const envelope = JSON.stringify({ type: "relay", from: fromAddr, msgType: "mesh-heartbeat", payload: JSON.stringify({ ts: now }) });
+        const envBytes = Buffer.byteLength(envelope, "utf-8");
         if (toWs.readyState === WebSocket.OPEN) {
-          const envelope = JSON.stringify({ type: "relay", from: fromAddr, msgType: "mesh-heartbeat", payload: JSON.stringify({ ts: now }) });
-          const envBytes = Buffer.byteLength(envelope, "utf-8");
           toWs.send(envelope);
           relayThroughput.bytesRelayed += envBytes;
           relayThroughput.meshHeartbeats++;
           recordRelayMsg("delivered", envBytes);
+        } else {
+          if (!pendingMessages.has(toAddr)) pendingMessages.set(toAddr, []);
+          const queue = pendingMessages.get(toAddr)!;
+          const PENDING_MAX = 500;
+          const PENDING_TTL_MS = 300_000;
+          while (queue.length > 0 && (now - queue[0].ts) > PENDING_TTL_MS) queue.shift();
+          if (queue.length < PENDING_MAX) {
+            queue.push({ from: fromAddr, type: "mesh-heartbeat", payload: JSON.stringify({ ts: now }), ts: now });
+            relayThroughput.meshHeartbeats++;
+            recordRelayMsg("queued");
+          } else {
+            recordRelayMsg("failed");
+          }
         }
       }
     }
@@ -2864,14 +2877,14 @@ function startPqtiService(): ChildProcess | null {
               const envBytes = Buffer.byteLength(envelope, "utf-8");
               ws.send(envelope);
               relayThroughput.bytesRelayed += envBytes;
-              recordRelayMsg("delivered", envBytes);
+              relayThroughput.delivered++;
             }
             if (relayThroughput.queued >= pending.length) {
               relayThroughput.queued -= pending.length;
             } else {
               relayThroughput.queued = 0;
             }
-            console.log(`[ws-relay] Delivered ${pending.length} queued messages to ${toDottedAddr(nodeAddress)}`);
+            console.log(`[ws-relay] Drained ${pending.length} queued message(s) to ${toDottedAddr(nodeAddress)}`);
             pendingMessages.delete(nodeAddress);
           }
           return;
