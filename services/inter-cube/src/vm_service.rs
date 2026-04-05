@@ -431,6 +431,7 @@ impl TernaryVmInstance {
         self.flags_parity = (result.count_ones() % 2) == 0;
     }
 
+    #[allow(dead_code)]
     fn reg(&self, idx: usize) -> i64 {
         if idx < 27 { self.registers[idx].value } else { 0 }
     }

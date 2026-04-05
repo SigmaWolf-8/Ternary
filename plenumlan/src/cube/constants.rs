@@ -17,7 +17,9 @@
 use static_assertions::const_assert;
 use ternary_math::cube_addr::{DIMENSIONS, CubeAddr};
 use ternary_math::constants::BORROMEAN_MODULUS;
-use ternary_math::repunit_circles::{REPUNIT_R5, REPUNIT_R6};
+use ternary_math::repunit_circles::REPUNIT_R6;
+#[allow(unused_imports)]
+use ternary_math::repunit_circles::REPUNIT_R5;
 
 // ═══════════════════════════════════════════════════════════════════
 // Ternary field

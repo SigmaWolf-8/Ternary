@@ -169,6 +169,7 @@ fn cube_array3_peers() -> Vec<String> {
 }
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct Array3NodeInfo {
     node_id: u8,
     port_start: u16,
@@ -181,6 +182,7 @@ struct Array3NodeInfo {
 type PeerConnections = Arc<Mutex<HashMap<String, PeerInfo>>>;
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct PeerInfo {
     address: String,
     ip: std::net::IpAddr,
@@ -1169,7 +1171,7 @@ async fn run_cube_mode() {
     let last_hb_epoch_for_loop = last_hb_epoch.clone();
 
     let crs_url_for_heartbeat = crs_url.clone();
-    let endpoint_for_heartbeat = cube_endpoint.clone();
+    let _endpoint_for_heartbeat = cube_endpoint.clone();
     let addr_trits: Vec<u8> = local_address.to_bytes().to_vec();
     let orchestrator_hb = orchestrator.clone();
     let local_addr_hb = local_address.clone();
@@ -1861,7 +1863,7 @@ fn spawn_relay_client(
                             }
                             let reply_tx = client.outgoing_tx.clone();
                             let from_addr = from.clone();
-                            let addr_for_reply = address.clone();
+                            let _addr_for_reply = address.clone();
                             let terminal_sessions_clone = terminal_sessions.clone();
                             let msg_type_owned = msg_type.to_string();
                             let yoda_verifier_term = yoda_verifier.clone();
@@ -2203,7 +2205,7 @@ fn spawn_relay_client(
                         if ops_msg_types.contains(&msg_type) {
                             let oh = ops_handler.clone();
                             let reply_tx = client.outgoing_tx.clone();
-                            let addr_ops = address.clone();
+                            let _addr_ops = address.clone();
                             let from_ops = from.clone();
                             let msg_type_ops = msg_type.to_string();
                             tokio::spawn(async move {
@@ -2245,7 +2247,7 @@ fn spawn_relay_client(
                             tokio::spawn(async move {
                                 let mut verifier = yoda_verifier.lock().await;
                                 match verifier.verify_and_forward(&payload_str) {
-                                    Ok((verified_payload, payload_hash)) => {
+                                    Ok((verified_payload, _payload_hash)) => {
                                         yso.lock().await.insert(verified_payload.session_id.clone(), from_addr.clone());
                                         let forward_payload = serde_json::json!({
                                             "sessionId": verified_payload.session_id,

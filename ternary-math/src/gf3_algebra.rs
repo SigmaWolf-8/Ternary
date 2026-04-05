@@ -10,7 +10,9 @@
 // Pure GF(3) algebra — no sponge code here.
 // TL-Sponge-385: src/kernel/src/crypto/sponge.rs
 
+#[allow(dead_code)]
 #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+#[allow(dead_code)]
 #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
 #[inline(always)] fn mod7_small(mut n: u8) -> u8 { if n >= 14 { n -= 14; } if n >= 7 { n -= 7; } n }
 

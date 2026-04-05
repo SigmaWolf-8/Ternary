@@ -8,7 +8,7 @@
 //! Validates plane assignments: Outer→Data, Void→Control, Inner→Management.
 
 use super::constants::CLASSIFICATION_DIMS;
-use super::projection::{Trit, SlotAddress, project_to_slot};
+use super::projection::Trit;
 
 /// A Windows Server role with its full 27-trit classification.
 #[derive(Debug, Clone)]
@@ -20,6 +20,7 @@ pub struct WindowsRole {
 
 // Helper to build classification arrays. Starts with base values,
 // then applies specific overrides.
+#[allow(dead_code)]
 const fn make_class(base: [Trit; CLASSIFICATION_DIMS], _label: &str) -> [Trit; CLASSIFICATION_DIMS] {
     base
 }

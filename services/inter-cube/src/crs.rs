@@ -45,7 +45,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+use crate::cube_addr::{CubeAddr, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
 use crate::wire::{
     pack_addr, WIRE_ADDR_SIZE,
     REGISTRATION_MAX_AGE_FS, TIMESTAMP_FUTURE_TOLERANCE_FS,
@@ -337,6 +337,7 @@ impl AddressAllocator {
     }
 
     /// Number of used addresses.
+    #[allow(dead_code)]
     fn count(&self) -> u64 {
         self.used_count
     }
@@ -465,6 +466,7 @@ pub struct CubeRegistrationService {
     /// Registry database: addr → CubeRecord.
     registry: HashMap<CubeAddr, CubeRecord>,
     /// Expected heartbeat interval.
+    #[allow(dead_code)]
     heartbeat_interval: Duration,
     /// Offline threshold.
     offline_threshold: Duration,

@@ -116,6 +116,7 @@ const CRC32_TABLE: [u32; 256] = {
 
 /// Tribonacci sequence T(0)..T(29). Index-preserving: TRIBONACCI_SEQ[7] = 13 = T₇.
 /// T(n) = T(n-1) + T(n-2) + T(n-3), seeded T(0)=0, T(1)=0, T(2)=1.
+#[allow(dead_code)]
 const TRIBONACCI_SEQ: [u64; 30] = [
     0, 0, 1, 1, 2, 4, 7, 13, 24, 44,
     81, 149, 274, 504, 927, 1705, 3136, 5768, 10609, 19513,
@@ -534,6 +535,7 @@ struct TritStreamWriter {
 }
 
 impl TritStreamWriter {
+    #[allow(dead_code)]
     #[inline]
     fn new() -> Self { Self { buffer: Vec::new(), pending: [0; 5], count: 0, total_trits: 0 } }
 
@@ -615,6 +617,7 @@ impl<'a> TritStreamReader<'a> {
         trit
     }
 
+    #[allow(dead_code)]
     #[inline]
     fn is_exhausted(&self) -> bool {
         self.trits_read >= self.total_trits
@@ -1598,6 +1601,7 @@ fn write_trit_encoded(w: &mut BitWriter, byte: u8, rep: GfRep) { match rep {
 
 /// Deserialize ternary enhanced — with fast-path Rep C optimization.
 /// When adaptive_rep == false, skip the 2-bit rep selector and assume Rep C.
+#[allow(dead_code)]
 fn deserialize_ternary_enhanced(payload: &[u8], _adaptive_rep: bool) -> TtcResult<Vec<Token>> {
     deserialize_ternary_enhanced_v3(payload)
 }
@@ -1991,7 +1995,7 @@ pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
     let aflags = compressed[0x28]; let level = compressed[0x29];
     let chunk_count = u16::from_be_bytes(compressed[0x2A..0x2C].try_into().unwrap()) as usize;
     let cm_off = u64::from_be_bytes(compressed[0x38..0x40].try_into().unwrap()) as usize;
-    let independent = aflags & 0x04 != 0; let adaptive_rep = aflags & 0x08 != 0;
+    let independent = aflags & 0x04 != 0; let _adaptive_rep = aflags & 0x08 != 0;
     let has_filename = aflags & 0x20 != 0;
     let lp_coeffs: Option<[i16;4]> = if mode==CompressionMode::Audio { Some([
         i16::from_be_bytes([compressed[0x20],compressed[0x21]]), i16::from_be_bytes([compressed[0x22],compressed[0x23]]),
@@ -2045,14 +2049,14 @@ pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
 
 fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
     if compressed.len() < HEADER_SIZE_V3 { return Err(TtcError::TruncatedHeader); }
-    let mode = CompressionMode::from_u8(compressed[0x05])?;
+    let _mode = CompressionMode::from_u8(compressed[0x05])?;
     let orig_size = u64::from_be_bytes(compressed[0x06..0x0E].try_into().unwrap());
     let stored_crc = u32::from_be_bytes(compressed[0x0E..0x12].try_into().unwrap());
     let aflags = compressed[0x12];
     let level = compressed[0x13];
     let chunk_count = u16::from_be_bytes(compressed[0x14..0x16].try_into().unwrap()) as usize;
     let independent = aflags & 0x04 != 0;
-    let adaptive_rep = aflags & 0x08 != 0;
+    let _adaptive_rep = aflags & 0x08 != 0;
     let has_filename = aflags & 0x20 != 0;
     let cm_off = HEADER_SIZE_V3;
     let cm_end = cm_off + chunk_count * CHUNK_MAP_ENTRY_SIZE_V3;

@@ -12,7 +12,7 @@
 //! EAGER_BIND env flag: bind-all-at-startup (production) vs bind-on-register (Replit).
 
 use super::constants::{
-    BASE_PORT, GF3_ORDER, GATEWAY_NODE_ID, MAX_NODES, SLOTS_PER_NODE,
+    BASE_PORT, GATEWAY_NODE_ID, MAX_NODES,
 };
 use super::port::node_port_range;
 

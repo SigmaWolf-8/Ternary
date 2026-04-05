@@ -71,7 +71,9 @@ pub const WIRE_ADDR_ECC_SIZE: usize = 6;
 
 /// Grid dimensions: 3 rows × 3 cols + 4 overflow.
 const GRID_COLS: usize = 3;
+#[allow(dead_code)]
 const GRID_ROWS: usize = 3;
+#[allow(dead_code)]
 const OVERFLOW: usize = 4;
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -107,6 +109,7 @@ const COL_GROUPS: [[usize; 4]; 3] = [
 const DIAG_GROUP: [usize; 4] = [0, 4, 8, 12];
 
 /// Number of elements in each row group.
+#[allow(dead_code)]
 const ROW_SIZES: [usize; 4] = [3, 3, 3, 4];
 
 // ═══════════════════════════════════════════════════════════════════════

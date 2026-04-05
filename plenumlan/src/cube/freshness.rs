@@ -16,6 +16,7 @@
 //! Same `project_to_gf3` quantization used in the slot projection.
 
 use ternary_math::gf3_algebra::project_to_gf3;
+#[allow(unused_imports)]
 use ternary_math::repunit_circles::REPUNIT_R5;
 
 use super::constants::ARC_EPOCH;

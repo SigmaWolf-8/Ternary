@@ -20,8 +20,8 @@
 //! (non-negative, symmetric, triangle inequality). Greedy routing decreases
 //! HD by exactly 1 at each hop, terminating in exactly HD(src, dst) hops.
 
-use super::constants::{CUBE_DIMS, GF3_ORDER, SLOTS_PER_NODE};
-use super::projection::{SlotAddress, Trit};
+use super::constants::CUBE_DIMS;
+use super::projection::SlotAddress;
 
 /// Auth level required for inter-service calls, determined by Hamming distance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

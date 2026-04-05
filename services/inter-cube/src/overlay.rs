@@ -270,8 +270,10 @@ pub struct CubeOverlayNetwork {
     /// Tunnel encryption protocol.
     tunnel_protocol: TunnelProtocol,
     /// Heartbeat interval.
+    #[allow(dead_code)]
     heartbeat_interval: Duration,
     /// Key rotation interval.
+    #[allow(dead_code)]
     key_rotation_interval: Duration,
     /// T-07: Forgery alerts — logged when signature verification fails.
     forgery_alerts: Vec<ForgeryAlert>,

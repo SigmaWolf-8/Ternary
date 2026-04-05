@@ -239,6 +239,7 @@ impl MasterSecret {
     }
 
     /// Make `collect_entropy_seed` accessible to persistence module.
+    #[allow(dead_code)]
     pub(crate) fn entropy_seed() -> Vec<u8> {
         Self::collect_entropy_seed()
     }
