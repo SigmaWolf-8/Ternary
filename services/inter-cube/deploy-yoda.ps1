@@ -2151,12 +2151,12 @@ Write-Host "  Applications (e.g. YODA) connect via the relay to reach these node
 Write-Host ""
 Write-Host "  ── Upgrade Notes (${RELEASE_TAG}) ──" -ForegroundColor Cyan
 Write-Host "  What changed in ${RELEASE_TAG}:" -ForegroundColor DarkGray
-Write-Host "    - Monitor v9.3.1: baked into daemon via include_str! (no file drops)" -ForegroundColor DarkGray
-Write-Host "    - Watchdog: relay connectivity check (auto-restart after 120s disconnect)" -ForegroundColor DarkGray
-Write-Host "    - MSI installer: fixed UAC self-elevation quoting + git stderr handling" -ForegroundColor DarkGray
-Write-Host "    - Relay status endpoint for watchdog health monitoring" -ForegroundColor DarkGray
-Write-Host "    - Deployer: git stderr no longer triggers NativeCommandError" -ForegroundColor DarkGray
-Write-Host "    - test-monitor.ps1: git pull + file-system preview for pre-publish testing" -ForegroundColor DarkGray
+Write-Host "    - Telemetry: HModal square-wave fix -- sends immediately on connect (was 60s delay)" -ForegroundColor DarkGray
+Write-Host "    - Relay: mesh heartbeat queuing fix (97.7% delivery rate)" -ForegroundColor DarkGray
+Write-Host "    - Relay: drain double-count fix for accurate delivery stats" -ForegroundColor DarkGray
+Write-Host "    - Unified constants expansion (TM-2026-017 + TM-2026-028 + TM-2026-028a)" -ForegroundColor DarkGray
+Write-Host "    - Monitor v9.4.4: throughput, latency, load display" -ForegroundColor DarkGray
+Write-Host "    - Deploy: image size fix (was >8 GiB, now clean)" -ForegroundColor DarkGray
 Write-Host "  Re-running this deployer on an existing cluster is safe:" -ForegroundColor DarkGray
 Write-Host "    - Existing data and identity keys are preserved" -ForegroundColor DarkGray
 Write-Host "    - The .bat script always downloads the latest deployer" -ForegroundColor DarkGray
