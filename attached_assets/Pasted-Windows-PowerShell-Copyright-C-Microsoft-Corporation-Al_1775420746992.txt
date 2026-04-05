@@ -1,0 +1,511 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+remote: Enumerating objects: 10, done.
+remote: Counting objects: 100% (10/10), done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 6 (delta 4), reused 6 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (6/6), 7.75 KiB | 721.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   8a9da427..9316c135  main       -> origin/main
+Updating 8a9da427..9316c135
+Fast-forward
+ .gitignore                                         |   4 +
+ ...ht-C-Microsoft-Corporation-Al_1775419601761.txt | 692 +++++++++++++++++++++
+ .../rustlib/x86_64-unknown-linux-gnu/bin/rust-lld  | Bin 8205560 -> 0 bytes
+ .../rustlib/x86_64-unknown-linux-gnu/bin/rust-lld  | Bin 8205560 -> 0 bytes
+ ternary-math/target_wasm/.rustc_info.json          |   1 -
+ ternary-math/target_wasm/CACHEDIR.TAG              |   3 -
+ ternary-math/target_wasm/release/.cargo-lock       |   0
+ .../bumpalo-d122384f2ca052c2/dep-lib-bumpalo       | Bin 8 -> 0 bytes
+ .../bumpalo-d122384f2ca052c2/invoked.timestamp     |   1 -
+ .../bumpalo-d122384f2ca052c2/lib-bumpalo           |   1 -
+ .../bumpalo-d122384f2ca052c2/lib-bumpalo.json      |   1 -
+ .../build-script-build-script-build                |   1 -
+ .../build-script-build-script-build.json           |   1 -
+ .../dep-build-script-build-script-build            | Bin 8 -> 0 bytes
+ .../libm-d81fac63fe56db0a/invoked.timestamp        |   1 -
+ .../dep-lib-proc_macro2                            | Bin 8 -> 0 bytes
+ .../proc-macro2-35a3816d9d500c2e/invoked.timestamp |   1 -
+ .../proc-macro2-35a3816d9d500c2e/lib-proc_macro2   |   1 -
+ .../lib-proc_macro2.json                           |   1 -
+ .../build-script-build-script-build                |   1 -
+ .../build-script-build-script-build.json           |   1 -
+ .../dep-build-script-build-script-build            | Bin 8 -> 0 bytes
+ .../proc-macro2-540c1dc3a35a0cf8/invoked.timestamp |   1 -
+ .../run-build-script-build-script-build            |   1 -
+ .../run-build-script-build-script-build.json       |   1 -
+ .../build-script-build-script-build                |   1 -
+ .../build-script-build-script-build.json           |   1 -
+ .../dep-build-script-build-script-build            | Bin 8 -> 0 bytes
+ .../quote-2399d41953aeb45a/invoked.timestamp       |   1 -
+ .../quote-c3b936c16cc65639/dep-lib-quote           | Bin 8 -> 0 bytes
+ .../quote-c3b936c16cc65639/invoked.timestamp       |   1 -
+ .../.fingerprint/quote-c3b936c16cc65639/lib-quote  |   1 -
+ .../quote-c3b936c16cc65639/lib-quote.json          |   1 -
+ .../run-build-script-build-script-build            |   1 -
+ .../run-build-script-build-script-build.json       |   1 -
+ .../dep-lib-rustversion                            | Bin 72 -> 0 bytes
+ .../rustversion-623b4cec9b9b2e79/invoked.timestamp |   1 -
+ .../rustversion-623b4cec9b9b2e79/lib-rustversion   |   1 -
+ .../lib-rustversion.json                           |   1 -
+ .../run-build-script-build-script-build            |   1 -
+ .../run-build-script-build-script-build.json       |   1 -
+ .../build-script-build-script-build                |   1 -
+ .../build-script-build-script-build.json           |   1 -
+ .../dep-build-script-build-script-build            | Bin 8 -> 0 bytes
+ .../rustversion-d3d10db382179814/invoked.timestamp |   1 -
+ .../.fingerprint/syn-8952a58d521ca45f/dep-lib-syn  | Bin 8 -> 0 bytes
+ .../syn-8952a58d521ca45f/invoked.timestamp         |   1 -
+ .../.fingerprint/syn-8952a58d521ca45f/lib-syn      |   1 -
+ .../.fingerprint/syn-8952a58d521ca45f/lib-syn.json |   1 -
+ .../dep-lib-unicode_ident                          | Bin 8 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../lib-unicode_ident                              |   1 -
+ .../lib-unicode_ident.json                         |   1 -
+ .../build-script-build-script-build                |   1 -
+ .../build-script-build-script-build.json           |   1 -
+ .../dep-build-script-build-script-build            | Bin 8 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../dep-lib-wasm_bindgen_macro                     | Bin 8 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../lib-wasm_bindgen_macro                         |   1 -
+ .../lib-wasm_bindgen_macro.json                    |   1 -
+ .../dep-lib-wasm_bindgen_macro_support             | Bin 8 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../lib-wasm_bindgen_macro_support                 |   1 -
+ .../lib-wasm_bindgen_macro_support.json            |   1 -
+ .../run-build-script-build-script-build            |   1 -
+ .../run-build-script-build-script-build.json       |   1 -
+ .../dep-lib-wasm_bindgen_shared                    | Bin 24 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../lib-wasm_bindgen_shared                        |   1 -
+ .../lib-wasm_bindgen_shared.json                   |   1 -
+ .../build-script-build-script-build                |   1 -
+ .../build-script-build-script-build.json           |   1 -
+ .../dep-build-script-build-script-build            | Bin 8 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../build/libm-d81fac63fe56db0a/build-script-build | Bin 567952 -> 0 bytes
+ .../build_script_build-d81fac63fe56db0a            | Bin 567952 -> 0 bytes
+ .../build_script_build-d81fac63fe56db0a.d          |   6 -
+ .../build-script-build                             | Bin 642920 -> 0 bytes
+ .../build_script_build-540c1dc3a35a0cf8            | Bin 642920 -> 0 bytes
+ .../build_script_build-540c1dc3a35a0cf8.d          |   5 -
+ .../proc-macro2-ecc0a1297151b34e/invoked.timestamp |   1 -
+ .../build/proc-macro2-ecc0a1297151b34e/output      |   5 -
+ .../build/proc-macro2-ecc0a1297151b34e/root-output |   1 -
+ .../build/proc-macro2-ecc0a1297151b34e/stderr      |   0
+ .../quote-2399d41953aeb45a/build-script-build      | Bin 575736 -> 0 bytes
+ .../build_script_build-2399d41953aeb45a            | Bin 575736 -> 0 bytes
+ .../build_script_build-2399d41953aeb45a.d          |   5 -
+ .../build/quote-f2b6eb0c4185f3bc/invoked.timestamp |   1 -
+ .../release/build/quote-f2b6eb0c4185f3bc/output    |   3 -
+ .../build/quote-f2b6eb0c4185f3bc/root-output       |   1 -
+ .../release/build/quote-f2b6eb0c4185f3bc/stderr    |   0
+ .../rustversion-b22f0df793793a65/invoked.timestamp |   1 -
+ .../rustversion-b22f0df793793a65/out/version.expr  |   5 -
+ .../build/rustversion-b22f0df793793a65/output      |   1 -
+ .../build/rustversion-b22f0df793793a65/root-output |   1 -
+ .../build/rustversion-b22f0df793793a65/stderr      |   0
+ .../build-script-build                             | Bin 629360 -> 0 bytes
+ .../build_script_build-d3d10db382179814            | Bin 629360 -> 0 bytes
+ .../build_script_build-d3d10db382179814.d          |   6 -
+ .../build-script-build                             | Bin 502976 -> 0 bytes
+ .../build_script_build-831cc42f802fff0a            | Bin 502976 -> 0 bytes
+ .../build_script_build-831cc42f802fff0a.d          |   5 -
+ .../invoked.timestamp                              |   1 -
+ .../wasm-bindgen-shared-1590068ac4b97b24/output    |   1 -
+ .../root-output                                    |   1 -
+ .../wasm-bindgen-shared-1590068ac4b97b24/stderr    |   0
+ .../build-script-build                             | Bin 585728 -> 0 bytes
+ .../build_script_build-d4b002b4020c1250            | Bin 585728 -> 0 bytes
+ .../build_script_build-d4b002b4020c1250.d          |   5 -
+ .../release/deps/bumpalo-d122384f2ca052c2.d        |   9 -
+ .../release/deps/libbumpalo-d122384f2ca052c2.rlib  | Bin 343916 -> 0 bytes
+ .../release/deps/libbumpalo-d122384f2ca052c2.rmeta | Bin 282135 -> 0 bytes
+ .../deps/libproc_macro2-35a3816d9d500c2e.rlib      | Bin 1161128 -> 0 bytes
+ .../deps/libproc_macro2-35a3816d9d500c2e.rmeta     | Bin 331840 -> 0 bytes
+ .../release/deps/libquote-c3b936c16cc65639.rlib    | Bin 494450 -> 0 bytes
+ .../release/deps/libquote-c3b936c16cc65639.rmeta   | Bin 265064 -> 0 bytes
+ .../deps/librustversion-623b4cec9b9b2e79.so        | Bin 902104 -> 0 bytes
+ .../release/deps/libsyn-8952a58d521ca45f.rlib      | Bin 11829244 -> 0 bytes
+ .../release/deps/libsyn-8952a58d521ca45f.rmeta     | Bin 4649639 -> 0 bytes
+ .../deps/libunicode_ident-971cbe351d043c8d.rlib    | Bin 177148 -> 0 bytes
+ .../deps/libunicode_ident-971cbe351d043c8d.rmeta   | Bin 160749 -> 0 bytes
+ .../deps/libwasm_bindgen_macro-e180468ef0646db1.so | Bin 6115104 -> 0 bytes
+ ...asm_bindgen_macro_support-083289cf33b0454d.rlib | Bin 7316666 -> 0 bytes
+ ...sm_bindgen_macro_support-083289cf33b0454d.rmeta | Bin 882524 -> 0 bytes
+ .../libwasm_bindgen_shared-79c16c866d1e45b8.rlib   | Bin 330980 -> 0 bytes
+ .../libwasm_bindgen_shared-79c16c866d1e45b8.rmeta  | Bin 96531 -> 0 bytes
+ .../release/deps/proc_macro2-35a3816d9d500c2e.d    |  15 -
+ .../release/deps/quote-c3b936c16cc65639.d          |  13 -
+ .../release/deps/rustversion-623b4cec9b9b2e79.d    |  20 -
+ .../release/deps/syn-8952a58d521ca45f.d            |  59 --
+ .../release/deps/unicode_ident-971cbe351d043c8d.d  |   8 -
+ .../deps/wasm_bindgen_macro-e180468ef0646db1.d     |   5 -
+ .../wasm_bindgen_macro_support-083289cf33b0454d.d  |  14 -
+ .../deps/wasm_bindgen_shared-79c16c866d1e45b8.d    |  12 -
+ .../wasm32-unknown-unknown/CACHEDIR.TAG            |   3 -
+ .../wasm32-unknown-unknown/release/.cargo-lock     |   0
+ .../cfg-if-8e0689e5c3a1ef36/dep-lib-cfg_if         | Bin 8 -> 0 bytes
+ .../cfg-if-8e0689e5c3a1ef36/invoked.timestamp      |   1 -
+ .../cfg-if-8e0689e5c3a1ef36/lib-cfg_if             |   1 -
+ .../cfg-if-8e0689e5c3a1ef36/lib-cfg_if.json        |   1 -
+ .../getrandom-5d7f2c37652ff89b/dep-lib-getrandom   | Bin 8 -> 0 bytes
+ .../getrandom-5d7f2c37652ff89b/invoked.timestamp   |   1 -
+ .../getrandom-5d7f2c37652ff89b/lib-getrandom       |   1 -
+ .../getrandom-5d7f2c37652ff89b/lib-getrandom.json  |   1 -
+ .../js-sys-d67fb5ef1cf00501/dep-lib-js_sys         | Bin 8 -> 0 bytes
+ .../js-sys-d67fb5ef1cf00501/invoked.timestamp      |   1 -
+ .../js-sys-d67fb5ef1cf00501/lib-js_sys             |   1 -
+ .../js-sys-d67fb5ef1cf00501/lib-js_sys.json        |   1 -
+ .../run-build-script-build-script-build            |   1 -
+ .../run-build-script-build-script-build.json       |   1 -
+ .../libm-c5e71818e39c328f/dep-lib-libm             | Bin 8 -> 0 bytes
+ .../libm-c5e71818e39c328f/invoked.timestamp        |   1 -
+ .../.fingerprint/libm-c5e71818e39c328f/lib-libm    |   1 -
+ .../libm-c5e71818e39c328f/lib-libm.json            |   1 -
+ .../once_cell-963bcd24c9e2b185/dep-lib-once_cell   | Bin 8 -> 0 bytes
+ .../once_cell-963bcd24c9e2b185/invoked.timestamp   |   1 -
+ .../once_cell-963bcd24c9e2b185/lib-once_cell       |   1 -
+ .../once_cell-963bcd24c9e2b185/lib-once_cell.json  |   1 -
+ .../invoked.timestamp                              |   1 -
+ .../output-lib-ternary-math                        |   6 -
+ .../dep-lib-unicode_ident                          | Bin 8 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../lib-unicode_ident                              |   1 -
+ .../lib-unicode_ident.json                         |   1 -
+ .../run-build-script-build-script-build            |   1 -
+ .../run-build-script-build-script-build.json       |   1 -
+ .../dep-lib-wasm_bindgen                           | Bin 8 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../wasm-bindgen-805421c73b9b81ed/lib-wasm_bindgen |   1 -
+ .../lib-wasm_bindgen.json                          |   1 -
+ .../run-build-script-build-script-build            |   1 -
+ .../run-build-script-build-script-build.json       |   1 -
+ .../dep-lib-wasm_bindgen_shared                    | Bin 24 -> 0 bytes
+ .../invoked.timestamp                              |   1 -
+ .../lib-wasm_bindgen_shared                        |   1 -
+ .../lib-wasm_bindgen_shared.json                   |   1 -
+ .../zeroize-4a323acdc7439a9b/dep-lib-zeroize       | Bin 8 -> 0 bytes
+ .../zeroize-4a323acdc7439a9b/invoked.timestamp     |   1 -
+ .../zeroize-4a323acdc7439a9b/lib-zeroize           |   1 -
+ .../zeroize-4a323acdc7439a9b/lib-zeroize.json      |   1 -
+ .../build/libm-5c2045128700b20e/invoked.timestamp  |   1 -
+ .../release/build/libm-5c2045128700b20e/output     |  14 -
+ .../build/libm-5c2045128700b20e/root-output        |   1 -
+ .../release/build/libm-5c2045128700b20e/stderr     |   0
+ .../invoked.timestamp                              |   1 -
+ .../build/wasm-bindgen-22f62c47251d3078/output     |   3 -
+ .../wasm-bindgen-22f62c47251d3078/root-output      |   1 -
+ .../build/wasm-bindgen-22f62c47251d3078/stderr     |   0
+ .../invoked.timestamp                              |   1 -
+ .../wasm-bindgen-shared-1cb9c4b0beac78a3/output    |   1 -
+ .../root-output                                    |   1 -
+ .../wasm-bindgen-shared-1cb9c4b0beac78a3/stderr    |   0
+ .../release/deps/cfg_if-8e0689e5c3a1ef36.d         |   7 -
+ .../release/deps/getrandom-5d7f2c37652ff89b.d      |  10 -
+ .../release/deps/js_sys-d67fb5ef1cf00501.d         |   7 -
+ .../release/deps/libcfg_if-8e0689e5c3a1ef36.rlib   | Bin 7762 -> 0 bytes
+ .../release/deps/libcfg_if-8e0689e5c3a1ef36.rmeta  | Bin 5506 -> 0 bytes
+ .../deps/libgetrandom-5d7f2c37652ff89b.rlib        | Bin 267094 -> 0 bytes
+ .../deps/libgetrandom-5d7f2c37652ff89b.rmeta       | Bin 216130 -> 0 bytes
+ .../release/deps/libjs_sys-d67fb5ef1cf00501.rlib   | Bin 12580238 -> 0 bytes
+ .../release/deps/libjs_sys-d67fb5ef1cf00501.rmeta  | Bin 10197269 -> 0 bytes
+ .../release/deps/liblibm-c5e71818e39c328f.rlib     | Bin 1524856 -> 0 bytes
+ .../release/deps/liblibm-c5e71818e39c328f.rmeta    | Bin 1247530 -> 0 bytes
+ .../release/deps/libm-c5e71818e39c328f.d           | 145 -----
+ .../deps/libonce_cell-963bcd24c9e2b185.rlib        | Bin 79010 -> 0 bytes
+ .../deps/libonce_cell-963bcd24c9e2b185.rmeta       | Bin 76743 -> 0 bytes
+ .../release/deps/libternary_math.rlib              | Bin 4583186 -> 0 bytes
+ .../deps/libunicode_ident-094ecb84fc7443d5.rlib    | Bin 194404 -> 0 bytes
+ .../deps/libunicode_ident-094ecb84fc7443d5.rmeta   | Bin 170764 -> 0 bytes
+ .../deps/libwasm_bindgen-805421c73b9b81ed.rlib     | Bin 2854574 -> 0 bytes
+ .../deps/libwasm_bindgen-805421c73b9b81ed.rmeta    | Bin 2704117 -> 0 bytes
+ .../libwasm_bindgen_shared-f34988d1dd038eab.rlib   | Bin 176558 -> 0 bytes
+ .../libwasm_bindgen_shared-f34988d1dd038eab.rmeta  | Bin 96970 -> 0 bytes
+ .../release/deps/libzeroize-4a323acdc7439a9b.rlib  | Bin 141500 -> 0 bytes
+ .../release/deps/libzeroize-4a323acdc7439a9b.rmeta | Bin 127043 -> 0 bytes
+ .../release/deps/once_cell-963bcd24c9e2b185.d      |   7 -
+ .../deps/ternary_math.2s7r3g5uijrioxy9.rcgu.o      | Bin 3584 -> 0 bytes
+ .../release/deps/ternary_math.d                    |  30 -
+ ...math.ternary_math.28bd8500c2dd0a8d-cgu.0.rcgu.o | Bin 1830844 -> 0 bytes
+ .../release/deps/unicode_ident-094ecb84fc7443d5.d  |   8 -
+ .../release/deps/wasm_bindgen-805421c73b9b81ed.d   |  21 -
+ .../deps/wasm_bindgen_shared-f34988d1dd038eab.d    |  12 -
+ .../release/deps/zeroize-4a323acdc7439a9b.d        |   7 -
+ 224 files changed, 696 insertions(+), 588 deletions(-)
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775419601761.txt
+ delete mode 100755 rust-1.77.2-x86_64-unknown-linux-gnu/rustc/lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld
+ delete mode 100755 rustc-1.77.2-x86_64-unknown-linux-gnu/rustc/lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld
+ delete mode 100644 ternary-math/target_wasm/.rustc_info.json
+ delete mode 100644 ternary-math/target_wasm/CACHEDIR.TAG
+ delete mode 100644 ternary-math/target_wasm/release/.cargo-lock
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/dep-lib-bumpalo
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/lib-bumpalo
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/bumpalo-d122384f2ca052c2/lib-bumpalo.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/dep-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/libm-d81fac63fe56db0a/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/dep-lib-proc_macro2
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/lib-proc_macro2
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-35a3816d9d500c2e/lib-proc_macro2.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/dep-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-540c1dc3a35a0cf8/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-ecc0a1297151b34e/run-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/proc-macro2-ecc0a1297151b34e/run-build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/dep-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-2399d41953aeb45a/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/dep-lib-quote
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/lib-quote
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-c3b936c16cc65639/lib-quote.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-f2b6eb0c4185f3bc/run-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/quote-f2b6eb0c4185f3bc/run-build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/dep-lib-rustversion
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/lib-rustversion
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-623b4cec9b9b2e79/lib-rustversion.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-b22f0df793793a65/run-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-b22f0df793793a65/run-build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/dep-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/rustversion-d3d10db382179814/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/dep-lib-syn
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/lib-syn
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/syn-8952a58d521ca45f/lib-syn.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/dep-lib-unicode_ident
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/lib-unicode_ident
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/unicode-ident-971cbe351d043c8d/lib-unicode_ident.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/dep-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-831cc42f802fff0a/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/dep-lib-wasm_bindgen_macro
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/lib-wasm_bindgen_macro
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-e180468ef0646db1/lib-wasm_bindgen_macro.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/dep-lib-wasm_bindgen_macro_support
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/lib-wasm_bindgen_macro_support
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-macro-support-083289cf33b0454d/lib-wasm_bindgen_macro_support.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-1590068ac4b97b24/run-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-1590068ac4b97b24/run-build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/dep-lib-wasm_bindgen_shared
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/lib-wasm_bindgen_shared
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-79c16c866d1e45b8/lib-wasm_bindgen_shared.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/dep-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/release/.fingerprint/wasm-bindgen-shared-d4b002b4020c1250/invoked.timestamp
+ delete mode 100755 ternary-math/target_wasm/release/build/libm-d81fac63fe56db0a/build-script-build
+ delete mode 100755 ternary-math/target_wasm/release/build/libm-d81fac63fe56db0a/build_script_build-d81fac63fe56db0a
+ delete mode 100644 ternary-math/target_wasm/release/build/libm-d81fac63fe56db0a/build_script_build-d81fac63fe56db0a.d
+ delete mode 100755 ternary-math/target_wasm/release/build/proc-macro2-540c1dc3a35a0cf8/build-script-build
+ delete mode 100755 ternary-math/target_wasm/release/build/proc-macro2-540c1dc3a35a0cf8/build_script_build-540c1dc3a35a0cf8
+ delete mode 100644 ternary-math/target_wasm/release/build/proc-macro2-540c1dc3a35a0cf8/build_script_build-540c1dc3a35a0cf8.d
+ delete mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/output
+ delete mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/root-output
+ delete mode 100644 ternary-math/target_wasm/release/build/proc-macro2-ecc0a1297151b34e/stderr
+ delete mode 100755 ternary-math/target_wasm/release/build/quote-2399d41953aeb45a/build-script-build
+ delete mode 100755 ternary-math/target_wasm/release/build/quote-2399d41953aeb45a/build_script_build-2399d41953aeb45a
+ delete mode 100644 ternary-math/target_wasm/release/build/quote-2399d41953aeb45a/build_script_build-2399d41953aeb45a.d
+ delete mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/output
+ delete mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/root-output
+ delete mode 100644 ternary-math/target_wasm/release/build/quote-f2b6eb0c4185f3bc/stderr
+ delete mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/out/version.expr
+ delete mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/output
+ delete mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/root-output
+ delete mode 100644 ternary-math/target_wasm/release/build/rustversion-b22f0df793793a65/stderr
+ delete mode 100755 ternary-math/target_wasm/release/build/rustversion-d3d10db382179814/build-script-build
+ delete mode 100755 ternary-math/target_wasm/release/build/rustversion-d3d10db382179814/build_script_build-d3d10db382179814
+ delete mode 100644 ternary-math/target_wasm/release/build/rustversion-d3d10db382179814/build_script_build-d3d10db382179814.d
+ delete mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-831cc42f802fff0a/build-script-build
+ delete mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-831cc42f802fff0a/build_script_build-831cc42f802fff0a
+ delete mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-831cc42f802fff0a/build_script_build-831cc42f802fff0a.d
+ delete mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/output
+ delete mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/root-output
+ delete mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-1590068ac4b97b24/stderr
+ delete mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-shared-d4b002b4020c1250/build-script-build
+ delete mode 100755 ternary-math/target_wasm/release/build/wasm-bindgen-shared-d4b002b4020c1250/build_script_build-d4b002b4020c1250
+ delete mode 100644 ternary-math/target_wasm/release/build/wasm-bindgen-shared-d4b002b4020c1250/build_script_build-d4b002b4020c1250.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/bumpalo-d122384f2ca052c2.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/libbumpalo-d122384f2ca052c2.rlib
+ delete mode 100644 ternary-math/target_wasm/release/deps/libbumpalo-d122384f2ca052c2.rmeta
+ delete mode 100644 ternary-math/target_wasm/release/deps/libproc_macro2-35a3816d9d500c2e.rlib
+ delete mode 100644 ternary-math/target_wasm/release/deps/libproc_macro2-35a3816d9d500c2e.rmeta
+ delete mode 100644 ternary-math/target_wasm/release/deps/libquote-c3b936c16cc65639.rlib
+ delete mode 100644 ternary-math/target_wasm/release/deps/libquote-c3b936c16cc65639.rmeta
+ delete mode 100755 ternary-math/target_wasm/release/deps/librustversion-623b4cec9b9b2e79.so
+ delete mode 100644 ternary-math/target_wasm/release/deps/libsyn-8952a58d521ca45f.rlib
+ delete mode 100644 ternary-math/target_wasm/release/deps/libsyn-8952a58d521ca45f.rmeta
+ delete mode 100644 ternary-math/target_wasm/release/deps/libunicode_ident-971cbe351d043c8d.rlib
+ delete mode 100644 ternary-math/target_wasm/release/deps/libunicode_ident-971cbe351d043c8d.rmeta
+ delete mode 100755 ternary-math/target_wasm/release/deps/libwasm_bindgen_macro-e180468ef0646db1.so
+ delete mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_macro_support-083289cf33b0454d.rlib
+ delete mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_macro_support-083289cf33b0454d.rmeta
+ delete mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_shared-79c16c866d1e45b8.rlib
+ delete mode 100644 ternary-math/target_wasm/release/deps/libwasm_bindgen_shared-79c16c866d1e45b8.rmeta
+ delete mode 100644 ternary-math/target_wasm/release/deps/proc_macro2-35a3816d9d500c2e.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/quote-c3b936c16cc65639.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/rustversion-623b4cec9b9b2e79.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/syn-8952a58d521ca45f.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/unicode_ident-971cbe351d043c8d.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/wasm_bindgen_macro-e180468ef0646db1.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/wasm_bindgen_macro_support-083289cf33b0454d.d
+ delete mode 100644 ternary-math/target_wasm/release/deps/wasm_bindgen_shared-79c16c866d1e45b8.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/CACHEDIR.TAG
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.cargo-lock
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/dep-lib-cfg_if
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/lib-cfg_if
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/cfg-if-8e0689e5c3a1ef36/lib-cfg_if.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/dep-lib-getrandom
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/lib-getrandom
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/getrandom-5d7f2c37652ff89b/lib-getrandom.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/dep-lib-js_sys
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/lib-js_sys
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/js-sys-d67fb5ef1cf00501/lib-js_sys.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-5c2045128700b20e/run-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-5c2045128700b20e/run-build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/dep-lib-libm
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/lib-libm
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/libm-c5e71818e39c328f/lib-libm.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/dep-lib-once_cell
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/lib-once_cell
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/once_cell-963bcd24c9e2b185/lib-once_cell.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/ternary-math-4a28abf846e43010/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/ternary-math-4a28abf846e43010/output-lib-ternary-math
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/dep-lib-unicode_ident
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/lib-unicode_ident
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/unicode-ident-094ecb84fc7443d5/lib-unicode_ident.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-22f62c47251d3078/run-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-22f62c47251d3078/run-build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/dep-lib-wasm_bindgen
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/lib-wasm_bindgen
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-805421c73b9b81ed/lib-wasm_bindgen.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-1cb9c4b0beac78a3/run-build-script-build-script-build
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-1cb9c4b0beac78a3/run-build-script-build-script-build.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/dep-lib-wasm_bindgen_shared
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/lib-wasm_bindgen_shared
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-shared-f34988d1dd038eab/lib-wasm_bindgen_shared.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/dep-lib-zeroize
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/lib-zeroize
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/.fingerprint/zeroize-4a323acdc7439a9b/lib-zeroize.json
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/output
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/root-output
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/libm-5c2045128700b20e/stderr
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/output
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/root-output
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-22f62c47251d3078/stderr
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/invoked.timestamp
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/output
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/root-output
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/build/wasm-bindgen-shared-1cb9c4b0beac78a3/stderr
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/cfg_if-8e0689e5c3a1ef36.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/getrandom-5d7f2c37652ff89b.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/js_sys-d67fb5ef1cf00501.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libcfg_if-8e0689e5c3a1ef36.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libcfg_if-8e0689e5c3a1ef36.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libgetrandom-5d7f2c37652ff89b.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libgetrandom-5d7f2c37652ff89b.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libjs_sys-d67fb5ef1cf00501.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libjs_sys-d67fb5ef1cf00501.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/liblibm-c5e71818e39c328f.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/liblibm-c5e71818e39c328f.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libm-c5e71818e39c328f.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libonce_cell-963bcd24c9e2b185.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libonce_cell-963bcd24c9e2b185.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libternary_math.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libunicode_ident-094ecb84fc7443d5.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libunicode_ident-094ecb84fc7443d5.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen-805421c73b9b81ed.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen-805421c73b9b81ed.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen_shared-f34988d1dd038eab.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libwasm_bindgen_shared-f34988d1dd038eab.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libzeroize-4a323acdc7439a9b.rlib
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/libzeroize-4a323acdc7439a9b.rmeta
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/once_cell-963bcd24c9e2b185.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/ternary_math.2s7r3g5uijrioxy9.rcgu.o
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/ternary_math.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/ternary_math.ternary_math.28bd8500c2dd0a8d-cgu.0.rcgu.o
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/unicode_ident-094ecb84fc7443d5.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/wasm_bindgen-805421c73b9b81ed.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/wasm_bindgen_shared-f34988d1dd038eab.d
+ delete mode 100644 ternary-math/target_wasm/wasm32-unknown-unknown/release/deps/zeroize-4a323acdc7439a9b.d
+PS C:\PlenumNET> powershell -ExecutionPolicy Bypass -File .\scripts\build-wasm.ps1
+At C:\PlenumNET\scripts\build-wasm.ps1:127 char:1
++ } else {
++ ~
+Unexpected token '}' in expression or statement.
+At C:\PlenumNET\scripts\build-wasm.ps1:167 char:70
++ ...       Write-Warn "  cmd /c `"$($vcvars.FullName)`" amd64 `"&&`" power ...
++                                                                ~~
+The token '&&' is not a valid statement separator in this version.
+At C:\PlenumNET\scripts\build-wasm.ps1:249 char:17
++             try {
++                 ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:400 char:14
++ Write-Host ""
++              ~
+The Try statement is missing its Catch or Finally block.
+At C:\PlenumNET\scripts\build-wasm.ps1:248 char:22
++         if ($winget) {
++                      ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:217 char:21
++     if ($cmp -lt 0) {
++                     ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:214 char:33
++ if ($wasmPack -and -not $Force) {
++                                 ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:162 char:22
++         if ($vsPath) {
++                      ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:160 char:29
++     if (Test-Path $vsWhere) {
++                             ~
+Missing closing '}' in statement block or type definition.
+At C:\PlenumNET\scripts\build-wasm.ps1:158 char:24
++ if (-not $hasCompiler) {
++                        ~
+Missing closing '}' in statement block or type definition.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\PlenumNET>
+PS C:\PlenumNET>
