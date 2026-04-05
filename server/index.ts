@@ -2798,6 +2798,9 @@ function startPqtiService(): ChildProcess | null {
           }
           recordDisconnectEvent(nodeAddress, { timestamp: new Date().toISOString(), reason: "connected", code: 0, eventType: "reconnect" });
 
+          ws.send(JSON.stringify({ type: "auth_ok", address: nodeAddress, connectedPeers: Array.from(relayClients.keys()).filter(a => a !== nodeAddress) }));
+          broadcastToMonitors({ type: "peer-online", address: toDottedAddr(nodeAddress), peerCount: relayClients.size, ts: Date.now() });
+
           const allOperators = opsChannelService.listOperators();
           for (const op of allOperators) {
             ws.send(JSON.stringify({ type: "relay", msgType: "ops-operator-sync", payload: JSON.stringify({ action: "add", name: op.name, key_fingerprint: op.keyFingerprint, public_key: op.publicKey, scope: op.scope }), from: "coordinator" }));
@@ -2847,9 +2850,6 @@ function startPqtiService(): ChildProcess | null {
             console.log(`[ws-relay] Delivered ${pending.length} queued messages to ${toDottedAddr(nodeAddress)}`);
             pendingMessages.delete(nodeAddress);
           }
-
-          ws.send(JSON.stringify({ type: "auth_ok", address: nodeAddress, connectedPeers: Array.from(relayClients.keys()).filter(a => a !== nodeAddress) }));
-          broadcastToMonitors({ type: "peer-online", address: toDottedAddr(nodeAddress), peerCount: relayClients.size, ts: Date.now() });
           return;
         }
         ws.send(JSON.stringify(makeErrorResponse("ERR_NOT_AUTHENTICATED", msg.type)));
