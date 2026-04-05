@@ -145,6 +145,7 @@ if ($clang) {
     $clangVer = (& clang --version 2>&1 | Out-String).Split("`n")[0] -replace '.*?(\d+\.\d+\.\d+).*','$1'
     Write-OK "clang $clangVer"
     $hasCompiler = $true
+    $env:CC = $clang.Source
 }
 
 if (-not $hasCompiler) {
@@ -181,13 +182,15 @@ if (-not $hasCompiler) {
             $clangCheck = Get-Command clang -ErrorAction SilentlyContinue
             if ($clangCheck) {
                 Write-OK "LLVM/Clang installed successfully"
+                $env:CC = $clangCheck.Source
                 $hasCompiler = $true
                 $installCount++
             } else {
                 $llvmBin = "C:\Program Files\LLVM\bin"
                 if (Test-Path $llvmBin) {
                     $env:Path = "$llvmBin;$env:Path"
-                    Write-OK "LLVM installed at $llvmBin (added to session PATH)"
+                    $env:CC = "$llvmBin\clang.exe"
+                    Write-OK "LLVM installed at $llvmBin (added to session PATH, CC set)"
                     $hasCompiler = $true
                     $installCount++
                 } else {
