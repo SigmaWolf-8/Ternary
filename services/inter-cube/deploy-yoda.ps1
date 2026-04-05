@@ -1399,6 +1399,45 @@ if (`$stopped) {
 `$runningServices = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -eq 'Running' }
 `$healthyDaemons = (`$runningServices | Measure-Object).Count
 
+`$relayUrl = 'https://plenumnet.replit.app'
+`$relayStatusUrl = "`$relayUrl/api/salvi/inter-cube/relay/status"
+`$relayDisconnectedFile = Join-Path `$logDir 'relay-disconnected.flag'
+if (`$healthyDaemons -gt 0) {
+    try {
+        `$relayResp = Invoke-RestMethod -Uri `$relayStatusUrl -TimeoutSec 10 -ErrorAction Stop
+        `$relayConnected = [int]`$relayResp.connectedNodes
+        if (`$relayConnected -ge `$healthyDaemons) {
+            Write-WdLog "[OK] Relay: `$relayConnected/`$healthyDaemons daemons connected"
+            if (Test-Path `$relayDisconnectedFile) { Remove-Item `$relayDisconnectedFile -Force -ErrorAction SilentlyContinue }
+        } else {
+            Write-WdLog "[WARN] Relay: only `$relayConnected/`$healthyDaemons daemons connected"
+            if (Test-Path `$relayDisconnectedFile) {
+                `$flagAge = ((Get-Date) - (Get-Item `$relayDisconnectedFile).LastWriteTime).TotalSeconds
+                if (`$flagAge -gt 120) {
+                    Write-WdLog "[WARN] Relay disconnected for >`$([math]::Round(`$flagAge))s -- restarting all daemon services"
+                    Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -eq 'Running' } | ForEach-Object {
+                        try {
+                            Restart-Service -Name `$_.Name -Force -ErrorAction Stop
+                            Write-WdLog "[OK] Restarted `$(`$_.Name) for relay reconnection"
+                            `$restartCount++
+                        } catch {
+                            Write-WdLog "[FAIL] Could not restart `$(`$_.Name): `$_"
+                        }
+                    }
+                    Remove-Item `$relayDisconnectedFile -Force -ErrorAction SilentlyContinue
+                } else {
+                    Write-WdLog "[OK] Relay disconnect flag age `$([math]::Round(`$flagAge))s < 120s -- waiting"
+                }
+            } else {
+                New-Item -ItemType File -Path `$relayDisconnectedFile -Force | Out-Null
+                Write-WdLog "[OK] Relay disconnect detected -- flag created, will restart after 120s if persistent"
+            }
+        }
+    } catch {
+        Write-WdLog "[WARN] Could not reach relay status endpoint: `$_ -- skipping relay check"
+    }
+}
+
 `$allProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId, ParentProcessId, Name
 `$childMap = @{}
 foreach (`$p in `$allProcs) {

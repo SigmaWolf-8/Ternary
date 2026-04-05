@@ -73,6 +73,7 @@ import { opsChannelService } from "./services/ops-channel";
 import { isOpsMessageType, type OpsMessageType, type OpsErrorCode, type OpsMessage, type TelemetryMessage } from "@shared/ops-protocol";
 
 const app = express();
+const serverStartTime = Date.now();
 const httpServer = createServer(app);
 
 app.get("/install.ps1", (_req, res) => {
