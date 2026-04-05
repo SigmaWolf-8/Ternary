@@ -15,7 +15,7 @@
 
 [package]
 name = "inter-cube"
-version = "2.4.9"
+version = "2.4.10"
 edition = "2021"
 description = "PlenumNET Inter-Cube Infrastructure: Geometric Load Balancer, Cube Overlay Network, Registration Service, and Fault Tolerance Service"
 license = "LicenseRef-Proprietary"
