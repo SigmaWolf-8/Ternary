@@ -1,0 +1,17 @@
+Starting with cpd.rs — recommendations 3 and 6:Now container_decomp.rs with all fixes:Now patch ttc.rs — auto-detect structured data in Basic mode (Rec #1) and version bump to 5.0.2:TTC v5.0.2. All six specialist recommendations implemented. Here's what changed from v5.0.1:
+
+**Rec 1 — Auto-detect JSON/CSV/XML in Basic mode.** The catch-all arm in `apply_domain_preprocess` now checks for structured text content after the container check. A raw `.json` file sent with `CompressionMode::Basic` (the common API path) now gets `structured_encode_json` applied. Same for CSV and XML. Previously this required `CompressionMode::Structured` which isn't even in the API's mode list. Zero API change — the user keeps sending `Basic` and gets better compression on structured text.
+
+**Rec 2 — PDF /Length patching uses stored manifest offset.** `decompose_pdf` now calls `find_length_value` which records the exact byte position and digit count of the `/Length` number within the structure block. `reconstruct_pdf` calls `patch_number` at that stored offset to overwrite the old value with the new deflated size before writing the stream. No more backward scanning. Handles different digit counts via splice.
+
+**Rec 3 — Dead import removed.** `use crate::constants::COPRIME_PAIR_LCMS` removed from cpd.rs. The coprime strides are local constants derived from the same values.
+
+**Rec 4 — Test coverage.** Added tests: ZIP round-trip with 2 DEFLATE entries; PDF round-trip with /Length verification (checks patched value matches actual stream size); ZIP image skip path; corrupt/truncated TDCD input (3 error cases); coprime walk visits all positions (tested at n=5,9,15,20,30); dual-circle entropy on constant data.
+
+**Rec 5 — Coprime walk ordering within type groups.** After grouping ZIP entries by extension sort key, entries within each group are permuted using an 11-step coprime walk (falls back to step 13 if n is divisible by 11). This interleaves structurally related entries for better LZ77 matching within type groups.
+
+**Rec 6 — Dual-circle entropy for stride selection.** `stride_beats_order1` and the internal entropy comparisons now use `dual_circle_entropy`: H = α·H_alg(Z₂₇) + (1−α)·H_geo(Z₂₈) where α = 27/55. H_alg is Shannon entropy of byte frequencies. H_geo is Shannon entropy of lag-28 differences (Z₂₈ positional patterns). Not a tunable parameter — derived from the dual-circle architecture.
+
+**Version: 5.0.2.** `X-TTC-Version` reports `5.0.2` when stride delta or container decomposition is used. Backward compatible — archives without v5 features still report `3.0`.
+
+**Cargo.toml**: `flate2 = "1"`. Only dependency.
