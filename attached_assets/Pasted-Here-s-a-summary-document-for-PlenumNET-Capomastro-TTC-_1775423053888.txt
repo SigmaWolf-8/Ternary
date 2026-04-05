@@ -1,0 +1,58 @@
+Here's a summary document for PlenumNET:
+
+Capomastro TTC Dashboard — Integration Summary for PlenumNET
+What Was Done
+1. Kong Konnect Proxy Integration
+
+The Capomastro TTC dashboard was migrated from direct PlenumNET API calls (JSON-based) to the Kong Konnect gateway using raw binary transport. Because Kong returns a 404 on browser CORS preflight (OPTIONS) requests, all Kong calls are routed through an Express backend proxy. The browser never contacts Kong directly.
+
+Call flow:
+
+Browser → Express (/api/ttc/*) → Kong Gateway → PlenumNET Engine
+
+2. Compress Endpoint
+
+Browser → Express: POST /api/ttc/compress
+Express → Kong: POST https://kong-9e76b3c08eusfq1zu.kongcloud.dev/api/compression/file
+Transport: application/octet-stream — raw file bytes in, compressed .tern bytes out
+Request headers forwarded to Kong:
+X-TTC-Filename — original file name
+X-TTC-Level — 1 through 9
+X-TTC-Compress-Mode — Basic, Temporal, Genomic, or Financial
+X-TTC-Encrypt — "true" when encryption is requested
+Response headers read from Kong (all X-TTC-* headers are passed through unchanged):
+X-TTC-Original-Size, X-TTC-Compressed-Size, X-TTC-Compression-Ratio
+X-TTC-Processing-Ms, X-TTC-CRC32
+X-TTC-Level, X-TTC-Level-Name, X-TTC-Mode
+X-TTC-Avg-Tau, X-TTC-Avg-Delta, X-TTC-Predominant-Base, X-TTC-GF3-Rep
+X-TTC-Version, X-TTC-Encrypted
+3. Decompress Endpoint
+
+Browser → Express: POST /api/ttc/decompress
+Express → Kong: POST https://kong-9e76b3c08eusfq1zu.kongcloud.dev/api/compression/decompress
+Transport: raw .tern bytes in, decompressed original bytes out
+Response headers read from Kong:
+X-TTC-Original-Filename, X-TTC-Original-Size, X-TTC-Compressed-Size
+X-TTC-Compression-Ratio, X-TTC-Processing-Ms
+X-TTC-Was-Encrypted, X-TTC-CRC32-Verified
+4. Key Implementation Details
+
+Express body parsers (JSON/URL-encoded) are skipped for /api/ttc/* routes so raw binary passes through uncorrupted
+Proxy timeout is 5 minutes (300,000ms)
+The Kong base URL is a single constant in server/routes.ts line 7 — only place to update if the endpoint changes
+The app displays X-TTC-Version as-is (no conditional checks), so version bumps (e.g. "3.0" → "5.0") display automatically
+Throughput (MB/s) is calculated and displayed on both compression and encryption result screens
+5. UI Features Using the API
+
+TTC Compression page (/compress): Multi-file drag-and-drop, mode/level override dropdowns, .tern download, round-trip verification, processing time + throughput display
+Document Encryption page (/encrypt): Two-tab Compress/Decompress interface, optional T-AE-MAC phase encryption, same mode/level overrides, round-trip verification
+Current Status
+The Kong gateway at kong-9e76b3c08eusfq1zu.kongcloud.dev is currently returning a TLS handshake failure (connection drops during SSL negotiation). DNS resolves correctly to 66.51.127.198, but no HTTPS connection can be established. All compress/decompress requests return HTTP 502 with "fetch failed". This appears to be a Kong-side service or certificate issue, not an app-side problem.
+
+Engine Upgrade Compatibility
+The app requires zero code changes for the TTC v5.0 engine upgrade:
+
+Binary transport is unchanged (raw bytes in/out)
+All X-TTC-* headers are the same
+Version string is display-only, no conditional logic
+Deploy = rebuild the Kong service binary with the new crate, same URL
