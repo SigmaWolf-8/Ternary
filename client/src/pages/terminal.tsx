@@ -597,6 +597,23 @@ export default function TerminalPage() {
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
 
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== "keydown") return true;
+      if (ev.ctrlKey && ev.key === "c" && term.hasSelection()) {
+        navigator.clipboard.writeText(term.getSelection());
+        return false;
+      }
+      if (ev.ctrlKey && ev.key === "v") {
+        navigator.clipboard.readText().then((text) => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "input", data: text }));
+          }
+        });
+        return false;
+      }
+      return true;
+    });
+
     term.onData((data) => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "input", data }));
