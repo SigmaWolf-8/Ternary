@@ -29,7 +29,7 @@ param(
     [switch]$Force
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $ProgressPreference = "SilentlyContinue"
 
 $WASM_PACK_MIN = "0.13.1"
@@ -308,10 +308,7 @@ Push-Location $crateDir
 try {
     Write-Info "wasm-pack build --target nodejs --no-default-features --release"
     Write-Host ""
-    $savedPref = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
     & wasm-pack build --target nodejs --no-default-features --release
-    $ErrorActionPreference = $savedPref
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "wasm-pack build failed (exit code $LASTEXITCODE)"
         exit 1
