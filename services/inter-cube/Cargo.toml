@@ -15,7 +15,7 @@
 
 [package]
 name = "inter-cube"
-version = "2.4.12"
+version = "0.0.0" # Runtime version comes from ../../VERSION via include_str!
 edition = "2021"
 description = "PlenumNET Inter-Cube Infrastructure: Geometric Load Balancer, Cube Overlay Network, Registration Service, and Fault Tolerance Service"
 license = "LicenseRef-Proprietary"
