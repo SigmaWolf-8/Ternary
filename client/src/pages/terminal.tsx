@@ -246,7 +246,7 @@ export default function TerminalPage() {
 
   const fetchOpsStatus = useCallback(async () => {
     try {
-      const resp = await fetch("/api/ops/status");
+      const resp = await fetch("/api/ops/status", { credentials: "include" });
       if (resp.ok) {
         const data = await resp.json();
         setOpsEnabled(data.ops_enabled || false);
@@ -845,7 +845,7 @@ export default function TerminalPage() {
 
   const handleToggleOps = async () => {
     try {
-      const resp = await fetch(`/api/ops/${opsEnabled ? "disable" : "enable"}`, { method: "POST" });
+      const resp = await fetch(`/api/ops/${opsEnabled ? "disable" : "enable"}`, { method: "POST", credentials: "include" });
       if (resp.ok) {
         const data = await resp.json();
         setOpsEnabled(data.ops_enabled);
