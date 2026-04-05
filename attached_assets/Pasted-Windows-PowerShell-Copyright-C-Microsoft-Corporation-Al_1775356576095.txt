@@ -1,0 +1,63 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> curl https://plenumnet.replit.app/api/salvi/inter-cube/slots
+curl : The remote server returned an error: (404) Not Found.
+At line:1 char:1
++ curl https://plenumnet.replit.app/api/salvi/inter-cube/slots
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-WebRequest], WebExc
+   eption
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
+
+PS C:\Users\Sigma> powershell -ExecutionPolicy Bypass -File C:\PlenumNET\scripts\test-monitor.ps1
+The argument 'C:\PlenumNET\scripts\test-monitor.ps1' to the -File parameter does not exist. Provide the path to an existing '.ps1' file as an argument to the -File parameter.
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git pull
+remote: Enumerating objects: 219, done.
+remote: Counting objects: 100% (185/185), done.
+remote: Compressing objects: 100% (92/92), done.
+remote: Total 219 (delta 138), reused 136 (delta 93), pack-reused 34 (from 1)
+Receiving objects: 100% (219/219), 776.12 KiB | 2.11 MiB/s, done.
+Resolving deltas: 100% (154/154), completed with 20 local objects.
+From https://github.com/SigmaWolf-8/Ternary
+ + 56317849...e5397d21 dependabot/npm_and_yarn/development-2c25b48037 -> origin/dependabot/npm_and_yarn/development-2c25b48037  (forced update)
+ + bc8d9475...12a6f709 dependabot/npm_and_yarn/production-1a3fa6023a -> origin/dependabot/npm_and_yarn/production-1a3fa6023a  (forced update)
+   dd916989..fc3372b4  main       -> origin/main
+You are not currently on a branch.
+Please specify which branch you want to merge with.
+See git-pull(1) for details.
+
+    git pull <remote> <branch>
+
+PS C:\PlenumNET> powershell -ExecutionPolicy Bypass -File C:\PlenumNET\scripts\test-monitor.ps1
+The argument 'C:\PlenumNET\scripts\test-monitor.ps1' to the -File parameter does not exist. Provide the path to an existing '.ps1' file as an argument to the -File parameter.
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\PlenumNET> git pull
+You are not currently on a branch.
+Please specify which branch you want to merge with.
+See git-pull(1) for details.
+
+    git pull <remote> <branch>
+
+PS C:\PlenumNET> dir C:\PlenumNET\scripts\test-monitor.ps1
+dir : Cannot find path 'C:\PlenumNET\scripts\test-monitor.ps1' because it does not exist.
+At line:1 char:1
++ dir C:\PlenumNET\scripts\test-monitor.ps1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PlenumNET\scripts\test-monitor.ps1:String) [Get-ChildItem], ItemNotF
+   oundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetChildItemCommand
+
+PS C:\PlenumNET>
