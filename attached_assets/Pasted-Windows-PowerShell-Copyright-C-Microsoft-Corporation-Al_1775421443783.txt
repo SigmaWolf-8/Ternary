@@ -1,0 +1,65 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> git pull origin main
+fatal: not a git repository (or any of the parent directories): .git
+PS C:\Users\Sigma> powershell -ExecutionPolicy Bypass -File .\scripts\build-wasm.ps1
+The argument '.\scripts\build-wasm.ps1' to the -File parameter does not exist. Provide the path to an existing '.ps1' file as an argument to the -File parameter.
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd c:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+remote: Enumerating objects: 18, done.
+remote: Counting objects: 100% (18/18), done.
+remote: Compressing objects: 100% (6/6), done.
+remote: Total 14 (delta 7), reused 14 (delta 7), pack-reused 0 (from 0)
+Unpacking objects: 100% (14/14), 40.50 KiB | 242.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+ * branch              main       -> FETCH_HEAD
+   d2a4d8c3..1a20b664  main       -> origin/main
+Updating d2a4d8c3..1a20b664
+Fast-forward
+ .canvas/assets/lib.rs                              |   52 +
+ .canvas/assets/lib.rs.txt                          |   52 +
+ .canvas/assets/ttc.rs                              | 2547 ++++++++++++++++++++
+ .canvas/assets/ttc.rs.txt                          | 2547 ++++++++++++++++++++
+ ...ht-C-Microsoft-Corporation-Al_1775420908703.txt |   58 +
+ scripts/build-wasm.ps1                             |   12 +-
+ 6 files changed, 5262 insertions(+), 6 deletions(-)
+ create mode 100644 .canvas/assets/lib.rs
+ create mode 100644 .canvas/assets/lib.rs.txt
+ create mode 100644 .canvas/assets/ttc.rs
+ create mode 100644 .canvas/assets/ttc.rs.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775420908703.txt
+PS C:\PlenumNET> powershell -ExecutionPolicy Bypass -File .\scripts\build-wasm.ps1
+
+==========================================
+ PlenumNET WASM Build System
+ Capomastro Holdings Ltd.
+==========================================
+
+Repo root:    C:\PlenumNET
+Crate dir:    C:\PlenumNET\ternary-math
+
+[1/5] Checking Rust toolchain...
+  OK  Rust 1.94.1 (minimum: 1.77.0)
+[2/5] Checking wasm32-unknown-unknown target...
+  OK  wasm32-unknown-unknown target installed
+[3/5] Checking C/C++ compiler...
+  ... No C compiler found -- installing LLVM/Clang via winget...
+  OK  LLVM installed at C:\Program Files\LLVM\bin (added to session PATH)
+[4/5] Checking wasm-pack...
+  ... Installing wasm-pack via cargo...
+cargo :     Updating crates.io index
+At C:\PlenumNET\scripts\build-wasm.ps1:226 char:5
++     cargo install wasm-pack 2>&1 | ForEach-Object { if ($_ -match 'er ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Updating crates.io index:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+PS C:\PlenumNET>
