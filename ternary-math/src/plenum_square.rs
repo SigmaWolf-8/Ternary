@@ -37,57 +37,25 @@
 //! Required by T-10 (dual checksum), T-17 (wire ECC), T-18 (sponge shuffles),
 //! T-19 (arc rotation), T-23 (reciprocal-lattice mixer).
 
-// ═══════════════════════════════════════════════════════════════════════
-// PRIMARY CONSTANT — Everything derives from this
-// ═══════════════════════════════════════════════════════════════════════
-
-/// The half-turn: semicircle of the 364° ternary circle.
-///
-/// `arc = π(π − 1) = 14 × 13 = 182 = 20202₃` (palindrome in base-3).
-///
-/// Also: half the 364-day year, 26 weeks, the calendar midpoint,
-/// and the key rotation interval (T-19).
-pub const ARC: u32 = 182;
+use crate::constants;
 
 // ═══════════════════════════════════════════════════════════════════════
-// DERIVED CONSTANTS
+// RE-EXPORTS FROM constants.rs — backward-compatible public names
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Magic square center value: `c = (arc + 40) / 2 = 111`.
-///
-/// The (111) Miller index — hexagonal symmetry.
-/// Also: `111₃ = 13 = T₇ = 1 ternary radian`.
-pub const CENTER: u32 = 111;
+pub use constants::ARC_ROOT_SEMI as ARC;
+pub use constants::CENTER;
+pub use constants::MAGIC_CONSTANT;
+pub use constants::DISCRIMINANT;
+pub use constants::DISCRIMINANT_SQRT as LATTICE_PARAM;
+pub use constants::ROOT_X1 as ROOT_A;
+pub use constants::ROOT_X2 as ROOT_B;
+pub use constants::DISCRIMINANT_2;
+pub use constants::QUAD_PRODUCT as FULL_CIRCLE;
 
-/// Magic constant: `3 × center = 333`.
-///
-/// Every row, column, and diagonal of the Plenum Square sums to this.
-/// Used as the modulus in reciprocal-lattice key mixing (T-23)
-/// and the second checksum modulus in dual checksum (T-10).
-pub const MAGIC_CONSTANT: u32 = 333;
-
-/// Discriminant: `√Δ² = 12² = 144`.
-///
-/// Perfect square lattice condition. The lattice parameter `√Δ = 12`
-/// generates all displacements in the magic square.
-pub const DISCRIMINANT: u32 = 144;
-
-/// Lattice parameter: `√Δ = 12`.
-///
-/// Generator of all displacements between magic square cells.
-pub const LATTICE_PARAM: u32 = 12;
-
-/// Root A: `π = 14` — ternary pi.
-///
-/// The fundamental constant: `(3⁶ − 1) / 2 / 13 = 364 / 26 = 14`.
-/// Circle constant, calendar divisor, topology parameter.
-pub const ROOT_A: u32 = 14;
-
-/// Root B: `2 × 13 = 26` — neighbors per node.
-///
-/// Each node in the 13D hypercube has exactly 26 neighbors
-/// (2 alternative trit values × 13 dimensions).
-pub const ROOT_B: u32 = 26;
+// ═══════════════════════════════════════════════════════════════════════
+// MAGIC-SQUARE-SPECIFIC CONSTANTS (not universal — stay here)
+// ═══════════════════════════════════════════════════════════════════════
 
 /// Complement A: `pair_sum − root_a = 222 − 14 = 208`.
 pub const COMPLEMENT_A: u32 = 208;
@@ -99,17 +67,6 @@ pub const COMPLEMENT_B: u32 = 196;
 ///
 /// Every pair of diametrically opposite cells sums to this.
 pub const PAIR_SUM: u32 = 222;
-
-/// Secondary discriminant: `Δ₂ = 1 + 4 × arc = 1 + 728 = 729 = 3⁶`.
-///
-/// The kernel sponge width (TLSponge-385 state size).
-/// Entailed by the semicircle — derived, not designed.
-pub const DISCRIMINANT_2: u32 = 729;
-
-/// Full circle: `2 × arc = 364 = 111111₃` (six-digit base-3 repunit).
-///
-/// The ternary year, the full rotation, `(3⁶ − 1) / 2`.
-pub const FULL_CIRCLE: u32 = 364;
 
 // ═══════════════════════════════════════════════════════════════════════
 // WEIGHT VECTOR — One specific magic square's cell values
@@ -141,10 +98,6 @@ pub const WEIGHT_VECTOR: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
 // ═══════════════════════════════════════════════════════════════════════
 // σ PERMUTATIONS — Block shuffle indices for sponge dynamics
 // ═══════════════════════════════════════════════════════════════════════
-
-// The four canonical square arrangements (A, B, C, D) are encoded
-// by the σ permutations below. The mathematical derivation via
-// (p, q) parameterization is documented in TM-2026-015 §II.
 
 /// Block permutation σ_A — the only **full derangement** (no fixed points).
 ///
@@ -248,42 +201,26 @@ pub fn weighted_nonce(triplet_values: &[u32; 9]) -> u32 {
 // COMPILE-TIME ASSERTIONS
 // ═══════════════════════════════════════════════════════════════════════
 
-// These assertions run at compile time. If any constant relationship
-// is broken, the build fails. This is the structural equivalent of
-// a proof: the code cannot compile unless the math is correct.
-
 const _: () = {
-    // arc = π(π − 1) = 14 × 13
     assert!(ARC == ROOT_A * 13);
-    // center = (arc + 40) / 2
     assert!(CENTER == (ARC + 40) / 2);
-    // magic constant = 3 × center
     assert!(MAGIC_CONSTANT == 3 * CENTER);
-    // discriminant = lattice_param²
     assert!(DISCRIMINANT == LATTICE_PARAM * LATTICE_PARAM);
-    // pair sum = 2 × center
     assert!(PAIR_SUM == 2 * CENTER);
-    // complements
     assert!(COMPLEMENT_A == PAIR_SUM - ROOT_A);
     assert!(COMPLEMENT_B == PAIR_SUM - ROOT_B);
-    // secondary discriminant = 1 + 4 × arc = 3⁶
     assert!(DISCRIMINANT_2 == 1 + 4 * ARC);
     assert!(DISCRIMINANT_2 == 729);
-    // full circle = 2 × arc
     assert!(FULL_CIRCLE == 2 * ARC);
     assert!(FULL_CIRCLE == 364);
 
-    // All σ permutations are valid permutations
     assert!(is_valid_permutation(&SIGMA_A));
     assert!(is_valid_permutation(&SIGMA_B));
     assert!(is_valid_permutation(&SIGMA_C));
     assert!(is_valid_permutation(&SIGMA_D));
 
-    // σ_A is the only full derangement (no fixed points).
-    // σ_B, σ_C, σ_D have a fixed point at index 4 (center cell).
     assert!(is_derangement(&SIGMA_A));
 
-    // Magic square property: all rows, cols, diagonals sum to 333
     assert!(row_sum(0) == MAGIC_CONSTANT);
     assert!(row_sum(1) == MAGIC_CONSTANT);
     assert!(row_sum(2) == MAGIC_CONSTANT);
@@ -293,8 +230,9 @@ const _: () = {
     assert!(diag_main_sum() == MAGIC_CONSTANT);
     assert!(diag_anti_sum() == MAGIC_CONSTANT);
 
-    // Center cell = CENTER constant
     assert!(WEIGHT_VECTOR[4] == CENTER);
+
+    assert!(PAIR_SUM == constants::LAMBDA_FAR_UVC);
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -307,14 +245,12 @@ mod tests {
 
     #[test]
     fn test_arc_is_palindrome_base3() {
-        // 182 = 2×81 + 0×27 + 2×9 + 0×3 + 2×1 = 20202₃
         let mut val = ARC;
         let mut digits = Vec::new();
         while val > 0 {
             digits.push(val % 3);
             val /= 3;
         }
-        // Palindrome check
         let rev: Vec<u32> = digits.iter().rev().copied().collect();
         assert_eq!(digits, rev, "182 must be a palindrome in base-3 (20202₃)");
     }
@@ -338,11 +274,10 @@ mod tests {
 
     #[test]
     fn test_opposite_pairs_sum() {
-        // In a 3×3 magic square, opposite cells (mirrored through center) sum to pair_sum
-        assert_eq!(WEIGHT_VECTOR[0] + WEIGHT_VECTOR[8], PAIR_SUM); // 208 + 14
-        assert_eq!(WEIGHT_VECTOR[1] + WEIGHT_VECTOR[7], PAIR_SUM); // 2 + 220
-        assert_eq!(WEIGHT_VECTOR[2] + WEIGHT_VECTOR[6], PAIR_SUM); // 123 + 99
-        assert_eq!(WEIGHT_VECTOR[3] + WEIGHT_VECTOR[5], PAIR_SUM); // 26 + 196
+        assert_eq!(WEIGHT_VECTOR[0] + WEIGHT_VECTOR[8], PAIR_SUM);
+        assert_eq!(WEIGHT_VECTOR[1] + WEIGHT_VECTOR[7], PAIR_SUM);
+        assert_eq!(WEIGHT_VECTOR[2] + WEIGHT_VECTOR[6], PAIR_SUM);
+        assert_eq!(WEIGHT_VECTOR[3] + WEIGHT_VECTOR[5], PAIR_SUM);
     }
 
     #[test]
@@ -352,11 +287,9 @@ mod tests {
 
     #[test]
     fn test_sigma_bcd_have_center_fixed_point() {
-        // σ_B, σ_C, σ_D all fix the center cell (index 4)
         assert_eq!(SIGMA_B[4], 4, "σ_B fixes center");
         assert_eq!(SIGMA_C[4], 4, "σ_C fixes center");
         assert_eq!(SIGMA_D[4], 4, "σ_D fixes center");
-        // σ_A does NOT fix center (full derangement)
         assert_ne!(SIGMA_A[4], 4, "σ_A moves center");
     }
 
@@ -381,18 +314,15 @@ mod tests {
 
     #[test]
     fn test_weighted_nonce_range() {
-        // Result must be in [0, MAGIC_CONSTANT)
-        let triplets = [3u32, 3, 3, 3, 3, 3, 3, 3, 3]; // max triplet values
+        let triplets = [3u32, 3, 3, 3, 3, 3, 3, 3, 3];
         let n = weighted_nonce(&triplets);
         assert!(n < MAGIC_CONSTANT, "Nonce must be < 333");
     }
 
     #[test]
     fn test_weighted_nonce_different_inputs() {
-        // Use inputs that break the magic square's row symmetry:
-        // changing the last cell (weight=14) vs second-to-last (weight=220)
-        let t1 = [1u32, 1, 1, 1, 1, 1, 1, 1, 2]; // nonce = (999+14) mod 333 = 14
-        let t2 = [1u32, 1, 1, 1, 1, 1, 1, 2, 1]; // nonce = (999+220) mod 333 = 220
+        let t1 = [1u32, 1, 1, 1, 1, 1, 1, 1, 2];
+        let t2 = [1u32, 1, 1, 1, 1, 1, 1, 2, 1];
         let n1 = weighted_nonce(&t1);
         let n2 = weighted_nonce(&t2);
         assert_eq!(n1, 14, "Nonce for t1 must be 14");
@@ -407,7 +337,6 @@ mod tests {
 
     #[test]
     fn test_full_circle_is_repunit() {
-        // 364 = (3⁶ − 1) / 2 = 111111₃
         assert_eq!(FULL_CIRCLE, (3u32.pow(6) - 1) / 2);
     }
 }
