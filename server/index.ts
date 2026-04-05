@@ -2029,12 +2029,34 @@ function startPqtiService(): ChildProcess | null {
               if (httpStatus >= 200 && httpStatus < 300) {
                 try {
                   const parsed = JSON.parse(result.body);
+                  const opsSnap = opsChannelService.getOpsStatus();
+                  let nodeTelem: any = null;
+                  for (const ns of opsSnap.nodes) {
+                    if (ns.address === addr || String(ns.node_id) === String(parsed.node_id)) {
+                      nodeTelem = ns.last_telemetry;
+                      break;
+                    }
+                  }
+                  const health: any = parsed.health || { status: "ok" };
+                  if (nodeTelem) {
+                    health.cpu_pct = nodeTelem.cpu_pct;
+                    health.mem_pct = nodeTelem.ram_pct;
+                    health.telemetry = {
+                      cpu_pct: nodeTelem.cpu_pct,
+                      ram_pct: nodeTelem.ram_pct,
+                      ram_used_mb: nodeTelem.ram_used_mb,
+                      disk_pct: nodeTelem.disk_pct,
+                      gpu_pct: nodeTelem.gpu_pct,
+                      gpu_name: nodeTelem.gpu_name,
+                    };
+                  }
                   nodeResults.push({
                     node_id: toDottedAddr(addr),
                     node_id_num: parsed.node_id,
                     status: "ok",
                     slots: parsed.slots,
                     summary: parsed.summary,
+                    health,
                   });
                 } catch {
                   nodeResults.push({ node_id: toDottedAddr(addr), status: "error", error: "invalid response body" });
