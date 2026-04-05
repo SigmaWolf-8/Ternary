@@ -115,13 +115,13 @@ if (-not $rustup) {
 }
 $rustup = Get-Command rustup -ErrorAction SilentlyContinue
 if ($rustup) {
-    $rustVer = (rustc --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
-    $cmp = Compare-SemVer $rustVer $RUST_MIN
+    $rustVer = (& rustc --version 2>&1 | Out-String) -replace '.*?(\d+\.\d+\.\d+).*','$1'
+    $cmp = Compare-SemVer $rustVer.Trim() $RUST_MIN
     if ($cmp -lt 0) {
         Write-Warn "Rust $rustVer below minimum $RUST_MIN -- updating..."
         $null = & rustup update stable 2>&1
         Refresh-Path
-        $rustVer = (rustc --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
+        $rustVer = (& rustc --version 2>&1 | Out-String) -replace '.*?(\d+\.\d+\.\d+).*','$1'
     }
     Write-OK "Rust $rustVer (minimum: $RUST_MIN)"
 } else {
@@ -142,7 +142,7 @@ Write-Step "3/5" "Checking C/C++ compiler..."
 $hasCompiler = $false
 $clang = Get-Command clang -ErrorAction SilentlyContinue
 if ($clang) {
-    $clangVer = (clang --version 2>&1 | Select-Object -First 1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
+    $clangVer = (& clang --version 2>&1 | Out-String).Split("`n")[0] -replace '.*?(\d+\.\d+\.\d+).*','$1'
     Write-OK "clang $clangVer"
     $hasCompiler = $true
 }
@@ -212,7 +212,7 @@ if (-not $hasCompiler) {
 Write-Step "4/5" "Checking wasm-pack..."
 $wasmPack = Get-Command wasm-pack -ErrorAction SilentlyContinue
 if ($wasmPack -and -not $Force) {
-    $wpVer = (wasm-pack --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
+    $wpVer = (& wasm-pack --version 2>&1 | Out-String) -replace '.*?(\d+\.\d+\.\d+).*','$1'
     $cmp = Compare-SemVer $wpVer $WASM_PACK_MIN
     if ($cmp -lt 0) {
         Write-Warn "wasm-pack $wpVer below minimum $WASM_PACK_MIN -- reinstalling..."
@@ -223,11 +223,12 @@ if ($wasmPack -and -not $Force) {
 }
 if (-not $wasmPack -or $Force) {
     Write-Info "Installing wasm-pack via cargo..."
-    cargo install wasm-pack 2>&1 | ForEach-Object { if ($_ -match 'error') { Write-Host $_ -ForegroundColor Red } }
+    $cargoOut = & cargo install wasm-pack 2>&1 | Out-String
+    $cargoOut.Split("`n") | ForEach-Object { if ($_ -match 'error') { Write-Host $_ -ForegroundColor Red } }
     Refresh-Path
     $wasmPack = Get-Command wasm-pack -ErrorAction SilentlyContinue
     if ($wasmPack) {
-        $wpVer = (wasm-pack --version 2>&1) -replace '.*?(\d+\.\d+\.\d+).*','$1'
+        $wpVer = (& wasm-pack --version 2>&1 | Out-String) -replace '.*?(\d+\.\d+\.\d+).*','$1'
         Write-OK "wasm-pack $wpVer installed"
         $installCount++
     } else {
@@ -239,7 +240,7 @@ if (-not $wasmPack -or $Force) {
 Write-Step "5/5" "Checking Node.js..."
 $node = Get-Command node -ErrorAction SilentlyContinue
 if ($node) {
-    $nodeVer = (node --version 2>&1) -replace 'v',''
+    $nodeVer = (& node --version 2>&1 | Out-String) -replace 'v',''
     Write-OK "Node.js $nodeVer"
 } else {
     if (-not $SkipTest) {
@@ -307,7 +308,10 @@ Push-Location $crateDir
 try {
     Write-Info "wasm-pack build --target nodejs --no-default-features --release"
     Write-Host ""
-    wasm-pack build --target nodejs --no-default-features --release
+    $savedPref = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    & wasm-pack build --target nodejs --no-default-features --release
+    $ErrorActionPreference = $savedPref
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "wasm-pack build failed (exit code $LASTEXITCODE)"
         exit 1
