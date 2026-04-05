@@ -257,22 +257,31 @@ pub fn parse_address_string(s: &str) -> Option<CubeAddr> {
 // HANDLERS
 // ═══════════════════════════════════════════════════════════════════════
 
-/// GET /health — Docker healthcheck.
-pub async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
+/// GET /health — Docker healthcheck + system telemetry.
+pub async fn health_check(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let node_id = std::env::var("CUBE_NODE_ID")
         .ok()
         .and_then(|v| v.parse::<u8>().ok())
         .unwrap_or(1);
-    Json(HealthResponse {
-        status: "ok",
-        service: FRAMEWORK,
-        version: VERSION,
-        mode: state.mode.clone(),
-        address: format!("{}", state.local_address),
-        wire_protocol: crate::wire::PROTOCOL_VERSION_CURRENT,
-        wire_protocol_min: crate::wire::PROTOCOL_VERSION_MIN,
-        node_id,
-    })
+    let uptime_secs = state.start_time.elapsed().as_secs();
+
+    let (cpu_pct, ram_pct, ram_used_mb, ram_total_mb) = crate::ops_handler::get_system_metrics().await;
+
+    Json(serde_json::json!({
+        "status": "ok",
+        "service": FRAMEWORK,
+        "version": VERSION,
+        "mode": state.mode.clone(),
+        "address": format!("{}", state.local_address),
+        "wire_protocol": crate::wire::PROTOCOL_VERSION_CURRENT,
+        "wire_protocol_min": crate::wire::PROTOCOL_VERSION_MIN,
+        "node_id": node_id,
+        "cpu_pct": cpu_pct,
+        "ram_pct": ram_pct,
+        "ram_used_mb": ram_used_mb,
+        "ram_total_mb": ram_total_mb,
+        "uptime_seconds": uptime_secs,
+    }))
 }
 
 /// GET /api/salvi/inter-cube/node/info — Node identity and status for external dashboards.

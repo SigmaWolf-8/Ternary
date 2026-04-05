@@ -36,6 +36,10 @@ use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use ternary_math::tl_dsa;
 
+pub async fn get_system_metrics() -> (f64, f64, u64, u64) {
+    OpsHandler::get_system_metrics().await
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpsConfig {
     pub ops_enabled: bool,
@@ -2000,7 +2004,7 @@ impl OpsHandler {
         hex::encode(&hash_bytes[..16])
     }
 
-    async fn get_system_metrics() -> (f64, f64, u64, u64) {
+    pub async fn get_system_metrics() -> (f64, f64, u64, u64) {
         #[cfg(target_os = "windows")]
         {
             let mut cpu_pct = 0.0f64;
