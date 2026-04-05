@@ -50,6 +50,7 @@ pub const ARC_COPRIME: u32 = 286;
 /// Roots: (832 ± 468) / 2 = {ARC_RED, ARC_GREEN} = {182, 650}.
 pub const ARC_SQRT_DISCRIMINANT: u32 = 468;
 
+/// Canonical source: ternary_math::constants::LCM_PRIMARY (§7).
 pub const COPRIME_STEP: u32 = 1001;
 pub const OVERLAP_SLOTS: u32 = COPRIME_STEP - MESH_NODES as u32;
 

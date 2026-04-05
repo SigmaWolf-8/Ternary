@@ -110,6 +110,13 @@ const _: () = assert!(ARC_BLUE % 13 == 6);                    // CRT: φ(7) on Z
 const _: () = assert!(ARC_RED + ARC_GREEN == 832);
 const _: () = assert!(ARC_RED * ARC_GREEN == 118300);
 
+// Cross-reference: COPRIME_ARC = ternary_math::constants::COPRIME_PAIR_LCMS[3] = 143
+// Cross-reference: ARC_RED = ternary_math::constants::COPRIME_PAIR_LCMS[6] = 182
+// Cross-reference: ARC_COPRIME = ternary_math::constants::GREEN_ARC_EFF = 286
+const _: () = assert!(COPRIME_ARC == 143);
+const _: () = assert!(ARC_RED == 182);
+const _: () = assert!(ARC_COPRIME == 286);
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Runtime tests
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

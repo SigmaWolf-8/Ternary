@@ -10,6 +10,7 @@ use alloc::vec::Vec;
 pub const STRIDE_7: u32 = 7;
 pub const STRIDE_11: u32 = 11;
 pub const STRIDE_13: u32 = 13;
+/// Canonical source: ternary_math::constants::LCM_PRIMARY (§7).
 pub const COMBINED_STRIDE: u32 = STRIDE_7 * STRIDE_11 * STRIDE_13;
 pub const RING_SIZE: u32 = 540;
 

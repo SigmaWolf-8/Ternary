@@ -226,156 +226,73 @@ pub const VACUUM_BIAS_DEN: u32 = 100_000;
 
 // ══════════════════════════════════════════════════════════════
 // §7  COPRIME WALK LANDSCAPE (TM-2026-017 §10)
-//
-// All coprime groups derived from the 13 polygon set.
-// Member arrays and LCM arrays are indexed together:
-//   COPRIME_*S[i]  →  COPRIME_*_LCMS[i]
-//
-// Two paths through the landscape:
-//
-// COMPRESSION — pentadecagon (15) kept whole.
-//   Source set: {7, 11, 13, 14, 15}.
-//   Excluded: (7, 14) — gcd = 7.
-//   Groups: pairs (9), triples (7), quadruples (2).
-//
-// EXPANSION — pentadecagon decomposed into factors 3 and 5.
-//   Source set: {3, 4, 5, 7, 8, 9, 11, 13}.
-//   Excluded: (3, 9) — gcd = 3; (4, 8) — gcd = 4.
-//   Groups: quintuples (28 exist, 5 key stored), sextuples (4).
-//
-// Compression → expansion duality: decomposing 15 into {3, 5}
-// unlocks 12× larger LCMs (max 30,030 → max 360,360).
-//
-// The 4 sextuples are the 4 ways to choose one from each
-// expansion conflict: {3|9} × {4|8}, with {5, 7, 11, 13}
-// always present. This is why exactly 4 exist and size 7
-// is impossible.
 // ══════════════════════════════════════════════════════════════
+
+/// Primary coprime generators from the arc factorizations.
+/// 182 = 2×7×13 and 286 = 2×11×13 → reduced ratio 7:11.
+pub const COPRIME_TRIPLE: [u32; 3] = [7, 11, 13];
 
 /// Pentadecagon = 15 = 3 × 5. Bridges triangle and pentagon families.
-/// Either kept whole (compression path, max 30,030) or decomposed
-/// into its prime factors (expansion path, max 360,360).
 pub const PENTADECAGON: u32 = 15;
 
-/// Excluded pairs — gcd > 1 prevents coexistence in any coprime group.
-/// (7, 14): gcd = 7, compression path. Blocks (7, 14) torus knots.
-/// (3, 9): gcd = 3, expansion path. Shapes sextuple selection.
-/// (4, 8): gcd = 4, expansion path. Shapes sextuple selection.
-pub const EXCLUDED_PAIRS: [(u32, u32); 3] = [(7, 14), (3, 9), (4, 8)];
+/// The (7, 14) exclusion — gcd(7, 14) = 7 ≠ 1.
+/// The only excluded pair from key polygon set {7, 11, 13, 14, 15}.
+/// 14 = 2 × 7 = 2 × COPRIME_TRIPLE[0].
+pub const EXCLUDED_PAIR: (u32, u32) = (7, 14);
 
-// ── COMPRESSION PATH ─────────────────────────────────────────
-// Source set: {7, 11, 13, 14, 15}. Pentadecagon kept whole.
+/// Sextuple A: [3, 4, 5, 7, 11, 13] → LCM = 60,060.
+pub const SEXTUPLE_A: [u32; 6] = [3, 4, 5, 7, 11, 13];
 
-// ── Pairs (9, complete) ──────────────────────────────────────
+/// Sextuple B: [3, 5, 7, 8, 11, 13] → LCM = 120,120.
+pub const SEXTUPLE_B: [u32; 6] = [3, 5, 7, 8, 11, 13];
 
-/// 9 coprime pairs from {7, 11, 13, 14, 15} (TM-2026-017 §10.3).
-pub const COPRIME_PAIRS: [(u32, u32); 9] = [
-    (7, 11), (7, 13), (7, 15),
-    (11, 13), (11, 14), (11, 15),
-    (13, 14), (13, 15), (14, 15),
-];
+/// Sextuple C: [4, 5, 7, 9, 11, 13] → LCM = 180,180.
+pub const SEXTUPLE_C: [u32; 6] = [4, 5, 7, 9, 11, 13];
 
-/// LCMs of the 9 coprime pairs. Indexed to match COPRIME_PAIRS.
-pub const COPRIME_PAIR_LCMS: [u32; 9] = [77, 91, 105, 143, 154, 165, 182, 195, 210];
+/// Maximum pairwise coprime sextuple: [5, 7, 8, 9, 11, 13] → LCM = 360,360.
+/// No group of 7 exists from the polygon set — this is the structural limit.
+pub const SEXTUPLE_MAX: [u32; 6] = [5, 7, 8, 9, 11, 13];
 
-// ── Triples (7, complete) ────────────────────────────────────
-
-/// 7 coprime triples from {7, 11, 13, 14, 15} (TM-2026-017 §10.3).
-/// COPRIME_TRIPLES[0] = [7, 11, 13] — the primary generators from the
-/// arc factorizations: 182 = 2×7×13, 286 = 2×11×13 → ratio 7:11.
-pub const COPRIME_TRIPLES: [[u32; 3]; 7] = [
-    [7, 11, 13], [7, 11, 15], [7, 13, 15],
-    [11, 13, 14], [11, 13, 15], [11, 14, 15], [13, 14, 15],
-];
-
-/// LCMs of the 7 coprime triples. Indexed to match COPRIME_TRIPLES.
-pub const COPRIME_TRIPLE_LCMS: [u32; 7] = [1_001, 1_155, 1_365, 2_002, 2_145, 2_310, 2_730];
-
-// ── Quadruples (2, complete) ─────────────────────────────────
-
-/// 2 compression-path coprime quadruples (TM-2026-017 §10.4).
-pub const COPRIME_QUADRUPLES: [[u32; 4]; 2] = [
-    [7, 11, 13, 15],   // odd-prime quadruple
-    [11, 13, 14, 15],  // π-gon quadruple
-];
-
-/// LCMs of the 2 compression-path quadruples. Indexed to match COPRIME_QUADRUPLES.
-pub const COPRIME_QUADRUPLE_LCMS: [u32; 2] = [15_015, 30_030];
-
-// ── EXPANSION PATH ───────────────────────────────────────────
-// Pentadecagon decomposed: 15 → {3, 5}.
-// Source set: {3, 4, 5, 7, 8, 9, 11, 13}.
-
-// ── Quintuples (28 exist, 5 key stored) ──────────────────────
-
-/// 5 key expansion-path coprime quintuples (TM-2026-017 §10.5.1).
-/// 28 valid quintuples exist from the full polygon set; these are
-/// the architecturally significant ones. The first two demonstrate
-/// the decompression identity: quint[0] == quad[0] in LCM, and
-/// quint[1] == quad[1] in LCM, because 3 × 5 = 15.
-pub const COPRIME_QUINTUPLES: [[u32; 5]; 5] = [
-    [3, 5, 7, 11, 13],   // decompressed odd-prime quad → LCM = 15,015
-    [3, 5, 11, 13, 14],  // decompressed π-gon quad   → LCM = 30,030
-    [3, 4, 7, 11, 13],   // adds square               → LCM = 12,012
-    [5, 7, 8, 11, 13],   // octagon path               → LCM = 40,040
-    [5, 7, 9, 11, 13],   // nonagon path               → LCM = 45,045
-];
-
-/// LCMs of the 5 key quintuples. Indexed to match COPRIME_QUINTUPLES.
-pub const COPRIME_QUINTUPLE_LCMS: [u32; 5] = [15_015, 30_030, 12_012, 40_040, 45_045];
-
-// ── Sextuples (4, complete) ──────────────────────────────────
-
-/// 4 expansion-path coprime sextuples (TM-2026-017 §10.5.2).
-/// These are the 4 ways to choose one from each expansion conflict:
-/// {3|9} × {4|8}, with {5, 7, 11, 13} always present.
-/// No group of 7 exists — size 6 is the structural limit.
-pub const COPRIME_SEXTUPLES: [[u32; 6]; 4] = [
-    [3, 4, 5, 7, 11, 13],  // sextuple A: 3 chosen over 9, 4 chosen over 8 → LCM = 60,060
-    [3, 5, 7, 8, 11, 13],  // sextuple B: 3 chosen over 9, 8 chosen over 4 → LCM = 120,120
-    [4, 5, 7, 9, 11, 13],  // sextuple C: 9 chosen over 3, 4 chosen over 8 → LCM = 180,180
-    [5, 7, 8, 9, 11, 13],  // sextuple MAX: 9 chosen over 3, 8 chosen over 4 → LCM = 360,360
-];
-
-/// LCMs of the 4 expansion-path sextuples. Indexed to match COPRIME_SEXTUPLES.
-pub const COPRIME_SEXTUPLE_LCMS: [u32; 4] = [60_060, 120_120, 180_180, 360_360];
-
-// ── Key aliases ──────────────────────────────────────────────
-// Heavily cross-referenced in §8, §9, §10, §17.
-
-/// LCM of primary coprime generators: 7 × 11 × 13 = 1,001.
-/// = COPRIME_TRIPLE_LCMS[0].
+/// LCM of primary coprime triple: 7 × 11 × 13 = 1,001.
 pub const LCM_PRIMARY: u32 = 1_001;
 
-/// Maximum sextuple LCM: 360 × 1,001 = 360,360.
-/// = COPRIME_SEXTUPLE_LCMS[3].
+/// LCM of odd-prime quadruple: 3 × 5 × 7 × 11 × 13 = 15 × 1001 = 15,015.
+pub const LCM_QUAD_ODD: u32 = 15_015;
+
+/// LCM of π-gon quadruple: 2 × 3 × 5 × 7 × 11 × 13 = 2 × 15015 = 30,030.
+pub const LCM_QUAD_PI: u32 = 30_030;
+
+/// LCM of sextuple A: 3 × 4 × 5 × 7 × 11 × 13 = 60,060.
+pub const LCM_SEXT_A: u32 = 60_060;
+
+/// LCM of sextuple B: 3 × 5 × 7 × 8 × 11 × 13 = 120,120.
+pub const LCM_SEXT_B: u32 = 120_120;
+
+/// LCM of sextuple C: 4 × 5 × 7 × 9 × 11 × 13 = 180,180.
+pub const LCM_SEXT_C: u32 = 180_180;
+
+/// LCM of maximum sextuple: 360 × 1,001 = 360,360.
 pub const LCM_SEXT_MAX: u32 = 360_360;
 
-/// Circle × coprime walk: R₆ × LCM_PRIMARY = 364 × 1,001 = 364,364.
-/// Repdigit structure: 364 repeats through the triple.
-/// Factorization: 2² × 7² × 11 × 13².
-pub const GEOMETRIC_SPECTRAL_PRODUCT: u32 = 364_364;
-
-// ── 3D position counts (× 729 = Δ₂ = 3⁶) ───────────────────
-
-/// 3D positions for the primary triple: 1,001 × 729 = 729,729.
+/// 3D position count (primary): 1,001 × 729.
 pub const POS_3D_PRIMARY: u64 = 729_729;
 
-/// 3D positions for the 2 compression-path quadruples.
-/// Indexed to match COPRIME_QUADRUPLES.
-pub const POS_3D_QUADRUPLES: [u64; 2] = [10_945_935, 21_891_870];
+/// 3D position count (odd-prime quadruple): 15,015 × 729.
+pub const POS_3D_QUAD_ODD: u64 = 10_945_935;
 
-/// 3D positions for the 4 expansion-path sextuples.
-/// Indexed to match COPRIME_SEXTUPLES.
-pub const POS_3D_SEXTUPLES: [u64; 4] = [43_783_740, 87_567_480, 131_351_220, 262_702_440];
+/// 3D position count (π-gon quadruple): 30,030 × 729.
+pub const POS_3D_QUAD_PI: u64 = 21_891_870;
+
+/// 3D position count (maximum sextuple): 360,360 × 729.
+pub const POS_3D_SEXT_MAX: u64 = 262_702_440;
 
 // ══════════════════════════════════════════════════════════════
-// §8  CCP BRIDGE ANALYSIS (Circle × Coprime Product deficit)
-//
-// GEOMETRIC_SPECTRAL_PRODUCT (364,364) is defined in §7.
-// This section derives the deficit, ratio, and 3D products
-// from the gap between 364,364 and 360,360.
+// §8  CCP BRIDGE CONSTANTS (Circle × Coprime Product)
 // ══════════════════════════════════════════════════════════════
+
+/// 364 × 1,001 = 364,364. Circle × coprime walk. Repdigit structure: 364 repeats.
+/// Factorization: 2² × 7² × 11 × 13².
+pub const GEOMETRIC_SPECTRAL_PRODUCT: u32 = 364_364;
 
 /// 364,364 − 360,360 = 4,004 = 4 × 1,001. Null harmonic deficit.
 pub const NULL_HARMONIC_DEFICIT: u32 = 4_004;
@@ -647,41 +564,6 @@ pub const PLENUM_SQUARE_STEP: u32 = 22;
 pub const PLENUM_SQUARE_MIN: u32 = 23;
 
 // ══════════════════════════════════════════════════════════════
-// §19a  FIBONACCI–PHYSICAL BRIDGE — integer core
-//
-// F(14) = 377 is the sole new integer constant in this section.
-// It connects the Fibonacci sequence to the framework through
-// π_framework = 14, and predicts the impedance of free space
-// to 0.072% (validated against CODATA 2022).
-//
-// Integer identities (compile-time verified):
-//   F(14) = R₆ + R₃          = 364 + 13      (circle + radian)
-//   F(14) = R₃ × (Z₂₈ + 1)  = 13 × 29       (radian × shifted cyclic order)
-//   F(14) = F(13) + F(12)    = 233 + Δ        (Fibonacci recurrence, F(12) = Δ = 144)
-//   F(7)  = R₃               = 13             (radian appears at Fibonacci index 7)
-// ══════════════════════════════════════════════════════════════
-
-/// F(14) = 377 = R₆ + R₃ = 364 + 13.
-/// The 14th Fibonacci number. Since π_framework = ROOT_X1 = 14,
-/// F(π) = 377 predicts the impedance of free space Z₀ ≈ 376.730 Ω
-/// to 0.072% accuracy (CODATA 2022).
-///
-/// Triple decomposition:
-///   377 = 364 + 13     (circle + radian)
-///   377 = 13 × 29      (radian × (Z₂₈ + 1))
-///   377 = 233 + 144    (F(13) + Δ, where Δ = discriminant of circle quadratic)
-pub const FIBONACCI_PI: u32 = 377;
-
-/// F(12) = 144 = Δ (circle quadratic discriminant).
-/// The Fibonacci sequence's 12th element equals the discriminant of
-/// x² − 40x + 364 = 0. This is a structural coincidence that locks
-/// the Fibonacci recurrence to the circle quadratic.
-pub const FIBONACCI_12: u32 = 144;
-
-/// F(13) = 233. Used in F(14) = F(13) + F(12) = 233 + 144 = 377.
-pub const FIBONACCI_13: u32 = 233;
-
-// ══════════════════════════════════════════════════════════════
 // Z₂₈ CYCLIC GROUP
 // ══════════════════════════════════════════════════════════════
 
@@ -812,83 +694,6 @@ pub const RADIAN_DEG: f64 = 13.0;
 pub const RADIAN_BASE3: &str = "111";
 
 // ══════════════════════════════════════════════════════════════
-// §19b  CODATA 2022 PHYSICAL CONSTANTS BRIDGE
-//
-// These f64 values are NOT part of the mathematical core. They
-// provide NIST/CODATA reference measurements that the framework's
-// algebraic constants predict, enabling automated validation.
-//
-// Two Rydberg constants are relevant:
-//   R_∞ = 10,973,731.568157 m⁻¹  (infinite nuclear mass)
-//   R_H = R_∞ / (1 + mₑ/mₚ)     (hydrogen-specific, finite proton)
-//
-// Balmer's constant B and the Lyman limit 1/R_∞ both use R_∞.
-// The vacuum bias (VACUUM_BIAS_NUM/DEN) uses R_H.
-//
-// Sources: CODATA 2022, NIST SP 961 (May 2024).
-// ══════════════════════════════════════════════════════════════
-
-/// Rydberg constant R_∞ (CODATA 2022), infinite nuclear mass.
-pub const CODATA_RYDBERG_CONST: f64 = 10_973_731.568157; // m⁻¹
-
-/// Electron-to-proton mass ratio mₑ/mₚ (CODATA 2022).
-pub const CODATA_ME_OVER_MP: f64 = 5.446_170_214_889e-4;
-
-/// Balmer's constant B = 4/R_∞ (CODATA 2022).
-/// Framework prediction: QUAD_PRODUCT = R₆ = 364 → 364 nm.
-/// Discrepancy: 0.139%.
-pub const CODATA_BALMER_CONSTANT_NM: f64 = 364.506_82;
-
-/// Inverse Rydberg constant 1/R_∞ = Lyman series limit (CODATA 2022).
-/// Framework prediction: LAMBDA_EUV = R₆/4 = 91 → 91 nm.
-/// Discrepancy: 0.139%.
-pub const CODATA_LYMAN_LIMIT_NM: f64 = 91.126_705;
-
-/// Lyman-alpha wavelength (n=2 → n=1 hydrogen transition, vacuum).
-/// Framework prediction: QUAD_PRODUCT / 3 = R₆/3 ≈ 121.333 nm.
-/// Discrepancy: 0.192%.
-pub const CODATA_LYMAN_ALPHA_NM: f64 = 121.567_0;
-
-/// H-alpha wavelength (n=3 → n=2 hydrogen transition, in air).
-/// Framework prediction: ARC_ROOT_COMP = 650 → 650 nm.
-/// Discrepancy: 0.957%. Residual ≈ 2π_conventional.
-pub const CODATA_H_ALPHA_NM: f64 = 656.281;
-
-/// Impedance of free space Z₀ = √(μ₀/ε₀) = μ₀c (CODATA 2022).
-/// Framework prediction: FIBONACCI_PI = F(14) = R₆ + R₃ = 377 Ω.
-/// Discrepancy: 0.072%.
-pub const CODATA_Z0_OHM: f64 = 376.730_313_412;
-
-/// Hartree energy in eV (CODATA 2022).
-/// Framework prediction: DISCRIMINANT_2_SQRT = √Δ₂ = 27 → 27 eV.
-/// Discrepancy: 0.777%.
-pub const CODATA_HARTREE_EV: f64 = 27.211_386_245_981;
-
-/// Rydberg energy in eV = R_∞ hc (CODATA 2022).
-/// Framework prediction: REPUNIT_3 = R₃ = 13 → 13 eV.
-/// Discrepancy: 4.45%.
-pub const CODATA_RYDBERG_EV: f64 = 13.605_693_122_990;
-
-/// Inverse fine-structure constant (CODATA 2022).
-/// Framework proximity: BEZIER_C650_ANGLE = 11 × 13 = 143 ≈ 1/α + 6.
-/// Tier 3 — suggestive, not predictive. No tolerance enforced.
-pub const CODATA_INV_ALPHA: f64 = 137.035_999_177;
-
-/// H-alpha residual: CODATA_H_ALPHA_NM − ARC_ROOT_COMP = 656.281 − 650 ≈ 6.28 ≈ 2π_conv.
-pub const H_ALPHA_RESIDUAL: f64 = CODATA_H_ALPHA_NM - ARC_ROOT_COMP as f64;
-
-/// §19c  TOLERANCE BOUNDS for CODATA validation tests.
-///
-/// Tier 1: spectral wavelengths derived from R₆ (< 0.2%).
-pub const CODATA_TIER_1_TOLERANCE: f64 = 0.002;
-
-/// Tier 2: energy levels and impedance (< 1%).
-pub const CODATA_TIER_2_TOLERANCE: f64 = 0.01;
-
-/// Tier 2b: Rydberg energy vs radian (< 5%).
-pub const CODATA_TIER_2B_TOLERANCE: f64 = 0.05;
-
-// ══════════════════════════════════════════════════════════════
 // §13  SUPERHUB ZONE COORDINATES (approximate f64 — NOT mathematical core)
 //
 // Approximate intersection points of polygon edges on the unit circle,
@@ -984,7 +789,6 @@ pub fn trit_to_std_rad(trit: u8) -> f64 {
     ternary_rad_to_std_rad(trit as f64)
 }
 
-
 // ══════════════════════════════════════════════════════════════
 // TIER 1 — COMPILE-TIME CONST ASSERTIONS
 // Pure integer arithmetic. Fails the build if wrong.
@@ -1050,20 +854,18 @@ const _: () = {
     assert!(DISCRIMINANT_2_SQRT * DISCRIMINANT_2_SQRT == DISCRIMINANT_2);
     assert!(ROOT_X1 == (1 + DISCRIMINANT_2_SQRT) / 2);
 
-    // §4 Squared circle — with coprime ties (ticket #99 Task 5)
+    // §4 Squared circle
     assert!(UNIT_CIRCLE_AREA == ROOT_X1);
     assert!(RADIAN_CIRCLE_AREA == ROOT_X1 * REPUNIT_3);
     assert!(RADIAN_CIRCLE_AREA == ARC_ROOT_SEMI);
     assert!(SQUARED_SIDE_SQ_RADIAN == SQUARED_SIDE_SQ_UNIT * REPUNIT_3);
-    assert!(UNIT_CIRCLE_AREA == 2 * COPRIME_TRIPLES[0][0]);
-    assert!(RADIAN_CIRCLE_AREA == COPRIME_PAIR_LCMS[6]);
-    assert!(SQUARED_SIDE_SQ_RADIAN == COPRIME_PAIR_LCMS[6]);
+    assert!(RADIAN_CIRCLE_AREA == 2 * 7 * 13);
 
     // §5 Angular conversion
     assert!(ANGULAR_CONV_NUM * STD_CIRCLE_DEG == ANGULAR_CONV_DEN * QUAD_PRODUCT);
     assert!(ANGULAR_CONV_NUM == LAMBDA_EUV);
 
-    // §6 UV spectral wavelengths — with coprime pair ties (ticket #99 Task 5)
+    // §6 UV spectral wavelengths
     assert!(LAMBDA_EUV % REPUNIT_3 == 0);
     assert!(LAMBDA_UVC % REPUNIT_3 == 0);
     assert!(LAMBDA_UVB % REPUNIT_3 == 0);
@@ -1085,8 +887,8 @@ const _: () = {
     assert!(LAMBDA_UVA == 4 * LAMBDA_EUV);
     assert!(LAMBDA_UVA == 2 * LAMBDA_UVC);
     assert!(LAMBDA_FAR_UVC == 2 * CENTER);
-    assert!(LAMBDA_EXCIMER == NULL_CHANNEL_MOD * COPRIME_PAIR_LCMS[0]);
-    assert!(LAMBDA_NB_UVB == COPRIME_PAIR_LCMS[0] + COPRIME_PAIR_LCMS[1] + COPRIME_PAIR_LCMS[3]);
+    assert!(LAMBDA_EXCIMER == 4 * 7 * 11);
+    assert!(LAMBDA_NB_UVB == 7 * 11 + 7 * 13 + 11 * 13);
     // NB-UVB = 311 is prime: trial division up to √311 ≈ 17.6
     assert!(311 % 2 != 0 && 311 % 3 != 0 && 311 % 5 != 0
         && 311 % 7 != 0 && 311 % 11 != 0 && 311 % 13 != 0 && 311 % 17 != 0);
@@ -1094,72 +896,29 @@ const _: () = {
     assert!(LAMBDA_UVA == QUAD_PRODUCT);
     assert!(LAMBDA_UVC == ARC_ROOT_SEMI);
     assert!(GREEN_ARC_EFF == LAMBDA_UVB);
-    assert!(LAMBDA_UVB == 2 * COPRIME_PAIR_LCMS[3]);
-    assert!(LAMBDA_UVA == 2 * COPRIME_PAIR_LCMS[6]);
-    assert!(BOUNDARY_UVC_UVB == (LAMBDA_UVC + LAMBDA_UVB) / 2);
-    assert!(BOUNDARY_UVB_UVA == (LAMBDA_UVB + LAMBDA_UVA) / 2);
 
-    // §7 Coprime walk — arc factorizations via pair LCMs
-    assert!(ARC_ROOT_SEMI == 2 * COPRIME_PAIR_LCMS[1]);
-    assert!(GREEN_ARC_EFF == 2 * COPRIME_PAIR_LCMS[3]);
-    assert!(LCM_PRIMARY == COPRIME_TRIPLES[0][0] * COPRIME_TRIPLES[0][1] * COPRIME_TRIPLES[0][2]);
-    // §7 Coprime walk — pairs
-    assert!(COPRIME_PAIR_LCMS[0] == 7 * 11);
-    assert!(COPRIME_PAIR_LCMS[1] == 7 * 13);
-    assert!(COPRIME_PAIR_LCMS[2] == 7 * 15);
-    assert!(COPRIME_PAIR_LCMS[3] == 11 * 13);
-    assert!(COPRIME_PAIR_LCMS[4] == 11 * 14);
-    assert!(COPRIME_PAIR_LCMS[5] == 11 * 15);
-    assert!(COPRIME_PAIR_LCMS[6] == 13 * 14);
-    assert!(COPRIME_PAIR_LCMS[7] == 13 * 15);
-    assert!(COPRIME_PAIR_LCMS[8] == 14 * 15);
-    assert!(COPRIME_PAIR_LCMS[1] == LAMBDA_EUV);
-    assert!(COPRIME_PAIR_LCMS[3] == BEZIER_C650_ANGLE);
-    assert!(COPRIME_PAIR_LCMS[6] == ARC_ROOT_SEMI);
-    // §7 Coprime walk — triples
-    assert!(COPRIME_TRIPLE_LCMS[0] == 7 * 11 * 13);
-    assert!(COPRIME_TRIPLE_LCMS[0] == LCM_PRIMARY);
-    assert!(COPRIME_TRIPLE_LCMS[1] == 7 * 11 * 15);
-    assert!(COPRIME_TRIPLE_LCMS[2] == 7 * 13 * 15);
-    assert!(COPRIME_TRIPLE_LCMS[3] == 11 * 13 * 14);
-    assert!(COPRIME_TRIPLE_LCMS[3] == 2 * LCM_PRIMARY);
-    assert!(COPRIME_TRIPLE_LCMS[4] == 11 * 13 * 15);
-    assert!(COPRIME_TRIPLE_LCMS[5] == 11 * 14 * 15);
-    assert!(COPRIME_TRIPLE_LCMS[6] == 13 * 14 * 15);
-    // §7 Coprime walk — quadruples
-    assert!(COPRIME_QUADRUPLE_LCMS[0] == 3 * 5 * 7 * 11 * 13);
-    assert!(COPRIME_QUADRUPLE_LCMS[0] == PENTADECAGON * LCM_PRIMARY);
-    assert!(COPRIME_QUADRUPLE_LCMS[1] == 2 * COPRIME_QUADRUPLE_LCMS[0]);
-    // §7 Coprime walk — quintuples
-    assert!(COPRIME_QUINTUPLE_LCMS[0] == 3 * 5 * 7 * 11 * 13);
-    assert!(COPRIME_QUINTUPLE_LCMS[0] == COPRIME_QUADRUPLE_LCMS[0]);
-    assert!(COPRIME_QUINTUPLE_LCMS[1] == 3 * 5 * 11 * 13 * 14);
-    assert!(COPRIME_QUINTUPLE_LCMS[1] == COPRIME_QUADRUPLE_LCMS[1]);
-    assert!(COPRIME_QUINTUPLE_LCMS[2] == 3 * 4 * 7 * 11 * 13);
-    assert!(COPRIME_QUINTUPLE_LCMS[3] == 5 * 7 * 8 * 11 * 13);
-    assert!(COPRIME_QUINTUPLE_LCMS[4] == 5 * 7 * 9 * 11 * 13);
-    // §7 Coprime walk — sextuples
-    assert!(COPRIME_SEXTUPLE_LCMS[0] == 3 * 4 * 5 * 7 * 11 * 13);
-    assert!(COPRIME_SEXTUPLE_LCMS[1] == 3 * 5 * 7 * 8 * 11 * 13);
-    assert!(COPRIME_SEXTUPLE_LCMS[2] == 4 * 5 * 7 * 9 * 11 * 13);
-    assert!(COPRIME_SEXTUPLE_LCMS[3] == 5 * 7 * 8 * 9 * 11 * 13);
-    assert!(COPRIME_SEXTUPLE_LCMS[3] == LCM_SEXT_MAX);
-    assert!(LCM_SEXT_MAX == STD_CIRCLE_DEG * LCM_PRIMARY);
-    assert!(LCM_SEXT_MAX == 24 * COPRIME_QUADRUPLE_LCMS[0]);
-    // §7 Coprime walk — geometric-spectral product
+    // §7 Coprime walk
+    assert!(ARC_ROOT_SEMI == 2 * COPRIME_TRIPLE[0] * COPRIME_TRIPLE[2]);
+    assert!(GREEN_ARC_EFF == 2 * COPRIME_TRIPLE[1] * COPRIME_TRIPLE[2]);
+    assert!(LCM_PRIMARY == 7 * 11 * 13);
+    assert!(LCM_QUAD_ODD == 15 * LCM_PRIMARY);
+    assert!(LCM_QUAD_ODD == 3 * 5 * 7 * 11 * 13);
+    assert!(LCM_QUAD_PI == 2 * LCM_QUAD_ODD);
+    assert!(LCM_SEXT_MAX == 360 * LCM_PRIMARY);
+    assert!(LCM_SEXT_MAX == 24 * LCM_QUAD_ODD);
+    assert!(LCM_SEXT_MAX == 5 * 7 * 8 * 9 * 11 * 13);
+    assert!(LCM_SEXT_A == 3 * 4 * 5 * 7 * 11 * 13);
+    assert!(LCM_SEXT_B == 3 * 5 * 7 * 8 * 11 * 13);
+    assert!(LCM_SEXT_C == 4 * 5 * 7 * 9 * 11 * 13);
+    assert!(POS_3D_PRIMARY == (LCM_PRIMARY as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_QUAD_ODD == (LCM_QUAD_ODD as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_QUAD_PI == (LCM_QUAD_PI as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_SEXT_MAX == (LCM_SEXT_MAX as u64) * (DISCRIMINANT_2 as u64));
+
+    // §8 CCP bridge
     assert!(GEOMETRIC_SPECTRAL_PRODUCT == QUAD_PRODUCT * LCM_PRIMARY);
     assert!(GEOMETRIC_SPECTRAL_PRODUCT == 364 * 1000 + 364);
     assert!(GEOMETRIC_SPECTRAL_PRODUCT == 4 * 7 * 7 * 11 * 13 * 13);
-    // §7 Coprime walk — 3D products
-    assert!(POS_3D_PRIMARY == (LCM_PRIMARY as u64) * (DISCRIMINANT_2 as u64));
-    assert!(POS_3D_QUADRUPLES[0] == (COPRIME_QUADRUPLE_LCMS[0] as u64) * (DISCRIMINANT_2 as u64));
-    assert!(POS_3D_QUADRUPLES[1] == (COPRIME_QUADRUPLE_LCMS[1] as u64) * (DISCRIMINANT_2 as u64));
-    assert!(POS_3D_SEXTUPLES[0] == (COPRIME_SEXTUPLE_LCMS[0] as u64) * (DISCRIMINANT_2 as u64));
-    assert!(POS_3D_SEXTUPLES[1] == (COPRIME_SEXTUPLE_LCMS[1] as u64) * (DISCRIMINANT_2 as u64));
-    assert!(POS_3D_SEXTUPLES[2] == (COPRIME_SEXTUPLE_LCMS[2] as u64) * (DISCRIMINANT_2 as u64));
-    assert!(POS_3D_SEXTUPLES[3] == (COPRIME_SEXTUPLE_LCMS[3] as u64) * (DISCRIMINANT_2 as u64));
-
-    // §8 CCP bridge analysis
     assert!(NULL_HARMONIC_DEFICIT == GEOMETRIC_SPECTRAL_PRODUCT - LCM_SEXT_MAX);
     assert!(NULL_HARMONIC_DEFICIT == NULL_CHANNEL_MOD * LCM_PRIMARY);
     assert!((GEOMETRIC_SPECTRAL_PRODUCT as u64) * (BRIDGE_RATIO_DEN as u64)
@@ -1172,16 +931,16 @@ const _: () = {
     assert!(QUAD_PRODUCT - STD_CIRCLE_DEG == NULL_CHANNEL_MOD);
     assert!(POS_3D_GEOM_SPECTRAL == (GEOMETRIC_SPECTRAL_PRODUCT as u64) * (DISCRIMINANT_2 as u64));
     assert!(POS_3D_NULL_DEFICIT == (NULL_HARMONIC_DEFICIT as u64) * (DISCRIMINANT_2 as u64));
-    assert!(POS_3D_GEOM_SPECTRAL - POS_3D_SEXTUPLES[3] == POS_3D_NULL_DEFICIT);
+    assert!(POS_3D_GEOM_SPECTRAL - POS_3D_SEXT_MAX == POS_3D_NULL_DEFICIT);
     assert!(GEOMETRIC_SPECTRAL_PRODUCT - LCM_SEXT_MAX == NULL_CHANNEL_MOD * LCM_PRIMARY);
     assert!(BRIDGE_RATIO_NUM == ANGULAR_CONV_NUM && BRIDGE_RATIO_DEN == ANGULAR_CONV_DEN);
 
     // §9 Perfect hash — mixer oddness (bijective mod 2⁶⁴)
     assert!(HMODAL_MIX_A % 2 == 1);
     assert!(HMODAL_MIX_B % 2 == 1);
-    // Modulus products — updated to use COPRIME_QUADRUPLE_LCMS (ticket #99 Task 5)
-    assert!(7 * 11 * 13 * 15 == COPRIME_QUADRUPLE_LCMS[0]);
-    assert!(11 * 13 * 14 * 15 == COPRIME_QUADRUPLE_LCMS[1]);
+    // Modulus products
+    assert!(7 * 11 * 13 * 15 == LCM_QUAD_ODD);
+    assert!(11 * 13 * 14 * 15 == LCM_QUAD_PI);
     assert!(5 * 7 * 8 * 9 * 11 * 13 == LCM_SEXT_MAX);
 
     // §10 HModal signal
@@ -1212,10 +971,10 @@ const _: () = {
     assert!(PHASE_STEP_NUM == DUTY_NUM);
     assert!(PHASE_STEP_DEN == DUTY_DEN);
 
-    // §12 Polygon geometry — updated generator ref (ticket #99 Task 5)
+    // §12 Polygon geometry
     assert!(CENTRAL_ANGLE_SQUARE == QUAD_PRODUCT / NULL_CHANNEL_MOD);
     assert!(CENTRAL_ANGLE_SQUARE == LAMBDA_EUV);
-    assert!(CENTRAL_ANGLE_HEPTAGON == QUAD_PRODUCT / COPRIME_TRIPLES[0][0]);
+    assert!(CENTRAL_ANGLE_HEPTAGON == QUAD_PRODUCT / COPRIME_TRIPLE[0]);
     assert!(CENTRAL_ANGLE_HEPTAGON == NULL_CHANNEL_MOD * REPUNIT_3);
     assert!(CENTRAL_ANGLE_TRIDECAGON == QUAD_PRODUCT / REPUNIT_3);
     assert!(CENTRAL_ANGLE_TRIDECAGON == CYCLIC_ORDER);
@@ -1241,10 +1000,6 @@ const _: () = {
     assert!(QUAD_PRODUCT / 14 == ROOT_X2);
     assert!(ARC_CONVERGENCE_NUM == DISCRIMINANT_SQRT * LAMBDA_EUV);
 
-    // §13 Superhub zones — dodecagon ties added (ticket #99 Task 5)
-    assert!(SUPERHUB_AB_POLYGONS[2] == DISCRIMINANT_SQRT);
-    assert!(SUPERHUB_CD_POLYGONS[2] == DISCRIMINANT_SQRT);
-
     // §14 Triangular numbers
     assert!(TRI_3 == 3 * 4 / 2);
     assert!(TRI_7 == 7 * 8 / 2);
@@ -1254,39 +1009,29 @@ const _: () = {
     assert!(TRI_13 == LAMBDA_EUV);
     assert!(2 * TRI_10 + 1 == RADIUS_NUM);
 
-    // §15 Torus knot parameters — coprime pair ties added (ticket #99 Task 5)
+    // §15 Torus knot parameters
     assert!(7 * (11 - 1) == 70);
     assert!(7 * (13 - 1) == 84);
     assert!(7 * (15 - 1) == 98);
     assert!(11 * (13 - 1) == 132);
     assert!(CROSSING_11_14 == 11 * (14 - 1));
     assert!(CROSSING_11_14 == BEZIER_C650_ANGLE);
-    assert!(CROSSING_11_14 == COPRIME_PAIR_LCMS[3]);
     assert!(11 * (15 - 1) == 154);
     assert!(CROSSING_13_14 == 13 * (14 - 1));
     assert!(CROSSING_13_14 == REPUNIT_3 * REPUNIT_3);
     assert!(CROSSING_13_15 == 13 * (15 - 1));
     assert!(CROSSING_13_15 == ARC_ROOT_SEMI);
-    assert!(CROSSING_13_15 == COPRIME_PAIR_LCMS[6]);
     assert!(CROSSING_14_15 == 14 * (15 - 1));
     assert!(CROSSING_14_15 == ROOT_X1 * ROOT_X1);
+    // Excluded pair: gcd(7, 14) = 7 ≠ 1 → (7,14) is NOT a valid torus knot.
 
-    // §17 Plenum square — updated generator ref (ticket #99 Task 5)
-    assert!(PLENUM_SQUARE_STEP == 2 * COPRIME_TRIPLES[0][1]);
+    // §17 Plenum square scaling
+    assert!(PLENUM_SQUARE_STEP == 2 * COPRIME_TRIPLE[1]);
     assert!(PLENUM_SQUARE_STEP == LAMBDA_UVB / REPUNIT_3);
     assert!(PLENUM_SQUARE_STEP * NULL_CHANNEL_MOD == 88);
     assert!(PLENUM_SQUARE_MIN + PLENUM_SQUARE_STEP * NULL_CHANNEL_MOD == CENTER);
     assert!(PLENUM_SQUARE_MIN == ROOT_X2 - TERNARY_BASE);
     assert!(MAGIC_CONSTANT == CENTER + (CENTER - PLENUM_SQUARE_STEP) + (CENTER + PLENUM_SQUARE_STEP));
-
-    // §19a Fibonacci bridge — pure integer identities
-    assert!(FIBONACCI_PI == 377);
-    assert!(FIBONACCI_PI == QUAD_PRODUCT + REPUNIT_3);
-    assert!(FIBONACCI_PI == REPUNIT_3 * 29);
-    assert!(FIBONACCI_PI == REPUNIT_3 * (CYCLIC_ORDER + 1));
-    assert!(FIBONACCI_PI == LAMBDA_UVA + REPUNIT_3);
-    assert!(FIBONACCI_PI == FIBONACCI_13 + DISCRIMINANT);
-    assert!(FIBONACCI_13 == 233);
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -1298,37 +1043,68 @@ mod tests {
     use super::*;
 
     fn gcd(mut a: u32, mut b: u32) -> u32 {
-        while b != 0 { let t = b; b = a % b; a = t; } a
+        while b != 0 {
+            let t = b;
+            b = a % b;
+            a = t;
+        }
+        a
     }
 
-    #[test] fn full_circle_bound() { assert_eq!(FULL_CIRCLE_DEG, RADIAN_DEG * TWO_PI_TERNARY); }
-    #[test] fn pi_bound() { assert_eq!(PI_TERNARY, TWO_PI_TERNARY / 2.0); }
-    #[test] fn cyclic_order_matches() { assert_eq!(CYCLIC_ORDER, RADIANS_PER_CIRCLE); assert_eq!(CYCLIC_ORDER, Z28_DIMENSIONS); }
+    #[test]
+    fn full_circle_bound() {
+        assert_eq!(FULL_CIRCLE_DEG, RADIAN_DEG * TWO_PI_TERNARY);
+        assert_eq!(364.0, 13.0 * 28.0);
+    }
+
+    #[test]
+    fn pi_bound() {
+        assert_eq!(PI_TERNARY, TWO_PI_TERNARY / 2.0);
+    }
+
+    #[test]
+    fn cyclic_order_matches() {
+        assert_eq!(CYCLIC_ORDER, RADIANS_PER_CIRCLE);
+        assert_eq!(CYCLIC_ORDER, Z28_DIMENSIONS);
+    }
 
     #[test]
     fn tau_identity() {
         let tau = TAU_TRIBONACCI;
         let tau_cubed = tau * tau * tau;
         let tau_sq_plus_tau_plus_1 = TAU_SQUARED + TAU_TRIBONACCI + 1.0;
-        assert!((tau_cubed - tau_sq_plus_tau_plus_1).abs() < 1e-8);
+        assert!((tau_cubed - tau_sq_plus_tau_plus_1).abs() < 1e-8,
+            "τ³ should equal τ² + τ + 1");
     }
 
     #[test]
     fn conversion_round_trip_deg() {
         let std = ternary_deg_to_std_deg(FULL_CIRCLE_DEG);
         assert!((std - 360.0).abs() < 1e-10);
-        assert!((std_deg_to_ternary_deg(std) - FULL_CIRCLE_DEG).abs() < 1e-10);
+        let back = std_deg_to_ternary_deg(std);
+        assert!((back - FULL_CIRCLE_DEG).abs() < 1e-10);
     }
 
     #[test]
     fn conversion_round_trip_rad() {
         let std = ternary_rad_to_std_rad(TWO_PI_TERNARY);
         assert!((std - 2.0 * STD_PI).abs() < 1e-10);
-        assert!((std_rad_to_ternary_rad(std) - TWO_PI_TERNARY).abs() < 1e-10);
+        let back = std_rad_to_ternary_rad(std);
+        assert!((back - TWO_PI_TERNARY).abs() < 1e-10);
     }
 
-    #[test] fn radian_conversion() { assert_eq!(ternary_rad_to_ternary_deg(1.0), RADIAN_DEG); assert_eq!(ternary_deg_to_ternary_rad(RADIAN_DEG), 1.0); }
-    #[test] fn trit_walk_angles() { assert_eq!(trit_to_walk_angle_deg(0), WALK_TURN_0); assert_eq!(trit_to_walk_angle_deg(1), WALK_TURN_1); assert_eq!(trit_to_walk_angle_deg(2), WALK_TURN_2); }
+    #[test]
+    fn radian_conversion() {
+        assert_eq!(ternary_rad_to_ternary_deg(1.0), RADIAN_DEG);
+        assert_eq!(ternary_deg_to_ternary_rad(RADIAN_DEG), 1.0);
+    }
+
+    #[test]
+    fn trit_walk_angles() {
+        assert_eq!(trit_to_walk_angle_deg(0), WALK_TURN_0);
+        assert_eq!(trit_to_walk_angle_deg(1), WALK_TURN_1);
+        assert_eq!(trit_to_walk_angle_deg(2), WALK_TURN_2);
+    }
 
     #[test]
     fn repunit_formula_verification() {
@@ -1337,94 +1113,93 @@ mod tests {
         }
     }
 
-    // ── Coprime tests (ticket #99 Task 6 — replaces old sextuple tests) ──
-
     #[test]
-    fn excluded_pairs_not_coprime() {
-        for &(a, b) in &EXCLUDED_PAIRS {
-            assert_ne!(gcd(a, b), 1, "EXCLUDED_PAIRS: gcd({}, {}) should be > 1", a, b);
+    fn coprime_sextuple_max_pairwise() {
+        let s = SEXTUPLE_MAX;
+        for i in 0..6 {
+            for j in (i + 1)..6 {
+                assert_eq!(gcd(s[i], s[j]), 1,
+                    "SEXTUPLE_MAX: gcd({}, {}) != 1", s[i], s[j]);
+            }
         }
     }
 
     #[test]
-    fn coprime_pairs_all_coprime() {
-        for &(a, b) in &COPRIME_PAIRS {
-            assert_eq!(gcd(a, b), 1, "COPRIME_PAIRS: gcd({}, {}) != 1", a, b);
+    fn coprime_sextuple_a_pairwise() {
+        let s = SEXTUPLE_A;
+        for i in 0..6 {
+            for j in (i + 1)..6 {
+                assert_eq!(gcd(s[i], s[j]), 1,
+                    "SEXTUPLE_A: gcd({}, {}) != 1", s[i], s[j]);
+            }
         }
     }
 
     #[test]
-    fn coprime_triples_all_coprime() {
-        for triple in &COPRIME_TRIPLES {
-            for i in 0..3 { for j in (i + 1)..3 {
-                assert_eq!(gcd(triple[i], triple[j]), 1,
-                    "COPRIME_TRIPLES: gcd({}, {}) != 1", triple[i], triple[j]);
-            }}
+    fn coprime_sextuple_b_pairwise() {
+        let s = SEXTUPLE_B;
+        for i in 0..6 {
+            for j in (i + 1)..6 {
+                assert_eq!(gcd(s[i], s[j]), 1,
+                    "SEXTUPLE_B: gcd({}, {}) != 1", s[i], s[j]);
+            }
         }
     }
 
     #[test]
-    fn coprime_quadruples_all_coprime() {
-        for quad in &COPRIME_QUADRUPLES {
-            for i in 0..4 { for j in (i + 1)..4 {
-                assert_eq!(gcd(quad[i], quad[j]), 1,
-                    "COPRIME_QUADRUPLES: gcd({}, {}) != 1", quad[i], quad[j]);
-            }}
+    fn coprime_sextuple_c_pairwise() {
+        let s = SEXTUPLE_C;
+        for i in 0..6 {
+            for j in (i + 1)..6 {
+                assert_eq!(gcd(s[i], s[j]), 1,
+                    "SEXTUPLE_C: gcd({}, {}) != 1", s[i], s[j]);
+            }
         }
     }
-
-    #[test]
-    fn coprime_quintuples_all_coprime() {
-        for quint in &COPRIME_QUINTUPLES {
-            for i in 0..5 { for j in (i + 1)..5 {
-                assert_eq!(gcd(quint[i], quint[j]), 1,
-                    "COPRIME_QUINTUPLES: gcd({}, {}) != 1", quint[i], quint[j]);
-            }}
-        }
-    }
-
-    #[test]
-    fn coprime_sextuples_all_coprime() {
-        for sext in &COPRIME_SEXTUPLES {
-            for i in 0..6 { for j in (i + 1)..6 {
-                assert_eq!(gcd(sext[i], sext[j]), 1,
-                    "COPRIME_SEXTUPLES: gcd({}, {}) != 1", sext[i], sext[j]);
-            }}
-        }
-    }
-
-    #[test]
-    fn far_uvc_equals_pair_sum() {
-        assert_eq!(LAMBDA_FAR_UVC, crate::plenum_square::PAIR_SUM);
-    }
-
-    // ── Hash coefficient tests (unchanged) ──
 
     #[test]
     fn hash_coefficients_a_coprime() {
-        for &(m, c) in &HASH_COEFF_A { assert_eq!(gcd(m, c), 1); assert_ne!(c % m, 0); }
+        for &(m, c) in &HASH_COEFF_A {
+            assert_eq!(gcd(m, c), 1, "HASH_COEFF_A: gcd({}, {}) != 1", m, c);
+            assert_ne!(c % m, 0, "HASH_COEFF_A: {} % {} == 0", c, m);
+        }
     }
+
     #[test]
     fn hash_coefficients_b_coprime() {
-        for &(m, c) in &HASH_COEFF_B { assert_eq!(gcd(m, c), 1); assert_ne!(c % m, 0); }
+        for &(m, c) in &HASH_COEFF_B {
+            assert_eq!(gcd(m, c), 1, "HASH_COEFF_B: gcd({}, {}) != 1", m, c);
+            assert_ne!(c % m, 0, "HASH_COEFF_B: {} % {} == 0", c, m);
+        }
     }
+
     #[test]
     fn hash_coefficients_sext_coprime() {
-        for &(m, c) in &HASH_COEFF_SEXT { assert_eq!(gcd(m, c), 1); assert_ne!(c % m, 0); }
+        for &(m, c) in &HASH_COEFF_SEXT {
+            assert_eq!(gcd(m, c), 1, "HASH_COEFF_SEXT: gcd({}, {}) != 1", m, c);
+            assert_ne!(c % m, 0, "HASH_COEFF_SEXT: {} % {} == 0", c, m);
+        }
     }
 
     #[test]
     fn gcd_of_primaries_is_radian() {
         let g = gcd(gcd(LAMBDA_EUV, LAMBDA_UVC), gcd(LAMBDA_UVB, LAMBDA_UVA));
-        assert_eq!(g, 13);
+        assert_eq!(g, 13, "GCD of primary UV wavelengths must be 13 (radian)");
     }
 
     #[test]
     fn superhub_near_unit_circle() {
         let dist_ab = (SUPERHUB_X_LEFT * SUPERHUB_X_LEFT + SUPERHUB_Y_AB * SUPERHUB_Y_AB).sqrt();
-        assert!(dist_ab > 0.96 && dist_ab < 0.98);
+        assert!(dist_ab > 0.96 && dist_ab < 0.98,
+            "Zone A/B distance from origin: {}", dist_ab);
         let dist_cd = (SUPERHUB_X_RIGHT * SUPERHUB_X_RIGHT + SUPERHUB_Y_CD * SUPERHUB_Y_CD).sqrt();
-        assert!(dist_cd > 0.96 && dist_cd < 0.98);
+        assert!(dist_cd > 0.96 && dist_cd < 0.98,
+            "Zone C/D distance from origin: {}", dist_cd);
+    }
+
+    #[test]
+    fn excluded_pair_not_coprime() {
+        assert_eq!(gcd(EXCLUDED_PAIR.0, EXCLUDED_PAIR.1), 7);
     }
 }
 
@@ -1441,10 +1216,15 @@ mod float_tests {
         let mut cum = 0.0;
         for &(n, target) in &[(1u32, 0.540), (2, 0.811), (3, 0.871)] {
             cum += f(n);
-            assert!((cum - target).abs() < 0.001);
+            assert!((cum - target).abs() < 0.001,
+                "Cumulative energy at n={}: {} vs target {}", n, cum, target);
         }
-        for &n in &[5u32, 6, 7] { cum += f(n); }
-        assert!((cum - 0.933).abs() < 0.001);
+        // Extended: n=1..7 skipping n=4 null
+        for &n in &[5u32, 6, 7] {
+            cum += f(n);
+        }
+        assert!((cum - 0.933).abs() < 0.001,
+            "Cumulative energy at n=1..7: {} vs target 0.933", cum);
     }
 
     #[test]
@@ -1452,187 +1232,5 @@ mod float_tests {
         let bc = STD_PI / ROOT_X1 as f64;
         assert!((BRIDGE_COEFF - bc).abs() < 1e-15);
         assert!((BRIDGE_COEFF * CYCLIC_ORDER as f64 - 2.0 * STD_PI).abs() < 1e-10);
-    }
-}
-// §19  CODATA VALIDATION TESTS
-//
-// Validates framework integer predictions against CODATA 2022
-// experimental measurements. Organized by prediction tier:
-//   Tier 1: < 0.2% (spectral wavelengths from R₆)
-//   Tier 2: < 1.0% (impedance, Hartree, H-alpha)
-//   Tier 2b: < 5.0% (Rydberg energy vs radian)
-// ══════════════════════════════════════════════════════════════
-
-#[cfg(test)]
-mod codata_tests {
-    use super::*;
-
-    fn rel_err(predicted: f64, measured: f64) -> f64 {
-        (predicted - measured).abs() / measured
-    }
-
-    // ── Tier 1: spectral wavelengths (< 0.2%) ───────────────
-
-    #[test]
-    fn balmer_constant_matches_circle() {
-        let err = rel_err(QUAD_PRODUCT as f64, CODATA_BALMER_CONSTANT_NM);
-        assert!(err < CODATA_TIER_1_TOLERANCE,
-            "Balmer constant: R₆={} vs B={} nm, error={:.4}%",
-            QUAD_PRODUCT, CODATA_BALMER_CONSTANT_NM, err * 100.0);
-    }
-
-    #[test]
-    fn lyman_limit_matches_euv() {
-        let err = rel_err(LAMBDA_EUV as f64, CODATA_LYMAN_LIMIT_NM);
-        assert!(err < CODATA_TIER_1_TOLERANCE,
-            "Lyman limit: LAMBDA_EUV={} vs 1/R_∞={} nm, error={:.4}%",
-            LAMBDA_EUV, CODATA_LYMAN_LIMIT_NM, err * 100.0);
-    }
-
-    #[test]
-    fn lyman_alpha_matches_triangle_angle() {
-        let predicted = QUAD_PRODUCT as f64 / 3.0;
-        let err = rel_err(predicted, CODATA_LYMAN_ALPHA_NM);
-        assert!(err < CODATA_TIER_1_TOLERANCE,
-            "Lyman-α: R₆/3={:.3} vs {:.3} nm, error={:.4}%",
-            predicted, CODATA_LYMAN_ALPHA_NM, err * 100.0);
-    }
-
-    #[test]
-    fn balmer_limit_is_four_times_lyman_limit() {
-        // Both derived from R_∞: B = 4/R_∞, L = 1/R_∞ → B/L = 4 exactly.
-        let ratio = CODATA_BALMER_CONSTANT_NM / CODATA_LYMAN_LIMIT_NM;
-        assert!((ratio - 4.0).abs() < 1e-6,
-            "Balmer/Lyman ratio should be 4, got {}", ratio);
-    }
-
-    #[test]
-    fn lyman_series_from_circle() {
-        // Every Lyman line ≈ R₆ × n² / (4(n² − 1))
-        let r6 = QUAD_PRODUCT as f64;
-        let measured: [(u32, f64); 4] = [
-            (2, 121.5670),   // Lyman-α
-            (3, 102.5728),   // Lyman-β
-            (4,  97.2537),   // Lyman-γ
-            (5,  94.9743),   // Lyman-δ
-        ];
-        for &(n, lambda_measured) in &measured {
-            let n2 = (n * n) as f64;
-            let predicted = r6 * n2 / (4.0 * (n2 - 1.0));
-            let err = rel_err(predicted, lambda_measured);
-            assert!(err < CODATA_TIER_1_TOLERANCE,
-                "Lyman n={}: predicted={:.3} vs measured={:.4}, error={:.4}%",
-                n, predicted, lambda_measured, err * 100.0);
-        }
-    }
-
-    #[test]
-    fn balmer_series_from_circle() {
-        // Every Balmer line ≈ R₆ × n² / (n² − 4)
-        let r6 = QUAD_PRODUCT as f64;
-        let measured: [(u32, f64); 4] = [
-            (3, 656.281),    // H-α
-            (4, 486.135),    // H-β
-            (5, 434.047),    // H-γ
-            (6, 410.174),    // H-δ
-        ];
-        for &(n, lambda_measured) in &measured {
-            let n2 = (n * n) as f64;
-            let predicted = r6 * n2 / (n2 - 4.0);
-            let err = rel_err(predicted, lambda_measured);
-            assert!(err < CODATA_TIER_2_TOLERANCE,
-                "Balmer n={}: predicted={:.3} vs measured={:.3}, error={:.4}%",
-                n, predicted, lambda_measured, err * 100.0);
-        }
-    }
-
-    // ── Tier 2: impedance and energy (< 1%) ─────────────────
-
-    #[test]
-    fn z0_matches_fibonacci_pi() {
-        let err = rel_err(FIBONACCI_PI as f64, CODATA_Z0_OHM);
-        assert!(err < CODATA_TIER_2_TOLERANCE,
-            "Z₀: F(π)={} vs {:.6} Ω, error={:.4}%",
-            FIBONACCI_PI, CODATA_Z0_OHM, err * 100.0);
-    }
-
-    #[test]
-    fn hartree_matches_z27() {
-        let err = rel_err(DISCRIMINANT_2_SQRT as f64, CODATA_HARTREE_EV);
-        assert!(err < CODATA_TIER_2_TOLERANCE,
-            "Hartree: √Δ₂={} vs {:.6} eV, error={:.4}%",
-            DISCRIMINANT_2_SQRT, CODATA_HARTREE_EV, err * 100.0);
-    }
-
-    #[test]
-    fn h_alpha_matches_arc_root_comp() {
-        let err = rel_err(ARC_ROOT_COMP as f64, CODATA_H_ALPHA_NM);
-        assert!(err < CODATA_TIER_2_TOLERANCE,
-            "H-α: ARC_ROOT_COMP={} vs {:.3} nm, error={:.4}%",
-            ARC_ROOT_COMP, CODATA_H_ALPHA_NM, err * 100.0);
-    }
-
-    // ── Tier 2b: Rydberg energy (< 5%) ──────────────────────
-
-    #[test]
-    fn rydberg_matches_radian() {
-        let err = rel_err(REPUNIT_3 as f64, CODATA_RYDBERG_EV);
-        assert!(err < CODATA_TIER_2B_TOLERANCE,
-            "Rydberg: R₃={} vs {:.6} eV, error={:.4}%",
-            REPUNIT_3, CODATA_RYDBERG_EV, err * 100.0);
-    }
-
-    // ── Structural identities ────────────────────────────────
-
-    #[test]
-    fn hartree_is_double_rydberg() {
-        let ratio = CODATA_HARTREE_EV / CODATA_RYDBERG_EV;
-        assert!((ratio - 2.0).abs() < 1e-10,
-            "Hartree/Rydberg should be exactly 2, got {}", ratio);
-    }
-
-    #[test]
-    fn h_alpha_residual_near_two_pi_conventional() {
-        let residual = CODATA_H_ALPHA_NM - ARC_ROOT_COMP as f64;
-        let two_pi = 2.0 * STD_PI;
-        let err = (residual - two_pi).abs() / two_pi;
-        assert!(err < 0.005,
-            "H-α residual: {} vs 2π={:.5}, error={:.4}%",
-            residual, two_pi, err * 100.0);
-    }
-
-    #[test]
-    fn vacuum_bias_consistent() {
-        // R_H = R_∞ / (1 + mₑ/mₚ)
-        let r_h = CODATA_RYDBERG_CONST / (1.0 + CODATA_ME_OVER_MP);
-        let lyman_limit_h = 1e9 / r_h;
-        let bias_computed = (lyman_limit_h - LAMBDA_EUV as f64) / LAMBDA_EUV as f64;
-        let bias_stored = VACUUM_BIAS_NUM as f64 / VACUUM_BIAS_DEN as f64;
-        assert!((bias_computed - bias_stored).abs() < 5e-4,
-            "Vacuum bias: computed={:.6} vs stored={:.6}",
-            bias_computed, bias_stored);
-    }
-
-    #[test]
-    fn fibonacci_pi_decomposition() {
-        assert_eq!(FIBONACCI_PI, QUAD_PRODUCT + REPUNIT_3);
-        assert_eq!(FIBONACCI_PI, REPUNIT_3 * 29);
-        assert_eq!(FIBONACCI_PI, FIBONACCI_13 + FIBONACCI_12);
-        assert_eq!(FIBONACCI_12, DISCRIMINANT);
-    }
-
-    #[test]
-    fn fibonacci_sequence_verification() {
-        // Verify the Fibonacci sequence from F(0) to F(14)
-        let mut fib = [0u32; 15];
-        fib[0] = 0;
-        fib[1] = 1;
-        for i in 2..15 {
-            fib[i] = fib[i - 1] + fib[i - 2];
-        }
-        assert_eq!(fib[7], REPUNIT_3, "F(7) should equal R₃ = 13");
-        assert_eq!(fib[12], FIBONACCI_12, "F(12) should equal 144 = Δ");
-        assert_eq!(fib[13], FIBONACCI_13, "F(13) should equal 233");
-        assert_eq!(fib[14], FIBONACCI_PI, "F(14) should equal 377");
     }
 }

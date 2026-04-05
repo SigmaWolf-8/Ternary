@@ -1,0 +1,471 @@
+# §7 Coprime Walk Landscape + §8 CCP Bridge Analysis
+# Complete Replacement for constants.rs
+
+---
+
+## §7 Constants
+
+```rust
+// ══════════════════════════════════════════════════════════════
+// §7  COPRIME WALK LANDSCAPE (TM-2026-017 §10)
+//
+// All coprime groups derived from the 13 polygon set.
+// Member arrays and LCM arrays are indexed together:
+//   COPRIME_*S[i]  →  COPRIME_*_LCMS[i]
+//
+// Two paths through the landscape:
+//
+// COMPRESSION — pentadecagon (15) kept whole.
+//   Source set: {7, 11, 13, 14, 15}.
+//   Excluded: (7, 14) — gcd = 7.
+//   Groups: pairs (9), triples (7), quadruples (2).
+//
+// EXPANSION — pentadecagon decomposed into factors 3 and 5.
+//   Source set: {3, 4, 5, 7, 8, 9, 11, 13}.
+//   Excluded: (3, 9) — gcd = 3; (4, 8) — gcd = 4.
+//   Groups: quintuples (28 exist, 5 key stored), sextuples (4).
+//
+// Compression → expansion duality: decomposing 15 into {3, 5}
+// unlocks 12× larger LCMs (max 30,030 → max 360,360).
+//
+// The 4 sextuples are the 4 ways to choose one from each
+// expansion conflict: {3|9} × {4|8}, with {5, 7, 11, 13}
+// always present. This is why exactly 4 exist and size 7
+// is impossible.
+// ══════════════════════════════════════════════════════════════
+
+/// Pentadecagon = 15 = 3 × 5. Bridges triangle and pentagon families.
+/// Either kept whole (compression path, max 30,030) or decomposed
+/// into its prime factors (expansion path, max 360,360).
+pub const PENTADECAGON: u32 = 15;
+
+/// Excluded pairs — gcd > 1 prevents coexistence in any coprime group.
+/// (7, 14): gcd = 7, compression path. Blocks (7, 14) torus knots.
+/// (3, 9): gcd = 3, expansion path. Shapes sextuple selection.
+/// (4, 8): gcd = 4, expansion path. Shapes sextuple selection.
+pub const EXCLUDED_PAIRS: [(u32, u32); 3] = [(7, 14), (3, 9), (4, 8)];
+
+// ── COMPRESSION PATH ─────────────────────────────────────────
+// Source set: {7, 11, 13, 14, 15}. Pentadecagon kept whole.
+
+// ── Pairs (9, complete) ──────────────────────────────────────
+
+/// 9 coprime pairs from {7, 11, 13, 14, 15} (TM-2026-017 §10.3).
+pub const COPRIME_PAIRS: [(u32, u32); 9] = [
+    (7, 11), (7, 13), (7, 15),
+    (11, 13), (11, 14), (11, 15),
+    (13, 14), (13, 15), (14, 15),
+];
+
+/// LCMs of the 9 coprime pairs. Indexed to match COPRIME_PAIRS.
+pub const COPRIME_PAIR_LCMS: [u32; 9] = [77, 91, 105, 143, 154, 165, 182, 195, 210];
+
+// ── Triples (7, complete) ────────────────────────────────────
+
+/// 7 coprime triples from {7, 11, 13, 14, 15} (TM-2026-017 §10.3).
+/// COPRIME_TRIPLES[0] = [7, 11, 13] — the primary generators from the
+/// arc factorizations: 182 = 2×7×13, 286 = 2×11×13 → ratio 7:11.
+pub const COPRIME_TRIPLES: [[u32; 3]; 7] = [
+    [7, 11, 13], [7, 11, 15], [7, 13, 15],
+    [11, 13, 14], [11, 13, 15], [11, 14, 15], [13, 14, 15],
+];
+
+/// LCMs of the 7 coprime triples. Indexed to match COPRIME_TRIPLES.
+pub const COPRIME_TRIPLE_LCMS: [u32; 7] = [1_001, 1_155, 1_365, 2_002, 2_145, 2_310, 2_730];
+
+// ── Quadruples (2, complete) ─────────────────────────────────
+
+/// 2 compression-path coprime quadruples (TM-2026-017 §10.4).
+pub const COPRIME_QUADRUPLES: [[u32; 4]; 2] = [
+    [7, 11, 13, 15],   // odd-prime quadruple
+    [11, 13, 14, 15],  // π-gon quadruple
+];
+
+/// LCMs of the 2 compression-path quadruples. Indexed to match COPRIME_QUADRUPLES.
+pub const COPRIME_QUADRUPLE_LCMS: [u32; 2] = [15_015, 30_030];
+
+// ── EXPANSION PATH ───────────────────────────────────────────
+// Pentadecagon decomposed: 15 → {3, 5}.
+// Source set: {3, 4, 5, 7, 8, 9, 11, 13}.
+
+// ── Quintuples (28 exist, 5 key stored) ──────────────────────
+
+/// 5 key expansion-path coprime quintuples (TM-2026-017 §10.5.1).
+/// 28 valid quintuples exist from the full polygon set; these are
+/// the architecturally significant ones. The first two demonstrate
+/// the decompression identity: quint[0] == quad[0] in LCM, and
+/// quint[1] == quad[1] in LCM, because 3 × 5 = 15.
+pub const COPRIME_QUINTUPLES: [[u32; 5]; 5] = [
+    [3, 5, 7, 11, 13],   // decompressed odd-prime quad → LCM = 15,015
+    [3, 5, 11, 13, 14],  // decompressed π-gon quad   → LCM = 30,030
+    [3, 4, 7, 11, 13],   // adds square               → LCM = 12,012
+    [5, 7, 8, 11, 13],   // octagon path               → LCM = 40,040
+    [5, 7, 9, 11, 13],   // nonagon path               → LCM = 45,045
+];
+
+/// LCMs of the 5 key quintuples. Indexed to match COPRIME_QUINTUPLES.
+pub const COPRIME_QUINTUPLE_LCMS: [u32; 5] = [15_015, 30_030, 12_012, 40_040, 45_045];
+
+// ── Sextuples (4, complete) ──────────────────────────────────
+
+/// 4 expansion-path coprime sextuples (TM-2026-017 §10.5.2).
+/// These are the 4 ways to choose one from each expansion conflict:
+/// {3|9} × {4|8}, with {5, 7, 11, 13} always present.
+/// No group of 7 exists — size 6 is the structural limit.
+pub const COPRIME_SEXTUPLES: [[u32; 6]; 4] = [
+    [3, 4, 5, 7, 11, 13],  // sextuple A: 3 chosen over 9, 4 chosen over 8 → LCM = 60,060
+    [3, 5, 7, 8, 11, 13],  // sextuple B: 3 chosen over 9, 8 chosen over 4 → LCM = 120,120
+    [4, 5, 7, 9, 11, 13],  // sextuple C: 9 chosen over 3, 4 chosen over 8 → LCM = 180,180
+    [5, 7, 8, 9, 11, 13],  // sextuple MAX: 9 chosen over 3, 8 chosen over 4 → LCM = 360,360
+];
+
+/// LCMs of the 4 expansion-path sextuples. Indexed to match COPRIME_SEXTUPLES.
+pub const COPRIME_SEXTUPLE_LCMS: [u32; 4] = [60_060, 120_120, 180_180, 360_360];
+
+// ── Key aliases ──────────────────────────────────────────────
+// Heavily cross-referenced in §8, §9, §10, §17.
+
+/// LCM of primary coprime generators: 7 × 11 × 13 = 1,001.
+/// = COPRIME_TRIPLE_LCMS[0].
+pub const LCM_PRIMARY: u32 = 1_001;
+
+/// Maximum sextuple LCM: 360 × 1,001 = 360,360.
+/// = COPRIME_SEXTUPLE_LCMS[3].
+pub const LCM_SEXT_MAX: u32 = 360_360;
+
+/// Circle × coprime walk: R₆ × LCM_PRIMARY = 364 × 1,001 = 364,364.
+/// Repdigit structure: 364 repeats through the triple.
+/// Factorization: 2² × 7² × 11 × 13².
+pub const GEOMETRIC_SPECTRAL_PRODUCT: u32 = 364_364;
+
+// ── 3D position counts (× 729 = Δ₂ = 3⁶) ───────────────────
+
+/// 3D positions for the primary triple: 1,001 × 729 = 729,729.
+pub const POS_3D_PRIMARY: u64 = 729_729;
+
+/// 3D positions for the 2 compression-path quadruples.
+/// Indexed to match COPRIME_QUADRUPLES.
+pub const POS_3D_QUADRUPLES: [u64; 2] = [10_945_935, 21_891_870];
+
+/// 3D positions for the 4 expansion-path sextuples.
+/// Indexed to match COPRIME_SEXTUPLES.
+pub const POS_3D_SEXTUPLES: [u64; 4] = [43_783_740, 87_567_480, 131_351_220, 262_702_440];
+```
+
+---
+
+## §8 Constants
+
+```rust
+// ══════════════════════════════════════════════════════════════
+// §8  CCP BRIDGE ANALYSIS (Circle × Coprime Product deficit)
+//
+// GEOMETRIC_SPECTRAL_PRODUCT (364,364) is defined in §7.
+// This section derives the deficit, ratio, and 3D products
+// from the gap between 364,364 and 360,360.
+// ══════════════════════════════════════════════════════════════
+
+/// 364,364 − 360,360 = 4,004 = 4 × 1,001. Null harmonic deficit.
+pub const NULL_HARMONIC_DEFICIT: u32 = 4_004;
+
+/// Bridge ratio numerator: 364,364 / 360,360 = 91/90.
+pub const BRIDGE_RATIO_NUM: u32 = 91;
+
+/// Bridge ratio denominator.
+pub const BRIDGE_RATIO_DEN: u32 = 90;
+
+/// Deficit rate numerator: 4,004 / 364,364 = 4/364 = 1/91.
+pub const DEFICIT_RATE_NUM: u32 = 1;
+
+/// Deficit rate denominator.
+pub const DEFICIT_RATE_DEN: u32 = 91;
+
+/// 3D geometric-spectral: 364,364 × 729.
+pub const POS_3D_GEOM_SPECTRAL: u64 = 265_621_356;
+
+/// 3D null deficit: 4,004 × 729.
+pub const POS_3D_NULL_DEFICIT: u64 = 2_918_916;
+```
+
+---
+
+## §7 Tier 1 Assertions
+
+```rust
+    // §7 Coprime walk — arc factorizations via pair LCMs
+    assert!(ARC_ROOT_SEMI == 2 * COPRIME_PAIR_LCMS[1]);
+    assert!(GREEN_ARC_EFF == 2 * COPRIME_PAIR_LCMS[3]);
+    assert!(LCM_PRIMARY == COPRIME_TRIPLES[0][0] * COPRIME_TRIPLES[0][1] * COPRIME_TRIPLES[0][2]);
+
+    // §7 Coprime walk — pairs
+    assert!(COPRIME_PAIR_LCMS[0] == 7 * 11);
+    assert!(COPRIME_PAIR_LCMS[1] == 7 * 13);
+    assert!(COPRIME_PAIR_LCMS[2] == 7 * 15);
+    assert!(COPRIME_PAIR_LCMS[3] == 11 * 13);
+    assert!(COPRIME_PAIR_LCMS[4] == 11 * 14);
+    assert!(COPRIME_PAIR_LCMS[5] == 11 * 15);
+    assert!(COPRIME_PAIR_LCMS[6] == 13 * 14);
+    assert!(COPRIME_PAIR_LCMS[7] == 13 * 15);
+    assert!(COPRIME_PAIR_LCMS[8] == 14 * 15);
+    assert!(COPRIME_PAIR_LCMS[1] == LAMBDA_EUV);
+    assert!(COPRIME_PAIR_LCMS[3] == BEZIER_C650_ANGLE);
+    assert!(COPRIME_PAIR_LCMS[6] == ARC_ROOT_SEMI);
+
+    // §7 Coprime walk — triples
+    assert!(COPRIME_TRIPLE_LCMS[0] == 7 * 11 * 13);
+    assert!(COPRIME_TRIPLE_LCMS[0] == LCM_PRIMARY);
+    assert!(COPRIME_TRIPLE_LCMS[1] == 7 * 11 * 15);
+    assert!(COPRIME_TRIPLE_LCMS[2] == 7 * 13 * 15);
+    assert!(COPRIME_TRIPLE_LCMS[3] == 11 * 13 * 14);
+    assert!(COPRIME_TRIPLE_LCMS[3] == 2 * LCM_PRIMARY);
+    assert!(COPRIME_TRIPLE_LCMS[4] == 11 * 13 * 15);
+    assert!(COPRIME_TRIPLE_LCMS[5] == 11 * 14 * 15);
+    assert!(COPRIME_TRIPLE_LCMS[6] == 13 * 14 * 15);
+
+    // §7 Coprime walk — quadruples
+    assert!(COPRIME_QUADRUPLE_LCMS[0] == 3 * 5 * 7 * 11 * 13);
+    assert!(COPRIME_QUADRUPLE_LCMS[0] == PENTADECAGON * LCM_PRIMARY);
+    assert!(COPRIME_QUADRUPLE_LCMS[1] == 2 * COPRIME_QUADRUPLE_LCMS[0]);
+
+    // §7 Coprime walk — quintuples
+    assert!(COPRIME_QUINTUPLE_LCMS[0] == 3 * 5 * 7 * 11 * 13);
+    assert!(COPRIME_QUINTUPLE_LCMS[0] == COPRIME_QUADRUPLE_LCMS[0]);
+    assert!(COPRIME_QUINTUPLE_LCMS[1] == 3 * 5 * 11 * 13 * 14);
+    assert!(COPRIME_QUINTUPLE_LCMS[1] == COPRIME_QUADRUPLE_LCMS[1]);
+    assert!(COPRIME_QUINTUPLE_LCMS[2] == 3 * 4 * 7 * 11 * 13);
+    assert!(COPRIME_QUINTUPLE_LCMS[3] == 5 * 7 * 8 * 11 * 13);
+    assert!(COPRIME_QUINTUPLE_LCMS[4] == 5 * 7 * 9 * 11 * 13);
+
+    // §7 Coprime walk — sextuples
+    assert!(COPRIME_SEXTUPLE_LCMS[0] == 3 * 4 * 5 * 7 * 11 * 13);
+    assert!(COPRIME_SEXTUPLE_LCMS[1] == 3 * 5 * 7 * 8 * 11 * 13);
+    assert!(COPRIME_SEXTUPLE_LCMS[2] == 4 * 5 * 7 * 9 * 11 * 13);
+    assert!(COPRIME_SEXTUPLE_LCMS[3] == 5 * 7 * 8 * 9 * 11 * 13);
+    assert!(COPRIME_SEXTUPLE_LCMS[3] == LCM_SEXT_MAX);
+    assert!(LCM_SEXT_MAX == STD_CIRCLE_DEG * LCM_PRIMARY);
+    assert!(LCM_SEXT_MAX == 24 * COPRIME_QUADRUPLE_LCMS[0]);
+
+    // §7 Coprime walk — geometric-spectral product
+    assert!(GEOMETRIC_SPECTRAL_PRODUCT == QUAD_PRODUCT * LCM_PRIMARY);
+    assert!(GEOMETRIC_SPECTRAL_PRODUCT == 364 * 1000 + 364);
+    assert!(GEOMETRIC_SPECTRAL_PRODUCT == 4 * 7 * 7 * 11 * 13 * 13);
+
+    // §7 Coprime walk — 3D products
+    assert!(POS_3D_PRIMARY == (LCM_PRIMARY as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_QUADRUPLES[0] == (COPRIME_QUADRUPLE_LCMS[0] as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_QUADRUPLES[1] == (COPRIME_QUADRUPLE_LCMS[1] as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_SEXTUPLES[0] == (COPRIME_SEXTUPLE_LCMS[0] as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_SEXTUPLES[1] == (COPRIME_SEXTUPLE_LCMS[1] as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_SEXTUPLES[2] == (COPRIME_SEXTUPLE_LCMS[2] as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_SEXTUPLES[3] == (COPRIME_SEXTUPLE_LCMS[3] as u64) * (DISCRIMINANT_2 as u64));
+```
+
+---
+
+## §8 Tier 1 Assertions
+
+```rust
+    // §8 CCP bridge analysis
+    assert!(NULL_HARMONIC_DEFICIT == GEOMETRIC_SPECTRAL_PRODUCT - LCM_SEXT_MAX);
+    assert!(NULL_HARMONIC_DEFICIT == NULL_CHANNEL_MOD * LCM_PRIMARY);
+    assert!((GEOMETRIC_SPECTRAL_PRODUCT as u64) * (BRIDGE_RATIO_DEN as u64)
+        == (LCM_SEXT_MAX as u64) * (BRIDGE_RATIO_NUM as u64));
+    assert!(BRIDGE_RATIO_NUM == LAMBDA_EUV);
+    assert!(DEFICIT_RATE_DEN == LAMBDA_EUV);
+    assert!(BRIDGE_RATIO_NUM == TRI_13);
+    assert!(DEFICIT_RATE_NUM * QUAD_PRODUCT == NULL_CHANNEL_MOD * DEFICIT_RATE_DEN);
+    assert!(LCM_SEXT_MAX / LCM_PRIMARY == STD_CIRCLE_DEG);
+    assert!(QUAD_PRODUCT - STD_CIRCLE_DEG == NULL_CHANNEL_MOD);
+    assert!(POS_3D_GEOM_SPECTRAL == (GEOMETRIC_SPECTRAL_PRODUCT as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_NULL_DEFICIT == (NULL_HARMONIC_DEFICIT as u64) * (DISCRIMINANT_2 as u64));
+    assert!(POS_3D_GEOM_SPECTRAL - POS_3D_SEXTUPLES[3] == POS_3D_NULL_DEFICIT);
+    assert!(GEOMETRIC_SPECTRAL_PRODUCT - LCM_SEXT_MAX == NULL_CHANNEL_MOD * LCM_PRIMARY);
+    assert!(BRIDGE_RATIO_NUM == ANGULAR_CONV_NUM && BRIDGE_RATIO_DEN == ANGULAR_CONV_DEN);
+```
+
+---
+
+## §7/§8 Tier 2 Tests
+
+```rust
+    #[test]
+    fn excluded_pairs_not_coprime() {
+        for &(a, b) in &EXCLUDED_PAIRS {
+            assert_ne!(gcd(a, b), 1,
+                "EXCLUDED_PAIRS: gcd({}, {}) should be > 1", a, b);
+        }
+    }
+
+    #[test]
+    fn coprime_pairs_all_coprime() {
+        for &(a, b) in &COPRIME_PAIRS {
+            assert_eq!(gcd(a, b), 1,
+                "COPRIME_PAIRS: gcd({}, {}) != 1", a, b);
+        }
+    }
+
+    #[test]
+    fn coprime_triples_all_coprime() {
+        for triple in &COPRIME_TRIPLES {
+            for i in 0..3 {
+                for j in (i + 1)..3 {
+                    assert_eq!(gcd(triple[i], triple[j]), 1,
+                        "COPRIME_TRIPLES: gcd({}, {}) != 1", triple[i], triple[j]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn coprime_quadruples_all_coprime() {
+        for quad in &COPRIME_QUADRUPLES {
+            for i in 0..4 {
+                for j in (i + 1)..4 {
+                    assert_eq!(gcd(quad[i], quad[j]), 1,
+                        "COPRIME_QUADRUPLES: gcd({}, {}) != 1", quad[i], quad[j]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn coprime_quintuples_all_coprime() {
+        for quint in &COPRIME_QUINTUPLES {
+            for i in 0..5 {
+                for j in (i + 1)..5 {
+                    assert_eq!(gcd(quint[i], quint[j]), 1,
+                        "COPRIME_QUINTUPLES: gcd({}, {}) != 1", quint[i], quint[j]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn coprime_sextuples_all_coprime() {
+        for sext in &COPRIME_SEXTUPLES {
+            for i in 0..6 {
+                for j in (i + 1)..6 {
+                    assert_eq!(gcd(sext[i], sext[j]), 1,
+                        "COPRIME_SEXTUPLES: gcd({}, {}) != 1", sext[i], sext[j]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn far_uvc_equals_pair_sum() {
+        assert_eq!(LAMBDA_FAR_UVC, crate::plenum_square::PAIR_SUM);
+    }
+```
+
+---
+
+## Removed Constants
+
+| Old                       | New                                |
+|---------------------------|------------------------------------|
+| `COPRIME_TRIPLE`          | `COPRIME_TRIPLES[0]`              |
+| `EXCLUDED_PAIR`           | `EXCLUDED_PAIRS[0]`               |
+| `SEXTUPLE_A`              | `COPRIME_SEXTUPLES[0]`            |
+| `SEXTUPLE_B`              | `COPRIME_SEXTUPLES[1]`            |
+| `SEXTUPLE_C`              | `COPRIME_SEXTUPLES[2]`            |
+| `SEXTUPLE_MAX`            | `COPRIME_SEXTUPLES[3]`            |
+| `LCM_QUAD_ODD`            | `COPRIME_QUADRUPLE_LCMS[0]`       |
+| `LCM_QUAD_PI`             | `COPRIME_QUADRUPLE_LCMS[1]`       |
+| `LCM_SEXT_A`              | `COPRIME_SEXTUPLE_LCMS[0]`        |
+| `LCM_SEXT_B`              | `COPRIME_SEXTUPLE_LCMS[1]`        |
+| `LCM_SEXT_C`              | `COPRIME_SEXTUPLE_LCMS[2]`        |
+| `POS_3D_QUAD_ODD`         | `POS_3D_QUADRUPLES[0]`            |
+| `POS_3D_QUAD_PI`          | `POS_3D_QUADRUPLES[1]`            |
+| `POS_3D_SEXT_MAX`         | `POS_3D_SEXTUPLES[3]`             |
+
+## Removed Tests
+
+| Old                               | New                                |
+|-----------------------------------|------------------------------------|
+| `excluded_pair_not_coprime`       | `excluded_pairs_not_coprime`       |
+| `coprime_sextuple_max_pairwise`   | `coprime_sextuples_all_coprime`    |
+| `coprime_sextuple_a_pairwise`     | `coprime_sextuples_all_coprime`    |
+| `coprime_sextuple_b_pairwise`     | `coprime_sextuples_all_coprime`    |
+| `coprime_sextuple_c_pairwise`     | `coprime_sextuples_all_coprime`    |
+
+---
+
+## Cross-Section Coprime Ties
+
+Every assertion below replaces a bare-literal factoring with a
+COPRIME_* array reference in other sections of the const block.
+
+### §4 Squared circle — add coprime ties
+
+```rust
+// ADD:
+assert!(UNIT_CIRCLE_AREA == 2 * COPRIME_TRIPLES[0][0]);
+assert!(RADIAN_CIRCLE_AREA == COPRIME_PAIR_LCMS[6]);
+assert!(SQUARED_SIDE_SQ_RADIAN == COPRIME_PAIR_LCMS[6]);
+// REMOVE bare-literal version:
+// OLD: assert!(RADIAN_CIRCLE_AREA == 2 * 7 * 13);
+```
+
+### §6 UV spectral — replace bare-literal factorings
+
+```rust
+// OLD:
+assert!(LAMBDA_NB_UVB == 7 * 11 + 7 * 13 + 11 * 13);
+assert!(LAMBDA_EXCIMER == 4 * 7 * 11);
+// NEW:
+assert!(LAMBDA_NB_UVB == COPRIME_PAIR_LCMS[0] + COPRIME_PAIR_LCMS[1] + COPRIME_PAIR_LCMS[3]);
+assert!(LAMBDA_EXCIMER == NULL_CHANNEL_MOD * COPRIME_PAIR_LCMS[0]);
+// ADD:
+assert!(LAMBDA_UVB == 2 * COPRIME_PAIR_LCMS[3]);
+assert!(LAMBDA_UVA == 2 * COPRIME_PAIR_LCMS[6]);
+assert!(BOUNDARY_UVC_UVB == (LAMBDA_UVC + LAMBDA_UVB) / 2);
+assert!(BOUNDARY_UVB_UVA == (LAMBDA_UVB + LAMBDA_UVA) / 2);
+```
+
+### §9 Perfect hash — update removed constant names
+
+```rust
+// OLD:
+assert!(7 * 11 * 13 * 15 == LCM_QUAD_ODD);
+assert!(11 * 13 * 14 * 15 == LCM_QUAD_PI);
+// NEW:
+assert!(7 * 11 * 13 * 15 == COPRIME_QUADRUPLE_LCMS[0]);
+assert!(11 * 13 * 14 * 15 == COPRIME_QUADRUPLE_LCMS[1]);
+// UNCHANGED:
+assert!(5 * 7 * 8 * 9 * 11 * 13 == LCM_SEXT_MAX);
+```
+
+### §12 Polygon geometry — update generator reference
+
+```rust
+// OLD:
+assert!(CENTRAL_ANGLE_HEPTAGON == QUAD_PRODUCT / COPRIME_TRIPLE[0]);
+// NEW:
+assert!(CENTRAL_ANGLE_HEPTAGON == QUAD_PRODUCT / COPRIME_TRIPLES[0][0]);
+```
+
+### §13 Superhub zones — add dodecagon tie
+
+```rust
+// ADD:
+assert!(SUPERHUB_AB_POLYGONS[2] == DISCRIMINANT_SQRT);
+assert!(SUPERHUB_CD_POLYGONS[2] == DISCRIMINANT_SQRT);
+```
+
+### §15 Torus knots — add coprime pair ties
+
+```rust
+// ADD:
+assert!(CROSSING_11_14 == COPRIME_PAIR_LCMS[3]);
+assert!(CROSSING_13_15 == COPRIME_PAIR_LCMS[6]);
+```
+
+### §17 Plenum square — update generator reference
+
+```rust
+// OLD:
+assert!(PLENUM_SQUARE_STEP == 2 * COPRIME_TRIPLE[1]);
+// NEW:
+assert!(PLENUM_SQUARE_STEP == 2 * COPRIME_TRIPLES[0][1]);
+```

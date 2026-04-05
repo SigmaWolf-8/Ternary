@@ -44,9 +44,11 @@ pub const LAMBDA_NB_UVB: u32 = 311;
 pub const CENTER: u32 = 111;
 
 /// Hamiltonian cycle length = 7 × 11 × 13.
+/// Canonical source: ternary_math::constants::LCM_PRIMARY (§7).
 pub const HAMILTONIAN_LENGTH: u32 = 1001;
 
 /// Coprime triple generating the spectral partition.
+/// Canonical source: ternary_math::constants::COPRIME_TRIPLES[0] (§7).
 pub const COPRIME_TRIPLE: [u32; 3] = [7, 11, 13];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -69,8 +71,9 @@ pub const BOUNDARY_UV_VIS: u32 = 400;
 // Bias constants
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-/// Hydrogen-specific offset: +0.194%. Applies to hydrogen-referenced measurements.
-pub const VACUUM_BIAS_NUM: u32 = 194;
+/// Hydrogen-specific offset: +0.193%. Applies to hydrogen-referenced measurements.
+/// Canonical source: ternary_math::constants::VACUUM_BIAS_NUM (§6).
+pub const VACUUM_BIAS_NUM: u32 = 193;
 pub const VACUUM_BIAS_DEN: u32 = 100_000;
 
 /// Universal offset: +0.139%. Applies to infinite-mass limit (R_∞).
@@ -323,7 +326,7 @@ mod tests {
 
     #[test] fn plenum_to_vacuum() {
         let scaled = plenum_to_vacuum_scaled(91);
-        assert_eq!(scaled, 91 * 100_194);
+        assert_eq!(scaled, 91 * 100_193);
     }
     #[test] fn vacuum_roundtrip() {
         let vac = plenum_to_vacuum(182);
