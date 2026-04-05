@@ -48,6 +48,7 @@
 //! libm = "0.2"
 //! ```
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -1755,8 +1756,10 @@ fn compress_chunk(
 
 // ─── Inter-Cube Parallel Dispatch (§4.8) ────────────────────────────────────
 
+#[cfg(feature = "parallel")]
 const PARALLEL_CHUNK_THRESHOLD_MIN: usize = 2;
 
+#[cfg(feature = "parallel")]
 fn dispatch_independent_parallel(cs: &[&[u8]], cfg: &LevelConfig, mode: CompressionMode, tc: &TritCostTables, dx: DomainTransform) -> Vec<ChunkResult> {
     let cc = cs.len(); let rounds = (cc + TUNNEL_COUNT - 1) / TUNNEL_COUNT;
     let mut results: Vec<Option<ChunkResult>> = vec![None; cc];
@@ -1768,6 +1771,7 @@ fn dispatch_independent_parallel(cs: &[&[u8]], cfg: &LevelConfig, mode: Compress
     results.into_iter().map(|o| o.expect("All chunks filled")).collect()
 }
 
+#[cfg(feature = "parallel")]
 fn dispatch_dependent_pipelined(cs: &[&[u8]], cfg: &LevelConfig, mode: CompressionMode, tc: &TritCostTables, dx: DomainTransform) -> Vec<ChunkResult> {
     let cc = cs.len(); let bs = 13; let tb = (cc+bs-1)/bs;
     let mut results: Vec<ChunkResult> = Vec::with_capacity(cc); let mut history: Vec<u8> = Vec::new();
@@ -1806,12 +1810,15 @@ fn dispatch_sequential(cs: &[&[u8]], cfg: &LevelConfig, mode: CompressionMode, i
 }
 
 fn dispatch_chunks(cs: &[&[u8]], cfg: &LevelConfig, mode: CompressionMode, independent: bool, tc: &TritCostTables, dx: DomainTransform) -> Vec<ChunkResult> {
-    let cc = cs.len();
-    let thread_count = rayon::current_num_threads();
-    let threshold = PARALLEL_CHUNK_THRESHOLD_MIN.max(thread_count);
-    if thread_count > 1 && cc >= threshold {
-        if independent { return dispatch_independent_parallel(cs, cfg, mode, tc, dx); }
-        else { return dispatch_dependent_pipelined(cs, cfg, mode, tc, dx); }
+    #[cfg(feature = "parallel")]
+    {
+        let cc = cs.len();
+        let thread_count = rayon::current_num_threads();
+        let threshold = PARALLEL_CHUNK_THRESHOLD_MIN.max(thread_count);
+        if thread_count > 1 && cc >= threshold {
+            if independent { return dispatch_independent_parallel(cs, cfg, mode, tc, dx); }
+            else { return dispatch_dependent_pipelined(cs, cfg, mode, tc, dx); }
+        }
     }
     dispatch_sequential(cs, cfg, mode, independent, tc, dx)
 }
