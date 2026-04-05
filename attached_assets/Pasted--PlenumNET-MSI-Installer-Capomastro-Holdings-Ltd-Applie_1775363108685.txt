@@ -1,0 +1,176 @@
+
+ PlenumNET MSI Installer
+ Capomastro Holdings Ltd. -- Applied Physics Division                                                                                                                                                                                            Preparing installation environment...                                                                                                                                                                                                          
+==========================================================
+       ____
+      |  _ \
+      | |_) |
+      |  __/
+      |_|
+
+  PlenumNET Installer
+  Post-Quantum Internet Infrastructure
+  Capomastro Holdings Ltd.
+==========================================================
+
+  This installer sets up the PlenumNET suite:
+    -- Launcher (application hub)
+    -- NinjaExec (signing agent)
+    -- Inter-Cube Daemon (network service)
+
+  Learn more: https://plenumnet.replit.app
+
+  NOTE: This installer compiles PlenumNET from source
+  code. It requires developer tools (Git, Rust, Visual
+  Studio) and may take 30-60 minutes depending on your
+  system.
+
+  Console colors: Cyan = brand, Green = success,
+  Yellow = warning, Red = error, Gray = debug
+  Log file: C:\Users\Sigma\AppData\Local\Temp\PlenumNET_MSI_Install.log
+
+==========================================================
+  Pre-Install Summary
+==========================================================
+
+  The following products will be installed:
+
+  1. PlenumNET Launcher
+     Manage all your PlenumNET applications from one
+     panel in your taskbar (auto-starts with Windows)
+     Install: C:\Program Files\Capomastro\PlenumNET-Launcher
+     Data:    C:\Users\Sigma\AppData\Roaming\PlenumNET-Launcher
+
+  2. NinjaExec
+     Securely signs and authenticates your PlenumNET
+     operations (auto-starts with Windows)
+     Install: C:\Program Files\Capomastro\NinjaExec
+     Data:    C:\Users\Sigma\AppData\Roaming\NinjaExec
+
+  3. Inter-Cube Daemon
+     Connects your machine to the PlenumNET network
+     (3 service instances)
+     Install: C:\Program Files\Capomastro\InterCubeDaemon
+     Data:    C:\Users\Sigma\AppData\Roaming\InterCubeDaemon
+
+  Source:  C:\PlenumNET
+  Output:  C:\PlenumNET\installer-output
+
+  Continue? (Y/N): y
+
+  Architecture: Arm64 (Rust target: aarch64-pc-windows-msvc)
+
+STEP 1/8: Checking prerequisites (1-5 minutes)
+---
+  [OK] git
+  [OK] cargo
+  [OK] clang
+  [OK] .NET SDK
+  [OK] WiX v4
+  [OK] WebView2 Runtime
+  Elapsed: 0m 8s
+
+STEP 2/8: Source code (2-10 minutes)
+---
+  Updating source...
+  [OK] Source ready at C:\PlenumNET
+  Elapsed: 0m 9s
+
+STEP 3/8: Building plenum-pack (10-20 minutes)
+---
+     Compiling syn v2.0.117
+     Compiling serde_derive v1.0.228
+     Compiling serde v1.0.228
+     Compiling anstyle v1.0.13
+     Compiling anstyle-wincon v3.0.11
+     Compiling anstream v0.6.21
+     Compiling serde_spanned v0.6.9
+     Compiling toml_datetime v0.6.3
+     Compiling regex-syntax v0.8.9
+     Compiling semver v1.0.22
+     Compiling clap_derive v4.4.7
+     Compiling clap_builder v4.4.18
+     Compiling regex-automata v0.4.14
+     Compiling toml_edit v0.20.2
+     Compiling thiserror-impl v1.0.57
+     Compiling serde_json v1.0.149
+     Compiling thiserror v1.0.57
+     Compiling walkdir v2.4.0
+     Compiling toml v0.8.2
+     Compiling regex v1.10.3
+     Compiling clap v4.4.18
+     Compiling plenum-pack v1.0.0 (C:\PlenumNET\tools\plenum-pack)
+      Finished `release` profile [optimized] target(s) in 1m 19s
+  [OK] plenum-pack built
+  Elapsed: 1m 29s
+
+STEP 4/8: Building product binaries (10-20 minutes)
+---
+  Building plenum-launcher...
+     Compiling syn v2.0.117
+     Compiling synstructure v0.13.2
+     Compiling zerofrom-derive v0.1.6
+     Compiling zerofrom v0.1.5
+     Compiling yoke-derive v0.7.5
+     Compiling yoke v0.7.5
+     Compiling zerovec-derive v0.10.3
+     Compiling zerovec v0.10.4
+     Compiling displaydoc v0.2.5
+     Compiling tinystr v0.7.5
+     Compiling icu_locid v1.5.0
+     Compiling icu_provider_macros v1.5.0
+     Compiling icu_provider v1.5.0
+     Compiling thiserror-impl v1.0.57
+     Compiling icu_locid_transform v1.5.0
+     Compiling thiserror v1.0.57
+     Compiling icu_collections v1.5.0
+     Compiling windows-implement v0.58.0
+     Compiling windows-interface v0.58.0
+     Compiling windows-core v0.58.0
+     Compiling icu_properties v1.5.1
+     Compiling serde_derive v1.0.228
+     Compiling simd-adler32 v0.3.8
+     Compiling crc32fast v1.5.0
+     Compiling icu_normalizer v1.5.0
+     Compiling num-traits v0.2.19
+     Compiling serde v1.0.228
+     Compiling webview2-com-sys v0.33.0
+     Compiling windows v0.58.0
+     Compiling adler2 v2.0.1
+     Compiling miniz_oxide v0.8.9
+     Compiling idna_adapter v1.2.0
+     Compiling time v0.3.47
+     Compiling idna v1.1.0
+     Compiling flate2 v1.1.9
+     Compiling toml_datetime v0.6.3
+     Compiling serde_spanned v0.6.9
+     Compiling fdeflate v0.3.7
+     Compiling webview2-com-macros v0.8.1
+     Compiling once_cell v1.21.3
+     Compiling pxfm v0.1.28
+     Compiling moxcms v0.8.1
+     Compiling toml_edit v0.20.2
+     Compiling webview2-com v0.33.0
+     Compiling png v0.18.1
+     Compiling cookie v0.18.1
+     Compiling url v2.5.8
+     Compiling bytemuck v1.25.0
+     Compiling unicode-segmentation v1.12.0
+     Compiling byteorder-lite v0.1.0
+     Compiling image v0.25.10
+     Compiling tao v0.31.1
+     Compiling wry v0.47.2
+     Compiling toml v0.8.2
+     Compiling plenum-launcher v1.0.0 (C:\PlenumNET\tools\plenum-launcher)
+
+  Error: Building plenum-launcher could not be completed.
+  This may be caused by missing development tools or
+  an incompatible Rust version. The log file at:
+    C:\Users\Sigma\AppData\Local\Temp\PlenumNET_build_plenum-launcher.log
+  contains technical details.
+
+  No products have been installed. You can retry by
+  running this installer again.
+  If this persists, visit:
+    https://plenumnet.replit.app/support
+Press Enter to close:
