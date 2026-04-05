@@ -1,0 +1,183 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET; git checkout main; git pull; powershell -ExecutionPolicy Bypass -File .\scripts\test-monitor.ps1
+error: Your local changes to the following files would be overwritten by checkout:
+        Cargo.lock
+Please commit your changes or stash them before you switch branches.
+Aborting
+You are not currently on a branch.
+Please specify which branch you want to merge with.
+See git-pull(1) for details.
+
+    git pull <remote> <branch>
+
+The argument '.\scripts\test-monitor.ps1' to the -File parameter does not exist. Provide the path to an existing '.ps1' file as an argument to the -File parameter.
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\PlenumNET> git stash; git checkout main; git pull; powershell -ExecutionPolicy Bypass -File .\scripts\test-monitor.ps1
+warning: in the working copy of 'Cargo.lock', LF will be replaced by CRLF the next time Git touches it
+Saved working directory and index state WIP on (no branch): af8e76c2 v2.4.8: CORS predicate for file:// + monitor v9.0
+Previous HEAD position was af8e76c2 v2.4.8: CORS predicate for file:// + monitor v9.0
+Switched to branch 'main'
+Your branch is behind 'origin/main' by 100 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+Updating dd916989..fc3372b4
+Fast-forward
+ .github/workflows/ci.yml                           |   18 +
+ .github/workflows/codeql-analysis.yml              |   12 +
+ .github/workflows/docker-build.yml                 |    9 +-
+ .github/workflows/license-check.yml                |   16 +
+ .github/workflows/owasp-scan.yml                   |   16 +
+ .github/workflows/release.yml                      |    3 -
+ Cargo.lock                                         |    3 +-
+ array3-monitor-v8.9.html                           | 1560 ++++++++++
+ ...ension-CI-What-Why-The-XPlenu_1775198783382.txt |   32 +
+ ...PlenumNET-Apps-Services-What-_1775226781836.txt |  105 +
+ ...-Scope-Encoding-Products-Mani_1775221171417.txt |  136 +
+ ...ant-Failure-What-Why-The-MSI-_1775220206736.txt |   23 +
+ ...ller-Script-What-Why-Run-a-fu_1775220342147.txt |   46 +
+ ...Direct-Localhost-Zero-Mock-ar_1775183782765.txt |   58 +
+ ...-head-meta-charset-UTF-8-meta_1775179836127.txt | 1467 ++++++++++
+ ...-head-meta-charset-UTF-8-meta_1775179841635.txt | 1467 ++++++++++
+ ...-against-this-spec-Let-me-loa_1775199103632.txt |  143 +
+ ...-Deployer-Builds-the-node-bin_1775186566759.txt | 1955 +++++++++++++
+ ...-Deployer-Builds-the-node-bin_1775188654695.txt | 1975 +++++++++++++
+ ...staller-One-Click-Setup-Downl_1775218557036.txt | 1446 +++++-----
+ ...ARRAY3-MONITOR-v9-2-Relay-HTT_1775335210714.txt |   83 +
+ ...I-ll-work-through-this-system_1775215685651.txt |  145 +
+ ...-v9-3-source-Here-s-what-I-fo_1775334693955.txt |   51 +
+ ...-11-step-structure-is-clean-C_1775186953309.txt |   46 +
+ ...Content-C-PlenumNET-plenumnet_1775205562245.txt |  740 +++++
+ ...-2-delta-from-v2-4-1-reviewed_1775192941005.txt |   35 +
+ ...e-999MM-time-Connecting-to-UR_1775281480411.txt |   80 +
+ ...e-Array3-Monitoring-Capomastr_1775282331032.txt |  592 ++++
+ ...1-4-Two-changes-needed-in-ser_1775225393653.txt |   52 +
+ ...1-4-Two-changes-needed-in-ser_1775225405215.txt |   52 +
+ ...strator-PlenumN-1775197562717_1775197562717.txt |  174 ++
+ ...strator-PlenumN-1775199220492_1775199220492.txt |  180 ++
+ ...strator-PlenumN-1775204113359_1775204113360.txt |  103 +
+ ...strator-PlenumN-1775204153382_1775204153382.txt |  195 ++
+ ...strator-PlenumN-1775205279960_1775205279960.txt |  195 ++
+ ...strator-PlenumN-1775206870121_1775206870122.txt |  189 ++
+ ...strator-PlenumN-1775213802158_1775213802158.txt |  189 ++
+ ...strator-PlenumN-1775220501093_1775220501094.txt |  189 ++
+ ...strator-PlenumN-1775221781429_1775221781429.txt |  189 ++
+ ...strator-PlenumN-1775281471215_1775281471223.txt |  194 ++
+ ...-Report-Array3-Watchdog-Deplo_1775226961879.txt |  178 ++
+ ...ht-C-Microsoft-Corporation-Al_1775180310002.txt |  382 +++
+ ...ht-C-Microsoft-Corporation-Al_1775180359931.txt |   34 +
+ ...ht-C-Microsoft-Corporation-Al_1775204311778.txt |   48 +
+ ...ht-C-Microsoft-Corporation-Al_1775204402333.txt |   44 +
+ ...ht-C-Microsoft-Corporation-Al_1775204526083.txt |   66 +
+ ...ht-C-Microsoft-Corporation-Al_1775204656817.txt |   79 +
+ ...ht-C-Microsoft-Corporation-Al_1775205348177.txt |   51 +
+ ...ht-C-Microsoft-Corporation-Al_1775205403661.txt |  154 +
+ ...ht-C-Microsoft-Corporation-Al_1775205707514.txt |   36 +
+ ...ht-C-Microsoft-Corporation-Al_1775205723268.txt |   40 +
+ ...ht-C-Microsoft-Corporation-Al_1775205773493.txt |   44 +
+ ...ht-C-Microsoft-Corporation-Al_1775205804201.txt |   54 +
+ ...ht-C-Microsoft-Corporation-Al_1775205828422.txt |   51 +
+ ...ht-C-Microsoft-Corporation-Al_1775206140452.txt |   80 +
+ ...ht-C-Microsoft-Corporation-Al_1775206236795.txt |   93 +
+ ...r-v8-8-Live-Direct-Localhost-_1775212728867.txt |  116 +
+ .../PlenumNET-Launcher-v12_1775301987222.jsx       |  562 ++++
+ .../array3-monitor-v9.1_1775225994225.html         | 1392 +++++++++
+ .../array3-monitor-v9.3.1_1775338042219.html       | 1505 ++++++++++
+ .../array3-monitor-v9_1775217769075.html           | 1273 ++++++++
+ .../array3-monitor-v9_2_1775283794105.html         | 1404 +++++++++
+ client/public/install/deploy-yoda.ps1              | 3041 ++++++++++++++------
+ client/src/components/LauncherPanel.tsx            |   10 +-
+ client/src/pages/widget.tsx                        |    4 +
+ dist/inter-cube-daemon                             |  Bin 5461536 -> 0 bytes
+ install-plenumnet-msi.ps1                          |  486 +++-
+ ninja-exec/plenum-app.toml                         |   11 +-
+ package-lock.json                                  |    6 +-
+ scripts/test-monitor.ps1                           |   38 +
+ server/index.ts                                    |  389 ++-
+ services/inter-cube/Cargo.toml                     |    2 +-
+ services/inter-cube/deploy-yoda.ps1                |  280 +-
+ services/inter-cube/monitor/array3-monitor-v8.html |  151 +-
+ services/inter-cube/monitor/array3-monitor-v9.html | 1505 ++++++++++
+ services/inter-cube/plenum-app.toml                |   19 +-
+ services/inter-cube/src/api.rs                     |  121 +-
+ services/inter-cube/src/config.rs                  |  118 +-
+ services/inter-cube/src/main.rs                    |  290 +-
+ tests/integration/relay-proxy.test.js              |  363 +++
+ tools/plenum-launcher/Cargo.toml                   |    4 +-
+ tools/plenum-launcher/plenum-app.toml              |    7 +-
+ tools/plenum-launcher/src/main.rs                  |  441 +--
+ tools/plenum-launcher/src/status.rs                |    4 +-
+ 84 files changed, 27088 insertions(+), 2051 deletions(-)
+ create mode 100644 array3-monitor-v8.9.html
+ create mode 100644 attached_assets/Pasted--88-Fix-XPlenum-RISC-V-Extension-CI-What-Why-The-XPlenu_1775198783382.txt
+ create mode 100644 attached_assets/Pasted--92-Fix-MSI-Installer-All-PlenumNET-Apps-Services-What-_1775226781836.txt
+ create mode 100644 attached_assets/Pasted--92-Fix-MSI-Installer-Full-Scope-Encoding-Products-Mani_1775221171417.txt
+ create mode 100644 attached_assets/Pasted--92-Fix-MSI-Installer-Instant-Failure-What-Why-The-MSI-_1775220206736.txt
+ create mode 100644 attached_assets/Pasted--93-QC-R1-Review-MSI-Installer-Script-What-Why-Run-a-fu_1775220342147.txt
+ create mode 100644 attached_assets/Pasted--Array3-Monitor-v8-8-Live-Direct-Localhost-Zero-Mock-ar_1775183782765.txt
+ create mode 100644 attached_assets/Pasted--DOCTYPE-html-html-lang-en-head-meta-charset-UTF-8-meta_1775179836127.txt
+ create mode 100644 attached_assets/Pasted--DOCTYPE-html-html-lang-en-head-meta-charset-UTF-8-meta_1775179841635.txt
+ create mode 100644 attached_assets/Pasted--I-ll-run-the-QC-R1-review-against-this-spec-Let-me-loa_1775199103632.txt
+ create mode 100644 attached_assets/Pasted--SYNOPSIS-PlenumNET-Array3-Deployer-Builds-the-node-bin_1775186566759.txt
+ create mode 100644 attached_assets/Pasted--SYNOPSIS-PlenumNET-Array3-Deployer-Builds-the-node-bin_1775188654695.txt
+ rename client/public/install/install-plenumnet-msi.ps1 => attached_assets/Pasted--SYNOPSIS-PlenumNET-MSI-Installer-One-Click-Setup-Downl_1775218557036.txt (97%)
+ create mode 100644 attached_assets/Pasted-1-Version-header-line-221-ARRAY3-MONITOR-v9-2-Relay-HTT_1775335210714.txt
+ create mode 100644 attached_assets/Pasted-A-thorough-review-follows-I-ll-work-through-this-system_1775215685651.txt
+ create mode 100644 attached_assets/Pasted-I-ve-gone-through-the-full-v9-3-source-Here-s-what-I-fo_1775334693955.txt
+ create mode 100644 attached_assets/Pasted-PASS-Architecture-Flow-The-11-step-structure-is-clean-C_1775186953309.txt
+ create mode 100644 attached_assets/Pasted-PS-C-windows-system32-Get-Content-C-PlenumNET-plenumnet_1775205562245.txt
+ create mode 100644 attached_assets/Pasted-QC-R2-deploy-yoda-ps1-v2-4-2-delta-from-v2-4-1-reviewed_1775192941005.txt
+ create mode 100644 attached_assets/Pasted-Re-deployed-Daemons-for-the-999MM-time-Connecting-to-UR_1775281480411.txt
+ create mode 100644 attached_assets/Pasted-Relay-HTTP-Proxy-for-Remote-Array3-Monitoring-Capomastr_1775282331032.txt
+ create mode 100644 attached_assets/Pasted-Replit-message-for-Issues-1-4-Two-changes-needed-in-ser_1775225393653.txt
+ create mode 100644 attached_assets/Pasted-Replit-message-for-Issues-1-4-Two-changes-needed-in-ser_1775225405215.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775197562717_1775197562717.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775199220492_1775199220492.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775204113359_1775204113360.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775204153382_1775204153382.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775205279960_1775205279960.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775206870121_1775206870122.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775213802158_1775213802158.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775220501093_1775220501094.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775221781429_1775221781429.txt
+ create mode 100644 attached_assets/Pasted-Running-as-Administrator-PlenumN-1775281471215_1775281471223.txt
+ create mode 100644 attached_assets/Pasted-Task-63-QC-R2-Consolidated-Report-Array3-Watchdog-Deplo_1775226961879.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775180310002.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775180359931.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775204311778.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775204402333.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775204526083.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775204656817.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775205348177.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775205403661.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775205707514.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775205723268.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775205773493.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775205804201.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775205828422.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775206140452.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1775206236795.txt
+ create mode 100644 attached_assets/Pasted-monitor-1479-Array3-Monitor-v8-8-Live-Direct-Localhost-_1775212728867.txt
+ create mode 100644 attached_assets/PlenumNET-Launcher-v12_1775301987222.jsx
+ create mode 100644 attached_assets/array3-monitor-v9.1_1775225994225.html
+ create mode 100644 attached_assets/array3-monitor-v9.3.1_1775338042219.html
+ create mode 100644 attached_assets/array3-monitor-v9_1775217769075.html
+ create mode 100644 attached_assets/array3-monitor-v9_2_1775283794105.html
+ delete mode 100755 dist/inter-cube-daemon
+ create mode 100644 scripts/test-monitor.ps1
+ create mode 100644 services/inter-cube/monitor/array3-monitor-v9.html
+ create mode 100644 tests/integration/relay-proxy.test.js
+At C:\PlenumNET\scripts\test-monitor.ps1:38 char:78
++ ... e published relay and show live daemon data." -ForegroundColor Yellow
++                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~
+The string is missing the terminator: ".
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : TerminatorExpectedAtEndOfString
+
+PS C:\PlenumNET>
