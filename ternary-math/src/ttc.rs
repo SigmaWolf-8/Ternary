@@ -2089,7 +2089,7 @@ pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<Compressio
         delta_flag: c.delta_flag.0, delta_order: c.delta_flag.order(), delta_rep: c.delta_flag.rep_name().into(),
         domain_transform: c.domain_transform.0 }).collect();
     let csz = best_compressed.len() as u64;
-    let ver_str = if best_chunks.iter().any(|c| c.delta_flag.0 == 7 || c.domain_transform.0 == 7 || c.mode == ChunkMode::ContextAns) { "5.0.3" } else { "3.0" };
+    let ver_str = "5.0.3";
     Ok(CompressionResult { compressed: best_compressed, original_size: data.len() as u64, compressed_size: csz,
         compression_ratio: if csz>0{data.len() as f64/csz as f64}else{1.0}, crc32: crc,
         mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: ver_str.into(),
@@ -2231,7 +2231,7 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
     } else { (final_data, None) };
     let computed_crc = crc32(&actual_data);
     let ver_byte = compressed[0x04];
-    let ver_str = if ver_byte == VERSION_V5 { "5.0.3" } else { "3.0" };
+    let ver_str = "5.0.3";
     Ok(DecompressionResult { data: actual_data, original_file_name, original_size: orig_size,
         compressed_size: compressed.len() as u64, version: ver_str.into(),
         level: Some(level),
@@ -2269,7 +2269,7 @@ pub fn ttc_compress_multi(files: &[(&str, &[u8])], opts: &CompressOptions) -> Tt
     for (_, arc, _, _) in &archives { out.extend_from_slice(arc); }
     let n = files.len().max(1) as f64;
     let pb = if bd.base_364>0{364} else if bd.base_70>0{70} else if bd.base_28>0{28} else if bd.base_13>0{13} else {3};
-    let multi_ver = if archives.iter().any(|(_, arc, _, _)| arc.len() >= 5 && arc[4] == VERSION_V5) { "5.0.3" } else { "3.0" };
+    let multi_ver = "5.0.3";
     Ok(MultiFileResult { total_compressed_size: out.len() as u64, compressed: out, total_original_size: to,
         compression_ratio: if tc_sum>0{to as f64/tc_sum as f64}else{1.0}, file_count: files.len(),
         files: archives.iter().map(|(n,_,o,c)| FileEntry { name: n.clone(), original_size: *o, compressed_size: *c,
