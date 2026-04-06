@@ -424,8 +424,11 @@ fn decompose_pdf(data: &[u8]) -> Vec<u8> {
 
         let stream_data = &data[ds..de];
         let hdr_start = if idx >= 256 { idx - 256 } else { 0 };
-        let is_flate = find_bytes(&data[hdr_start..idx], b"/FlateDecode", 0).is_some();
-        let should_inflate = is_flate && !is_image_content(stream_data);
+        let obj_dict = &data[hdr_start..idx];
+        let is_flate = find_bytes(obj_dict, b"/FlateDecode", 0).is_some();
+        let is_image_obj = find_bytes(obj_dict, b"/Subtype /Image", 0).is_some()
+            || find_bytes(obj_dict, b"/Subtype/Image", 0).is_some();
+        let should_inflate = is_flate && !is_image_obj;
 
         put_u32_be(&mut manifest, struct_insert as u32);
         if should_inflate {
