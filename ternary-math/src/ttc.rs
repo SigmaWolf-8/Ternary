@@ -1829,9 +1829,13 @@ fn phase2_compress(
         let tans = serialize_tans(&tokens, cfg.window_size);
         candidates.push((ChunkMode::TernaryAns, make_mode_payload(chunk, 3, &tans)));
 
-        // Context-1 rANS with Z₂₇ binning — order-1 context model
-        let ctx = crate::ctx_ans::serialize(&tokens);
-        candidates.push((ChunkMode::ContextAns, make_mode_payload(chunk, 4, &ctx)));
+        // Context-1 rANS with Z₂₇ binning — order-1 context model.
+        // Only compete when chunk >= 3^8 (6561) bytes: 27 per-context frequency
+        // tables have fixed overhead that dominates on small chunks.
+        if chunk.len() >= 6561 {
+            let ctx = crate::ctx_ans::serialize(&tokens);
+            candidates.push((ChunkMode::ContextAns, make_mode_payload(chunk, 4, &ctx)));
+        }
 
         if chunk.len() <= 16384 {
             let enh = serialize_ternary_enhanced(&tokens, rice_m, tc);
