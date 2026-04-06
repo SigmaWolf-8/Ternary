@@ -91,14 +91,14 @@ function loadTtcAddon(): TtcNativeAddon | null {
       const addon = _req(p);
       if (typeof addon.ttcCompress === 'function' && typeof addon.ttcDecompress === 'function') {
         _ttcAddon = addon as TtcNativeAddon;
-        console.log('[TTC] Native N-API addon loaded — TTC v4.2 engine active');
+        console.log('[TTC] Native N-API addon loaded — TTC v5.0.2 engine active');
         return _ttcAddon;
       }
     } catch (e) {
       console.warn('[TTC] Probe failed for', p, ':', (e as Error).message?.slice(0, 80));
     }
   }
-  console.warn('[TTC] Native addon not found — using TTC v4.2 TypeScript fallback');
+  console.warn('[TTC] Native addon not found — using TTC v5.0.2 TypeScript fallback');
   return null;
 }
 
@@ -267,7 +267,7 @@ export function compressFileBuffer(inputBuffer: Buffer, options?: {
         : 0,
       ttcMetadata: {
         engine: 'ttc-native',
-        version: r.version,
+        version: '5.0.2',
         level: r.level,
         levelName: r.levelName,
         modeName: r.modeName,
@@ -413,7 +413,7 @@ export function decompressFileBuffer(compressedBuffer: Buffer): {
         data: Buffer.from(r.data),
         ttcMetadata: {
           engine: 'ttc-native',
-          version: r.version,
+          version: '5.0.2',
           level: r.level,
           levelName: r.levelName,
           crc32Verified: r.crc32Verified,
