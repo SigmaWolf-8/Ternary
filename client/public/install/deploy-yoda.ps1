@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     PlenumNET Array3 Deployer
     Builds the node binary and NinjaExec signing agent, generates
@@ -218,7 +218,7 @@ function Test-Command($cmd) {
     catch { return $false }
 }
 
-# ── R3-C1 / R3-I18: Admin check FIRST — before any work ─────────────────
+# -- R3-C1 / R3-I18: Admin check FIRST -- before any work -----------------
 if (-not (Test-Admin)) {
     $scriptPath = $MyInvocation.MyCommand.Definition
     if ($scriptPath) {
@@ -240,14 +240,14 @@ if (-not (Test-Admin)) {
     }
 }
 
-# ── R3-I13: Detect existing deployment ───────────────────────────────────
+# -- R3-I13: Detect existing deployment -----------------------------------
 $isUpgrade = $false
 $existingServices = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue
 if ($existingServices -or (Test-Path $RepoDir)) {
     $isUpgrade = $true
 }
 
-# ── Banner ───────────────────────────────────────────────────────────────
+# -- Banner ---------------------------------------------------------------
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "  PlenumNET Array3 Deployer $DEPLOYER_VERSION" -ForegroundColor Cyan
@@ -274,7 +274,7 @@ if ($isUpgrade) {
     Write-Host ""
 }
 
-# ── R3-I6: Pre-flight consent prompt ─────────────────────────────────────
+# -- R3-I6: Pre-flight consent prompt -------------------------------------
 if (-not $Force) {
     $consent = Read-Host "  Continue? (Y/n)"
     if ($consent -and $consent -notin @("y", "Y", "yes", "Yes", "YES", "")) {
@@ -283,14 +283,14 @@ if (-not $Force) {
     }
 }
 
-# ── R3-I8: Cleanup on interruption ──────────────────────────────────────
+# -- R3-I8: Cleanup on interruption --------------------------------------
 $partialServices = @()
 $cleanupNeeded = $false
 $deploymentHealthy = $true
 $degradedReasons = @()
 try {
 
-# ── STEP 1/11: Checking prerequisites ───────────────────────────────────
+# -- STEP 1/11: Checking prerequisites -----------------------------------
 Write-Host ""
 Write-Host "STEP 1/11: Checking prerequisites" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -328,7 +328,7 @@ if (-not (Test-Command "cargo")) {
 }
 Write-Host "  [OK] cargo" -ForegroundColor Green
 
-# ── STEP 2/11: Configuring build environment ────────────────────────────
+# -- STEP 2/11: Configuring build environment ----------------------------
 Write-Host ""
 Write-Host "STEP 2/11: Configuring build environment" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -420,7 +420,7 @@ if ($hasClang) {
     }
 }
 
-# ── STEP 3/11: Cloning source from pinned release ──────────────────────
+# -- STEP 3/11: Cloning source from pinned release ----------------------
 Write-Host ""
 Write-Host "STEP 3/11: Cloning source (release $RELEASE_TAG)" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -453,7 +453,7 @@ if (-not (Test-Path $RepoDir)) {
 }
 Write-Host "  [OK] Source ready (pinned to $RELEASE_TAG)" -ForegroundColor Green
 
-# ── STEP 4/11: Building inter-cube daemon ───────────────────────────────
+# -- STEP 4/11: Building inter-cube daemon -------------------------------
 Write-Host ""
 Write-Host "STEP 4/11: Building inter-cube daemon" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -515,7 +515,7 @@ if (-not (Test-Path $BinaryPath)) {
 $fileSizeMB = [math]::Round((Get-Item $BinaryPath).Length / 1MB, 1)
 Write-Host "  [OK] Build successful ($fileSizeMB MB, $buildElapsed elapsed, $compiledCount crates)" -ForegroundColor Green
 
-# ── R1-C5: Compute binary integrity hash ────────────────────────────────
+# -- R1-C5: Compute binary integrity hash --------------------------------
 $binarySha256 = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
 Write-Host "  [OK] Binary SHA-256: $binarySha256" -ForegroundColor DarkGray
 
@@ -543,7 +543,7 @@ if (-not $tis27Hash) {
     exit 1
 }
 
-# ── R1-C5: Re-verify binary integrity before service registration ───────
+# -- R1-C5: Re-verify binary integrity before service registration -------
 $preStartHash = (Get-FileHash -Path $BinaryPath -Algorithm SHA256).Hash
 if ($preStartHash -ne $binarySha256) {
     Write-Host "  [FAIL] Binary integrity check failed. The file was modified after build." -ForegroundColor Red
@@ -554,7 +554,7 @@ if ($preStartHash -ne $binarySha256) {
     exit 1
 }
 
-# ── STEP 5/11: Building and configuring NinjaExec signing agent ──────
+# -- STEP 5/11: Building and configuring NinjaExec signing agent ------
 Write-Host ""
 Write-Host "STEP 5/11: Building and configuring NinjaExec signing agent" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -699,7 +699,7 @@ if ($neBuildExit -ne 0) {
         }
     }
 }
-# ── STEP 6/11: Verifying version alignment ──────────────────────────────
+# -- STEP 6/11: Verifying version alignment ------------------------------
 Write-Host ""
 Write-Host "STEP 6/11: Verifying version alignment" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -716,7 +716,7 @@ try {
 }
 if ($localVersion -eq "unknown") {
     # NOTE: Fallback to keygen probe if CUBE_MODE=version is not supported.
-    # This generates throwaway key material — a known limitation until the
+    # This generates throwaway key material -- a known limitation until the
     # daemon supports a dedicated version query mode.
     try {
         $probeDir = Join-Path ([System.IO.Path]::GetTempPath()) "plenumnet-version-probe-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
@@ -753,7 +753,7 @@ if ($localVersion -ne "unknown" -and $remoteVersion -ne "unknown" -and $localVer
     Write-Host "  [OK] Version aligned" -ForegroundColor Green
 }
 
-# ── STEP 7/11: Detecting local network ──────────────────────────────────
+# -- STEP 7/11: Detecting local network ----------------------------------
 Write-Host ""
 Write-Host "STEP 7/11: Detecting local network" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -765,7 +765,7 @@ $ip = (Get-NetIPAddress -AddressFamily IPv4 |
 if (-not $ip) { $ip = "0.0.0.0" }
 Write-Host "  [OK] Local IP: $ip" -ForegroundColor Green
 
-# ── STEP 8/11: Generating node identities ───────────────────────────────
+# -- STEP 8/11: Generating node identities -------------------------------
 Write-Host ""
 Write-Host "STEP 8/11: Generating $DAEMON_COUNT node identities" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -1004,7 +1004,7 @@ for ($i = 1; $i -le $DAEMON_COUNT; $i++) {
     }
 }
 
-# ── STEP 9/11: Registering and starting Windows Services ────────────────
+# -- STEP 9/11: Registering and starting Windows Services ----------------
 Write-Host ""
 Write-Host "STEP 9/11: Registering and starting Windows Services" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -1262,7 +1262,7 @@ goto :loop
     }
 }
 
-# ── STEP 10/11: Configuring watchdog and LLM engines ─────────────────────
+# -- STEP 10/11: Configuring watchdog and LLM engines ---------------------
 Write-Host ""
 Write-Host "STEP 10/11: Configuring watchdog and LLM engines" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -1796,7 +1796,7 @@ foreach ($cfg in $daemonConfigs) {
     }
 }
 
-# ── Write address-map.json for watchdog Rep C address logging ─────────
+# -- Write address-map.json for watchdog Rep C address logging ---------
 $addressMap = @{}
 foreach ($cfg in $daemonConfigs) {
     $svcName = "PlenumNET-Array3-$($cfg.Id)"
@@ -1808,12 +1808,12 @@ $addressMapPath = Join-Path $OpsBase "address-map.json"
 $addressMap | ConvertTo-Json -Depth 1 | Set-Content -Path $addressMapPath -Encoding UTF8
 Write-Host "  [OK] Address map written to $addressMapPath" -ForegroundColor Green
 
-# ── Memory hygiene: clear passphrases from $daemonConfigs ─────────────
+# -- Memory hygiene: clear passphrases from $daemonConfigs -------------
 foreach ($cfg in $daemonConfigs) {
     $cfg.Passphrase = $null
 }
 
-# ── Slot registry verification ────────────────────────────────────────
+# -- Slot registry verification ----------------------------------------
 if ($crsReady) {
     $crsRegistryFile = Join-Path $OpsBase "slot-registry-$($daemonConfigs[0].Id).json"
     $registryCount = 0
@@ -1851,7 +1851,7 @@ if ($crsReady) {
     }
 }
 
-# ── STEP 11/11: Deployment summary and desktop launchers ────────────────
+# -- STEP 11/11: Deployment summary and desktop launchers ----------------
 Write-Host ""
 Write-Host "STEP 11/11: Deployment summary and desktop launchers" -ForegroundColor Yellow
 Write-Host "---" -ForegroundColor DarkGray
@@ -1914,9 +1914,9 @@ try {
     Write-Host "         Your cluster is running normally -- registry notification can be retried later." -ForegroundColor Yellow
 }
 
-# ── Desktop launchers ────────────────────────────────────────────────────
+# -- Desktop launchers ----------------------------------------------------
 # NOTE: [Environment]::GetFolderPath("Desktop") may return a OneDrive-synced
-# path (e.g. C:\Users\<user>\OneDrive\Desktop). This is intentional — the
+# path (e.g. C:\Users\<user>\OneDrive\Desktop). This is intentional -- the
 # launcher works from either location. If OneDrive sync causes issues, the
 # user can move the .cmd files to C:\Users\<user>\Desktop manually.
 $startYodaPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Start PlenumNET Array3.cmd"
@@ -2024,7 +2024,7 @@ Set-Content -Path $stopYodaPath -Value $stopContent -Encoding ASCII
 Restrict-FileAcl -FilePath $stopYodaPath | Out-Null
 Write-Host "  [OK] Stop launcher created: $stopYodaPath" -ForegroundColor Green
 
-# ── Completion summary ───────────────────────────────────────────────────
+# -- Completion summary ---------------------------------------------------
 Write-Host ""
 if ($deploymentHealthy) {
     Write-Host "==========================================================" -ForegroundColor Green
@@ -2110,7 +2110,7 @@ Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  ── Upgrade Notes (v2.4.5) ──" -ForegroundColor Cyan
+Write-Host "  -- Upgrade Notes (v2.4.5) --" -ForegroundColor Cyan
 Write-Host "  What changed (cumulative v2.4.4 + v2.4.5):" -ForegroundColor DarkGray
 Write-Host "    - Slot registry: BOM-tolerant JSON parser, BOM-free file writes" -ForegroundColor DarkGray
 Write-Host "    - CRS slot (1.1.1) now probes correctly (self-hosted service detection)" -ForegroundColor DarkGray
