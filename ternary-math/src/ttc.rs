@@ -66,7 +66,7 @@ pub const CHUNK_MAP_ENTRY_SIZE_V3: usize = 9;
 pub const CHUNK_MAP_ENTRY_SIZE_V2_LEGACY: usize = 16;
 pub const CHUNK_MAP_ENTRY_SIZE: usize = CHUNK_MAP_ENTRY_SIZE_V3;
 pub const VERSION_V3: u8 = 0x04;
-/// TTC v5.0.2: stride-delta + container decomposition + structured auto-detect.
+/// TTC v5.0.3: context-1 rANS (Z₂₇), 13-byte coprime hash, container decomp, stride delta.
 pub const VERSION_V5: u8 = 0x05;
 pub const TAU: f64 = 1.839_286_755_214_161_1;
 pub const GOLDEN_ANGLE: f64 = 139.035_628;
@@ -198,13 +198,14 @@ impl CompressionMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum ChunkMode { Stored = 0, Compressed = 1, TernaryEnhanced = 2, TernaryAns = 3 }
+pub enum ChunkMode { Stored = 0, Compressed = 1, TernaryEnhanced = 2, TernaryAns = 3, ContextAns = 4 }
 
 impl ChunkMode {
     #[inline]
     pub fn from_u8(v: u8) -> TtcResult<Self> {
         match v { 0 => Ok(Self::Stored), 1 => Ok(Self::Compressed), 2 => Ok(Self::TernaryEnhanced),
-            3 => Ok(Self::TernaryAns), _ => Err(TtcError::DecompressionError(format!("Unknown chunk mode: {v}"))) }
+            3 => Ok(Self::TernaryAns), 4 => Ok(Self::ContextAns),
+            _ => Err(TtcError::DecompressionError(format!("Unknown chunk mode: {v}"))) }
     }
 }
 
@@ -694,11 +695,11 @@ const TRIBONACCI_BASIS: [u64; 27] = [
 #[inline] fn decode_elias_gamma(r: &mut BitReader) -> u64 {
     let zeros = r.count_leading_zeros(); let lower = r.read(zeros as u8); ((1u64 << zeros) | lower as u64) - 1
 }
-#[inline(always)] fn encode_rice(w: &mut BitWriter, n: u64, m: u8) {
+#[inline(always)] pub(crate) fn encode_rice(w: &mut BitWriter, n: u64, m: u8) {
     let q = n >> m; for _ in 0..q { w.write_bit(true); } w.write_bit(false);
     w.write((n & ((1u64 << m) - 1)) as u32, m);
 }
-#[inline(always)] fn decode_rice(r: &mut BitReader, m: u8) -> u64 {
+#[inline(always)] pub(crate) fn decode_rice(r: &mut BitReader, m: u8) -> u64 {
     let mut q = 0u64; while r.read_bit() { q += 1; } let rem = r.read(m) as u64; (q << m) | rem
 }
 fn compute_initial_rice_m(tokens: &[Token]) -> u8 {
@@ -1331,9 +1332,9 @@ fn detect_service_name<'a>(data: &'a [u8], dict: &mut Vec<Vec<u8>>) -> (Option<u
             return (Some(idx), &trimmed[cp+1..]); } } } (None, trimmed)
 }
 fn trim_leading_space(data: &[u8]) -> &[u8] { &data[data.iter().position(|&b| b!=b' ' && b!=b'\t').unwrap_or(data.len())..] }
-fn encode_varint(out: &mut Vec<u8>, mut value: u64) { loop { let mut byte = (value & 0x7F) as u8; value >>= 7;
+pub(crate) fn encode_varint(out: &mut Vec<u8>, mut value: u64) { loop { let mut byte = (value & 0x7F) as u8; value >>= 7;
     if value > 0 { byte |= 0x80; } out.push(byte); if value == 0 { break; } } }
-fn decode_varint(data: &[u8]) -> (u64, usize) { let mut r = 0u64; let mut s = 0u32;
+pub(crate) fn decode_varint(data: &[u8]) -> (u64, usize) { let mut r = 0u64; let mut s = 0u32;
     for (i, &byte) in data.iter().enumerate() { r |= ((byte & 0x7F) as u64) << s; s += 7;
         if byte & 0x80 == 0 { return (r, i+1); } if s >= 64 { return (r, i+1); } } (r, data.len()) }
 fn write_timestamp(out: &mut Vec<u8>, ms: u64) { let secs = ms/1000; let mut buf = [0u8;20]; let mut n = secs; let mut len = 0;
@@ -1506,15 +1507,55 @@ fn reverse_domain_preprocess(data: &[u8], xform: DomainTransform, coeffs: Option
 // ─── LZ77 (§4) ─────────────────────────────────────────────────────────────
 
 const INVALID_POS: u32 = u32::MAX;
-struct Lz77Engine { window_size: usize, min_match: usize, #[allow(dead_code)] min_run: usize, chain_depth: usize, head: Vec<u32>, chain: Vec<u32> }
+/// Long-distance hash table size (power of 2 for masking). 64K entries × 4 bytes = 256KB.
+const LONG_TABLE_SIZE: usize = 1 << 16;
+const LONG_TABLE_MASK: usize = LONG_TABLE_SIZE - 1;
+
+struct Lz77Engine { window_size: usize, min_match: usize, #[allow(dead_code)] min_run: usize, chain_depth: usize, head: Vec<u32>, chain: Vec<u32>, long_head: Vec<u32> }
 impl Lz77Engine {
     fn new(cfg: &LevelConfig) -> Self { Self { window_size: cfg.window_size, min_match: cfg.min_match, min_run: cfg.min_run,
-        chain_depth: cfg.chain_depth, head: vec![INVALID_POS; cfg.window_size], chain: vec![INVALID_POS; cfg.window_size] } }
+        chain_depth: cfg.chain_depth, head: vec![INVALID_POS; cfg.window_size], chain: vec![INVALID_POS; cfg.window_size],
+        long_head: vec![INVALID_POS; LONG_TABLE_SIZE] } }
     #[inline] fn hash(&self, data: &[u8], i: usize) -> usize { if i+2 >= data.len() { return 0; }
         ((data[i] as usize).wrapping_mul(65521) ^ (data[i+1] as usize).wrapping_mul(257) ^ data[i+2] as usize) % self.window_size }
+    /// 13-byte hash (one radian). Constants: powers of coprime generators 11 and 13.
+    #[inline] fn hash13(&self, data: &[u8], i: usize) -> usize { if i+13 > data.len() { return 0; }
+        let mut h = 0usize;
+        h = h.wrapping_add((data[i] as usize).wrapping_mul(11));
+        h = h.wrapping_add((data[i+1] as usize).wrapping_mul(13));
+        h = h.wrapping_add((data[i+2] as usize).wrapping_mul(121));
+        h = h.wrapping_add((data[i+3] as usize).wrapping_mul(169));
+        h = h.wrapping_add((data[i+4] as usize).wrapping_mul(1331));
+        h = h.wrapping_add((data[i+5] as usize).wrapping_mul(2197));
+        h = h.wrapping_add((data[i+6] as usize).wrapping_mul(14641));
+        h = h.wrapping_add((data[i+7] as usize).wrapping_mul(28561));
+        h = h.wrapping_add((data[i+8] as usize).wrapping_mul(161051));
+        h = h.wrapping_add((data[i+9] as usize).wrapping_mul(371293));
+        h = h.wrapping_add((data[i+10] as usize).wrapping_mul(1771561));
+        h = h.wrapping_add((data[i+11] as usize).wrapping_mul(4826809));
+        h = h.wrapping_add((data[i+12] as usize).wrapping_mul(19487171));
+        h & LONG_TABLE_MASK }
     fn find_best_match(&self, data: &[u8], pos: usize) -> Option<(usize, usize)> {
-        if pos+2 >= data.len() { return None; } let h = self.hash(data, pos);
-        let mut j = self.head[h]; let mut bl = 0usize; let mut bd = 0usize; let mut steps = 0;
+        if pos+2 >= data.len() { return None; }
+        let mut bl = 0usize; let mut bd = 0usize;
+        // 13-byte long-distance match (checked first — finds long matches directly)
+        if pos + 13 <= data.len() {
+            let lh = self.hash13(data, pos);
+            let lp = self.long_head[lh];
+            if lp != INVALID_POS {
+                let lj = lp as usize;
+                let min_pos = pos.saturating_sub(self.window_size);
+                if lj >= min_pos && lj < pos && lj + 13 <= data.len() && data[lj..lj+13] == data[pos..pos+13] {
+                    let ml = MAX_MATCH_LEN.min(data.len() - pos);
+                    let mut len = 13;
+                    while len < ml && lj + len < data.len() && data[lj + len] == data[pos + len] { len += 1; }
+                    bl = len; bd = pos - lj;
+                }
+            }
+        }
+        // 3-byte hash chain (standard — finds short matches and nearby long matches)
+        let h = self.hash(data, pos);
+        let mut j = self.head[h]; let mut steps = 0;
         let min_pos = pos.saturating_sub(self.window_size);
         while j != INVALID_POS && steps < self.chain_depth { let jj = j as usize;
             if jj < min_pos || jj >= pos { j = self.chain[jj % self.window_size]; steps += 1; continue; }
@@ -1526,7 +1567,9 @@ impl Lz77Engine {
         if bl >= self.min_match { Some((bd, bl)) } else { None }
     }
     #[inline] fn update(&mut self, data: &[u8], pos: usize) { if pos+2 >= data.len() { return; }
-        let h = self.hash(data, pos); let old = self.head[h]; self.head[h] = pos as u32; self.chain[pos % self.window_size] = old; }
+        let h = self.hash(data, pos); let old = self.head[h]; self.head[h] = pos as u32; self.chain[pos % self.window_size] = old;
+        // Also update 13-byte long hash
+        if pos + 13 <= data.len() { let lh = self.hash13(data, pos); self.long_head[lh] = pos as u32; } }
     #[inline] fn count_run(&self, data: &[u8], pos: usize) -> usize { if pos >= data.len() { return 0; }
         let byte = data[pos]; let mut len = 1; while pos+len < data.len() && data[pos+len]==byte && len < MAX_RUN_LEN { len += 1; } len }
 }
@@ -1556,8 +1599,8 @@ fn tokenize_beam(data: &[u8], hist_off: usize, cfg: &LevelConfig, cost_mode: Chu
     let chunk_len = data.len() - hist_off; if chunk_len == 0 { return Vec::new(); }
     let mut eng = Lz77Engine::new(cfg);
     for j in 0..data.len().min(hist_off+chunk_len) { eng.update(data, j); }
-    let lit_bits: u64 = match cost_mode { ChunkMode::Stored=>8, ChunkMode::Compressed=>10, ChunkMode::TernaryEnhanced=>7, ChunkMode::TernaryAns=>8 };
-    let match_overhead: u64 = match cost_mode { ChunkMode::Stored=>64, ChunkMode::Compressed=>6, ChunkMode::TernaryEnhanced=>6, ChunkMode::TernaryAns=>4 };
+    let lit_bits: u64 = match cost_mode { ChunkMode::Stored=>8, ChunkMode::Compressed=>10, ChunkMode::TernaryEnhanced=>7, ChunkMode::TernaryAns=>8, ChunkMode::ContextAns=>8 };
+    let match_overhead: u64 = match cost_mode { ChunkMode::Stored=>64, ChunkMode::Compressed=>6, ChunkMode::TernaryEnhanced=>6, ChunkMode::TernaryAns=>4, ChunkMode::ContextAns=>4 };
     #[derive(Clone)] struct Node { cost: u64, token: Option<Token>, prev: u32 }
     let estimated_nodes = chunk_len * 3 + 1;
     let mut nodes: Vec<Node> = Vec::with_capacity(estimated_nodes.min(1 << 20));
@@ -1786,6 +1829,10 @@ fn phase2_compress(
         let tans = serialize_tans(&tokens, cfg.window_size);
         candidates.push((ChunkMode::TernaryAns, make_mode_payload(chunk, 3, &tans)));
 
+        // Context-1 rANS with Z₂₇ binning — order-1 context model
+        let ctx = crate::ctx_ans::serialize(&tokens);
+        candidates.push((ChunkMode::ContextAns, make_mode_payload(chunk, 4, &ctx)));
+
         if chunk.len() <= 16384 {
             let enh = serialize_ternary_enhanced(&tokens, rice_m, tc);
             candidates.push((ChunkMode::TernaryEnhanced, make_mode_payload(chunk, 2, &enh)));
@@ -1891,7 +1938,7 @@ fn build_container(chunks: &[ChunkResult], orig_size: u64, crc: u32, mode: Compr
     let mut out = Vec::with_capacity(comp_size);
     out.extend_from_slice(&MAGIC_TTC1);
     // Use VERSION_V5 if any chunk uses stride delta (DeltaFlag 7) or container decomposition (DomainTransform 7).
-    let uses_v5 = chunks.iter().any(|c| c.delta_flag.0 == 7 || c.domain_transform.0 == 7);
+    let uses_v5 = chunks.iter().any(|c| c.delta_flag.0 == 7 || c.domain_transform.0 == 7 || c.mode == ChunkMode::ContextAns);
     let version = if uses_v5 { VERSION_V5 } else { VERSION_V3 };
     out.push(version);
     out.push(mode as u8);
@@ -2004,6 +2051,19 @@ pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<Compressio
         data, &preprocessed, crc, dom_xform, lp_coeffs.as_ref(), iw, cfg, opts, tc);
     let mut best_level = opts.level;
 
+    // Competitive gate: if domain transform was applied (container decomp, structured, etc.),
+    // also try compressing the raw input WITHOUT the transform. Keep whichever is smaller.
+    // Container decomposition expands the data (inflated streams + manifest overhead).
+    // If TTC can't beat the original compression on the expanded data, the raw path wins.
+    if dom_xform.0 != 0 {
+        let (raw_compressed, raw_chunks) = compress_at_level(
+            data, &input, crc, DomainTransform::NONE, None, None, cfg, opts, tc);
+        if raw_compressed.len() < best_compressed.len() {
+            best_compressed = raw_compressed;
+            best_chunks = raw_chunks;
+        }
+    }
+
     if opts.level > 1 {
         let l1_cfg = level_config(1).unwrap();
         let (l1_compressed, l1_chunks) = compress_at_level(
@@ -2029,7 +2089,7 @@ pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<Compressio
         delta_flag: c.delta_flag.0, delta_order: c.delta_flag.order(), delta_rep: c.delta_flag.rep_name().into(),
         domain_transform: c.domain_transform.0 }).collect();
     let csz = best_compressed.len() as u64;
-    let ver_str = "5.0.2";
+    let ver_str = if best_chunks.iter().any(|c| c.delta_flag.0 == 7 || c.domain_transform.0 == 7 || c.mode == ChunkMode::ContextAns) { "5.0.3" } else { "3.0" };
     Ok(CompressionResult { compressed: best_compressed, original_size: data.len() as u64, compressed_size: csz,
         compression_ratio: if csz>0{data.len() as f64/csz as f64}else{1.0}, crc32: crc,
         mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: ver_str.into(),
@@ -2094,6 +2154,9 @@ pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
                 if independent{full}else{full[hr.len()..].to_vec()} }
             ChunkMode::TernaryAns => { let toks = deserialize_tans(cp, ws)?;
                 let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
+                if independent{full}else{full[hr.len()..].to_vec()} }
+            ChunkMode::ContextAns => { let toks = crate::ctx_ans::deserialize(cp)?;
+                let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
                 if independent{full}else{full[hr.len()..].to_vec()} } };
         let decoded = apply_delta_decode(&chunk_bytes, entry.dflag)?;
         if !independent { history.extend_from_slice(&decoded);
@@ -2152,6 +2215,9 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
                 if independent{full}else{full[hr.len()..].to_vec()} }
             ChunkMode::TernaryAns => { let toks = deserialize_tans(cp, ws)?;
                 let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
+                if independent{full}else{full[hr.len()..].to_vec()} }
+            ChunkMode::ContextAns => { let toks = crate::ctx_ans::deserialize(cp)?;
+                let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
                 if independent{full}else{full[hr.len()..].to_vec()} } };
         let decoded = apply_delta_decode(&chunk_bytes, entry.dflag)?;
         if !independent { history.extend_from_slice(&decoded);
@@ -2165,7 +2231,7 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
     } else { (final_data, None) };
     let computed_crc = crc32(&actual_data);
     let ver_byte = compressed[0x04];
-    let ver_str = "5.0.2";
+    let ver_str = if ver_byte == VERSION_V5 { "5.0.3" } else { "3.0" };
     Ok(DecompressionResult { data: actual_data, original_file_name, original_size: orig_size,
         compressed_size: compressed.len() as u64, version: ver_str.into(),
         level: Some(level),
@@ -2203,7 +2269,7 @@ pub fn ttc_compress_multi(files: &[(&str, &[u8])], opts: &CompressOptions) -> Tt
     for (_, arc, _, _) in &archives { out.extend_from_slice(arc); }
     let n = files.len().max(1) as f64;
     let pb = if bd.base_364>0{364} else if bd.base_70>0{70} else if bd.base_28>0{28} else if bd.base_13>0{13} else {3};
-    let multi_ver = "5.0.2";
+    let multi_ver = if archives.iter().any(|(_, arc, _, _)| arc.len() >= 5 && arc[4] == VERSION_V5) { "5.0.3" } else { "3.0" };
     Ok(MultiFileResult { total_compressed_size: out.len() as u64, compressed: out, total_original_size: to,
         compression_ratio: if tc_sum>0{to as f64/tc_sum as f64}else{1.0}, file_count: files.len(),
         files: archives.iter().map(|(n,_,o,c)| FileEntry { name: n.clone(), original_size: *o, compressed_size: *c,
