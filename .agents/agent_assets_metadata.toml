@@ -450,3 +450,15 @@ id = "BAMNXVU32k_S6fWv6-n21"
 uri = "file://ternary-src-bundle.zip"
 type = "unspecified"
 title = "Ternary Source Bundle (17 files)"
+
+[[outputs]]
+id = "2dvQ1TMhZmLCjP1X6P70u"
+uri = "file://.local/tasks/component-inventory.md"
+type = "text"
+title = "PlenumNET — Rust Native Browser & GUI Component Inventory"
+
+[[outputs]]
+id = "QWHwU4n1-CHZmEFm2OVlH"
+uri = "file://plenumnet-source-bundle.zip"
+type = "unspecified"
+title = "PlenumNET Source Bundle (51 files)"

@@ -1,0 +1,61 @@
+Here's what I need, organized by directory:
+Rust Kernel Browser (already have nothing from here)
+src/kernel/src/browser/mod.rs
+src/kernel/src/browser/parse.rs
+src/kernel/src/browser/layout.rs
+src/kernel/src/browser/script.rs
+src/kernel/src/browser/render.rs
+src/kernel/src/browser/render_cpu.rs
+src/kernel/src/browser/color.rs
+src/kernel/src/browser/tabs.rs
+src/kernel/src/browser/input.rs
+src/kernel/src/browser/net.rs
+src/kernel/src/browser/mesh.rs
+src/kernel/src/browser/home_page.rs
+src/kernel/src/distributor/coprime_polygon_pair.rs
+Server Crypto Bridges
+server/crypto/sponge-hash.ts
+server/crypto/tl-dsa-bridge.ts
+server/crypto/key-management.ts
+server/crypto/pt26-bridge.ts
+server/crypto/rsa4096-signing.ts
+(already have sponge-wasm-bridge.ts)
+Shared TypeScript (the key ones, not all 30)
+shared/constants.ts
+shared/ternary-circle.ts
+shared/repunit-circles.ts
+shared/gf3-algebra.ts
+shared/crt-fast-path.ts
+shared/plenum-square.ts
+shared/tribonacci-constants.ts
+shared/tis-sponge.ts
+shared/metatronic-cube.ts
+shared/service-catalog.ts
+Client Components (the 10 custom, not the 49 UI primitives)
+client/src/components/LauncherPanel.tsx
+client/src/components/geometric-foundations.tsx
+client/src/components/ternary-vm-terminal.tsx
+client/src/components/marketing-top-nav.tsx
+client/src/components/api-endpoint-catalog.tsx
+client/src/components/app-sidebar.tsx
+client/src/components/marketing-footer.tsx
+client/src/components/InstallExtensionCard.tsx
+Client Libraries
+client/src/lib/tis27-hash.ts
+Top 10 Application Pages (the most substantial ones)
+client/src/pages/TernaryDB.tsx
+client/src/pages/QuantumSimulator.tsx
+client/src/pages/Landing.tsx
+client/src/pages/Terminal.tsx
+client/src/pages/ApiKeys.tsx
+client/src/pages/AgentArray.tsx
+client/src/pages/Compression.tsx
+client/src/pages/HPTP.tsx
+client/src/pages/FPGABenchmarks.tsx
+client/src/pages/Distribution.tsx
+Config/Entry
+client/src/App.tsx
+client/src/index.css
+client/vite.config.ts (or equivalent)
+package.json
+That's ~45 files. Should cover every major area well enough to assess what's shippable. If a directory has more files that seem relevant when you're zipping, throw them in — more is better than less.
