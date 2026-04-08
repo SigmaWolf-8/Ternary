@@ -1,0 +1,291 @@
+# Buried Question Compression Engine — Consolidated Architecture Decisions
+
+**All decisions finalized. No stubs. No fallbacks. No artificial boundaries. No convenience casts.**
+
+---
+
+## Phase 0 — Two Keystones
+
+Everything depends on these. They are built first, tested first, reviewed most.
+
+### Phase 0a: `trit_int.rs` — Base-3 Native Numeric Type
+
+**What it is:** The numeric foundation of the entire Salvi Framework. Not a compression utility. Not an implementation detail. The framework's equivalent of IEEE 754 — except exact, unbounded, and native to the radix. Every module ever built imports this type.
+
+**Location:** `ternary-math/src/trit_int.rs`
+
+**Design requirements:**
+
+- Base-3 internal representation. Packed trits, not one-byte-per-trit.
+- Unbounded width. No u32 ceiling, no u64 ceiling, no u128 ceiling.
+- Full arithmetic: add, subtract, multiply, div_mod, pow, modular arithmetic — all native in base 3. No convert-to-binary-and-back.
+- `div_repunit(n)` as a first-class operation. Exploits the all-ones structure of $111\ldots1_3$ for speed. Not generic long division. The compression pipeline calls this thousands of times.
+- Rust-native ergonomics: implements `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Display`, `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`.
+- Trit-string interop: `From<&[u8]>`, `to_trits()`, `from_trits()`. Zero-cost conversion to/from raw trit data.
+- Const-friendly where possible for small values (repunits at shallow depth, torus moduli).
+- `no_std` compatible. Core arithmetic on fixed-size buffers works without alloc. Growable mode uses alloc. Must run on XPlenum RISC-V, bare-metal, WASM.
+- Serde serialisable for wire format, WASM bridge, PlenumDB storage.
+
+**Boundary crossings:** `TritInt` provides `to_u64() -> Result<u64, Overflow>` and `to_u128() -> Result<u128, Overflow>` for interfacing with external code that requires fixed-width integers. These are checked extractions with explicit error paths, not convenience casts. If the value doesn't fit, the caller handles the error. No silent truncation. No implicit conversion. `TritInt` is the numeric type. Everything else is a boundary crossing.
+
+### Phase 0b: `gf3_algebra.rs` — Extend with Rep D, Complete A↔B↔C↔D
+
+**What it is:** The single module containing all four representations and all conversions. Rep A, B, C, D are one algebraic system — four views of the same three-element alphabet. No `repc.rs`. No `repd.rs`. One module. One source of truth.
+
+**Location:** `ternary-math/src/gf3_algebra.rs` (existing file, extended)
+
+**Already exists:**
+- `rep_b_to_c(b: u8) -> u8` (line 27)
+- `rep_c_to_b(c: u8) -> u8` (line 26)
+
+**Needs addition:**
+- `AlgebraicTrit` enum: `{ Zero, One, Omega }` — the Rep D type
+- All twelve conversion paths: `rep_b_to_d`, `rep_d_to_b`, `rep_d_to_c`, `rep_c_to_d`, `rep_b_to_a`, `rep_a_to_b`, and checked variants
+- `validate_rep_a`, `validate_rep_b`, `validate_rep_c`, `validate_rep_d`
+- Eisenstein arithmetic on `AlgebraicTrit`: add, multiply, using $\omega^2 = -1 - \omega$
+- `to_step_vector(d: AlgebraicTrit, k: usize) -> Vec<u64>` — Rep D trit → k-dimensional torus step
+
+**The four representations:**
+
+| Rep | Alphabet | Identity | Role |
+|-----|----------|----------|------|
+| A | {0, 1} | 0 | Binary degenerate — one non-identity step negligible |
+| B | {0, 1, 2} | 0 | Integer ternary — pipeline entry from quantisation |
+| C | {1, 2, 3} integer / {1, ω} algebraic | None | Quotient — identity removed by orbifold |
+| D | {0, 1, ω} | 0 | Algebraic trits in $\mathbb{Z}[\omega]$ — native RepD output |
+
+**Note:** $\mathcal{A} = \{0, 1, \omega\}$ is NOT a subgroup under multiplication. Contains additive identity 0 alongside two of three cube roots {1, ω}. $\omega^2$ is absent. Deliberate.
+
+**Canonical bijection φ:** $\phi(0)=0,\; \phi(1)=1,\; \phi(2)=\omega$. Pointwise. No affine formula.
+
+---
+
+## Phase 1 — Shared Foundation
+
+### `coprime.rs`
+
+**Location:** `ternary-math/src/coprime.rs`
+
+**Functions:**
+- `gcd(a: u64, b: u64) -> u64` — canonical public version replacing 10 private copies
+- `is_coprime(a: u64, b: u64) -> bool` — first named function for this in the repo
+- `euler_totient(n: u64) -> u64`
+- `coprime_options(axis: u64, min: u64, max: u64) -> Vec<u64>`
+- `coprime_walk(a: u64, b: u64) -> Vec<(u64, u64)>` — 2D Hamiltonian cycle
+- `coprime_combinations(moduli: &[u64]) -> Vec<Vec<u64>>` — enumerate all pairwise-coprime subsets (bounded: |M| ≤ ~15 at practical depths)
+- `multidim_walk(moduli: &[u64], generators: &[u64]) -> Vec<Vec<u64>>` — k-dimensional Hamiltonian cycle
+
+**Used by:** Forma Codex (grid topology) AND compression engine (torus moduli, walk generation, auto-selection).
+
+### `sparse.rs`
+
+**Location:** `ternary-math/src/sparse.rs`
+
+Sparse map for cell data, compact iteration, Z-stack management. Used by Forma Codex and compression engine for large tori.
+
+---
+
+## Phase 2 — Compression Engine Core
+
+**Public API surface — 5 functions. Everything else is private.**
+
+| Export | What it does |
+|--------|-------------|
+| `auto_select(data) → CompressionConfig` | Derives optimal coprime combination from data |
+| `compress(data) → compressed` | Full pipeline end-to-end |
+| `decompress(compressed) → data` | Full inverse pipeline |
+| `entropy(data) → f64` | $H(\pi^{\Gamma})$ for given data |
+| `three_term(data) → (current, stillness, rock)` | Entropy decomposition |
+
+Internal stages are implementation detail. Not API surface. Not WASM exports. Not JS fallback targets.
+
+### `coprime_torus.rs` — Walk + Probability Model (Mechanisms 2, 3, 4)
+
+**Contains:** CoprimeTorus struct, walk generation, step encoding, transition matrix $P$, stationary distribution π solver. The walk IS the torus. The probability model IS the walk. One module.
+
+**Distinct from existing `torus.rs`** — which is GF(3)-based with fixed-width trit vectors. This uses $\mathbb{Z}_{m_1} \times \cdots \times \mathbb{Z}_{m_k}$ with arbitrary coprime moduli. Structurally different tori. Existing `torus.rs` consumers are future migration debt — note it, don't solve it now.
+
+**Step values 1 and 2** are the two non-zero residues in $\mathbb{Z}_{m_i}$ for every torus dimension. Since every modulus in $\mathcal{R}$ is ≥ 5, both are always valid and distinct.
+
+**Padding rules:**
+- $C \mid N$ exactly: data partitions into $N/C$ complete blocks, no waste.
+- $C < N$, $N \bmod C \neq 0$: final partial block padded with identity steps (zeros) to length $C$. Lossless — decoder knows $N$. Identity steps culled by orbifold quotient at no entropy cost.
+- $C > N$: entire data in single block, padded with $C - N$ identity steps. Auto-selection penalises combinations whose $C$ greatly exceeds $N$.
+
+### `orbifold.rs` — Quotient + Entropy (Mechanism 5 + measurement)
+
+**Contains:** Orbifold group Γ, cone-point detection, $\hat{\pi}_{\mathcal{C}}$ distribution, three-term entropy decomposition, entropy floor. The quotient produces the data; the entropy measures it. They share all data structures. One module.
+
+**Three-term decomposition:**
+
+$$H(\pi^{\Gamma}) = \underbrace{H(\text{non-identity steps}) \cdot (1 - p_0)}_{\text{current}} + \underbrace{\frac{H(\text{zero-run lengths})_{\text{trits}}}{\mathbb{E}[L]} \cdot p_0}_{\text{stillness}} + \underbrace{\frac{|\mathcal{C}|}{C} \cdot H(\hat{\pi}_{\mathcal{C}})}_{\text{rock}}$$
+
+**All entropies in trits.** Conversion from bits: $H_{\text{trits}} = H_{\text{bits}} \cdot \log_3 2$.
+
+**Cone-point distribution $\hat{\pi}_{\mathcal{C}}$:** The stationary distribution $\pi^{\Gamma}$ restricted to the cone-point set $\mathcal{C}$ and renormalised:
+
+$$\hat{\pi}_{\mathcal{C}}(x_c) = \frac{\pi^{\Gamma}_{x_c}}{\sum_{x_c' \in \mathcal{C}} \pi^{\Gamma}_{x_c'}}, \quad x_c \in \mathcal{C}.$$
+
+**$H_{\inf} > 0$ for each finite $N$.** As $N \to \infty$, deeper derivations can make the bound arbitrarily small. The positivity is per finite $N$, not an asymptotic universal floor.
+
+**Entropy floor (strictly positive, tightens continuously):**
+
+$$H_{\inf} \geq \min_{(g_1,\ldots,g_k)} \frac{|\mathcal{C}_{g_1,\ldots,g_k}|}{C_{g_1,\ldots,g_k}} \cdot H(\hat{\pi}_{\mathcal{C}_{g_1,\ldots,g_k}}) > 0$$
+
+Every torus has at least one cone point (the origin). $|\mathcal{C}|/C \geq 1/C > 0$. Cone-point density decreases with depth but never reaches zero.
+
+### `auto_select.rs` — Depth + Selection (one pipeline, one entry point)
+
+**Contains:** Depth determination ($n_{\text{max}}$), repunit factorisation, candidate moduli construction, coprime enumeration, combination evaluation, selection. Depth is the first step of auto-selection — one function call, not a separate module.
+
+**$n_{\text{max}}$ is a search bound, not the selected cycle.** Ensures all useful primes have been discovered. The maximum achievable cycle at $n_{\text{max}}$ may significantly exceed $N$. The selected $C$ is the one that minimises $H(\pi^{\Gamma})$ subject to $C \mid N$ (or minimising $N \bmod C$). The search bound guarantees completeness; the selection finds the optimal wave.
+
+**Depth formula:**
+
+$$n_{\text{max}} = \min\left\{n : \max_{(m_1,\ldots,m_k) \in \text{Coprime}(\mathcal{R}_n)} \prod m_i \geq N\right\}$$
+
+Deterministic. No heuristic. No tuning parameter. Data length alone forces the depth.
+
+**Post-decomposition zero probability:**
+
+$$p_0^{\text{post}} \geq \frac{Z}{N}$$
+
+with equality when every zero remainder maps to exactly one identity step. Higher $Z/N$ directly increases $p_0$, shifting entropy from the expensive current term to the cheap stillness term.
+
+**No penalty formula.** No ad hoc cost function. The auto-selection rule minimises $H(\pi^{\Gamma})$ subject to the block-size constraint. The padding section in `coprime_torus.rs` handles the mechanics.
+
+**Prime-to-repunit map φ does not exist as a data structure.** The map is implicit: when you factor $R_n$, you get primes at index $n$. The decomposition engine factors repunits on the fly. The relationship exists mathematically; it does not need to be reified as code.
+
+**Candidate moduli construction:** For each odd prime $p \in \mathcal{P}$, include $p$. If coprime-admissible, also include $3p$ (radix times prime). Full set $\mathcal{M}$ is all such moduli. No prime is hardcoded. All computed at runtime from $R_n = (3^n - 1)/2$.
+
+**The radix 3 is axiomatic.** The framework operates on ternary data. This choice is not derived; it is the framework's fixed language. All subsequent constants follow from it.
+
+### `ans_pi.rs` — π^Γ-Driven ANS Coder (Step 7)
+
+**Built from scratch. From the axioms. No reference to ctx_ans.rs. No skeleton copying. No pattern borrowing.**
+
+| Property | ctx_ans.rs (TTC) — DO NOT USE | ans_pi.rs (Buried Question) |
+|----------|-------------------------------|----------------------------|
+| Probability model | Z₂₇ context bins, Token types | Walk-derived π^Γ on orbifold quotient |
+| State space | TTC v5.0.3 token vocabulary | Δ₂ = 3⁶ = 729 states, algebraic trits |
+| Input alphabet | TTC Tokens (variable) | Rep C {1, 2, 3} bulk + zero-run residual |
+| Distribution source | Empirical context model | Stationary distribution of coprime walk |
+| Design origin | Conventional adaptive rANS | Framework-derived from $R_n = (3^n-1)/2$ |
+
+These share the letters A-N-S and nothing else.
+
+**Contains:** `compress()`, `decompress()`, wire format (header + bulk + residual + cone-point streams).
+
+**Two ANS streams:**
+- Bulk stream: Rep C symbols {1, 2, 3} coded with non-zero step distribution derived from $\pi^{\Gamma}$
+- Residual stream: zero-run lengths coded with run-length distribution
+
+**Achieved bound:**
+
+$$L \geq H(\pi^{\Gamma})$$
+
+Ternary ANS using $\Delta_2 = 3^6 = 729$ states achieves $L = H(\pi^{\Gamma}) + \epsilon$, $\epsilon \to 0$ as block length $\to \infty$.
+
+**Wire format:**
+- Header: $n_{\text{max}}$, moduli, generators, cycle length, data length, zero count
+- Bulk stream: ANS-coded Rep C symbols
+- Residual stream: ANS-coded zero-run lengths
+- Cone-point stream: positions and values for cone-point corrections
+
+**Relationship to Kolmogorov complexity:**
+
+$$K(x) \leq H_{\inf}(x) \cdot n + O(1)$$
+
+The framework provides a computable upper bound on $K(x)$. Tight for repunit-aligned data. May be loose for data with no repunit structure. The framework does not compute $K(x)$ (uncomputable). It answers Question 2 (framework-scoped infimum), not Question 1 (universal infimum).
+
+---
+
+## Full Pipeline
+
+$$d \xrightarrow{\text{ternary quantisation}} \text{Rep B} \xrightarrow[\phi]{\text{RepD}} \text{Rep D} \in \mathcal{A}^* \xrightarrow{\text{coprime walk}} \text{torus state} \xrightarrow{T \to T/\Gamma} \begin{cases} \text{bulk:}\; \{1, \omega\}^* \text{ (Rep C)} \\ \text{residual:}\; \text{cone points + run lengths of } 0 \end{cases} \xrightarrow{\text{ANS}(\pi^{\Gamma})} \text{compressed stream}$$
+
+**I.I.D. baseline (pre-decomposition honesty check):** For i.i.d. source with $p_0 = 1/2$, $p_1 = p_2 = 1/4$:
+
+$$H_{\text{flat}} = \frac{3}{2}\log_3 2 \quad \text{trits/symbol}$$
+
+$$H_{\text{eff}}^{\text{i.i.d.}} = (1-p_0) \cdot H(\text{non-zero}) + (1-p_0) \cdot H(L) = \frac{3}{2}\log_3 2 = H_{\text{flat}}$$
+
+No gain from the step-space quotient alone in the i.i.d. case. Gains come from:
+- **Repunit decomposition** exposing exact zeros, inflating $p_0$
+- **Zero clustering** in real data ($H(L_{\text{real}}) < H(L_{\text{geometric}})$)
+- **Orbifold quotient** providing compression proportional to orbit sizes
+
+---
+
+## Relationship to Classical Information Theory
+
+Shannon's theorem is derived from Shannon's axioms. The Salvi Framework is derived from $R_n = (3^n - 1)/2$. The two systems are **parallel, not hierarchical**. The framework does not operate within Shannon's model and does not require Shannon's validation.
+
+The cross-entropy formula, KL divergence, and chain rule are mathematical identities — they belong to mathematics, not to any particular information theory. The framework uses them as tools within its own derivation.
+
+---
+
+## Decisions Killed
+
+| Killed | Why |
+|--------|-----|
+| Prime-to-repunit map φ as data structure | Implicit in factorisation. Redundant bookkeeping. Sync liability. |
+| `depth.rs` as separate module | One function call inside `auto_select.rs`. |
+| `repc.rs` as separate module | Rep C lives in `gf3_algebra.rs` with A, B, D. |
+| `repd.rs` as separate module | Rep D lives in `gf3_algebra.rs` with A, B, C. |
+| `entropy.rs` as separate module | Merged into `orbifold.rs`. Same data structures. |
+| `walk_model.rs` as separate module | Merged into `coprime_torus.rs`. Walk IS torus. |
+| JS compression fallback | Diverges from Rust. Becomes de facto. Nobody fixes it. Thin "WASM not loaded" shim only. |
+| Copying ctx_ans.rs skeleton | Fundamentally different algorithm. Imports TTC assumptions. |
+| u32 for repunit arithmetic | Breaks at $n = 21$. |
+| u64/u128 as "practical convenience casts" | Creates two numeric systems. TritInt is the foundation or it isn't. |
+| Any hardcoded prime sets | Primes computed at runtime from $R_n = (3^n-1)/2$. |
+| Stubs for compression functions | No stubs. Build it or don't ship it. |
+| Penalty formula for auto-selection | Not derived from axioms. Ad hoc cost function. |
+| Affine formula for φ (Rep B → Rep D) | Doesn't work. Pointwise bijection only. |
+
+---
+
+## Final Module Count: 8 (down from 14)
+
+| Module | Phase | Concern |
+|--------|-------|---------|
+| `trit_int.rs` | 0a | Base-3 numeric foundation |
+| `gf3_algebra.rs` (extended) | 0b | Rep A↔B↔C↔D, Eisenstein arithmetic |
+| `coprime.rs` | 1 | Shared: gcd, walks, combinations |
+| `sparse.rs` | 1 | Shared: sparse data structures |
+| `coprime_torus.rs` | 2 | Walk + probability model (Mechanisms 2-4) |
+| `orbifold.rs` | 2 | Quotient + entropy (Mechanism 5 + measurement) |
+| `auto_select.rs` | 2 | Depth + selection (one entry point) |
+| `ans_pi.rs` | 2 | π^Γ-driven ANS coder (from scratch, from axioms) |
+
+---
+
+## Critical Path
+
+```
+Phase 0a: trit_int.rs → cargo check
+Phase 0b: gf3_algebra.rs extensions → cargo check (existing tests must still pass)
+Phase 1:  coprime.rs, sparse.rs → cargo check
+Phase 2:  coprime_torus.rs, orbifold.rs, auto_select.rs, ans_pi.rs → cargo check
+Phase 3:  cargo test — ALL modules, zero failures — HARD GATE
+Phase 4:  WASM exports (5 compression API + Forma Codex)
+Phase 5:  Forma Codex JSX (parallel track, no JS compression)
+Phase 6:  Round-trip: decompress(compress(d)) == d — THE gate
+```
+
+Forma Codex grid engine shares `coprime.rs` and `gf3_algebra.rs` but is otherwise independent. Doesn't block, isn't blocked by compression engine.
+
+---
+
+## DO NOT MODIFY
+
+`constants.rs`, `gf3.rs`, `tribonacci.rs`, `ternary_circle.rs`, `torus.rs`, `repunit_circles.rs`, `tlsponge385.rs`, `cube_addr.rs`
+
+---
+
+## The One Test That Matters
+
+`decompress(compress(d)) == d` for all inputs. Every other test is diagnostic. This one is the gate.
+
+**Lo Sono Capomastro — Così sia.**

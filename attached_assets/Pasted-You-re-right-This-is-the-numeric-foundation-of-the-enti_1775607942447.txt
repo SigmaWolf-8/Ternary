@@ -1,0 +1,33 @@
+You're right. This is the numeric foundation of the entire framework — not just the compression engine. Every future module, every application, every user-space implementation across the Salvi Framework touches base-3 arithmetic. The sole axiom is $R_n = (3^n-1)/2$. The numeric type that represents computation in this framework is the most fundamental thing that gets built. It deserves the same rigour as the mathematical derivation.
+
+**What this actually is: `TritInt` — the base-3 native numeric type of the Salvi Framework.**
+
+Not a compression utility. Not an implementation detail. The framework's equivalent of what IEEE 754 floats are to conventional computing, except exact, unbounded, and native to the radix. Every module that ever gets built — compression, cryptography, TDNS, XPlenum, SignHere, PlenumDB, anything — imports this type. It's the numeric substrate.
+
+Design requirements:
+
+- **Base-3 internal representation.** Trits are first-class, not derived from binary. Stored as packed trits, not one-byte-per-trit waste.
+- **Unbounded width.** No u64 ceiling, no u128 ceiling. Grows as needed.
+- **Full arithmetic.** Add, subtract, multiply, div_mod, pow, modular arithmetic — all native in base 3. No convert-to-binary-and-back.
+- **Repunit division as a first-class operation.** `div_repunit(n)` is not generic long division — it exploits the all-ones structure of $111\ldots1_3$ for speed. This is the operation the entire compression pipeline calls thousands of times.
+- **Rust-native type ergonomics.** Implements `std::ops::{Add, Sub, Mul, Div, Rem}`, `Display`, `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, `From<u64>`, `From<u128>`, `TryInto<u64>`. First-class Rust citizen.
+- **Trit-string interop.** `From<&[u8]>` (trit slice), `to_trits() -> Vec<u8>`, `from_trits()`. Zero-cost conversion between the numeric type and raw trit data.
+- **Const-friendly where possible.** Small values (repunits at shallow depth, torus moduli) should be constructible at compile time.
+- **`no_std` compatible.** This type may end up in XPlenum RISC-V, bare-metal, WASM — it cannot depend on the standard library allocator exclusively. Core arithmetic on fixed-size buffers should work without alloc. Growable mode uses alloc.
+- **Serde serialisable.** For wire format, WASM bridge, PlenumDB storage.
+
+This is Phase 0. It goes in `ternary-math/src/trit_int.rs`. Every other module depends on it. It gets the most tests, the most review, and the most thought — because if this is wrong, everything built on top is wrong.
+
+The critical path becomes:
+
+```
+Phase 0: trit_int.rs — base-3 numeric foundation
+Phase 1: coprime.rs, repc.rs, sparse.rs (shared, using TritInt)
+Phase 2: repd.rs, coprime_torus.rs, orbifold.rs, auto_select.rs, ans_pi.rs
+Phase 3: cargo test — HARD GATE
+Phase 4: WASM exports
+Phase 5: Forma Codex JSX
+Phase 6: Round-trip verification
+```
+
+This is the keystone. Build it right or everything downstream inherits the debt.

@@ -1,0 +1,223 @@
+# FORMA CODEX 18∏ — Implementation Architecture v2
+
+```
+Copyright © 2026 Capomastro Holdings Ltd. — All Rights Reserved
+Patent(s) Pending — Applied Physics Division
+```
+
+---
+
+## 1. Repo Structure — Actual Paths
+
+All new modules live in `ternary-math/src/`. The WASM bridge is `wasm_exports.rs` (not `wasm_bridge.rs`). The module registry is `lib.rs`.
+
+```
+ternary-math/src/
+├── lib.rs                    ← ADD: pub mod coprime; pub mod repc;
+│                                     pub mod sparse; pub mod forma_codex;
+├── constants.rs              ← EXISTING (1,640 lines) — DO NOT MODIFY
+├── gf3.rs                    ← EXISTING (551 lines)  — DO NOT MODIFY
+├── tribonacci.rs             ← EXISTING (691 lines)  — DO NOT MODIFY
+├── ternary_circle.rs         ← EXISTING (511 lines)  — DO NOT MODIFY
+├── torus.rs                  ← EXISTING (597 lines)  — DO NOT MODIFY
+├── repunit_circles.rs        ← EXISTING (133 lines)  — DO NOT MODIFY
+├── tlsponge385.rs            ← EXISTING (862 lines)  — DO NOT MODIFY
+├── cube_addr.rs              ← EXISTING (60 lines)   — DO NOT MODIFY
+├── wasm_exports.rs           ← EXISTING (486 lines)  — ADD fc_ and shared exports
+├── coprime.rs                ← NEW SHARED
+├── repc.rs                   ← NEW SHARED
+├── sparse.rs                 ← NEW SHARED
+└── forma_codex/
+    ├── mod.rs                ← NEW
+    ├── grid.rs               ← NEW
+    ├── cell.rs               ← NEW
+    ├── document.rs           ← NEW
+    └── preset.rs             ← NEW
+```
+
+---
+
+## 2. Import Map — What Each New Module References
+
+### 2.1 coprime.rs (NEW shared)
+
+| Imports From | What It Uses |
+|-------------|-------------|
+| `constants.rs` | COPRIME_PAIRS (9), COPRIME_TRIPLES (7), COPRIME_QUADRUPLES (2), COPRIME_QUINTUPLES (5), COPRIME_SEXTUPLES (4), all LCMs, `repunit(n)` function |
+| `torus.rs` | `TorusAddress` concepts — the grid IS a 2D torus, coprime topology builds on this |
+| `ternary_circle.rs` | `Z28` cyclic group type, 364° geometry — walk positions map to Z₂₈ |
+
+**Provides:**
+- Public `gcd()`, `is_coprime()` — replaces 3 private scattered copies
+- `CoprimePair` validated struct (gcd=1 guaranteed by construction)
+- `CoprimePair::topology()` → `TorusTopology { gcd, cycle, hamiltonian }`
+- `HamiltonianWalk` — 2D torus, (+1,+1) mod (X,Y), `forward()`/`backward()`/`stay()` with Rep B {1,2,0} keys
+- `HamiltonianWalk::reading_order()` — row-major for same bounds
+- `HamiltonianWalk::step_at(col, row)` → step number at position
+- `coprime_options(axis, min, max)` → `Vec<u32>` valid partners
+
+**Consolidates:** The same math currently scattered across `coprime_clock_rotation.rs` (kernel), `coprime_walk.rs` (kernel), `coprime_polygon_pair.rs` (kernel), `container_decomp.rs`, `cpd.rs`. Those consumers can import from this after it exists.
+
+### 2.2 repc.rs (NEW shared)
+
+| Imports From | What It Uses |
+|-------------|-------------|
+| `constants.rs` | `REPUNIT_3` for guard marker construction |
+| `cube_addr.rs` | Pattern reference — the `assert!(t >= 1 && t <= 3)` zero-exclusion that repc.rs formalizes |
+
+**Provides:**
+- `validate_address(coords: &[u32])` — any zero → `RepCViolation`
+- `validate_cell_address(x, y, z, face)` — 4-coordinate check
+- `validate_bounds(x, y, max_x, max_y)` — range check after zero check
+- `GUARD_MARKER: u64` = `0x0D0D_0D0D_0D0D_0D0D`
+- `guard_intact(value)` → bool
+
+### 2.3 sparse.rs (NEW shared)
+
+| Imports From | What It Uses |
+|-------------|-------------|
+| Standalone | No framework imports |
+
+**Provides:**
+- `SparseEntry { index: u32, data: Vec<u8> }`
+- `sparse_encode(items, serialize_fn)` → `Vec<SparseEntry>` — skips None entries
+- `sparse_decode(entries, total_size, deserialize_fn)` → `Vec<Option<T>>`
+- `sparse_ratio(total, populated)` → f64
+
+### 2.4 forma_codex/grid.rs (NEW, application-specific)
+
+| Imports From | What It Uses |
+|-------------|-------------|
+| `coprime.rs` | `CoprimePair`, `HamiltonianWalk`, `coprime_options()` |
+| `constants.rs` | Framework constants for validation |
+
+### 2.5 forma_codex/cell.rs (NEW, application-specific)
+
+| Imports From | What It Uses |
+|-------------|-------------|
+| `repc.rs` | `GUARD_MARKER`, `guard_intact()` |
+| `gf3.rs` | `Gf3` type, arithmetic ops — face link computation: `activeFace = ((sum of faces) mod 3) + 1` |
+| `tribonacci.rs` | `TernaryRepr` enum (Rep A/B/C), `TritVec` — walk steps use Rep B {0,1,2}, addresses use Rep C {1,2,3} |
+
+### 2.6 forma_codex/document.rs (NEW, application-specific)
+
+| Imports From | What It Uses |
+|-------------|-------------|
+| `sparse.rs` | `sparse_encode()`, `sparse_decode()`, `sparse_ratio()` |
+
+### 2.7 forma_codex/preset.rs (NEW, application-specific)
+
+| Imports From | What It Uses |
+|-------------|-------------|
+| `coprime.rs` | `coprime_options()` for custom dialog |
+| `constants.rs` | UV spectral wavelengths (λ_EUV=91, λ_UVC=182, λ_UVB=286, λ_UVA=364) — grid cell counts match these wavelengths in §20.2 presets |
+
+---
+
+## 3. WASM Bridge Additions
+
+Added to existing `ternary-math/src/wasm_exports.rs` (486 lines currently).
+
+**Shared exports** (usable by any frontend):
+```
+coprime_validate(a, b) → bool
+coprime_options(axis, min, max) → Vec<u32>
+coprime_walk(a, b) → JsValue (walk order array)
+repc_validate(x, y, z, face) → bool
+```
+
+**Forma Codex exports:**
+```
+fc_grid_new(x, y) → JsValue
+fc_cell_dimensions(x, y, vp_w, vp_h, col_off, row_off) → JsValue
+fc_presets() → JsValue
+fc_min_content_cell() → u32
+fc_min_structural_cell() → u32
+fc_perf_warning_threshold() → u32
+```
+
+**lib.rs additions** (4 lines to existing `ternary-math/src/lib.rs`, 55 lines currently):
+```rust
+pub mod coprime;
+pub mod repc;
+pub mod sparse;
+pub mod forma_codex;
+```
+
+---
+
+## 4. JSX Frontend — 7 Files
+
+| File | Location | Source |
+|------|----------|--------|
+| FormaCodex.jsx | `frontend/forma-codex/FormaCodex.jsx` | New — canvas setup, ResizeObserver, state, render loop |
+| useFormaCodex.js | `frontend/forma-codex/useFormaCodex.js` | New — WASM/DEV dual-mode hook. **Pattern from `server/crypto/sponge-wasm-bridge.ts`** (try WASM first, fall back to JS) |
+| canvas.js | `frontend/forma-codex/canvas.js` | New — all draw operations, 18-layer draw order, single canvas |
+| input.js | `frontend/forma-codex/input.js` | New — pointer + keyboard + hidden textarea |
+| transitions.js | `frontend/forma-codex/transitions.js` | Port from PlenumText v5.33 — page transition compositor, proj3D/rotVert |
+| blocks.js | `frontend/forma-codex/blocks.js` | Port from PlenumText v5.33 — measureBlk, renderBlk, doLay, rLines, prep |
+| dev/fallback.js | `frontend/forma-codex/dev/fallback.js` | New — mirrors Rust API in JS. **Must stay in sync with existing TS mirrors** (see §5) |
+
+**Rule: if it computes, it is in Rust. If it draws pixels, it is in JSX.**
+
+---
+
+## 5. TypeScript Mirror Alignment
+
+These existing TypeScript modules mirror the Rust modules. The DEV fallback (`dev/fallback.js`) must stay in sync with them.
+
+| Existing TS Module | Location | What It Mirrors | DEV Fallback Uses |
+|-------------------|----------|-----------------|-------------------|
+| `constants.ts` | `shared/constants.ts` (376 lines) | `constants.rs` | All master constants |
+| `ternary-circle.ts` | `shared/ternary-circle.ts` (337 lines) | `ternary_circle.rs` | Z₂₈ operations, walk math |
+| `repunit-circles.ts` | `shared/repunit-circles.ts` (212 lines) | `repunit_circles.rs` | repunit(n), circle defs |
+| `gf3-algebra.ts` | `shared/gf3-algebra.ts` (79 lines) | `gf3.rs` | GF(3) arithmetic, `repCtoB()`, `repBtoC()`, `hasForgery()` (Rep C zero detection) |
+| `sponge-wasm-bridge.ts` | `server/crypto/sponge-wasm-bridge.ts` (81 lines) | WASM loading pattern | **Exact pattern for `useFormaCodex.js`** |
+| `tis27-hash.ts` | `client/src/lib/tis27-hash.ts` (215 lines) | `tlsponge385.rs` (TIS-27 mode) | Guard validation if needed |
+| `crt-fast-path.ts` | `shared/crt-fast-path.ts` (159 lines) | CRT decomposition Z₃₆₄ ≅ Z₁₃ × Z₂₈ | Grid topology |
+
+---
+
+## 6. Test Files
+
+| File | Location |
+|------|----------|
+| `coprime_tests.rs` | `ternary-math/tests/coprime_tests.rs` |
+| `repc_tests.rs` | `ternary-math/tests/repc_tests.rs` |
+| `sparse_tests.rs` | `ternary-math/tests/sparse_tests.rs` |
+| `grid_tests.rs` | `ternary-math/tests/forma_codex/grid_tests.rs` |
+| `cell_tests.rs` | `ternary-math/tests/forma_codex/cell_tests.rs` |
+| `preset_tests.rs` | `ternary-math/tests/forma_codex/preset_tests.rs` |
+
+---
+
+## 7. What Gets Consolidated (Cleanup Debt — Not Build Blocking)
+
+After the shared modules exist, these existing scattered implementations can be refactored to import from them. This is NOT part of Phase 1A. It happens after the build is stable.
+
+| Scattered Code | Replaced By |
+|---------------|------------|
+| 3 private `gcd()` copies (constants.rs test block, coprime_polygon_pair.rs, coprime_clock_rotation.rs) | `coprime::gcd()` |
+| 5 independent coprime walk implementations (coprime_walk.rs, coprime_clock_rotation.rs, container_decomp.rs, color.rs, cpd.rs) | `coprime::HamiltonianWalk` and `coprime::coprime_options()` |
+| Forked TIS-27 in `tools/plenum-pack/src/tis27.rs` | Import `tlsponge385::Sponge` with `RoundMode::Tis27` |
+
+---
+
+## 8. Deliverable Summary
+
+| Deliverable | Count | Location |
+|-------------|-------|----------|
+| Shared Rust modules | 3 | `ternary-math/src/coprime.rs`, `repc.rs`, `sparse.rs` |
+| Forma Codex Rust modules | 4 + mod.rs | `ternary-math/src/forma_codex/` |
+| WASM exports additions | 10 functions | `ternary-math/src/wasm_exports.rs` |
+| lib.rs additions | 4 pub mod lines | `ternary-math/src/lib.rs` |
+| Shared tests | 3 | `ternary-math/tests/` |
+| FC tests | 3 | `ternary-math/tests/forma_codex/` |
+| JSX frontend | 7 files | `frontend/forma-codex/` |
+| Working canvas artifact | 1 | Viewable here in Claude |
+
+**What you get:** Rust modules that compile against the actual repo, import from the actual existing modules, and pass tests. WASM bridge additions to the actual `wasm_exports.rs`. A thin JSX frontend that renders on canvas. DEV fallback aligned with the actual existing TypeScript mirrors. The 3 shared modules consolidate scattered coprime/RepC logic across the codebase.
+
+---
+
+*Forma Codex 18∏ — Lo Sono Capomastro — Così sia.*

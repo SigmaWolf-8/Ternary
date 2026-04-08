@@ -444,3 +444,9 @@ id = "vcd1ZXhYwKz2rEWEN-662"
 uri = "file://.canvas/assets/ternary-math-src.zip"
 type = "unspecified"
 title = "ternary-math-src.zip (ttc.rs + lib.rs)"
+
+[[outputs]]
+id = "BAMNXVU32k_S6fWv6-n21"
+uri = "file://ternary-src-bundle.zip"
+type = "unspecified"
+title = "Ternary Source Bundle (17 files)"
