@@ -1,0 +1,26 @@
+You're right. Let me actually read this properly instead of rubber-stamping it.
+ERROR 1 — validate_cell_address is fundamentally wrong
+The spec says: "All coords must be in {1,2,3}. Zero forbidden (Rep C has no identity)." That's Rep C trit validation, not cell address validation. A cell at position (7, 13) on a 7×13 grid is perfectly valid. X ranges to 27, Y to 28 in the Maximum preset. The function conflates trit values with grid coordinates. Face {1,2,3} is correct. Z {1..13} is correct (user-accessible layers). But x and y depend on grid dimensions — they need the grid's X and Y as parameters to validate against, not a hardcoded {1,2,3} range.
+ERROR 2 — u32 throughout when the session killed it
+The "Out of scope" section defers trit_int.rs and says "u32 covers R₁–R₆" — but then every WASM export, every function signature, every constant reference still uses u32. The session says "NO u32 for repunit arithmetic." The task chose to defer TritInt but didn't commit to that decision cleanly — it carries the session's kill language while doing the opposite. Either reverse the kill explicitly and own u32/u64 as the type system for this task, or implement trit_int.rs. Can't do both.
+ERROR 3 — coprime_combinations return type contradicts its own spec
+The API says -> Vec<Vec<u64>> but the constraint says "Returns Err if moduli.len() > 15." A Vec return type can't return Err. Should be Result<Vec<Vec<u64>>, &'static str> or similar.
+ERROR 4 — ZStack is generic but GUARD_SENTINEL is [u8; 8]
+ZStack<T> has layers: [Option<T>; 14]. The guard at z=0 is a [u8; 8] sentinel. If T is a cell content type (blocks, style structs, animation configs), how does a u8 array fit into Option<T>? The guard layer is structurally different from content layers — it's a fixed sentinel, not optional content. Either ZStack needs a dedicated guard field outside the generic array, or the guard layer type needs to be part of T's enum variants.
+ERROR 5 — "4 faces per cell" is misleading
+Item 7 says "4 faces per cell." The spec says 3 content faces (1, 2, 3) plus face 0 as null sentinel. The cell has 3 usable faces. "4 faces" invites someone to treat face 0 as writable. The language should be "3 content faces + face 0 sentinel" everywhere.
+ERROR 6 — Item 7 Z-stack layer list is wrong
+Item 7 says "z=0 GUARD, z=1 CONTENT, z=2 PARA STYLE, ..., z=13 GRI." The spec §6 clearly defines z=2 as LAST CONTENT (previous edit, undo target), z=3 as LAST² CONTENT, z=4 as CELL STYLE, z=5 as CELL LAYOUT. "z=2 PARA STYLE" doesn't exist anywhere in the spec. This is fabricated.
+ERROR 7 — GUARD_SENTINEL value has no ternary justification
+[13, 13, 13, 13, 13, 13, 13, 13] — 8 repetitions of REPUNIT_3. Why 8 bytes? The Z-stack stores typed layer data, not raw byte buffers. If the sentinel is checked by verify_guard(sentinel: &[u8]), what passes in that &[u8]? The cell's z=0 layer stores Option<T>, not &[u8]. The sentinel mechanism needs to match the actual storage type.
+ERROR 8 — No Forma Codex grid.rs API specified
+Item 6 lists imports but no public API. Every other Rust module has function signatures. grid.rs — the core of the entire document engine — has nothing. No FormaGrid::new(x, y), no cell_dimensions(), no walk_step(), no is_valid_position(). This is the most important module in the task and it's a blank.
+ERROR 9 — No cell.rs API specified
+Same problem. Item 7 lists imports and a brief description but no function signatures. No Cell::new(), no push_undo(), no advance_face(), no get_content(), no set_content(). The architecture document mentions these functions but the task spec doesn't carry them through.
+ERROR 10 — No document.rs API specified
+Item 8: two import lines and nothing else. No Document::new(), no save(), no load(), no add_row_offset(), no add_col_offset().
+ERROR 11 — No preset.rs API specified
+Item 9 says "30 GridPreset structs" and lists imports. No struct definition, no all_presets(), no custom_options(), no preset lookup function.
+ERROR 12 — Findings 5, 6, 7 don't belong in this task
+Findings 5–7 are labeled "BQ-future" and describe things relevant only to the Buried Question compression engine. They're informational noise in a Forma Codex task. They should be removed or moved to a "Notes for future BQ task" appendix.
+The Forma Codex Rust modules (Items 5–9) are the heart of this task and they're all empty shells — imports with no API. The shared modules have full signatures but the product-specific ones don't. This is backwards.

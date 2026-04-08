@@ -1,0 +1,225 @@
+# Task #101 — Forma Codex 18∏ — Unified Review
+
+```
+Reviewer: Claude (Opus 4.6)
+Date: 2026-04-07
+Source Documents Reviewed:
+  1. Task #101 spec (pasted in conversation)
+  2. forma-codex-18∏-session-summary.md
+  3. forma-codex-18∏-spec.md (1,053 lines, 26 sections)
+  4. forma-codex-18∏-architecture.md (193 lines)
+```
+
+---
+
+## Scope Correction
+
+Task #101 is titled "Forma Codex 18∏ + Buried Question Compression Engine" and includes the full BQ compression pipeline (Phase 2, Items 6–15) as in-scope work. This is wrong. The Buried Question compression engine is a separate future task. The only reason BQ appears here is that Forma Codex and BQ share some foundational math modules (coprime.rs, sparse.rs, gf3_algebra.rs extension). The shared modules are in scope. The compression engine is not.
+
+**Items to remove from Task #101:** All of Phase 2 (Items 6–15: bq/mod.rs, repd.rs, repunit_decomp.rs, coprime_torus.rs, walk_model.rs, orbifold.rs, entropy.rs, auto_select.rs, ans_pi.rs, pipeline.rs), all BQ test files (repd_tests.rs, repunit_decomp_tests.rs, coprime_torus_tests.rs, orbifold_tests.rs, entropy_tests.rs, auto_select_tests.rs, pipeline_roundtrip_tests.rs), WASM §E exports (bq_compress, bq_decompress, bq_auto_select, bq_entropy, bq_entropy_floor, bq_three_term, bq_depth), BQ functions from dev/fallback.ts (bqCompress, bqDecompress, bqAutoSelect, bqEntropy, bqEntropyFloor, bqThreeTerm, bqDepth), `pub mod bq;` from the lib.rs append, the `ternary-math/src/bq/` and `ternary-math/tests/bq/` directories.
+
+**Task #101 retitled to:** "Forma Codex 18∏ — Grid Document Engine + Shared Foundation Modules"
+
+**Revised file count:** Remove 17 BQ files and 7 BQ WASM/fallback items. Revised total is roughly 7 existing files modified + 21 new files created.
+
+---
+
+## CONFLICT 1 — repc.rs exists in Task #101, killed in session
+
+Task #101 Item 2 creates `ternary-math/src/repc.rs` as a standalone module with `validate_cell_address()`, `GUARD_MARKER`, `orbifold_step_quotient()`, `is_rep_c()`, `rep_b_to_c_checked()`.
+
+Session summary explicitly kills this: "NO `repc.rs` — Rep C lives in gf3_algebra.rs." Architecture document confirms: "repc.rs as separate module → gf3_algebra.rs — validate_rep_c(), hasForgery()."
+
+**Required fix:** Delete Item 2 entirely. Move `validate_cell_address()` into the gf3_algebra.rs extension (Phase 0b). `orbifold_step_quotient()` belongs in a future BQ module, not here. Remove `pub mod repc;` from the lib.rs append (Item 4). Update all imports that reference `crate::repc::` to `crate::gf3_algebra::`. Update Item 17 (forma_codex/grid.rs) imports accordingly.
+
+---
+
+## CONFLICT 2 — repd.rs exists in Task #101, killed in session
+
+Task #101 Item 7 creates `ternary-math/src/bq/repd.rs` with `AlgebraicTrit` enum, Eisenstein arithmetic, all B↔D↔C conversion maps.
+
+Session summary kills this: "NO `repd.rs` — Rep D lives in gf3_algebra.rs." Architecture Phase 0b specifies: "Add `AlgebraicTrit` enum (Rep D: {Zero, One, Omega}). All 12 conversion paths... Eisenstein arithmetic (ω² = −1 − ω)... ~150 lines to add."
+
+**Required fix:** Item 7 is removed with the rest of Phase 2 (BQ out of scope). The AlgebraicTrit type and Eisenstein arithmetic become part of the gf3_algebra.rs extension in Phase 0b, which Task #101 currently has no item for. A new item must be added for the gf3_algebra.rs extension. Every module that would have imported `crate::bq::repd::` now imports `crate::gf3_algebra::`.
+
+---
+
+## CONFLICT 3 — trit_int.rs exists in session/architecture, missing from Task #101
+
+Architecture Phase 0a defines `trit_int.rs`: packed 5-trits-per-byte, unbounded width, `div_repunit(n)` optimized, full Rust trait suite, Rep A/B/C interop, `zeroize::Zeroize`, `no_std` compatible.
+
+Session summary explicitly kills u32 for repunit arithmetic: "NO u32 for repunit arithmetic — TritInt is unbounded."
+
+Task #101 has zero mention of trit_int.rs. Every repunit operation in Task #101 uses u32/u64 casts.
+
+**Required fix:** Either add a new Phase 0a item for trit_int.rs (user builds), add `pub mod trit_int;` to the lib.rs append, and update all repunit arithmetic to use TritInt — OR explicitly defer trit_int.rs with a documented decision that u32/u64 casts are acceptable for now, and reverse the session's kill of u32 repunit math with justification. Cannot leave this unresolved — the session and task contradict.
+
+---
+
+## CONFLICT 4 — lib.rs pub mod lines disagree
+
+Task #101 Item 4 appends five lines: `pub mod coprime; pub mod repc; pub mod sparse; pub mod forma_codex; pub mod bq;`
+
+After applying scope correction and kill decisions:
+- `pub mod repc;` — killed (Conflict 1)
+- `pub mod bq;` — removed (BQ out of scope)
+- `pub mod trit_int;` — missing (Conflict 3, if trit_int.rs is added)
+- `pub mod coprime;` — correct
+- `pub mod sparse;` — correct
+- `pub mod forma_codex;` — correct
+
+**Required fix:** lib.rs append becomes 3 or 4 lines depending on trit_int.rs decision:
+- With trit_int: `pub mod trit_int; pub mod coprime; pub mod sparse; pub mod forma_codex;`
+- Without trit_int: `pub mod coprime; pub mod sparse; pub mod forma_codex;`
+
+---
+
+## CONFLICT 5 — JSX file paths disagree
+
+Task #101 places frontend files at `client/src/components/forma-codex/`.
+Architecture document places them at `frontend/forma-codex/`.
+
+One of these paths does not exist in the repo. The correct path needs to be verified against the actual repo directory structure before any frontend work begins.
+
+**Required fix:** Verify which directory exists. Update whichever document is wrong. All seven JSX file paths must be consistent.
+
+---
+
+## CONFLICT 6 — Killed decisions not applied to Task #101
+
+Session kills two modules that Task #101 still lists:
+- `walk_model.rs` — "Walk IS the torus, lives in coprime.rs"
+- `entropy.rs` — "Merges into orbifold.rs"
+
+Both are BQ Phase 2 files and leave with the scope correction. However, the session's kill rationale affects shared module design: if walk IS the torus and lives in coprime.rs, then coprime.rs (Item 1) needs walk-related functions that Task #101 already includes (coprime_walk_2d, multidim_walk). This is consistent.
+
+**Required fix:** No additional action beyond the scope correction. Confirm that coprime.rs Item 1 API already covers the walk functions that the session merged into it.
+
+---
+
+## CONFLICT 7 — GUARD_MARKER definition contradicts session
+
+Task #101 Item 2 defines `pub const GUARD_MARKER: u64 = 0x0D0D_0D0D_0D0D_0D0Du64` (REPUNIT_3 repeated 8×).
+
+Session kills this: "NO separate GUARD_MARKER constant — guard uses Rep C algebraic validation via gf3_algebra."
+
+These cannot both be true. A GUARD_MARKER is a fixed bit pattern written to z=0 and checked for corruption. Algebraic validation via gf3_algebra checks whether values are in {1,2,3}. These are different mechanisms:
+- GUARD_MARKER: "did the sentinel change?" (Layer 2 in spec §26)
+- Rep C validation: "is this address valid?" (Layer 1 in spec §26)
+
+The spec §26 describes THREE detection layers. Layer 1 is address validation (Rep C). Layer 2 is sentinel verification (known non-zero marker pattern). Layer 3 is native ternary. The session's kill of GUARD_MARKER contradicts the spec's Layer 2.
+
+**Required fix:** Reconcile. If Layer 2 sentinel verification survives (spec §26 says it does), then a marker value must exist somewhere — either as a constant or computed from gf3_algebra. Define where the marker lives and what its value is. If Layer 2 is killed, update spec §26 to remove it.
+
+---
+
+## CONFLICT 8 — gf3_algebra.rs needs explicit EXTEND status
+
+Task #101's DO-NOT-MODIFY list omits gf3_algebra.rs (correctly). Architecture's DO-NOT-MODIFY table also omits it. But neither document explicitly marks it as EXTEND with preservation rules.
+
+Session Phase 0b says: "Preserve all existing code and tests."
+
+**Required fix:** Task #101 needs a new item for Phase 0b: gf3_algebra.rs extension. The item must state:
+- EXTEND, not MODIFY-freely, not DO-NOT-MODIFY
+- All existing 97 lines preserved verbatim
+- All existing tests must continue to pass
+- New code appended after existing code
+- New additions: AlgebraicTrit enum (Rep D), validate_rep_a/b/c/d, validate_cell_address (from killed repc.rs), Eisenstein arithmetic, all 12 conversion paths
+- Estimated addition: ~150 lines
+
+---
+
+## ISSUE 9 — coprime_combinations needs a complexity bound
+
+`coprime_combinations(moduli: &[u64]) -> Vec<Vec<u64>>` in coprime.rs (Item 1) enumerates all pairwise-coprime subsets. This is exponential in |moduli|. Task #101 acknowledges this: "Exponential in |moduli|. For auto-selection, |moduli| ≤ ~15."
+
+But coprime.rs is a shared module, not just for auto-selection. The Forma Codex custom grid dialog uses `coprime_options()` (not `coprime_combinations`), so the exponential function may never be called from FC. However, the function exists in the public API with no enforced bound.
+
+**Required fix:** Add to the coprime.rs spec:
+- Hard limit: `coprime_combinations` returns `Err` if `moduli.len() > 15`
+- Or: the function takes a `max_results: usize` parameter and stops enumeration early
+- Document that this function is primarily for the future BQ auto-selection and is not called by Forma Codex
+
+---
+
+## ISSUE 10 — Phase 5 JSX is underspecified
+
+Task #101 gives Rust modules function-level API detail (signatures, imports, invariants, formulas). The seven JSX files get paragraph-level descriptions. This is insufficient for a rendering engine.
+
+**canvas.ts** needs: draw function signatures for each of the 14 Z-layers, draw order (z=0 bottom → z=13 top → selection → walk path → cursor → scrollbar), viewport culling algorithm (which cells to draw given scroll position and viewport dimensions), sub-pixel alignment strategy, DPR scaling, cell border rendering (shared edges drawn once, not twice), morph effect compositor pattern (offscreen canvas capture → blend → composite).
+
+**input.ts** needs: pointer event state machine (idle → selecting → dragging → scrolling), keyboard handler map with modifier keys, hidden textarea lifecycle (create on cell focus, destroy on blur, position tracking), focus management for nested grids (which grid owns the textarea), drag-to-scroll threshold and velocity.
+
+**FormaCodex.tsx** needs: state management strategy (what's in React state vs. refs), render loop lifecycle (RAF init → measure → cull → draw → schedule next), ResizeObserver debounce strategy, preset dropdown data flow, mode badge rendering.
+
+**transitions.ts** needs: offscreen canvas capture API, compositor blend modes, timing function for each of the 6 Phase 1 effects (none, slide, dissolve, cube, flip, zoom), cleanup lifecycle (when to release captured bitmaps).
+
+**blocks.ts** needs: text measurement strategy (CanvasRenderingContext2D.measureText vs. offscreen pre-measure), line breaking algorithm, block type registry (h1, h2, body, image, shape — what renders how), content overflow detection for variable-mode row height calculation.
+
+**Required fix:** Expand Items 24–30 to function-level detail matching the Rust module specs. This is the work the user will debug iteratively, so it needs to be right.
+
+---
+
+## ISSUE 11 — Spec §20.1 preset count: 31 claimed, 30 listed
+
+Task #101 says "31 GridPreset structs." Spec §20.1 says "31 presets." The table in spec §20.1 lists 30 rows (Micro through Maximum). One preset is missing or the count is wrong.
+
+**Required fix:** Recount. Add the missing preset or correct the count to 30.
+
+---
+
+## ISSUE 12 — sparse.rs described as shared with BQ but BQ never imports it
+
+Architecture says sparse.rs is "used by both compression engine and Forma Codex." No BQ module in Task #101 imports `SparseGrid` or `ZStack`. Forma Codex uses it (grid.rs, cell.rs).
+
+**Required fix:** Remove the "used by both" claim. sparse.rs is a Forma Codex module. If a future BQ task needs it, it's already in the crate and available. No API changes needed — just correct the description.
+
+---
+
+## ISSUE 13 — 14 layers / Z=13 language is inconsistent
+
+The spec says "Z is always 13" and "14 layers (z=0 through z=13)." Task #101's `ZStack` has `layers: [Option<T>; 14]` with `get_layer(z: usize)` where `z in 0..14`. This is internally consistent (14 slots, max index 13, Rust range 0..14 is exclusive) but the prose switches between "14-layer Z-stacks" and "Z=13" without clarifying the distinction.
+
+**Required fix:** Add a one-line clarification wherever both numbers appear: "14 slots indexed 0–13; the Z dimension value is 13." This prevents confusion during implementation.
+
+---
+
+## ISSUE 14 — Task #101 has no item for Phase 0a or Phase 0b
+
+The session and architecture define:
+- Phase 0a: trit_int.rs (base-3 native numeric type)
+- Phase 0b: gf3_algebra.rs extension (AlgebraicTrit/Rep D, Eisenstein arithmetic, validators)
+
+Task #101 jumps straight to Phase 1 (coprime.rs, repc.rs, sparse.rs). There are no items for either Phase 0 step. The architecture's build order (0a → 0b → 1 → FC) has no representation in the task.
+
+**Required fix:** Add Item 0a (trit_int.rs — if not deferred) and Item 0b (gf3_algebra.rs extension) as the first items in the task. These must be completed before Phase 1 because coprime.rs and forma_codex modules depend on them.
+
+---
+
+## Summary of Required Changes
+
+| # | Type | Action |
+|---|------|--------|
+| Scope | Remove | Delete entire Phase 2 (BQ), WASM §E, BQ fallback functions, pub mod bq, bq/ directories |
+| 1 | Conflict | Delete Item 2 (repc.rs). Move validate_cell_address to gf3_algebra.rs extension |
+| 2 | Conflict | repd.rs leaves with BQ. AlgebraicTrit moves to gf3_algebra.rs extension |
+| 3 | Conflict | Decide trit_int.rs: add Phase 0a item OR defer with documented justification |
+| 4 | Conflict | Fix lib.rs append: remove repc, remove bq, conditionally add trit_int |
+| 5 | Conflict | Verify correct JSX path against actual repo |
+| 6 | Conflict | Confirm coprime.rs walk functions cover session's merged walk_model |
+| 7 | Conflict | Reconcile GUARD_MARKER kill vs spec §26 Layer 2 sentinel verification |
+| 8 | Conflict | Add explicit Phase 0b item for gf3_algebra.rs extension with preservation rules |
+| 9 | Issue | Add complexity bound to coprime_combinations (max moduli or max results) |
+| 10 | Issue | Expand JSX Items 24–30 to function-level detail |
+| 11 | Issue | Fix preset count: 31 claimed, 30 listed |
+| 12 | Issue | Remove "used by both" claim on sparse.rs — it's FC-only for now |
+| 13 | Issue | Add "14 slots indexed 0–13; Z dimension is 13" clarification |
+| 14 | Issue | Add Phase 0a and 0b items to task (trit_int.rs, gf3_algebra.rs extension) |
+
+**Blocking items (must resolve before any code):** Scope correction, Conflicts 1–4, Conflict 7, Conflict 8, Issue 14.
+
+**Non-blocking items (can resolve during build):** Conflicts 5–6, Issues 9–13.
+
+---
+
+*Reviewed against: Forma Codex 18∏ — Lo Sono Capomastro — Così sia.*

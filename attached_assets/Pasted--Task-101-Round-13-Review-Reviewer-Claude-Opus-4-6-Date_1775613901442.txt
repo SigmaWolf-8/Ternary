@@ -1,0 +1,121 @@
+# Task #101 — Round 13 Review
+
+```
+Reviewer: Claude (Opus 4.6)
+Date: 2026-04-07
+Source: All 17 files from ternary-src-bundle.zip read and verified
+Documents: spec (1,053 lines), session summary, architecture, Task #101 latest revision
+```
+
+---
+
+## BLOCKING — TritInt Is Phase 0a, Not "Out of Scope"
+
+The session summary says: **"NO u32 for repunit arithmetic — TritInt is unbounded."**
+
+The architecture defines Phase 0a as `trit_int.rs` — the first thing built before anything else exists.
+
+Every revision of Task #101 has deferred this into "Out of scope" with the justification "u32 covers R₁–R₆." This contradicts the session's explicit kill decision and the architecture's build order. The task keeps shipping a u32/u64 type system that was killed months ago.
+
+TritInt is not optional. It is Phase 0a — the foundation everything else stands on. coprime.rs should not accept u64. Grid coordinates should not be u32. Constants should flow through TritInt. The casting gymnastics between u32 constants and u64 function signatures exist only because the proper type doesn't.
+
+**Required fix:** Remove trit_int.rs from "Out of scope." Add it as Item 0a — Phase 0a, user builds, first file delivered. All downstream modules (coprime.rs, sparse.rs, grid.rs, cell.rs, preset.rs) use TritInt where they currently use u32/u64 for ternary arithmetic. u8 remains for raw trit values {0,1,2}. WASM boundary converts TritInt↔JsValue via serde.
+
+---
+
+## Source-Verified Errors
+
+### ERROR 1 — wasm_exports.rs is 485 lines, not 486
+
+Task says "currently 486 lines" and "after line 486" throughout Items 12 and Finding 13. The file ends at line 485. Every reference is off by one.
+
+**Fix:** All instances of "486" become "485."
+
+---
+
+### ERROR 2 — gf3_algebra.rs counts are wrong
+
+Task says "19 pub functions, 12 tests." Source has **22 pub functions, 9 tests.**
+
+The 22: gf3_add, gf3_sub, gf3_mul, gf3_neg, gf3_square, gf3_inv, rep_c_to_b, rep_b_to_c, batch_c_to_b, batch_b_to_c, hamming_distance, hamming_distance_rep_c, has_forgery, find_forgeries, gf3_vec_add, gf3_vec_sub, gf3_vec_mul, gf3_dot, gf3_scalar_mul, repunit_checksum, project_to_gf3, derive_trit.
+
+The 9: test_gf3_add, test_gf3_mul, test_gf3_sub, test_gf3_square, test_mod7_small, test_hamming_id, test_hamming_all, test_forgery_ok, test_forgery_bad.
+
+**Fix:** "currently 97 lines (22 pub functions, 9 tests)"
+
+---
+
+### ERROR 3 — Finding 9 is bloat
+
+30+ lines inventorying every constant in constants.rs with its u32 type and line number. Duplicates Findings 1–4. Makes the document look saturated with u32. Adds nothing actionable.
+
+**Fix:** Delete Finding 9 entirely. Constants are already referenced in the module import specs where they're consumed.
+
+---
+
+### ERROR 4 — Relevant files section has duplicate line-range entries
+
+constants.rs listed 8 times with different line ranges. gf3_algebra.rs twice. wasm_exports.rs three times. repunit_circles.rs twice.
+
+**Fix:** Deduplicate to one entry per file. Line ranges belong in Findings, not file listings. Result should be ~20 unique paths.
+
+---
+
+### ERROR 5 — Cell.rs z=6..12 not enumerated
+
+Item 7 lists z=0 through z=5 and z=13 explicitly, then says "z=6..12: per spec §6 (additional structural layers)." The spec defines these. The task should too.
+
+**Fix:** Replace with:
+```
+z=6:  CELL ANIMATION    — trigger, effect, duration, easing, direction
+z=7:  CELL CONNECTIONS   — mirrors, groups, face links, cone point flag
+z=8:  CELL STRUCTURE     — nested grid config, row/column effects
+z=9:  CELL NOTES         — comments, tags, color flags
+z=10: CELL EXPORT        — print behavior, PDF layer, accessibility
+z=11: CELL HISTORY       — last modified, edit count, change source
+z=12: LAST³ CONTENT      — third undo level (overflow discarded)
+```
+
+---
+
+### ERROR 6 — Kernel coprime_walk.rs not acknowledged
+
+`src/kernel/src/distributor/coprime_walk.rs` (183 lines) has a complete CoprimeWalker with step/reset/is_complete_cycle, ParallelWalker with 3 stride walkers, compute_walk_sequence(), verify_full_coverage(). This is a 1D ring walker (stride mod ring_size). coprime.rs provides 2D/k-D CRT-based position generators. Different abstractions, no code shared, but the relationship is undocumented.
+
+**Fix:** Add note to Item 1: "Distinct from kernel's coprime_walk.rs (1D ring walkers). coprime.rs provides 2D/k-D position generators via CRT. No overlap."
+
+---
+
+## Fixed From Previous Rounds
+
+| Error | Status |
+|-------|--------|
+| validate_cell_address in wrong module | Fixed — now in grid.rs |
+| ZStack guard as generic T | Fixed — GuardSentinel is dedicated struct |
+| "4 faces per cell" | Fixed — "3 content faces + face 0 sentinel" |
+| z=2 "PARA STYLE" fabricated | Fixed — z=2 is LAST CONTENT |
+| grid.rs empty API | Fixed — full struct + 11 functions |
+| cell.rs empty API | Fixed — full struct + 8 functions |
+| document.rs empty API | Fixed — full struct + 6 functions |
+| preset.rs empty API | Fixed — full struct + 4 functions |
+| coprime_combinations wrong return type | Fixed — returns Result |
+| Preset count 31 vs 30 | Fixed — 30 throughout |
+| BQ compression engine in scope | Fixed — removed |
+
+---
+
+## Summary
+
+| # | Severity | Item |
+|---|----------|------|
+| **0a** | **BLOCKING** | **TritInt is Phase 0a. Remove from "Out of scope." Add as first item. All ternary arithmetic uses TritInt, not u32/u64.** |
+| 1 | Fix | wasm_exports.rs: 485 lines, not 486 |
+| 2 | Fix | gf3_algebra.rs: 22 pub / 9 tests, not 19 / 12 |
+| 3 | Cut | Delete Finding 9 (constant inventory bloat) |
+| 4 | Cut | Deduplicate Relevant files to one entry per file |
+| 5 | Fix | Enumerate z=6..12 explicitly in cell.rs |
+| 6 | Add | Note on kernel coprime_walk.rs relationship |
+
+---
+
+*Verified against source. — Così sia.*
