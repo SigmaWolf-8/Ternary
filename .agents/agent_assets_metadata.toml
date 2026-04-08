@@ -462,3 +462,9 @@ id = "QWHwU4n1-CHZmEFm2OVlH"
 uri = "file://plenumnet-source-bundle.zip"
 type = "unspecified"
 title = "PlenumNET Source Bundle (51 files)"
+
+[[outputs]]
+id = "1wSf0Rj-tGAqMzewQEnEq"
+uri = "file://kernel-installer-bundle.zip"
+type = "unspecified"
+title = "Kernel + Installer Diagnostic Bundle (8 files)"
