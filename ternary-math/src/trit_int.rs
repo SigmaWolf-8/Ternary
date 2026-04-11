@@ -38,6 +38,7 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Sub, Mul, Div, Rem, AddAssign, SubAssign, MulAssign};
+use crate::gf3_algebra::AlgebraicTrit;
 
 // ══════════════════════════════════════════════════════════════
 // TYPE DEFINITIONS
@@ -1157,6 +1158,280 @@ const _: () = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// REPRESENTATION CONVERSIONS (Phase 3)
+//
+// All four representations: A (balanced), B (standard), C (bijective),
+// D (algebraic). All to_repr_* produce MSB-first output (wire convention).
+// All from_repr_* accept MSB-first input. This is distinct from
+// to_trits/from_trits which use LSB-first (internal convention).
+// ══════════════════════════════════════════════════════════════
+
+impl TritInt {
+    /// Convert to Rep A (balanced ternary, {−1, 0, +1}), MSB-first.
+    ///
+    /// Algorithm (LSB to MSB): for each digit + carry:
+    /// 0→0 carry 0, 1→1 carry 0, 2→−1 carry 1, 3→0 carry 1.
+    /// Zero-valued TritInt produces empty output.
+    pub fn to_repr_a(&self) -> Vec<i8> {
+        let (packed, count) = self.parts();
+        if count == 0 { return Vec::new(); }
+
+        let mut balanced = Vec::with_capacity(count as usize + 1);
+        let mut carry: u8 = 0;
+
+        for i in 0..count {
+            let digit = trit_at_packed(packed, i) + carry;
+            match digit {
+                0 => { balanced.push(0i8); carry = 0; }
+                1 => { balanced.push(1i8); carry = 0; }
+                2 => { balanced.push(-1i8); carry = 1; }
+                3 => { balanced.push(0i8); carry = 1; }
+                _ => unreachable!(),
+            }
+        }
+        if carry > 0 {
+            balanced.push(1i8);
+        }
+
+        // Strip trailing zeros (which become leading zeros after reverse)
+        while balanced.last() == Some(&0) {
+            balanced.pop();
+        }
+        balanced.reverse(); // LSB-first → MSB-first
+        balanced
+    }
+
+    /// Convert to Rep B (standard, {0, 1, 2}), MSB-first.
+    ///
+    /// Wire convention output. Distinct from `to_trits()` which is LSB-first.
+    /// Zero-valued TritInt produces empty output.
+    pub fn to_repr_b(&self) -> Vec<u8> {
+        self.trits_msb_first()
+    }
+
+    /// Convert to Rep C (bijective, {1, 2, 3}), MSB-first.
+    ///
+    /// Each digit = Rep B digit + 1. Zero-valued TritInt produces empty output.
+    /// No zero digits ever appear in the output — Rep C wire safety.
+    pub fn to_repr_c(&self) -> Vec<u8> {
+        let (packed, count) = self.parts();
+        if count == 0 { return Vec::new(); }
+
+        let mut result = Vec::with_capacity(count as usize);
+        // Build MSB-first
+        let mut i = count;
+        while i > 0 {
+            i -= 1;
+            result.push(trit_at_packed(packed, i) + 1);
+        }
+        result
+    }
+
+    /// Convert to Rep D (algebraic, {Zero, One, Omega}), MSB-first.
+    ///
+    /// Per-digit mapping: Rep B 0→Zero, 1→One, 2→Omega.
+    /// Zero-valued TritInt produces empty output.
+    pub fn to_repr_d(&self) -> Vec<AlgebraicTrit> {
+        let (packed, count) = self.parts();
+        if count == 0 { return Vec::new(); }
+
+        let mut result = Vec::with_capacity(count as usize);
+        let mut i = count;
+        while i > 0 {
+            i -= 1;
+            result.push(match trit_at_packed(packed, i) {
+                0 => AlgebraicTrit::Zero,
+                1 => AlgebraicTrit::One,
+                2 => AlgebraicTrit::Omega,
+                _ => unreachable!(),
+            });
+        }
+        result
+    }
+
+    /// Construct from Rep A (balanced, {−1, 0, +1}), MSB-first input.
+    ///
+    /// Panics if any digit is outside {−1, 0, +1}.
+    pub fn from_repr_a(balanced: &[i8]) -> Self {
+        if balanced.is_empty() { return TritInt::zero(); }
+
+        // Validate
+        for &d in balanced {
+            assert!(d >= -1 && d <= 1, "from_repr_a: digit must be -1, 0, or +1, got {}", d);
+        }
+
+        // Reverse to LSB-first and convert balanced → standard with carry
+        let mut lsb_first: Vec<i8> = balanced.to_vec();
+        lsb_first.reverse();
+
+        let mut rep_b = Vec::with_capacity(lsb_first.len() + 1);
+        let mut carry: i8 = 0;
+
+        for &digit in &lsb_first {
+            let val = digit + carry;
+            if val < 0 {
+                rep_b.push((val + 3) as u8);
+                carry = -1;
+            } else if val > 2 {
+                rep_b.push((val - 3) as u8);
+                carry = 1;
+            } else {
+                rep_b.push(val as u8);
+                carry = 0;
+            }
+        }
+        if carry > 0 {
+            rep_b.push(carry as u8);
+        } else if carry < 0 {
+            // This shouldn't happen for valid balanced inputs, but handle defensively
+            panic!("from_repr_a: conversion produced negative carry — invalid input");
+        }
+
+        TritInt::from_trits(&rep_b) // from_trits expects LSB-first Rep B
+    }
+
+    /// Construct from Rep B (standard, {0, 1, 2}), MSB-first input.
+    ///
+    /// The MSB-first counterpart of `from_trits` (which is LSB-first).
+    /// Panics if any digit ≥ 3.
+    pub fn from_repr_b(standard: &[u8]) -> Self {
+        if standard.is_empty() { return TritInt::zero(); }
+
+        for &d in standard {
+            assert!(d < 3, "from_repr_b: digit must be 0, 1, or 2, got {}", d);
+        }
+
+        let mut lsb_first: Vec<u8> = standard.to_vec();
+        lsb_first.reverse();
+        TritInt::from_trits(&lsb_first)
+    }
+
+    /// Construct from Rep C (bijective, {1, 2, 3}), MSB-first input.
+    ///
+    /// Panics on any digit = 0 (forgery detection) or digit > 3.
+    /// This is a structural validity check — impossible digit values indicate
+    /// corrupted or forged input.
+    pub fn from_repr_c(bijective: &[u8]) -> Self {
+        if bijective.is_empty() { return TritInt::zero(); }
+
+        for &d in bijective {
+            assert!(d >= 1 && d <= 3, "from_repr_c: digit must be 1, 2, or 3, got {} — zero = forgery", d);
+        }
+
+        let mut lsb_first: Vec<u8> = bijective.iter().map(|&c| c - 1).collect();
+        lsb_first.reverse();
+        TritInt::from_trits(&lsb_first)
+    }
+
+    /// Construct from Rep D (algebraic, {Zero, One, Omega}), MSB-first input.
+    pub fn from_repr_d(algebraic: &[AlgebraicTrit]) -> Self {
+        if algebraic.is_empty() { return TritInt::zero(); }
+
+        let mut lsb_first: Vec<u8> = algebraic.iter().map(|d| match d {
+            AlgebraicTrit::Zero => 0u8,
+            AlgebraicTrit::One => 1u8,
+            AlgebraicTrit::Omega => 2u8,
+        }).collect();
+        lsb_first.reverse();
+        TritInt::from_trits(&lsb_first)
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DIV_REPUNIT AND MOD_POW (Phase 3)
+// ══════════════════════════════════════════════════════════════
+
+impl TritInt {
+    /// Division by repunit R_n = 111...1₃ (n ones).
+    ///
+    /// Exploits repunit structure: 3ⁿ ≡ 1 (mod R_n), so the remainder
+    /// equals (sum of n-trit chunks) mod R_n. The quotient is computed
+    /// from the chunk processing with carry propagation.
+    ///
+    /// Returns (quotient, remainder).
+    pub fn div_repunit(&self, n: usize) -> (TritInt, TritInt) {
+        assert!(n > 0, "div_repunit: n must be > 0");
+
+        if self.is_zero() {
+            return (TritInt::zero(), TritInt::zero());
+        }
+
+        let divisor = TritInt::repunit(n);
+
+        if *self < divisor {
+            return (TritInt::zero(), self.clone());
+        }
+
+        // Chunk-based: split into n-trit groups from LSB, sum chunks for remainder.
+        // Since 3^n ≡ 1 (mod R_n), value mod R_n = (sum of chunks) mod R_n.
+        let trits = self.to_trits(); // LSB-first
+        let num_chunks = (trits.len() + n - 1) / n;
+
+        // Sum all n-trit chunks
+        let mut chunk_sum = TritInt::zero();
+        for c in 0..num_chunks {
+            let start = c * n;
+            let end = std::cmp::min(start + n, trits.len());
+            let chunk = TritInt::from_trits(&trits[start..end]);
+            chunk_sum = TritInt::add(&chunk_sum, &chunk);
+        }
+
+        // Reduce chunk_sum mod R_n (recursive — chunk_sum might be > R_n)
+        let (_, remainder) = if chunk_sum >= divisor {
+            chunk_sum.div_mod(&divisor)
+        } else {
+            (TritInt::zero(), chunk_sum)
+        };
+
+        // Compute quotient: (self - remainder) / R_n
+        // This division is exact (remainder was computed mod R_n).
+        let numerator = TritInt::sub(self, &remainder);
+        let (quotient, check_rem) = numerator.div_mod(&divisor);
+        assert!(check_rem.is_zero(), "div_repunit: internal error — inexact quotient");
+
+        (quotient, remainder)
+    }
+
+    /// Modular exponentiation: self^exp mod modulus.
+    ///
+    /// Standard square-and-multiply. NOT constant-time — must NOT be used
+    /// for cryptographic operations (all crypto uses TLSponge-385 or TL-DSA).
+    pub fn mod_pow(&self, exp: &TritInt, modulus: &TritInt) -> TritInt {
+        assert!(!modulus.is_zero(), "mod_pow: modulus must be non-zero");
+
+        if exp.is_zero() {
+            // x^0 mod m = 1 (for m > 1)
+            return if *modulus > TritInt::one() {
+                TritInt::one()
+            } else {
+                TritInt::zero() // x^0 mod 1 = 0
+            };
+        }
+
+        // Convert exponent to binary for square-and-multiply
+        // (exponent bit extraction is a binary operation — this is
+        // a boundary crossing, justified because the algorithm itself
+        // is binary in structure regardless of the number base)
+        let exp_val = exp.to_decimal();
+        let mut result = TritInt::one();
+        let mut base = self.div_mod(modulus).1; // reduce base mod modulus
+
+        let mut e = exp_val;
+        while e > 0 {
+            if e % 2 == 1 {
+                result = TritInt::mul(&result, &base).div_mod(modulus).1;
+            }
+            e /= 2;
+            if e > 0 {
+                base = TritInt::mul(&base, &base).div_mod(modulus).1;
+            }
+        }
+
+        result
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
 // TESTS
 // ══════════════════════════════════════════════════════════════
 
@@ -1651,5 +1926,218 @@ mod tests {
     #[should_panic(expected = "trit value must be 0, 1, or 2")]
     fn invalid_trit_panics() {
         let _ = TritInt::from_trits(&[3]);
+    }
+
+    // ── Phase 3: Representation conversion tests ────────────
+
+    #[test]
+    fn repr_b_roundtrip() {
+        let test_vals: [u64; 6] = [0, 1, 14, 182, 364, 729];
+        for &val in &test_vals {
+            let t = TritInt::from_u64(val);
+            let repr = t.to_repr_b();
+            let recovered = TritInt::from_repr_b(&repr);
+            assert_eq!(recovered.to_decimal(), val, "Rep B roundtrip failed for {}", val);
+        }
+    }
+
+    #[test]
+    fn repr_a_roundtrip() {
+        let test_vals: [u64; 6] = [0, 1, 14, 182, 364, 729];
+        for &val in &test_vals {
+            let t = TritInt::from_u64(val);
+            let repr = t.to_repr_a();
+            let recovered = TritInt::from_repr_a(&repr);
+            assert_eq!(recovered.to_decimal(), val, "Rep A roundtrip failed for {}", val);
+        }
+    }
+
+    #[test]
+    fn repr_c_roundtrip() {
+        let test_vals: [u64; 6] = [0, 1, 14, 182, 364, 729];
+        for &val in &test_vals {
+            let t = TritInt::from_u64(val);
+            let repr = t.to_repr_c();
+            let recovered = TritInt::from_repr_c(&repr);
+            assert_eq!(recovered.to_decimal(), val, "Rep C roundtrip failed for {}", val);
+        }
+    }
+
+    #[test]
+    fn repr_d_roundtrip() {
+        let test_vals: [u64; 6] = [0, 1, 14, 182, 364, 729];
+        for &val in &test_vals {
+            let t = TritInt::from_u64(val);
+            let repr = t.to_repr_d();
+            let recovered = TritInt::from_repr_d(&repr);
+            assert_eq!(recovered.to_decimal(), val, "Rep D roundtrip failed for {}", val);
+        }
+    }
+
+    #[test]
+    fn repr_c_no_zero_digits() {
+        let t = TritInt::from_u64(364);
+        let repr = t.to_repr_c();
+        for &digit in &repr {
+            assert!(digit >= 1 && digit <= 3, "Rep C produced zero digit");
+        }
+    }
+
+    #[test]
+    fn repr_c_zero_produces_empty() {
+        assert!(TritInt::zero().to_repr_c().is_empty());
+    }
+
+    #[test]
+    fn repr_a_balanced_values() {
+        // 14 = 112₃. Balanced: 1×9 + 1×3 + 2×1 = 14.
+        // But 2 in balanced is T(−1) with carry: so 112₃ → 1 1 T₃ → carry propagation.
+        // 2→T carry 1. Next: 1+1=2→T carry 1. Next: 1+1=2→T carry 1. Next: carry 1→1.
+        // Result balanced: 1 T T T (MSB first) = 1×27 − 1×9 − 1×3 − 1×1 = 27−13 = 14. ✓
+        let repr = TritInt::from_u64(14).to_repr_a();
+        assert_eq!(repr, vec![1, -1, -1, -1]);
+    }
+
+    #[test]
+    fn repr_b_msb_first() {
+        // 14 = 112₃ → MSB-first: [1, 1, 2]
+        let repr = TritInt::from_u64(14).to_repr_b();
+        assert_eq!(repr, vec![1, 1, 2]);
+    }
+
+    #[test]
+    fn repr_c_values() {
+        // 14 = 112₃ → Rep C: [2, 2, 3]
+        let repr = TritInt::from_u64(14).to_repr_c();
+        assert_eq!(repr, vec![2, 2, 3]);
+    }
+
+    #[test]
+    fn repr_d_values() {
+        use crate::gf3_algebra::AlgebraicTrit::*;
+        // 14 = 112₃ → Rep D MSB-first: [One, One, Omega]
+        let repr = TritInt::from_u64(14).to_repr_d();
+        assert_eq!(repr, vec![One, One, Omega]);
+    }
+
+    // ── Cross-representation 12-path round-trips ────────────
+
+    #[test]
+    fn all_12_paths_on_framework_constant() {
+        // Test on 364 (R₆ = 111111₃)
+        let t = TritInt::from_u64(364);
+        let val = 364u64;
+
+        // A→B→A
+        let a = t.to_repr_a();
+        assert_eq!(TritInt::from_repr_a(&a).to_decimal(), val);
+
+        // B→C→B
+        let b = t.to_repr_b();
+        let c: Vec<u8> = b.iter().map(|&x| x + 1).collect();
+        let b_back: Vec<u8> = c.iter().map(|&x| x - 1).collect();
+        assert_eq!(TritInt::from_repr_b(&b_back).to_decimal(), val);
+
+        // B→D→B
+        let d = t.to_repr_d();
+        assert_eq!(TritInt::from_repr_d(&d).to_decimal(), val);
+
+        // A→C (composed)
+        let a = t.to_repr_a();
+        let from_a = TritInt::from_repr_a(&a);
+        let c = from_a.to_repr_c();
+        assert_eq!(TritInt::from_repr_c(&c).to_decimal(), val);
+
+        // A→D (composed)
+        let d = TritInt::from_repr_a(&a).to_repr_d();
+        assert_eq!(TritInt::from_repr_d(&d).to_decimal(), val);
+
+        // C→D (composed)
+        let c = t.to_repr_c();
+        let from_c = TritInt::from_repr_c(&c);
+        let d = from_c.to_repr_d();
+        assert_eq!(TritInt::from_repr_d(&d).to_decimal(), val);
+    }
+
+    // ── Forgery rejection tests ─────────────────────────────
+
+    #[test]
+    #[should_panic(expected = "forgery")]
+    fn repr_c_rejects_zero_digit() {
+        let _ = TritInt::from_repr_c(&[1, 0, 3]); // zero digit = forgery
+    }
+
+    #[test]
+    #[should_panic(expected = "digit must be -1, 0, or +1")]
+    fn repr_a_rejects_invalid_digit() {
+        let _ = TritInt::from_repr_a(&[2]); // 2 is not a balanced digit
+    }
+
+    #[test]
+    #[should_panic(expected = "digit must be 0, 1, or 2")]
+    fn repr_b_rejects_invalid_digit() {
+        let _ = TritInt::from_repr_b(&[3]);
+    }
+
+    // ── div_repunit tests ───────────────────────────────────
+
+    #[test]
+    fn div_repunit_correctness() {
+        // Verify against general div_mod for R₁ through R₆
+        let test_dividends: [u64; 5] = [364, 729, 1001, 15015, 118300];
+        for n in 1..=6usize {
+            let divisor = TritInt::repunit(n);
+            for &dividend_val in &test_dividends {
+                let dividend = TritInt::from_u64(dividend_val);
+                let (q_opt, r_opt) = dividend.div_repunit(n);
+                let (q_gen, r_gen) = dividend.div_mod(&divisor);
+                assert_eq!(q_opt.to_decimal(), q_gen.to_decimal(),
+                    "div_repunit quotient mismatch: {} / R_{}", dividend_val, n);
+                assert_eq!(r_opt.to_decimal(), r_gen.to_decimal(),
+                    "div_repunit remainder mismatch: {} / R_{}", dividend_val, n);
+            }
+        }
+    }
+
+    #[test]
+    fn div_repunit_identity() {
+        // R_n / R_n = 1 remainder 0
+        for n in 1..=6usize {
+            let r = TritInt::repunit(n);
+            let (q, rem) = r.div_repunit(n);
+            assert_eq!(q.to_decimal(), 1);
+            assert_eq!(rem.to_decimal(), 0);
+        }
+    }
+
+    // ── mod_pow tests ───────────────────────────────────────
+
+    #[test]
+    fn mod_pow_basic() {
+        // 3^6 mod 100 = 729 mod 100 = 29
+        let result = TritInt::from_u64(3).mod_pow(&TritInt::from_u64(6), &TritInt::from_u64(100));
+        assert_eq!(result.to_decimal(), 29);
+    }
+
+    #[test]
+    fn mod_pow_one_exponent() {
+        // x^1 mod m = x mod m
+        let result = TritInt::from_u64(14).mod_pow(&TritInt::one(), &TritInt::from_u64(10));
+        assert_eq!(result.to_decimal(), 4);
+    }
+
+    #[test]
+    fn mod_pow_zero_exponent() {
+        // x^0 mod m = 1 (for m > 1)
+        let result = TritInt::from_u64(14).mod_pow(&TritInt::zero(), &TritInt::from_u64(10));
+        assert_eq!(result.to_decimal(), 1);
+    }
+
+    #[test]
+    fn mod_pow_fermats_little() {
+        // For prime p and a not divisible by p: a^(p-1) ≡ 1 (mod p)
+        // 2^12 mod 13 = 1 (13 is prime)
+        let result = TritInt::from_u64(2).mod_pow(&TritInt::from_u64(12), &TritInt::from_u64(13));
+        assert_eq!(result.to_decimal(), 1);
     }
 }

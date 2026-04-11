@@ -504,3 +504,9 @@ id = "RXCdV24Mc1MQbYvcF4ALA"
 uri = "file://gf3-sources.zip"
 type = "unspecified"
 title = "gf3.rs + gf3_algebra.rs (GF(3) types for Phase 3)"
+
+[[outputs]]
+id = "Hjoa5WNq4Dl-jd3kruO1P"
+uri = "file://phase3-repr-eisenstein-final.zip"
+type = "unspecified"
+title = "Phase 3 — trit_int.rs + trit.rs + gf3_algebra.rs + lib.rs (161 tests, all pass)"

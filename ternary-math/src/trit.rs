@@ -35,6 +35,7 @@
 //! - Triangles, meshes, manifolds — built on Trit
 
 use crate::trit_int::{TritInt, Overflow};
+use crate::gf3_algebra::{AlgebraicTrit, gf3_add, gf3_sub, gf3_mul, gf3_square};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Sub, AddAssign, SubAssign};
@@ -263,6 +264,129 @@ impl Trit {
         assert!(sum >= b_sq, "norm_golden: negative norm (b² > a² + ab)");
 
         Trit::scalar(TritInt::sub(&sum, &b_sq)) // a² + ab − b²
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// EISENSTEIN ARITHMETIC — GF(3) LEVEL (Phase 3)
+//
+// ℤ[ω] multiplication and norm, operating at the GF(3) level
+// (individual trits, mod 3). The defining relation ω²+ω+1=0
+// produces ω² = −1−ω ≡ 2+2ω (mod 3). The existing gf3_sub
+// handles this via (a+3−b) — subtraction mod 3 never underflows.
+//
+// General signed Eisenstein arithmetic on multi-digit values is
+// future work requiring SignedTritInt or balanced ternary storage.
+// ══════════════════════════════════════════════════════════════
+
+impl Trit {
+    /// ℤ[ω] multiplication mod 3. Per-trit, using existing GF(3) ops.
+    ///
+    /// (a₁ + c₁ω)(a₂ + c₂ω) = (a₁a₂ − c₁c₂) + (a₁c₂ + a₂c₁ − c₁c₂)ω
+    ///
+    /// In mod-3 arithmetic (gf3_sub never underflows):
+    ///   integer part: gf3_sub(gf3_mul(a₁,a₂), gf3_mul(c₁,c₂))
+    ///   ω-coefficient: gf3_sub(gf3_add(gf3_mul(a₁,c₂), gf3_mul(a₂,c₁)), gf3_mul(c₁,c₂))
+    ///
+    /// Asserts both operands have v[1]=0 (pure Eisenstein or scalar).
+    /// Asserts both operands are GF(3)-scale (v[0] and v[2] each ≤ 2).
+    pub fn mul_eisenstein(&self, other: &Trit) -> Trit {
+        assert!(self.v[1].is_zero(), "mul_eisenstein: self has non-zero φ-component");
+        assert!(other.v[1].is_zero(), "mul_eisenstein: other has non-zero φ-component");
+
+        let a1 = self.v[0].to_decimal() as u8;
+        let c1 = self.v[2].to_decimal() as u8;
+        let a2 = other.v[0].to_decimal() as u8;
+        let c2 = other.v[2].to_decimal() as u8;
+
+        assert!(a1 <= 2, "mul_eisenstein: self v[0] exceeds GF(3) scale (> 2)");
+        assert!(c1 <= 2, "mul_eisenstein: self v[2] exceeds GF(3) scale (> 2)");
+        assert!(a2 <= 2, "mul_eisenstein: other v[0] exceeds GF(3) scale (> 2)");
+        assert!(c2 <= 2, "mul_eisenstein: other v[2] exceeds GF(3) scale (> 2)");
+
+        // Integer part: (a₁a₂ − c₁c₂) mod 3
+        let result_a = gf3_sub(gf3_mul(a1, a2), gf3_mul(c1, c2));
+
+        // ω-coefficient: (a₁c₂ + a₂c₁ − c₁c₂) mod 3
+        let result_c = gf3_sub(gf3_add(gf3_mul(a1, c2), gf3_mul(a2, c1)), gf3_mul(c1, c2));
+
+        Trit::eisenstein(
+            TritInt::from_u64(result_a as u64),
+            TritInt::from_u64(result_c as u64),
+        )
+    }
+
+    /// ℤ[ω] norm mod 3: N(a + cω) = a² − ac + c².
+    ///
+    /// In mod-3: gf3_sub(gf3_add(gf3_square(a), gf3_square(c)), gf3_mul(a, c)).
+    /// Computation order (a²+c²)−ac avoids intermediate underflow since
+    /// a²+c² ≥ ac for all non-negative a, c.
+    ///
+    /// Returns scalar Trit. Asserts v[1]=0 and GF(3)-scale.
+    pub fn norm_eisenstein(&self) -> Trit {
+        assert!(self.v[1].is_zero(), "norm_eisenstein: non-zero φ-component");
+
+        let a = self.v[0].to_decimal() as u8;
+        let c = self.v[2].to_decimal() as u8;
+
+        assert!(a <= 2, "norm_eisenstein: v[0] exceeds GF(3) scale (> 2)");
+        assert!(c <= 2, "norm_eisenstein: v[2] exceeds GF(3) scale (> 2)");
+
+        // (a² + c²) − ac, computed in safe order
+        let a_sq = gf3_square(a);
+        let c_sq = gf3_square(c);
+        let ac = gf3_mul(a, c);
+        let sum = gf3_add(a_sq, c_sq);
+        let result = gf3_sub(sum, ac);
+
+        Trit::scalar(TritInt::from_u64(result as u64))
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// AlgebraicTrit ↔ Trit CONVERSION (Phase 3)
+//
+// Forward: AlgebraicTrit → Trit creates unit elements.
+// Reverse: Trit → Option<AlgebraicTrit> returns Some for unit
+// elements, None for multi-digit values.
+// ══════════════════════════════════════════════════════════════
+
+impl From<AlgebraicTrit> for Trit {
+    /// Convert AlgebraicTrit to a unit Trit element.
+    ///
+    /// Zero → Trit::zero()
+    /// One → Trit::one() (v[0]=1, v[1]=0, v[2]=0)
+    /// Omega → Trit::eisenstein(0, 1) (v[0]=0, v[1]=0, v[2]=1)
+    fn from(at: AlgebraicTrit) -> Self {
+        match at {
+            AlgebraicTrit::Zero => Trit::zero(),
+            AlgebraicTrit::One => Trit::one(),
+            AlgebraicTrit::Omega => Trit::eisenstein(TritInt::zero(), TritInt::one()),
+        }
+    }
+}
+
+impl Trit {
+    /// Try to convert this Trit to an AlgebraicTrit.
+    ///
+    /// Returns Some(variant) for unit elements:
+    /// - (0, 0, 0) → Some(Zero)
+    /// - (1, 0, 0) → Some(One)
+    /// - (0, 0, 1) → Some(Omega)
+    ///
+    /// Returns None for all other values (non-unit, multi-digit,
+    /// golden components, etc.)
+    pub fn to_algebraic_trit(&self) -> Option<AlgebraicTrit> {
+        let a = self.v[0].to_decimal();
+        let b = self.v[1].to_decimal();
+        let c = self.v[2].to_decimal();
+
+        match (a, b, c) {
+            (0, 0, 0) => Some(AlgebraicTrit::Zero),
+            (1, 0, 0) => Some(AlgebraicTrit::One),
+            (0, 0, 1) => Some(AlgebraicTrit::Omega),
+            _ => None,
+        }
     }
 }
 
@@ -904,5 +1028,216 @@ mod tests {
     fn norm_golden_with_omega_panics() {
         let with_omega = Trit::eisenstein(TritInt::from_u64(3), TritInt::from_u64(2));
         with_omega.norm_golden();
+    }
+
+    // ── Phase 3: Eisenstein arithmetic tests ────────────────
+
+    /// Create an Eisenstein Trit from GF(3) values for concise tests.
+    fn e(a: u64, c: u64) -> Trit {
+        Trit::eisenstein(TritInt::from_u64(a), TritInt::from_u64(c))
+    }
+
+    /// ω as a Trit value: 0 + 0φ + 1ω.
+    fn omega() -> Trit {
+        Trit::eisenstein(TritInt::zero(), TritInt::one())
+    }
+
+    #[test]
+    fn omega_squared_gf3() {
+        // ω² = −1 − ω ≡ 2 + 2ω (mod 3)
+        // In GF(3): gf3_mul(2, 2) = 1 (since 4 mod 3 = 1)
+        // So ω × ω in GF(3) single-element: element 2 × element 2 = element 1.
+        // But at the two-component level (a + cω):
+        // (0 + 1ω)(0 + 1ω) = (0·0 − 1·1) + (0·1 + 0·1 − 1·1)ω
+        //                   = (−1) + (−1)ω
+        //                   ≡ 2 + 2ω (mod 3)
+        let result = omega().mul_eisenstein(&omega());
+        assert_eq!(result.v[0].to_decimal(), 2, "ω²: integer part should be 2");
+        assert_eq!(result.v[2].to_decimal(), 2, "ω²: ω-coefficient should be 2");
+        assert!(result.v[1].is_zero(), "v[1] must stay zero through mul_eisenstein");
+    }
+
+    #[test]
+    fn omega_cubed_is_one_in_eisenstein() {
+        // ω³ = ω · ω² = (0+1ω)(2+2ω)
+        // = (0·2 − 1·2) + (0·2 + 2·1 − 1·2)ω
+        // = (−2) + (0)ω ≡ 1 + 0ω (mod 3)
+        let w2 = omega().mul_eisenstein(&omega());
+        let w3 = omega().mul_eisenstein(&w2);
+        assert_eq!(w3.v[0].to_decimal(), 1, "ω³ should be 1");
+        assert_eq!(w3.v[2].to_decimal(), 0, "ω³ should have no ω-component");
+        assert!(w3.v[1].is_zero(), "v[1] must stay zero through mul_eisenstein");
+    }
+
+    #[test]
+    fn mul_eisenstein_identity() {
+        // 1 × x = x for all GF(3) Eisenstein values
+        let one_e = Trit::one(); // (1, 0, 0)
+        let vals = [Trit::zero(), Trit::one(), omega(), e(1, 1), e(2, 1), e(1, 2)];
+        for x in &vals {
+            let result = one_e.mul_eisenstein(x);
+            assert_eq!(result, *x, "1 × {:?} should equal {:?}", x, x);
+        }
+    }
+
+    #[test]
+    fn mul_eisenstein_commutativity() {
+        let test_pairs: [(Trit, Trit); 4] = [
+            (e(1, 1), e(2, 1)),
+            (e(0, 2), e(1, 0)),
+            (omega(), e(2, 2)),
+            (e(1, 2), e(2, 0)),
+        ];
+        for (a, b) in &test_pairs {
+            let ab = a.mul_eisenstein(b);
+            let ba = b.mul_eisenstein(a);
+            assert_eq!(ab, ba, "commutativity failed for {:?} × {:?}", a, b);
+            assert!(ab.v[1].is_zero(), "v[1] must stay zero");
+        }
+    }
+
+    #[test]
+    fn mul_eisenstein_associativity() {
+        let a = e(1, 2);
+        let b = e(2, 1);
+        let c = e(1, 1);
+        let ab_c = a.mul_eisenstein(&b).mul_eisenstein(&c);
+        let a_bc = a.mul_eisenstein(&b.mul_eisenstein(&c));
+        assert_eq!(ab_c, a_bc, "associativity failed");
+        assert!(ab_c.v[1].is_zero(), "v[1] must stay zero");
+    }
+
+    #[test]
+    fn mul_eisenstein_exhaustive_gf3() {
+        // All 9 GF(3)×GF(3) pairs for the two-component form
+        for a1 in 0..3u64 {
+            for c1 in 0..3u64 {
+                for a2 in 0..3u64 {
+                    for c2 in 0..3u64 {
+                        let x = e(a1, c1);
+                        let y = e(a2, c2);
+                        let result = x.mul_eisenstein(&y);
+
+                        // Verify against manual formula
+                        let exp_a = gf3_sub(gf3_mul(a1 as u8, a2 as u8), gf3_mul(c1 as u8, c2 as u8));
+                        let exp_c = gf3_sub(
+                            gf3_add(gf3_mul(a1 as u8, c2 as u8), gf3_mul(a2 as u8, c1 as u8)),
+                            gf3_mul(c1 as u8, c2 as u8),
+                        );
+
+                        assert_eq!(result.v[0].to_decimal(), exp_a as u64,
+                            "({},{}ω)×({},{}ω): integer part", a1, c1, a2, c2);
+                        assert_eq!(result.v[2].to_decimal(), exp_c as u64,
+                            "({},{}ω)×({},{}ω): ω-coefficient", a1, c1, a2, c2);
+                        assert!(result.v[1].is_zero(),
+                            "v[1] must stay zero: ({},{}ω)×({},{}ω)", a1, c1, a2, c2);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn norm_eisenstein_values() {
+        // N(0 + 0ω) = 0
+        assert_eq!(Trit::zero().norm_eisenstein().v[0].to_decimal(), 0);
+
+        // N(1 + 0ω) = 1² − 1·0 + 0² = 1
+        assert_eq!(Trit::one().norm_eisenstein().v[0].to_decimal(), 1);
+
+        // N(0 + 1ω) = 0 − 0 + 1 = 1
+        assert_eq!(omega().norm_eisenstein().v[0].to_decimal(), 1);
+
+        // N(1 + 1ω) = 1 − 1 + 1 = 1
+        assert_eq!(e(1, 1).norm_eisenstein().v[0].to_decimal(), 1);
+
+        // N(2 + 1ω) = 4 − 2 + 1 = 3 ≡ 0 (mod 3)
+        assert_eq!(e(2, 1).norm_eisenstein().v[0].to_decimal(), 0);
+    }
+
+    #[test]
+    fn norm_eisenstein_multiplicativity() {
+        // N(a·b) = N(a)·N(b) mod 3
+        let test_triples: [(Trit, Trit); 4] = [
+            (e(1, 0), e(0, 1)),
+            (e(1, 1), e(2, 0)),
+            (e(2, 1), e(1, 2)),
+            (e(0, 2), e(2, 2)),
+        ];
+        for (a, b) in &test_triples {
+            let n_ab = a.mul_eisenstein(b).norm_eisenstein().v[0].to_decimal() as u8;
+            let n_a = a.norm_eisenstein().v[0].to_decimal() as u8;
+            let n_b = b.norm_eisenstein().v[0].to_decimal() as u8;
+            let n_a_times_n_b = gf3_mul(n_a, n_b);
+            assert_eq!(n_ab, n_a_times_n_b,
+                "N(a·b) = {} but N(a)·N(b) = {} for {:?}×{:?}", n_ab, n_a_times_n_b, a, b);
+        }
+    }
+
+    // ── Phase 3: AlgebraicTrit ↔ Trit conversion tests ──────
+
+    #[test]
+    fn algebraic_trit_to_trit_forward() {
+        let zero: Trit = AlgebraicTrit::Zero.into();
+        assert!(zero.is_zero());
+
+        let one: Trit = AlgebraicTrit::One.into();
+        assert_eq!(one, Trit::one());
+
+        let omega_t: Trit = AlgebraicTrit::Omega.into();
+        assert_eq!(omega_t.v[0].to_decimal(), 0);
+        assert_eq!(omega_t.v[2].to_decimal(), 1);
+    }
+
+    #[test]
+    fn algebraic_trit_to_trit_reverse() {
+        assert_eq!(Trit::zero().to_algebraic_trit(), Some(AlgebraicTrit::Zero));
+        assert_eq!(Trit::one().to_algebraic_trit(), Some(AlgebraicTrit::One));
+        assert_eq!(omega().to_algebraic_trit(), Some(AlgebraicTrit::Omega));
+    }
+
+    #[test]
+    fn algebraic_trit_reverse_none_for_non_unit() {
+        assert_eq!(g(14, 5).to_algebraic_trit(), None);
+        assert_eq!(s(364).to_algebraic_trit(), None);
+        assert_eq!(e(2, 2).to_algebraic_trit(), None);
+    }
+
+    #[test]
+    fn algebraic_trit_roundtrip() {
+        let variants = [AlgebraicTrit::Zero, AlgebraicTrit::One, AlgebraicTrit::Omega];
+        for &at in &variants {
+            let trit: Trit = at.into();
+            let back = trit.to_algebraic_trit().unwrap();
+            assert_eq!(back, at);
+        }
+    }
+
+    // ── Phase 3: should-panic tests for Eisenstein ──────────
+
+    #[test]
+    #[should_panic(expected = "non-zero φ-component")]
+    fn mul_eisenstein_with_phi_panics() {
+        let golden = g(1, 1);
+        golden.mul_eisenstein(&Trit::one());
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds GF(3) scale")]
+    fn mul_eisenstein_non_gf3_scale_panics() {
+        let big = Trit::eisenstein(TritInt::from_u64(14), TritInt::zero());
+        big.mul_eisenstein(&Trit::one());
+    }
+
+    #[test]
+    #[should_panic(expected = "non-zero φ-component")]
+    fn norm_eisenstein_with_phi_panics() {
+        g(1, 1).norm_eisenstein();
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds GF(3) scale")]
+    fn norm_eisenstein_non_gf3_scale_panics() {
+        Trit::eisenstein(TritInt::from_u64(5), TritInt::zero()).norm_eisenstein();
     }
 }

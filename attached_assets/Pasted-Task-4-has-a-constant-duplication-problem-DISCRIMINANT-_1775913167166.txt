@@ -1,0 +1,23 @@
+Task 4 has a constant duplication problem. DISCRIMINANT_2 already exists in constants.rs as pub const DISCRIMINANT_2: u32 = 729. The task says to add DELTA_2: u32 = 729 and notes "use a doc comment cross-reference, do not duplicate the value." But then it's still a second constant holding the same value. The fix: don't add DELTA_2 at all. ags.rs should reference DISCRIMINANT_2 (or DISCRIMINANT_2_T once the companion exists). If ags.rs needs a local alias for readability, that's const DELTA_2: u32 = DISCRIMINANT_2; inside ags.rs, not a new public constant in constants.rs.
+Same issue with AGS_SEED_11 and AGS_SEED_13. The values 11 and 13 are already derivable — 11 is COPRIME_PAIRS[3].0 and 13 is COPRIME_PAIRS[3].1 (as we established earlier in this thread when we removed hardcoded numbers from the AGS section). Adding AGS_SEED_11: u32 = 11 puts the raw numbers back. The AGS seed is DERIVED from the polygon set, not stored as named constants. ags.rs computes it via derive_ags_seed().
+DUTY_N and DUTY_D already exist in constants.rs as DUTY_NUM: u32 = 1 and DUTY_DEN: u32 = 4. Adding DUTY_N and DUTY_D creates a second pair of names for the same values.
+Task 4 should be: Add _T Trit companions for the constants that ALREADY EXIST — DISCRIMINANT_2_T, DUTY_NUM_T, DUTY_DEN_T, COPRIME_PAIR_LCMS_3_T (the AGS min capacity = 143). No new u32 constants. No duplicate names.
+
+Task 2 overstates the Phase 3 dependency. The task says ags.rs "uses AlgebraicTrit enum variants for trit-level algebraic operations and the From<AlgebraicTrit> for Trit conversion." But looking at the ags.rs reference code from the package, it does ternary arithmetic on walk positions and CRT projections — all scalar TritInt operations. It doesn't do Eisenstein multiplication or algebraic trit interpretation. The AlgebraicTrit dependency looks bolted on. If ags.rs doesn't actually need Rep D operations, don't import them. The dependency should be Phase 1 (TritInt) and Phase 2 (Trit) only, not Phase 3.
+If there IS a genuine use of AlgebraicTrit in the AGS (maybe for interpreting CRT residues as algebraic elements), the task should state WHERE and WHY, not just list it as an import.
+
+Task 1 R² tolerance: The task says to_f64() with tolerance 1e-8. The Phase 2 tests already verify this with tolerance 1e-10. Use the tighter tolerance — there's no reason to loosen it.
+
+Task 3 constant placement: R_SQUARED_T and friends are defined in trit.rs (Phase 2). The task correctly says "do NOT add R_SQUARED_T — it already exists in trit.rs." But having some Trit constants in trit.rs and others in constants.rs splits the constant registry. Everything should live in constants.rs (the single source of truth, per the module doc comment). The Phase 2 constants (R_SQUARED_T, FULL_CIRCLE_T, PI_T, HALF_TURN_T, PHI_SQUARED_T) should MOVE to constants.rs in this phase, with trit.rs re-exporting or removing its copies.
+
+Task 2 tie-breaking: "On ties (equal max−min imbalance), the generator with the smallest value is removed." This should be the LARGEST, not smallest. When shrinking, you're removing excess granularity. The largest generator provides the finest subdivision — the one you need least when population is sparse. Removing the smallest generator collapses the coarsest subdivision, which loses the most discrimination. Verify against the reference code.
+
+Nomenclature check: All names look correct. No binary-derived terms. tri182.rs, ags.rs, _T suffix convention, derive_ags_seed, derive_ags_capacity, crt_project, crt_reconstruct, seed_count — all name their function.
+
+Summary of changes:
+
+Remove all new u32 constants from Task 4 — DISCRIMINANT_2, DUTY_NUM, DUTY_DEN, COPRIME_PAIRS[3] already exist. Add only _T companions for existing constants.
+Verify whether ags.rs actually uses AlgebraicTrit. If not, drop the Phase 3 dependency claim.
+Tighten R² tolerance from 1e-8 to 1e-10.
+Move Phase 2 Trit constants from trit.rs to constants.rs (single source of truth).
+Verify tie-breaking direction — should remove largest, not smallest.
