@@ -1,0 +1,28 @@
+**WASM should be factored in.** The crate already builds as cdylib with `wasm-bindgen` as a dependency. `pub mod wasm_exports;` is already in lib.rs. Deferring WASM to "future" when the crate already targets WASM means every Phase 1–4 type is invisible to the React frontend until some undefined later phase. That's wrong — the frontend is a primary consumer.
+
+**Specific issues:**
+
+**1. WASM is a build target NOW, not future.** The Cargo.toml has `crate-type = ["lib", "cdylib"]` and WASM-specific getrandom config. If any Phase 1–4 code doesn't compile under wasm32, the entire crate build is broken. Phase 5 should add `#[wasm_bindgen]` exports for TritInt and Trit following the existing pattern in `wasm_exports.rs`, not defer them. At minimum: constructors, to_decimal, Display, to_repr_c, from_repr_c.
+
+**2. try_from_repr_c is missing.** Phase 3 explicitly deferred `try_from_repr_c` (Result-based Rep C parsing for untrusted wire input) to Phase 5. It's not in this task. The Serde deserializer needs it — Task 3 says "reject any input containing zero digits" but the rejection mechanism is try_from_repr_c, which doesn't exist yet. Add it to this phase.
+
+**3. Serde format needs to work for JS consumers.** The React frontend will deserialize these values via the WASM bridge. The serialization format `{ "v": [repr_c_array, repr_c_array, repr_c_array] }` is fine, but the task should explicitly state that zero-length Rep C arrays (the additive identity) serialize as empty arrays `[]`, not `[0]` or null. The JS consumer needs to know what "empty slot" looks like.
+
+**4. Serde rejection mechanism unspecified.** "Reject input containing zero digits" needs to return `serde::de::Error::custom(...)`, not panic. Panicking during deserialization of untrusted input is a denial-of-service vector. This is the whole point of try_from_repr_c.
+
+**5. Benchmark function name is stale.** Task 5 references `tri182::project_to_zphi` — that function name came from zphi.rs which was renamed to tri182.rs. Verify the actual function name in the adapted tri182.rs from Phase 4.
+
+**6. Criterion doesn't run on WASM.** The benchmarks are native-only. State this explicitly so nobody tries to run them under wasm-pack.
+
+**7. The task doesn't verify WASM compilation.** Add a task: `cargo build --target wasm32-unknown-unknown --no-default-features` must pass with all Phase 1–5 code. This catches any accidental std-only usage.
+
+**Summary of changes:**
+
+1. Add WASM exports task: basic `#[wasm_bindgen]` on TritInt and Trit, following existing wasm_exports.rs pattern
+2. Add `try_from_repr_c` to TritInt (deferred from Phase 3, needed by Serde deserializer)
+3. Serde deserialization uses `try_from_repr_c` returning `serde::de::Error`, not panic
+4. Serde format: empty array `[]` for zero-valued TritInt components, explicitly stated
+5. Fix benchmark function name to match Phase 4 adapted tri182.rs
+6. State benchmarks are native-only (Criterion doesn't run on WASM)
+7. Add WASM compilation verification task: `cargo build --target wasm32-unknown-unknown --no-default-features`
+8. Remove "Wasm-bindgen exports" from Out of Scope — it's now in scope

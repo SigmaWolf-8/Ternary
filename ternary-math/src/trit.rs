@@ -36,6 +36,7 @@
 
 use crate::trit_int::{TritInt, Overflow};
 use crate::gf3_algebra::{AlgebraicTrit, gf3_add, gf3_sub, gf3_mul, gf3_square};
+use crate::constants;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Sub, AddAssign, SubAssign};
@@ -149,6 +150,32 @@ pub const HALF_TURN_T: Trit = Trit::scalar(TritInt::from_u64(182));
 
 /// φ² = 1 + φ = (1, 1) — the defining relation as a Trit constant.
 pub const PHI_SQUARED_T: Trit = Trit::golden(TritInt::one(), TritInt::one());
+
+// ── Phase 4 _T companions (values match u32 constants in constants.rs) ──
+
+/// R₆ = 364 = 111111₃. Full circle as Trit.
+pub const REPUNIT_6_T: Trit = Trit::repunit(6);
+
+/// π = 14 = 112₃.
+pub const ROOT_X1_T: Trit = Trit::scalar(TritInt::from_trits(&[2, 1, 1]));
+
+/// Half-turn = 182 = 20022₃.
+pub const ARC_ROOT_SEMI_T: Trit = Trit::scalar(TritInt::from_u64(182));
+
+/// Δ₂ = 729 = 1000000₃. Sponge state width, escalation multiplier.
+pub const DISCRIMINANT_2_T: Trit = Trit::scalar(TritInt::from_trits(&[0, 0, 0, 0, 0, 0, 1]));
+
+/// Icosahedral circumradius squared: 2 + φ.
+pub const ICOSA_CIRCUMRADIUS_SQ_T: Trit = Trit::golden(
+    TritInt::from_trits(&[2]),
+    TritInt::from_trits(&[1]),
+);
+
+/// Duty cycle numerator = 1. HModal dispatch ratio.
+pub const DUTY_NUM_T: Trit = Trit::scalar(TritInt::from_u64(1));
+
+/// Duty cycle denominator = 4 = 11₃.
+pub const DUTY_DEN_T: Trit = Trit::scalar(TritInt::from_trits(&[1, 1]));
 
 // ══════════════════════════════════════════════════════════════
 // COMPONENT-WISE ARITHMETIC (always valid, algebra-independent)
@@ -583,6 +610,25 @@ const _: () = {
     // φ² = 1 + φ
     assert!(PHI_SQUARED_T.v0().to_u32_const() == 1);
     assert!(PHI_SQUARED_T.v1().to_u32_const() == 1);
+
+    // Phase 4: _T companions verified against u32 values in constants.rs
+    assert!(REPUNIT_6_T.v0().to_u32_const() == constants::REPUNIT_6);
+    assert!(ROOT_X1_T.v0().to_u32_const() == constants::ROOT_X1);
+    assert!(ARC_ROOT_SEMI_T.v0().to_u32_const() == constants::ARC_ROOT_SEMI);
+    assert!(DISCRIMINANT_2_T.v0().to_u32_const() == constants::DISCRIMINANT_2);
+    assert!(DUTY_NUM_T.v0().to_u32_const() == constants::DUTY_NUM);
+    assert!(DUTY_DEN_T.v0().to_u32_const() == constants::DUTY_DEN);
+
+    // Verify all _T companions are scalar (v[1] = v[2] = 0)
+    assert!(REPUNIT_6_T.v1().to_u32_const() == 0);
+    assert!(REPUNIT_6_T.v2().to_u32_const() == 0);
+    assert!(ROOT_X1_T.v1().to_u32_const() == 0);
+    assert!(DISCRIMINANT_2_T.v1().to_u32_const() == 0);
+
+    // ICOSA_CIRCUMRADIUS_SQ_T is golden (not scalar)
+    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v0().to_u32_const() == 2);
+    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v1().to_u32_const() == 1);
+    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v2().to_u32_const() == 0);
 };
 
 // ══════════════════════════════════════════════════════════════

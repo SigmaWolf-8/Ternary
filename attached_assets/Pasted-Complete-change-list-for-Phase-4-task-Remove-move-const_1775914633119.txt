@@ -1,0 +1,12 @@
+Complete change list for Phase 4 task:
+
+Remove "move constants" from Task 3. Phase 2 constants (R_SQUARED_T, FULL_CIRCLE_T, PI_T, HALF_TURN_T, PHI_SQUARED_T) stay in trit.rs. constants.rs stays untouched — no new imports, no new constants, no dependency cycle.
+New _T constants go in trit.rs, not constants.rs. REPUNIT_6_T, ROOT_X1_T, ARC_ROOT_SEMI_T, DISCRIMINANT_2_T, ICOSA_CIRCUMRADIUS_SQ_T, DUTY_NUM_T, DUTY_DEN_T — all added to trit.rs alongside existing Phase 2 constants.
+Compile-time assertions live in trit.rs. They import u32 values from constants.rs and verify the _T companions match. One-directional dependency: trit.rs → constants.rs.
+No new u32 constants in constants.rs. No DELTA_2 (already exists as DISCRIMINANT_2), no AGS_SEED_11/AGS_SEED_13 (seeds are derived at runtime via derive_ags_seed(), not stored), no DUTY_N/DUTY_D (already exist as DUTY_NUM/DUTY_DEN). Task 4 reduces to: add _T companions for DISCRIMINANT_2, DUTY_NUM, DUTY_DEN — all in trit.rs.
+Verify AlgebraicTrit dependency in ags.rs. The executor must check whether the reference ags.rs actually uses AlgebraicTrit. If not, drop the import. Don't add phantom dependencies. The task already says this but it must actually be done.
+Tie-breaking direction: remove largest. When shrink has equal imbalance across generators, remove the largest (finest subdivision, least useful when sparse). Verify this matches the reference code. If the reference differs, follow the reference and document why.
+R² tolerance: 1e-10, not 1e-8. Phase 2 tests already use 1e-10. No reason to loosen it.
+#[should_panic] specificity. The N(φ) panic test must include expected = "negative norm" so it catches the right panic, not an unrelated one.
+Use cargo test --workspace in Task 5, not per-crate testing. Ensures no cross-crate breakage.
+Tasks 3 and 4 in the original are now one task (both were about constants.rs, now both are about trit.rs). Merge them into a single "add _T companions to trit.rs" task. Sequential ordering concern disappears.
