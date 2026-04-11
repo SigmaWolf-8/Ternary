@@ -2699,8 +2699,10 @@ function startPqtiService(): ChildProcess | null {
         continue;
       }
       const lastPong = relayLastPong.get(addr) || 0;
-      if (lastPong > 0 && (now - lastPong) > RELAY_PONG_TIMEOUT) {
-        console.log(`[ws-relay] Node ${toDottedAddr(addr)} no pong for ${Math.round((now - lastPong) / 1000)}s — closing`);
+      const entry = crsRegistry.get(addr);
+      const lastActivity = Math.max(lastPong, entry?.lastSeen ?? 0);
+      if (lastActivity > 0 && (now - lastActivity) > RELAY_PONG_TIMEOUT) {
+        console.log(`[ws-relay] Node ${toDottedAddr(addr)} no pong/activity for ${Math.round((now - lastActivity) / 1000)}s — closing`);
         clientWs.close(1000, "pong timeout");
         relayClients.delete(addr);
         relayAddressByWs.delete(clientWs);
@@ -2708,7 +2710,6 @@ function startPqtiService(): ChildProcess | null {
         pruned++;
         continue;
       }
-      const entry = crsRegistry.get(addr);
       if (entry && (now - entry.lastSeen) > RELAY_DEAD_TIMEOUT) {
         console.log(`[ws-relay] Node ${toDottedAddr(addr)} unresponsive for ${Math.round((now - entry.lastSeen) / 1000)}s — closing`);
         clientWs.close(1000, "ping timeout");
@@ -2924,8 +2925,10 @@ function startPqtiService(): ChildProcess | null {
       }
 
       if (nodeAddress) {
+        const now = Date.now();
         const entry = crsRegistry.get(nodeAddress);
-        if (entry) entry.lastSeen = Date.now();
+        if (entry) entry.lastSeen = now;
+        relayLastPong.set(nodeAddress, now);
       }
 
       if (msg.type === "relay" && msg.msgType === "terminal-output" && msg.payload) {
