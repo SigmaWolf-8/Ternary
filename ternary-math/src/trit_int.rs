@@ -16,7 +16,7 @@
 //!
 //! A ternary integer: one whole number stored in base 3 with variable
 //! precision. Small values (≤ R₄ = 40 trits) use an inline buffer.
-//! Large values use the heap (Phase 6 — not yet implemented).
+//! Large values (up to R₉ = 9,841 trits) use heap allocation.
 //!
 //! **Packing:** 5 trits per byte (3⁵ = 243 < 256 = 2⁸). This is where
 //! ternary arithmetic meets binary hardware — the packing ratio is forced
@@ -34,6 +34,24 @@
 //! - `Trit` — three TritInts: v\[0\] = ℤ, v\[1\] = φ, v\[2\] = ω (Phase 2)
 //! - `[Trit; 3]` — one vertex coordinate in ℤ\[φ,ω\]
 //! - Triangles, meshes, manifolds — built on Trit
+//!
+//! # Heap Path and Memory Management
+//!
+//! TritInt uses a dual-storage architecture: inline (≤ 40 trits, stack-only)
+//! and heap (> 40 trits, `Vec<u8>` allocation). The heap variant wraps its
+//! buffer in `ManuallyDrop` to preserve const-compatibility — `TritInt` has
+//! no `Drop` impl, which allows framework constants (all inline) to live in
+//! `const` items and `const fn` accessors to remain `const`.
+//!
+//! **This means heap-allocated TritInts will leak if dropped without cleanup.**
+//! All heap values must be explicitly cleaned up via one of:
+//! - `.zeroize()` — zeros the buffer and deallocates (preferred for crypto)
+//! - `.drop_heap()` — zeros and deallocates, resets to inline zero
+//!
+//! Inline values (≤ 40 trits) have no cleanup requirement. All framework
+//! constants, repunits, and values constructed via `from_u64` / `from_u128`
+//! are inline. Heap allocation only occurs through runtime arithmetic on
+//! large operands or `try_from_repr_c` with > 40 digits.
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
