@@ -534,3 +534,9 @@ id = "pKn1qUzVAP3xI91MsKCyr"
 uri = "file://ternary-math-context.zip"
 type = "unspecified"
 title = "ternary-math-context.zip — 6 source files (coprime, sparse, gf3_algebra, trit_int, lib, Cargo.toml)"
+
+[[outputs]]
+id = "KKJc9lwF4Ra_TxFVxbRtF"
+uri = "file://task-109-spec.md"
+type = "text"
+title = "Task #109 — Windowed Browser Binary Entry Point (browser_main.rs)"
