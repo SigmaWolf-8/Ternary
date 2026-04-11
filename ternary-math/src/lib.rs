@@ -27,6 +27,7 @@
 //! - **tribonacci**: Native base-3 Tribonacci generator with A/B/C representation interchange
 //! - **borromean**: Borromean ternary XOR invariant for three-party cryptographic protocols
 pub mod constants;
+pub mod trit_int;
 pub mod gf3;
 pub mod gf3_algebra;
 pub mod clifford;
