@@ -1,0 +1,113 @@
+# Task #102 — Addendum: SparseMap Internal Encoding
+
+**Applies to:** Task 102 v4, Task 2 (sparse.rs)
+
+---
+
+## Change
+
+Replace `HashMap<u64, V>` with `HashMap<TritInt, V>` for the SparseMap internal key. Remove all u64 from the type.
+
+## Rationale
+
+The mixed-radix encoded key `coord[0] + coord[1] × m₀ + coord[2] × m₀ × m₁ + ...` is a ternary integer by construction — it is an element of Z_{M} where M = product of moduli. Storing it as u64 introduced a boundary crossing inside a ternary-native data structure. TritInt already implements `Hash` and `Eq` (Phase 1), so `HashMap<TritInt, V>` works directly.
+
+This also removes the u64 overflow constraint. The previous version panicked if the product of moduli exceeded u64::MAX (~1.84 × 10¹⁹). With TritInt, the heap path (Phase 6) handles values of any size — a torus with product of moduli > 10¹⁹ now works transparently.
+
+## Updated struct and methods
+
+```rust
+pub struct SparseMap<V> {
+    entries: HashMap<TritInt, V>,
+    moduli: Vec<TritInt>,
+    strides: Vec<TritInt>,  // precomputed: strides[i] = product of moduli[0..i]
+}
+
+impl<V> SparseMap<V> {
+    pub fn new(moduli: Vec<TritInt>) -> Self {
+        let mut strides = Vec::with_capacity(moduli.len());
+        let mut stride = TritInt::one();
+        for m in &moduli {
+            strides.push(stride.clone());
+            stride = TritInt::mul(&stride, m);
+        }
+        SparseMap { entries: HashMap::new(), moduli, strides }
+    }
+
+    fn encode(&self, coord: &[TritInt]) -> TritInt {
+        assert_eq!(coord.len(), self.moduli.len(),
+            "coordinate dimension {} != map dimension {}",
+            coord.len(), self.moduli.len());
+        let mut key = TritInt::zero();
+        for (i, c) in coord.iter().enumerate() {
+            assert!(*c < self.moduli[i], "coord[{}] exceeds modulus", i);
+            key = TritInt::add(&key, &TritInt::mul(c, &self.strides[i]));
+        }
+        key
+    }
+
+    fn decode(&self, key: &TritInt) -> Vec<TritInt> {
+        let mut remaining = key.clone();
+        self.moduli.iter().map(|m| {
+            let (q, r) = remaining.div_mod(m);
+            remaining = q;
+            r
+        }).collect()
+    }
+
+    pub fn insert(&mut self, coord: &[TritInt], value: V) -> Option<V> {
+        let key = self.encode(coord);
+        self.entries.insert(key, value)
+    }
+
+    pub fn get(&self, coord: &[TritInt]) -> Option<&V> {
+        let key = self.encode(coord);
+        self.entries.get(&key)
+    }
+
+    pub fn get_mut(&mut self, coord: &[TritInt]) -> Option<&mut V> {
+        let key = self.encode(coord);
+        self.entries.get_mut(&key)
+    }
+
+    pub fn remove(&mut self, coord: &[TritInt]) -> Option<V> {
+        let key = self.encode(coord);
+        self.entries.remove(&key)
+    }
+
+    pub fn contains(&self, coord: &[TritInt]) -> bool {
+        let key = self.encode(coord);
+        self.entries.contains_key(&key)
+    }
+
+    pub fn len(&self) -> usize { self.entries.len() }
+    pub fn is_empty(&self) -> bool { self.entries.is_empty() }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Vec<TritInt>, &V)> + '_ {
+        self.entries.iter().map(|(k, v)| (self.decode(k), v))
+    }
+
+    pub fn coords(&self) -> impl Iterator<Item = Vec<TritInt>> + '_ {
+        self.entries.keys().map(|k| self.decode(k))
+    }
+
+    pub fn clear(&mut self) { self.entries.clear(); }
+    pub fn dimensions(&self) -> usize { self.moduli.len() }
+    pub fn moduli(&self) -> &[TritInt] { &self.moduli }
+}
+```
+
+## What changed from v4
+
+| Item | v4 (before) | Addendum (after) |
+|------|-------------|------------------|
+| `entries` type | `HashMap<u64, V>` | `HashMap<TritInt, V>` |
+| `strides` type | `Vec<u64>` | `Vec<TritInt>` |
+| `encode` return | `u64` | `TritInt` |
+| `decode` input | `u64` | `&TritInt` |
+| `new` overflow check | `checked_mul` panics on u64 overflow | No overflow — TritInt heap path handles arbitrary size |
+| Boundary crossings | 1 internal (u64 key encoding) | 0 |
+
+## Tests unchanged
+
+All tests from v4 work as-is. The public API (`&[TritInt]` coordinates, `Vec<TritInt>` moduli) did not change. Only the internal key type changed from u64 to TritInt.

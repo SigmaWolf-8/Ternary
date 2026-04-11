@@ -1,0 +1,683 @@
+# Task #102 — Buried Question Engine: Coprime, Sparse & gf3_algebra Completion
+
+## Updated with all review findings (v4 — April 2026)
+
+---
+
+## What & Why
+
+Build the two shared foundation modules (coprime.rs, sparse.rs) and add three missing utility functions to gf3_algebra.rs. These are the primitives the Buried Question Compression Engine and the Coprime Index (TM-2026-028a) require.
+
+**TritInt is the gate.** Every public function in coprime.rs and sparse.rs takes and returns TritInt. No u64 in any public signature. Legacy binary code converts at ITS gate via `TritInt::from_u64()`, not ours.
+
+**coprime.rs does NOT re-export TritInt methods.** `TritInt::gcd`, `TritInt::div_mod`, `TritInt::mul` already exist (Phases 1-6). coprime.rs provides HIGHER-LEVEL operations built on these: coprimality predicates, walks, combinations, totient, and standalone CRT. Things that don't belong on the storage primitive.
+
+**Two internal boundary crossings are acceptable (host bookkeeping):**
+- Loop counts: `n.to_decimal() as usize` for `for _ in 0..n` — host control flow, not a mathematical value. Same justification as `trit_count: u32` in TritIntStorage.
+- SparseMap HashMap key: `u64` encoding of coordinates — host data structure key. Public API is TritInt. Internal encoding is host bookkeeping.
+
+---
+
+## Done looks like
+
+- `ternary-math/src/coprime.rs` exists with 8 public functions and tests
+- `ternary-math/src/sparse.rs` exists with `SparseMap<V>` and `ZStack<V>` and tests
+- `ternary-math/src/gf3_algebra.rs` has 3 new functions added
+- `ternary-math/src/lib.rs` has `pub mod coprime;` and `pub mod sparse;`
+- `cargo check -p ternary-math` passes
+- `cargo check -p ternary-math --target wasm32-unknown-unknown --no-default-features` passes
+- `cargo test -p ternary-math` passes with zero failures
+
+---
+
+## Out of scope
+
+- TritInt, Trit, AlgebraicTrit, all 12 per-trit conversions, Eisenstein, validators, batch_b_to_d, batch_d_to_b, div_repunit, mod_pow (completed #103-#105)
+- Consumer modules ags.rs, tri182.rs (completed #106)
+- Zeroize, Serde, WASM, benchmarks (completed #107)
+- Heap path (completed #108)
+- Migrating the 15 existing private gcd copies (downstream, frozen files)
+- Phase 2 compression engine modules: coprime_torus.rs, orbifold.rs, auto_select.rs, ans_pi.rs
+- Coprime Index specific logic: linear residue forms `(x + c·y) mod m`, 2D/3D index wrappers, CRT coefficient precomputation, HModal binary bridge (all Phase 2 — coprime_torus.rs)
+
+### DO NOT MODIFY — frozen files
+
+ternary-math/src/constants.rs, gf3.rs, tribonacci.rs, ternary_circle.rs, torus.rs, repunit_circles.rs, tlsponge385.rs, cube_addr.rs, ctx_ans.rs
+
+---
+
+## Task 1 — Create `ternary-math/src/coprime.rs` (NEW FILE)
+
+Standard Capomastro copyright header (match gf3_algebra.rs lines 1-11).
+
+Import `crate::trit_int::TritInt`. No other crate-internal imports.
+
+### 8 public functions — all TritInt:
+
+**1. `is_coprime`**
+```rust
+/// True if gcd(a, b) == 1. Uses TritInt::gcd (Phase 1).
+pub fn is_coprime(a: &TritInt, b: &TritInt) -> bool {
+    TritInt::gcd(a, b) == TritInt::one()
+}
+```
+
+**2. `euler_totient`**
+```rust
+/// Euler's totient φ(n) via trial division in TritInt arithmetic.
+/// Matches the approach at coprime_polygon_pair.rs:125-133.
+pub fn euler_totient(n: &TritInt) -> TritInt {
+    let mut result = n.clone();
+    let mut temp = n.clone();
+    let one = TritInt::one();
+    let mut p = TritInt::from_u64(2);
+    loop {
+        let p_sq = TritInt::mul(&p, &p);
+        if p_sq > temp { break; }
+        let (_, rem) = temp.div_mod(&p);
+        if rem.is_zero() {
+            loop {
+                let (q, r) = temp.div_mod(&p);
+                if r.is_zero() { temp = q; } else { break; }
+            }
+            let (quot, _) = result.div_mod(&p);
+            result = TritInt::sub(&result, &quot);
+        }
+        p = TritInt::add(&p, &one);
+    }
+    if temp > one {
+        let (quot, _) = result.div_mod(&temp);
+        result = TritInt::sub(&result, &quot);
+    }
+    result
+}
+```
+
+**3. `coprime_options`**
+```rust
+/// All values in [min, max] coprime to `axis`.
+pub fn coprime_options(axis: &TritInt, min: &TritInt, max: &TritInt) -> Vec<TritInt> {
+    let one = TritInt::one();
+    let mut result = Vec::new();
+    let mut val = min.clone();
+    while val <= *max {
+        if is_coprime(&val, axis) {
+            result.push(val.clone());
+        }
+        val = TritInt::add(&val, &one);
+    }
+    result
+}
+```
+
+**4. `coprime_walk`**
+```rust
+/// 2D coprime walk on Z_a × Z_b. Requires gcd(a,b) = 1.
+/// Returns all a×b distinct (x mod a, y mod b) coordinate pairs.
+///
+/// Walk step: smallest integer ≥ 2 coprime to a×b. This spreads
+/// adjacent walk positions apart on the torus (better entropy
+/// distribution than step=1 sequential enumeration).
+///
+/// The step cannot be a or b (both divide a×b). For coprime_walk(11, 13),
+/// step=2 (smallest coprime to 143). For custom generators per dimension,
+/// use `multidim_walk`.
+pub fn coprime_walk(a: &TritInt, b: &TritInt) -> Vec<(TritInt, TritInt)> {
+    assert!(is_coprime(a, b), "coprime_walk requires gcd(a,b)=1");
+    let n = TritInt::mul(a, b);
+    let one = TritInt::one();
+    let mut step = TritInt::from_u64(2);
+    while !is_coprime(&step, &n) {
+        step = TritInt::add(&step, &one);
+    }
+    let n_count = n.to_decimal() as usize; // host control flow
+    let mut result = Vec::with_capacity(n_count);
+    let mut pos = TritInt::zero();
+    for _ in 0..n_count {
+        let (_, x) = pos.div_mod(a);
+        let (_, y) = pos.div_mod(b);
+        result.push((x, y));
+        pos = TritInt::add(&pos, &step);
+    }
+    result
+}
+```
+
+**5. `coprime_combinations`**
+```rust
+/// Enumerate all maximal pairwise-coprime subsets of `moduli`.
+/// Maximal = no element from `moduli` can be added without breaking
+/// pairwise coprimality. Bounded: practical input size |moduli| ≤ ~15.
+///
+/// For the 13-polygon set, produces the four sextuples (TM-2026-028a §3.3):
+/// {3,4,5,7,11,13}, {3,5,7,8,11,13}, {4,5,7,9,11,13}, {5,7,8,9,11,13}
+pub fn coprime_combinations(moduli: &[TritInt]) -> Vec<Vec<TritInt>> {
+    let mut results = Vec::new();
+    let mut current = Vec::new();
+    find_maximal(moduli, 0, &mut current, &mut results);
+    results
+}
+
+fn find_maximal(
+    moduli: &[TritInt], start: usize,
+    current: &mut Vec<TritInt>, results: &mut Vec<Vec<TritInt>>
+) {
+    let mut extended = false;
+    for i in start..moduli.len() {
+        if current.iter().all(|c| is_coprime(c, &moduli[i])) {
+            current.push(moduli[i].clone());
+            find_maximal(moduli, i + 1, current, results);
+            current.pop();
+            extended = true;
+        }
+    }
+    if !extended && !current.is_empty() {
+        results.push(current.clone());
+    }
+}
+```
+
+**6. `multidim_walk`**
+```rust
+/// k-dimensional Hamiltonian cycle on Z_{m_1} × ... × Z_{m_k}.
+/// Each generator[i] must be coprime to moduli[i].
+/// Cycle length = product of all moduli.
+/// Panics if lengths mismatch or any generator not coprime to its modulus.
+pub fn multidim_walk(moduli: &[TritInt], generators: &[TritInt]) -> Vec<Vec<TritInt>> {
+    assert_eq!(moduli.len(), generators.len());
+    for i in 0..moduli.len() {
+        assert!(is_coprime(&generators[i], &moduli[i]),
+            "generator must be coprime to modulus");
+    }
+    let cycle_len: u64 = moduli.iter()
+        .map(|m| m.to_decimal())  // host control flow
+        .product();
+    let k = moduli.len();
+    let mut result = Vec::with_capacity(cycle_len as usize);
+    let mut pos: Vec<TritInt> = vec![TritInt::zero(); k];
+    for _ in 0..cycle_len {
+        result.push(pos.clone());
+        for j in 0..k {
+            let sum = TritInt::add(&pos[j], &generators[j]);
+            let (_, rem) = sum.div_mod(&moduli[j]);
+            pos[j] = rem;
+        }
+    }
+    result
+}
+```
+
+**7. `crt_combine`**
+```rust
+/// CRT combination: given residues and pairwise-coprime moduli, recover
+/// the unique value in [0, product(moduli)) that produces those residues.
+///
+/// This is the mathematical operation behind both the AGS crt_reconstruct
+/// and the Coprime Index (TM-2026-028a). Standalone version — not tied
+/// to the dynamic AGS generator set.
+///
+/// Panics if moduli are not pairwise coprime.
+pub fn crt_combine(residues: &[TritInt], moduli: &[TritInt]) -> TritInt {
+    assert_eq!(residues.len(), moduli.len());
+    // Verify pairwise coprimality
+    for i in 0..moduli.len() {
+        for j in (i+1)..moduli.len() {
+            assert!(is_coprime(&moduli[i], &moduli[j]),
+                "crt_combine requires pairwise coprime moduli");
+        }
+    }
+
+    // Successive substitution (Garner's algorithm)
+    let mut result = residues[0].clone();
+    let mut product = moduli[0].clone();
+
+    for i in 1..moduli.len() {
+        let (_, a, _) = TritInt::extended_gcd(&product, &moduli[i]);
+        let diff = if residues[i] >= result {
+            TritInt::sub(&residues[i], &result)
+        } else {
+            TritInt::sub(&moduli[i], &TritInt::sub(&result, &residues[i]))
+        };
+        let step = TritInt::mul(&a, &diff).div_mod(&moduli[i]).1;
+        result = TritInt::add(&result, &TritInt::mul(&product, &step));
+        product = TritInt::mul(&product, &moduli[i]);
+    }
+
+    result.div_mod(&product).1
+}
+```
+
+**8. `crt_split`**
+```rust
+/// CRT decomposition: split a value into its residues mod each modulus.
+/// Inverse of crt_combine: crt_combine(crt_split(v, m), m) == v for v < product(m).
+pub fn crt_split(value: &TritInt, moduli: &[TritInt]) -> Vec<TritInt> {
+    moduli.iter().map(|m| value.div_mod(m).1).collect()
+}
+```
+
+### Tests — all TritInt:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test] fn test_is_coprime() {
+        let v11 = TritInt::from_u64(11);
+        let v13 = TritInt::from_u64(13);
+        let v28 = TritInt::from_u64(28);
+        let v364 = TritInt::repunit(6); // 364 = R₆
+        assert!(is_coprime(&v11, &v364));
+        assert!(!is_coprime(&v13, &v364)); // gcd = 13
+        assert!(is_coprime(&v13, &v28));
+    }
+
+    #[test] fn test_totient_known_values() {
+        assert_eq!(euler_totient(&TritInt::repunit(6)).to_decimal(), 144);
+        assert_eq!(euler_totient(&TritInt::from_u64(143)).to_decimal(), 120);
+        assert_eq!(euler_totient(&TritInt::from_u64(7)).to_decimal(), 6);
+        assert_eq!(euler_totient(&TritInt::one()).to_decimal(), 1);
+    }
+
+    #[test] fn test_coprime_walk_covers_all() {
+        let a = TritInt::from_u64(11);
+        let b = TritInt::from_u64(13);
+        let walk = coprime_walk(&a, &b);
+        assert_eq!(walk.len(), 143);
+        let mut set = std::collections::HashSet::new();
+        for pair in &walk {
+            set.insert((pair.0.to_decimal(), pair.1.to_decimal()));
+        }
+        assert_eq!(set.len(), 143);
+    }
+
+    #[test] fn test_coprime_walk_order() {
+        let a = TritInt::from_u64(11);
+        let b = TritInt::from_u64(13);
+        let walk = coprime_walk(&a, &b);
+        // Step=2 (smallest coprime to 143): pos 0, 2, 4...
+        assert_eq!(walk[0], (TritInt::zero(), TritInt::zero()));
+        assert_eq!(walk[1], (TritInt::from_u64(2), TritInt::from_u64(2)));
+        assert_eq!(walk[2], (TritInt::from_u64(4), TritInt::from_u64(4)));
+        // Verify NOT sequential (step≠1)
+        assert_ne!(walk[1], (TritInt::one(), TritInt::one()));
+    }
+
+    #[test] fn test_coprime_options_for_364() {
+        let v364 = TritInt::repunit(6);
+        let opts = coprime_options(&v364, &TritInt::one(), &TritInt::from_u64(30));
+        let vals: Vec<u64> = opts.iter().map(|t| t.to_decimal()).collect();
+        assert!(vals.contains(&11));
+        assert!(!vals.contains(&13));
+        assert!(!vals.contains(&14));
+    }
+
+    #[test] fn test_multidim_walk_full_cycle() {
+        let moduli = [TritInt::from_u64(5), TritInt::from_u64(7)];
+        let gens = [TritInt::from_u64(2), TritInt::from_u64(3)];
+        let walk = multidim_walk(&moduli, &gens);
+        assert_eq!(walk.len(), 35);
+        let mut set = std::collections::HashSet::new();
+        for pos in &walk {
+            set.insert((pos[0].to_decimal(), pos[1].to_decimal()));
+        }
+        assert_eq!(set.len(), 35);
+    }
+
+    #[test] fn test_coprime_combinations_pairwise() {
+        let input: Vec<TritInt> = [5,7,10,11].iter()
+            .map(|&v| TritInt::from_u64(v)).collect();
+        let combos = coprime_combinations(&input);
+        for combo in &combos {
+            for i in 0..combo.len() {
+                for j in (i+1)..combo.len() {
+                    assert!(is_coprime(&combo[i], &combo[j]));
+                }
+            }
+        }
+    }
+
+    #[test] fn test_coprime_combinations_are_maximal() {
+        let input: Vec<TritInt> = [5,7,10,11].iter()
+            .map(|&v| TritInt::from_u64(v)).collect();
+        let combos = coprime_combinations(&input);
+        for combo in &combos {
+            for m in &input {
+                if combo.contains(m) { continue; }
+                let can_add = combo.iter().all(|c| is_coprime(c, m));
+                assert!(!can_add, "subset not maximal");
+            }
+        }
+    }
+
+    #[test] fn test_coprime_combinations_sextuple() {
+        // TM-2026-028a §3.2: maximum sextuple from 13-polygon set
+        let polygon_set: Vec<TritInt> = [3,4,5,7,8,9,11,13].iter()
+            .map(|&v| TritInt::from_u64(v)).collect();
+        let combos = coprime_combinations(&polygon_set);
+        // Must contain {5,7,8,9,11,13} with product 360,360
+        let max_product: u64 = combos.iter().map(|c| {
+            c.iter().map(|t| t.to_decimal()).product::<u64>()
+        }).max().unwrap();
+        assert_eq!(max_product, 360_360);
+    }
+
+    #[test] fn test_crt_roundtrip() {
+        let moduli = [TritInt::from_u64(5), TritInt::from_u64(7),
+                      TritInt::from_u64(11), TritInt::from_u64(13)];
+        let val = TritInt::from_u64(42);
+        let residues = crt_split(&val, &moduli);
+        let recovered = crt_combine(&residues, &moduli);
+        assert_eq!(recovered, val);
+    }
+
+    #[test] fn test_crt_sextuple_roundtrip() {
+        // TM-2026-028a sextuple: (5,7,8,9,11,13), M = 360,360
+        let moduli: Vec<TritInt> = [5,7,8,9,11,13].iter()
+            .map(|&v| TritInt::from_u64(v)).collect();
+        // Test several values across the range
+        for &v in &[0u64, 1, 42, 1001, 15015, 360359] {
+            let val = TritInt::from_u64(v);
+            let residues = crt_split(&val, &moduli);
+            let recovered = crt_combine(&residues, &moduli);
+            assert_eq!(recovered.to_decimal(), v, "CRT roundtrip failed for {}", v);
+        }
+    }
+}
+```
+
+---
+
+## Task 2 — Create `ternary-math/src/sparse.rs` (NEW FILE)
+
+Standard Capomastro copyright header.
+
+Import `crate::trit_int::TritInt` and `std::collections::HashMap`.
+
+### SparseMap — TritInt moduli, mixed-radix u64 key encoding:
+
+```rust
+/// Sparse map for torus cell data.
+///
+/// Stores only occupied cells. Coordinates are TritInt values bounded
+/// by moduli. Internally encoded as mixed-radix u64 key — zero
+/// allocation per insert/get/lookup.
+///
+/// Requires moduli at construction (the torus dimensions).
+/// Coordinate validation: each coord[i] must be < moduli[i].
+/// Panics if product of moduli exceeds u64 host encoding capacity.
+pub struct SparseMap<V> {
+    entries: HashMap<u64, V>,
+    moduli: Vec<TritInt>,
+    strides: Vec<u64>,
+}
+
+impl<V> SparseMap<V> {
+    pub fn new(moduli: Vec<TritInt>) -> Self {
+        let mut strides = Vec::with_capacity(moduli.len());
+        let mut stride: u64 = 1;
+        for m in &moduli {
+            strides.push(stride);
+            stride = stride.checked_mul(m.to_decimal())
+                .expect("product of moduli exceeds u64 host encoding capacity");
+        }
+        SparseMap { entries: HashMap::new(), moduli, strides }
+    }
+
+    fn encode(&self, coord: &[TritInt]) -> u64 {
+        assert_eq!(coord.len(), self.moduli.len(),
+            "coordinate dimension {} != map dimension {}", coord.len(), self.moduli.len());
+        let mut key: u64 = 0;
+        for (i, c) in coord.iter().enumerate() {
+            assert!(*c < self.moduli[i], "coord[{}] exceeds modulus", i);
+            key += c.to_decimal() * self.strides[i];
+        }
+        key
+    }
+
+    fn decode(&self, mut key: u64) -> Vec<TritInt> {
+        self.moduli.iter().map(|m| {
+            let m_val = m.to_decimal();
+            let c = key % m_val;
+            key /= m_val;
+            TritInt::from_u64(c)
+        }).collect()
+    }
+
+    pub fn insert(&mut self, coord: &[TritInt], value: V) -> Option<V> {
+        let key = self.encode(coord);
+        self.entries.insert(key, value)
+    }
+    pub fn get(&self, coord: &[TritInt]) -> Option<&V> {
+        let key = self.encode(coord);
+        self.entries.get(&key)
+    }
+    pub fn get_mut(&mut self, coord: &[TritInt]) -> Option<&mut V> {
+        let key = self.encode(coord);
+        self.entries.get_mut(&key)
+    }
+    pub fn remove(&mut self, coord: &[TritInt]) -> Option<V> {
+        let key = self.encode(coord);
+        self.entries.remove(&key)
+    }
+    pub fn contains(&self, coord: &[TritInt]) -> bool {
+        let key = self.encode(coord);
+        self.entries.contains_key(&key)
+    }
+    pub fn len(&self) -> usize { self.entries.len() }
+    pub fn is_empty(&self) -> bool { self.entries.is_empty() }
+    pub fn iter(&self) -> impl Iterator<Item = (Vec<TritInt>, &V)> + '_ {
+        self.entries.iter().map(|(&k, v)| (self.decode(k), v))
+    }
+    pub fn coords(&self) -> impl Iterator<Item = Vec<TritInt>> + '_ {
+        self.entries.keys().map(|&k| self.decode(k))
+    }
+    pub fn clear(&mut self) { self.entries.clear(); }
+    pub fn dimensions(&self) -> usize { self.moduli.len() }
+    pub fn moduli(&self) -> &[TritInt] { &self.moduli }
+}
+```
+
+### ZStack — layered sparse maps:
+
+```rust
+/// Z-stack: layered sparse maps at different depths/resolutions.
+/// Each layer is a SparseMap with its own moduli. Deeper layers
+/// correspond to higher-depth repunit decompositions.
+pub struct ZStack<V> {
+    layers: Vec<SparseMap<V>>,
+}
+
+impl<V> ZStack<V> {
+    pub fn new() -> Self { ZStack { layers: Vec::new() } }
+    pub fn push_layer(&mut self, layer: SparseMap<V>) { self.layers.push(layer); }
+    pub fn layer(&self, index: usize) -> Option<&SparseMap<V>> { self.layers.get(index) }
+    pub fn layer_mut(&mut self, index: usize) -> Option<&mut SparseMap<V>> { self.layers.get_mut(index) }
+    pub fn depth(&self) -> usize { self.layers.len() }
+}
+```
+
+### Tests:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test] fn test_sparse_insert_get() {
+        let m = vec![TritInt::from_u64(10), TritInt::from_u64(10)];
+        let mut map: SparseMap<u64> = SparseMap::new(m);
+        map.insert(&[TritInt::zero(), TritInt::zero()], 42);
+        map.insert(&[TritInt::from_u64(3), TritInt::from_u64(7)], 99);
+        assert_eq!(map.get(&[TritInt::zero(), TritInt::zero()]), Some(&42));
+        assert_eq!(map.get(&[TritInt::from_u64(3), TritInt::from_u64(7)]), Some(&99));
+        assert_eq!(map.get(&[TritInt::one(), TritInt::zero()]), None);
+        assert_eq!(map.len(), 2);
+    }
+
+    #[test] fn test_sparse_remove() {
+        let m = vec![TritInt::from_u64(10), TritInt::from_u64(10)];
+        let mut map: SparseMap<u64> = SparseMap::new(m);
+        map.insert(&[TritInt::zero(), TritInt::zero()], 42);
+        assert_eq!(map.remove(&[TritInt::zero(), TritInt::zero()]), Some(42));
+        assert!(map.is_empty());
+    }
+
+    #[test] fn test_sparse_overwrite() {
+        let m = vec![TritInt::from_u64(10)];
+        let mut map: SparseMap<u64> = SparseMap::new(m);
+        map.insert(&[TritInt::from_u64(5)], 10);
+        let old = map.insert(&[TritInt::from_u64(5)], 20);
+        assert_eq!(old, Some(10));
+        assert_eq!(map.get(&[TritInt::from_u64(5)]), Some(&20));
+    }
+
+    #[test] fn test_zstack_layers() {
+        let mut stack: ZStack<u8> = ZStack::new();
+        let mut layer0 = SparseMap::new(vec![TritInt::from_u64(10), TritInt::from_u64(10)]);
+        layer0.insert(&[TritInt::zero(), TritInt::zero()], 1);
+        stack.push_layer(layer0);
+        let mut layer1 = SparseMap::new(vec![TritInt::from_u64(10), TritInt::from_u64(10), TritInt::from_u64(10)]);
+        layer1.insert(&[TritInt::zero(), TritInt::zero(), TritInt::zero()], 2);
+        stack.push_layer(layer1);
+        assert_eq!(stack.depth(), 2);
+        assert_eq!(stack.layer(0).unwrap().get(&[TritInt::zero(), TritInt::zero()]), Some(&1));
+        assert_eq!(stack.layer(1).unwrap().get(&[TritInt::zero(), TritInt::zero(), TritInt::zero()]), Some(&2));
+    }
+
+    #[test] fn test_sparse_iter() {
+        let m = vec![TritInt::from_u64(10), TritInt::from_u64(10)];
+        let mut map: SparseMap<u64> = SparseMap::new(m);
+        map.insert(&[TritInt::one(), TritInt::from_u64(2)], 10);
+        map.insert(&[TritInt::from_u64(3), TritInt::from_u64(4)], 20);
+        let collected: Vec<_> = map.iter().collect();
+        assert_eq!(collected.len(), 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "coordinate dimension")]
+    fn test_sparse_dimension_mismatch() {
+        let mut map: SparseMap<u64> = SparseMap::new(
+            vec![TritInt::from_u64(10), TritInt::from_u64(10)]);
+        map.insert(&[TritInt::one(), TritInt::from_u64(2), TritInt::from_u64(3)], 42);
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds modulus")]
+    fn test_sparse_coord_out_of_bounds() {
+        let mut map: SparseMap<u64> = SparseMap::new(
+            vec![TritInt::from_u64(5), TritInt::from_u64(5)]);
+        map.insert(&[TritInt::from_u64(7), TritInt::from_u64(2)], 42);
+    }
+}
+```
+
+---
+
+## Task 3 — Add 3 functions to `gf3_algebra.rs` (ADDITIONS ONLY)
+
+Phase 3 delivered everything except these 3 functions. Add after existing `batch_d_to_b` (line 247), before `#[cfg(test)]`.
+
+gf3_algebra.rs stays a leaf module — NO TritInt import (avoids circular dependency). Return types are native GF(3) values (u8, i8). Callers convert to TritInt at their level.
+
+**Already present — do NOT re-add:** AlgebraicTrit, all 12 rep_*_to_* paths, validators, batch_b_to_d, batch_d_to_b, Eisenstein methods, From<Gf3>/From<BalancedTrit>.
+
+```rust
+/// Rep D trit → UNIFORM k-dimensional torus step vector.
+/// Returns Rep B values (0, 1, or 2). Callers convert to TritInt at their level.
+///
+/// All dimensions receive the same step value.
+/// For per-dimension vectors with different coprime generators,
+/// construct manually with `coprime::is_coprime` validation.
+///
+/// Caveat: step=2 (Omega) is only coprime to odd moduli.
+/// Step=0 (Zero) produces no movement — stationary coordinates only.
+pub fn to_step_vector(d: AlgebraicTrit, k: usize) -> Vec<u8> {
+    let step = rep_d_to_b(d);
+    vec![step; k]
+}
+
+/// Batch convert Rep A trits to Rep B.
+pub fn batch_a_to_b(trits: &[i8]) -> Vec<u8> {
+    trits.iter().map(|&a| rep_a_to_b(a)).collect()
+}
+
+/// Batch convert Rep B trits to Rep A.
+pub fn batch_b_to_a(trits: &[u8]) -> Vec<i8> {
+    trits.iter().map(|&b| rep_b_to_a(b)).collect()
+}
+```
+
+**Tests** (add inside existing `#[cfg(test)] mod tests`):
+```rust
+#[test] fn test_to_step_vector() {
+    use AlgebraicTrit::*;
+    assert_eq!(to_step_vector(Zero, 3), vec![0u8, 0, 0]);
+    assert_eq!(to_step_vector(One, 2), vec![1u8, 1]);
+    assert_eq!(to_step_vector(Omega, 4), vec![2u8, 2, 2, 2]);
+}
+
+#[test] fn test_batch_a_to_b_roundtrip() {
+    let b_trits = vec![0u8, 1, 2, 0, 2, 1];
+    let a_trits = batch_b_to_a(&b_trits);
+    let back = batch_a_to_b(&a_trits);
+    assert_eq!(back, b_trits);
+}
+
+#[test] fn test_batch_a_b_values() {
+    assert_eq!(batch_b_to_a(&[0, 1, 2]), vec![0i8, 1, -1]);
+    assert_eq!(batch_a_to_b(&[0, 1, -1]), vec![0u8, 1, 2]);
+}
+```
+
+---
+
+## Task 4 — Register modules in `lib.rs` (2 LINES)
+
+Add after the last existing `pub mod` line:
+
+```rust
+pub mod coprime;
+pub mod sparse;
+```
+
+---
+
+## Task 5 — Compilation gates
+
+```bash
+cargo check -p ternary-math                    # zero errors
+cargo check -p ternary-math --target wasm32-unknown-unknown --no-default-features  # zero errors
+cargo test -p ternary-math                     # ALL tests pass
+```
+
+---
+
+## What Remains — Phase 2 Compression Engine (NOT in this task)
+
+These modules USE the primitives from Task 102 but add domain-specific logic. They are the Buried Question Compression Engine itself.
+
+| Module | What it does | Uses from Task 102 |
+|--------|-------------|---------------------|
+| `coprime_torus.rs` | Coprime Index (TM-2026-028a): specific coprime sets {5,7,8,9,11,13}, linear residue forms `(x + c·y) mod m`, 2D/3D index wrappers `coprime_index_2d`/`coprime_index_3d`, CRT coefficient precomputation, inversion | `crt_combine`, `crt_split`, `is_coprime`, `coprime_combinations` |
+| `orbifold.rs` | Entropy measurement on torus cells. Shannon entropy over coprime residue classes. Buried Question detection (orbifold curvature ↔ entropy deficit) | `SparseMap`, `crt_split` |
+| `auto_select.rs` | Automatic coprime set selection: given data size N, pick the smallest coprime set whose product ≥ N. Depth calculation (repunit tiers). AGS-like grow/shrink but for the compression context | `coprime_combinations`, `euler_totient`, `coprime_options` |
+| `ans_pi.rs` | ANS compression with π-derived parameters. tANS table built from GF(3) symbol frequencies. The "Buried Question" answer: compress a ternary stream using coprime-torus-indexed frequency tables | `SparseMap`, `ZStack`, `crt_split` |
+| HModal mixer | Binary bridge for conventional hash tables (TM-2026-028a §6). Bijective u64 finaliser for power-of-two table sizing | None from Task 102 — standalone binary bridge |
+
+---
+
+## Relevant files
+
+```
+ternary-math/src/lib.rs
+ternary-math/src/gf3_algebra.rs:106-248
+ternary-math/src/trit_int.rs (Phase 1-6 API)
+ternary-math/src/container_decomp.rs:153-169
+ternary-math/Cargo.toml
+```
+
+## Dependencies
+
+Phase 6 — Heap Path for Large TritInt Values (all prior phases merged)
