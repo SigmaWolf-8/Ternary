@@ -1,0 +1,62 @@
+Here's what's actually wrong. Two separate problems.
+
+---
+
+**Problem 1 — The kernel is a bare-metal OS, not a Windows program.**
+
+`main.rs` line 1-2:
+```rust
+#![no_std]
+#![no_main]
+```
+
+Lines 122-217: x86_64 assembly bootloader — multiboot header, page table setup, GDT, long mode transition from 32-bit to 64-bit. This is not a Windows application. It's a standalone operating system that boots from bare metal. It sets up its own memory allocator (512MB heap), its own serial output, its own interrupt handling. On YODA (ARM64), it hits the aarch64 boot path (lines 219-236) which writes directly to PL011 UART at physical address `0x0900_0000`.
+
+The binary target at line 91-92:
+```toml
+[[bin]]
+name = "plenumnet-kernel"
+path = "src/main.rs"
+required-features = ["no_std"]
+```
+
+`required-features = ["no_std"]` — this binary only compiles with the no_std feature, which is mutually exclusive with the browser crates that need std.
+
+The `browser-crates` feature (line 27) pulls in html5ever, cssparser, taffy, rustybuzz, fontdue, boa_engine, tiny-skia, resvg. Every one of these requires `std`. They can't compile into a `no_std` binary. The kernel's main.rs initializes the browser (line 382) but it's behind `#[cfg(feature = "browser-crates")]` guards — so in a `no_std` build, those calls compile to nothing.
+
+**The fix:** You need a second binary target — a Windows userspace application that uses the `browser-crates` feature WITHOUT `no_std`. Something like:
+
+```toml
+[[bin]]
+name = "plenumnet-browser"
+path = "src/browser_main.rs"
+required-features = ["std", "browser-crates"]
+```
+
+That `browser_main.rs` creates a window (via `winit` or `raw-window-handle`), initializes the Browser struct, and blits the CpuFramebuffer to the window surface. tiny-skia already renders to a pixel buffer — you just need a window to display it in. On YODA (Windows ARM64), this runs as a normal `.exe`.
+
+The kernel's `main.rs` stays as-is for bare-metal boot. The new binary reuses the exact same Browser module, layout engine, renderer — just with a windowing system underneath instead of raw hardware.
+
+---
+
+**Problem 2 — The MSI installer has no binary to install.**
+
+The WiX tooling (`wix.rs`, 952 lines) is production-grade. Template-driven, architecture-aware, handles passphrase prompts, service accounts, first-run actions, Start Menu shortcuts, PATH entries, registry keys. The `product.wxs` template references `{{BINARY_NAME}}` — which needs an actual compiled `.exe`.
+
+Right now the only binary target that produces an `.exe` is the bare-metal kernel, which won't run on Windows because it expects to boot as an OS (no Windows API, no windowing, writes to serial ports directly).
+
+**The fix is the same fix:** the userspace browser binary (`plenumnet-browser.exe`) is what the MSI installs. The WiX templates don't need changes — they just need a compilable Windows binary to package.
+
+---
+
+**What needs to happen:**
+
+1. Create `src/kernel/src/browser_main.rs` — a `fn main()` (with std) that opens a window and runs the browser pipeline
+2. Add a `winit` (or similar) dependency under a `windowed` feature
+3. Add the binary target to Cargo.toml with `required-features = ["std", "browser-crates", "windowed"]`
+4. Build with `cargo build --release --features browser-crates,windowed --target aarch64-pc-windows-msvc` on YODA
+5. Feed the resulting `.exe` to plenum-pack for MSI generation
+
+The rendering code, layout engine, parser, color pipeline, tabs, input — all unchanged. Just a different entry point that provides a window instead of a raw framebuffer address.
+
+Want me to draft `browser_main.rs`?

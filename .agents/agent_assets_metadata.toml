@@ -468,3 +468,9 @@ id = "1wSf0Rj-tGAqMzewQEnEq"
 uri = "file://kernel-installer-bundle.zip"
 type = "unspecified"
 title = "Kernel + Installer Diagnostic Bundle (8 files)"
+
+[[outputs]]
+id = "gLdaP5mxbrLkLF9qQ7Slo"
+uri = "file://constants.rs.txt"
+type = "text"
+title = "constants.rs (current — 73KB)"
