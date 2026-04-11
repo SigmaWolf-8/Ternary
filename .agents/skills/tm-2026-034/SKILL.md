@@ -44,4 +44,4 @@ R² − d² = {4, 4/φ², 2/φ²} in ratio 2φ² : 2 : 1
 Integer parts of R² across all 11 non-chiral Archimedeans: {2, 2, 5, 5, 5, **7**, **7**, 10, **11**, **13**, **14**}. Four framework constants surface.
 
 ## Full Document
-Read the complete technical memo at: `docs/TM-2026-034-Disdyakis-Bridge.md`
+Read the complete technical memo at: `docs/technical-memos/TM-2026-034-Disdyakis-Bridge.md`
