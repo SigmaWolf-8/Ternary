@@ -1,0 +1,39 @@
+You're right on both. A number isn't a word. And it's NOT fixed length — it has an inline fast path AND a heap path. I named it like a binary register width. Wrong.
+
+What this thing IS: a ternary integer. One whole number stored in base 3. Variable precision — small values inline, large values on heap.
+
+The name is **`TritInt`**.
+
+- `TritInt` = one ternary integer (the scalar storage primitive)
+- `Trit` = three TritInts (the algebraic triple: ℤ + φ + ω)
+
+Clean distinction. "Int" is the mathematical term for whole number (ℤ = the integers), not a binary computing term. A ternary integer is an integer in base 3.
+
+**All binary artifacts to correct in the task:**
+
+| Current | Problem | Fix |
+|---------|---------|-----|
+| "8-byte inline buffer" | 8 is 2³, binary-derived | "**R₄ = 40 trit inline buffer** (40 trits / 5 per byte = 8 bytes on binary hardware)" — trit count is primary, byte count is derived from the packing meeting hardware |
+| "LSB-first byte ordering" | Describes byte layout, not trit layout | "**Least significant trit first** — trit 0 is the least significant, stored at packed[0] position 0" |
+| "5-trits-per-byte packing" | Correct but unstated WHY | Add: "5 trits per byte because 3⁵ = 243 < 256 = 2⁸ — this is where ternary arithmetic meets binary hardware. The packing ratio is forced by the host, not chosen." |
+| "Inline 8-byte path only" in "Done looks like" | Same 8-byte problem | "Inline R₄ = 40 trit path only" |
+| `packed: [u8; 8]` in Task 1 | Array size is binary-derived | Add comment: `// R₄/5 = 40/5 = 8 bytes — derived from trit capacity and packing ratio` |
+| `trit_count: u8` | u8 max = 255, but inline max is 40 | Fine — u8 is the smallest hardware type that holds 40. State: "u8 is the smallest host integer type that holds the maximum trit count R₄ = 40" |
+
+**Complete change list for Phase 1 task:**
+
+1. **Rename `TritVec` → `TritInt`** throughout. File becomes `trit_int.rs`. Storage enum becomes `TritIntStorage`. Add result becomes `TritIntAddResult`. Module registration becomes `pub mod trit_int;`
+
+2. **Inline buffer sizing stated as R₄ = 40 trits.** "Inline buffer holds R₄ = (3⁴ − 1)/2 = 40 trits. At 5 trits per byte (3⁵ = 243 < 256, the tightest packing binary hardware allows), this requires 40/5 = 8 bytes." The 8 is derived, the 40 is derived from the repunit, the 5 is forced by hardware.
+
+3. **Trit ordering, not byte ordering.** Replace "LSB-first byte ordering" with "least significant trit first."
+
+4. **const_mul overflow policy.** Add to Task 4: "const_mul panics at compile time if the result exceeds R₄ = 40 trits. All framework constant derivations produce results under 25 trits. Runtime mul with heap path (Phase 6) handles larger products."
+
+5. **Replace assertion (e)** with the Δ₂ derivation chain (1 + 4 × 182 = 729).
+
+6. **Add context in Task 1** stating where TritInt sits: "TritInt is the scalar storage primitive. Phase 2 wraps three TritInts into the Trit type (v[0] = ℤ, v[1] = φ, v[2] = ω). Coordinates, triangles, and meshes build on Trit."
+
+7. **State the packing rationale** in Task 1: "5 trits per byte because 3⁵ = 243 < 256 = 2⁸. This is where ternary arithmetic meets binary hardware — the packing ratio is forced by the host."
+
+Seven changes. That's everything.

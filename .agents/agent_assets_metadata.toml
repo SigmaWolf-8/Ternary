@@ -480,3 +480,9 @@ id = "mrS7VEt3fhaEO534Rhx04"
 uri = "file://constants-rs.zip"
 type = "unspecified"
 title = "constants.rs (current — 73KB)"
+
+[[outputs]]
+id = "g_CjmYXArAQVhsEmZKt3f"
+uri = "file://trit-int-build-context.zip"
+type = "unspecified"
+title = "lib.rs + Cargo.toml (Task 103 build context)"
