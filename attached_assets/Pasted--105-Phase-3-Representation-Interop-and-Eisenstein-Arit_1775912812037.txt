@@ -1,0 +1,46 @@
+#105 - Phase 3 — Representation Interop and Eisenstein Arithmetic
+What & Why
+Add the representation conversion layer to TritInt covering all four framework representations, and implement Eisenstein multiplication and norm at the GF(3) level where they naturally belong.
+
+The framework operates with four representations — Balanced (Rep A, {−1,0,+1}), Standard (Rep B, {0,1,2}), Bijective (Rep C, {1,2,3}), and Algebraic (Rep D, {Zero, One, Omega}) — and TritInt must convert losslessly between all of them. The 12-path conversion table (A↔B, A↔C, A↔D, B↔C, B↔D, C↔D) from the original spec is the reference.
+
+Eisenstein arithmetic operates at the GF(3) level — individual trits, not multi-digit integers. The defining relation ω² = −1 − ω produces negative components that unsigned TritInt cannot represent, but mod-3 arithmetic handles this cleanly: −1 ≡ 2 (mod 3), so ω² = 2 + 2ω in GF(3). The existing gf3_sub in gf3_algebra.rs already implements this via (a + 3 - b) — subtraction mod 3 never underflows. General signed Eisenstein arithmetic on multi-digit values is future work requiring SignedTritInt or balanced ternary storage.
+
+This phase also adds div_repunit and mod_pow.
+
+Done looks like
+TritInt conversions for all four representations: to_repr_a() -> Vec<i8>, to_repr_b() -> Vec<u8>, to_repr_c() -> Vec<u8>, to_repr_d() -> Vec<AlgebraicTrit>, and reverse from_repr_a, from_repr_b, from_repr_c, from_repr_d
+All to_repr_* output and from_repr_* input use MSB-first ordering (wire convention), distinct from from_trits/to_trits which use LSB-first (internal convention). from_repr_b is the MSB-first counterpart of from_trits.
+Rep C wire safety: to_repr_c() produces no zero digits, from_repr_c() panics on zero digits (debug assertion for internal use; a separate try_from_repr_c returning Result is Phase 5 work for wire-input parsing of untrusted data)
+AlgebraicTrit enum {Zero, One, Omega} in gf3_algebra.rs, with bidirectional conversion to/from Trit and integration into the to_repr_d/from_repr_d conversion layer
+mul_eisenstein — per-trit ℤ[ω] multiplication mod 3, using existing gf3_add/gf3_sub/gf3_mul from gf3_algebra.rs. ω² = 2 + 2ω in mod-3 arithmetic (since −1 ≡ 2 mod 3)
+norm_eisenstein — N(a + cω) = a² − ac + c² mod 3
+div_repunit(&self, n: usize) -> (TritInt, TritInt) — division by repunit R_n = 111...1₃ exploiting digit-group chunking
+mod_pow(&self, exp: &TritInt, modulus: &TritInt) -> TritInt — modular exponentiation via square-and-multiply in base 3. NOT constant-time — must not be used for cryptographic operations (all crypto uses TLSponge-385 or TL-DSA primitives).
+Round-trip tests for all 12 conversion paths across framework constants (364, 14, 182, 729)
+Eisenstein GF(3) tests: ω² = 2 + 2ω, ω³ = 1, mul_eisenstein commutativity, norm_eisenstein correctness
+AlgebraicTrit ↔ Trit conversion tests (forward and reverse)
+Out of scope
+Serde/Zeroize (Phase 5)
+Heap path (Phase 6)
+General signed Eisenstein arithmetic on multi-digit TritInt values (requires SignedTritInt or balanced ternary storage — future work beyond Phase 6)
+try_from_repr_c Result-based API for untrusted wire input (Phase 5)
+Tasks
+Implement to_repr_a(&self) -> Vec<i8> on TritInt — converts internal Rep B {0,1,2} to Balanced {−1,0,+1}, MSB-first output. Balanced conversion algorithm (LSB to MSB): for each digit, add carry; 0→0 carry 0, 1→1 carry 0, 2→T(−1) carry 1, 3→0 carry 1. Zero-valued TritInt produces empty output for all to_repr_* functions (no leading zeros).
+Implement to_repr_b(&self) -> Vec<u8> — returns MSB-first copy of the internal representation (wire convention, distinct from to_trits() which is LSB-first). And to_repr_c(&self) -> Vec<u8> — each digit = Rep B digit + 1, MSB-first. Zero-valued TritInt produces empty output (not [1]).
+Implement reverse conversions: from_repr_a(balanced: &[i8]) -> Self, from_repr_b(standard: &[u8]) -> Self, from_repr_c(bijective: &[u8]) -> Self. All accept MSB-first input. from_repr_a panics on any digit outside {−1, 0, +1}. from_repr_b panics on any digit ≥ 3. from_repr_c panics on any digit = 0 (forgery detection) or digit > 3. These are structural validity checks — impossible digit values indicate corrupted or forged input. Phase 5 adds try_from_repr_c returning Result for untrusted wire input.
+Define AlgebraicTrit enum in gf3_algebra.rs with variants Zero, One, Omega. Implement to_repr_d(&self) -> Vec<AlgebraicTrit> and from_repr_d(trits: &[AlgebraicTrit]) -> Self on TritInt, MSB-first, alongside the other conversion methods. Rep D is the fourth representation — same treatment as A, B, C. Mapping per digit: Rep B 0 → AlgebraicTrit::Zero, 1 → AlgebraicTrit::One, 2 → AlgebraicTrit::Omega. Implement From<Gf3> for AlgebraicTrit and From<AlgebraicTrit> for Gf3 (Zero↔Gf3(0), One↔Gf3(1), Omega↔Gf3(2)). Implement From<BalancedTrit> for AlgebraicTrit and From<AlgebraicTrit> for BalancedTrit (Zero↔Zero, One↔Pos, Omega↔Neg). These are the A↔D and B↔D single-trit bridges connecting the new AlgebraicTrit to the existing GF(3) codebase. Implement bidirectional Trit ↔ AlgebraicTrit conversion: forward (AlgebraicTrit → Trit) creates unit elements; reverse (Trit → AlgebraicTrit) returns Option<AlgebraicTrit> — Some(variant) for unit elements (zero, one, or ω where each component is at most TritInt::one()), None for non-unit Trit values.
+Implement mul_eisenstein on Trit — per-trit ℤ[ω] multiplication mod 3 using existing gf3_add, gf3_sub, gf3_mul from gf3_algebra.rs. Formula: (a₁+c₁ω)(a₂+c₂ω) = gf3_sub(gf3_mul(a₁,a₂), gf3_mul(c₁,c₂)) + (gf3_sub(gf3_add(gf3_mul(a₁,c₂), gf3_mul(a₂,c₁)), gf3_mul(c₁,c₂)))ω. The mod-3 constraint is inherent to the GF(3) scope — not a name qualifier. Operates on single GF(3) trit values extracted from v[0] and v[2]. Asserts both operands have v[1]=0 (pure Eisenstein or scalar). Asserts both operands are GF(3)-scale (v[0] and v[2] each ≤ 2). gf3_sub never underflows: (0 − 1) mod 3 = 2.
+Implement norm_eisenstein — N(a+cω) = a²−ac+c² mod 3, using gf3_sub(gf3_add(gf3_square(a), gf3_square(c)), gf3_mul(a,c)). Returns scalar Trit. Asserts the input has v[1]=0 and is GF(3)-scale.
+Implement div_repunit(&self, n: usize) -> (TritInt, TritInt) — division by R_n = (3ⁿ−1)/2. Exploits repunit structure via digit-group chunking: since R_n in base 3 is n consecutive 1-digits, division can process the dividend in n-digit groups from MSB, accumulating quotient digits and carrying remainders. Falls back to div_mod(self, TritInt::repunit(n)) for correctness verification in tests.
+Implement mod_pow(&self, exp: &TritInt, modulus: &TritInt) -> TritInt — standard square-and-multiply in base 3. NOT constant-time — must not be used for cryptographic operations.
+Write tests: all 12 representation round-trip paths for framework constants (364, 14, 182, 729) AND TritInt::zero(), Rep C forgery rejection (zero digit → panic via #[should_panic]), #[should_panic] tests for from_repr_a with digit outside {−1,0,+1} and from_repr_b with digit ≥ 3, AlgebraicTrit forward and reverse conversions (including None for non-unit Trit values), Gf3 → AlgebraicTrit → Gf3 round-trip for all three values, BalancedTrit → AlgebraicTrit → BalancedTrit round-trip, ω² = 2 + 2ω (the mod-3 defining relation), ω³ = 1, mul_eisenstein commutativity, mul_eisenstein associativity (at least one non-trivial triple), mul_eisenstein identity (1·x = x for all three GF(3) values), mul_eisenstein exhaustive (all 9 GF(3)×GF(3) input pairs), norm_eisenstein correctness, norm_eisenstein multiplicativity (N(a·b) = N(a)·N(b) mod 3 for at least 3 non-trivial pairs), #[should_panic] tests for mul_eisenstein and norm_eisenstein on non-Eisenstein operands (v[1]≠0) and on non-GF(3)-scale operands (v[0]>2), div_repunit correctness against general div_mod for R₁ through R₆, mod_pow against known values.
+Relevant files
+/tmp/zip_extract_v4/docs/TM-2026-000_Trit_Specification_v3.0.md:387-408
+ternary-math/src/trit_int.rs
+ternary-math/src/trit.rs
+ternary-math/src/gf3_algebra.rs
+ternary-math/src/gf3.rs
+ternary-math/src/lib.rs
+Dependencies
+Phase 2 — Trit Struct and Golden-Ratio Arithmetic (ℤ[φ] multiplication & norm)

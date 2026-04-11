@@ -498,3 +498,9 @@ id = "wcAvwAbxfd3bEFGJ7FyFK"
 uri = "file://phase2-trit-final.zip"
 type = "unspecified"
 title = "Phase 2 — trit.rs + lib.rs (compiled & all 51 tests pass)"
+
+[[outputs]]
+id = "RXCdV24Mc1MQbYvcF4ALA"
+uri = "file://gf3-sources.zip"
+type = "unspecified"
+title = "gf3.rs + gf3_algebra.rs (GF(3) types for Phase 3)"

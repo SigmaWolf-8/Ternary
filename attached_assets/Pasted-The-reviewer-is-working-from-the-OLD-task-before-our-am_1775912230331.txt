@@ -1,0 +1,37 @@
+The reviewer is working from the OLD task — before our amendments. They caught the same Eisenstein bug we already caught and fixed. Their CRITICAL is already resolved.
+
+What they missed: Our agreed resolution — mod-3 arithmetic. Their three options (A: signed wrapper, B: i64 space, C: defer entirely) don't include the option we chose: Eisenstein multiplication operates mod 3, connecting to existing gf3_algebra.rs where gf3_add and gf3_mul already work this way. ω² = 2 + 2ω (mod 3). No negative values. No new types. No deferral.
+
+What they caught that we DIDN'T:
+
+IMPORTANT #1 — from_repr_c forgery rejection: panic or Result? We said "rejects zero digits" but never said how. Should be panic, consistent with the framework's zero = forgery = structural violation, not a recoverable error.
+
+IMPORTANT #2 — Byte ordering on reverse conversions: we specified MSB-first for to_repr_* output but didn't state what from_repr_* expects as input. Should be MSB-first to match — state it explicitly.
+
+IMPORTANT #4 — norm_eisenstein computation order: N(a + cω) = a² − ac + c². If you compute a² − ac first and ac > a², unsigned underflow. The fix: compute (a² + c²) first, then subtract ac. Since a² + c² ≥ ac for all non-negative a, c (provable: (a−c)² ≥ 0 → a² + c² ≥ 2ac ≥ ac), the subtraction is always safe. Good catch.
+
+IMPORTANT #5 — AlgebraicTrit reverse mapping: converting a Trit BACK to AlgebraicTrit is only defined for unit elements (0, 1, ω). A Trit like golden(14, 5) has no AlgebraicTrit representation. The conversion should assert the Trit is a single-trit Eisenstein value, or return Option.
+
+What they caught that we already had:
+
+IMPORTANT #3 — v[1]=0 validation on mul_eisenstein/norm_eisenstein. We already specified this in the amended task.
+
+Net result: The CRITICAL is stale (already fixed). Four new IMPORTANT items should be added to the task. Send the reviewer the amended Phase 3 task so they're working from current, not the original.
+
+Phase 3 nomenclature review:
+
+ Name Verdict Issue to_repr_a / from_repr_a Keep Matches the four-representation naming (A, B, C, D) to_repr_b / from_repr_b Keep Same to_repr_c / from_repr_c Keep Same to_repr_d / from_repr_d Keep Completes the set AlgebraicTrit Keep Already exists in gf3_algebra.rs, matches its function mul_eisenstein_gf3 Problem Two concepts jammed together. "Eisenstein" names the algebra. "gf3" names the modular constraint. But the function lives on Trit, not on a GF(3) type. Calling it mul_eisenstein_gf3 implies there's a mul_eisenstein that does the "real" version — but that version doesn't exist and might never. It's the only Eisenstein multiplication we have. Call it mul_eisenstein and document that it operates mod 3. When general signed Eisenstein arithmetic arrives someday, THAT one gets the qualified name. norm_eisenstein_gf3 Same problem Call it norm_eisenstein. Document the mod-3 scope. div_repunit Keep Names exactly what it does — divides by a repunit mod_pow Keep Standard name for modular exponentiation SignedTritInt Not in this phase Mentioned as future work, name is fine for when it arrives
+
+Two name changes:
+
+
+
+
+
+mul_eisenstein_gf3 → mul_eisenstein — it's the Eisenstein multiplication. The mod-3 constraint is documentation, not a name qualifier.
+
+
+
+norm_eisenstein_gf3 → norm_eisenstein — same reasoning.
+
+Everything else is correctly named.

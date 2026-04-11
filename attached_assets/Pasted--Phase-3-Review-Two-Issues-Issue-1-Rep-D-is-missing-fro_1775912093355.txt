@@ -1,0 +1,49 @@
+**Phase 3 Review — Two Issues**
+
+---
+
+**Issue 1: Rep D is missing from the wire representations.**
+
+The framework has four representations, not three:
+
+- Rep A: Balanced {−1, 0, +1}
+- Rep B: Standard {0, 1, 2}
+- Rep C: Bijective {1, 2, 3}
+- Rep D: Algebraic {Zero, One, Omega}
+
+The task lists A, B, C as wire representations and handles Rep D separately in Task 4 as if it's a different kind of thing. It's not. It's the fourth representation. It should get the same treatment:
+
+- `to_repr_d(&self) -> Vec<AlgebraicTrit>` alongside `to_repr_a`, `to_repr_b`, `to_repr_c`
+- `from_repr_d(trits: &[AlgebraicTrit]) -> Self` alongside the other `from_repr_*` methods
+- Round-trip tests: Rep B → Rep D → Rep B alongside the other round-trips
+
+The 12-path conversion table from Task 9 of the original spec (A↔B, A↔C, A↔D, B↔C, B↔D, C↔D) should be the reference. The task currently covers 6 of the 12 paths. Adding D paths completes the set.
+
+Changes:
+1. Replace "three wire representations" with "four representations" in What & Why
+2. Add `to_repr_d` / `from_repr_d` to TritInt alongside the other conversion methods
+3. Add Rep D round-trip tests alongside A, B, C round-trips
+4. Task 4 (AlgebraicTrit) becomes part of the conversion layer, not a separate concern
+
+---
+
+**Issue 2: mul_eisenstein doesn't work as specified.**
+
+The Eisenstein multiplication produces negative results and the task hand-waves the storage problem.
+
+The defining relation: ω × ω = −1 − ω. That means v[0] = −1 and v[2] = −1. Both negative. TritInt is unsigned. The task says "convert to Rep A for intermediate computation, convert back to unsigned TritInt." But you cannot convert −1 back to unsigned. There is no unsigned representation of −1. The "convert back" step has no destination.
+
+This isn't a subtlety — it's the FIRST thing you'd compute. `ω² = −1 − ω` is the test case in Task 9. It would fail immediately.
+
+The actual use case for ω in the framework is GF(3) algebraic closure — individual trits, not multi-digit integers. AlgebraicTrit in gf3_algebra.rs already does this correctly with `gf3_add` and `gf3_mul` operating mod 3. Subtraction mod 3 never underflows: (0 − 1) mod 3 = 2.
+
+Changes:
+1. Replace `mul_eisenstein` with `mul_eisenstein_gf3` — operates mod 3, connects to existing gf3_algebra.rs, handles values via per-trit modular arithmetic
+2. Replace `norm_eisenstein` with `norm_eisenstein_gf3` — same mod-3 scope
+3. Add note: general signed Eisenstein arithmetic on multi-digit values is future work requiring SignedTritInt or balanced ternary storage
+4. Fix the ω² test expectation: result is 2 + 2ω in mod-3 arithmetic (since −1 ≡ 2 mod 3), not −1 − ω
+5. Add div_repunit algorithm description — the task says "can be done faster than general div_mod" without explaining how. The optimization exploits repunit structure in base 3 via digit-group chunking. The task should describe the technique or reference one.
+
+---
+
+**Everything else is sound:** Rep A/B/C conversions with borrow propagation, Rep C forgery rejection, AlgebraicTrit placement in gf3_algebra.rs, mod_pow as standard square-and-multiply, and the test coverage list.
