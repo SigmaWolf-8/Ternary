@@ -180,12 +180,14 @@ pub fn is_prime_ternary(n: &TritInt) -> bool {
 /// subset — the universally coprime primes.
 ///
 /// Algorithm (ternary-native):
+/// ```text
 ///   1. For each member p of the polygon set:
 ///   2.   If p is prime (ternary trial division):
 ///   3.     Compute 2p (ternary doubling = ternary add p + p)
 ///   4.     If 2p > POLYGON_MAX (ternary comparison):
 ///   5.       p is universally coprime — no multiple of p exists in the set
 ///   6. Return all qualifying p
+/// ```
 ///
 /// This derives {11, 13} = {102₃, 111₃} from the axiom.
 /// The derivation is: 2 × 102₃ = 211₃ = 22 > 120₃ = 15 ✓

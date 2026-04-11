@@ -56,4 +56,5 @@ pub mod ctx_ans;
 pub mod ternary_lattice;
 pub mod tl_kem;
 pub mod phase_encryption;
+pub mod derivation_audit;
 pub mod wasm_exports;
