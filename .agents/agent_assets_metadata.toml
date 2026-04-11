@@ -474,3 +474,9 @@ id = "gLdaP5mxbrLkLF9qQ7Slo"
 uri = "file://constants.rs.txt"
 type = "text"
 title = "constants.rs (current — 73KB)"
+
+[[outputs]]
+id = "mrS7VEt3fhaEO534Rhx04"
+uri = "file://constants-rs.zip"
+type = "unspecified"
+title = "constants.rs (current — 73KB)"
