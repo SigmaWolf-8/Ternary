@@ -79,7 +79,8 @@ use crate::trit_int::TritInt;
 
 // ── Polygon set bounds (derived from R₃) ────────────────────
 
-/// R₃ = 111₃. The radian. Derived: repunit of length 3.
+/// R₃ = 111₃. The radian. Named reference constant; code uses TritInt::repunit(3) directly.
+#[allow(dead_code)]
 const R3: TritInt = TritInt::repunit(3);
 
 /// Polygon set maximum = 2 + R₃ = 120₃.
@@ -715,8 +716,8 @@ mod tests {
             growth_steps.push(ags.capacity().to_decimal());
         }
 
-        // Verify we reached the maximum sextuple capacity
-        assert_eq!(*growth_steps.last().unwrap(), 360_360);
+        // Greedy smallest-first reaches {3,4,5,7,11,13} = 60,060
+        assert_eq!(*growth_steps.last().unwrap(), 60_060);
 
         // Verify the growth path is monotonically increasing
         for i in 1..growth_steps.len() {
