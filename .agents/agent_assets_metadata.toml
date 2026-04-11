@@ -522,3 +522,9 @@ id = "BrFC-pE1qintD5loJJNoI"
 uri = "file://issue-115-relay-pong-fix.zip"
 type = "unspecified"
 title = "Issue #115 — Relay Pong Timeout Fix (server/index.ts + node-watchdog.ts)"
+
+[[outputs]]
+id = "hy5V0mx4T4rEZvwatmCH6"
+uri = "file://task109-context.zip"
+type = "unspecified"
+title = "task109-context.zip — 6 ternary-math source files"
