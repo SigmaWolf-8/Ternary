@@ -37,6 +37,7 @@
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::mem::ManuallyDrop;
 use std::ops::{Add, Sub, Mul, Div, Rem, AddAssign, SubAssign, MulAssign};
 use crate::gf3_algebra::AlgebraicTrit;
 use zeroize::Zeroize;
@@ -67,12 +68,17 @@ pub struct TritIntAddResult {
 /// R₄ = (3⁴ − 1)/2 = 40 — the four-digit repunit.
 const MAX_INLINE_TRITS: u8 = 40;
 
+/// Maximum trit count for heap allocation from untrusted input.
+/// R₉ = (3⁹ − 1)/2 = 9,841 — the nine-digit repunit.
+/// Framework-derived upper bound: ≥100× any anticipated production value,
+/// ~2 KB maximum allocation per TritInt. Prevents allocation-exhaustion.
+const MAX_HEAP_TRITS: u32 = 9841;
+
 /// Powers of 3 within a single byte: 3⁰ through 3⁵.
 /// Used for trit packing/unpacking. 3⁵ = 243 < 256 fits in u8.
 const POW3: [u8; 6] = [1, 3, 9, 27, 81, 243];
 
 /// Storage backend for TritInt.
-#[derive(Clone)]
 enum TritIntStorage {
     /// Inline: R₄/5 = 40/5 = 8 bytes, derived from trit capacity and packing ratio.
     /// trit_count is u8 — the smallest host integer type that holds R₄ = 40.
@@ -80,7 +86,29 @@ enum TritIntStorage {
         packed: [u8; 8],
         trit_count: u8,
     },
-    // Heap variant deferred to Phase 6.
+    /// Heap: for values exceeding R₄ = 40 trits. Same 5-trits-per-byte packing.
+    /// ManuallyDrop keeps the enum const-compatible (no implicit Drop on TritInt).
+    /// Cleanup: call .zeroize() or .drop_heap() before going out of scope.
+    /// Framework constants are always Inline — no heap leak risk for const items.
+    /// trit_count is u32 — host bookkeeping field (not a mathematical value).
+    Heap {
+        packed: ManuallyDrop<Vec<u8>>,
+        trit_count: u32,
+    },
+}
+
+impl Clone for TritIntStorage {
+    fn clone(&self) -> Self {
+        match self {
+            TritIntStorage::Inline { packed, trit_count } =>
+                TritIntStorage::Inline { packed: *packed, trit_count: *trit_count },
+            TritIntStorage::Heap { packed, trit_count } =>
+                TritIntStorage::Heap {
+                    packed: ManuallyDrop::new((**packed).clone()),
+                    trit_count: *trit_count,
+                },
+        }
+    }
 }
 
 /// A ternary integer — one whole number stored in base 3.
@@ -345,6 +373,179 @@ const fn from_u64_raw(mut val: u64) -> ([u8; 8], u8) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// RUNTIME DYNAMIC HELPERS (Phase 6)
+//
+// Slice-based versions of the const helpers for heap-sized values.
+// Same packing (5 trits/byte, LSB-first), but operate on &[u8]
+// slices of arbitrary length with u32 positions.
+//
+// All runtime arithmetic goes through these. The const helpers
+// above remain for compile-time computation (const_add etc.).
+// ══════════════════════════════════════════════════════════════
+
+/// Extract a trit from a packed slice. Returns 0 for out-of-bounds.
+fn trit_at_gen(packed: &[u8], pos: u32) -> u8 {
+    let byte_idx = (pos / 5) as usize;
+    let trit_idx = (pos % 5) as usize;
+    if byte_idx >= packed.len() { return 0; }
+    (packed[byte_idx] / POW3[trit_idx]) % 3
+}
+
+/// Pack individual trits (LSB-first) into bytes.
+fn pack_trits(trits: &[u8]) -> Vec<u8> {
+    let byte_count = (trits.len() + 4) / 5;
+    let mut packed = vec![0u8; byte_count];
+    for (i, &t) in trits.iter().enumerate() {
+        packed[i / 5] += t * POW3[i % 5];
+    }
+    packed
+}
+
+/// Number of bytes needed for n trits.
+fn bytes_for_trits(n: u32) -> usize { ((n as usize) + 4) / 5 }
+
+/// Build a TritInt from packed bytes and trit count. Auto-selects inline or heap.
+/// Normalizes (strips leading zero trits).
+fn make_from_packed(mut packed: Vec<u8>, mut count: u32) -> TritInt {
+    // Strip leading zeros
+    while count > 0 && trit_at_gen(&packed, count - 1) == 0 { count -= 1; }
+
+    if count <= MAX_INLINE_TRITS as u32 {
+        let mut inline = [0u8; 8];
+        let copy_len = std::cmp::min(packed.len(), 8);
+        inline[..copy_len].copy_from_slice(&packed[..copy_len]);
+        // Clear bytes beyond last used
+        let last_byte = if count == 0 { 0 } else { ((count - 1) / 5) as usize + 1 };
+        for i in last_byte..8 { inline[i] = 0; }
+        if count > 0 {
+            let trits_in_last = ((count - 1) % 5) + 1;
+            inline[last_byte - 1] %= POW3[trits_in_last as usize];
+        }
+        TritInt { storage: TritIntStorage::Inline { packed: inline, trit_count: count as u8 } }
+    } else {
+        packed.truncate(bytes_for_trits(count));
+        TritInt { storage: TritIntStorage::Heap { packed: ManuallyDrop::new(packed), trit_count: count } }
+    }
+}
+
+/// Build from individual trit values (LSB-first).
+fn make_from_trits(trits: &[u8]) -> TritInt {
+    let packed = pack_trits(trits);
+    make_from_packed(packed, trits.len() as u32)
+}
+
+/// General addition on packed slices. No size limit.
+fn add_gen(a: &[u8], ac: u32, b: &[u8], bc: u32) -> TritInt {
+    let max = std::cmp::max(ac, bc);
+    let mut result = Vec::with_capacity((max + 2) as usize);
+    let mut carry: u8 = 0;
+    for i in 0..max {
+        let sum = trit_at_gen(a, i) + trit_at_gen(b, i) + carry;
+        result.push(sum % 3);
+        carry = sum / 3;
+    }
+    if carry > 0 { result.push(carry); }
+    make_from_trits(&result)
+}
+
+/// General subtraction on packed slices. Panics on underflow.
+fn sub_gen(a: &[u8], ac: u32, b: &[u8], bc: u32) -> TritInt {
+    let max = std::cmp::max(ac, bc);
+    let mut result = Vec::with_capacity(max as usize);
+    let mut borrow: u8 = 0;
+    for i in 0..max {
+        let at = trit_at_gen(a, i);
+        let bt = trit_at_gen(b, i) + borrow;
+        let (digit, new_borrow) = if at >= bt {
+            (at - bt, 0u8)
+        } else {
+            (at + 3 - bt, 1u8)
+        };
+        borrow = new_borrow;
+        result.push(digit);
+    }
+    assert!(borrow == 0, "const_sub underflow: subtrahend > minuend");
+    make_from_trits(&result)
+}
+
+/// General multiplication on packed slices. No size limit.
+fn mul_gen(a: &[u8], ac: u32, b: &[u8], bc: u32) -> TritInt {
+    if ac == 0 || bc == 0 { return TritInt::zero(); }
+    let max_trits = (ac + bc) as usize;
+    let mut result = vec![0u8; max_trits];
+    for i in 0..ac {
+        let a_trit = trit_at_gen(a, i);
+        if a_trit == 0 { continue; }
+        let mut carry: u8 = 0;
+        for j in 0..bc {
+            let pos = (i + j) as usize;
+            let sum = a_trit * trit_at_gen(b, j) + result[pos] + carry;
+            result[pos] = sum % 3;
+            carry = sum / 3;
+        }
+        let mut k = (i + bc) as usize;
+        while carry > 0 {
+            let sum = result[k] + carry;
+            result[k] = sum % 3;
+            carry = sum / 3;
+            k += 1;
+        }
+    }
+    make_from_trits(&result)
+}
+
+/// General less-than on packed slices.
+fn lt_gen(a: &[u8], ac: u32, b: &[u8], bc: u32) -> bool {
+    if ac != bc { return ac < bc; }
+    if ac == 0 { return false; }
+    let mut i = ac;
+    while i > 0 {
+        i -= 1;
+        let at = trit_at_gen(a, i);
+        let bt = trit_at_gen(b, i);
+        if at < bt { return true; }
+        if at > bt { return false; }
+    }
+    false
+}
+
+/// General equality on packed slices.
+fn eq_gen(a: &[u8], ac: u32, b: &[u8], bc: u32) -> bool {
+    if ac != bc { return false; }
+    for i in 0..ac {
+        if trit_at_gen(a, i) != trit_at_gen(b, i) { return false; }
+    }
+    true
+}
+
+/// General conversion to u64. Returns None if value exceeds u64::MAX.
+fn to_u64_gen(packed: &[u8], count: u32) -> Option<u64> {
+    // 3^40 ≈ 1.22 × 10^19 < u64::MAX ≈ 1.84 × 10^19
+    // Values > 40 trits always exceed u64::MAX (3^41 > u64::MAX)
+    if count > 40 { return None; }
+    let mut result: u64 = 0;
+    let mut power: u64 = 1;
+    for i in 0..count {
+        result += trit_at_gen(packed, i) as u64 * power;
+        if i < count - 1 { power *= 3; }
+    }
+    Some(result)
+}
+
+/// Shift trits left by `shift` positions (multiply by 3^shift) on packed slices.
+fn trit_shift_left_gen(packed: &[u8], count: u32, shift: u32) -> (Vec<u8>, u32) {
+    let new_count = count + shift;
+    if count == 0 { return (vec![0u8; bytes_for_trits(new_count)], 0); }
+    let mut result = vec![0u8; bytes_for_trits(new_count)];
+    for i in 0..count {
+        let trit = trit_at_gen(packed, i);
+        let new_pos = (i + shift) as usize;
+        result[new_pos / 5] += trit * POW3[new_pos % 5];
+    }
+    (result, new_count)
+}
+
+// ══════════════════════════════════════════════════════════════
 // CONSTRUCTORS (all const fn)
 // ══════════════════════════════════════════════════════════════
 
@@ -431,17 +632,37 @@ impl TritInt {
 
     // ── Internal extractors ─────────────────────────────────
 
-    /// Extract packed array and count (const fn, takes self by value).
+    /// Extract packed array and count (const fn, inline-only, takes self by value).
+    /// Panics on Heap — const fn cannot handle heap allocation.
     const fn into_parts(self) -> ([u8; 8], u8) {
         match self.storage {
             TritIntStorage::Inline { packed, trit_count } => (packed, trit_count),
+            TritIntStorage::Heap { .. } => panic!("into_parts() called on heap TritInt"),
         }
     }
 
-    /// Extract packed array and count from a reference (runtime only).
+    /// Extract packed array and count from an inline value (runtime).
+    /// Panics on Heap — use packed_slice()/count() for heap-compatible access.
     fn parts(&self) -> ([u8; 8], u8) {
         match &self.storage {
             TritIntStorage::Inline { packed, trit_count } => (*packed, *trit_count),
+            TritIntStorage::Heap { .. } => panic!("parts() called on heap TritInt — use packed_slice()/count()"),
+        }
+    }
+
+    /// Slice view of the packed bytes. Works for both inline and heap.
+    fn packed_slice(&self) -> &[u8] {
+        match &self.storage {
+            TritIntStorage::Inline { packed, .. } => &packed[..],
+            TritIntStorage::Heap { packed, .. } => &packed[..],
+        }
+    }
+
+    /// Trit count as u32. Works for both inline and heap.
+    fn count(&self) -> u32 {
+        match &self.storage {
+            TritIntStorage::Inline { trit_count, .. } => *trit_count as u32,
+            TritIntStorage::Heap { trit_count, .. } => *trit_count,
         }
     }
 }
@@ -509,28 +730,35 @@ impl TritInt {
 impl TritInt {
     /// Convert to u32. Returns Err(Overflow(32)) if value > u32::MAX.
     pub fn to_u32(&self) -> Result<u32, Overflow> {
-        let val = self.to_u64_internal();
-        if val > u32::MAX as u64 {
-            Err(Overflow(32))
-        } else {
-            Ok(val as u32)
+        match to_u64_gen(self.packed_slice(), self.count()) {
+            Some(val) if val <= u32::MAX as u64 => Ok(val as u32),
+            Some(_) => Err(Overflow(32)),
+            None => Err(Overflow(32)),
         }
     }
 
     /// Convert to u64. Returns Err(Overflow(64)) if value > u64::MAX.
     pub fn to_u64(&self) -> Result<u64, Overflow> {
-        let (packed, count) = self.parts();
-        // 40 trits = 3⁴⁰ ≈ 1.22 × 10¹⁹ < u64::MAX ≈ 1.84 × 10¹⁹
-        // So all inline values fit in u64.
-        Ok(to_u64_raw(packed, count))
+        to_u64_gen(self.packed_slice(), self.count()).ok_or(Overflow(64))
     }
 
-    /// Convert to u128. All inline values fit.
+    /// Convert to u128. Returns Err(Overflow(128)) if value exceeds range.
     pub fn to_u128(&self) -> Result<u128, Overflow> {
-        Ok(self.to_u64_internal() as u128)
+        // 3^80 ≈ 1.5 × 10^38 < u128::MAX ≈ 3.4 × 10^38
+        // Values > 80 trits always exceed u128::MAX
+        if self.count() > 80 { return Err(Overflow(128)); }
+        let mut result: u128 = 0;
+        let mut power: u128 = 1;
+        for i in 0..self.count() {
+            result += trit_at_gen(self.packed_slice(), i) as u128 * power;
+            if i < self.count() - 1 {
+                power = power.checked_mul(3).ok_or(Overflow(128))?;
+            }
+        }
+        Ok(result)
     }
 
-    /// Const conversion to u32. Panics on overflow.
+    /// Const conversion to u32. Panics on overflow. Inline-only.
     pub const fn to_u32_const(self) -> u32 {
         let (packed, count) = self.into_parts();
         let val = to_u64_raw(packed, count);
@@ -538,7 +766,7 @@ impl TritInt {
         val as u32
     }
 
-    /// Const conversion to u64.
+    /// Const conversion to u64. Inline-only.
     pub const fn to_u64_const(self) -> u64 {
         let (packed, count) = self.into_parts();
         to_u64_raw(packed, count)
@@ -546,12 +774,8 @@ impl TritInt {
 
     /// Convenience: convert to u64, panic on overflow.
     pub fn to_decimal(&self) -> u64 {
-        self.to_u64_internal()
-    }
-
-    fn to_u64_internal(&self) -> u64 {
-        let (packed, count) = self.parts();
-        to_u64_raw(packed, count)
+        to_u64_gen(self.packed_slice(), self.count())
+            .expect("to_decimal: value exceeds u64 range (use to_u128 for larger values)")
     }
 }
 
@@ -560,32 +784,23 @@ impl TritInt {
 // ══════════════════════════════════════════════════════════════
 
 impl TritInt {
-    /// Add two TritInts. Panics if result exceeds R₄ = 40 trits.
+    /// Add two TritInts. Auto-promotes to heap if result > R₄ = 40 trits.
     pub fn add(&self, other: &TritInt) -> TritInt {
-        let (a, ac) = self.parts();
-        let (b, bc) = other.parts();
-        let (packed, count) = add_packed(a, ac, b, bc);
-        make_inline(packed, count)
+        add_gen(self.packed_slice(), self.count(), other.packed_slice(), other.count())
     }
 
     /// Subtract other from self. Panics if other > self (unsigned underflow).
     pub fn sub(&self, other: &TritInt) -> TritInt {
-        let (a, ac) = self.parts();
-        let (b, bc) = other.parts();
-        let (packed, count) = sub_packed(a, ac, b, bc);
-        make_inline(packed, count)
+        sub_gen(self.packed_slice(), self.count(), other.packed_slice(), other.count())
     }
 
-    /// Multiply two TritInts. Panics if result exceeds R₄ = 40 trits.
+    /// Multiply two TritInts. Auto-promotes to heap if result > R₄ = 40 trits.
     pub fn mul(&self, other: &TritInt) -> TritInt {
-        let (a, ac) = self.parts();
-        let (b, bc) = other.parts();
-        let (packed, count) = mul_packed(a, ac, b, bc);
-        make_inline(packed, count)
+        mul_gen(self.packed_slice(), self.count(), other.packed_slice(), other.count())
     }
 
     /// Division with remainder: returns (quotient, remainder).
-    /// Panics if divisor is zero.
+    /// Panics if divisor is zero. Works with heap-sized operands.
     pub fn div_mod(&self, divisor: &TritInt) -> (TritInt, TritInt) {
         assert!(!divisor.is_zero(), "div_mod: division by zero");
 
@@ -593,47 +808,34 @@ impl TritInt {
             return (TritInt::zero(), TritInt::zero());
         }
 
-        let (a, ac) = self.parts();
-        let (b, bc) = divisor.parts();
+        let ac = self.count();
+        let bc = divisor.count();
 
-        // If dividend < divisor, quotient = 0, remainder = dividend
-        if lt_packed(a, ac, b, bc) {
+        if lt_gen(self.packed_slice(), ac, divisor.packed_slice(), bc) {
             return (TritInt::zero(), self.clone());
         }
 
-        // Base-3 long division
-        let shift = (ac as i32) - (bc as i32);
+        let shift = (ac as i64) - (bc as i64);
         let mut remainder = self.clone();
-        let mut quotient_trits = [0u8; 40];
-        let mut q_count: u8 = 0;
+        let mut quotient_trits = vec![0u8; (shift + 1) as usize];
+        let mut q_count: u32 = 0;
 
         let mut i = shift;
         while i >= 0 {
-            let pos = i as u8;
-            // Compute divisor * 3^i by shifting trit positions
-            let shifted = trit_shift_left(b, bc, pos);
+            let pos = i as u32;
+            let (sp, sc) = trit_shift_left_gen(divisor.packed_slice(), bc, pos);
+            let doubled = add_gen(&sp, sc, &sp, sc);
 
-            // Try digit = 2
-            let doubled = {
-                let (sp, sc) = shifted;
-                add_packed(sp, sc, sp, sc)
-            };
-            let (rp, rc) = remainder.parts();
-            let (sp, sc) = shifted;
-            let (dp, dc) = doubled;
+            let rp = remainder.packed_slice();
+            let rc = remainder.count();
 
-            if !lt_packed(rp, rc, dp, dc) {
-                // remainder >= 2 * shifted_divisor
+            if !lt_gen(rp, rc, doubled.packed_slice(), doubled.count()) {
                 quotient_trits[pos as usize] = 2;
-                let (new_p, new_c) = sub_packed(rp, rc, dp, dc);
-                remainder = make_inline(new_p, new_c);
-            } else if !lt_packed(rp, rc, sp, sc) {
-                // remainder >= shifted_divisor
+                remainder = sub_gen(rp, rc, doubled.packed_slice(), doubled.count());
+            } else if !lt_gen(rp, rc, &sp, sc) {
                 quotient_trits[pos as usize] = 1;
-                let (new_p, new_c) = sub_packed(rp, rc, sp, sc);
-                remainder = make_inline(new_p, new_c);
+                remainder = sub_gen(rp, rc, &sp, sc);
             }
-            // else digit = 0, remainder unchanged
 
             if quotient_trits[pos as usize] != 0 && pos >= q_count {
                 q_count = pos + 1;
@@ -642,17 +844,8 @@ impl TritInt {
             i -= 1;
         }
 
-        // Pack quotient
-        let mut q_packed = [0u8; 8];
-        let mut t: u8 = 0;
-        while t < q_count {
-            let byte_idx = (t / 5) as usize;
-            let trit_idx = (t % 5) as usize;
-            q_packed[byte_idx] += quotient_trits[t as usize] * POW3[trit_idx];
-            t += 1;
-        }
-
-        (make_inline(q_packed, q_count), remainder)
+        let q = make_from_trits(&quotient_trits[..q_count as usize]);
+        (q, remainder)
     }
 
     /// Exponentiation by repeated squaring.
@@ -744,23 +937,20 @@ impl TritInt {
 
     /// Addition with carry tracking metadata.
     pub fn add_with_carry(&self, other: &TritInt) -> TritIntAddResult {
-        let (a, ac) = self.parts();
-        let (b, bc) = other.parts();
-        let max = if ac > bc { ac } else { bc };
+        let ac = self.count();
+        let bc = other.count();
+        let max = std::cmp::max(ac, bc);
 
-        let mut result = [0u8; 8];
+        let mut result_trits = Vec::with_capacity((max + 2) as usize);
         let mut carry: u8 = 0;
         let mut carry_count: u32 = 0;
         let mut max_carry_chain: u32 = 0;
         let mut current_chain: u32 = 0;
-        let mut i: u8 = 0;
-        let mut current_byte: u8 = 0;
-        let mut trits_in_byte: u8 = 0;
-        let mut byte_idx: usize = 0;
 
+        let mut i: u32 = 0;
         while i < max || carry > 0 {
-            let at = if i < ac { trit_at_packed(a, i) } else { 0 };
-            let bt = if i < bc { trit_at_packed(b, i) } else { 0 };
+            let at = trit_at_gen(self.packed_slice(), i);
+            let bt = trit_at_gen(other.packed_slice(), i);
             let sum = at + bt + carry;
             let new_carry = sum / 3;
 
@@ -774,24 +964,12 @@ impl TritInt {
                 current_chain = 0;
             }
             carry = new_carry;
-
-            current_byte += (sum % 3) * POW3[trits_in_byte as usize];
-            trits_in_byte += 1;
-            if trits_in_byte == 5 {
-                result[byte_idx] = current_byte;
-                current_byte = 0;
-                trits_in_byte = 0;
-                byte_idx += 1;
-            }
+            result_trits.push(sum % 3);
             i += 1;
         }
-        if trits_in_byte > 0 {
-            result[byte_idx] = current_byte;
-        }
 
-        let (p, c) = normalize(result, i);
         TritIntAddResult {
-            value: make_inline(p, c),
+            value: make_from_trits(&result_trits),
             carry_count,
             max_carry_chain,
         }
@@ -813,11 +991,9 @@ fn signed_add(a: TritInt, a_neg: bool, b: TritInt, b_neg: bool) -> (TritInt, boo
     if a_neg == b_neg {
         (TritInt::add(&a, &b), a_neg)
     } else {
-        let (ap, ac) = a.parts();
-        let (bp, bc) = b.parts();
-        if lt_packed(ap, ac, bp, bc) {
+        if lt_gen(a.packed_slice(), a.count(), b.packed_slice(), b.count()) {
             (TritInt::sub(&b, &a), b_neg)
-        } else if lt_packed(bp, bc, ap, ac) {
+        } else if lt_gen(b.packed_slice(), b.count(), a.packed_slice(), a.count()) {
             (TritInt::sub(&a, &b), a_neg)
         } else {
             (TritInt::zero(), false)
@@ -852,57 +1028,45 @@ fn trit_shift_left(packed: [u8; 8], count: u8, shift: u8) -> ([u8; 8], u8) {
 impl TritInt {
     /// True if the value is zero (no trits, or all trits are 0).
     pub fn is_zero(&self) -> bool {
-        let (_, count) = self.parts();
-        count == 0
+        self.count() == 0
     }
 
     /// Number of significant trits (excluding leading zeros).
     pub fn trit_length(&self) -> usize {
-        let (_, count) = self.parts();
-        count as usize
+        self.count() as usize
     }
 
     /// Get the trit at position i (0 = LSB). Returns 0 for positions beyond trit_length.
     pub fn trit_at(&self, i: usize) -> u8 {
-        let (packed, count) = self.parts();
-        if i >= count as usize { return 0; }
-        trit_at_packed(packed, i as u8)
+        if i >= self.count() as usize { return 0; }
+        trit_at_gen(self.packed_slice(), i as u32)
     }
 
     /// How many distinct trit values {0, 1, 2} appear in this number.
     pub fn trit_diversity(&self) -> u8 {
-        let (packed, count) = self.parts();
         let mut seen = [false; 3];
-        let mut i: u8 = 0;
-        while i < count {
-            seen[trit_at_packed(packed, i) as usize] = true;
-            i += 1;
+        for i in 0..self.count() {
+            seen[trit_at_gen(self.packed_slice(), i) as usize] = true;
         }
         seen[0] as u8 + seen[1] as u8 + seen[2] as u8
     }
 
     /// True if all trits are 1 (repunit). Zero is not a repunit.
     pub fn is_repunit(&self) -> bool {
-        let (packed, count) = self.parts();
-        if count == 0 { return false; }
-        let mut i: u8 = 0;
-        while i < count {
-            if trit_at_packed(packed, i) != 1 { return false; }
-            i += 1;
+        if self.count() == 0 { return false; }
+        for i in 0..self.count() {
+            if trit_at_gen(self.packed_slice(), i) != 1 { return false; }
         }
         true
     }
 
     /// True if the value is a power of 3 (exactly one non-zero trit, which is 1).
     pub fn is_power_of_3(&self) -> bool {
-        let (packed, count) = self.parts();
-        if count == 0 { return false; }
-        // The value is 3^(count-1) iff the MSB trit is 1 and all others are 0.
-        if trit_at_packed(packed, count - 1) != 1 { return false; }
-        let mut i: u8 = 0;
-        while i < count - 1 {
-            if trit_at_packed(packed, i) != 0 { return false; }
-            i += 1;
+        let c = self.count();
+        if c == 0 { return false; }
+        if trit_at_gen(self.packed_slice(), c - 1) != 1 { return false; }
+        for i in 0..c - 1 {
+            if trit_at_gen(self.packed_slice(), i) != 0 { return false; }
         }
         true
     }
@@ -910,8 +1074,7 @@ impl TritInt {
     /// If this value is a power of 3, return the exponent. Otherwise None.
     pub fn ternary_exponent(&self) -> Option<u32> {
         if self.is_power_of_3() {
-            let (_, count) = self.parts();
-            Some((count - 1) as u32)
+            Some(self.count() - 1)
         } else {
             None
         }
@@ -919,12 +1082,9 @@ impl TritInt {
 
     /// Extract all trits as a Vec, least significant first. Rep B {0, 1, 2}.
     pub fn to_trits(&self) -> Vec<u8> {
-        let (packed, count) = self.parts();
-        let mut result = Vec::with_capacity(count as usize);
-        let mut i: u8 = 0;
-        while i < count {
-            result.push(trit_at_packed(packed, i));
-            i += 1;
+        let mut result = Vec::with_capacity(self.count() as usize);
+        for i in 0..self.count() {
+            result.push(trit_at_gen(self.packed_slice(), i));
         }
         result
     }
@@ -945,14 +1105,14 @@ impl TritInt {
 
 impl fmt::Display for TritInt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (packed, count) = self.parts();
-        if count == 0 {
+        let c = self.count();
+        if c == 0 {
             return write!(f, "0₃");
         }
-        let mut i = count;
+        let mut i = c;
         while i > 0 {
             i -= 1;
-            write!(f, "{}", trit_at_packed(packed, i))?;
+            write!(f, "{}", trit_at_gen(self.packed_slice(), i))?;
         }
         write!(f, "₃")
     }
@@ -960,18 +1120,19 @@ impl fmt::Display for TritInt {
 
 impl fmt::Debug for TritInt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TritInt({} = {})", self, self.to_decimal())
+        if self.count() <= MAX_INLINE_TRITS as u32 {
+            write!(f, "TritInt({} = {})", self, self.to_decimal())
+        } else {
+            write!(f, "TritInt({} [{} trits, heap])", self, self.count())
+        }
     }
 }
 
 // ── PartialEq, Eq ───────────────────────────────────────────
-// Canonical form guaranteed by normalization, so byte comparison suffices.
 
 impl PartialEq for TritInt {
     fn eq(&self, other: &Self) -> bool {
-        let (a, ac) = self.parts();
-        let (b, bc) = other.parts();
-        eq_packed(a, ac, b, bc)
+        eq_gen(self.packed_slice(), self.count(), other.packed_slice(), other.count())
     }
 }
 
@@ -987,11 +1148,9 @@ impl PartialOrd for TritInt {
 
 impl Ord for TritInt {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let (a, ac) = self.parts();
-        let (b, bc) = other.parts();
-        if eq_packed(a, ac, b, bc) {
+        if eq_gen(self.packed_slice(), self.count(), other.packed_slice(), other.count()) {
             std::cmp::Ordering::Equal
-        } else if lt_packed(a, ac, b, bc) {
+        } else if lt_gen(self.packed_slice(), self.count(), other.packed_slice(), other.count()) {
             std::cmp::Ordering::Less
         } else {
             std::cmp::Ordering::Greater
@@ -1003,11 +1162,10 @@ impl Ord for TritInt {
 
 impl Hash for TritInt {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let (packed, count) = self.parts();
-        count.hash(state);
-        // Hash only the bytes that contain valid trits
-        let used_bytes = if count == 0 { 0 } else { ((count - 1) / 5) as usize + 1 };
-        packed[..used_bytes].hash(state);
+        let c = self.count();
+        c.hash(state);
+        let used_bytes = if c == 0 { 0 } else { ((c - 1) / 5) as usize + 1 };
+        self.packed_slice()[..used_bytes].hash(state);
     }
 }
 
@@ -1156,6 +1314,11 @@ const _: () = {
     assert!(TritInt::repunit(3).const_eq(TritInt::from_u64(13)));
     assert!(TritInt::zero().const_eq(TritInt::zero()));
     assert!(!TritInt::zero().const_eq(TritInt::one()));
+
+    // Phase 6: verify MAX_HEAP_TRITS is framework-derived (R₉ = (3⁹−1)/2)
+    // Cannot use u32::pow in const on Rust 1.77, so verify via literal.
+    // 3⁹ = 19683, (19683 - 1) / 2 = 9841.
+    assert!(MAX_HEAP_TRITS == 9841);
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -1174,14 +1337,14 @@ impl TritInt {
     /// 0→0 carry 0, 1→1 carry 0, 2→−1 carry 1, 3→0 carry 1.
     /// Zero-valued TritInt produces empty output.
     pub fn to_repr_a(&self) -> Vec<i8> {
-        let (packed, count) = self.parts();
-        if count == 0 { return Vec::new(); }
+        let c = self.count();
+        if c == 0 { return Vec::new(); }
 
-        let mut balanced = Vec::with_capacity(count as usize + 1);
+        let mut balanced = Vec::with_capacity(c as usize + 1);
         let mut carry: u8 = 0;
 
-        for i in 0..count {
-            let digit = trit_at_packed(packed, i) + carry;
+        for i in 0..c {
+            let digit = trit_at_gen(self.packed_slice(), i) + carry;
             match digit {
                 0 => { balanced.push(0i8); carry = 0; }
                 1 => { balanced.push(1i8); carry = 0; }
@@ -1215,15 +1378,14 @@ impl TritInt {
     /// Each digit = Rep B digit + 1. Zero-valued TritInt produces empty output.
     /// No zero digits ever appear in the output — Rep C wire safety.
     pub fn to_repr_c(&self) -> Vec<u8> {
-        let (packed, count) = self.parts();
-        if count == 0 { return Vec::new(); }
+        let c = self.count();
+        if c == 0 { return Vec::new(); }
 
-        let mut result = Vec::with_capacity(count as usize);
-        // Build MSB-first
-        let mut i = count;
+        let mut result = Vec::with_capacity(c as usize);
+        let mut i = c;
         while i > 0 {
             i -= 1;
-            result.push(trit_at_packed(packed, i) + 1);
+            result.push(trit_at_gen(self.packed_slice(), i) + 1);
         }
         result
     }
@@ -1233,14 +1395,14 @@ impl TritInt {
     /// Per-digit mapping: Rep B 0→Zero, 1→One, 2→Omega.
     /// Zero-valued TritInt produces empty output.
     pub fn to_repr_d(&self) -> Vec<AlgebraicTrit> {
-        let (packed, count) = self.parts();
-        if count == 0 { return Vec::new(); }
+        let c = self.count();
+        if c == 0 { return Vec::new(); }
 
-        let mut result = Vec::with_capacity(count as usize);
-        let mut i = count;
+        let mut result = Vec::with_capacity(c as usize);
+        let mut i = c;
         while i > 0 {
             i -= 1;
-            result.push(match trit_at_packed(packed, i) {
+            result.push(match trit_at_gen(self.packed_slice(), i) {
                 0 => AlgebraicTrit::Zero,
                 1 => AlgebraicTrit::One,
                 2 => AlgebraicTrit::Omega,
@@ -1459,7 +1621,7 @@ impl fmt::Display for TritIntError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TritIntError::InvalidDigit(d) => write!(f, "invalid Rep C digit: {} (must be 1, 2, or 3; zero = forgery)", d),
-            TritIntError::TooLong => write!(f, "input exceeds TritInt inline capacity (R₄ = {} trits)", MAX_INLINE_TRITS),
+            TritIntError::TooLong => write!(f, "input exceeds TritInt maximum capacity (R₉ = {} trits)", MAX_HEAP_TRITS),
         }
     }
 }
@@ -1475,13 +1637,13 @@ impl TritInt {
     /// - Empty input → Ok(TritInt::zero())
     /// - Zero digit → Err(InvalidDigit(0)) — forgery detection
     /// - Digit > 3 → Err(InvalidDigit(d))
-    /// - Input > R₄ = 40 trits → Err(TooLong)
+    /// - Input > R₉ = 9,841 trits → Err(TooLong)
     pub fn try_from_repr_c(bijective: &[u8]) -> Result<Self, TritIntError> {
         if bijective.is_empty() {
             return Ok(TritInt::zero());
         }
 
-        if bijective.len() > MAX_INLINE_TRITS as usize {
+        if bijective.len() > MAX_HEAP_TRITS as usize {
             return Err(TritIntError::TooLong);
         }
 
@@ -1494,7 +1656,12 @@ impl TritInt {
         // Valid — convert Rep C MSB-first to Rep B LSB-first
         let mut lsb_first: Vec<u8> = bijective.iter().map(|&c| c - 1).collect();
         lsb_first.reverse();
-        Ok(TritInt::from_trits(&lsb_first))
+
+        if lsb_first.len() <= MAX_INLINE_TRITS as usize {
+            Ok(TritInt::from_trits(&lsb_first))
+        } else {
+            Ok(make_from_trits(&lsb_first))
+        }
     }
 }
 
@@ -1503,20 +1670,45 @@ impl TritInt {
 //
 // Cryptographic erasure for TritInt values that may contain key
 // material. Zeros the packed buffer and resets the trit count.
-// Phase 6 must extend this for the heap path.
+// Heap Vec<u8> is deallocated on drop; call .zeroize() explicitly for sensitive erasure.
 // ══════════════════════════════════════════════════════════════
+
+impl TritInt {
+    /// Explicitly drop a heap-allocated TritInt, zeroing and deallocating the buffer.
+    /// No-op for inline values. Must be called before heap TritInts go out of scope
+    /// to prevent memory leaks (ManuallyDrop suppresses automatic Drop for const compatibility).
+    pub fn drop_heap(&mut self) {
+        if matches!(self.storage, TritIntStorage::Heap { .. }) {
+            if let TritIntStorage::Heap { packed, trit_count } = &mut self.storage {
+                packed.zeroize();
+                *trit_count = 0;
+                unsafe { ManuallyDrop::drop(packed); }
+            }
+            self.storage = TritIntStorage::Inline { packed: [0u8; 8], trit_count: 0 };
+        }
+    }
+}
 
 impl Zeroize for TritInt {
     fn zeroize(&mut self) {
+        let was_heap = matches!(self.storage, TritIntStorage::Heap { .. });
         match &mut self.storage {
             TritIntStorage::Inline { packed, trit_count } => {
                 packed.zeroize();
                 *trit_count = 0;
             }
-            // Phase 6 adds: TritIntStorage::Heap { packed, trit_count } => { ... }
+            TritIntStorage::Heap { packed, trit_count } => {
+                packed.zeroize();
+                *trit_count = 0;
+                unsafe { ManuallyDrop::drop(packed); }
+            }
+        }
+        if was_heap {
+            self.storage = TritIntStorage::Inline { packed: [0u8; 8], trit_count: 0 };
         }
     }
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // PHASE 5: SERDE (behind #[cfg(feature = "serde")])
@@ -2284,16 +2476,24 @@ mod tests {
 
     #[test]
     fn try_from_repr_c_rejects_too_long() {
-        let input = vec![1u8; 41]; // 41 > R₄ = 40
+        let input = vec![1u8; 9842]; // 9842 > R₉ = 9841
         let result = TritInt::try_from_repr_c(&input);
         assert_eq!(result, Err(TritIntError::TooLong));
     }
 
     #[test]
     fn try_from_repr_c_max_valid_length() {
-        let input = vec![1u8; 40]; // exactly R₄ = 40 trits
+        let input = vec![1u8; 40]; // exactly R₄ = 40 trits (inline)
         let result = TritInt::try_from_repr_c(&input);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn try_from_repr_c_heap_sized() {
+        let input = vec![2u8; 50]; // Rep C digit 2 → Rep B digit 1; 50 > 40 → heap
+        let result = TritInt::try_from_repr_c(&input).unwrap();
+        assert_eq!(result.trit_length(), 50);
+        assert!(result.is_repunit());
     }
 
     // ── Phase 5: Zeroize test ───────────────────────────────
@@ -2347,5 +2547,134 @@ mod tests {
             let result: Result<TritInt, _> = serde_json::from_str("[1,0,3]");
             assert!(result.is_err(), "zero digit must be rejected");
         }
+    }
+
+    // ── Phase 6: Heap path tests ────────────────────────────
+
+    #[test]
+    fn large_mul_promotes_to_heap() {
+        // Two 21-trit values: product is up to 42 trits > R₄ = 40
+        let a = TritInt::from_u64(3u64.pow(20)); // 3^20 = 21 trits
+        let b = TritInt::from_u64(3u64.pow(20));
+        let result = TritInt::mul(&a, &b);
+        // 3^20 × 3^20 = 3^40 — exactly 41 trits (1 followed by 40 zeros)
+        assert_eq!(result.trit_length(), 41);
+        assert!(result.is_power_of_3());
+        assert_eq!(result.ternary_exponent(), Some(40));
+    }
+
+    #[test]
+    fn pow_large_exponent() {
+        // 3^25 has 26 trits. 3^25 × 3^25 = 3^50 has 51 trits.
+        let base = TritInt::from_u64(3);
+        let result = base.pow(50);
+        assert_eq!(result.trit_length(), 51);
+        assert!(result.is_power_of_3());
+    }
+
+    #[test]
+    fn heap_shrinks_to_inline() {
+        // Create a heap value, then divide to get an inline-sized result
+        let big = TritInt::from_u64(3).pow(50); // 51 trits, heap
+        assert!(big.trit_length() > 40);
+        let (q, r) = big.div_mod(&TritInt::from_u64(3).pow(45));
+        // q = 3^5 = 243, which is 6 trits (inline)
+        assert_eq!(q.to_decimal(), 243);
+        assert!(q.trit_length() <= 40);
+        assert!(r.is_zero());
+    }
+
+    #[test]
+    fn heap_inline_eq_and_hash() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        // Create 243 (= 3^5) via heap path (big value then divide)
+        let big = TritInt::from_u64(3).pow(50);
+        let (shrunk, _) = big.div_mod(&TritInt::from_u64(3).pow(45));
+
+        // Create 243 directly (inline)
+        let direct = TritInt::from_u64(243);
+
+        // Must be equal
+        assert_eq!(shrunk, direct);
+
+        // Must have identical hashes
+        let hash_of = |t: &TritInt| -> u64 {
+            let mut h = DefaultHasher::new();
+            t.hash(&mut h);
+            h.finish()
+        };
+        assert_eq!(hash_of(&shrunk), hash_of(&direct));
+    }
+
+    #[test]
+    fn heap_repr_c_roundtrip() {
+        let big = TritInt::from_u64(3).pow(50); // 51 trits, heap
+        let repr = big.to_repr_c();
+        assert_eq!(repr.len(), 51);
+        // First digit should be 2 (Rep C for trit 1: 1+1=2)
+        assert_eq!(repr[0], 2); // MSB is 1 (power of 3), Rep C = 2
+        // All others should be 1 (Rep C for trit 0: 0+1=1)
+        for &d in &repr[1..] {
+            assert_eq!(d, 1);
+        }
+        // Round-trip
+        let back = TritInt::try_from_repr_c(&repr).unwrap();
+        assert_eq!(back, big);
+    }
+
+    #[test]
+    fn heap_add_sub_roundtrip() {
+        let a = TritInt::from_u64(3).pow(45);
+        let b = TritInt::from_u64(3).pow(44);
+        let sum = TritInt::add(&a, &b);
+        let diff = TritInt::sub(&sum, &b);
+        assert_eq!(diff, a);
+    }
+
+    #[test]
+    fn heap_comparison() {
+        let a = TritInt::from_u64(3).pow(41); // 42 trits
+        let b = TritInt::from_u64(3).pow(42); // 43 trits
+        assert!(a < b);
+        assert!(b > a);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn heap_display() {
+        let val = TritInt::from_u64(3).pow(41);
+        let s = format!("{}", val);
+        // 3^41 in base 3 is "1" followed by 41 zeros, with ₃ suffix
+        assert!(s.starts_with("1"));
+        assert!(s.ends_with("₃"));
+        assert_eq!(s.len(), 42 + "₃".len()); // 42 digits + subscript
+    }
+
+    #[test]
+    fn zeroize_clears_heap() {
+        let mut big = TritInt::from_u64(3).pow(50);
+        assert!(!big.is_zero());
+        big.zeroize();
+        assert!(big.is_zero());
+        assert_eq!(big.count(), 0);
+    }
+
+    #[test]
+    fn heap_to_u128() {
+        // 3^40 fits in u64 but 3^50 doesn't. Check to_u128 for 3^50.
+        let val = TritInt::from_u64(3).pow(50);
+        let result = val.to_u128();
+        assert!(result.is_ok());
+        // 3^50 = 717897987691852588770249
+        let expected: u128 = 717_897_987_691_852_588_770_249;
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn heap_to_u64_overflow() {
+        let val = TritInt::from_u64(3).pow(50); // > u64::MAX
+        assert!(val.to_u64().is_err());
     }
 }
