@@ -1,0 +1,78 @@
+# Task #109 — Compositor Preparation Notes
+
+**Context:** TM-2026-037 (Shader Compositor) specifies a GPU rendering path that will plug into the same `winit` window that Task #109 creates. The GPU path is a separate milestone, but six small structural decisions in Task #109 prevent rework when it arrives.
+
+---
+
+## 1. Abstract the window surface behind a trait
+
+Task #109 uses `softbuffer` for CPU-to-window blit. The compositor uses `wgpu` for GPU-to-window rendering. Both target the same `winit` window. If Task #109 hardwires `softbuffer` into the event loop, swapping to `wgpu` later means rewriting the render loop.
+
+**Action:** Define a `WindowSurface` trait (or enum) with a `present` method. The `softbuffer` backend implements it for v1. The `wgpu` backend implements it later behind the `compositor` feature flag. The event loop calls the trait, not the backend directly.
+
+```rust
+// Something like:
+enum Surface {
+    Cpu(softbuffer::Surface),
+    // Gpu(wgpu::Surface),  // added by compositor milestone
+}
+
+impl Surface {
+    fn present(&mut self, pixels: &[u8], width: u32, height: u32) { ... }
+}
+```
+
+---
+
+## 2. Store viewport dimensions accessibly on resize
+
+The compositor needs `(width, height)` for its `u_resolution` shader uniform. Task #109 handles `winit` resize events already.
+
+**Action:** Store the current `(width, height)` in a struct field that the compositor can read later — not just pass it into `CpuFramebuffer::resize()` and discard it.
+
+---
+
+## 3. Add a frame clock
+
+The compositor needs `u_time` (elapsed seconds since start). Task #109's render loop needs a time reference anyway for any future animation.
+
+**Action:** Add `let start = Instant::now();` at init. Compute `let elapsed = start.elapsed().as_secs_f32();` per frame. Store it alongside viewport dimensions. One line at init, one per frame.
+
+---
+
+## 4. Persist mouse position and engagement state
+
+Task #109 forwards mouse events to `BrowserInputHandler`. The compositor needs the raw pointer position (`u_pointer`) and engagement state (`u_active`) per frame.
+
+**Action:** Add `last_pointer: (f32, f32)` and `pointer_active: bool` as accessible fields on `BrowserInputHandler` (or a sibling struct). Update them when mouse events arrive. Don't consume and discard the position — store it so the compositor can read it.
+
+---
+
+## 5. Allow unknown sections in plenum-app.toml
+
+Task #109 creates a `plenum-app.toml` manifest for `plenum-pack`. The compositor spec (TM-2026-037 §5.3) adds a `[compositor]` section to app manifests.
+
+**Action:** If `plenum-pack`'s `manifest.rs` strictly validates known keys and rejects unknowns, add `[compositor]` as an optional section (even if empty) to the schema now. If the parser already ignores unknown sections, no action needed — just verify.
+
+---
+
+## 6. Feature flag pattern
+
+Task #109 adds `--features browser-crates,windowed`. The compositor will add its own feature flag (e.g., `compositor` or `gpu`).
+
+**Action:** No code change — just be aware that the `windowed` feature flag pattern established here is the pattern the compositor inherits. The compositor feature will gate `wgpu` and compositor module dependencies the same way `windowed` gates `winit` and `softbuffer`.
+
+---
+
+## Summary
+
+| Item | Cost | Prevents |
+|------|------|----------|
+| Surface trait/enum | ~20 lines | Render loop rewrite when GPU path ships |
+| Store viewport dims | ~3 lines | Retrofitting uniform data source |
+| Frame clock | ~2 lines | Retrofitting animation timing |
+| Persist mouse position | ~5 lines | Retrofitting pointer uniform pipeline |
+| Manifest schema | Verification only | Manifest schema migration |
+| Feature flag awareness | Zero lines | Nothing — just context |
+
+None of these change the scope or deliverables of Task #109. They're structural choices within the existing work that make the compositor milestone drop in cleanly.
