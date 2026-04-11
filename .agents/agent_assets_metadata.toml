@@ -528,3 +528,9 @@ id = "hy5V0mx4T4rEZvwatmCH6"
 uri = "file://task109-context.zip"
 type = "unspecified"
 title = "task109-context.zip — 6 ternary-math source files"
+
+[[outputs]]
+id = "pKn1qUzVAP3xI91MsKCyr"
+uri = "file://ternary-math-context.zip"
+type = "unspecified"
+title = "ternary-math-context.zip — 6 source files (coprime, sparse, gf3_algebra, trit_int, lib, Cargo.toml)"
