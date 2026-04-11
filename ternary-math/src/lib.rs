@@ -58,3 +58,5 @@ pub mod tl_kem;
 pub mod phase_encryption;
 pub mod derivation_audit;
 pub mod wasm_exports;
+pub mod coprime;
+pub mod sparse;

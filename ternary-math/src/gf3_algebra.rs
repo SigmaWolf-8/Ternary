@@ -248,6 +248,32 @@ pub fn batch_d_to_b(trits: &[AlgebraicTrit]) -> Vec<u8> {
     trits.iter().map(|&d| rep_d_to_b(d)).collect()
 }
 
+// ── Task 102 additions ──────────────────────────────────────
+
+/// Converts a Rep D trit to a UNIFORM k-dimensional torus step vector.
+/// Returns Rep B values (0, 1, or 2). Callers convert to TritInt at their level.
+///
+/// All dimensions receive the same step value.
+/// For per-dimension vectors with different coprime generators,
+/// construct manually with `coprime::is_coprime` validation.
+///
+/// Caveat: step=2 (Omega) is only coprime to odd moduli.
+/// Step=0 (Zero) produces no movement — stationary coordinates only.
+pub fn to_step_vector(d: AlgebraicTrit, k: usize) -> Vec<u8> {
+    let step = rep_d_to_b(d);
+    vec![step; k]
+}
+
+/// Batch convert Rep A trits to Rep B.
+pub fn batch_a_to_b(trits: &[i8]) -> Vec<u8> {
+    trits.iter().map(|&a| rep_a_to_b(a)).collect()
+}
+
+/// Batch convert Rep B trits to Rep A.
+pub fn batch_b_to_a(trits: &[u8]) -> Vec<i8> {
+    trits.iter().map(|&b| rep_b_to_a(b)).collect()
+}
+
 // ══════════════════════════════════════════════════════════════
 // TESTS
 // ══════════════════════════════════════════════════════════════
@@ -426,5 +452,27 @@ mod tests {
         assert!(!validate_rep_a(2)); assert!(!validate_rep_a(-2));
         assert!(validate_rep_b(0)); assert!(validate_rep_b(2)); assert!(!validate_rep_b(3));
         assert!(validate_rep_c(1)); assert!(validate_rep_c(3)); assert!(!validate_rep_c(0)); assert!(!validate_rep_c(4));
+    }
+
+    #[test]
+    fn test_to_step_vector() {
+        use AlgebraicTrit::*;
+        assert_eq!(to_step_vector(Zero, 3), vec![0u8, 0, 0]);
+        assert_eq!(to_step_vector(One, 2), vec![1u8, 1]);
+        assert_eq!(to_step_vector(Omega, 4), vec![2u8, 2, 2, 2]);
+    }
+
+    #[test]
+    fn test_batch_a_to_b_roundtrip() {
+        let b_trits = vec![0u8, 1, 2, 0, 2, 1];
+        let a_trits = batch_b_to_a(&b_trits);
+        let back = batch_a_to_b(&a_trits);
+        assert_eq!(back, b_trits);
+    }
+
+    #[test]
+    fn test_batch_a_b_values() {
+        assert_eq!(batch_b_to_a(&[0, 1, 2]), vec![0i8, 1, -1]);
+        assert_eq!(batch_a_to_b(&[0, 1, -1]), vec![0u8, 1, 2]);
     }
 }
