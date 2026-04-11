@@ -510,3 +510,9 @@ id = "Hjoa5WNq4Dl-jd3kruO1P"
 uri = "file://phase3-repr-eisenstein-final.zip"
 type = "unspecified"
 title = "Phase 3 — trit_int.rs + trit.rs + gf3_algebra.rs + lib.rs (161 tests, all pass)"
+
+[[outputs]]
+id = "h-flLtHAUCGGNISFeH-g2"
+uri = "file://task102-context.zip"
+type = "unspecified"
+title = "task102-context.zip — 4 files for Task 102"
