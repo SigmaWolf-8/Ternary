@@ -5531,6 +5531,8 @@ dependencies = [
  "libm",
  "rayon",
  "rsa",
+ "serde",
+ "serde_json",
  "sha2",
  "wasm-bindgen",
  "zeroize",

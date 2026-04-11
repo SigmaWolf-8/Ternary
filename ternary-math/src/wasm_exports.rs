@@ -392,6 +392,166 @@ pub fn rel_error(predicted: f64, measured: f64) -> f64 {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// PHASE 5: TritInt and Trit WASM Exports
+// ═══════════════════════════════════════════════════════════════════════
+
+use crate::trit_int::TritInt;
+use crate::trit::Trit;
+
+#[wasm_bindgen]
+pub fn trit_int_from_u64(val: u64) -> Vec<u8> {
+    TritInt::from_u64(val).to_repr_c()
+}
+
+#[wasm_bindgen]
+pub fn trit_int_to_decimal(repr_c: &[u8]) -> Result<u64, JsValue> {
+    if repr_c.len() > 40 {
+        return Err(JsValue::from_str("input exceeds TritInt inline capacity (R4 = 40 trits)"));
+    }
+    let t = TritInt::try_from_repr_c(repr_c)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    t.to_u64().map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+#[wasm_bindgen]
+pub fn trit_int_display(repr_c: &[u8]) -> Result<String, JsValue> {
+    if repr_c.len() > 40 {
+        return Err(JsValue::from_str("input exceeds TritInt inline capacity (R4 = 40 trits)"));
+    }
+    let t = TritInt::try_from_repr_c(repr_c)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    Ok(format!("{}", t))
+}
+
+#[wasm_bindgen]
+pub fn trit_int_to_repr_c(val: u64) -> Vec<u8> {
+    TritInt::from_u64(val).to_repr_c()
+}
+
+#[wasm_bindgen]
+pub fn trit_int_from_repr_c(repr_c: &[u8]) -> Result<Vec<u8>, JsValue> {
+    if repr_c.len() > 40 {
+        return Err(JsValue::from_str("input exceeds TritInt inline capacity (R4 = 40 trits)"));
+    }
+    let t = TritInt::try_from_repr_c(repr_c)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    Ok(t.to_repr_c())
+}
+
+#[wasm_bindgen]
+pub fn trit_new_scalar(val: u64) -> String {
+    let t = Trit::from_u64(val);
+    trit_to_json(&t)
+}
+
+#[wasm_bindgen]
+pub fn trit_new_golden(a: u64, b: u64) -> String {
+    let t = Trit::golden(TritInt::from_u64(a), TritInt::from_u64(b));
+    trit_to_json(&t)
+}
+
+#[wasm_bindgen]
+pub fn trit_display(json: &str) -> Result<String, JsValue> {
+    let t = trit_from_json(json)?;
+    Ok(format!("{}", t))
+}
+
+#[wasm_bindgen]
+pub fn trit_to_f64(json: &str) -> Result<f64, JsValue> {
+    let t = trit_from_json(json)?;
+    Ok(t.to_f64())
+}
+
+#[wasm_bindgen]
+pub fn trit_add(a_json: &str, b_json: &str) -> Result<String, JsValue> {
+    let a = trit_from_json(a_json)?;
+    let b = trit_from_json(b_json)?;
+    Ok(trit_to_json(&Trit::add(&a, &b)))
+}
+
+#[wasm_bindgen]
+pub fn trit_mul_golden(a_json: &str, b_json: &str) -> Result<String, JsValue> {
+    let a = trit_from_json(a_json)?;
+    let b = trit_from_json(b_json)?;
+    Ok(trit_to_json(&a.mul_golden(&b)))
+}
+
+#[wasm_bindgen]
+pub fn trit_norm_golden(json: &str) -> Result<String, JsValue> {
+    let t = trit_from_json(json)?;
+    Ok(trit_to_json(&t.norm_golden()))
+}
+
+fn trit_to_json(t: &Trit) -> String {
+    let v0 = t.v[0].to_repr_c();
+    let v1 = t.v[1].to_repr_c();
+    let v2 = t.v[2].to_repr_c();
+    format!("{{\"v\":[{},{},{}]}}",
+        format_repr_c(&v0), format_repr_c(&v1), format_repr_c(&v2))
+}
+
+fn format_repr_c(repr: &[u8]) -> String {
+    let digits: Vec<String> = repr.iter().map(|d| d.to_string()).collect();
+    format!("[{}]", digits.join(","))
+}
+
+fn trit_from_json(json: &str) -> Result<Trit, JsValue> {
+    parse_trit_json_minimal(json)
+        .map_err(|e| JsValue::from_str(&e))
+}
+
+fn parse_trit_json_minimal(json: &str) -> Result<Trit, String> {
+    let s = json.trim();
+    let v_start = s.find("\"v\":[")
+        .ok_or("missing \"v\" field")?;
+    let inner = &s[v_start + 4..];
+    let inner = inner.trim_start_matches('[');
+
+    let mut arrays: Vec<Vec<u8>> = Vec::new();
+    let mut depth = 0;
+    let mut current = String::new();
+    for ch in inner.chars() {
+        match ch {
+            '[' => { depth += 1; current.push(ch); }
+            ']' => {
+                if depth == 0 { break; }
+                depth -= 1;
+                current.push(ch);
+                if depth == 0 {
+                    arrays.push(parse_u8_array(&current)?);
+                    current.clear();
+                }
+            }
+            ',' if depth == 0 => {}
+            _ => current.push(ch),
+        }
+    }
+
+    if arrays.len() != 3 {
+        return Err(format!("expected 3 arrays, got {}", arrays.len()));
+    }
+
+    let v0 = TritInt::try_from_repr_c(&arrays[0])
+        .map_err(|e| e.to_string())?;
+    let v1 = TritInt::try_from_repr_c(&arrays[1])
+        .map_err(|e| e.to_string())?;
+    let v2 = TritInt::try_from_repr_c(&arrays[2])
+        .map_err(|e| e.to_string())?;
+
+    Ok(Trit::new(v0, v1, v2))
+}
+
+fn parse_u8_array(s: &str) -> Result<Vec<u8>, String> {
+    let inner = s.trim().trim_start_matches('[').trim_end_matches(']');
+    if inner.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    inner.split(',')
+        .map(|d| d.trim().parse::<u8>().map_err(|e| e.to_string()))
+        .collect()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // TESTS
 // ═══════════════════════════════════════════════════════════════════════
 

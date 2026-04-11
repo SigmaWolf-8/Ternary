@@ -39,6 +39,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Sub, Mul, Div, Rem, AddAssign, SubAssign, MulAssign};
 use crate::gf3_algebra::AlgebraicTrit;
+use zeroize::Zeroize;
 
 // ══════════════════════════════════════════════════════════════
 // TYPE DEFINITIONS
@@ -1432,6 +1433,115 @@ impl TritInt {
 }
 
 // ══════════════════════════════════════════════════════════════
+// PHASE 5: TritIntError + try_from_repr_c
+//
+// Result-based Rep C parsing for untrusted wire input. Deferred
+// from Phase 3 (which uses panic-based from_repr_c for internal
+// trust boundaries). This is the single enforcement point for
+// input validation — both Serde and WASM callers go through here.
+// ══════════════════════════════════════════════════════════════
+
+/// Error type for TritInt parsing operations.
+///
+/// Separate from `Overflow` (which is arithmetic — value exceeds target
+/// binary width). TritIntError covers input validation — malformed or
+/// oversized trit data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TritIntError {
+    /// A digit in the Rep C input is invalid (0 = forgery, or > 3).
+    InvalidDigit(u8),
+    /// The input exceeds the inline capacity (R₄ = 40 trits).
+    /// Phase 6 heap path will accept larger inputs.
+    TooLong,
+}
+
+impl fmt::Display for TritIntError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TritIntError::InvalidDigit(d) => write!(f, "invalid Rep C digit: {} (must be 1, 2, or 3; zero = forgery)", d),
+            TritIntError::TooLong => write!(f, "input exceeds TritInt inline capacity (R₄ = {} trits)", MAX_INLINE_TRITS),
+        }
+    }
+}
+
+impl std::error::Error for TritIntError {}
+
+impl TritInt {
+    /// Parse Rep C input (MSB-first) into a TritInt, returning Result.
+    ///
+    /// This is the single enforcement point for untrusted input validation.
+    /// Both Serde and WASM callers go through this function.
+    ///
+    /// - Empty input → Ok(TritInt::zero())
+    /// - Zero digit → Err(InvalidDigit(0)) — forgery detection
+    /// - Digit > 3 → Err(InvalidDigit(d))
+    /// - Input > R₄ = 40 trits → Err(TooLong)
+    pub fn try_from_repr_c(bijective: &[u8]) -> Result<Self, TritIntError> {
+        if bijective.is_empty() {
+            return Ok(TritInt::zero());
+        }
+
+        if bijective.len() > MAX_INLINE_TRITS as usize {
+            return Err(TritIntError::TooLong);
+        }
+
+        for &d in bijective {
+            if d == 0 || d > 3 {
+                return Err(TritIntError::InvalidDigit(d));
+            }
+        }
+
+        // Valid — convert Rep C MSB-first to Rep B LSB-first
+        let mut lsb_first: Vec<u8> = bijective.iter().map(|&c| c - 1).collect();
+        lsb_first.reverse();
+        Ok(TritInt::from_trits(&lsb_first))
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PHASE 5: ZEROIZE
+//
+// Cryptographic erasure for TritInt values that may contain key
+// material. Zeros the packed buffer and resets the trit count.
+// Phase 6 must extend this for the heap path.
+// ══════════════════════════════════════════════════════════════
+
+impl Zeroize for TritInt {
+    fn zeroize(&mut self) {
+        match &mut self.storage {
+            TritIntStorage::Inline { packed, trit_count } => {
+                packed.zeroize();
+                *trit_count = 0;
+            }
+            // Phase 6 adds: TritIntStorage::Heap { packed, trit_count } => { ... }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PHASE 5: SERDE (behind #[cfg(feature = "serde")])
+//
+// TritInt serializes as a Rep C array (MSB-first u8 values).
+// Zero-valued TritInt → empty array [].
+// Deserialization uses try_from_repr_c — never panics.
+// ══════════════════════════════════════════════════════════════
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for TritInt {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.to_repr_c().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for TritInt {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let repr_c: Vec<u8> = <Vec<u8> as serde::Deserialize>::deserialize(deserializer)?;
+        TritInt::try_from_repr_c(&repr_c).map_err(serde::de::Error::custom)
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
 // TESTS
 // ══════════════════════════════════════════════════════════════
 
@@ -2139,5 +2249,103 @@ mod tests {
         // 2^12 mod 13 = 1 (13 is prime)
         let result = TritInt::from_u64(2).mod_pow(&TritInt::from_u64(12), &TritInt::from_u64(13));
         assert_eq!(result.to_decimal(), 1);
+    }
+
+    // ── Phase 5: try_from_repr_c tests ──────────────────────
+
+    #[test]
+    fn try_from_repr_c_valid_roundtrip() {
+        let test_vals: [u64; 5] = [0, 1, 14, 182, 364];
+        for &val in &test_vals {
+            let t = TritInt::from_u64(val);
+            let repr = t.to_repr_c();
+            let recovered = TritInt::try_from_repr_c(&repr).unwrap();
+            assert_eq!(recovered.to_decimal(), val, "try_from_repr_c roundtrip failed for {}", val);
+        }
+    }
+
+    #[test]
+    fn try_from_repr_c_empty_returns_zero() {
+        let t = TritInt::try_from_repr_c(&[]).unwrap();
+        assert!(t.is_zero());
+    }
+
+    #[test]
+    fn try_from_repr_c_rejects_zero_digit() {
+        let result = TritInt::try_from_repr_c(&[1, 0, 3]);
+        assert_eq!(result, Err(TritIntError::InvalidDigit(0)));
+    }
+
+    #[test]
+    fn try_from_repr_c_rejects_digit_gt_3() {
+        let result = TritInt::try_from_repr_c(&[1, 4, 2]);
+        assert_eq!(result, Err(TritIntError::InvalidDigit(4)));
+    }
+
+    #[test]
+    fn try_from_repr_c_rejects_too_long() {
+        let input = vec![1u8; 41]; // 41 > R₄ = 40
+        let result = TritInt::try_from_repr_c(&input);
+        assert_eq!(result, Err(TritIntError::TooLong));
+    }
+
+    #[test]
+    fn try_from_repr_c_max_valid_length() {
+        let input = vec![1u8; 40]; // exactly R₄ = 40 trits
+        let result = TritInt::try_from_repr_c(&input);
+        assert!(result.is_ok());
+    }
+
+    // ── Phase 5: Zeroize test ───────────────────────────────
+
+    #[test]
+    fn zeroize_clears_value() {
+        let mut t = TritInt::from_u64(118_300);
+        assert!(!t.is_zero());
+        t.zeroize();
+        assert!(t.is_zero());
+        assert_eq!(t.to_decimal(), 0);
+    }
+
+    // ── Phase 5: Serde tests ────────────────────────────────
+
+    #[cfg(feature = "serde")]
+    mod serde_tests {
+        use super::*;
+
+        #[test]
+        fn serde_roundtrip_zero() {
+            let t = TritInt::zero();
+            let json = serde_json::to_string(&t).unwrap();
+            assert_eq!(json, "[]");
+            let back: TritInt = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, t);
+        }
+
+        #[test]
+        fn serde_roundtrip_364() {
+            let t = TritInt::from_u64(364);
+            let json = serde_json::to_string(&t).unwrap();
+            let back: TritInt = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, t);
+            // Verify Rep C format: 364 = 111111₃ → Rep C = [2,2,2,2,2,2]
+            assert_eq!(json, "[2,2,2,2,2,2]");
+        }
+
+        #[test]
+        fn serde_roundtrip_14() {
+            let t = TritInt::from_u64(14);
+            let json = serde_json::to_string(&t).unwrap();
+            // 14 = 112₃ → Rep C MSB-first = [2,2,3]
+            assert_eq!(json, "[2,2,3]");
+            let back: TritInt = serde_json::from_str(&json).unwrap();
+            assert_eq!(back.to_decimal(), 14);
+        }
+
+        #[test]
+        fn serde_deserialize_rejects_forgery() {
+            let result: Result<TritInt, _> = serde_json::from_str("[1,0,3]");
+            assert!(result.is_err(), "zero digit must be rejected");
+        }
     }
 }

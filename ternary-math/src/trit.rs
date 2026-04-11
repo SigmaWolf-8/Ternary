@@ -37,6 +37,7 @@
 use crate::trit_int::{TritInt, Overflow};
 use crate::gf3_algebra::{AlgebraicTrit, gf3_add, gf3_sub, gf3_mul, gf3_square};
 use crate::constants;
+use zeroize::Zeroize;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Sub, AddAssign, SubAssign};
@@ -585,6 +586,86 @@ impl AddAssign for Trit {
 
 impl SubAssign for Trit {
     fn sub_assign(&mut self, rhs: Trit) { *self = Trit::sub(self, &rhs); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PHASE 5: ZEROIZE
+// ══════════════════════════════════════════════════════════════
+
+impl Zeroize for Trit {
+    fn zeroize(&mut self) {
+        self.v[0].zeroize();
+        self.v[1].zeroize();
+        self.v[2].zeroize();
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PHASE 5: SERDE (behind #[cfg(feature = "serde")])
+//
+// Trit serializes as { "v": [repr_c_0, repr_c_1, repr_c_2] }.
+// Each component is a TritInt serialized as a Rep C array.
+// Deserialization uses try_from_repr_c — never panics.
+// ══════════════════════════════════════════════════════════════
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Trit {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut s = serializer.serialize_struct("Trit", 1)?;
+        let arrays: [Vec<u8>; 3] = [
+            self.v[0].to_repr_c(),
+            self.v[1].to_repr_c(),
+            self.v[2].to_repr_c(),
+        ];
+        s.serialize_field("v", &arrays)?;
+        s.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Trit {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::{self, MapAccess, Visitor};
+        use crate::trit_int::TritInt;
+
+        struct TritVisitor;
+
+        impl<'de> Visitor<'de> for TritVisitor {
+            type Value = Trit;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a Trit with field 'v' containing three Rep C arrays")
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Trit, A::Error> {
+                let mut v: Option<Vec<Vec<u8>>> = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "v" => {
+                            if v.is_some() {
+                                return Err(de::Error::duplicate_field("v"));
+                            }
+                            v = Some(map.next_value()?);
+                        }
+                        other => return Err(de::Error::unknown_field(other, &["v"])),
+                    }
+                }
+                let v = v.ok_or_else(|| de::Error::missing_field("v"))?;
+                if v.len() != 3 {
+                    return Err(de::Error::custom(
+                        format!("expected 3 Rep C arrays, got {}", v.len())
+                    ));
+                }
+                let v0 = TritInt::try_from_repr_c(&v[0]).map_err(de::Error::custom)?;
+                let v1 = TritInt::try_from_repr_c(&v[1]).map_err(de::Error::custom)?;
+                let v2 = TritInt::try_from_repr_c(&v[2]).map_err(de::Error::custom)?;
+                Ok(Trit::new(v0, v1, v2))
+            }
+        }
+
+        deserializer.deserialize_struct("Trit", &["v"], TritVisitor)
+    }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1285,5 +1366,73 @@ mod tests {
     #[should_panic(expected = "exceeds GF(3) scale")]
     fn norm_eisenstein_non_gf3_scale_panics() {
         Trit::eisenstein(TritInt::from_u64(5), TritInt::zero()).norm_eisenstein();
+    }
+
+    // ── Phase 5: Zeroize test ───────────────────────────────
+
+    #[test]
+    fn zeroize_clears_trit() {
+        let mut t = Trit::golden(TritInt::from_u64(14), TritInt::from_u64(5));
+        assert!(!t.is_zero());
+        t.zeroize();
+        assert!(t.is_zero());
+    }
+
+    // ── Phase 5: Serde tests ────────────────────────────────
+
+    #[cfg(feature = "serde")]
+    mod serde_tests {
+        use super::*;
+
+        #[test]
+        fn serde_roundtrip_zero() {
+            let t = Trit::zero();
+            let json = serde_json::to_string(&t).unwrap();
+            let back: Trit = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, t);
+        }
+
+        #[test]
+        fn serde_roundtrip_scalar_364() {
+            let t = Trit::from_u64(364);
+            let json = serde_json::to_string(&t).unwrap();
+            let back: Trit = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, t);
+        }
+
+        #[test]
+        fn serde_roundtrip_golden_r_squared() {
+            let t = Trit::golden(TritInt::from_u64(14), TritInt::from_u64(5));
+            let json = serde_json::to_string(&t).unwrap();
+            let back: Trit = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, t);
+            // Verify v[0] matches 14's Rep C
+            let expected_v0 = TritInt::from_u64(14).to_repr_c();
+            assert!(json.contains(&format!("[{},{},{}]", expected_v0[0], expected_v0[1], expected_v0[2])));
+        }
+
+        #[test]
+        fn serde_roundtrip_eisenstein() {
+            let t = Trit::eisenstein(TritInt::from_u64(2), TritInt::from_u64(1));
+            let json = serde_json::to_string(&t).unwrap();
+            let back: Trit = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, t);
+        }
+
+        #[test]
+        fn serde_roundtrip_full() {
+            let t = Trit::new(TritInt::from_u64(7), TritInt::from_u64(3), TritInt::from_u64(2));
+            let json = serde_json::to_string(&t).unwrap();
+            let back: Trit = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, t);
+        }
+
+        #[test]
+        fn serde_deserialize_rejects_forgery() {
+            // v[0] contains a zero digit → forgery
+            let bad = r#"{"v":[[1,0,3],[],[]]}"#;
+            let result: Result<Trit, _> = serde_json::from_str(bad);
+            assert!(result.is_err());
+        }
     }
 }

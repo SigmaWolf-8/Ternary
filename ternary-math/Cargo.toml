@@ -16,6 +16,9 @@ default = ["parallel"]
 # parallel enables rayon for native targets only.
 # WASM builds MUST use --no-default-features (see Makefile).
 parallel = ["rayon"]
+# serde enables Serialize/Deserialize on TritInt and Trit.
+# WASM-compatible: cargo build --target wasm32-unknown-unknown --no-default-features --features serde
+serde = ["dep:serde"]
 
 [dependencies]
 wasm-bindgen = "=0.2.114"
@@ -23,6 +26,7 @@ libm = "=0.2.16"
 rayon = { version = "=1.10.0", optional = true }
 zeroize = "=1.8.1"
 flate2 = "1"
+serde = { version = "1", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 getrandom = "=0.2.17"
@@ -35,6 +39,7 @@ getrandom = { version = "=0.2.17", features = ["js"] }
 # and do not enter the cdylib or lib output.
 [dev-dependencies]
 criterion = { version = "=0.5.1", features = ["html_reports"] }
+serde_json = "1"
 rsa = "=0.9.10"
 sha2 = "=0.10.9"
 aes-gcm = "=0.10.3"
@@ -49,6 +54,10 @@ harness = false
 
 [[bench]]
 name = "crypto_benchmarks"
+harness = false
+
+[[bench]]
+name = "trit_benchmarks"
 harness = false
 
 [package.metadata.wasm-pack.profile.release]

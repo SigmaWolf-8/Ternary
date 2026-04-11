@@ -1,0 +1,33 @@
+Phase 4 zip first:Phase 4 delivered with instructions. Now Phase 6 review:
+
+---
+
+**Why there's still u8/u32 everywhere:** Because the spec describes the HOST CONTAINER, not the MATHEMATICAL VALUE. Every u8 and u32 in Phase 6 is there because the code runs on binary hardware. But the spec should say that explicitly instead of just listing binary types as if they're design choices.
+
+The three categories:
+
+**Host-forced (can't avoid, must acknowledge):**
+- `Vec<u8>` — bytes are binary memory. Trits are packed INTO bytes. The u8 is the host's memory unit, not a trit representation. The spec should say: "Vec<u8> is the host memory container — same 5-trits-per-byte packing as the inline path, same rationale (3⁵ = 243 < 256, forced by hardware)."
+- `trit_count: u32` — counts how many trits are stored. Using a TritInt for this would be circular (the type uses itself to track its own size). The spec should say: "u32 is a host bookkeeping field for the trit count — not a mathematical value. It exists because the storage container needs to know its own length, and that length is a host-level concept."
+
+**Boundary crossings (already labeled correctly):**
+- `to_u64()`, `to_u128()` — explicitly marked as boundary crossings. Correct.
+
+**One that should change:**
+- "sanity limit like 10,000 trits" — why 10,000? That's a decimal round number. If there must be a limit, derive it from the framework. R₈ = (3⁸ − 1)/2 = 3,280. R₉ = (3⁹ − 1)/2 = 9,841. R₁₀ = (3¹⁰ − 1)/2 = 29,524. The limit should be a repunit, not a decimal round number. R₉ = 9,841 trits is close to 10,000 and is framework-derived. Or don't have a fixed limit at all — let the allocator handle exhaustion.
+
+**Other issues:**
+
+Task 5 says "Implement Drop for TritInt that calls zeroize on heap storage." But implementing Drop means TritInt can no longer be Copy (it already isn't since it has Vec in the heap variant, but this needs to be stated). Also, Drop + Zeroize interaction: if both Drop and manual Zeroize calls exist, the buffer gets zeroed twice. Use `zeroize::Zeroizing<Vec<u8>>` wrapper instead of manual Drop — it handles this cleanly.
+
+Task 6 says "shrink-to-inline" — automatically convert heap back to inline when result fits. This is correct but the test needs to verify that the HEAP MEMORY IS ZEROED before the shrink discards it. Otherwise the old heap allocation sits in freed memory with trit data in it. Shrink must zeroize the heap buffer before promoting to inline.
+
+Task 7 says "update try_from_repr_c upper bound." But try_from_repr_c doesn't exist yet — it's built in Phase 5. This task assumes Phase 5 is done. The dependency chain is correct (Phase 6 depends on Phase 5) but the language should say "modify" not "update" since the implementer of Phase 6 is working with Phase 5's output.
+
+**Summary of changes for Phase 6:**
+
+1. State WHY every binary type appears — host container, host bookkeeping, or boundary crossing
+2. Sanity limit: derive from repunit (R₉ = 9,841) or remove the fixed limit entirely
+3. Use `zeroize::Zeroizing<Vec<u8>>` instead of manual Drop + Zeroize
+4. Shrink-to-inline must zeroize heap buffer BEFORE discarding
+5. Fix language: try_from_repr_c is "modified" (from Phase 5), not "updated"
