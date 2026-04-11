@@ -486,3 +486,9 @@ id = "g_CjmYXArAQVhsEmZKt3f"
 uri = "file://trit-int-build-context.zip"
 type = "unspecified"
 title = "lib.rs + Cargo.toml (Task 103 build context)"
+
+[[outputs]]
+id = "w8sOm360ZzPo6Ctnmqsw8"
+uri = "file://trit-int-final.zip"
+type = "unspecified"
+title = "trit_int.rs + lib.rs (final, compiled & tested)"
