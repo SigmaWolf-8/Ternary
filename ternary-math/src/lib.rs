@@ -28,6 +28,7 @@
 //! - **borromean**: Borromean ternary XOR invariant for three-party cryptographic protocols
 pub mod constants;
 pub mod trit_int;
+pub mod trit;
 pub mod gf3;
 pub mod gf3_algebra;
 pub mod clifford;

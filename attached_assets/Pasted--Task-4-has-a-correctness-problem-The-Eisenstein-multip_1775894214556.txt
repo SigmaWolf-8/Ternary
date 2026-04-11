@@ -1,0 +1,32 @@
+**Task 4 has a correctness problem.** The Eisenstein multiplication formula requires subtraction: `a₁a₂ − c₁c₂` and `a₁c₂ + a₂c₁ − c₁c₂`. TritInt is unsigned — `sub` panics when the result would be negative. For Eisenstein multiplication of arbitrary values, `a₁a₂ < c₁c₂` is entirely possible. Example: `(0 + 1·ω) × (0 + 1·ω) = −1 − ω` — the integer part is −1, which TritInt cannot hold.
+
+This isn't an edge case. ω² = −1 − ω is the DEFINING RELATION of the algebra. The very first test you'd write (ω × ω = −1 − ω) panics on unsigned subtraction.
+
+Three ways to handle this:
+
+**Option A: Track sign separately inside mul_eisenstein.** Compute both `a₁a₂` and `c₁c₂`, compare, subtract the smaller from the larger, and return a `(TritInt, bool)` for each component where the bool is the sign. This means `mul_eisenstein` returns a signed result type, not a Trit.
+
+**Option B: Defer mul_eisenstein to Phase 3 (Rep A).** Rep A is balanced ternary {−1, 0, +1} — it handles negative values natively. Implement mul_eisenstein once signed arithmetic exists. Phase 2 ships mul_golden and mul_scalar only.
+
+**Option C: Use modular arithmetic.** If all Eisenstein operations happen mod some modulus (e.g., mod 3 for GF(3) closure), then subtraction wraps and never underflows. This matches how gf3_algebra.rs already works — `gf3_add` and `gf3_mul` operate mod 3. But then mul_eisenstein operates on individual trits (mod 3), not on multi-digit TritInts.
+
+**My recommendation: Option B.** mul_eisenstein depends on signed arithmetic. Shipping it with unsigned TritInt will produce panic-prone code or a parallel sign-tracking system that duplicates what Rep A provides. The task should move mul_eisenstein and norm_eisenstein to Phase 3, and the "Out of scope" note about signed arithmetic should acknowledge this dependency explicitly.
+
+**Everything else in the task is correct.** Specifically:
+
+- Struct definition: `Trit { v: [TritInt; 3] }` — matches TM-2026-000 v3.0 exactly
+- Constructors: complete set, all const fn compatible (TritInt constructors are const)
+- Component-wise add/sub: always valid, no algebra-specific rules — correct
+- mul_golden: the formula is right, φ² = φ + 1 only adds (never subtracts), so unsigned TritInt handles it cleanly
+- norm_golden: `a² + ab − b²` — the subtraction CAN underflow for some inputs (when b is large relative to a), but for all framework values (R² = 14 + 5φ: 196 + 70 − 25 = 241, always positive) it's fine. The task should note that norm_golden panics if the norm is negative, which happens for elements with large φ-coefficient relative to integer part
+- Accessors, Display, traits: all straightforward
+- Tests: the Fibonacci power sequence (φⁿ = F(n−1) + F(n)φ) only uses mul_golden, which is safe. R² tests are safe. Good coverage
+
+**One more item:** Task 11 should include a test that `v[2]` stays zero through all mul_golden operations. This verifies the carry-through-unchanged behavior. Add: `assert!(result.vector(2).is_zero())` after every mul_golden test.
+
+**Summary of changes to the task:**
+
+1. Move `mul_eisenstein` and `norm_eisenstein` to Phase 3 (depends on signed arithmetic / Rep A)
+2. Add note to `norm_golden`: panics if norm is negative (b² > a² + ab)
+3. Add v[2]-stays-zero assertion to mul_golden tests
+4. Update "Out of scope" to list mul_eisenstein/norm_eisenstein explicitly with the reason (unsigned subtraction limitation)
