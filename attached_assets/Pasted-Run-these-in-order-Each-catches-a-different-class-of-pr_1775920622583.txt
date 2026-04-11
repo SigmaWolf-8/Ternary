@@ -1,0 +1,41 @@
+Run these in order. Each catches a different class of problem:
+
+```bash
+# 1. Full test suite (default features)
+cargo test --workspace
+
+# 2. Full test suite with serde feature
+cargo test --workspace --features serde
+
+# 3. WASM compilation (catches std-only usage)
+rustup target add wasm32-unknown-unknown
+cargo build --target wasm32-unknown-unknown --no-default-features
+cargo build --target wasm32-unknown-unknown --no-default-features --features serde
+
+# 4. Release mode (catches debug-only assertions that hide bugs)
+cargo test --workspace --release
+
+# 5. Stress the heap path specifically
+cargo test --workspace -- heap
+
+# 6. Verify const assertions compile (they run at build time, not test time)
+cargo build --workspace
+
+# 7. Run benchmarks to verify they compile (don't need full benchmark run)
+cargo bench --bench trit_benchmarks --no-run
+
+# 8. Check for memory leaks on heap path (if valgrind available)
+cargo test --workspace -- large_mul heap_shrinks pow_large 2>&1
+```
+
+**What to ask Replit specifically:**
+
+"Run `cargo test --workspace --features serde` and `cargo build --target wasm32-unknown-unknown --no-default-features`. Then run `cargo test --workspace --release` to verify release-mode behavior matches debug. Report any failures with the full error output."
+
+**The three things most likely to break that the 668 tests DON'T cover:**
+
+1. **Heap values leaking silently** — the ManuallyDrop means heap TritInts that go out of scope without `.zeroize()` leak. Ask Replit: "Create a loop that allocates 1000 heap TritInts via `pow(3, 50)` without calling zeroize, and check if memory usage grows unboundedly."
+
+2. **Hash consistency across inline/heap boundary** — the `heap_inline_eq_and_hash` test covers one case. Ask Replit: "Verify that for values 1 through 1000, constructing via `from_u64(n)` and via `pow` then `div_mod` back to the same value produces identical hashes."
+
+3. **CRT round-trip with heap-sized AGS capacity** — the AGS Level 2/3 escalation multiplies capacity by 729 and 3¹³. Ask Replit: "Call `ags.escalate_depth()` then verify `crt_project` followed by `crt_reconstruct` still round-trips correctly with the larger capacity."
