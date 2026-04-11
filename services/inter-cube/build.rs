@@ -1,3 +1,9 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+
 fn main() {
     let version = std::fs::read_to_string("../../VERSION")
         .expect("Cannot read ../../VERSION")
