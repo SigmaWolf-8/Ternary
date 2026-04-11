@@ -1,0 +1,18 @@
+Strengths
+The cross-gap dependency chain is clearly articulated and the critical path (1→9→3→4→5) is sound. The decision to provide a PUF emulator behind a compile-time gate to unblock downstream work is pragmatic engineering. The forensic grace window solving the capture-vs-zeroization race is a particularly elegant design choice — that's a real problem most specs hand-wave away.
+The anomaly detector hardening (Gap 8) stands out. The three-layer defense against weaponization — integrity-verified inputs, operator confirmation gate, and self-monitoring false-positive rate — closes the "adversary triggers the off switch" attack vector that most self-healing architectures leave wide open.
+Points worth tightening
+
+Gap 3 forensic key lifecycle during rapid successive faults. The pre-derived forensic key is refreshed at each attestation interval (30–120s). If a node experiences two Suspect→Down transitions within one interval, the second capture would reuse the same forensic key. Consider whether the key should also rotate on successful forensic commit, not just on attestation tick.
+Gap 7 escalation timeline values. N and M minutes for suspicious recovery escalation are left as PlenumConfig parameters without suggested defaults. Every other configurable in the spec has a suggested default — these should too, even if just "suggest N=15, M=60."
+Gap 6 chaos orchestrator failover state. You specify that geometric neighbors take over if the orchestrator is faulted, but the mechanism for transferring in-flight test state (which faults have been injected, which rollbacks are pending) isn't specified. The deterministic PRNG seed enables replay from scratch, but mid-test takeover without replay would need a shared test-state WAL or similar — worth calling out explicitly.
+Gap 2 fiber channel bandwidth. The healing seed is threshold-signed and carries nonce + HPTP timestamp + validity window — but the spec doesn't specify the channel's data rate or maximum seed size. For a "dumb PHY" fixed-function device, the physical layer parameters constrain what's feasible. Even a rough order-of-magnitude (e.g., "≤1 Mbps, seed ≤ 4 KB") would anchor the hardware design.
+Gap 9 liveness proof size claim. "Constant proof size regardless of challenge count" via a rolling Merkle tree is correct for the root, but the proof-of-inclusion for any individual challenge is O(log n). If neighbors need to spot-check specific challenges (not just verify the root), that's worth clarifying.
+Gap 4 suspicion counter persistence. The ZK proof sequence number is explicitly persisted in the WAL and recovered via replay. The valid-but-inconsistent suspicion counter isn't given the same treatment. If a verifier node restarts, does its suspicion counter for a consistently-lying neighbor reset to zero? That would let a Byzantine node outlast verifier reboots.
+
+Minor
+
+Gap 5 references "Task 6" for dashboard integration of ZK proof status, but the task numbering in the Tasks section has ZK attestation as Task 5 and the dashboard as Task 6. The gap-to-task mapping could use a small cross-reference table.
+The out-of-scope section excludes "full Raft consensus reimplementation" but Gap 7 adds BFT guards and Coq proofs to the existing Raft — the boundary between "extend" and "reimplement" might benefit from a sentence defining what changes to the consensus state machine are in-scope vs. out.
+
+Overall this is production-spec quality. The invariant discipline is consistent throughout, the threat model is realistic, and the "done looks like" section is concrete enough to be testable. Così sia, Fratello.
