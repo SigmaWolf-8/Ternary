@@ -564,3 +564,9 @@ id = "Fzuu_ZP3EEIlc_M873cl_"
 uri = "file://TTC-v5-File-Relationships.md"
 type = "text"
 title = "TTC v5.0.3 File Relationships & Architecture Map"
+
+[[outputs]]
+id = "QC-PtVuCCPng4pz31DyPR"
+uri = "file://inter-cube-files.tar.gz"
+type = "unspecified"
+title = "inter-cube lib.rs + cube_addr.rs"
