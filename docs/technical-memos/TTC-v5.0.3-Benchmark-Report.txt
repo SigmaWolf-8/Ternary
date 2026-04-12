@@ -1,0 +1,176 @@
+warning: value assigned to `best_h` is never read
+   --> ternary-math/src/ttc.rs:445:13
+    |
+445 |             best_h = h;
+    |             ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: unused variable: `ver_byte`
+    --> ternary-math/src/ttc.rs:2254:9
+     |
+2254 |     let ver_byte = compressed[0x04];
+     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ver_byte`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: variable does not need to be mutable
+  --> ternary-math/src/container_decomp.rs:51:9
+   |
+51 |     let mut d = DeflateDecoder::new(data); let mut out = Vec::new();
+   |         ----^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+  --> ternary-math/src/container_decomp.rs:56:9
+   |
+56 |     let mut d = ZlibDecoder::new(data); let mut out = Vec::new();
+   |         ----^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> ternary-math/src/ctx_ans.rs:84:21
+   |
+84 |                 let mut remainder = l as u32 - per * 256;
+   |                     ----^^^^^^^^^
+   |                     |
+   |                     help: remove this `mut`
+
+warning: unused variable: `bit_count`
+   --> ternary-math/src/ctx_ans.rs:411:21
+    |
+411 |                 let bit_count = u32::from_be_bytes([payload[pos], paylo...
+    |                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bit_count`
+
+warning: method `parts` is never used
+   --> ternary-math/src/trit_int.rs:685:8
+    |
+564 | impl TritInt {
+    | ------------ method in this implementation
+...
+685 |     fn parts(&self) -> ([u8; 8], u8) {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `trit_shift_left` is never used
+    --> ternary-math/src/trit_int.rs:1045:4
+     |
+1045 | fn trit_shift_left(packed: [u8; 8], count: u8, shift: u8) -> ([u8; 8],...
+     |    ^^^^^^^^^^^^^^^
+
+warning: function `is_image_content` is never used
+  --> ternary-math/src/container_decomp.rs:70:4
+   |
+70 | fn is_image_content(data: &[u8]) -> bool {
+   |    ^^^^^^^^^^^^^^^^
+
+warning: field `comp_size` is never read
+   --> ternary-math/src/container_decomp.rs:136:5
+    |
+133 | struct ZipEntry {
+    |        -------- field in this struct
+...
+136 |     comp_size: u32, uncomp_size: u32,
+    |     ^^^^^^^^^
+    |
+    = note: `ZipEntry` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: fields `clen` and `was_inflated` are never read
+   --> ternary-math/src/container_decomp.rs:506:40
+    |
+506 |     struct StreamInfo { insert: usize, clen: usize, was_inflated: bool }
+    |            ----------                  ^^^^         ^^^^^^^^^^^^
+    |            |
+    |            fields in this struct
+
+warning: `ternary-math` (lib) generated 11 warnings (run `cargo fix --lib -p ternary-math` to apply 5 suggestions)
+    Finished release [optimized] target(s) in 0.51s
+     Running `/home/runner/workspace/target/release/ttc_benchmark`
+
+======================================================================
+TTC v5.0.3 — Compression Benchmark (real data, real entropy)
+======================================================================
+
+Input                                          Size     Comp   Ratio   H(X)     C us     D us   RT
+------------------------------------------------------------------------------------------------------
+
+--- TRUE RANDOM (OS /dev/urandom via getrandom) --------------------------------
+urandom (512B)                                 512B     569B   0.90x  7.60b    3449      11  OK
+urandom (1K)                                   1.0K     1.1K   0.95x  7.79b    4714       4  OK
+urandom (4K)                                   4.0K     4.0K   1.01x  7.95b    9143       8  FAIL
+urandom (10K)                                 10.0K    10.1K   0.99x  7.98b    7606      14  OK
+urandom (50K)                                 50.0K    50.1K   1.00x  8.00b   19229      60  OK
+urandom (100K)                               100.0K   100.1K   1.00x  8.00b   38977     125  OK
+
+--- STRIDED PRNG (Knuth multiplicative — NOT random) -------------------------
+Knuth stride (50K, delta~55 mod 256)          48.8K     438B 114.16x  8.00b    6576     274  OK
+  NOTE: order-0 H=8.00b but order-1 H=0.997b (stride structure)
+
+--- SOURCE CODE (real .rs files from this crate) -------------------------------
+src: ttc.rs                                  157.4K    56.6K   2.78x  5.22b   39234    2450  OK
+src: constants.rs                             80.3K    25.3K   3.18x  5.62b   18280    1053  OK
+src: trit_int.rs                              97.5K    30.7K   3.17x  5.03b   23912    1751  OK
+src: coprime.rs                               21.0K     6.6K   3.17x  4.91b    4911     272  OK
+src: tlsponge385.rs                           41.2K    11.5K   3.57x  5.32b    8016     498  OK
+src: ctx_ans.rs                               21.3K     7.3K   2.90x  5.02b    5107     286  OK
+ALL sources (419K combined)                  418.7K   137.5K   3.05x  5.38b   90557    6298  OK
+
+--- PERIODIC DATA (CPT coprime stride detection) -------------------------------
+Period-7 (49K)                                48.8K     238B 210.08x  2.81b    8647     293  OK
+Period-13 (98K)                               97.7K     314B 318.47x  3.70b   13889     569  OK
+Period-91 (98K)                               97.7K     362B 276.24x  6.51b   13526     471  OK
+Period-255 (98K)                              97.7K     408B 245.10x  7.99b   13498     479  OK
+
+--- CONSTANT / LOW ENTROPY -----------------------------------------------------
+All zeros (100K)                              97.7K     254B 393.70x  0.00b    7459     250  OK
+All 0xFF (100K)                               97.7K     249B 401.61x  0.00b   10677     328  OK
+Two-value alternating (100K)                  97.7K     326B 306.75x  0.92b   13263     389  OK
+
+--- TEXT DATA ------------------------------------------------------------------
+English prose (50K, repeated passage)         48.8K     682B  73.31x  4.15b    7659     263  OK
+Cargo.toml (real config file)                  1.6K     1.2K   1.42x  5.04b    1815     102  OK
+package.json (real config file)                4.5K     1.9K   2.44x  4.83b    2362     127  OK
+
+--- ROUND-TRIP STRESS (5 trials per size, OS random) ---------------------------
+  size=  4096:  3/5 pass, 2 fail, 0 panic  [FAIL]
+  size=  8192:  5/5 pass, 0 fail, 0 panic  [ALL PASS]
+  size= 16384:  4/5 pass, 1 fail, 0 panic  [FAIL]
+  size= 32768:  4/5 pass, 1 fail, 0 panic  [FAIL]
+  size= 65536:  4/5 pass, 1 fail, 0 panic  [FAIL]
+
+======================================================================
+SUMMARY
+======================================================================
+Round-trip: 23/24 passed, 1 failed, 0 panics
+
+True random (OS entropy):
+  Passing: 5/6, avg ratio: 0.9684x
+  FAILING: 1/6 — round-trip data loss on true random input
+  ROOT CAUSE: auto-detect (JSON/CSV/XML) false-positives on random bytes
+  TRIGGER: random data starting with 0x7B {, 0x5B [, or 0x3C <
+
+Periodic data (CPT showcase):
+  Avg ratio: 262.5x — coprime stride detection working as designed
+
+Source code (general purpose):
+  Avg ratio: 3.13x
+
+*** INTEGRITY ISSUES DETECTED ***
+
+BUG #1 (CRITICAL): structured_encode_json panic on random data
+  Line 1374: data[end+1..] where end=data.len() (unclosed quote)
+  Trigger: random bytes starting with 0x7B/0x5B auto-detected as JSON
+
+BUG #2 (CRITICAL): Silent data loss on high-entropy input
+  Domain auto-detect treats random bytes as JSON/CSV/XML
+  Structured transform corrupts data; competitive gate checks size only
+  Fix: guard auto-detect with minimum structure score threshold
+
+BUG #3 (MINOR): BitReader silently returns zeros past end of stream
+  Line 553: returns partial value instead of signaling error

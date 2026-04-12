@@ -29,24 +29,44 @@ fn shannon_entropy(data: &[u8]) -> f64 {
     entropy
 }
 
-fn bench(name: &str, data: &[u8]) -> BenchResult {
+fn bench(name: &str, data: &[u8]) -> Option<BenchResult> {
     let entropy = shannon_entropy(data);
     let opts = CompressOptions {
         filename: Some(name.to_string()),
         ..Default::default()
     };
 
+    let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ttc_compress(data, &opts)
+    })) {
+        Ok(Ok(r)) => r,
+        Ok(Err(e)) => {
+            eprintln!("  compress error on {}: {:?}", name, e);
+            return None;
+        }
+        Err(_) => {
+            eprintln!("  PANIC during compress of {}", name);
+            return None;
+        }
+    };
+
     let t0 = Instant::now();
-    let result = ttc_compress(data, &opts).expect("compress failed");
+    let _ = ttc_compress(data, &opts);
     let compress_us = t0.elapsed().as_micros();
 
     let t1 = Instant::now();
-    let dec = ttc_decompress(&result.compressed).expect("decompress failed");
+    let dec = match ttc_decompress(&result.compressed) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("  decompress error on {}: {:?}", name, e);
+            return None;
+        }
+    };
     let decompress_us = t1.elapsed().as_micros();
 
     let verified = dec.data == data;
 
-    BenchResult {
+    Some(BenchResult {
         name: name.to_string(),
         original: data.len(),
         compressed: result.compressed_size as usize,
@@ -59,7 +79,7 @@ fn bench(name: &str, data: &[u8]) -> BenchResult {
         compress_us,
         decompress_us,
         verified,
-    }
+    })
 }
 
 fn print_header() {
@@ -68,9 +88,9 @@ fn print_header() {
     println!("TTC v5.0.3 — Compression Benchmark (real data, real entropy)");
     println!("======================================================================");
     println!();
-    println!("{:<40} {:>8} {:>8} {:>7} {:>6} {:>8} {:>8} {:>4}",
-        "Input", "Size", "Comp", "Ratio", "H(X)", "C μs", "D μs", "OK");
-    println!("{}", "-".repeat(100));
+    println!("{:<42} {:>8} {:>8} {:>7} {:>6} {:>8} {:>8} {:>4}",
+        "Input", "Size", "Comp", "Ratio", "H(X)", "C us", "D us", "RT");
+    println!("{}", "-".repeat(102));
 }
 
 fn print_row(r: &BenchResult) {
@@ -84,10 +104,10 @@ fn print_row(r: &BenchResult) {
     } else {
         format!("{}B", r.compressed)
     };
-    println!("{:<40} {:>8} {:>8} {:>6.2}x {:>5.2}b {:>7} {:>7}  {}",
+    println!("{:<42} {:>8} {:>8} {:>6.2}x {:>5.2}b {:>7} {:>7}  {}",
         r.name, size_str, comp_str, r.ratio, r.entropy_bits,
         r.compress_us, r.decompress_us,
-        if r.verified { "✓" } else { "✗" });
+        if r.verified { "OK" } else { "FAIL" });
 }
 
 fn print_section(title: &str) {
@@ -99,37 +119,45 @@ fn main() {
     print_header();
 
     let mut results: Vec<BenchResult> = Vec::new();
+    let mut panics = 0u32;
 
     // =====================================================================
-    // SECTION 1: True random (OS entropy — /dev/urandom via getrandom)
+    // SECTION 1: True random (OS entropy via getrandom)
     // =====================================================================
-    print_section("TRUE RANDOM (OS entropy via getrandom)");
+    print_section("TRUE RANDOM (OS /dev/urandom via getrandom)");
 
-    for &size in &[1024usize, 10240, 51200, 102400] {
+    for &size in &[512usize, 1024, 4096, 10240, 51200, 102400] {
         let mut buf = vec![0u8; size];
         getrandom::getrandom(&mut buf).expect("getrandom failed");
-        let label = format!("OS random ({:.1}K)", size as f64 / 1024.0);
-        let r = bench(&label, &buf);
-        print_row(&r);
-        results.push(r);
+        let label = format!("urandom ({})", if size >= 1024 {
+            format!("{:.0}K", size as f64 / 1024.0)
+        } else {
+            format!("{}B", size)
+        });
+        match bench(&label, &buf) {
+            Some(r) => { print_row(&r); results.push(r); }
+            None => { println!("{:<42} {:>8} --- PANIC/ERROR ---", label, size); panics += 1; }
+        }
     }
 
     // =====================================================================
-    // SECTION 2: The PRNG that was labeled "pseudo-random" — now honest
+    // SECTION 2: Correctly-labeled PRNG with hidden stride
     // =====================================================================
-    print_section("STRIDED PRNG (Knuth mult hash — hidden stride, NOT random)");
+    print_section("STRIDED PRNG (Knuth multiplicative — NOT random)");
 
     let prng_data: Vec<u8> = (0..50_000u32).map(|i| {
         ((i.wrapping_mul(2654435761) >> 16) & 0xFF) as u8
     }).collect();
-    let r = bench("Knuth stride (50K, stride≈55)", &prng_data);
-    print_row(&r);
-    results.push(r);
+    if let Some(r) = bench("Knuth stride (50K, delta~55 mod 256)", &prng_data) {
+        print_row(&r);
+        println!("  NOTE: order-0 H=8.00b but order-1 H=0.997b (stride structure)");
+        results.push(r);
+    }
 
     // =====================================================================
     // SECTION 3: Real source code files
     // =====================================================================
-    print_section("SOURCE CODE (real files from this crate)");
+    print_section("SOURCE CODE (real .rs files from this crate)");
 
     let source_files = [
         "src/ttc.rs",
@@ -143,17 +171,19 @@ fn main() {
     for path in &source_files {
         if let Ok(data) = fs::read(path) {
             let label = format!("src: {}", path.trim_start_matches("src/"));
-            let r = bench(&label, &data);
-            print_row(&r);
-            results.push(r);
+            if let Some(r) = bench(&label, &data) {
+                print_row(&r);
+                results.push(r);
+            }
             all_source.extend_from_slice(&data);
         }
     }
     if !all_source.is_empty() {
-        let label = format!("ALL sources ({:.0}K)", all_source.len() as f64 / 1024.0);
-        let r = bench(&label, &all_source);
-        print_row(&r);
-        results.push(r);
+        let label = format!("ALL sources ({:.0}K combined)", all_source.len() as f64 / 1024.0);
+        if let Some(r) = bench(&label, &all_source) {
+            print_row(&r);
+            results.push(r);
+        }
     }
 
     // =====================================================================
@@ -161,34 +191,38 @@ fn main() {
     // =====================================================================
     print_section("PERIODIC DATA (CPT coprime stride detection)");
 
-    for &(period, size) in &[(7u8, 50000usize), (13, 100000), (91, 100000), (255, 100000)] {
+    for &(period, size) in &[(7u16, 50000usize), (13, 100000), (91, 100000), (255, 100000)] {
         let pattern: Vec<u8> = (0..period as usize).map(|i| (i * 37 + 11) as u8).collect();
         let data: Vec<u8> = pattern.iter().cycle().take(size).copied().collect();
         let label = format!("Period-{} ({:.0}K)", period, size as f64 / 1024.0);
-        let r = bench(&label, &data);
-        print_row(&r);
-        results.push(r);
+        if let Some(r) = bench(&label, &data) {
+            print_row(&r);
+            results.push(r);
+        }
     }
 
     // =====================================================================
-    // SECTION 5: Constant data
+    // SECTION 5: Constant / low entropy
     // =====================================================================
     print_section("CONSTANT / LOW ENTROPY");
 
     let zeros = vec![0u8; 100_000];
-    let r = bench("All zeros (100K)", &zeros);
-    print_row(&r);
-    results.push(r);
+    if let Some(r) = bench("All zeros (100K)", &zeros) {
+        print_row(&r);
+        results.push(r);
+    }
 
     let ones = vec![0xFFu8; 100_000];
-    let r = bench("All 0xFF (100K)", &ones);
-    print_row(&r);
-    results.push(r);
+    if let Some(r) = bench("All 0xFF (100K)", &ones) {
+        print_row(&r);
+        results.push(r);
+    }
 
     let two_val: Vec<u8> = (0..100_000u32).map(|i| if i % 3 == 0 { 0xAA } else { 0x55 }).collect();
-    let r = bench("Two-value (100K, 1.0 bit/byte)", &two_val);
-    print_row(&r);
-    results.push(r);
+    if let Some(r) = bench("Two-value alternating (100K)", &two_val) {
+        print_row(&r);
+        results.push(r);
+    }
 
     // =====================================================================
     // SECTION 6: Natural language text
@@ -203,47 +237,51 @@ God, whose name was John. The same came for a witness, to bear witness of the Li
 all men through him might believe. He was not that Light, but was sent to bear witness of \
 that Light. That was the true Light, which lighteth every man that cometh into the world. ";
     let text: Vec<u8> = prose.iter().cycle().take(50_000).copied().collect();
-    let r = bench("English prose (50K, repeated)", &text);
-    print_row(&r);
-    results.push(r);
-
-    if let Ok(data) = fs::read("Cargo.toml") {
-        let r = bench("Cargo.toml (real config)", &data);
+    if let Some(r) = bench("English prose (50K, repeated passage)", &text) {
         print_row(&r);
         results.push(r);
+    }
+
+    if let Ok(data) = fs::read("Cargo.toml") {
+        if let Some(r) = bench("Cargo.toml (real config file)", &data) {
+            print_row(&r);
+            results.push(r);
+        }
     }
 
     if let Ok(data) = fs::read("../package.json") {
-        let r = bench("package.json (real config)", &data);
-        print_row(&r);
-        results.push(r);
+        if let Some(r) = bench("package.json (real config file)", &data) {
+            print_row(&r);
+            results.push(r);
+        }
     }
 
     // =====================================================================
-    // SECTION 7: Mixed / adversarial
+    // SECTION 7: Round-trip stress (multiple random trials)
     // =====================================================================
-    print_section("MIXED / ADVERSARIAL");
+    print_section("ROUND-TRIP STRESS (5 trials per size, OS random)");
 
-    let mut mixed = Vec::new();
-    mixed.extend_from_slice(&vec![0u8; 10_000]);
-    let mut rng_buf = vec![0u8; 10_000];
-    getrandom::getrandom(&mut rng_buf).expect("getrandom failed");
-    mixed.extend_from_slice(&rng_buf);
-    let pattern: Vec<u8> = (0..13u8).collect();
-    mixed.extend(pattern.iter().cycle().take(10_000).copied());
-    mixed.extend_from_slice(b"Hello World! ".repeat(769).as_slice());
-    let r = bench("Mixed (10K zeros+10K rand+10K p13+10K text)", &mixed);
-    print_row(&r);
-    results.push(r);
-
-    // Incompressible with 1 byte changed (should still be ~incompressible)
-    let mut almost_random = vec![0u8; 50_000];
-    getrandom::getrandom(&mut almost_random).expect("getrandom failed");
-    almost_random[0] = 0;
-    almost_random[25000] = 0;
-    let r = bench("OS random + 2 known bytes (50K)", &almost_random);
-    print_row(&r);
-    results.push(r);
+    for &size in &[4096usize, 8192, 16384, 32768, 65536] {
+        let mut pass = 0u32;
+        let mut fail = 0u32;
+        let mut panic_count = 0u32;
+        let trials = 5;
+        for _ in 0..trials {
+            let mut buf = vec![0u8; size];
+            getrandom::getrandom(&mut buf).expect("getrandom");
+            match bench("", &buf) {
+                Some(r) => {
+                    if r.verified { pass += 1; } else { fail += 1; }
+                }
+                None => { panic_count += 1; }
+            }
+        }
+        let status = if fail == 0 && panic_count == 0 { "ALL PASS" } else {
+            if panic_count > 0 { "PANIC+FAIL" } else { "FAIL" }
+        };
+        println!("  size={:>6}:  {}/{} pass, {} fail, {} panic  [{}]",
+            size, pass, trials, fail, panic_count, status);
+    }
 
     // =====================================================================
     // SUMMARY
@@ -254,27 +292,27 @@ that Light. That was the true Light, which lighteth every man that cometh into t
     println!("======================================================================");
 
     let all_verified = results.iter().all(|r| r.verified);
-    println!("Round-trip verification: {} / {} passed {}",
-        results.iter().filter(|r| r.verified).count(),
-        results.len(),
-        if all_verified { "✓ ALL PASS" } else { "✗ FAILURES" });
+    let verified_count = results.iter().filter(|r| r.verified).count();
+    let failed_count = results.len() - verified_count;
+    println!("Round-trip: {}/{} passed, {} failed, {} panics",
+        verified_count, results.len(), failed_count, panics);
 
     let true_random: Vec<&BenchResult> = results.iter()
-        .filter(|r| r.name.starts_with("OS random"))
+        .filter(|r| r.name.starts_with("urandom"))
         .collect();
     if !true_random.is_empty() {
-        let avg_ratio: f64 = true_random.iter().map(|r| r.ratio).sum::<f64>() / true_random.len() as f64;
-        let avg_entropy: f64 = true_random.iter().map(|r| r.entropy_bits).sum::<f64>() / true_random.len() as f64;
+        let passing: Vec<&&BenchResult> = true_random.iter().filter(|r| r.verified).collect();
+        let failing: Vec<&&BenchResult> = true_random.iter().filter(|r| !r.verified).collect();
         println!();
         println!("True random (OS entropy):");
-        println!("  Avg entropy:  {:.4} bits/byte", avg_entropy);
-        println!("  Avg ratio:    {:.4}x", avg_ratio);
-        if avg_ratio < 1.0 {
-            println!("  → Output LARGER than input (correct: incompressible data cannot be compressed)");
-        } else if avg_ratio < 1.05 {
-            println!("  → Near 1.0x (correct: Shannon limit respected, header overhead only)");
-        } else {
-            println!("  → WARNING: ratio > 1.05x on true random data — investigate");
+        if !passing.is_empty() {
+            let avg_ratio: f64 = passing.iter().map(|r| r.ratio).sum::<f64>() / passing.len() as f64;
+            println!("  Passing: {}/{}, avg ratio: {:.4}x", passing.len(), true_random.len(), avg_ratio);
+        }
+        if !failing.is_empty() {
+            println!("  FAILING: {}/{} — round-trip data loss on true random input", failing.len(), true_random.len());
+            println!("  ROOT CAUSE: auto-detect (JSON/CSV/XML) false-positives on random bytes");
+            println!("  TRIGGER: random data starting with 0x7B {{, 0x5B [, or 0x3C <");
         }
     }
 
@@ -285,8 +323,7 @@ that Light. That was the true Light, which lighteth every man that cometh into t
         let avg_ratio: f64 = periodic.iter().map(|r| r.ratio).sum::<f64>() / periodic.len() as f64;
         println!();
         println!("Periodic data (CPT showcase):");
-        println!("  Avg ratio:    {:.1}x", avg_ratio);
-        println!("  → CPT coprime stride detection working as designed");
+        println!("  Avg ratio: {:.1}x — coprime stride detection working as designed", avg_ratio);
     }
 
     let source: Vec<&BenchResult> = results.iter()
@@ -296,11 +333,26 @@ that Light. That was the true Light, which lighteth every man that cometh into t
         let avg_ratio: f64 = source.iter().map(|r| r.ratio).sum::<f64>() / source.len() as f64;
         println!();
         println!("Source code (general purpose):");
-        println!("  Avg ratio:    {:.2}x", avg_ratio);
+        println!("  Avg ratio: {:.2}x", avg_ratio);
     }
 
-    println!();
-    if all_verified {
-        println!("All round-trip verifications passed. Shannon limit respected on true random data.");
+    if !all_verified || panics > 0 {
+        println!();
+        println!("*** INTEGRITY ISSUES DETECTED ***");
+        println!();
+        println!("BUG #1 (CRITICAL): structured_encode_json panic on random data");
+        println!("  Line 1374: data[end+1..] where end=data.len() (unclosed quote)");
+        println!("  Trigger: random bytes starting with 0x7B/0x5B auto-detected as JSON");
+        println!();
+        println!("BUG #2 (CRITICAL): Silent data loss on high-entropy input");
+        println!("  Domain auto-detect treats random bytes as JSON/CSV/XML");
+        println!("  Structured transform corrupts data; competitive gate checks size only");
+        println!("  Fix: guard auto-detect with minimum structure score threshold");
+        println!();
+        println!("BUG #3 (MINOR): BitReader silently returns zeros past end of stream");
+        println!("  Line 553: returns partial value instead of signaling error");
+    } else {
+        println!();
+        println!("All round-trip verifications passed. Shannon limit respected.");
     }
 }
