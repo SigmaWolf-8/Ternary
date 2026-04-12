@@ -122,6 +122,10 @@ pub mod vm_service;
 pub mod cluster_shell;
 pub mod ops_handler;
 pub mod yoda_chat;
+pub mod relay_error;
+pub mod relay_audit;
+pub mod relay_circuit;
+pub mod relay_frames;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
@@ -143,6 +147,10 @@ pub use dimension_tracker::{DimensionTracker, DensityMetrics};
 pub use lattice_mixer::{compute_pair_nonce, derive_lattice_mixed_key};
 pub use sampling::{AddressSnapshot, SamplingInfo};
 pub use telemetry::{MetricsRegistry, MetricsSnapshot};
+pub use relay_error::{RelayErrorCode, make_error_response};
+pub use relay_audit::{RelayAuditLog, RelayAuditEntry, RelayAuditEventType, AuditSeverity, AuditSubsystem};
+pub use relay_circuit::{RelayCircuitBreaker, CircuitState};
+pub use relay_frames::{wire_type_to_rep_c, is_frame_type_corrupt, validate_control_frame, MAX_FRAME_SIZE};
 pub use wire::{
     WireHeader, WireMessage, WireError, WireFlags, MessageType,
     WIRE_HEADER_SIZE, WIRE_ADDR_SIZE,
