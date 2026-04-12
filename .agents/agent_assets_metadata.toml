@@ -588,3 +588,9 @@ id = "G8_elzyqFWgl7lY5R8XCt"
 uri = "file://pre-existing-test-failures.tar.gz"
 type = "unspecified"
 title = "Source Files + Report (tar.gz)"
+
+[[outputs]]
+id = "1DgAefodD3Ggr7vbVGYmM"
+uri = "file://pre-existing-test-failures.zip"
+type = "unspecified"
+title = "Pre-Existing Test Failures — Report + Source Files (ZIP)"
