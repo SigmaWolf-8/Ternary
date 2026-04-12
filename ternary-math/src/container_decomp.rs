@@ -150,11 +150,14 @@ fn extension_sort_key(name: &[u8]) -> u8 {
     128
 }
 
-/// Coprime-11 walk permutation within a group of N items.
-/// Falls back to step 13 if gcd(11,N)!=1, step 1 if N<=2.
+/// Coprime walk permutation within a group of N items.
+/// Uses polygon generators 11 and R₃ (13) as coprime steps from constants.rs.
+/// Falls back to step 1 if N is divisible by both.
 fn coprime_walk_order(n: usize) -> Vec<usize> {
+    const G11: usize = crate::constants::T_POLYGON_11.to_u32_const() as usize;
+    const G13: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
     if n <= 2 { return (0..n).collect(); }
-    let step = if n % 11 != 0 { 11 } else if n % 13 != 0 { 13 } else { 1 };
+    let step = if n % G11 != 0 { G11 } else if n % G13 != 0 { G13 } else { 1 };
     let mut order = Vec::with_capacity(n);
     let mut pos = 0;
     for _ in 0..n { order.push(pos % n); pos += step; }

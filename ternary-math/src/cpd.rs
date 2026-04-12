@@ -6,15 +6,31 @@
 //
 // DeltaFlag::STRIDE (7). Detects periodic structure via autocorrelation
 // at coprime distances, delta-encodes at detected stride.
-// Uses dual-circle entropy estimate (α = 27/55) for stride comparison.
+// Uses dual-circle entropy estimate (α = Z₂₇/(Z₂₇+Z₂₈)) for stride comparison.
 
-// Framework coprime strides from constants.rs §7
-const COPRIME_STRIDES: [u16; 13] = [7, 11, 13, 14, 15, 28, 77, 91, 105, 143, 154, 165, 182];
+// Framework coprime strides — derived from polygon generators and pair LCMs.
+// Source of truth: constants.rs §0 TritInt constants → §1+ boundary crossings.
+const COPRIME_STRIDES: [u16; 13] = [
+    crate::constants::T_POLYGON_7.to_u32_const() as u16,   // 7
+    crate::constants::T_POLYGON_11.to_u32_const() as u16,  // 11
+    crate::constants::REPUNIT_3 as u16,                      // 13 = R₃
+    crate::constants::ROOT_X1 as u16,                        // 14 = x₁
+    crate::constants::T_POLYGON_15.to_u32_const() as u16,  // 15
+    crate::constants::T_Z28_ORDER.to_u32_const() as u16,   // 28 = Z₂₈
+    // Coprime pair LCMs — from constants.rs COPRIME_PAIR_LCMS
+    crate::constants::COPRIME_PAIR_LCMS[0] as u16,          // 77  = 7×11
+    crate::constants::COPRIME_PAIR_LCMS[1] as u16,          // 91  = 7×13
+    crate::constants::COPRIME_PAIR_LCMS[2] as u16,          // 105 = 7×15
+    crate::constants::COPRIME_PAIR_LCMS[3] as u16,          // 143 = 11×13
+    crate::constants::COPRIME_PAIR_LCMS[4] as u16,          // 154 = 11×14
+    crate::constants::COPRIME_PAIR_LCMS[5] as u16,          // 165 = 11×15
+    crate::constants::COPRIME_PAIR_LCMS[6] as u16,          // 182 = 13×14
+];
 const MAX_SCAN: u16 = 256;
 const AC_THRESHOLD: f64 = 0.25;
 const H_THRESHOLD: f64 = 0.3;
 
-// Dual-circle blend: α = Z₂₇/(Z₂₇+Z₂₈) = 27/55 (geometric-compression.md §9)
+// Dual-circle blend: α = Z₂₇/(Z₂₇+Z₂₈) = 3³/(3³ + 3³+1) = 27/55
 const ALPHA: f64 = 27.0 / 55.0;
 
 fn autocorrelation(data: &[u8], s: usize) -> f64 {

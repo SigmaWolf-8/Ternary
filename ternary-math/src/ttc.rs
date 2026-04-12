@@ -52,6 +52,11 @@
 use rayon::prelude::*;
 
 // ─── Constants ──────────────────────────────────────────────────────────────
+// All ternary structural constants are DERIVED, not hardcoded decimal literals.
+// Powers of 3 are computed from the ternary radix. Framework values are
+// boundary-crossed from constants.rs §0 (TritInt source of truth) through §1+
+// (u32 boundary exports). usize types are host widening casts for array
+// indexing and buffer sizing.
 
 /// TTC1 magic bytes: "TTC1" = 0x54544331
 pub const MAGIC_TTC1: [u8; 4] = [0x54, 0x54, 0x43, 0x31];
@@ -59,47 +64,53 @@ pub const MAGIC_TTC1: [u8; 4] = [0x54, 0x54, 0x43, 0x31];
 pub const MAGIC_TTCM: [u8; 4] = [0x54, 0x54, 0x43, 0x4D];
 pub const VERSION_V2: u8 = 0x03;
 pub const VERSION_V1: u8 = 0x02;
-pub const HEADER_SIZE_V3: usize = 27;
+pub const HEADER_SIZE_V3: usize = 3_usize.pow(3); // 3³ = Z₂₇ = 27
 pub const HEADER_SIZE_V2_LEGACY: usize = 96;
 pub const HEADER_SIZE: usize = HEADER_SIZE_V3;
-pub const CHUNK_MAP_ENTRY_SIZE_V3: usize = 9;
+pub const CHUNK_MAP_ENTRY_SIZE_V3: usize = 3_usize.pow(2); // 3² = 9
 pub const CHUNK_MAP_ENTRY_SIZE_V2_LEGACY: usize = 16;
 pub const CHUNK_MAP_ENTRY_SIZE: usize = CHUNK_MAP_ENTRY_SIZE_V3;
 pub const VERSION_V3: u8 = 0x04;
-/// TTC v5.0.3: context-1 rANS (Z₂₇), 13-byte coprime hash, container decomp, stride delta.
+/// TTC v5.0.3: context-1 rANS (Z₂₇), R₃-byte coprime hash, container decomp, stride delta.
 pub const VERSION_V5: u8 = 0x05;
 pub const TAU: f64 = 1.839_286_755_214_161_1;
 pub const GOLDEN_ANGLE: f64 = 139.035_628;
 pub const PHI: f64 = 1.618_033_988_749_895;
 pub const PHASE_DRIFT_RATE: f64 = 3.956;
 pub const LOG2_3: f64 = 1.584_962_500_7;
-pub const TUNNEL_COUNT: usize = 26;
-/// Pure ternary power constants — all window/chunk sizes derive from these.
-/// No binary multipliers. Every structural boundary is 3^k.
-pub const T3_8: usize = 6_561;         // 3^8  — L1 window
-pub const T3_9: usize = 19_683;        // 3^9  — L1 chunk, L2 window
-pub const T3_10: usize = 59_049;       // 3^10 — L3 window+chunk
-pub const T3_11: usize = 177_147;      // 3^11 — L4 window+chunk = TANS_L
-pub const T3_12: usize = 531_441;      // 3^12 — L5 window+chunk (document sweet spot)
-pub const T3_13: usize = 1_594_323;    // 3^13 — hypercube vertices, L7+ chunk
-pub const T3_14: usize = 4_782_969;    // 3^14 — L7 window
-pub const T3_15: usize = 14_348_907;   // 3^15 — L8 window
-pub const T3_16: usize = 43_046_721;   // 3^16 — L9 window
-/// tANS table size: L = 3^11 = 177,147 — structurally unified with L4 chunk size.
-pub const TANS_L: u32 = 177_147;
+/// 26 tunnels = 2 × R₃. Inter-Cube geometric neighbors.
+pub const TUNNEL_COUNT: usize = 2 * crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+/// Pure ternary power constants — all window/chunk sizes are 3^k.
+/// No binary multipliers. Every structural boundary is a power of the ternary radix.
+pub const T3_8: usize = 3_usize.pow(8);    // L1 window
+pub const T3_9: usize = 3_usize.pow(9);    // L1 chunk, L2 window
+pub const T3_10: usize = 3_usize.pow(10);  // L3 window+chunk
+pub const T3_11: usize = 3_usize.pow(11);  // L4 window+chunk = TANS_L
+pub const T3_12: usize = 3_usize.pow(12);  // L5 window+chunk (document sweet spot)
+pub const T3_13: usize = 3_usize.pow(13);  // hypercube vertices, L7+ chunk
+pub const T3_14: usize = 3_usize.pow(14);  // L7 window
+pub const T3_15: usize = 3_usize.pow(15);  // L8 window
+pub const T3_16: usize = 3_usize.pow(16);  // L9 window
+/// tANS table size: L = 3¹¹ — structurally unified with L4 chunk size.
+pub const TANS_L: u32 = 3_u32.pow(11);
 pub const TANS_SYM_RUN_BASE: u16 = 256;
 pub const TANS_SYM_MATCH_BASE: u16 = TANS_SYM_RUN_BASE + MAX_RUN_LEN as u16 + 1;
 pub const TANS_EOB: u16 = TANS_SYM_MATCH_BASE + MAX_MATCH_LEN as u16 + 1;
 pub const TANS_ALPHABET: usize = (TANS_EOB as usize) + 1;
-pub const BEAM_WIDTH: usize = 9;
+/// Beam width = 3².
+pub const BEAM_WIDTH: usize = 3_usize.pow(2);
 pub const TAU_HARMONIC: f64 = 0.72;
 pub const TAU_HOLOGRAPHIC: f64 = 0.80;
 pub const TAU_RESONANCE: f64 = 0.95;
 pub const DELTA_HOLOGRAPHIC: f64 = 0.80;
 pub const ENTROPY_GATE: f64 = 7.99;
 pub const MODE_PRUNE_ENTROPY: f64 = 7.99;
-pub const MAX_MATCH_LEN: usize = 729;
-pub const MAX_RUN_LEN: usize = 243;
+/// Max match length = Δ₂ = 3⁶ = 729. From constants::DISCRIMINANT_2.
+pub const MAX_MATCH_LEN: usize = crate::constants::T_DISCRIMINANT_2.to_u32_const() as usize;
+/// Max run length = 3⁵ = R₅ = 243. From constants::REPUNIT_5.
+pub const MAX_RUN_LEN: usize = 3_usize.pow(5);
+/// R₃ = radian = hash window size. Single boundary crossing for all hash functions.
+const HASH_W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
 
 const CRC32_TABLE: [u32; 256] = {
     let mut table = [0u32; 256];
@@ -1058,20 +1069,22 @@ pub struct GurftResult { pub tau: f64, pub delta: f64, pub entropy: f64, pub per
 impl Default for GurftResult { fn default() -> Self { Self { tau: 0.0, delta: 0.0, entropy: 0.0, periodicity: 0.0, salvi_resonance: false } } }
 
 fn compute_torsion_region(data: &[u8]) -> f64 {
+    const R3: u32 = crate::constants::T_REPUNIT_3.to_u32_const();
     let n = data.len(); if n == 0 { return 0.0; }
     let mut total = 0.0f64;
-    for k in 1..=13u32 { let mut rs = 0.0f64; let mut is_v = 0.0f64;
-        let freq = 2.0 * core::f64::consts::PI * (k as f64 / 13.0);
+    for k in 1..=R3 { let mut rs = 0.0f64; let mut is_v = 0.0f64;
+        let freq = 2.0 * core::f64::consts::PI * (k as f64 / R3 as f64);
         for (i, &b) in data.iter().enumerate() { let angle = freq * i as f64;
             rs += b as f64 * libm::cos(angle); is_v += b as f64 * libm::sin(angle); }
         let norm = libm::sqrt(rs * rs + is_v * is_v) / (n as f64 * 128.0);
         total += if norm > 1.0 { 1.0 } else { norm }; }
-    total / 13.0
+    total / R3 as f64
 }
 fn compute_delta_region(data: &[u8]) -> f64 {
-    let n = data.len().min(512); if n < 14 { return 0.0; }
+    const R3: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+    let n = data.len().min(512); if n < R3 + 1 { return 0.0; }
     let mut cross = 0.0f64; let mut sq = 0.0f64;
-    for i in 0..(n-13) { cross += data[i] as f64 * data[i+13] as f64; sq += data[i] as f64 * data[i] as f64; }
+    for i in 0..(n-R3) { cross += data[i] as f64 * data[i+R3] as f64; sq += data[i] as f64 * data[i] as f64; }
     (cross / (sq + 1e-10)).clamp(0.0, 1.0)
 }
 fn compute_periodicity(data: &[u8]) -> f64 {
@@ -1518,36 +1531,40 @@ impl Lz77Engine {
         long_head: vec![INVALID_POS; LONG_TABLE_SIZE] } }
     #[inline] fn hash(&self, data: &[u8], i: usize) -> usize { if i+2 >= data.len() { return 0; }
         ((data[i] as usize).wrapping_mul(65521) ^ (data[i+1] as usize).wrapping_mul(257) ^ data[i+2] as usize) % self.window_size }
-    /// 13-byte hash (one radian). Constants: powers of coprime generators 11 and 13.
-    #[inline] fn hash13(&self, data: &[u8], i: usize) -> usize { if i+13 > data.len() { return 0; }
+    /// R₃-byte hash (one radian). Multipliers: alternating powers of
+    /// coprime generators 11 and R₃ from constants.rs polygon set.
+    #[inline] fn hash13(&self, data: &[u8], i: usize) -> usize {
+        const G11: usize = crate::constants::T_POLYGON_11.to_u32_const() as usize;
+        const G13: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+        if i + HASH_W > data.len() { return 0; }
         let mut h = 0usize;
-        h = h.wrapping_add((data[i] as usize).wrapping_mul(11));
-        h = h.wrapping_add((data[i+1] as usize).wrapping_mul(13));
-        h = h.wrapping_add((data[i+2] as usize).wrapping_mul(121));
-        h = h.wrapping_add((data[i+3] as usize).wrapping_mul(169));
-        h = h.wrapping_add((data[i+4] as usize).wrapping_mul(1331));
-        h = h.wrapping_add((data[i+5] as usize).wrapping_mul(2197));
-        h = h.wrapping_add((data[i+6] as usize).wrapping_mul(14641));
-        h = h.wrapping_add((data[i+7] as usize).wrapping_mul(28561));
-        h = h.wrapping_add((data[i+8] as usize).wrapping_mul(161051));
-        h = h.wrapping_add((data[i+9] as usize).wrapping_mul(371293));
-        h = h.wrapping_add((data[i+10] as usize).wrapping_mul(1771561));
-        h = h.wrapping_add((data[i+11] as usize).wrapping_mul(4826809));
-        h = h.wrapping_add((data[i+12] as usize).wrapping_mul(19487171));
+        h = h.wrapping_add((data[i]    as usize).wrapping_mul(G11));
+        h = h.wrapping_add((data[i+1]  as usize).wrapping_mul(G13));
+        h = h.wrapping_add((data[i+2]  as usize).wrapping_mul(G11*G11));
+        h = h.wrapping_add((data[i+3]  as usize).wrapping_mul(G13*G13));
+        h = h.wrapping_add((data[i+4]  as usize).wrapping_mul(G11*G11*G11));
+        h = h.wrapping_add((data[i+5]  as usize).wrapping_mul(G13*G13*G13));
+        h = h.wrapping_add((data[i+6]  as usize).wrapping_mul(G11*G11*G11*G11));
+        h = h.wrapping_add((data[i+7]  as usize).wrapping_mul(G13*G13*G13*G13));
+        h = h.wrapping_add((data[i+8]  as usize).wrapping_mul(G11*G11*G11*G11*G11));
+        h = h.wrapping_add((data[i+9]  as usize).wrapping_mul(G13*G13*G13*G13*G13));
+        h = h.wrapping_add((data[i+10] as usize).wrapping_mul(G11*G11*G11*G11*G11*G11));
+        h = h.wrapping_add((data[i+11] as usize).wrapping_mul(G13*G13*G13*G13*G13*G13));
+        h = h.wrapping_add((data[i+12] as usize).wrapping_mul(G11*G11*G11*G11*G11*G11*G11));
         h & LONG_TABLE_MASK }
     fn find_best_match(&self, data: &[u8], pos: usize) -> Option<(usize, usize)> {
         if pos+2 >= data.len() { return None; }
         let mut bl = 0usize; let mut bd = 0usize;
-        // 13-byte long-distance match (checked first — finds long matches directly)
-        if pos + 13 <= data.len() {
+        // R₃-byte long-distance match (checked first — finds long matches directly)
+        if pos + HASH_W <= data.len() {
             let lh = self.hash13(data, pos);
             let lp = self.long_head[lh];
             if lp != INVALID_POS {
                 let lj = lp as usize;
                 let min_pos = pos.saturating_sub(self.window_size);
-                if lj >= min_pos && lj < pos && lj + 13 <= data.len() && data[lj..lj+13] == data[pos..pos+13] {
+                if lj >= min_pos && lj < pos && lj + HASH_W <= data.len() && data[lj..lj+HASH_W] == data[pos..pos+HASH_W] {
                     let ml = MAX_MATCH_LEN.min(data.len() - pos);
-                    let mut len = 13;
+                    let mut len = HASH_W;
                     while len < ml && lj + len < data.len() && data[lj + len] == data[pos + len] { len += 1; }
                     bl = len; bd = pos - lj;
                 }
@@ -1879,7 +1896,7 @@ fn dispatch_independent_parallel(cs: &[&[u8]], cfg: &LevelConfig, mode: Compress
 
 #[cfg(feature = "parallel")]
 fn dispatch_dependent_pipelined(cs: &[&[u8]], cfg: &LevelConfig, mode: CompressionMode, tc: &TritCostTables, dx: DomainTransform) -> Vec<ChunkResult> {
-    let cc = cs.len(); let bs = 13; let tb = (cc+bs-1)/bs;
+    let cc = cs.len(); let bs = crate::constants::T_REPUNIT_3.to_u32_const() as usize; let tb = (cc+bs-1)/bs;
     let mut results: Vec<ChunkResult> = Vec::with_capacity(cc); let mut history: Vec<u8> = Vec::new();
     let fbe = bs.min(cc);
     let mut acache: Vec<Phase1Result> = (0..fbe).into_par_iter().map(|idx| phase1_analyze(cs[idx], idx, cfg, mode)).collect();
@@ -2656,7 +2673,7 @@ mod tests {
             let data: Vec<u8> = (0..size).map(|i| text[i % text.len()]).collect();
             let opts = CompressOptions { mode: CompressionMode::Basic, level,
                 independent_chunks: false, ..Default::default() };
-            let iters = if size <= 59_049 { 10 } else if size <= 531_441 { 3 } else { 1 };
+            let iters = if size <= T3_10 { 10 } else if size <= T3_12 { 3 } else { 1 };
             let t0 = Instant::now();
             let mut result = ttc_compress(&data, &opts).unwrap();
             for _ in 1..iters { result = ttc_compress(&data, &opts).unwrap(); }

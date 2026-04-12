@@ -188,48 +188,48 @@ pub fn sponge_derive_key_tis(context: &[u8], material: &[u8], key_len: usize) ->
 // §B  UNIFIED CONSTANTS — direct from crate::constants
 // ═══════════════════════════════════════════════════════════════════════
 
-// §1 Repunit family
-#[wasm_bindgen] pub fn ternary_base() -> u32 { constants::TERNARY_BASE }
-#[wasm_bindgen] pub fn repunit_1() -> u32 { constants::REPUNIT_1 }
-#[wasm_bindgen] pub fn repunit_2() -> u32 { constants::REPUNIT_2 }
-#[wasm_bindgen] pub fn repunit_3() -> u32 { constants::REPUNIT_3 }
-#[wasm_bindgen] pub fn repunit_4() -> u32 { constants::REPUNIT_4 }
-#[wasm_bindgen] pub fn repunit_5() -> u32 { constants::REPUNIT_5 }
-#[wasm_bindgen] pub fn repunit_6() -> u32 { constants::REPUNIT_6 }
+// §1 Repunit family — boundary crossing: TritInt → u32 at FFI
+#[wasm_bindgen] pub fn ternary_base() -> u32 { 3 } // radix of the number system
+#[wasm_bindgen] pub fn repunit_1() -> u32 { constants::T_REPUNIT_1.to_u32_const() }
+#[wasm_bindgen] pub fn repunit_2() -> u32 { constants::T_REPUNIT_2.to_u32_const() }
+#[wasm_bindgen] pub fn repunit_3() -> u32 { constants::T_REPUNIT_3.to_u32_const() }
+#[wasm_bindgen] pub fn repunit_4() -> u32 { constants::T_REPUNIT_4.to_u32_const() }
+#[wasm_bindgen] pub fn repunit_5() -> u32 { constants::T_REPUNIT_5.to_u32_const() }
+#[wasm_bindgen] pub fn repunit_6() -> u32 { constants::T_REPUNIT_6.to_u32_const() }
 
-// §2 Circle quadratic
-#[wasm_bindgen] pub fn quad_sum() -> u32 { constants::QUAD_SUM }
-#[wasm_bindgen] pub fn quad_product() -> u32 { constants::QUAD_PRODUCT }
-#[wasm_bindgen] pub fn discriminant() -> u32 { constants::DISCRIMINANT }
-#[wasm_bindgen] pub fn discriminant_sqrt() -> u32 { constants::DISCRIMINANT_SQRT }
-#[wasm_bindgen] pub fn root_x1() -> u32 { constants::ROOT_X1 }
-#[wasm_bindgen] pub fn root_x2() -> u32 { constants::ROOT_X2 }
+// §2 Circle quadratic — boundary crossing: TritInt → u32 at FFI
+#[wasm_bindgen] pub fn quad_sum() -> u32 { constants::T_REPUNIT_4.to_u32_const() }
+#[wasm_bindgen] pub fn quad_product() -> u32 { constants::T_REPUNIT_6.to_u32_const() }
+#[wasm_bindgen] pub fn discriminant() -> u32 { constants::T_DISCRIMINANT.to_u32_const() }
+#[wasm_bindgen] pub fn discriminant_sqrt() -> u32 { constants::T_DISCRIMINANT_SQRT.to_u32_const() }
+#[wasm_bindgen] pub fn root_x1() -> u32 { constants::T_ROOT_X1.to_u32_const() }
+#[wasm_bindgen] pub fn root_x2() -> u32 { constants::T_ROOT_X2.to_u32_const() }
 
-// §3 Unified equation
+// §3 Unified equation — derived from T_ at this FFI boundary
 #[wasm_bindgen] pub fn unified_linear() -> u32 { constants::UNIFIED_LINEAR }
 #[wasm_bindgen] pub fn unified_constant() -> u32 { constants::UNIFIED_CONSTANT }
 #[wasm_bindgen] pub fn unified_factor() -> u32 { constants::UNIFIED_FACTOR }
 #[wasm_bindgen] pub fn unified_disc() -> u32 { constants::UNIFIED_DISC }
 #[wasm_bindgen] pub fn unified_disc_sqrt() -> u32 { constants::UNIFIED_DISC_SQRT }
-#[wasm_bindgen] pub fn arc_root_semi() -> u32 { constants::ARC_ROOT_SEMI }
-#[wasm_bindgen] pub fn arc_root_comp() -> u32 { constants::ARC_ROOT_COMP }
-#[wasm_bindgen] pub fn green_arc_eff() -> u32 { constants::GREEN_ARC_EFF }
-#[wasm_bindgen] pub fn center() -> u32 { constants::CENTER }
-#[wasm_bindgen] pub fn discriminant_2() -> u32 { constants::DISCRIMINANT_2 }
-#[wasm_bindgen] pub fn discriminant_2_sqrt() -> u32 { constants::DISCRIMINANT_2_SQRT }
-#[wasm_bindgen] pub fn magic_constant() -> u32 { constants::MAGIC_CONSTANT }
-#[wasm_bindgen] pub fn circumference() -> u32 { constants::CIRCUMFERENCE }
+#[wasm_bindgen] pub fn arc_root_semi() -> u32 { constants::T_ARC_ROOT_SEMI.to_u32_const() }
+#[wasm_bindgen] pub fn arc_root_comp() -> u32 { constants::T_ARC_ROOT_COMP.to_u32_const() }
+#[wasm_bindgen] pub fn green_arc_eff() -> u32 { constants::T_GREEN_ARC_EFF.to_u32_const() }
+#[wasm_bindgen] pub fn center() -> u32 { constants::T_CENTER.to_u32_const() }
+#[wasm_bindgen] pub fn discriminant_2() -> u32 { constants::T_DISCRIMINANT_2.to_u32_const() }
+#[wasm_bindgen] pub fn discriminant_2_sqrt() -> u32 { constants::T_DISCRIMINANT_2_SQRT.to_u32_const() }
+#[wasm_bindgen] pub fn magic_constant() -> u32 { constants::T_MAGIC_CONSTANT.to_u32_const() }
+#[wasm_bindgen] pub fn circumference() -> u32 { constants::T_CIRCUMFERENCE.to_u32_const() }
 
 // §5 Angular conversion
 #[wasm_bindgen] pub fn std_circle_deg() -> u32 { constants::STD_CIRCLE_DEG }
-#[wasm_bindgen] pub fn angular_conv_num() -> u32 { constants::ANGULAR_CONV_NUM }
-#[wasm_bindgen] pub fn angular_conv_den() -> u32 { constants::ANGULAR_CONV_DEN }
+#[wasm_bindgen] pub fn angular_conv_num() -> u32 { constants::T_LAMBDA_EUV.to_u32_const() }
+#[wasm_bindgen] pub fn angular_conv_den() -> u32 { constants::STD_CIRCLE_DEG / constants::T_REPUNIT_2.to_u32_const() }
 
-// §6 UV spectral wavelengths
-#[wasm_bindgen] pub fn lambda_euv() -> u32 { constants::LAMBDA_EUV }
-#[wasm_bindgen] pub fn lambda_uvc() -> u32 { constants::LAMBDA_UVC }
-#[wasm_bindgen] pub fn lambda_uvb() -> u32 { constants::LAMBDA_UVB }
-#[wasm_bindgen] pub fn lambda_uva() -> u32 { constants::LAMBDA_UVA }
+// §6 UV spectral wavelengths — boundary crossing at FFI
+#[wasm_bindgen] pub fn lambda_euv() -> u32 { constants::T_LAMBDA_EUV.to_u32_const() }
+#[wasm_bindgen] pub fn lambda_uvc() -> u32 { constants::T_ARC_ROOT_SEMI.to_u32_const() }
+#[wasm_bindgen] pub fn lambda_uvb() -> u32 { constants::T_GREEN_ARC_EFF.to_u32_const() }
+#[wasm_bindgen] pub fn lambda_uva() -> u32 { constants::T_REPUNIT_6.to_u32_const() }
 #[wasm_bindgen] pub fn lambda_far_uvc() -> u32 { constants::LAMBDA_FAR_UVC }
 #[wasm_bindgen] pub fn lambda_excimer() -> u32 { constants::LAMBDA_EXCIMER }
 #[wasm_bindgen] pub fn lambda_nb_uvb() -> u32 { constants::LAMBDA_NB_UVB }

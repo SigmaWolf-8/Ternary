@@ -19,14 +19,14 @@ pub const fn repunit(n: u32) -> u64 {
     (pow3 - 1) / 2
 }
 
-// Named constants matching PLATFORM
-pub const REPUNIT_R3: u64 = 13;    // 111₃ = T₇ = 1 radian
-pub const REPUNIT_R4: u64 = 40;    // 1111₃
-pub const REPUNIT_R5: u64 = 121;   // 11111₃ = 11²
-pub const REPUNIT_R6: u64 = 364;   // 111111₃ = full ternary circle
-pub const REPUNIT_R7: u64 = 1093;  // 1111111₃ (prime) — key rotation circle
-pub const REPUNIT_R8: u64 = 3280;  // 11111111₃ — certificate expiry circle
-pub const REPUNIT_R9: u64 = 9841;  // 111111111₃ — archival circle
+// Named constants — derived from constants.rs source of truth.
+pub const REPUNIT_R3: u64 = crate::constants::T_REPUNIT_3.to_u32_const() as u64;
+pub const REPUNIT_R4: u64 = crate::constants::T_REPUNIT_4.to_u32_const() as u64;
+pub const REPUNIT_R5: u64 = crate::constants::T_REPUNIT_5.to_u32_const() as u64;
+pub const REPUNIT_R6: u64 = crate::constants::T_REPUNIT_6.to_u32_const() as u64;
+pub const REPUNIT_R7: u64 = crate::trit_int::TritInt::repunit(7).to_u32_const() as u64;
+pub const REPUNIT_R8: u64 = crate::trit_int::TritInt::repunit(8).to_u32_const() as u64;
+pub const REPUNIT_R9: u64 = crate::trit_int::TritInt::repunit(9).to_u32_const() as u64;
 
 /// Full ternary circle in circle-days.
 pub const FULL_CIRCLE_DAYS: u64 = REPUNIT_R6; // 364

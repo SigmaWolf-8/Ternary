@@ -13,8 +13,8 @@
 //! this version provides only the subset needed by the signature scheme,
 //! avoiding a circular dependency between the two crates.
 
-/// Number of dimensions in the ternary hypercube.
-pub const DIMENSIONS: usize = 13;
+/// Number of dimensions in the ternary hypercube = R₃.
+pub const DIMENSIONS: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
 
 /// A 13-trit Rep C address (values 1, 2, 3).
 ///

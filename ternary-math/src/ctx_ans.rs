@@ -28,8 +28,8 @@ use crate::ttc::{
     encode_varint, decode_varint, encode_rice, decode_rice,
 };
 
-/// Z₂₇ context bins — from the algebraic circle.
-const CTX_BINS: usize = 27;
+/// Z₂₇ context bins — 3³ = 27, from the algebraic circle.
+const CTX_BINS: usize = 3_usize.pow(3);
 
 // ═══════════════════════════════════════════════════════════════
 // CONTEXT FREQUENCY TABLES
@@ -432,49 +432,56 @@ pub fn deserialize(payload: &[u8]) -> TtcResult<Vec<Token>> {
 // Single-entry table (no chain) — 13-byte collisions are rare.
 // ═══════════════════════════════════════════════════════════════
 
-/// 13-byte hash for long-distance match finding.
-/// Uses the coprime pair (11, 13) as multiplicative constants.
+/// R₃-byte hash for long-distance match finding.
+/// Window = R₃ bytes (one radian). Multipliers: alternating powers of
+/// coprime generators 11 and R₃ from constants.rs polygon set.
 pub fn hash13(data: &[u8], pos: usize) -> u32 {
-    if pos + 13 > data.len() { return 0; }
+    const W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+    const G11: u64 = crate::constants::T_POLYGON_11.to_u32_const() as u64;
+    const G13: u64 = crate::constants::T_REPUNIT_3.to_u32_const() as u64;
+    if pos + W > data.len() { return 0; }
     let mut h = 0u64;
-    // Multiply each byte by a coprime-derived constant
-    // Constants: powers of 11 and 13 interleaved
     const MULTS: [u64; 13] = [
-        11, 13, 121, 169, 1331, 2197, 14641,
-        28561, 161051, 371293, 1771561, 4826809, 19487171,
+        G11,                     G13,
+        G11*G11,                 G13*G13,
+        G11*G11*G11,             G13*G13*G13,
+        G11*G11*G11*G11,         G13*G13*G13*G13,
+        G11*G11*G11*G11*G11,     G13*G13*G13*G13*G13,
+        G11*G11*G11*G11*G11*G11, G13*G13*G13*G13*G13*G13,
+        G11*G11*G11*G11*G11*G11*G11,
     ];
-    for i in 0..13 {
+    for i in 0..W {
         h = h.wrapping_add((data[pos + i] as u64).wrapping_mul(MULTS[i]));
     }
     h as u32
 }
 
-/// Find a long-distance match using the 13-byte hash.
-/// Returns Some((distance, length)) if a match of at least 13 bytes is found.
+/// Find a long-distance match using the R₃-byte hash.
+/// Returns Some((distance, length)) if a match of at least R₃ bytes is found.
 pub fn find_long_match(
     data: &[u8], pos: usize, long_table: &[u32], table_mask: u32, max_dist: usize,
 ) -> Option<(usize, usize)> {
-    if pos + 13 > data.len() { return None; }
+    const W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+    if pos + W > data.len() { return None; }
     let h = hash13(data, pos);
     let idx = (h & table_mask) as usize;
     let prev = long_table[idx] as usize;
     if prev == 0 || prev >= pos || pos - prev > max_dist { return None; }
 
-    // Verify 13-byte prefix matches
-    if data[prev..prev + 13] != data[pos..pos + 13] { return None; }
+    if data[prev..prev + W] != data[pos..pos + W] { return None; }
 
-    // Extend match
     let max_len = data.len() - pos;
-    let mut len = 13;
+    let mut len = W;
     while len < max_len && prev + len < data.len() && data[prev + len] == data[pos + len] {
         len += 1;
     }
     Some((pos - prev, len))
 }
 
-/// Update the 13-byte long-distance hash table.
+/// Update the R₃-byte long-distance hash table.
 pub fn update_long_table(data: &[u8], pos: usize, long_table: &mut [u32], table_mask: u32) {
-    if pos + 13 > data.len() { return; }
+    const W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+    if pos + W > data.len() { return; }
     let h = hash13(data, pos);
     let idx = (h & table_mask) as usize;
     long_table[idx] = pos as u32;

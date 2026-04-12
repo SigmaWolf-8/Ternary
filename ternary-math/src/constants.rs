@@ -91,16 +91,16 @@ pub const T_DISCRIMINANT_2_SQRT: TritInt = TritInt::from_trits(&[0, 0, 0, 1]);
 
 // ── Arc equation: arc² − 832·arc + 118300 = 0 ──────────────
 
-/// arc₁ = 182 = 2 × 7 × 13 = 20022₃. The half-turn (semi-arc).
+/// arc₁ = 182 = 2 × 7 × 13 = 20202₃. The half-turn (semi-arc).
 pub const T_ARC_ROOT_SEMI: TritInt = TritInt::from_trits(&[2, 0, 2, 0, 2]);
 /// arc₂ = 650 = 2 × 5² × 13 = 212202₃. The complementary arc.
 pub const T_ARC_ROOT_COMP: TritInt = TritInt::from_trits(&[2, 0, 0, 0, 2, 2]);
-/// Green arc (effective) = 286 = 2 × 11 × 13 = 101212₃.
+/// Green arc (effective) = 286 = 2 × 11 × 13 = 101121₃.
 pub const T_GREEN_ARC_EFF: TritInt = TritInt::from_trits(&[1, 2, 1, 1, 0, 1]);
 
 // ── UV Spectral partition ───────────────────────────────────
 
-/// λ_EUV = 91 = 7 × 13 = 10011₃.
+/// λ_EUV = 91 = 7 × 13 = 10101₃.
 pub const T_LAMBDA_EUV: TritInt = TritInt::from_trits(&[1, 0, 1, 0, 1]);
 /// λ_UVC = 182 = 2 × 7 × 13 = T_ARC_ROOT_SEMI.
 pub const T_LAMBDA_UVC: TritInt = T_ARC_ROOT_SEMI;
@@ -134,7 +134,7 @@ pub const T_POLYGON_15: TritInt = TritInt::from_trits(&[0, 2, 1]);
 
 // ── Plenum Square ───────────────────────────────────────────
 
-/// Magic constant = 333 = 110000₃.
+/// Magic constant = 333 = 110100₃.
 pub const T_MAGIC_CONSTANT: TritInt = TritInt::from_trits(&[0, 0, 1, 0, 1, 1]);
 /// Center = 111 = 11010₃.
 pub const T_CENTER: TritInt = TritInt::from_trits(&[0, 1, 0, 1, 1]);
@@ -143,7 +143,7 @@ pub const T_CENTER: TritInt = TritInt::from_trits(&[0, 1, 0, 1, 1]);
 
 /// Z₂₈ group order = 28 = 1001₃.
 pub const T_Z28_ORDER: TritInt = TritInt::from_trits(&[1, 0, 0, 1]);
-/// Circumference = 1554 = 2012010₃.
+/// Circumference = 1554 = 2010120₃.
 pub const T_CIRCUMFERENCE: TritInt = TritInt::from_trits(&[0, 2, 1, 0, 1, 0, 2]);
 
 // ── Compile-time derivation verification ────────────────────
@@ -186,38 +186,42 @@ const _: () = {
 };
 
 // ══════════════════════════════════════════════════════════════
-// §0b BOUNDARY CROSSINGS — u32 exports for unmigrated consumers
+// §1+  u32 BOUNDARY CROSSINGS — BACKWARD COMPATIBILITY ONLY
 //
-// These exist ONLY because downstream modules still import u32
-// constants. As each module migrates to TritInt, its u32 export
-// is deleted. The source of truth is §0 above.
+// These exist for files NOT in this delivery (ternary_circle.rs,
+// trit.rs, torus.rs, tribonacci.rs) that still import u32 constants.
+// New code MUST cross through T_ constants at point of use:
+//
+//   const R3: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+//
+// NOT:
+//
+//   const R3: usize = crate::constants::REPUNIT_3 as usize;
+//
+// Each u32 export below is derived from its T_ source of truth.
+// Delete each one as its consumers are migrated.
 // ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
-// §1  REPUNIT FAMILY (TM-2026-017 §2.1)
+// §1  REPUNIT FAMILY — BOUNDARY CROSSINGS
+//     Derived from §0 TritInt source of truth. u32 for host use.
 // ══════════════════════════════════════════════════════════════
 
-/// The ternary radix — foundation of the number system.
-/// Used in all repunit formulas, Δ₂ = 3⁶, and recurrences.
-pub const TERNARY_BASE: u32 = 3;
+/// The ternary radix — 3.
+pub const TERNARY_BASE: u32 = T_REPUNIT_1.const_add(TritInt::from_trits(&[2])).to_u32_const();
 
-/// R₁ = (3¹ − 1)/2 = 1.
-pub const REPUNIT_1: u32 = 1;
-
-/// R₂ = (3² − 1)/2 = 4.
-pub const REPUNIT_2: u32 = 4;
-
-/// R₃ = (3³ − 1)/2 = 13. The radian unit.
-pub const REPUNIT_3: u32 = 13;
-
-/// R₄ = (3⁴ − 1)/2 = 40. Sum of circle quadratic roots.
-pub const REPUNIT_4: u32 = 40;
-
-/// R₅ = (3⁵ − 1)/2 = 121.
-pub const REPUNIT_5: u32 = 121;
-
-/// R₆ = (3⁶ − 1)/2 = 364. The full circle.
-pub const REPUNIT_6: u32 = 364;
+/// R₁ — boundary crossing from T_REPUNIT_1.
+pub const REPUNIT_1: u32 = T_REPUNIT_1.to_u32_const();
+/// R₂ — boundary crossing from T_REPUNIT_2.
+pub const REPUNIT_2: u32 = T_REPUNIT_2.to_u32_const();
+/// R₃ — boundary crossing from T_REPUNIT_3. The radian.
+pub const REPUNIT_3: u32 = T_REPUNIT_3.to_u32_const();
+/// R₄ — boundary crossing from T_REPUNIT_4. Sum of circle quadratic roots.
+pub const REPUNIT_4: u32 = T_REPUNIT_4.to_u32_const();
+/// R₅ — boundary crossing from T_REPUNIT_5.
+pub const REPUNIT_5: u32 = T_REPUNIT_5.to_u32_const();
+/// R₆ — boundary crossing from T_REPUNIT_6. The full circle.
+pub const REPUNIT_6: u32 = T_REPUNIT_6.to_u32_const();
 
 /// Master repunit generating function: Rₙ = (3ⁿ − 1) / (3 − 1).
 pub const fn repunit(n: u32) -> u32 {
@@ -229,91 +233,89 @@ pub const fn repunit(n: u32) -> u32 {
 //     x² − R₄·x + R₆ = 0  →  x² − 40x + 364 = 0
 // ══════════════════════════════════════════════════════════════
 
-/// Vieta sum x₁ + x₂ = R₄ = 40.
-pub const QUAD_SUM: u32 = 40;
+/// Vieta sum x₁ + x₂ = R₄ — derived from T_REPUNIT_4.
+pub const QUAD_SUM: u32 = REPUNIT_4;
 
-/// Vieta product x₁ · x₂ = R₆ = 364.
-pub const QUAD_PRODUCT: u32 = 364;
+/// Vieta product x₁ · x₂ = R₆ — derived from T_REPUNIT_6.
+pub const QUAD_PRODUCT: u32 = REPUNIT_6;
 
-/// Discriminant Δ = R₄² − 4·R₆ = 1600 − 1456 = 144.
-pub const DISCRIMINANT: u32 = 144;
+/// Discriminant Δ = R₄² − 4·R₆ — derived from T_DISCRIMINANT.
+pub const DISCRIMINANT: u32 = T_DISCRIMINANT.to_u32_const();
 
-/// √Δ = 12. The root spread and lattice parameter.
-pub const DISCRIMINANT_SQRT: u32 = 12;
+/// √Δ — derived from T_DISCRIMINANT_SQRT.
+pub const DISCRIMINANT_SQRT: u32 = T_DISCRIMINANT_SQRT.to_u32_const();
 
-/// Smaller root x₁ = π = (R₄ − √Δ)/2 = (40 − 12)/2 = 14.
-pub const ROOT_X1: u32 = 14;
+/// Smaller root x₁ = π — derived from T_ROOT_X1.
+pub const ROOT_X1: u32 = T_ROOT_X1.to_u32_const();
 
-/// Larger root x₂ = R₆/π = (R₄ + √Δ)/2 = (40 + 12)/2 = 26.
-pub const ROOT_X2: u32 = 26;
+/// Larger root x₂ = R₆/π — derived from T_ROOT_X2.
+pub const ROOT_X2: u32 = T_ROOT_X2.to_u32_const();
 
 // ══════════════════════════════════════════════════════════════
-// §3  UNIFIED EQUATION (TM-2026-017 §2.3–§2.7)
-//     arc² − 832·arc + 118,300 = 0
+// §3  UNIFIED EQUATION — BOUNDARY CROSSINGS
+//     Derived from §0 TritInt or from §1/§2 boundary values.
 // ══════════════════════════════════════════════════════════════
 
-/// |linear coefficient| = R₄(R₄−1) − 2R₆ = 40×39 − 728 = 832.
-pub const UNIFIED_LINEAR: u32 = 832;
+/// |linear coefficient| = R₄(R₄−1) − 2R₆.
+pub const UNIFIED_LINEAR: u32 = REPUNIT_4 * (REPUNIT_4 - 1) - 2 * REPUNIT_6;
 
-/// Constant term = R₆ · (R₆ − R₄ + 1) = 364 × 325 = 118,300.
-pub const UNIFIED_CONSTANT: u32 = 118_300;
+/// R₆ − R₄ + 1.
+pub const UNIFIED_FACTOR: u32 = REPUNIT_6 - REPUNIT_4 + 1;
 
-/// R₆ − R₄ + 1 = 364 − 40 + 1 = 325.
-pub const UNIFIED_FACTOR: u32 = 325;
+/// Constant term = R₆ × (R₆ − R₄ + 1).
+pub const UNIFIED_CONSTANT: u32 = REPUNIT_6 * UNIFIED_FACTOR;
 
-/// Δ_arc = 832² − 4·118300 = 219,024.
-pub const UNIFIED_DISC: u32 = 219_024;
+/// Δ_arc = UNIFIED_LINEAR² − 4·UNIFIED_CONSTANT.
+pub const UNIFIED_DISC: u32 = UNIFIED_LINEAR * UNIFIED_LINEAR - 4 * UNIFIED_CONSTANT;
 
-/// √Δ_arc = 468.
-pub const UNIFIED_DISC_SQRT: u32 = 468;
+/// √Δ_arc — derived from T_ARC_ROOT_COMP − T_ARC_ROOT_SEMI.
+pub const UNIFIED_DISC_SQRT: u32 = T_ARC_ROOT_COMP.to_u32_const() - T_ARC_ROOT_SEMI.to_u32_const();
 
-/// Semicircle root = (832 − 468)/2 = 182.
-pub const ARC_ROOT_SEMI: u32 = 182;
+/// Semicircle root — derived from T_ARC_ROOT_SEMI.
+pub const ARC_ROOT_SEMI: u32 = T_ARC_ROOT_SEMI.to_u32_const();
 
-/// Complementary root = (832 + 468)/2 = 650.
-pub const ARC_ROOT_COMP: u32 = 650;
+/// Complementary root — derived from T_ARC_ROOT_COMP.
+pub const ARC_ROOT_COMP: u32 = T_ARC_ROOT_COMP.to_u32_const();
 
-/// Green arc effective span = 650 − 364 = 286.
-pub const GREEN_ARC_EFF: u32 = 286;
+/// Green arc effective — derived from T_GREEN_ARC_EFF.
+pub const GREEN_ARC_EFF: u32 = T_GREEN_ARC_EFF.to_u32_const();
 
-/// Center c = (arc + R₄)/2 = (182 + 40)/2 = 111.
-/// In TM-2026-017 §2.7 notation, d = c = 111 and r = d/2 = 55.5.
-pub const CENTER: u32 = 111;
+/// Center c = (arc + R₄)/2 — derived from T_CENTER.
+pub const CENTER: u32 = T_CENTER.to_u32_const();
 
-/// Radius numerator: r = d/2 = 111/2. Stored as numerator over denominator.
-pub const RADIUS_NUM: u32 = 111;
+/// Radius numerator = CENTER.
+pub const RADIUS_NUM: u32 = CENTER;
 
 /// Radius denominator.
 pub const RADIUS_DEN: u32 = 2;
 
-/// Δ₂ = 1 + 4·arc = 1 + 4·182 = 729 = 3⁶ = 27².
-/// The kernel sponge state width of TLSponge-385.
-pub const DISCRIMINANT_2: u32 = 729;
+/// Δ₂ — derived from T_DISCRIMINANT_2.
+pub const DISCRIMINANT_2: u32 = T_DISCRIMINANT_2.to_u32_const();
 
-/// √Δ₂ = 27.
-pub const DISCRIMINANT_2_SQRT: u32 = 27;
+/// √Δ₂ — derived from T_DISCRIMINANT_2_SQRT.
+pub const DISCRIMINANT_2_SQRT: u32 = T_DISCRIMINANT_2_SQRT.to_u32_const();
 
-/// Hexagon perimeter = 6r = 3d = 3 × 111 = 333 (d = CENTER = 111).
-pub const MAGIC_CONSTANT: u32 = 333;
+/// Magic constant — derived from T_MAGIC_CONSTANT.
+pub const MAGIC_CONSTANT: u32 = T_MAGIC_CONSTANT.to_u32_const();
 
-/// Circumference πd = 14 × 111 = 1554 = 28r = 2πr (d = CENTER = 111).
-pub const CIRCUMFERENCE: u32 = 1554;
+/// Circumference — derived from T_CIRCUMFERENCE.
+pub const CIRCUMFERENCE: u32 = T_CIRCUMFERENCE.to_u32_const();
 
 // ══════════════════════════════════════════════════════════════
 // §4  SQUARED CIRCLE (TM-2026-017 §3)
 // ══════════════════════════════════════════════════════════════
 
-/// Unit circle area = πr² = 14 × 1² = π = 14.
-pub const UNIT_CIRCLE_AREA: u32 = 14;
+/// Unit circle area = π = x₁ — derived from T_ROOT_X1.
+pub const UNIT_CIRCLE_AREA: u32 = ROOT_X1;
 
-/// Radian circle area = πr² = 14 × 13 = 182 (r = √13).
-pub const RADIAN_CIRCLE_AREA: u32 = 182;
+/// Radian circle area = π × R₃ — derived from T_ARC_ROOT_SEMI.
+pub const RADIAN_CIRCLE_AREA: u32 = ARC_ROOT_SEMI;
 
-/// Side² of squared unit circle = π = 14.
-pub const SQUARED_SIDE_SQ_UNIT: u32 = 14;
+/// Side² of squared unit circle = π — same as ROOT_X1.
+pub const SQUARED_SIDE_SQ_UNIT: u32 = ROOT_X1;
 
-/// Side² of squared r=√13 circle = 182.
-pub const SQUARED_SIDE_SQ_RADIAN: u32 = 182;
+/// Side² of squared radian circle — same as ARC_ROOT_SEMI.
+pub const SQUARED_SIDE_SQ_RADIAN: u32 = ARC_ROOT_SEMI;
 
 // ══════════════════════════════════════════════════════════════
 // §5  ANGULAR CONVERSION FACTOR
@@ -322,51 +324,51 @@ pub const SQUARED_SIDE_SQ_RADIAN: u32 = 182;
 /// Standard circle in degrees — external reference (not derived from ternary axiom).
 pub const STD_CIRCLE_DEG: u32 = 360;
 
-/// Angular conversion factor numerator: κ = R₆/360 = 364/360 = 91/90.
-pub const ANGULAR_CONV_NUM: u32 = 91;
+/// Angular conversion factor numerator: κ = R₆/360 = 91/90. Same as λ_EUV.
+pub const ANGULAR_CONV_NUM: u32 = T_LAMBDA_EUV.to_u32_const();
 
 /// Angular conversion factor denominator.
-pub const ANGULAR_CONV_DEN: u32 = 90;
+pub const ANGULAR_CONV_DEN: u32 = STD_CIRCLE_DEG / T_REPUNIT_2.to_u32_const();
 
 // ══════════════════════════════════════════════════════════════
 // §6  UV SPECTRAL WAVELENGTHS (TM-2026-017 §16, §2.5)
 // ══════════════════════════════════════════════════════════════
 
-/// Quarter-turn = 7 × 13 = 7 radians. Lyman anchor.
-pub const LAMBDA_EUV: u32 = 91;
+/// Quarter-turn = 7 × 13 = 7 radians — derived from T_LAMBDA_EUV.
+pub const LAMBDA_EUV: u32 = T_LAMBDA_EUV.to_u32_const();
 
-/// Half-turn = 14 × 13 = π radians. O₂ absorption wall.
-pub const LAMBDA_UVC: u32 = 182;
+/// Half-turn = 14 × 13 = π radians — same as ARC_ROOT_SEMI.
+pub const LAMBDA_UVC: u32 = ARC_ROOT_SEMI;
 
-/// Green arc effective = 22 × 13 = 22 radians. Ozone bridge.
-pub const LAMBDA_UVB: u32 = 286;
+/// Green arc effective = 22 × 13 = 22 radians — same as GREEN_ARC_EFF.
+pub const LAMBDA_UVB: u32 = GREEN_ARC_EFF;
 
-/// Full circle = 28 × 13 = 2π radians. Full transmission.
-pub const LAMBDA_UVA: u32 = 364;
+/// Full circle = 28 × 13 = 2π radians — same as REPUNIT_6.
+pub const LAMBDA_UVA: u32 = REPUNIT_6;
 
-/// Far-UVC = 2 × CENTER = 2 × 111 = 222.
-pub const LAMBDA_FAR_UVC: u32 = 222;
+/// Far-UVC = 2 × CENTER.
+pub const LAMBDA_FAR_UVC: u32 = 2 * CENTER;
 
-/// XeCl excimer = 4 × 7 × 11 = 308.
-pub const LAMBDA_EXCIMER: u32 = 308;
+/// XeCl excimer = 4 × 7 × 11.
+pub const LAMBDA_EXCIMER: u32 = T_REPUNIT_2.to_u32_const()
+    * T_POLYGON_7.to_u32_const()
+    * T_POLYGON_11.to_u32_const();
 
-/// Narrowband UVB = e₂ = pq + pr + qr = 7×11 + 7×13 + 11×13 = 311.
-pub const LAMBDA_NB_UVB: u32 = 311;
+/// Narrowband UVB = e₂ = pq + pr + qr = 7×11 + 7×13 + 11×13.
+pub const LAMBDA_NB_UVB: u32 = T_POLYGON_7.to_u32_const() * T_POLYGON_11.to_u32_const()
+    + T_POLYGON_7.to_u32_const() * REPUNIT_3
+    + T_POLYGON_11.to_u32_const() * REPUNIT_3;
 
-/// EUV|UVC boundary = floor((91 + 182) / 2) = 136.
-/// Note: exact midpoint is 136.5 nm — half-integer truncated to u32.
-pub const BOUNDARY_EUV_UVC: u32 = 136;
+/// EUV|UVC boundary = (λ_EUV + λ_UVC) / 2. Truncated half-integer.
+pub const BOUNDARY_EUV_UVC: u32 = (LAMBDA_EUV + LAMBDA_UVC) / 2;
 
-/// UVC|UVB boundary = (182 + 286) / 2 = 234 (exact integer).
-pub const BOUNDARY_UVC_UVB: u32 = 234;
+/// UVC|UVB boundary = (λ_UVC + λ_UVB) / 2.
+pub const BOUNDARY_UVC_UVB: u32 = (LAMBDA_UVC + LAMBDA_UVB) / 2;
 
-/// UVB|UVA boundary = (286 + 364) / 2 = 325 (exact integer).
-/// Structural tie: this equals UNIFIED_FACTOR = R₆ − R₄ + 1 = 325.
-/// The spectral partition boundary and the algebraic factor that generates
-/// the unified equation's constant term (118,300 = 364 × 325) are the same number.
-pub const BOUNDARY_UVB_UVA: u32 = 325;
+/// UVB|UVA boundary = (λ_UVB + λ_UVA) / 2 = UNIFIED_FACTOR.
+pub const BOUNDARY_UVB_UVA: u32 = (LAMBDA_UVB + LAMBDA_UVA) / 2;
 
-/// UV|Visible boundary.
+/// UV|Visible boundary — external reference.
 pub const BOUNDARY_UV_VIS: u32 = 400;
 
 /// Vacuum bias numerator: (1/R_H − 91)/91 ≈ 0.00193.
@@ -403,16 +405,24 @@ pub const VACUUM_BIAS_DEN: u32 = 100_000;
 // is impossible.
 // ══════════════════════════════════════════════════════════════
 
-/// Pentadecagon = 15 = 3 × 5. Bridges triangle and pentagon families.
-/// Either kept whole (compression path, max 30,030) or decomposed
-/// into its prime factors (expansion path, max 360,360).
-pub const PENTADECAGON: u32 = 15;
+/// Pentadecagon — derived from T_POLYGON_15.
+pub const PENTADECAGON: u32 = T_POLYGON_15.to_u32_const();
 
-/// Excluded pairs — gcd > 1 prevents coexistence in any coprime group.
-/// (7, 14): gcd = 7, compression path. Blocks (7, 14) torus knots.
-/// (3, 9): gcd = 3, expansion path. Shapes sextuple selection.
-/// (4, 8): gcd = 4, expansion path. Shapes sextuple selection.
-pub const EXCLUDED_PAIRS: [(u32, u32); 3] = [(7, 14), (3, 9), (4, 8)];
+// Polygon generator aliases for table readability.
+// Source of truth: §0 T_POLYGON_* TritInt constants.
+const P3: u32 = T_POLYGON_3.to_u32_const();
+const P4: u32 = T_POLYGON_4.to_u32_const();
+const P5: u32 = T_POLYGON_5.to_u32_const();
+const P7: u32 = T_POLYGON_7.to_u32_const();
+const P8: u32 = T_POLYGON_8.to_u32_const();
+const P9: u32 = T_POLYGON_9.to_u32_const();
+const P11: u32 = T_POLYGON_11.to_u32_const();
+const P13: u32 = T_POLYGON_13.to_u32_const();
+const P14: u32 = T_POLYGON_14.to_u32_const();
+const P15: u32 = T_POLYGON_15.to_u32_const();
+
+/// Excluded pairs — gcd > 1 prevents coexistence.
+pub const EXCLUDED_PAIRS: [(u32, u32); 3] = [(P7, P14), (P3, P9), (P4, P8)];
 
 // ── COMPRESSION PATH ─────────────────────────────────────────
 // Source set: {7, 11, 13, 14, 15}. Pentadecagon kept whole.
@@ -421,13 +431,17 @@ pub const EXCLUDED_PAIRS: [(u32, u32); 3] = [(7, 14), (3, 9), (4, 8)];
 
 /// 9 coprime pairs from {7, 11, 13, 14, 15} (TM-2026-017 §10.3).
 pub const COPRIME_PAIRS: [(u32, u32); 9] = [
-    (7, 11), (7, 13), (7, 15),
-    (11, 13), (11, 14), (11, 15),
-    (13, 14), (13, 15), (14, 15),
+    (P7, P11), (P7, P13), (P7, P15),
+    (P11, P13), (P11, P14), (P11, P15),
+    (P13, P14), (P13, P15), (P14, P15),
 ];
 
-/// LCMs of the 9 coprime pairs. Indexed to match COPRIME_PAIRS.
-pub const COPRIME_PAIR_LCMS: [u32; 9] = [77, 91, 105, 143, 154, 165, 182, 195, 210];
+/// LCMs of the 9 coprime pairs — products of coprime generators.
+pub const COPRIME_PAIR_LCMS: [u32; 9] = [
+    P7*P11, P7*P13, P7*P15,
+    P11*P13, P11*P14, P11*P15,
+    P13*P14, P13*P15, P14*P15,
+];
 
 // ── Triples (7, complete) ────────────────────────────────────
 
@@ -435,23 +449,26 @@ pub const COPRIME_PAIR_LCMS: [u32; 9] = [77, 91, 105, 143, 154, 165, 182, 195, 2
 /// COPRIME_TRIPLES[0] = [7, 11, 13] — the primary generators from the
 /// arc factorizations: 182 = 2×7×13, 286 = 2×11×13 → ratio 7:11.
 pub const COPRIME_TRIPLES: [[u32; 3]; 7] = [
-    [7, 11, 13], [7, 11, 15], [7, 13, 15],
-    [11, 13, 14], [11, 13, 15], [11, 14, 15], [13, 14, 15],
+    [P7, P11, P13], [P7, P11, P15], [P7, P13, P15],
+    [P11, P13, P14], [P11, P13, P15], [P11, P14, P15], [P13, P14, P15],
 ];
 
-/// LCMs of the 7 coprime triples. Indexed to match COPRIME_TRIPLES.
-pub const COPRIME_TRIPLE_LCMS: [u32; 7] = [1_001, 1_155, 1_365, 2_002, 2_145, 2_310, 2_730];
+/// LCMs of the 7 coprime triples — products of coprime generators.
+pub const COPRIME_TRIPLE_LCMS: [u32; 7] = [
+    P7*P11*P13, P7*P11*P15, P7*P13*P15,
+    P11*P13*P14, P11*P13*P15, P11*P14*P15, P13*P14*P15,
+];
 
 // ── Quadruples (2, complete) ─────────────────────────────────
 
 /// 2 compression-path coprime quadruples (TM-2026-017 §10.4).
 pub const COPRIME_QUADRUPLES: [[u32; 4]; 2] = [
-    [7, 11, 13, 15],   // odd-prime quadruple
-    [11, 13, 14, 15],  // π-gon quadruple
+    [P7, P11, P13, P15],
+    [P11, P13, P14, P15],
 ];
 
-/// LCMs of the 2 compression-path quadruples. Indexed to match COPRIME_QUADRUPLES.
-pub const COPRIME_QUADRUPLE_LCMS: [u32; 2] = [15_015, 30_030];
+/// LCMs of the 2 compression-path quadruples — products of coprime generators.
+pub const COPRIME_QUADRUPLE_LCMS: [u32; 2] = [P7*P11*P13*P15, P11*P13*P14*P15];
 
 // ── EXPANSION PATH ───────────────────────────────────────────
 // Pentadecagon decomposed: 15 → {3, 5}.
@@ -465,15 +482,18 @@ pub const COPRIME_QUADRUPLE_LCMS: [u32; 2] = [15_015, 30_030];
 /// the decompression identity: quint[0] == quad[0] in LCM, and
 /// quint[1] == quad[1] in LCM, because 3 × 5 = 15.
 pub const COPRIME_QUINTUPLES: [[u32; 5]; 5] = [
-    [3, 5, 7, 11, 13],   // decompressed odd-prime quad → LCM = 15,015
-    [3, 5, 11, 13, 14],  // decompressed π-gon quad   → LCM = 30,030
-    [3, 4, 7, 11, 13],   // adds square               → LCM = 12,012
-    [5, 7, 8, 11, 13],   // octagon path               → LCM = 40,040
-    [5, 7, 9, 11, 13],   // nonagon path               → LCM = 45,045
+    [P3, P5, P7, P11, P13],
+    [P3, P5, P11, P13, P14],
+    [P3, P4, P7, P11, P13],
+    [P5, P7, P8, P11, P13],
+    [P5, P7, P9, P11, P13],
 ];
 
-/// LCMs of the 5 key quintuples. Indexed to match COPRIME_QUINTUPLES.
-pub const COPRIME_QUINTUPLE_LCMS: [u32; 5] = [15_015, 30_030, 12_012, 40_040, 45_045];
+/// LCMs of the 5 key quintuples — products of coprime generators.
+pub const COPRIME_QUINTUPLE_LCMS: [u32; 5] = [
+    P3*P5*P7*P11*P13, P3*P5*P11*P13*P14, P3*P4*P7*P11*P13,
+    P5*P7*P8*P11*P13, P5*P7*P9*P11*P13,
+];
 
 // ── Sextuples (4, complete) ──────────────────────────────────
 
@@ -482,72 +502,75 @@ pub const COPRIME_QUINTUPLE_LCMS: [u32; 5] = [15_015, 30_030, 12_012, 40_040, 45
 /// {3|9} × {4|8}, with {5, 7, 11, 13} always present.
 /// No group of 7 exists — size 6 is the structural limit.
 pub const COPRIME_SEXTUPLES: [[u32; 6]; 4] = [
-    [3, 4, 5, 7, 11, 13],  // sextuple A: 3 chosen over 9, 4 chosen over 8 → LCM = 60,060
-    [3, 5, 7, 8, 11, 13],  // sextuple B: 3 chosen over 9, 8 chosen over 4 → LCM = 120,120
-    [4, 5, 7, 9, 11, 13],  // sextuple C: 9 chosen over 3, 4 chosen over 8 → LCM = 180,180
-    [5, 7, 8, 9, 11, 13],  // sextuple MAX: 9 chosen over 3, 8 chosen over 4 → LCM = 360,360
+    [P3, P4, P5, P7, P11, P13],
+    [P3, P5, P7, P8, P11, P13],
+    [P4, P5, P7, P9, P11, P13],
+    [P5, P7, P8, P9, P11, P13],
 ];
 
-/// LCMs of the 4 expansion-path sextuples. Indexed to match COPRIME_SEXTUPLES.
-pub const COPRIME_SEXTUPLE_LCMS: [u32; 4] = [60_060, 120_120, 180_180, 360_360];
+/// LCMs of the 4 expansion-path sextuples — products of coprime generators.
+pub const COPRIME_SEXTUPLE_LCMS: [u32; 4] = [
+    P3*P4*P5*P7*P11*P13, P3*P5*P7*P8*P11*P13,
+    P4*P5*P7*P9*P11*P13, P5*P7*P8*P9*P11*P13,
+];
 
 // ── Key aliases ──────────────────────────────────────────────
 // Heavily cross-referenced in §8, §9, §10, §17.
 
-/// LCM of primary coprime generators: 7 × 11 × 13 = 1,001.
-/// = COPRIME_TRIPLE_LCMS[0].
-pub const LCM_PRIMARY: u32 = 1_001;
+/// LCM of primary coprime generators — same as COPRIME_TRIPLE_LCMS[0].
+pub const LCM_PRIMARY: u32 = COPRIME_TRIPLE_LCMS[0];
 
-/// Maximum sextuple LCM: 360 × 1,001 = 360,360.
-/// = COPRIME_SEXTUPLE_LCMS[3].
-pub const LCM_SEXT_MAX: u32 = 360_360;
+/// Maximum sextuple LCM — same as COPRIME_SEXTUPLE_LCMS[3].
+pub const LCM_SEXT_MAX: u32 = COPRIME_SEXTUPLE_LCMS[3];
 
-/// Circle × coprime walk: R₆ × LCM_PRIMARY = 364 × 1,001 = 364,364.
-/// Repdigit structure: 364 repeats through the triple.
-/// Factorization: 2² × 7² × 11 × 13².
-pub const GEOMETRIC_SPECTRAL_PRODUCT: u32 = 364_364;
+/// Circle × coprime walk: R₆ × LCM_PRIMARY.
+pub const GEOMETRIC_SPECTRAL_PRODUCT: u32 = REPUNIT_6 * LCM_PRIMARY;
 
 // ── 3D position counts (× 729 = Δ₂ = 3⁶) ───────────────────
 
-/// 3D positions for the primary triple: 1,001 × 729 = 729,729.
-pub const POS_3D_PRIMARY: u64 = 729_729;
+/// 3D positions for the primary triple: LCM_PRIMARY × Δ₂.
+pub const POS_3D_PRIMARY: u64 = (LCM_PRIMARY as u64) * (DISCRIMINANT_2 as u64);
 
 /// 3D positions for the 2 compression-path quadruples.
 /// Indexed to match COPRIME_QUADRUPLES.
-pub const POS_3D_QUADRUPLES: [u64; 2] = [10_945_935, 21_891_870];
+pub const POS_3D_QUADRUPLES: [u64; 2] = [
+    (COPRIME_QUADRUPLE_LCMS[0] as u64) * (DISCRIMINANT_2 as u64),
+    (COPRIME_QUADRUPLE_LCMS[1] as u64) * (DISCRIMINANT_2 as u64),
+];
 
 /// 3D positions for the 4 expansion-path sextuples.
 /// Indexed to match COPRIME_SEXTUPLES.
-pub const POS_3D_SEXTUPLES: [u64; 4] = [43_783_740, 87_567_480, 131_351_220, 262_702_440];
+pub const POS_3D_SEXTUPLES: [u64; 4] = [
+    (COPRIME_SEXTUPLE_LCMS[0] as u64) * (DISCRIMINANT_2 as u64),
+    (COPRIME_SEXTUPLE_LCMS[1] as u64) * (DISCRIMINANT_2 as u64),
+    (COPRIME_SEXTUPLE_LCMS[2] as u64) * (DISCRIMINANT_2 as u64),
+    (COPRIME_SEXTUPLE_LCMS[3] as u64) * (DISCRIMINANT_2 as u64),
+];
 
 // ══════════════════════════════════════════════════════════════
 // §8  CCP BRIDGE ANALYSIS (Circle × Coprime Product deficit)
-//
-// GEOMETRIC_SPECTRAL_PRODUCT (364,364) is defined in §7.
-// This section derives the deficit, ratio, and 3D products
-// from the gap between 364,364 and 360,360.
 // ══════════════════════════════════════════════════════════════
 
-/// 364,364 − 360,360 = 4,004 = 4 × 1,001. Null harmonic deficit.
-pub const NULL_HARMONIC_DEFICIT: u32 = 4_004;
+/// GEOMETRIC_SPECTRAL_PRODUCT − LCM_SEXT_MAX. Null harmonic deficit.
+pub const NULL_HARMONIC_DEFICIT: u32 = GEOMETRIC_SPECTRAL_PRODUCT - LCM_SEXT_MAX;
 
-/// Bridge ratio numerator: 364,364 / 360,360 = 91/90.
-pub const BRIDGE_RATIO_NUM: u32 = 91;
+/// Bridge ratio — same as angular conversion factor κ = 91/90.
+pub const BRIDGE_RATIO_NUM: u32 = ANGULAR_CONV_NUM;
 
 /// Bridge ratio denominator.
-pub const BRIDGE_RATIO_DEN: u32 = 90;
+pub const BRIDGE_RATIO_DEN: u32 = ANGULAR_CONV_DEN;
 
-/// Deficit rate numerator: 4,004 / 364,364 = 4/364 = 1/91.
+/// Deficit rate numerator: NULL_HARMONIC_DEFICIT / GEOMETRIC_SPECTRAL_PRODUCT = 1/91.
 pub const DEFICIT_RATE_NUM: u32 = 1;
 
-/// Deficit rate denominator.
-pub const DEFICIT_RATE_DEN: u32 = 91;
+/// Deficit rate denominator = λ_EUV.
+pub const DEFICIT_RATE_DEN: u32 = LAMBDA_EUV;
 
-/// 3D geometric-spectral: 364,364 × 729.
-pub const POS_3D_GEOM_SPECTRAL: u64 = 265_621_356;
+/// 3D geometric-spectral: GEOMETRIC_SPECTRAL_PRODUCT × Δ₂.
+pub const POS_3D_GEOM_SPECTRAL: u64 = (GEOMETRIC_SPECTRAL_PRODUCT as u64) * (DISCRIMINANT_2 as u64);
 
-/// 3D null deficit: 4,004 × 729.
-pub const POS_3D_NULL_DEFICIT: u64 = 2_918_916;
+/// 3D null deficit: NULL_HARMONIC_DEFICIT × Δ₂.
+pub const POS_3D_NULL_DEFICIT: u64 = (NULL_HARMONIC_DEFICIT as u64) * (DISCRIMINANT_2 as u64);
 
 // ══════════════════════════════════════════════════════════════
 // §9  PERFECT HASH COEFFICIENTS (TM-2026-028a §2–§3)
@@ -555,17 +578,13 @@ pub const POS_3D_NULL_DEFICIT: u64 = 2_918_916;
 
 /// CRT coefficients for odd-prime quadruple (7, 11, 13, 15).
 /// Tuple order: (modulus, coefficient). Each c satisfies gcd(c, m) = 1 and c mod m ≠ 0.
-pub const HASH_COEFF_A: [(u32, u32); 4] = [(7, 2), (11, 3), (13, 5), (15, 7)];
+pub const HASH_COEFF_A: [(u32, u32); 4] = [(P7, 2), (P11, 3), (P13, 5), (P15, 7)];
 
-/// CRT coefficients for π-gon quadruple (11, 13, 14, 15).
-/// Tuple order: (modulus, coefficient). Each c satisfies gcd(c, m) = 1 and c mod m ≠ 0.
-pub const HASH_COEFF_B: [(u32, u32); 4] = [(11, 2), (13, 3), (14, 5), (15, 7)];
+/// CRT coefficients for π-gon quadruple.
+pub const HASH_COEFF_B: [(u32, u32); 4] = [(P11, 2), (P13, 3), (P14, 5), (P15, 7)];
 
-/// CRT coefficients for maximum sextuple (5, 7, 8, 9, 11, 13).
-/// Tuple order: (modulus, coefficient). Each c satisfies gcd(c, m) = 1 and c mod m ≠ 0.
-/// Note: original TM-2026-028a §3.2 uses (11,11) and (13,13), but c mod m = 0
-/// destroys bijectivity. Using c₁₁ = 4 and c₁₃ = 6 instead (known erratum).
-pub const HASH_COEFF_SEXT: [(u32, u32); 6] = [(5, 2), (7, 3), (8, 5), (9, 7), (11, 4), (13, 6)];
+/// CRT coefficients for maximum sextuple.
+pub const HASH_COEFF_SEXT: [(u32, u32); 6] = [(P5, 2), (P7, 3), (P8, 5), (P9, 7), (P11, 4), (P13, 6)];
 
 /// HModal mixer constant A (multiply after shift-12). Odd → bijective mod 2⁶⁴.
 pub const HMODAL_MIX_A: u64 = 0x91e3d5c9a3e5d1c3;
@@ -586,50 +605,47 @@ pub const HMODAL_MIX_SHIFT_3: u32 = 33;
 // §10  HMODAL SIGNAL CONSTANTS (TM-2026-028 §2, TM-2026-017 §17)
 // ══════════════════════════════════════════════════════════════
 
-/// Idle state numerator: α = R₆/Δ = 364/144 = 91/36.
-pub const ALPHA_NUM: u32 = 91;
+/// Idle state numerator: α = R₆/Δ = 91/36. Numerator = λ_EUV.
+pub const ALPHA_NUM: u32 = LAMBDA_EUV;
 
-/// Idle state denominator.
-pub const ALPHA_DEN: u32 = 36;
+/// Idle state denominator: Δ/R₂.
+pub const ALPHA_DEN: u32 = DISCRIMINANT / REPUNIT_2;
 
-/// Dispatch state numerator: β = R₆/√Δ = 364/12 = 91/3.
-pub const BETA_NUM: u32 = 91;
+/// Dispatch state numerator: β = R₆/√Δ = 91/3. Numerator = λ_EUV.
+pub const BETA_NUM: u32 = LAMBDA_EUV;
 
-/// Dispatch state denominator.
-pub const BETA_DEN: u32 = 3;
+/// Dispatch state denominator = TERNARY_BASE.
+pub const BETA_DEN: u32 = TERNARY_BASE;
 
-/// Transition magnitude numerator: γ = β − α = 1001/36.
-/// 1001 = 7 × 11 × 13 — the coprime walk product appears in the transition.
-pub const GAMMA_NUM: u32 = 1001;
+/// Transition magnitude numerator: γ = β − α = LCM_PRIMARY / 36.
+pub const GAMMA_NUM: u32 = LCM_PRIMARY;
 
-/// Transition magnitude denominator.
-pub const GAMMA_DEN: u32 = 36;
+/// Transition magnitude denominator — same as ALPHA_DEN.
+pub const GAMMA_DEN: u32 = ALPHA_DEN;
 
-/// Dispatch-to-idle time ratio numerator = 1/3.
+/// Dispatch-to-idle time ratio = 1/TERNARY_BASE.
 pub const DISPATCH_RATIO_NUM: u32 = 1;
 
 /// Dispatch-to-idle time ratio denominator.
-pub const DISPATCH_RATIO_DEN: u32 = 3;
+pub const DISPATCH_RATIO_DEN: u32 = TERNARY_BASE;
 
-/// Duty cycle numerator: d = 1/4.
-/// Derivation: d = (1/3)/(1 + 1/3) = (1/3)/(4/3) = 1/4.
+/// Duty cycle = 1/R₂.
 pub const DUTY_NUM: u32 = 1;
 
 /// Duty cycle denominator.
-pub const DUTY_DEN: u32 = 4;
+pub const DUTY_DEN: u32 = REPUNIT_2;
 
-/// DC component numerator: ⟨H⟩ = α + γd = 455/48.
-/// 455 = 5 × 7 × 13 — the factor 5 emerges uninvited.
-pub const DC_NUM: u32 = 455;
+/// DC component numerator: ⟨H⟩ = α + γd = (R₆ + LCM_PRIMARY) / TERNARY_BASE.
+pub const DC_NUM: u32 = (REPUNIT_6 + LCM_PRIMARY) / TERNARY_BASE;
 
-/// DC component denominator.
-pub const DC_DEN: u32 = 48;
+/// DC component denominator: Δ / TERNARY_BASE.
+pub const DC_DEN: u32 = DISCRIMINANT / TERNARY_BASE;
 
-/// AC power numerator: P_AC = γ²·d(1−d) = 3,006,003/20,736.
-pub const AC_POWER_NUM: u32 = 3_006_003;
+/// AC power numerator: P_AC = γ²·d(1−d). LCM_PRIMARY² × TERNARY_BASE.
+pub const AC_POWER_NUM: u32 = LCM_PRIMARY * LCM_PRIMARY * TERNARY_BASE;
 
-/// AC power denominator.
-pub const AC_POWER_DEN: u32 = 20_736;
+/// AC power denominator: ALPHA_DEN² × DUTY_DEN².
+pub const AC_POWER_DEN: u32 = ALPHA_DEN * ALPHA_DEN * DUTY_DEN * DUTY_DEN;
 
 /// HModal trit mapping — low (α state, 75% dwell).
 pub const HMODAL_TRIT_LOW: i8 = -1;
@@ -637,12 +653,11 @@ pub const HMODAL_TRIT_LOW: i8 = -1;
 /// HModal trit mapping — mid (transition, zero-crossing).
 pub const HMODAL_TRIT_MID: i8 = 0;
 
-/// Transition midpoint signal level numerator: (α+β)/2 = 1183/72.
-/// 1183 = 91 × 13 = ALPHA_NUM × REPUNIT_3.
-pub const HMODAL_TRIT_MID_NUM: u32 = 1183;
+/// Transition midpoint signal level numerator: (α+β)/2 = λ_EUV × R₃ / (2 × ALPHA_DEN).
+pub const HMODAL_TRIT_MID_NUM: u32 = LAMBDA_EUV * REPUNIT_3;
 
 /// Transition midpoint signal level denominator.
-pub const HMODAL_TRIT_MID_DEN: u32 = 72;
+pub const HMODAL_TRIT_MID_DEN: u32 = 2 * ALPHA_DEN;
 
 /// HModal trit mapping — high (β state, 25% dwell).
 pub const HMODAL_TRIT_HIGH: i8 = 1;
@@ -651,94 +666,92 @@ pub const HMODAL_TRIT_HIGH: i8 = 1;
 // §11  CHANNEL ARCHITECTURE (TM-2026-028 §3–§4)
 // ══════════════════════════════════════════════════════════════
 
-/// Null-channel modulus: A_n = 0 exactly when n ≡ 0 (mod 4).
-pub const NULL_CHANNEL_MOD: u32 = 4;
+/// Null-channel modulus = R₂ = 4.
+pub const NULL_CHANNEL_MOD: u32 = REPUNIT_2;
 
-/// Period of |sin(πn/4)| = 2 × NULL_CHANNEL_MOD = 8.
-pub const SIN_PERIOD: u32 = 8;
+/// Period of |sin(πn/4)| = 2 × R₂.
+pub const SIN_PERIOD: u32 = 2 * REPUNIT_2;
 
-/// Phase step numerator: each harmonic rotates by π/4 (fraction of π).
+/// Phase step = 1/R₂.
 pub const PHASE_STEP_NUM: u32 = 1;
-
-/// Phase step denominator.
-pub const PHASE_STEP_DEN: u32 = 4;
+pub const PHASE_STEP_DEN: u32 = REPUNIT_2;
 
 // ══════════════════════════════════════════════════════════════
 // §12  POLYGON GEOMETRY (TM-2026-017 §4–§5)
 // ══════════════════════════════════════════════════════════════
 
-/// Number of regular n-gons for n = 3..15 = radian unit.
-pub const POLYGON_COUNT: u32 = 13;
+/// Number of regular n-gons for n = 3..15 = R₃.
+pub const POLYGON_COUNT: u32 = REPUNIT_3;
 
-/// Central angle generating function: θ_n = 364/n.
+/// Central angle generating function: θ_n = R₆/n.
 pub const fn central_angle(n: u32) -> (u32, u32) {
-    (QUAD_PRODUCT, n)
+    (REPUNIT_6, n)
 }
 
-/// θ₃ = 364/3 (rational).
-pub const CENTRAL_ANGLE_TRIANGLE: (u32, u32) = (364, 3);
+/// θ₃ = R₆/3.
+pub const CENTRAL_ANGLE_TRIANGLE: (u32, u32) = (REPUNIT_6, P3);
 
-/// θ₄ = 364/4 = 91° (exact integer).
-pub const CENTRAL_ANGLE_SQUARE: u32 = 91;
+/// θ₄ = R₆/R₂ = λ_EUV (exact integer).
+pub const CENTRAL_ANGLE_SQUARE: u32 = REPUNIT_6 / REPUNIT_2;
 
-/// θ₅ = 364/5 (rational).
-pub const CENTRAL_ANGLE_PENTAGON: (u32, u32) = (364, 5);
+/// θ₅ = R₆/5.
+pub const CENTRAL_ANGLE_PENTAGON: (u32, u32) = (REPUNIT_6, P5);
 
-/// θ₆ = 364/6 (rational).
-pub const CENTRAL_ANGLE_HEXAGON: (u32, u32) = (364, 6);
+/// θ₆ = R₆/6.
+pub const CENTRAL_ANGLE_HEXAGON: (u32, u32) = (REPUNIT_6, 2 * P3);
 
-/// θ₇ = 364/7 = 52° (exact integer).
-pub const CENTRAL_ANGLE_HEPTAGON: u32 = 52;
+/// θ₇ = R₆/7 (exact integer).
+pub const CENTRAL_ANGLE_HEPTAGON: u32 = REPUNIT_6 / P7;
 
-/// θ₈ = 364/8 (rational).
-pub const CENTRAL_ANGLE_OCTAGON: (u32, u32) = (364, 8);
+/// θ₈ = R₆/8.
+pub const CENTRAL_ANGLE_OCTAGON: (u32, u32) = (REPUNIT_6, P8);
 
-/// θ₉ = 364/9 (rational).
-pub const CENTRAL_ANGLE_ENNEAGON: (u32, u32) = (364, 9);
+/// θ₉ = R₆/9.
+pub const CENTRAL_ANGLE_ENNEAGON: (u32, u32) = (REPUNIT_6, P9);
 
-/// θ₁₀ = 364/10 (rational).
-pub const CENTRAL_ANGLE_DECAGON: (u32, u32) = (364, 10);
+/// θ₁₀ = R₆/10.
+pub const CENTRAL_ANGLE_DECAGON: (u32, u32) = (REPUNIT_6, 2 * P5);
 
-/// θ₁₁ = 364/11 (rational).
-pub const CENTRAL_ANGLE_HENDECAGON: (u32, u32) = (364, 11);
+/// θ₁₁ = R₆/11.
+pub const CENTRAL_ANGLE_HENDECAGON: (u32, u32) = (REPUNIT_6, P11);
 
-/// θ₁₂ = 364/12 (rational).
-pub const CENTRAL_ANGLE_DODECAGON: (u32, u32) = (364, 12);
+/// θ₁₂ = R₆/12.
+pub const CENTRAL_ANGLE_DODECAGON: (u32, u32) = (REPUNIT_6, 4 * P3);
 
-/// θ₁₃ = 364/13 = 28° (exact integer).
-pub const CENTRAL_ANGLE_TRIDECAGON: u32 = 28;
+/// θ₁₃ = R₆/R₃ = Z₂₈ order (exact integer).
+pub const CENTRAL_ANGLE_TRIDECAGON: u32 = REPUNIT_6 / REPUNIT_3;
 
-/// θ₁₄ = 364/14 = 26° (exact integer). The π-gon's central angle = x₂.
-pub const CENTRAL_ANGLE_TETRADECAGON: u32 = 26;
+/// θ₁₄ = R₆/x₁ = x₂ (exact integer).
+pub const CENTRAL_ANGLE_TETRADECAGON: u32 = ROOT_X2;
 
-/// θ₁₅ = 364/15 (rational).
-pub const CENTRAL_ANGLE_PENTADECAGON: (u32, u32) = (364, 15);
+/// θ₁₅ = R₆/15.
+pub const CENTRAL_ANGLE_PENTADECAGON: (u32, u32) = (REPUNIT_6, P15);
 
-/// Bézier C₁₈₂ control point angle = 91° = 7 custom radians. Coordinates (0, 1).
-pub const BEZIER_C182_ANGLE: u32 = 91;
+/// Bézier C₁₈₂ angle = λ_EUV.
+pub const BEZIER_C182_ANGLE: u32 = LAMBDA_EUV;
 
-/// Bézier C₆₅₀ control point angle = 143° = 11 custom radians.
-pub const BEZIER_C650_ANGLE: u32 = 143;
+/// Bézier C₆₅₀ angle = P11 × P13.
+pub const BEZIER_C650_ANGLE: u32 = P11 * P13;
 
-/// C₁₈₂ in custom radians.
-pub const BEZIER_C182_RADIANS: u32 = 7;
+/// C₁₈₂ in custom radians = P7.
+pub const BEZIER_C182_RADIANS: u32 = P7;
 
-/// C₆₅₀ in custom radians.
-pub const BEZIER_C650_RADIANS: u32 = 11;
+/// C₆₅₀ in custom radians = P11.
+pub const BEZIER_C650_RADIANS: u32 = P11;
 
-/// Arc convergence numerator: 218.4° = 1092/5 (3 × pentagon central angle).
-pub const ARC_CONVERGENCE_NUM: u32 = 1092;
+/// Arc convergence: 3 × θ₅ = 3 × R₆/5 = 1092/5.
+pub const ARC_CONVERGENCE_NUM: u32 = 3 * REPUNIT_6;
 
 /// Arc convergence denominator.
-pub const ARC_CONVERGENCE_DEN: u32 = 5;
+pub const ARC_CONVERGENCE_DEN: u32 = P5;
 
-/// Rim vertices in the inscribed polygon overlay (TM-2026-017 §11.1).
-pub const RIM_VERTICES: u32 = 58;
+/// Rim vertices in the inscribed polygon overlay = 2 × Z₂₈ + 2.
+pub const RIM_VERTICES: u32 = 2 * CENTRAL_ANGLE_TRIDECAGON + 2;
 
 /// Interior intersections.
-pub const INTERIOR_INTERSECTIONS: u32 = 446;
+pub const INTERIOR_INTERSECTIONS: u32 = TOTAL_NODES - RIM_VERTICES;
 
-/// Total nodes.
+/// Total nodes = 504 = R₆ + Δ = 364 + 140. Verify in const assertion.
 pub const TOTAL_NODES: u32 = 504;
 
 // ══════════════════════════════════════════════════════════════
@@ -747,55 +760,52 @@ pub const TOTAL_NODES: u32 = 504;
 
 /// Polygon membership for zones A & B: 7, 11, 12, 13.
 /// 11, 12, 13 appear in ALL four zones; 4th switches between 7 (A/B) and 8 (C/D).
-pub const SUPERHUB_AB_POLYGONS: [u32; 4] = [7, 11, 12, 13];
+pub const SUPERHUB_AB_POLYGONS: [u32; 4] = [P7, P11, 12, P13];
 
 /// Polygon membership for zones C & D: 8, 11, 12, 13.
-pub const SUPERHUB_CD_POLYGONS: [u32; 4] = [8, 11, 12, 13];
+pub const SUPERHUB_CD_POLYGONS: [u32; 4] = [P8, P11, 12, P13];
 
 // ══════════════════════════════════════════════════════════════
 // §14  TRIANGULAR NUMBER ANCHORS (TM-2026-017 §9)
 // ══════════════════════════════════════════════════════════════
 
-/// Tri(3) = 6. Hexagon sides.
-pub const TRI_3: u32 = 6;
+/// Tri(3) = P3 × (P3+1) / 2.
+pub const TRI_3: u32 = P3 * (P3 + 1) / 2;
 
-/// Tri(7) = 28 = 2π. Full circle in radians.
-pub const TRI_7: u32 = 28;
+/// Tri(7) = P7 × (P7+1) / 2 = Z₂₈.
+pub const TRI_7: u32 = P7 * (P7 + 1) / 2;
 
-/// Tri(10) = 55. Radius = Tri(10) + ½ = 55.5.
-pub const TRI_10: u32 = 55;
+/// Tri(10) = 10 × 11 / 2.
+pub const TRI_10: u32 = (2 * P5) * (P11) / 2;
 
-/// Tri(13) = 91. Quarter-turn.
-pub const TRI_13: u32 = 91;
+/// Tri(R₃) = R₃ × (R₃+1) / 2 = λ_EUV.
+pub const TRI_13: u32 = LAMBDA_EUV;
 
 // ══════════════════════════════════════════════════════════════
 // §15  TORUS KNOT PARAMETERS (TM-2026-017 §10.6–§10.8)
 // ══════════════════════════════════════════════════════════════
 
-/// Crossing number (11,14) = 11 × 13 = 143 = BEZIER_C650_ANGLE.
-pub const CROSSING_11_14: u32 = 143;
+/// Crossing number (11,14) = P11 × P13. Minimum crossings.
+pub const CROSSING_11_14: u32 = P11 * P13;
 
-/// Crossing number (13,14) = 13 × 13 = 169 = REPUNIT_3² (radian squared).
-pub const CROSSING_13_14: u32 = 169;
+/// Crossing number (13,14) = R₃² (radian squared).
+pub const CROSSING_13_14: u32 = REPUNIT_3 * REPUNIT_3;
 
-/// Crossing number (13,15) = 13 × 14 = 182 = ARC_ROOT_SEMI (semicircle).
-pub const CROSSING_13_15: u32 = 182;
+/// Crossing number (13,15) = R₃ × x₁ = ARC_ROOT_SEMI.
+pub const CROSSING_13_15: u32 = ARC_ROOT_SEMI;
 
-/// Crossing number (14,15) = 14 × 14 = 196 = ROOT_X1² (π squared).
-/// Note: TM-2026-017 v6.0 erroneously states 195 — correct value is 14 × (15−1) = 196.
-pub const CROSSING_14_15: u32 = 196;
+/// Crossing number (14,15) = x₁² (π squared).
+pub const CROSSING_14_15: u32 = ROOT_X1 * ROOT_X1;
 
 // ══════════════════════════════════════════════════════════════
 // §17  PLENUM SQUARE SCALING (Lo Shu × 22 + CENTER)
 // ══════════════════════════════════════════════════════════════
 
-/// Lo Shu scaling factor. All nine entries are CENTER ± k × 22 for k ∈ {0,1,2,3,4}.
-/// The 11 → 22 → 88 → 23 chain: hendecagon (11) doubles to step (22),
-/// null period (4) scales step to 88, CENTER minus 88 is the smallest entry (23 = x₂ − 3).
-pub const PLENUM_SQUARE_STEP: u32 = 22;
+/// Lo Shu scaling factor = 2 × P11.
+pub const PLENUM_SQUARE_STEP: u32 = 2 * P11;
 
-/// Smallest magic square entry = CENTER − 4 × STEP = 111 − 88 = 23.
-pub const PLENUM_SQUARE_MIN: u32 = 23;
+/// Smallest magic square entry = CENTER − R₂ × STEP.
+pub const PLENUM_SQUARE_MIN: u32 = CENTER - REPUNIT_2 * PLENUM_SQUARE_STEP;
 
 // ══════════════════════════════════════════════════════════════
 // §19a  FIBONACCI–PHYSICAL BRIDGE — integer core
@@ -812,45 +822,33 @@ pub const PLENUM_SQUARE_MIN: u32 = 23;
 //   F(7)  = R₃               = 13             (radian appears at Fibonacci index 7)
 // ══════════════════════════════════════════════════════════════
 
-/// F(14) = 377 = R₆ + R₃ = 364 + 13.
-/// The 14th Fibonacci number. Since π_framework = ROOT_X1 = 14,
-/// F(π) = 377 predicts the impedance of free space Z₀ ≈ 376.730 Ω
-/// to 0.072% accuracy (CODATA 2022).
-///
-/// Triple decomposition:
-///   377 = 364 + 13     (circle + radian)
-///   377 = 13 × 29      (radian × (Z₂₈ + 1))
-///   377 = 233 + 144    (F(13) + Δ, where Δ = discriminant of circle quadratic)
-pub const FIBONACCI_PI: u32 = 377;
+/// F(π) = F(14) = R₆ + R₃ = circle + radian.
+pub const FIBONACCI_PI: u32 = REPUNIT_6 + REPUNIT_3;
 
-/// F(12) = 144 = Δ (circle quadratic discriminant).
-/// The Fibonacci sequence's 12th element equals the discriminant of
-/// x² − 40x + 364 = 0. This is a structural coincidence that locks
-/// the Fibonacci recurrence to the circle quadratic.
-pub const FIBONACCI_12: u32 = 144;
+/// F(12) = Δ (circle quadratic discriminant).
+pub const FIBONACCI_12: u32 = DISCRIMINANT;
 
-/// F(13) = 233. Used in F(14) = F(13) + F(12) = 233 + 144 = 377.
-pub const FIBONACCI_13: u32 = 233;
+/// F(13) = F(14) − F(12) = (R₆ + R₃) − Δ.
+pub const FIBONACCI_13: u32 = FIBONACCI_PI - FIBONACCI_12;
 
 // ══════════════════════════════════════════════════════════════
 // Z₂₈ CYCLIC GROUP
 // ══════════════════════════════════════════════════════════════
 
-/// Order of the cyclic group Z₂₈ generated by the ternary radian.
-pub const CYCLIC_ORDER: u32 = 28;
+/// Order of Z₂₈ = R₆/R₃ = θ₁₃ = 2π.
+pub const CYCLIC_ORDER: u32 = CENTRAL_ANGLE_TRIDECAGON;
 
-/// Number of ternary radians in a full circle (= CYCLIC_ORDER).
-pub const RADIANS_PER_CIRCLE: u32 = 28;
+/// Radians per circle = Z₂₈ order.
+pub const RADIANS_PER_CIRCLE: u32 = CYCLIC_ORDER;
 
-/// Number of dimensions in the Tribonacci 28-Dimension Symmetry.
-pub const Z28_DIMENSIONS: u32 = 28;
+/// Dimensions = Z₂₈ order.
+pub const Z28_DIMENSIONS: u32 = CYCLIC_ORDER;
 
-/// The generator of Z₂₈ — the angular step of 1 ternary radian (13°).
+/// Generator of Z₂₈.
 pub const Z28_GENERATOR: u32 = 1;
 
-/// The co-generator: 13 radians maps back to 1° short of full coverage,
-/// and 13 is itself the radian value. gcd(13, 28) = 1 so 13 also generates Z₂₈.
-pub const Z28_CO_GENERATOR: u32 = 13;
+/// Co-generator = R₃. gcd(R₃, Z₂₈) = 1.
+pub const Z28_CO_GENERATOR: u32 = REPUNIT_3;
 
 // ══════════════════════════════════════════════════════════════
 // TRIBONACCI CONSTANTS
