@@ -546,3 +546,9 @@ id = "5mBR9T73rPqE535g_e-U1"
 uri = "file://task-27-websocket-gap-closure.zip"
 type = "unspecified"
 title = "Task #27 — WebSocket Military-Grade Gap Closure (37 files, 228 KB)"
+
+[[outputs]]
+id = "Qh2EmsGISCwS3x03_tYYS"
+uri = "file://tritint-audit.zip"
+type = "unspecified"
+title = "TritInt Audit — 31 files, 183 KB (all TritInt consumers)"

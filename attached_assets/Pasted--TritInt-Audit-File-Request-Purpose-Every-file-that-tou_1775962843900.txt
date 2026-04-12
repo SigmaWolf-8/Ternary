@@ -1,0 +1,94 @@
+# TritInt Audit — File Request
+
+**Purpose:** Every file that touches TritInt needs to be pulled from Replit for review. The type was built with hardcoded capacity caps (`MAX_INLINE_TRITS = 40`, `MAX_HEAP_TRITS = 9841`) that contradict the design (unbounded, auto-sizing from master formula). All downstream consumers are potentially contaminated.
+
+---
+
+## Core TritInt Files
+
+```
+ternary-math/src/trit_int.rs
+ternary-math/src/trit.rs
+ternary-math/src/gf3_algebra.rs
+ternary-math/src/lib.rs
+ternary-math/Cargo.toml
+```
+
+## WASM / FFI Boundary
+
+```
+ternary-math/src/wasm_exports.rs
+```
+
+## Benchmarks
+
+```
+ternary-math/benches/trit_benchmarks.rs
+```
+
+## Downstream Consumers (ternary-math crate)
+
+```
+ternary-math/src/constants.rs
+ternary-math/src/tribonacci.rs
+ternary-math/src/ternary_circle.rs
+ternary-math/src/torus.rs
+ternary-math/src/repunit_circles.rs
+ternary-math/src/gf3.rs
+ternary-math/src/cube_addr.rs
+```
+
+## Crypto (TritInt used in sponge, signing, key derivation)
+
+```
+src/kernel/src/crypto/sponge.rs
+src/kernel/src/crypto/tlsponge385.rs
+src/kernel/src/crypto/firmware_sign.rs
+src/kernel/src/crypto/self_test.rs
+src/kernel/src/crypto/tl_dsa.rs
+src/kernel/src/crypto/tl_kem.rs
+src/kernel/src/crypto/tis27.rs
+```
+
+## Inter-Cube / Daemon (attestation, FTS, identity)
+
+```
+services/inter-cube/src/fts.rs
+services/inter-cube/src/telemetry.rs
+services/inter-cube/src/config.rs
+services/inter-cube/src/identity.rs
+services/inter-cube/src/persistence.rs
+services/inter-cube/Cargo.toml
+```
+
+## Compression Engine (TritInt is the numeric substrate)
+
+```
+ternary-math/src/coprime.rs
+ternary-math/src/coprime_torus.rs
+ternary-math/src/orbifold.rs
+ternary-math/src/auto_select.rs
+ternary-math/src/ans_pi.rs
+ternary-math/src/sparse.rs
+```
+
+## Phase 4 Modules (tri182 / AGS / _T)
+
+```
+ternary-math/src/tri182.rs
+ternary-math/src/ags.rs
+```
+
+## Any other file importing TritInt
+
+Run from repo root to catch anything missed:
+
+```bash
+grep -rl "TritInt\|trit_int\|MAX_INLINE_TRITS\|MAX_HEAP_TRITS\|TritIntError\|TritIntStorage" --include="*.rs" --include="*.toml" .
+```
+
+---
+
+## What To Send
+
+Zip everything the grep returns plus the files listed above. If the zip is too large, send in two batches: `ternary-math/` first, then `src/kernel/` + `services/inter-cube/` second.
