@@ -552,3 +552,15 @@ id = "Qh2EmsGISCwS3x03_tYYS"
 uri = "file://tritint-audit.zip"
 type = "unspecified"
 title = "TritInt Audit — 31 files, 183 KB (all TritInt consumers)"
+
+[[outputs]]
+id = "OWn6ONx6fU3eocncXPqcl"
+uri = "file://TTC-v5-complete.zip"
+type = "unspecified"
+title = "TTC v5.0.3 Complete — 19 files, 129 KB (engine + spec + integration)"
+
+[[outputs]]
+id = "Fzuu_ZP3EEIlc_M873cl_"
+uri = "file://TTC-v5-File-Relationships.md"
+type = "text"
+title = "TTC v5.0.3 File Relationships & Architecture Map"
