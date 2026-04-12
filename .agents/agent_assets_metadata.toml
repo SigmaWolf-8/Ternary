@@ -540,3 +540,9 @@ id = "KKJc9lwF4Ra_TxFVxbRtF"
 uri = "file://task-109-spec.md"
 type = "text"
 title = "Task #109 — Windowed Browser Binary Entry Point (browser_main.rs)"
+
+[[outputs]]
+id = "5mBR9T73rPqE535g_e-U1"
+uri = "file://task-27-websocket-gap-closure.zip"
+type = "unspecified"
+title = "Task #27 — WebSocket Military-Grade Gap Closure (37 files, 228 KB)"

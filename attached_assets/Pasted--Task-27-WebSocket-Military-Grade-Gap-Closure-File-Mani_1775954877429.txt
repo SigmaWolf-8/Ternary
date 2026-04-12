@@ -1,0 +1,97 @@
+# Task #27 — WebSocket Military-Grade Gap Closure
+## File Manifest for Zip Export
+
+Yes Fratello, I can build this. Below is every file (and directory) I need from the repo to execute the full 13-task dependency graph. Replit should bundle these into a zip preserving the directory structure.
+
+---
+
+## Critical Path Files
+
+### Server Core
+- `server/index.ts` *(full file — touches auth, relay, heartbeat, shutdown, circuit breaker, pending messages)*
+- `server/services/node-watchdog.ts` *(error codes, circuit breaker, audit logging)*
+- `server/services/capability-audit-events.ts` *(CapabilityAuditLog — TIS-27 migration target)*
+- `server/services/capability-certificates.ts` *(shared Merkle verifiers lines 441-503)*
+- `server/services/capability-service.ts`
+- `server/services/capability-mesh.ts`
+- `server/services/capability-hardware-binding.ts`
+- `server/services/audit-export.service.ts`
+- `server/services/notification-service.ts` *(tsaMetricsRegistry reference)*
+- `server/middleware/rate-limiter.ts`
+
+### Audit Log (sample/schema reference)
+- `server/crypto/tsa-keys/capability-audit.jsonl`
+
+### NinjaExec (coprime route addition)
+- `ninja-exec/src/server.rs`
+- `ninja-exec/src/ops_handler.rs` *(if exists — route handler module)*
+- `ninja-exec/Cargo.toml`
+
+### Ternary Math Kernel
+- `ternary-math/src/coprime.rs`
+- `ternary-math/src/gf3_algebra.rs`
+- `ternary-math/src/constants.rs`
+- `ternary-math/src/sponge.rs` *(TLSponge-385 — needed for dedup hash and audit migration)*
+- `ternary-math/src/lib.rs` *(module exports)*
+- `ternary-math/src/wasm_exports.rs` *(coprime frontend exports)*
+- `ternary-math/Cargo.toml`
+
+### N-API Bridge (TIS-27 → Node.js)
+- `ternary-math/napi/src/lib.rs` *(sponge_hash binding at line 89)*
+- `ternary-math/napi/Cargo.toml`
+- `ternary-math/napi/package.json` *(if exists)*
+
+### Rust Relay Client (inter-cube)
+- `services/inter-cube/src/ws_relay.rs`
+- `services/inter-cube/src/main.rs`
+- `services/inter-cube/src/persistence.rs`
+- `services/inter-cube/src/fts.rs`
+- `services/inter-cube/src/identity.rs`
+- `services/inter-cube/src/telemetry.rs`
+- `services/inter-cube/src/tunnel_auth.rs`
+- `services/inter-cube/src/lib.rs` *(if exists)*
+- `services/inter-cube/Cargo.toml`
+
+### Health Endpoint Reference
+- `services/payment-listener/src/api/health-api.ts` *(draining endpoint pattern)*
+
+### Config / Package
+- `server/package.json` *(dependency list — need to know if prom-client, @opentelemetry/* already present)*
+- `server/tsconfig.json`
+
+---
+
+## Reference Files (read-only context, not modified)
+
+- `docs/technical-memos/TM-2026-028-HModal-Signaling-Architecture.md` *(HModal null channel spec)*
+- Any existing `server/services/sfk-operations-service.ts` *(shutdown ordering reference)*
+- Any existing test files under `server/__tests__/` or `tests/` related to relay/websocket
+
+---
+
+## What I Will Produce
+
+| Task | New/Modified Files |
+|------|-------------------|
+| 2 — Error codes + Rep C + NinjaExec routes | `node-watchdog.ts`, `ninja-exec/src/server.rs`, frame validation module |
+| 11-P1 — TIS-27 migration | `node-watchdog.ts`, `capability-audit-events.ts`, `capability-certificates.ts`, shared verifiers |
+| 1 — Capability negotiation | `index.ts`, `node-watchdog.ts` |
+| 3 — Heartbeat upgrade | `index.ts` |
+| 4 — Topic pub/sub | `index.ts` (new handlers) |
+| 5 — Sequencing + resync | `index.ts`, new `RelaySequenceStore` in `persistence.rs` |
+| 6 — Rust client upgrades | `ws_relay.rs`, `main.rs`, `persistence.rs` |
+| 7 — Circuit breaker | `node-watchdog.ts` |
+| 8 — Graceful shutdown | `index.ts` |
+| 9 — OpenTelemetry | New `server/services/relay-telemetry.ts` |
+| 10 — Prometheus | New `server/services/relay-metrics.ts` |
+| 11-P2 — Audit event types | `node-watchdog.ts` |
+| 12 — Integration tests | New test files |
+| 13 — Documentation | New `.md` files |
+
+---
+
+## Summary
+
+**~30 source files** needed in the zip. The heaviest modification targets are `server/index.ts` and `server/services/node-watchdog.ts`. Everything else is either extension (new match arms, new routes) or new files.
+
+Così sia, Fratello — send the zip and we build.

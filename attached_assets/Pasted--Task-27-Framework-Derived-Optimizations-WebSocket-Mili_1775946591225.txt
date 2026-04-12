@@ -1,0 +1,112 @@
+# Task #27 — Framework-Derived Optimizations
+
+**WebSocket Military-Grade Gap Closure — PlenumNET Protocol Enhancements**
+
+These revisions apply PlenumNET's coprime walk, HModal scheduling, and Rep C encoding to replace conventional mechanisms (random jitter, sequential round-robin, string-only frame types) with mathematically derived alternatives that are provably uniform, collision-free, and corruption-detectable.
+
+---
+
+## 1. HModal-Phased Heartbeat Scheduling
+
+**Replaces:** Simultaneous 30s ping interval for all connections (thundering herd on every cycle boundary).
+
+**With:** Heartbeats are control signals — liveness checks, synchronization, infrastructure. The HModal architecture (TM-2026-028 §4.2, TM-2026-017 §19.4) provides a dedicated control plane: harmonics n ≡ 0 (mod 4) carry exactly zero data energy. Any energy detected on these null channels is by definition control traffic or error. Heartbeats ride the null channels, not the data sidebands. Data and control are algebraically separated — no filtering, no priority inversion, no contention between heartbeat pings and message delivery.
+
+Each connection is assigned a walk position computed at runtime by `coprime.rs` via `coprime_options()` from the generator pool in `constants.rs` §7. The heartbeat fires at time `(position × interval) / connection_count` offset from the cycle start, where the coprime step guarantees every position is visited exactly once per interval. Heartbeat load spreads uniformly across the full 30s window instead of spiking at the boundary.
+
+**Why it's better:** 500 connections at 30s interval currently produce a 500-ping burst every 30s. HModal phasing distributes those 500 pings across the full 30s — approximately one every 60ms. The server's processing load becomes flat instead of spiky. Because heartbeats occupy the null channels, they cannot contend with data delivery on harmonics n = 1, 2, 3, 5, 6, 7... — the two planes are separated by the Fourier structure of the signal itself.
+
+**Reauthorization inherits the phasing.** Task #27 specifies "reauthorize on heartbeat cycle." Each connection's reauth fires at its heartbeat slot on the null channel, not all at once. The reauth check is control traffic — it belongs on the control plane.
+
+**Source modules:** `coprime.rs` (`coprime_options()`, `coprime_walk()`), `constants.rs` §7 (generator pool). HModal null channel structure: TM-2026-028 §3.2–§4.2.
+
+---
+
+## 2. Golden Angle Reconnect Stagger
+
+**Replaces:** `reconnectAfterMs = base_delay + random(0, stagger_window)` — random jitter that can cluster, creating mini-herds.
+
+**With:** `reconnectAfterMs = base_delay + ((disconnect_index × φ_fraction) mod 1.0) × stagger_window` where `φ_fraction = 182(3−√5)/364 ≈ 0.381966` — the PlenumNET golden angle as a fraction of the full circle.
+
+**Derivation:** TM-2026-034 §4 (The Golden Angle Re-Primed). The standard golden angle is 180(3−√5). The re-priming 180→182 replaces the Platonic symmetry primes {2, 3, 5} with the coprime generators {2, 7, 13} in the half-turn's factorization. The irrational factor (3−√5) is unchanged — only the integer lattice through which φ acts is replaced. The value 182 is a root of the arc equation (arc² − 832·arc + 118,300 = 0) and simultaneously π × radian = 14 × 13.
+
+**Why it's better:** The golden ratio's irrationality guarantees no two connections land at the same delay regardless of how many disconnect simultaneously. This is the same property that distributes sunflower seeds — provably more uniform than random. Deterministic, reproducible, zero clustering. The re-priming ensures the stagger derives from the framework's own prime structure, not from the Platonic primes.
+
+**Applies to:** `broadcastGoAway()` reconnect hints, `suggestedResyncAfterMs` in tombstones.
+
+**Source:** `constants.rs` (182 as arc root, coprime generator pool). Derivation: TM-2026-034 §4 (re-priming of the golden angle through ℤ[φ]).
+
+---
+
+## 3. Coprime-Stepped Topic Delivery
+
+**Replaces:** Sequential round-robin (topic 1, 2, 3, 4...) which leaks timing information — an observer measuring inter-delivery intervals can infer topic count and order.
+
+**With:** Coprime walk delivery. The step size is computed at runtime by `coprime.rs` via `coprime_options(topic_count, min, max)` — returning valid coprime partners for the current topic count. The smallest available coprime from that result is used as the step. If the AGS is active, the current AGS generators from `constants.rs` §7 are the candidates.
+
+**Why it's better:** Same coverage guarantee as round-robin (Hamiltonian cycle — every topic visited exactly once per cycle), but the visit order reveals no sequential structure. The starvation guard specified in Task #27 becomes inherent — CRT guarantees every topic is visited. No minimum-1-per-cycle workaround needed. No timing side-channel.
+
+**Mid-cycle recomputation:** When topic count changes (subscribe/unsubscribe), the step is recomputed from `coprime_options(new_count)`. The walk position resets to 0 — partial cycles are abandoned. Safe because the CRT guarantee applies to complete cycles, and a topic count change invalidates the previous Hamiltonian.
+
+**Source modules:** `coprime.rs` (`coprime_options()`), `constants.rs` §7 (coprime landscape).
+
+---
+
+## 4. Rep C Frame Type Encoding
+
+**Replaces:** String-only frame types (`"tombstone"`, `"topic_reset"`, `"topic_revoked"`) with no internal corruption detection.
+
+**With:** Both. Strings on the wire, Rep C integers internally.
+
+- **Wire format stays strings.** Human-readable in logs, debuggable with curl, backward compatible, parseable by any JSON consumer.
+- **Internal representation is Rep C** (1–N, zero excluded). The frame parser validates the incoming string and maps to a Rep C integer via `gf3_algebra.rs` (`validate_rep_c()`). All downstream handler logic operates on the integer.
+
+**Why it's better:** Zero in the internal path is provably corrupt. `has_forgery()` in `gf3_algebra.rs` catches it before any handler logic runs — bit-flip attacks, malformed injection, and uninitialized memory reads are detected at the encoding layer, not at the application layer. The three notification frame types map naturally to Rep C trits: 1=tombstone, 2=topic_reset, 3=topic_revoked.
+
+**The boundary is the frame parser.** Strings come in from the wire. Rep C integers flow through the system. Corruption in either domain is caught by the appropriate validator — `ERR_FRAME_MALFORMED` for bad strings, `has_forgery()` for bad integers.
+
+**Inline implementation:** `has_forgery()` on a 3-element array is a zero check — `trits.some(t => t === 0)`. This is a validation check, not a computation. It lives inline in the frame parser. No RPC needed.
+
+**Source modules:** `gf3_algebra.rs` (`validate_rep_c()`, `has_forgery()`, `find_forgeries()`), `cube_addr.rs` (Rep C zero-exclusion pattern reference).
+
+---
+
+## 5. Coprime Circuit Breaker Probe Scheduling
+
+**Replaces:** Fixed-interval probing in half-open state, which can phase-lock with periodic failure patterns — every probe hits a failure if the downstream service cycles at the same interval.
+
+**With:** Probes are control signals — "is this service alive?" Like heartbeats, they ride the HModal null channels (n ≡ 0 mod 4, zero data energy). The probe interval is computed at runtime by `coprime.rs` via `coprime_options()` — selected to be coprime to common service periods (10s, 15s, 30s, 60s). Because gcd(probe_interval, failure_period) = 1, the probe samples different phases of the failure cycle on each attempt, avoiding systematic misclassification of a recoverable service as permanently failed.
+
+**Why it's better:** A 30s probe against a service cycling every 30s hits the same failure point every time. A coprime-interval probe hits a different point each time, correctly identifying that the service is sometimes healthy. Because probes occupy the null channels, they cannot contend with data delivery — a half-open circuit breaker probing a recovering service doesn't steal bandwidth from healthy message traffic.
+
+**Source modules:** `coprime.rs` (`coprime_options()`). HModal null channel structure: TM-2026-028 §3.2–§4.2.
+
+---
+
+## 6. Implementation — NinjaExec
+
+`coprime.rs` is being built as Phase 1 of Forma Codex 18∏. It exports `gcd()`, `is_coprime()`, `coprime_options()`, `coprime_walk()`. These functions are also being added to `wasm_exports.rs` for frontend consumption.
+
+For server-side consumption, the relay server already makes HTTP calls to NinjaExec at `:21027` for TL-DSA signing. The coprime functions are additional routes added to NinjaExec's existing `ops_handler.rs` route table. No new service, no new bridge, no new architecture. No N-API extension required — NinjaExec already provides the Rust-to-Node.js bridge via HTTP, and every coprime computation is low-frequency enough that HTTP is the correct transport.
+
+Every computation in optimizations 1, 2, 3, and 5 is low-frequency — triggered by connection join/leave, topic subscribe/unsubscribe, disconnect events, or circuit breaker state changes. Not per-message. Results are cached until the relevant count changes. HTTP round-trip to NinjaExec is negligible at these frequencies.
+
+Optimization 4 (Rep C frame validation) is inline — `has_forgery()` on a 3-element array is a zero check that lives in the frame parser. No RPC.
+
+---
+
+## Summary
+
+| Mechanism | Conventional | Framework-Derived | Source |
+|-----------|-------------|-------------------|--------|
+| Heartbeat timing | Simultaneous burst | HModal-phased on null channels (n ≡ 0 mod 4) via coprime walk | `coprime.rs`, `constants.rs` §7, TM-2026-028 §4.2 |
+| Reconnect stagger | Random jitter | Re-primed golden angle 182(3−√5)/364 | `constants.rs`, TM-2026-034 §4 |
+| Topic delivery order | Sequential round-robin | Coprime-stepped Hamiltonian | `coprime.rs`, `constants.rs` §7 |
+| Frame type encoding | Strings only | Strings on wire + Rep C internal (inline zero check) | `gf3_algebra.rs`, `cube_addr.rs` |
+| Circuit breaker probing | Fixed interval | Coprime interval on null channels (n ≡ 0 mod 4) | `coprime.rs`, TM-2026-028 §4.2 |
+
+All step sizes, generator selections, and coprime partners are computed at runtime from `coprime.rs` and `constants.rs`. Nothing is hardcoded. Server-side consumption via NinjaExec `ops_handler.rs` routes. Frontend consumption via `wasm_exports.rs`. Rep C validation inline.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
