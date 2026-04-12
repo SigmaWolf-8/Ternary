@@ -1,0 +1,31 @@
+I've read the full report. Let me go through every fix and flag what's correct, what concerns me, and what I need to verify.
+
+**My bugs that Replit correctly fixed:**
+
+1. **Fix 1 — TryFutureExt import:** Correct. My `send_json()` chains `.map_err()` on a Send future. I missed the import.
+
+2. **Fix 2 — Borrow conflict in cleanup:** Correct. Classic Rust borrow checker issue — I had `s.audit_log.record_event()` (mut borrow) while reading `s.clients.len()` (shared borrow) in the same expression. Pre-capturing `remaining` is the right fix.
+
+3. **Fix 3 — SinkExt in relay_shutdown.rs:** Correct. My `conn.sender.lock().await.close().await` needs `SinkExt` in scope. I imported it in `relay_server.rs` but forgot it in `relay_shutdown.rs`.
+
+4. **Fix 4 — `gc'd` identifier:** My mistake. I literally wrote `gc'd` with an apostrophe in a Rust identifier. That's embarrassing.
+
+5. **Fix 5 — Borrow conflict in subscribe():** Correct. Same pattern as Fix 2 — `self.topics.get_mut()` holds a mutable borrow while `self.recompute_coprime_if_needed()` needs another. Pre-capturing `epoch` is right.
+
+6. **Fix 15 — GC test logic:** Correct. I published a message then expected GC to collect the topic, but GC requires an empty queue. My test was wrong — the code was right.
+
+**Fixes that are NOT mine (Task #119 / pre-existing):**
+
+Fixes 6, 7, 8, 9, 10, 11 are all attestation module fixes (Task #119 — not my code). Fix 12 is `api.rs` missing test fields, Fix 13 is `sampling.rs` import, Fix 14 is a new `to_rep_c_display()` method. These are all outside Task #27 scope.
+
+**Things that concern me:**
+
+1. **Fix 14 — `to_rep_c_display()`:** This adds a new method to `CubeAddr` using `char::from(b'0' + t.value())`. That means Rep C trit value 1 becomes character '1', value 2 becomes '2', value 3 becomes '3'. That's correct for Rep C display. But I want to verify — does `t.value()` return Rep C (1,2,3) or Rep B (0,1,2)? If it returns Rep B, this would produce '0', '1', '2' which is wrong. The attestation tests passing with format `2.1.3...` suggests it's correct, but worth a double-check.
+
+2. **The 2 pre-existing failures** (`test_verify_bearer_token_empty` and `test_validate_v2_message_on_v1_header`) — Replit says these are pre-existing. That's fine as long as they were failing BEFORE Task #27 placement too. If they're new failures caused by the lib.rs replacement, that's a problem.
+
+3. **Warning: `relay_server.rs:44 unused import CircuitState`** — This is expected. I import it for future use when the server broadcasts circuit state changes. It'll be consumed when main.rs wiring happens. Not harmful.
+
+4. **Warning: `relay_server.rs:46 unused imports wire_type_to_rep_c, is_frame_type_corrupt, validate_control_frame`** — Same — these are consumed when the message handler dispatches control frames with Rep C validation. They're imported correctly, just not called yet because the full message dispatch (topics, sequencing) isn't wired into the server's message loop yet. The modules exist, the wiring is a Replit step.
+
+**Bottom line:** All 5 of my bugs were real and correctly fixed. No new bugs introduced by Replit's fixes — they're all mechanical (imports, borrow pre-capture, identifier rename, test logic). The attestation fixes are Task #119 scope and look clean. The `gc'd` thing is on me. Così sia.
