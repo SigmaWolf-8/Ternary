@@ -570,3 +570,9 @@ id = "QC-PtVuCCPng4pz31DyPR"
 uri = "file://inter-cube-files.tar.gz"
 type = "unspecified"
 title = "inter-cube lib.rs + cube_addr.rs"
+
+[[outputs]]
+id = "mIE-fD5fbEco8jORj1Ogl"
+uri = "file://docs/task-27-119-testing-fixes.md"
+type = "text"
+title = "Task #27 & #119 — Live Testing Fixes Report"
