@@ -50,7 +50,7 @@ serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP server for daemon API endpoints
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 
 # CORS middleware for browser-based monitor access
 tower-http = { version = "0.5", features = ["cors"] }
@@ -64,6 +64,12 @@ hex = "0.4"
 
 # OS-level CSPRNG for master secret generation
 getrandom = "0.2"
+
+# Binary serialization for relay sequencing
+bincode = "1"
+
+# Secure memory zeroing for attestation signing keys
+zeroize = { version = "1", features = ["derive"] }
 
 # Logging
 tracing = "0.1"

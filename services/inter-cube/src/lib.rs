@@ -122,10 +122,23 @@ pub mod vm_service;
 pub mod cluster_shell;
 pub mod ops_handler;
 pub mod yoda_chat;
+
+// ── Task #27: Relay Server (replaces TypeScript relay in server/index.ts) ──
 pub mod relay_error;
 pub mod relay_audit;
 pub mod relay_circuit;
 pub mod relay_frames;
+pub mod relay_capabilities;
+pub mod relay_heartbeat;
+pub mod relay_topics;
+pub mod relay_seq;
+pub mod relay_shutdown;
+pub mod relay_client;
+pub mod relay_metrics;
+pub mod relay_server;
+
+// ── Task #119: Continuous Attestation Service ──
+pub mod attestation;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
@@ -150,7 +163,24 @@ pub use telemetry::{MetricsRegistry, MetricsSnapshot};
 pub use relay_error::{RelayErrorCode, make_error_response};
 pub use relay_audit::{RelayAuditLog, RelayAuditEntry, RelayAuditEventType, AuditSeverity, AuditSubsystem};
 pub use relay_circuit::{RelayCircuitBreaker, CircuitState};
-pub use relay_frames::{wire_type_to_rep_c, is_frame_type_corrupt, validate_control_frame, MAX_FRAME_SIZE};
+pub use relay_frames::{wire_type_to_rep_c, rep_c_to_wire_type, is_frame_type_corrupt, validate_control_frame, MAX_FRAME_SIZE};
+pub use relay_capabilities::{negotiate, check_capability, check_downgrade_policy, parse_capability_version, NegotiationResult};
+pub use relay_heartbeat::{HeartbeatScheduler, HeartbeatPhase, DEFAULT_HEARTBEAT_INTERVAL_MS};
+pub use relay_topics::{TopicManager, TopicConfig, TopicResetInfo};
+pub use relay_seq::{RelaySequenceStore, ResyncRateLimiter, Tombstone, generate_tombstone, TopicSeqSnapshot, MAX_RESYNC_BITMAP_SIZE};
+pub use relay_shutdown::{initiate_shutdown, is_draining, draining_health_body};
+pub use relay_client::{JitterBackoff, ClientCircuitBreaker, FrameAction, persist_dedup_before_backoff};
+pub use relay_metrics::{RelayMetrics, RelaySpanAttrs, should_sample};
+pub use relay_server::{RelayState, relay_router, new_relay_state, broadcast_go_away, golden_angle_delay};
+pub use attestation::{
+    AttestationReport, SignedAttestationReport, AttestationSigningKey,
+    AttestationVerifier, VerifyResult, SuspicionOutcome,
+    BroadcastConfig, BroadcastState, HModalTiming, DispatchPhase,
+    RollingMerkleTree, AttestAuditEvent, AttestSeverity,
+    ServiceState, DegradedReason,
+    VersionRegistry, UpgradeWindow,
+    AttestationLogger, LogEntry, ClassTrit,
+};
 pub use wire::{
     WireHeader, WireMessage, WireError, WireFlags, MessageType,
     WIRE_HEADER_SIZE, WIRE_ADDR_SIZE,
