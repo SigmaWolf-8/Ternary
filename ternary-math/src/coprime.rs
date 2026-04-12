@@ -38,7 +38,7 @@ pub fn euler_totient(n: &TritInt) -> TritInt {
     let mut result = n.clone();
     let mut temp = n.clone();
     let one = TritInt::one();
-    let mut p = TritInt::from_u64(2);
+    let mut p = TritInt::from_trits(&[2]); // 2₃ — smallest non-trivial trial divisor
 
     loop {
         let p_sq = TritInt::mul(&p, &p);
@@ -106,7 +106,7 @@ pub fn coprime_walk(a: &TritInt, b: &TritInt) -> Vec<(TritInt, TritInt)> {
     let one = TritInt::one();
 
     // Find smallest step ≥ 2 coprime to n
-    let mut step = TritInt::from_u64(2);
+    let mut step = TritInt::from_trits(&[2]); // 2₃
     while !is_coprime(&step, &n) {
         step = TritInt::add(&step, &one);
     }
@@ -285,10 +285,10 @@ mod tests {
 
     #[test]
     fn test_is_coprime() {
-        let v11 = TritInt::from_u64(11);
-        let v13 = TritInt::from_u64(13);
-        let v28 = TritInt::from_u64(28);
-        let v364 = TritInt::repunit(6); // 364 = R₆
+        let v11 = TritInt::from_trits(&[2, 0, 1]);  // 11 = 102₃
+        let v13 = TritInt::repunit(3);                // 13 = R₃ = 111₃
+        let v28 = TritInt::from_trits(&[1, 0, 0, 1]); // 28 = 1001₃
+        let v364 = TritInt::repunit(6);               // 364 = R₆
         assert!(is_coprime(&v11, &v364));     // 11 generates Z₃₆₄
         assert!(!is_coprime(&v13, &v364));     // gcd(13, 364) = 13
         assert!(is_coprime(&v13, &v28));       // gcd(13, 28) = 1
@@ -297,25 +297,48 @@ mod tests {
 
     #[test]
     fn test_totient_known_values() {
-        // φ(364) = 144 — from constants.rs
+        // φ(R₆) = 144
         assert_eq!(euler_totient(&TritInt::repunit(6)).to_decimal(), 144);
-        // φ(143) = 120 — coprime_polygon_pair.rs:102
-        assert_eq!(euler_totient(&TritInt::from_u64(143)).to_decimal(), 120);
+        // φ(11×13) = 120 — derived from coprime generators
+        let v11 = TritInt::from_trits(&[2, 0, 1]);  // 11 = 102₃
+        let v13 = TritInt::repunit(3);                // 13 = R₃
+        let v143 = TritInt::mul(&v11, &v13);          // 143 = 11 × 13
+        assert_eq!(euler_totient(&v143).to_decimal(), 120);
         // φ(7) = 6 — prime → p−1
-        assert_eq!(euler_totient(&TritInt::from_u64(7)).to_decimal(), 6);
+        let v7 = TritInt::from_trits(&[1, 2]);       // 7 = 21₃
+        assert_eq!(euler_totient(&v7).to_decimal(), 6);
         // φ(1) = 1
         assert_eq!(euler_totient(&TritInt::one()).to_decimal(), 1);
-        // φ(360360) = 2³×3²×5×7×11×13, φ = 360360 × (1−1/2)(1−1/3)(1−1/5)(1−1/7)(1−1/11)(1−1/13)
-        //           = 360360 × 1/2 × 2/3 × 4/5 × 6/7 × 10/11 × 12/13 = 69120
-        assert_eq!(euler_totient(&TritInt::from_u64(360_360)).to_decimal(), 69_120);
+        // φ(360360) — max sextuple LCM, derived from generators
+        let sext_max = sextuple_max_lcm();
+        assert_eq!(euler_totient(&sext_max).to_decimal(), 69_120);
+    }
+
+    /// Build the maximum sextuple LCM (360,360) from its polygon generators.
+    /// {5, 7, 8, 9, 11, 13} — all pairwise coprime, product = 360,360.
+    fn sextuple_max_lcm() -> TritInt {
+        let gens = polygon_generators_sextuple_max();
+        gens.iter().fold(TritInt::one(), |acc, g| TritInt::mul(&acc, g))
+    }
+
+    /// The maximum sextuple polygon generators in trit-native form.
+    fn polygon_generators_sextuple_max() -> [TritInt; 6] {
+        [
+            TritInt::from_trits(&[2, 1]),      // 5  = 12₃
+            TritInt::from_trits(&[1, 2]),       // 7  = 21₃
+            TritInt::from_trits(&[2, 2]),       // 8  = 22₃
+            TritInt::from_trits(&[0, 0, 1]),    // 9  = 100₃
+            TritInt::from_trits(&[2, 0, 1]),    // 11 = 102₃
+            TritInt::repunit(3),                 // 13 = R₃ = 111₃
+        ]
     }
 
     #[test]
     fn test_coprime_walk_covers_all() {
-        let a = TritInt::from_u64(11);
-        let b = TritInt::from_u64(13);
+        let a = TritInt::from_trits(&[2, 0, 1]);  // 11
+        let b = TritInt::repunit(3);                // 13
         let walk = coprime_walk(&a, &b);
-        assert_eq!(walk.len(), 143); // 11 × 13 = 143 = COPRIME_ARC
+        assert_eq!(walk.len(), 143); // 11 × 13
         let mut set = std::collections::HashSet::new();
         for pair in &walk {
             set.insert((pair.0.to_decimal(), pair.1.to_decimal()));
@@ -325,15 +348,17 @@ mod tests {
 
     #[test]
     fn test_coprime_walk_order() {
-        let a = TritInt::from_u64(11);
-        let b = TritInt::from_u64(13);
+        let a = TritInt::from_trits(&[2, 0, 1]);  // 11
+        let b = TritInt::repunit(3);                // 13
         let walk = coprime_walk(&a, &b);
         // Step=2 (smallest coprime to 143=11×13): pos 0, 2, 4...
         assert_eq!(walk[0], (TritInt::zero(), TritInt::zero()));
         // pos=2: (2%11, 2%13) = (2, 2)
-        assert_eq!(walk[1], (TritInt::from_u64(2), TritInt::from_u64(2)));
+        let two = TritInt::from_trits(&[2]);        // 2₃
+        assert_eq!(walk[1], (two.clone(), two.clone()));
         // pos=4: (4%11, 4%13) = (4, 4)
-        assert_eq!(walk[2], (TritInt::from_u64(4), TritInt::from_u64(4)));
+        let four = TritInt::repunit(2);              // 4 = R₂ = 11₃
+        assert_eq!(walk[2], (four.clone(), four.clone()));
         // Verify NOT sequential (step≠1)
         assert_ne!(walk[1], (TritInt::one(), TritInt::one()));
     }
@@ -341,7 +366,8 @@ mod tests {
     #[test]
     fn test_coprime_options_for_364() {
         let v364 = TritInt::repunit(6);
-        let opts = coprime_options(&v364, &TritInt::one(), &TritInt::from_u64(30));
+        let thirty = TritInt::from_trits(&[0, 1, 0, 1]); // 30 = 1010₃
+        let opts = coprime_options(&v364, &TritInt::one(), &thirty);
         let vals: Vec<u64> = opts.iter().map(|t| t.to_decimal()).collect();
         assert!(vals.contains(&11));  // 11 generates Z₃₆₄
         assert!(!vals.contains(&13)); // gcd(13, 364) = 13
@@ -351,8 +377,14 @@ mod tests {
 
     #[test]
     fn test_multidim_walk_full_cycle() {
-        let moduli = [TritInt::from_u64(5), TritInt::from_u64(7)];
-        let gens = [TritInt::from_u64(2), TritInt::from_u64(3)];
+        let moduli = [
+            TritInt::from_trits(&[2, 1]),    // 5 = 12₃
+            TritInt::from_trits(&[1, 2]),    // 7 = 21₃
+        ];
+        let gens = [
+            TritInt::from_trits(&[2]),       // 2₃
+            TritInt::from_trits(&[0, 1]),    // 3 = 10₃
+        ];
         let walk = multidim_walk(&moduli, &gens);
         assert_eq!(walk.len(), 35); // 5 × 7
         let mut set = std::collections::HashSet::new();
@@ -364,8 +396,12 @@ mod tests {
 
     #[test]
     fn test_coprime_combinations_pairwise() {
-        let input: Vec<TritInt> = [5, 7, 10, 11].iter()
-            .map(|&v| TritInt::from_u64(v)).collect();
+        let input: Vec<TritInt> = vec![
+            TritInt::from_trits(&[2, 1]),     // 5
+            TritInt::from_trits(&[1, 2]),     // 7
+            TritInt::from_trits(&[1, 0, 1]),  // 10
+            TritInt::from_trits(&[2, 0, 1]),  // 11
+        ];
         let combos = coprime_combinations(&input);
         // Every pair in every combo must be coprime
         for combo in &combos {
@@ -379,8 +415,12 @@ mod tests {
 
     #[test]
     fn test_coprime_combinations_are_maximal() {
-        let input: Vec<TritInt> = [5, 7, 10, 11].iter()
-            .map(|&v| TritInt::from_u64(v)).collect();
+        let input: Vec<TritInt> = vec![
+            TritInt::from_trits(&[2, 1]),     // 5
+            TritInt::from_trits(&[1, 2]),     // 7
+            TritInt::from_trits(&[1, 0, 1]),  // 10
+            TritInt::from_trits(&[2, 0, 1]),  // 11
+        ];
         let combos = coprime_combinations(&input);
         // No element from input can extend any returned subset
         for combo in &combos {
@@ -394,9 +434,17 @@ mod tests {
 
     #[test]
     fn test_coprime_combinations_sextuple() {
-        // TM-2026-028a §3.2: maximum sextuple from 13-polygon set
-        let polygon_set: Vec<TritInt> = [3, 4, 5, 7, 8, 9, 11, 13].iter()
-            .map(|&v| TritInt::from_u64(v)).collect();
+        // TM-2026-028a §3.2: maximum sextuple from expansion polygon set
+        let polygon_set: Vec<TritInt> = vec![
+            TritInt::from_trits(&[0, 1]),     // 3  = 10₃
+            TritInt::repunit(2),               // 4  = R₂ = 11₃
+            TritInt::from_trits(&[2, 1]),     // 5  = 12₃
+            TritInt::from_trits(&[1, 2]),     // 7  = 21₃
+            TritInt::from_trits(&[2, 2]),     // 8  = 22₃
+            TritInt::from_trits(&[0, 0, 1]),  // 9  = 100₃
+            TritInt::from_trits(&[2, 0, 1]),  // 11 = 102₃
+            TritInt::repunit(3),               // 13 = R₃ = 111₃
+        ];
         let combos = coprime_combinations(&polygon_set);
         // Must contain {5,7,8,9,11,13} with product 360,360
         let max_product: u64 = combos.iter().map(|c| {
@@ -412,10 +460,12 @@ mod tests {
     #[test]
     fn test_crt_roundtrip() {
         let moduli = [
-            TritInt::from_u64(5), TritInt::from_u64(7),
-            TritInt::from_u64(11), TritInt::from_u64(13),
+            TritInt::from_trits(&[2, 1]),     // 5
+            TritInt::from_trits(&[1, 2]),     // 7
+            TritInt::from_trits(&[2, 0, 1]),  // 11
+            TritInt::repunit(3),               // 13
         ];
-        let val = TritInt::from_u64(42);
+        let val = TritInt::from_trits(&[0, 2, 1, 1]); // 42 = 1120₃
         let residues = crt_split(&val, &moduli);
         let recovered = crt_combine(&residues, &moduli);
         assert_eq!(recovered, val);
@@ -424,13 +474,43 @@ mod tests {
     #[test]
     fn test_crt_sextuple_roundtrip() {
         // TM-2026-028a sextuple: (5,7,8,9,11,13), M = 360,360
-        let moduli: Vec<TritInt> = [5, 7, 8, 9, 11, 13].iter()
-            .map(|&v| TritInt::from_u64(v)).collect();
-        for &v in &[0u64, 1, 42, 1001, 15015, 360_359] {
-            let val = TritInt::from_u64(v);
-            let residues = crt_split(&val, &moduli);
+        let moduli: Vec<TritInt> = polygon_generators_sextuple_max().to_vec();
+        let sext_lcm = sextuple_max_lcm();
+
+        // Test values: 0, 1, 42, 7×11×13, 3×5×7×11×13, M−1
+        let test_vals: Vec<TritInt> = vec![
+            TritInt::zero(),
+            TritInt::one(),
+            TritInt::from_trits(&[0, 2, 1, 1]),  // 42
+            // 1001 = 7 × 11 × 13 — primary triple LCM
+            TritInt::mul(
+                &TritInt::from_trits(&[1, 2]),     // 7
+                &TritInt::mul(
+                    &TritInt::from_trits(&[2, 0, 1]),  // 11
+                    &TritInt::repunit(3),                // 13
+                ),
+            ),
+            // 15015 = 3 × 5 × 7 × 11 × 13
+            TritInt::mul(
+                &TritInt::from_trits(&[0, 1]),     // 3
+                &TritInt::mul(
+                    &TritInt::from_trits(&[2, 1]),  // 5
+                    &TritInt::mul(
+                        &TritInt::from_trits(&[1, 2]),     // 7
+                        &TritInt::mul(
+                            &TritInt::from_trits(&[2, 0, 1]),  // 11
+                            &TritInt::repunit(3),                // 13
+                        ),
+                    ),
+                ),
+            ),
+            // M − 1
+            TritInt::sub(&sext_lcm, &TritInt::one()),
+        ];
+        for val in &test_vals {
+            let residues = crt_split(val, &moduli);
             let recovered = crt_combine(&residues, &moduli);
-            assert_eq!(recovered.to_decimal(), v, "CRT roundtrip failed for {}", v);
+            assert_eq!(recovered, *val, "CRT roundtrip failed for {}", val);
         }
     }
 }

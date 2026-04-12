@@ -86,12 +86,6 @@ pub struct TritIntAddResult {
 /// R₄ = (3⁴ − 1)/2 = 40 — the four-digit repunit.
 const MAX_INLINE_TRITS: u8 = 40;
 
-/// Maximum trit count for heap allocation from untrusted input.
-/// R₉ = (3⁹ − 1)/2 = 9,841 — the nine-digit repunit.
-/// Framework-derived upper bound: ≥100× any anticipated production value,
-/// ~2 KB maximum allocation per TritInt. Prevents allocation-exhaustion.
-const MAX_HEAP_TRITS: u32 = 9841;
-
 /// Powers of 3 within a single byte: 3⁰ through 3⁵.
 /// Used for trit packing/unpacking. 3⁵ = 243 < 256 fits in u8.
 const POW3: [u8; 6] = [1, 3, 9, 27, 81, 243];
@@ -582,8 +576,10 @@ impl TritInt {
     ///
     /// Every trit is 1. Packed: each complete group of 5 ones encodes as
     /// 1 + 3 + 9 + 27 + 81 = 121.
+    /// CONST PATH — limited to ≤ 40 trits by Rust const fn constraint.
+    /// For n > 40, use `repunit_rt()`.
     pub const fn repunit(n: usize) -> Self {
-        assert!(n as u8 <= MAX_INLINE_TRITS, "repunit: n exceeds R4 = 40 trits");
+        assert!(n as u8 <= MAX_INLINE_TRITS, "repunit: const path limited to R4 = 40 trits — use repunit_rt() for larger");
         let mut packed = [0u8; 8];
         let full_bytes = n / 5;
         let remaining = n % 5;
@@ -604,11 +600,23 @@ impl TritInt {
         TritInt { storage: TritIntStorage::Inline { packed, trit_count: n as u8 } }
     }
 
-    /// Construct from a trit slice. Rep B {0, 1, 2}, least significant trit first.
-    /// Panics if any trit value ≥ 3.
+    /// Repunit R_n = 111...1₃ (n ones). R_n = (3ⁿ − 1) / 2.
+    /// RUNTIME PATH — unbounded, auto-promotes to heap for n > 40.
+    pub fn repunit_rt(n: usize) -> Self {
+        if n <= MAX_INLINE_TRITS as usize {
+            return Self::repunit(n);
+        }
+        let trits = vec![1u8; n];
+        make_from_trits(&trits)
+    }
+
+    /// Construct from a trit slice (CONST PATH). Rep B {0, 1, 2}, LSB first.
+    /// Limited to ≤ 40 trits by Rust const fn constraint (cannot heap-allocate).
+    /// For unbounded runtime construction, use `from_trit_slice()`.
+    /// Panics if any trit value ≥ 3 or if count > 40.
     pub const fn from_trits(trits: &[u8]) -> Self {
         let count = trits.len();
-        assert!(count <= MAX_INLINE_TRITS as usize, "from_trits: exceeds R4 = 40 trits");
+        assert!(count <= MAX_INLINE_TRITS as usize, "from_trits: const path limited to R4 = 40 trits — use from_trit_slice() for larger");
 
         let mut packed = [0u8; 8];
         let mut i = 0;
@@ -621,6 +629,16 @@ impl TritInt {
         }
         let (p, c) = normalize(packed, count as u8);
         TritInt { storage: TritIntStorage::Inline { packed: p, trit_count: c } }
+    }
+
+    /// Construct from a trit slice (RUNTIME PATH). Rep B {0, 1, 2}, LSB first.
+    /// Unbounded — auto-promotes to heap for values exceeding 40 trits.
+    /// Panics if any trit value ≥ 3.
+    pub fn from_trit_slice(trits: &[u8]) -> Self {
+        for &t in trits {
+            assert!(t < 3, "from_trit_slice: trit value must be 0, 1, or 2 (Rep B)");
+        }
+        make_from_trits(trits)
     }
 
     /// Construct from a u64 value (BOUNDARY CROSSING: binary → ternary).
@@ -636,16 +654,19 @@ impl TritInt {
     }
 
     /// Construct from a u128 value (BOUNDARY CROSSING: binary → ternary).
-    pub const fn from_u128(val: u128) -> Self {
-        // u128 max = 3.4 × 10³⁸ ≈ 3⁸¹ — exceeds 40 trits for very large values.
-        // Inline path handles values up to 3⁴⁰ ≈ 1.22 × 10¹⁹.
-        if val > u64::MAX as u128 {
-            // For Phase 1 (inline only), values > u64::MAX always exceed 40 trits.
-            // This is conservative — some values between u64::MAX and 3⁴⁰ fit,
-            // but that range is empty (3⁴⁰ < u64::MAX), so this is exact.
-            panic!("from_u128: value exceeds R4 = 40 trit inline capacity");
+    /// Auto-promotes to heap if value exceeds inline capacity.
+    pub fn from_u128(val: u128) -> Self {
+        if val <= u64::MAX as u128 {
+            return Self::from_u64(val as u64);
         }
-        Self::from_u64(val as u64)
+        // Value exceeds u64 range — convert via repeated division by 3.
+        let mut v = val;
+        let mut trits = Vec::new();
+        while v > 0 {
+            trits.push((v % 3) as u8);
+            v /= 3;
+        }
+        make_from_trits(&trits)
     }
 
     // ── Internal extractors ─────────────────────────────────
@@ -1332,11 +1353,6 @@ const _: () = {
     assert!(TritInt::repunit(3).const_eq(TritInt::from_u64(13)));
     assert!(TritInt::zero().const_eq(TritInt::zero()));
     assert!(!TritInt::zero().const_eq(TritInt::one()));
-
-    // Phase 6: verify MAX_HEAP_TRITS is framework-derived (R₉ = (3⁹−1)/2)
-    // Cannot use u32::pow in const on Rust 1.77, so verify via literal.
-    // 3⁹ = 19683, (19683 - 1) / 2 = 9841.
-    assert!(MAX_HEAP_TRITS == 9841);
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -1468,7 +1484,7 @@ impl TritInt {
             panic!("from_repr_a: conversion produced negative carry — invalid input");
         }
 
-        TritInt::from_trits(&rep_b) // from_trits expects LSB-first Rep B
+        TritInt::from_trit_slice(&rep_b) // from_trit_slice: unbounded, LSB-first Rep B
     }
 
     /// Construct from Rep B (standard, {0, 1, 2}), MSB-first input.
@@ -1484,7 +1500,7 @@ impl TritInt {
 
         let mut lsb_first: Vec<u8> = standard.to_vec();
         lsb_first.reverse();
-        TritInt::from_trits(&lsb_first)
+        TritInt::from_trit_slice(&lsb_first)
     }
 
     /// Construct from Rep C (bijective, {1, 2, 3}), MSB-first input.
@@ -1501,7 +1517,7 @@ impl TritInt {
 
         let mut lsb_first: Vec<u8> = bijective.iter().map(|&c| c - 1).collect();
         lsb_first.reverse();
-        TritInt::from_trits(&lsb_first)
+        TritInt::from_trit_slice(&lsb_first)
     }
 
     /// Construct from Rep D (algebraic, {Zero, One, Omega}), MSB-first input.
@@ -1514,7 +1530,7 @@ impl TritInt {
             AlgebraicTrit::Omega => 2u8,
         }).collect();
         lsb_first.reverse();
-        TritInt::from_trits(&lsb_first)
+        TritInt::from_trit_slice(&lsb_first)
     }
 }
 
@@ -1537,7 +1553,7 @@ impl TritInt {
             return (TritInt::zero(), TritInt::zero());
         }
 
-        let divisor = TritInt::repunit(n);
+        let divisor = TritInt::repunit_rt(n);
 
         if *self < divisor {
             return (TritInt::zero(), self.clone());
@@ -1553,7 +1569,7 @@ impl TritInt {
         for c in 0..num_chunks {
             let start = c * n;
             let end = std::cmp::min(start + n, trits.len());
-            let chunk = TritInt::from_trits(&trits[start..end]);
+            let chunk = TritInt::from_trit_slice(&trits[start..end]);
             chunk_sum = TritInt::add(&chunk_sum, &chunk);
         }
 
@@ -1624,22 +1640,17 @@ impl TritInt {
 /// Error type for TritInt parsing operations.
 ///
 /// Separate from `Overflow` (which is arithmetic — value exceeds target
-/// binary width). TritIntError covers input validation — malformed or
-/// oversized trit data.
+/// binary width). TritIntError covers input validation — malformed trit data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TritIntError {
     /// A digit in the Rep C input is invalid (0 = forgery, or > 3).
     InvalidDigit(u8),
-    /// The input exceeds the inline capacity (R₄ = 40 trits).
-    /// Phase 6 heap path will accept larger inputs.
-    TooLong,
 }
 
 impl fmt::Display for TritIntError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TritIntError::InvalidDigit(d) => write!(f, "invalid Rep C digit: {} (must be 1, 2, or 3; zero = forgery)", d),
-            TritIntError::TooLong => write!(f, "input exceeds TritInt maximum capacity (R₉ = {} trits)", MAX_HEAP_TRITS),
         }
     }
 }
@@ -1651,18 +1662,14 @@ impl TritInt {
     ///
     /// This is the single enforcement point for untrusted input validation.
     /// Both Serde and WASM callers go through this function.
+    /// Unbounded — auto-promotes to heap for values exceeding 40 trits.
     ///
     /// - Empty input → Ok(TritInt::zero())
     /// - Zero digit → Err(InvalidDigit(0)) — forgery detection
     /// - Digit > 3 → Err(InvalidDigit(d))
-    /// - Input > R₉ = 9,841 trits → Err(TooLong)
     pub fn try_from_repr_c(bijective: &[u8]) -> Result<Self, TritIntError> {
         if bijective.is_empty() {
             return Ok(TritInt::zero());
-        }
-
-        if bijective.len() > MAX_HEAP_TRITS as usize {
-            return Err(TritIntError::TooLong);
         }
 
         for &d in bijective {
@@ -1675,11 +1682,7 @@ impl TritInt {
         let mut lsb_first: Vec<u8> = bijective.iter().map(|&c| c - 1).collect();
         lsb_first.reverse();
 
-        if lsb_first.len() <= MAX_INLINE_TRITS as usize {
-            Ok(TritInt::from_trits(&lsb_first))
-        } else {
-            Ok(make_from_trits(&lsb_first))
-        }
+        Ok(make_from_trits(&lsb_first))
     }
 }
 
@@ -1884,6 +1887,35 @@ mod tests {
     fn u128_round_trip() {
         let t = TritInt::from_u128(1001);
         assert_eq!(t.to_u128().unwrap(), 1001);
+    }
+
+    #[test]
+    fn u128_large_auto_promotes() {
+        // u128 value exceeding u64::MAX (and thus > 40 trits) must auto-promote to heap
+        let large: u128 = u64::MAX as u128 + 1;
+        let t = TritInt::from_u128(large);
+        assert_eq!(t.to_u128().unwrap(), large);
+        assert!(t.trit_length() > 40); // must have promoted to heap
+    }
+
+    #[test]
+    fn from_trit_slice_unbounded() {
+        // 100 trits — well beyond inline, must auto-promote
+        let trits = vec![1u8; 100];
+        let t = TritInt::from_trit_slice(&trits);
+        assert_eq!(t.trit_length(), 100);
+        assert!(t.is_repunit());
+    }
+
+    #[test]
+    fn repunit_rt_unbounded() {
+        let r50 = TritInt::repunit_rt(50);
+        assert_eq!(r50.trit_length(), 50);
+        assert!(r50.is_repunit());
+        // Verify it matches arithmetic: R₅₀ = (3⁵⁰ − 1) / 2
+        let three_pow_50 = TritInt::from_u64(3).pow(50);
+        let expected = TritInt::sub(&three_pow_50, &TritInt::one()).div_mod(&TritInt::from_u64(2)).0;
+        assert_eq!(r50, expected);
     }
 
     #[test]
@@ -2493,15 +2525,8 @@ mod tests {
     }
 
     #[test]
-    fn try_from_repr_c_rejects_too_long() {
-        let input = vec![1u8; 9842]; // 9842 > R₉ = 9841
-        let result = TritInt::try_from_repr_c(&input);
-        assert_eq!(result, Err(TritIntError::TooLong));
-    }
-
-    #[test]
-    fn try_from_repr_c_max_valid_length() {
-        let input = vec![1u8; 40]; // exactly R₄ = 40 trits (inline)
+    fn try_from_repr_c_inline_path() {
+        let input = vec![1u8; 40]; // exactly R₄ = 40 trits (inline path)
         let result = TritInt::try_from_repr_c(&input);
         assert!(result.is_ok());
     }
@@ -2511,6 +2536,15 @@ mod tests {
         let input = vec![2u8; 50]; // Rep C digit 2 → Rep B digit 1; 50 > 40 → heap
         let result = TritInt::try_from_repr_c(&input).unwrap();
         assert_eq!(result.trit_length(), 50);
+        assert!(result.is_repunit());
+    }
+
+    #[test]
+    fn try_from_repr_c_large_unbounded() {
+        // TritInt is unbounded — 10,000 trits must be accepted, not rejected.
+        let input = vec![2u8; 10_000]; // Rep C digit 2 → Rep B digit 1
+        let result = TritInt::try_from_repr_c(&input).unwrap();
+        assert_eq!(result.trit_length(), 10_000);
         assert!(result.is_repunit());
     }
 

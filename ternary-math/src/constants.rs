@@ -41,6 +41,157 @@
 //!   values are in the clearly marked conversion section at the bottom.
 
 use std::f64::consts::PI as STD_PI;
+use crate::trit_int::TritInt;
+
+// ══════════════════════════════════════════════════════════════
+// §0  TERNARY-NATIVE CONSTANTS (SOURCE OF TRUTH)
+//
+// Every mathematical constant in the Salvi Framework is a TritInt
+// derived from the master formula x² − R₄·x + R₆ = 0.
+// TritInt is the native numeric type. Binary values below (§1+)
+// are BOUNDARY CROSSINGS for consumers not yet migrated.
+//
+// Derivation chain:
+//   repunit(n)  →  circle quadratic  →  roots  →  arc equation  →  everything
+//
+// No decimal literal appears in this section. Every value is
+// constructed from its trit representation or derived via const
+// arithmetic from prior values.
+// ══════════════════════════════════════════════════════════════
+
+// ── Repunits: Rₙ = 111...1₃ (n ones) = (3ⁿ − 1)/2 ─────────
+
+/// R₁ = 1₃. The unit.
+pub const T_REPUNIT_1: TritInt = TritInt::repunit(1);
+/// R₂ = 11₃. The quadratic root offset.
+pub const T_REPUNIT_2: TritInt = TritInt::repunit(2);
+/// R₃ = 111₃. The radian.
+pub const T_REPUNIT_3: TritInt = TritInt::repunit(3);
+/// R₄ = 1111₃. Sum of circle quadratic roots. Inline buffer width.
+pub const T_REPUNIT_4: TritInt = TritInt::repunit(4);
+/// R₅ = 11111₃.
+pub const T_REPUNIT_5: TritInt = TritInt::repunit(5);
+/// R₆ = 111111₃. The full circle. 364°.
+pub const T_REPUNIT_6: TritInt = TritInt::repunit(6);
+
+// ── Circle quadratic: x² − R₄·x + R₆ = 0 ──────────────────
+
+/// Root x₁ = 14 = R₃ + 1 = 112₃.
+pub const T_ROOT_X1: TritInt = TritInt::from_trits(&[2, 1, 1]);
+/// Root x₂ = 26 = 2·R₃ = 222₃.
+pub const T_ROOT_X2: TritInt = TritInt::from_trits(&[2, 2, 2]);
+/// Discriminant Δ = R₄ − 4·R₆ ... = 144 = 12² = 12100₃.
+pub const T_DISCRIMINANT: TritInt = TritInt::from_trits(&[0, 0, 1, 2, 1]);
+/// √Δ = 12 = 110₃.
+pub const T_DISCRIMINANT_SQRT: TritInt = TritInt::from_trits(&[0, 1, 1]);
+/// Δ₂ = 729 = 3⁶ = 1000000₃.
+pub const T_DISCRIMINANT_2: TritInt = TritInt::from_trits(&[0, 0, 0, 0, 0, 0, 1]);
+/// √Δ₂ = 27 = 3³ = 1000₃.
+pub const T_DISCRIMINANT_2_SQRT: TritInt = TritInt::from_trits(&[0, 0, 0, 1]);
+
+// ── Arc equation: arc² − 832·arc + 118300 = 0 ──────────────
+
+/// arc₁ = 182 = 2 × 7 × 13 = 20022₃. The half-turn (semi-arc).
+pub const T_ARC_ROOT_SEMI: TritInt = TritInt::from_trits(&[2, 0, 2, 0, 2]);
+/// arc₂ = 650 = 2 × 5² × 13 = 212202₃. The complementary arc.
+pub const T_ARC_ROOT_COMP: TritInt = TritInt::from_trits(&[2, 0, 0, 0, 2, 2]);
+/// Green arc (effective) = 286 = 2 × 11 × 13 = 101212₃.
+pub const T_GREEN_ARC_EFF: TritInt = TritInt::from_trits(&[1, 2, 1, 1, 0, 1]);
+
+// ── UV Spectral partition ───────────────────────────────────
+
+/// λ_EUV = 91 = 7 × 13 = 10011₃.
+pub const T_LAMBDA_EUV: TritInt = TritInt::from_trits(&[1, 0, 1, 0, 1]);
+/// λ_UVC = 182 = 2 × 7 × 13 = T_ARC_ROOT_SEMI.
+pub const T_LAMBDA_UVC: TritInt = T_ARC_ROOT_SEMI;
+/// λ_UVB = 286 = 2 × 11 × 13 = T_GREEN_ARC_EFF.
+pub const T_LAMBDA_UVB: TritInt = T_GREEN_ARC_EFF;
+/// λ_UVA = 364 = R₆ = T_REPUNIT_6.
+pub const T_LAMBDA_UVA: TritInt = T_REPUNIT_6;
+
+// ── Polygon generators (coprime source set) ─────────────────
+
+/// 3 = 10₃. Triangle.
+pub const T_POLYGON_3: TritInt = TritInt::from_trits(&[0, 1]);
+/// 4 = R₂ = 11₃. Square.
+pub const T_POLYGON_4: TritInt = T_REPUNIT_2;
+/// 5 = 12₃. Pentagon.
+pub const T_POLYGON_5: TritInt = TritInt::from_trits(&[2, 1]);
+/// 7 = 21₃. Heptagon.
+pub const T_POLYGON_7: TritInt = TritInt::from_trits(&[1, 2]);
+/// 8 = 22₃. Octagon.
+pub const T_POLYGON_8: TritInt = TritInt::from_trits(&[2, 2]);
+/// 9 = 100₃ = 3². Nonagon.
+pub const T_POLYGON_9: TritInt = TritInt::from_trits(&[0, 0, 1]);
+/// 11 = 102₃. Hendecagon. First coprime generator.
+pub const T_POLYGON_11: TritInt = TritInt::from_trits(&[2, 0, 1]);
+/// 13 = R₃ = 111₃. Tridecagon. The radian polygon.
+pub const T_POLYGON_13: TritInt = T_REPUNIT_3;
+/// 14 = 112₃ = x₁. Tetradecagon. The π-gon.
+pub const T_POLYGON_14: TritInt = T_ROOT_X1;
+/// 15 = 120₃ = 3 × 5. Pentadecagon. Bridge polygon.
+pub const T_POLYGON_15: TritInt = TritInt::from_trits(&[0, 2, 1]);
+
+// ── Plenum Square ───────────────────────────────────────────
+
+/// Magic constant = 333 = 110000₃.
+pub const T_MAGIC_CONSTANT: TritInt = TritInt::from_trits(&[0, 0, 1, 0, 1, 1]);
+/// Center = 111 = 11010₃.
+pub const T_CENTER: TritInt = TritInt::from_trits(&[0, 1, 0, 1, 1]);
+
+// ── Key derived products ────────────────────────────────────
+
+/// Z₂₈ group order = 28 = 1001₃.
+pub const T_Z28_ORDER: TritInt = TritInt::from_trits(&[1, 0, 0, 1]);
+/// Circumference = 1554 = 2012010₃.
+pub const T_CIRCUMFERENCE: TritInt = TritInt::from_trits(&[0, 2, 1, 0, 1, 0, 2]);
+
+// ── Compile-time derivation verification ────────────────────
+
+const _: () = {
+    // Repunit values: Rₙ = (3ⁿ − 1)/2
+    assert!(T_REPUNIT_1.to_u32_const() == 1);
+    assert!(T_REPUNIT_2.to_u32_const() == 4);
+    assert!(T_REPUNIT_3.to_u32_const() == 13);
+    assert!(T_REPUNIT_4.to_u32_const() == 40);
+    assert!(T_REPUNIT_5.to_u32_const() == 121);
+    assert!(T_REPUNIT_6.to_u32_const() == 364);
+
+    // Circle quadratic: x₁ + x₂ = R₄, x₁ × x₂ = R₆
+    assert!(T_ROOT_X1.const_add(T_ROOT_X2).to_u32_const() == T_REPUNIT_4.to_u32_const());
+    assert!(T_ROOT_X1.const_mul(T_ROOT_X2).to_u32_const() == T_REPUNIT_6.to_u32_const());
+
+    // Discriminant: Δ = R₄² − 4·R₆ = 1600 − 1456 = 144
+    assert!(T_DISCRIMINANT.to_u32_const() == 144);
+    assert!(T_DISCRIMINANT_SQRT.const_mul(T_DISCRIMINANT_SQRT).to_u32_const() == 144);
+
+    // Δ₂ = 3⁶ = 729
+    assert!(T_DISCRIMINANT_2.to_u32_const() == 729);
+    assert!(T_DISCRIMINANT_2_SQRT.const_mul(T_DISCRIMINANT_2_SQRT).to_u32_const() == 729);
+
+    // Arc semi: 182 = 2 × 7 × 13 = R₆/2
+    assert!(T_ARC_ROOT_SEMI.to_u32_const() == 182);
+
+    // UV spectral: λ_EUV × 2 = λ_UVC = arc_semi
+    assert!(T_LAMBDA_EUV.const_mul(TritInt::from_trits(&[2])).to_u32_const()
+            == T_LAMBDA_UVC.to_u32_const());
+
+    // Polygon identities
+    assert!(T_POLYGON_15.to_u32_const() == T_POLYGON_3.const_mul(T_POLYGON_5).to_u32_const());
+    assert!(T_POLYGON_14.to_u32_const() == T_ROOT_X1.to_u32_const()); // 14-gon = π
+
+    // Magic constant: 3 × center
+    assert!(T_MAGIC_CONSTANT.to_u32_const()
+            == T_CENTER.const_mul(TritInt::from_trits(&[0, 1])).to_u32_const());
+};
+
+// ══════════════════════════════════════════════════════════════
+// §0b BOUNDARY CROSSINGS — u32 exports for unmigrated consumers
+//
+// These exist ONLY because downstream modules still import u32
+// constants. As each module migrates to TritInt, its u32 export
+// is deleted. The source of truth is §0 above.
+// ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
 // §1  REPUNIT FAMILY (TM-2026-017 §2.1)

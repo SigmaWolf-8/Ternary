@@ -405,9 +405,6 @@ pub fn trit_int_from_u64(val: u64) -> Vec<u8> {
 
 #[wasm_bindgen]
 pub fn trit_int_to_decimal(repr_c: &[u8]) -> Result<u64, JsValue> {
-    if repr_c.len() > 40 {
-        return Err(JsValue::from_str("input exceeds TritInt inline capacity (R4 = 40 trits)"));
-    }
     let t = TritInt::try_from_repr_c(repr_c)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
     t.to_u64().map_err(|e| JsValue::from_str(&e.to_string()))
@@ -415,9 +412,6 @@ pub fn trit_int_to_decimal(repr_c: &[u8]) -> Result<u64, JsValue> {
 
 #[wasm_bindgen]
 pub fn trit_int_display(repr_c: &[u8]) -> Result<String, JsValue> {
-    if repr_c.len() > 40 {
-        return Err(JsValue::from_str("input exceeds TritInt inline capacity (R4 = 40 trits)"));
-    }
     let t = TritInt::try_from_repr_c(repr_c)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
     Ok(format!("{}", t))
@@ -430,9 +424,6 @@ pub fn trit_int_to_repr_c(val: u64) -> Vec<u8> {
 
 #[wasm_bindgen]
 pub fn trit_int_from_repr_c(repr_c: &[u8]) -> Result<Vec<u8>, JsValue> {
-    if repr_c.len() > 40 {
-        return Err(JsValue::from_str("input exceeds TritInt inline capacity (R4 = 40 trits)"));
-    }
     let t = TritInt::try_from_repr_c(repr_c)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
     Ok(t.to_repr_c())
