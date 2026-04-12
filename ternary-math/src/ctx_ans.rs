@@ -81,7 +81,7 @@ impl CtxFreqTable {
                 // Empty context — assign uniform distribution over literal bytes
                 // so decoder doesn't hit zero-frequency
                 let per = (l / 256) as u32;
-                let mut remainder = l as u32 - per * 256;
+                let remainder = l as u32 - per * 256;
                 for s in 0..256 {
                     fnorm[c][s] = per + if s < remainder as usize { 1 } else { 0 };
                 }
@@ -408,7 +408,7 @@ pub fn deserialize(payload: &[u8]) -> TtcResult<Vec<Token>> {
         if dist_count > 0 && pos < payload.len() {
             let rice_m = payload[pos]; pos += 1;
             if pos + 4 <= payload.len() {
-                let bit_count = u32::from_be_bytes([payload[pos], payload[pos+1], payload[pos+2], payload[pos+3]]);
+                let _bit_count = u32::from_be_bytes([payload[pos], payload[pos+1], payload[pos+2], payload[pos+3]]);
                 pos += 4;
                 let mut r = BitReader::new(&payload[pos..]);
                 for _ in 0..dist_count {

@@ -682,6 +682,7 @@ impl TritInt {
 
     /// Extract packed array and count from an inline value (runtime).
     /// Panics on Heap — use packed_slice()/count() for heap-compatible access.
+    #[allow(dead_code)]
     fn parts(&self) -> ([u8; 8], u8) {
         match &self.storage {
             TritIntStorage::Inline { packed, trit_count } => (*packed, *trit_count),
@@ -1042,6 +1043,7 @@ fn signed_add(a: TritInt, a_neg: bool, b: TritInt, b_neg: bool) -> (TritInt, boo
 
 /// Shift trits left by `shift` positions (multiply by 3^shift).
 /// Inserts `shift` zero trits at the LSB end.
+#[allow(dead_code)]
 fn trit_shift_left(packed: [u8; 8], count: u8, shift: u8) -> ([u8; 8], u8) {
     let new_count = count + shift;
     assert!(new_count <= MAX_INLINE_TRITS, "trit_shift_left: result exceeds R4 = 40 trits");

@@ -48,12 +48,12 @@ fn get_u32_be(d: &[u8], o: usize) -> u32 { u32::from_be_bytes([d[o], d[o+1], d[o
 
 fn safe_inflate_raw(data: &[u8]) -> Option<Vec<u8>> {
     let lim = MAX_INFLATE.min(data.len().saturating_mul(64));
-    let mut d = DeflateDecoder::new(data); let mut out = Vec::new();
+    let d = DeflateDecoder::new(data); let mut out = Vec::new();
     d.take(lim as u64).read_to_end(&mut out).ok().map(|_| out)
 }
 fn safe_inflate_zlib(data: &[u8]) -> Option<Vec<u8>> {
     let lim = MAX_INFLATE.min(data.len().saturating_mul(64));
-    let mut d = ZlibDecoder::new(data); let mut out = Vec::new();
+    let d = ZlibDecoder::new(data); let mut out = Vec::new();
     d.take(lim as u64).read_to_end(&mut out).ok().map(|_| out)
 }
 fn try_inflate(data: &[u8]) -> Option<Vec<u8>> {
@@ -67,6 +67,7 @@ fn zlib_compress(data: &[u8]) -> Vec<u8> {
     let mut e = ZlibEncoder::new(Vec::new(), Compression::best());
     e.write_all(data).unwrap(); e.finish().unwrap()
 }
+#[allow(dead_code)]
 fn is_image_content(data: &[u8]) -> bool {
     if data.len() < 4 { return false; }
     if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF { return true; }
@@ -130,6 +131,7 @@ fn pack(ctype: u8, orig_size: usize, manifest: &[u8], content: &[u8]) -> Vec<u8>
 // ═══════════════════════════════════════════════════════════════
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct ZipEntry {
     version_needed: u16, flags: u16, method: u16,
     mod_time: u16, mod_date: u16, crc32: u32,
@@ -503,6 +505,7 @@ fn reconstruct_pdf(manifest: &[u8], content: &[u8]) -> Result<Vec<u8>, String> {
     let streams_data = &content[struct_size..];
 
     // First pass: compute new deflated sizes and patch /Length in structure
+    #[allow(dead_code)]
     struct StreamInfo { insert: usize, clen: usize, was_inflated: bool }
     let mut infos = Vec::with_capacity(n);
     let mut cpos = 0;

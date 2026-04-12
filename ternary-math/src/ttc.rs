@@ -446,6 +446,7 @@ fn select_delta(chunk: &[u8], mode: CompressionMode) -> DeltaFlag {
             best_flag = DeltaFlag::STRIDE;
         }
     }
+    let _ = best_h; // consumed by comparisons above; final value unused
     best_flag
 }
 
@@ -546,11 +547,11 @@ impl BitWriter {
     }
 }
 
-pub struct BitReader<'a> { data: &'a [u8], byte_pos: usize, bit_pos: u8 }
+pub struct BitReader<'a> { data: &'a [u8], byte_pos: usize, bit_pos: u8, overrun: bool }
 impl<'a> BitReader<'a> {
-    #[inline] pub fn new(data: &'a [u8]) -> Self { Self { data, byte_pos: 0, bit_pos: 0 } }
+    #[inline] pub fn new(data: &'a [u8]) -> Self { Self { data, byte_pos: 0, bit_pos: 0, overrun: false } }
     #[inline] pub fn read(&mut self, count: u8) -> u32 {
-        let mut v = 0u32; for _ in 0..count { if self.byte_pos >= self.data.len() { return v; }
+        let mut v = 0u32; for _ in 0..count { if self.byte_pos >= self.data.len() { self.overrun = true; return v; }
             let bit = (self.data[self.byte_pos] >> (7 - self.bit_pos)) & 1; v = (v << 1) | bit as u32;
             self.bit_pos += 1; if self.bit_pos == 8 { self.bit_pos = 0; self.byte_pos += 1; } } v
     }
@@ -559,6 +560,8 @@ impl<'a> BitReader<'a> {
         let mut c = 0u32; while !self.is_exhausted() { if self.read_bit() { return c; } c += 1; } c
     }
     #[inline] pub fn is_exhausted(&self) -> bool { self.byte_pos >= self.data.len() }
+    /// Returns true if any read() returned fewer bits than requested.
+    #[inline] pub fn has_overrun(&self) -> bool { self.overrun }
 }
 
 // ─── Trit Stream I/O (§3.7 — ternary ANS wire format) ──────────────────────
@@ -1371,18 +1374,25 @@ fn structured_encode_json(data: &[u8]) -> Vec<u8> {
     let mut keys: Vec<Vec<u8>> = Vec::new(); let mut i = 0;
     while i < data.len() { if data[i]==b'"' { let start=i+1;
         let end = data[start..].iter().position(|&b| b==b'"').map(|p| start+p).unwrap_or(data.len());
-        let after = data[end+1..].iter().position(|&b| b!=b' '&&b!=b'\t').map(|p| end+1+p);
-        if let Some(cp) = after { if cp < data.len() && data[cp]==b':' { let key = data[start..end].to_vec();
-            if !keys.contains(&key) && keys.len() < 65535 { keys.push(key); } } } i = end+1; } else { i+=1; } }
+        if end + 1 < data.len() {
+            let after = data[end+1..].iter().position(|&b| b!=b' '&&b!=b'\t').map(|p| end+1+p);
+            if let Some(cp) = after { if cp < data.len() && data[cp]==b':' { let key = data[start..end].to_vec();
+                if !keys.contains(&key) && keys.len() < 65535 { keys.push(key); } } }
+        }
+        i = if end < data.len() { end+1 } else { data.len() }; } else { i+=1; } }
     out.extend_from_slice(&(keys.len() as u16).to_be_bytes());
     for k in &keys { out.extend_from_slice(&(k.len() as u16).to_be_bytes()); out.extend_from_slice(k); }
     i = 0; while i < data.len() { if data[i]==b'"' { let start=i+1;
         let end = data[start..].iter().position(|&b| b==b'"').map(|p| start+p).unwrap_or(data.len());
-        let key = &data[start..end]; let aq = end+1;
-        let nw = data[aq..].iter().position(|&b| b!=b' '&&b!=b'\t').map(|p| aq+p);
-        if let Some(np) = nw { if np < data.len() && data[np]==b':' { if let Some(kid) = keys.iter().position(|k| k==key) {
-            out.push(0xFE); out.extend_from_slice(&(kid as u16).to_be_bytes()); i=np+1; continue; } } }
-        out.push(b'"'); out.extend_from_slice(&data[start..end]); out.push(b'"'); i=end+1;
+        let key = &data[start..end];
+        if end + 1 < data.len() {
+            let aq = end+1;
+            let nw = data[aq..].iter().position(|&b| b!=b' '&&b!=b'\t').map(|p| aq+p);
+            if let Some(np) = nw { if np < data.len() && data[np]==b':' { if let Some(kid) = keys.iter().position(|k| k==key) {
+                out.push(0xFE); out.extend_from_slice(&(kid as u16).to_be_bytes()); i=np+1; continue; } } }
+        }
+        out.push(b'"'); out.extend_from_slice(&data[start..end]); out.push(b'"');
+        i = if end < data.len() { end+1 } else { data.len() };
     } else { out.push(data[i]); i+=1; } } out
 }
 fn structured_decode_json(data: &[u8]) -> Vec<u8> {
@@ -1467,6 +1477,56 @@ fn structured_decode_xml(data: &[u8]) -> Vec<u8> {
 }
 fn looks_like_csv(data: &[u8]) -> bool { let fnl = data.iter().position(|&b| b==b'\n').unwrap_or(data.len());
     data[..fnl].iter().filter(|&&b| b==b',').count() >= 2 && fnl < data.len() }
+/// Require at least 2 "key": patterns (quote-colon) AND matched bracket depth.
+fn looks_like_json(data: &[u8]) -> bool {
+    let scan = data.len().min(1024);
+    let mut key_colon = 0u32;
+    let mut depth: i32 = 0;
+    let mut i = 0;
+    while i < scan {
+        match data[i] {
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => depth -= 1,
+            b'"' => {
+                // Look for "...":
+                i += 1;
+                while i < scan && data[i] != b'"' { i += 1; }
+                if i < scan {
+                    let mut j = i + 1;
+                    while j < scan && (data[j] == b' ' || data[j] == b'\t') { j += 1; }
+                    if j < scan && data[j] == b':' { key_colon += 1; }
+                }
+            }
+            _ => {}
+        }
+        if depth < 0 { return false; } // more closes than opens → not JSON
+        i += 1;
+    }
+    key_colon >= 2
+}
+/// Require at least 1 matched open+close tag pair: <tag>...</tag>.
+fn looks_like_xml(data: &[u8]) -> bool {
+    let scan = data.len().min(1024);
+    // Find first <tag> (not </, <!, <?)
+    let mut i = 0;
+    while i + 1 < scan {
+        if data[i] == b'<' && data[i+1] != b'/' && data[i+1] != b'!' && data[i+1] != b'?' {
+            let tag_start = i + 1;
+            let tag_end = data[tag_start..scan].iter().position(|&b| b == b'>' || b == b' ')
+                .map(|p| tag_start + p).unwrap_or(scan);
+            if tag_end > tag_start && tag_end < scan {
+                let tag = &data[tag_start..tag_end];
+                // Look for matching </tag>
+                let close_pat: Vec<u8> = [b"</", tag, b">"].concat();
+                if data[..scan].windows(close_pat.len()).any(|w| w == close_pat.as_slice()) {
+                    return true;
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
 fn encode_varint_signed(out: &mut Vec<u8>, value: i64) { encode_varint(out, ((value<<1)^(value>>63)) as u64); }
 fn decode_varint_signed(data: &[u8]) -> (i64, usize) { let (zz, b) = decode_varint(data); (((zz>>1) as i64) ^ -((zz&1) as i64), b) }
 fn write_i64(out: &mut Vec<u8>, value: i64) { if value < 0 { out.push(b'-'); write_u64(out, (-value) as u64); } else { write_u64(out, value as u64); } }
@@ -1489,13 +1549,13 @@ fn apply_domain_preprocess(data: &[u8], mode: CompressionMode, image_width: Opti
                 (crate::container_decomp::decompose(data), DomainTransform::CONTAINER_DECOMP, None, None)
             }
             // Auto-detect structured text (JSON/CSV/XML) in Basic/Temporal/Financial.
-            // The Structured mode arm above handles explicit mode selection;
-            // this gives the same benefit when users send Basic (the common case).
-            else if data.len() >= 2 {
+            // Requires minimum structure evidence — first-byte alone is NOT sufficient.
+            // Random data has ~1.2% chance of starting with {, [, or <.
+            else if data.len() >= 16 {
                 let trimmed = &data[data.iter().position(|&b| b != b' ' && b != b'\t' && b != b'\n' && b != b'\r').unwrap_or(0)..];
-                if trimmed.starts_with(b"{") || trimmed.starts_with(b"[") {
+                if (trimmed.starts_with(b"{") || trimmed.starts_with(b"[")) && looks_like_json(data) {
                     (structured_encode(data), DomainTransform::STRUCTURED, None, None)
-                } else if trimmed.starts_with(b"<") {
+                } else if trimmed.starts_with(b"<") && looks_like_xml(data) {
                     (structured_encode(data), DomainTransform::STRUCTURED, None, None)
                 } else if looks_like_csv(data) {
                     (structured_encode(data), DomainTransform::STRUCTURED, None, None)
@@ -2251,7 +2311,7 @@ fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
         if !fname.is_empty() { (content.to_vec(), Some(fname)) } else { (final_data, None) }
     } else { (final_data, None) };
     let computed_crc = crc32(&actual_data);
-    let ver_byte = compressed[0x04];
+    let _ver_byte = compressed[0x04];
     let ver_str = "5.0.3";
     Ok(DecompressionResult { data: actual_data, original_file_name, original_size: orig_size,
         compressed_size: compressed.len() as u64, version: ver_str.into(),
