@@ -56,6 +56,14 @@ pub struct AttestationSigningKey {
 }
 
 impl AttestationSigningKey {
+    /// Public accessor for verification — returns a reference to the raw key bytes.
+    /// Tests and verifiers use this to feed into `verify()`.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.key_material
+    }
+}
+
+impl AttestationSigningKey {
     /// Derive the attestation signing key from PUF root secret.
     ///
     /// `key = TLSponge-385(context: KEY_DERIVATION_CONTEXT, input: puf_root ‖ node_addr)`
@@ -170,6 +178,7 @@ mod tests {
     use super::*;
     use crate::fts::NeighborState;
     use super::super::report::*;
+    use ternary_math::trit_int::TritInt;
 
     fn test_addr() -> CubeAddr {
         CubeAddr::new([2, 1, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1])

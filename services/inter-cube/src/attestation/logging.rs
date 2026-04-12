@@ -412,8 +412,8 @@ impl AttestationLogger {
         self.emit(
             classification,
             format!("Attestation service started, interval={}s, key derived — node {}",
-                interval_base, node.to_dotted()),
-            Some(format!("node={} interval_base_s={}", node.to_dotted(), interval_base)),
+                interval_base, node.to_rep_c_display()),
+            Some(format!("node={} interval_base_s={}", node.to_rep_c_display(), interval_base)),
             None, ts,
         );
     }
@@ -423,8 +423,8 @@ impl AttestationLogger {
         let classification = classify_operational(C1);
         self.emit(
             classification,
-            format!("Attestation service stopped, key zeroized — node {}", node.to_dotted()),
-            Some(format!("node={}", node.to_dotted())),
+            format!("Attestation service stopped, key zeroized — node {}", node.to_rep_c_display()),
+            Some(format!("node={}", node.to_rep_c_display())),
             None, ts,
         );
     }
@@ -436,10 +436,10 @@ impl AttestationLogger {
         self.emit(
             classification,
             format!("Attestation broadcast seq={} to {} ({} bytes)",
-                seq, neighbor.to_dotted(), wire_size),
+                seq, neighbor.to_rep_c_display(), wire_size),
             Some(format!("from={} to={} seq={} wire_bytes={}",
-                node.to_dotted(), neighbor.to_dotted(), seq, wire_size)),
-            Some(format!("sender={} receiver={}", node.to_dotted(), neighbor.to_dotted())),
+                node.to_rep_c_display(), neighbor.to_rep_c_display(), seq, wire_size)),
+            Some(format!("sender={} receiver={}", node.to_rep_c_display(), neighbor.to_rep_c_display())),
             ts,
         );
     }
@@ -449,9 +449,9 @@ impl AttestationLogger {
         let classification = classify_operational(C1);
         self.emit(
             classification,
-            format!("Attestation verified from {} seq={}", sender.to_dotted(), seq),
-            Some(format!("node={} sender={} seq={}", node.to_dotted(), sender.to_dotted(), seq)),
-            Some(format!("verifier={} attester={}", node.to_dotted(), sender.to_dotted())),
+            format!("Attestation verified from {} seq={}", sender.to_rep_c_display(), seq),
+            Some(format!("node={} sender={} seq={}", node.to_rep_c_display(), sender.to_rep_c_display(), seq)),
+            Some(format!("verifier={} attester={}", node.to_rep_c_display(), sender.to_rep_c_display())),
             ts,
         );
     }
@@ -467,8 +467,8 @@ impl AttestationLogger {
         self.emit(
             classification,
             format!("HModal phase={} interval={}s — node {}",
-                phase_str, interval_s, node.to_dotted()),
-            Some(format!("node={} phase={} interval_s={}", node.to_dotted(), phase_str, interval_s)),
+                phase_str, interval_s, node.to_rep_c_display()),
+            Some(format!("node={} phase={} interval_s={}", node.to_rep_c_display(), phase_str, interval_s)),
             None, ts,
         );
     }
@@ -487,8 +487,8 @@ impl AttestationLogger {
         };
         self.emit(
             classification,
-            format!("Attestation state={} — node {}", state_str, node.to_dotted()),
-            Some(format!("node={} {}", node.to_dotted(), detail)),
+            format!("Attestation state={} — node {}", state_str, node.to_rep_c_display()),
+            Some(format!("node={} {}", node.to_rep_c_display(), detail)),
             None, ts,
         );
     }
@@ -500,10 +500,10 @@ impl AttestationLogger {
         self.emit(
             classification,
             format!("Bandwidth backoff level={} interval={}s to {} — node {}",
-                backoff_level, effective_interval, neighbor.to_dotted(), node.to_dotted()),
+                backoff_level, effective_interval, neighbor.to_rep_c_display(), node.to_rep_c_display()),
             Some(format!("node={} link={} backoff={} interval_s={}",
-                node.to_dotted(), neighbor.to_dotted(), backoff_level, effective_interval)),
-            Some(format!("sender={} congested_link={}", node.to_dotted(), neighbor.to_dotted())),
+                node.to_rep_c_display(), neighbor.to_rep_c_display(), backoff_level, effective_interval)),
+            Some(format!("sender={} congested_link={}", node.to_rep_c_display(), neighbor.to_rep_c_display())),
             ts,
         );
     }

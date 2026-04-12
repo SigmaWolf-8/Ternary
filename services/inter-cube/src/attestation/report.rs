@@ -32,7 +32,7 @@ pub const SCHEMA_VERSION: u16 = 1;
 
 /// Boot measurement data from firmware_sign.rs measured boot.
 /// All values stored as TritInt; carried in Rep C on the wire.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BootMeasurements {
     /// Firmware hash from measured boot (TLSponge-385 output).
     pub firmware_hash: Vec<u8>,
@@ -69,7 +69,7 @@ pub enum PufHealth {
 /// Wire serialization uses Rep C encoding (INVARIANT 3).
 ///
 /// Maximum report size: ≤ 4KB Rep C-encoded.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AttestationReport {
     // ── Field 1: Attesting node Rep C address ────────────────────
     /// 13-trit Rep C address of the attesting node.
@@ -350,7 +350,7 @@ impl std::fmt::Display for AttestationReport {
         write!(
             f,
             "AttestReport[node={}, seq={}, ver={}, puf={:?}, fts={}]",
-            self.node_addr.to_dotted(),
+            self.node_addr.to_rep_c_display(),
             self.sequence,
             self.schema_version,
             self.puf_health,

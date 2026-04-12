@@ -1337,6 +1337,8 @@ mod slots_tests {
                 is_primary_gateway: true,
                 uptime_secs: 120,
                 heartbeat_count: 24,
+                last_heartbeat_epoch: 0,
+                load_pct: 0.0,
                 latency_us: 0,
                 service_detail: None,
             }],
@@ -1374,6 +1376,8 @@ mod slots_tests {
             is_primary_gateway: false,
             uptime_secs: 0,
             heartbeat_count: 0,
+            last_heartbeat_epoch: 0,
+            load_pct: 0.0,
             latency_us: 0,
             service_detail: None,
         };

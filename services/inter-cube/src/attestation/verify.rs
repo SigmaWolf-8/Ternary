@@ -283,6 +283,7 @@ mod tests {
     use crate::fts::NeighborState;
     use super::super::report::*;
     use super::super::signing::*;
+    use ternary_math::trit_int::TritInt;
 
     fn addr1() -> CubeAddr { CubeAddr::new([1; 13]) }
     fn addr2() -> CubeAddr { CubeAddr::new([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }
@@ -317,7 +318,7 @@ mod tests {
 
         let mut verifier = AttestationVerifier::new();
         assert_eq!(
-            verifier.verify(&signed, &key.key_material, now_fs + 1_000_000_000_000_000),
+            verifier.verify(&signed, key.as_bytes(), now_fs + 1_000_000_000_000_000),
             VerifyResult::Accepted
         );
     }
@@ -333,15 +334,15 @@ mod tests {
 
         // Accept sequence 5
         let signed5 = make_signed(&addr, 5, now_fs, &secret);
-        assert_eq!(verifier.verify(&signed5, &key.key_material, now_fs), VerifyResult::Accepted);
+        assert_eq!(verifier.verify(&signed5, key.as_bytes(), now_fs), VerifyResult::Accepted);
 
         // Reject sequence 5 again
         let signed5b = make_signed(&addr, 5, now_fs, &secret);
-        assert_eq!(verifier.verify(&signed5b, &key.key_material, now_fs), VerifyResult::SequenceReplay);
+        assert_eq!(verifier.verify(&signed5b, key.as_bytes(), now_fs), VerifyResult::SequenceReplay);
 
         // Accept sequence 6
         let signed6 = make_signed(&addr, 6, now_fs, &secret);
-        assert_eq!(verifier.verify(&signed6, &key.key_material, now_fs), VerifyResult::Accepted);
+        assert_eq!(verifier.verify(&signed6, key.as_bytes(), now_fs), VerifyResult::Accepted);
     }
 
     #[test]
@@ -354,7 +355,7 @@ mod tests {
 
         let signed = make_signed(&addr, 1, old_ts, &secret);
         let mut verifier = AttestationVerifier::new();
-        assert_eq!(verifier.verify(&signed, &key.key_material, now_fs), VerifyResult::StaleTimestamp);
+        assert_eq!(verifier.verify(&signed, key.as_bytes(), now_fs), VerifyResult::StaleTimestamp);
     }
 
     #[test]
@@ -399,7 +400,7 @@ mod tests {
 
         // Valid attestation resets counter
         let signed = make_signed(&addr, 1, now_fs, &secret);
-        assert_eq!(verifier.verify(&signed, &key.key_material, now_fs), VerifyResult::Accepted);
+        assert_eq!(verifier.verify(&signed, key.as_bytes(), now_fs), VerifyResult::Accepted);
         assert_eq!(verifier.suspicion_counter(&addr), 0);
     }
 
@@ -427,6 +428,6 @@ mod tests {
         // Replay old report — sequence 0 would normally be accepted post-restart,
         // but timestamp is >240s stale → rejected by freshness
         let signed = make_signed(&addr, 1, old_ts, &secret);
-        assert_eq!(verifier.verify(&signed, &key.key_material, now_fs), VerifyResult::StaleTimestamp);
+        assert_eq!(verifier.verify(&signed, key.as_bytes(), now_fs), VerifyResult::StaleTimestamp);
     }
 }

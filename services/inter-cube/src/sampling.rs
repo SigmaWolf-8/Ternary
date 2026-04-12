@@ -48,7 +48,7 @@
 
 use std::collections::HashSet;
 
-use crate::cube_addr::{CubeAddr, DIMENSIONS};
+use crate::cube_addr::{CubeAddr, DIMENSIONS, TOTAL_VERTICES};
 use crate::placement::{hamming_distance};
 
 // ═══════════════════════════════════════════════════════════════════════

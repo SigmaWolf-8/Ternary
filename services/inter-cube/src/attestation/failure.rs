@@ -151,7 +151,7 @@ pub fn handle_tunnel_unavailable(neighbor: &CubeAddr) -> String {
     format!(
         "Attestation to neighbor [{}] queued: Inter-Cube tunnel unavailable. \
         Will retry when tunnel re-establishes.",
-        neighbor.to_dotted()
+        neighbor.to_rep_c_display()
     )
 }
 

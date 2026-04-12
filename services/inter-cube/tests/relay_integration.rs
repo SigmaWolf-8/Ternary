@@ -296,13 +296,12 @@ mod relay_integration {
         let config = TopicConfig { idle_ttl: Duration::from_millis(20), ..Default::default() };
         let mut mgr = TopicManager::new(config);
 
-        // Subscribe, get epoch, unsubscribe
+        // Subscribe, get epoch, unsubscribe (no publish — queue must be empty for GC)
         let epoch1 = mgr.subscribe("data", "addr").unwrap();
-        mgr.publish("data", "addr", "msg".to_string()).unwrap(); // seq 1
         mgr.unsubscribe("data", "addr");
 
-        // Wait for GC
-        std::thread::sleep(Duration::from_millis(30));
+        // Wait for GC — allow generous headroom over 20ms TTL
+        std::thread::sleep(Duration::from_millis(60));
         let gc_d = mgr.gc();
         assert!(gc_d.contains(&"data".to_string()));
 

@@ -114,38 +114,38 @@ impl AttestAuditEvent {
         match self {
             Self::SignFail { node_rep_c, error_code, .. } => {
                 format!("[{}] {} node={} error_code={}",
-                    self.severity(), self.event_id(), node_rep_c.to_dotted(), error_code)
+                    self.severity(), self.event_id(), node_rep_c.to_rep_c_display(), error_code)
             }
             Self::HptpTimeout { node_rep_c, retry_count, .. } => {
                 format!("[{}] {} node={} retries={}",
-                    self.severity(), self.event_id(), node_rep_c.to_dotted(), retry_count)
+                    self.severity(), self.event_id(), node_rep_c.to_rep_c_display(), retry_count)
             }
             Self::BootMissing { node_rep_c, .. } => {
                 format!("[{}] {} node={}",
-                    self.severity(), self.event_id(), node_rep_c.to_dotted())
+                    self.severity(), self.event_id(), node_rep_c.to_rep_c_display())
             }
             Self::SeqCorrupt { node_rep_c, .. } => {
                 format!("[{}] {} node={}",
-                    self.severity(), self.event_id(), node_rep_c.to_dotted())
+                    self.severity(), self.event_id(), node_rep_c.to_rep_c_display())
             }
             Self::PufDegraded { node_rep_c, fuzzy_health, .. } => {
                 format!("[{}] {} node={} fuzzy_health={}",
-                    self.severity(), self.event_id(), node_rep_c.to_dotted(), fuzzy_health)
+                    self.severity(), self.event_id(), node_rep_c.to_rep_c_display(), fuzzy_health)
             }
             Self::Suspect { reporter_rep_c, suspect_rep_c, counter, threshold, .. } => {
                 format!("[{}] {} reporter={} suspect={} counter={} threshold={}",
                     self.severity(), self.event_id(),
-                    reporter_rep_c.to_dotted(), suspect_rep_c.to_dotted(), counter, threshold)
+                    reporter_rep_c.to_rep_c_display(), suspect_rep_c.to_rep_c_display(), counter, threshold)
             }
             Self::Mismatch { reporter_rep_c, attester_rep_c, field, .. } => {
                 format!("[{}] {} reporter={} attester={} field={}",
                     self.severity(), self.event_id(),
-                    reporter_rep_c.to_dotted(), attester_rep_c.to_dotted(), field)
+                    reporter_rep_c.to_rep_c_display(), attester_rep_c.to_rep_c_display(), field)
             }
             Self::VersionUnknown { reporter_rep_c, attester_rep_c, version, .. } => {
                 format!("[{}] {} reporter={} attester={} version={}",
                     self.severity(), self.event_id(),
-                    reporter_rep_c.to_dotted(), attester_rep_c.to_dotted(), version)
+                    reporter_rep_c.to_rep_c_display(), attester_rep_c.to_rep_c_display(), version)
             }
         }
     }

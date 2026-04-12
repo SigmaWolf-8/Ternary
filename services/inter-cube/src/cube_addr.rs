@@ -393,6 +393,16 @@ impl CubeAddr {
             &flat[0..3], &flat[3..6], &flat[6..9], &flat[9..12], &flat[12..13])
     }
 
+    /// Per-digit dot-separated Rep C: 1.1.1.1.1.1.1.1.1.1.1.1.1
+    /// Used by attestation logs and operator-facing surfaces for maximum clarity.
+    pub fn to_rep_c_display(&self) -> String {
+        self.trits
+            .iter()
+            .map(|t| String::from(char::from(b'0' + t.value())))
+            .collect::<Vec<_>>()
+            .join(".")
+    }
+
     /// Parse from either flat (1111111111112) or dotted (111.111.111.111.2) notation.
     /// Returns None if length is wrong or any trit is outside {1,2,3}.
     pub fn parse(s: &str) -> Option<Self> {
