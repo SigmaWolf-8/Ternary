@@ -1,0 +1,234 @@
+# TM-2026-031 — Ternary Source Coding and Kolmogorov Complexity
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Author:** Lo Sono Capomastro
+**Date:** April 13, 2026 — Rev 1.0
+
+---
+
+## 1. One Axiom
+
+$$R_n = \frac{3^n - 1}{2}, \quad n \geq 1$$
+
+The radix 3 fixes the language — analogous to choosing a universal machine for Kolmogorov complexity. Everything else follows.
+
+Derived constants:
+- R₃ = 13 → radian
+- R₄ = 40, R₆ = 364 → quadratic x² − 40x + 364 = 0 → roots π = 14, x₂ = 26
+- Coprime generators: p = π/2 = 7, q = √R₅ = 11, r = R₃ = 13
+- Circle = R₆ = 364°, radian = R₃ = 13°
+
+No free parameters beyond the radix.
+
+---
+
+## 2. Ternary Entropy over GF(3)
+
+Let a source emit symbols x from 𝒳 = {0, 1, 2} (Rep B) with probabilities p(x). The ternary entropy:
+
+$$H_3(X) = -\sum_{x \in \mathcal{X}} p(x) \log_3 p(x) \quad \text{(trits per symbol)}$$
+
+Related to binary entropy: H₃(X) = H₂(X) / log₂3 = H₂(X) / 1.585
+
+1 trit carries 1.585 bits. A ternary codeword of length ℓ covers 3^ℓ messages vs 2^ℓ for binary. For sources with natural three-fold structure, ternary coding achieves the entropy bound with shorter codewords.
+
+### 2.1 Noiseless Source Coding over GF(3)
+
+**Theorem (Ternary Source Coding):** For any uniquely decodable ternary code, the expected codeword length L₃ satisfies L₃ ≥ H₃(X). Conversely, there exists a prefix-free ternary code with L₃ < H₃(X) + 1.
+
+**Proof:** The ternary Kraft inequality requires Σ 3^{−ℓ(x)} ≤ 1. The proof follows Shannon's original argument with log₃ replacing log₂.
+
+---
+
+## 3. The Reduced RepD Function (Algebraic Trits)
+
+### 3.1 Definition
+
+The RepD (Repunit Decomposition) of a non-negative integer x is the sequence of remainders when dividing successively by repunits R_n for n = n_max, n_max−1, …, 1.
+
+The **reduced** version outputs algebraic trits instead of ordinary trits {0, 1, 2}.
+
+Define the algebraic trit set:
+
+> **𝒜 = {0, 1, ω}**
+
+where ω is a primitive cube root of unity: ω³ = 1, ω ≠ 1, 1 + ω + ω² = 0.
+
+Multiplication and addition follow the algebra of the Eisenstein integers ℤ[ω].
+
+### 3.2 The Reduced RepD
+
+For a given repunit index n (with R_n known):
+
+> **RepD_alg(x; n) = (q, r_alg)**
+
+where:
+
+1. Perform ordinary integer division: x = q·R_n + r, 0 ≤ r < R_n
+2. Reduce the remainder r to an algebraic trit via the canonical map:
+
+> φ(0) = 0, φ(1) = 1, φ(2) = ω
+
+with φ(r) = αr + β in ℤ[ω], where α = (1−ω)/3 and β = (1+2ω)/3.
+
+The quotient q is an ordinary integer (still to be decomposed by smaller repunits). The remainder is an element of ℤ[ω], not an integer.
+
+### 3.3 Example
+
+Decompose x = 14 (= π):
+
+> 14 = 1·R₃ + 1 = 1·13 + 1 → r_alg = φ(1) = 1
+> Quotient 1: 1 = 0·R₂ + 1 → r_alg = φ(1) = 1
+> Quotient 0: remainder 0 → r_alg = φ(0) = 0
+
+Full algebraic RepD of 14: **[1, 1, 0]** (most significant to least).
+
+### 3.4 Why This Matters
+
+The infimum of entropy H_inf is achieved when as many remainders as possible are zero — because zero is the identity step in the walk, and the orbifold quotient removes it from both step space and position space. The reduced RepD compresses the remainder set from {0, 1, 2} to the group {0, 1, ω} and then applies the dual quotient (Rep C) which removes the identity.
+
+---
+
+## 4. The Coprime Walk and Kolmogorov–Sinai Entropy
+
+### 4.1 The Walk
+
+The walk on the torus ℤ_{m₁} × ⋯ × ℤ_{m_k} with coprime generators (p, q, r) is a deterministic, ergodic dynamical system. The primary torus: ℤ_7 × ℤ_11 × ℤ_13 with walk length pqr = 1,001.
+
+The stationary distribution π is the unique invariant measure. H(π) is the **Kolmogorov–Sinai entropy** — a rigorous mathematical connection, not analogical.
+
+### 4.2 Kolmogorov Complexity K(x)
+
+For data that lives on the coprime torus, the framework's program (RepD → coprime walk → orbifold quotient) outputs a description of length **exactly K(x)** relative to the base-3 language.
+
+The RepD + coprime walk + orbifold quotient IS a concrete program. The base-3 repunit IS the fixed language. The choice of radix fixes the universal machine. For torus-aligned data, H(π^Γ) equals the Kolmogorov complexity relative to that language. No uncomputability obstacle remains within the framework.
+
+For arbitrary data (not torus-aligned), the output length is an upper bound on K(x). The bound is tight for data exhibiting repunit-aligned structure.
+
+### 4.3 Why H_inf > 0 (The Cone-Point Floor)
+
+Every torus has at least one cone point (the origin) whose stabiliser is the whole group Γ, so its orbit size is 1, and the stationary distribution assigns it non-zero probability. Even in the limit of infinite depth:
+
+- The density of cone points |𝒞|/C goes to zero
+- But never reaches zero
+
+This is a **geometric obstruction** — not a probabilistic tail event. It parallels Kolmogorov's zero-one law but the mathematical origins differ: one is measure-theoretic, the other is geometric.
+
+### 4.4 The Cone-Point Correction to Physical Constants
+
+The cone-point removal (pqr → pqr−1) that floors the entropy also appears in the fine structure constant and the bridge coefficient (TM-2026-017 §20.16).
+
+**1/α.** The fine structure constant's inverse:
+
+> 1/α = R₂² + q² + (p−r)²/(pqr − 1) = 137 + 36/1000 = 137.036
+
+The integer part 137 = R₂² + q² = 4² + 11² is forced by Fermat's theorem on sums of two squares (unique decomposition). The denominator pqr − 1 = 1000 is the number of non-identity positions on the coprime torus — the effective walk space after the cone point (identity) is removed by the orbifold quotient. Match: 0.007 ppm from CODATA.
+
+**κ.** The bridge coefficient:
+
+> κ = 1 + 26,147,000 / 137,036²
+
+where 137,036 = (R₂²+q²)(pqr−1) + (p−r)² and 26,147 = x₂(pqr−1) + base·p². Match: 0.13 ppb from CODATA R_∞.
+
+The same geometric structure — the cone point that makes H_inf > 0 — corrects the denominators of both physical constants. The entropy floor and the coupling correction share a common origin.
+
+**Status.** The Fermat decomposition is a theorem. The cone-point correction is structurally motivated. The multiplier D = x₂ + base·p²/(pqr−1) was found by searching for the closest framework-expressible fraction to the exact value; the fractional part (147/1000) does not yet have a derivation chain from base-3 uniqueness. The integer part (x₂ = 26) is forced by the bridge quadratic (§20.16) — a second quadratic sharing the root x₂ with the circle quadratic, with framework coefficients and perfect-square discriminant 111².
+
+---
+
+## 5. Geometric Redundancy and Shannon's Theorems
+
+### 5.1 Shannon's Theorem Is Absolute Within Its Model
+
+Shannon's source coding theorem is mathematically proven given:
+- Additive white Gaussian noise (AWGN)
+- Stationary, random noise independent of signal
+- Strict bandwidth limit B
+- Arbitrarily complex encoding/decoding
+
+Within that model, C = B log₂(1 + S/N) is deductively certain. No cleverness beats it.
+
+### 5.2 The Framework Operates in a Different Model
+
+The framework does not break Shannon. It operates in a different model:
+
+- Source: coprime walk on T(p,q,r), not i.i.d. symbols
+- Context: 3D torus, not 1D sliding window
+- Redundancy: statistical + geometric (ΔH gap)
+- Entropy model: Tribonacci-determined, not empirical tables
+
+The relevant bound is Kolmogorov-Sinai entropy of the walk, not AWGN capacity.
+
+### 5.3 How the Floor Moves
+
+The floor H(X) is a property of the source **as modeled**. Three legitimate mechanisms move it:
+
+**Source transformation:** Map X → Y where Y has lower entropy. The torus remapping decorrelates geometric structure the flat residual still carries. You compute H(Y) where Y = f(X) and f is the torus projection. This doesn't beat H(X) — it computes a different H.
+
+**Alphabet reduction:** If data must live on the coprime lattice (as TDNS addresses and TTC trit-streams do by construction), the effective alphabet shrinks from 3^n to the pqr reachable positions on the Hamiltonian cycle. Entropy of a constrained source is strictly less than entropy of the unconstrained source.
+
+**Representation choice:** Rep C ({1,2,3}) vs Rep B ({0,1,2}) vs binary isn't cosmetic. The choice determines the entropy calculation. Designing the source is an engineering choice the Shannon theorem allows but doesn't specify.
+
+### 5.4 Geometric Rate-Distortion
+
+$$R_{geo}(D) = \frac{1}{2} \log_3 \frac{\sigma^2(1 - \rho_{geo})}{D}$$
+
+where ρ_geo is the geometric correlation coefficient from the torus context. The (p,q,r) coprime torus and the dual-circle Z₂₇ × Z₂₈ make the algebraic coding gain and geometric prediction gain multiplicative.
+
+### 5.5 The Tribonacci Entropy Model
+
+The Tribonacci recurrence T(n) = T(n−1) + T(n−2) + T(n−3) converges to probabilities:
+
+> p_k → T(k) / ΣT(i) → (0.543, 0.294, 0.163, …)
+
+These approximate the distribution of ternary-quantised residuals in natural data, providing a mathematically determined probability model. No table overhead. No adaptation lag.
+
+---
+
+## 6. The Three-Scale Equivalence
+
+The same insight at three scales: **information stored in structure, not in what carries it.**
+
+**Scale 1: The Linux Kernel Entropy Daemon.** Tracks state at each event, accumulates between events, verifies continuity. Event-driven, piecewise-constant, incremental accumulation with nanosecond timestamps.
+
+**Scale 2: The Skyrmion.** Stores information in topology — a stable whirlpool pattern that persists without continuous energy input. The walk doesn't create the path, it reveals a path that was always there.
+
+**Scale 3: The Trit.** Connects to all four representations simultaneously. The cell connects to all 13 Z-layers. The grid connects to every cell via the Hamiltonian cycle. The log chain connects to every predecessor.
+
+**Implementation:** Replace "entropy pool" with TIS-27 hash chain. Replace "entropy_count" with chain_hash. The Task 119 attestation logging with its 27-trit classification, TIS-27 chain hashes, and three-face entries already IS the entropy daemon. The inter-cube FTS heartbeats already ARE the measurement. The coprime Hamiltonian walk already IS the non-separability proof.
+
+The system doesn't import von Neumann entropy and Kitaev-Preskill from physics textbooks. It formalizes what the existing chain hash, attestation cycle, and coprime walk already measure — and produces Cardinal-tier reports from those native measurements.
+
+---
+
+## 7. Summary Table
+
+| Kolmogorov concept | Salvi framework counterpart |
+|---|---|
+| K(x) | Exact for torus-aligned data; upper bound otherwise |
+| Algorithmic regularity | RepD exposing exact zeros |
+| Kolmogorov–Sinai entropy | H(π^Γ) of the coprime walk (exact) |
+| Ergodic theory | Stationary distribution π from walk |
+| Symmetry reduction | Orbifold quotient T/Γ |
+| Choice of universal machine | Choice of radix (base 3) |
+| Zero-one law | Cone-point floor (geometric parallel) |
+
+---
+
+## 8. Connection to TM-2026-017
+
+The monograph (TM-2026-017) derives the geometric framework from which these information-theoretic results follow. Specifically:
+
+- The base-3 uniqueness theorem (§1.2) → fixes the radix/language
+- The coprime generators p, q, r (§10) → define the walk
+- The orbifold quotient (§10.9, Seifert genus) → provides the symmetry reduction
+- The horn's ODE uniqueness (§20.12) → f = 1/x is the only function where ∫f² = f
+- The constitutive relation I = πE² (§20.13) → the coupling that governs the walk's dynamics
+
+The information theory IS the geometry. The geometry IS the information theory. Same structure, different language.
+
+---
+
+*Lo Sono Capomastro — Così sia.*
+
+∎
