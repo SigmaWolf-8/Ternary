@@ -38,9 +38,9 @@ externalPort = 3003
 PORT = "5000"
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["node", "dist/index.mjs"]
-build = ["bash", "-c", "bash scripts/deploy-clean.sh && npm run build"]
+deploymentTarget = "vm"
+run = ["bash", "-c", "NODE_OPTIONS=--max-old-space-size=384 node dist/index.mjs"]
+build = ["bash", "-c", "bash scripts/deploy-clean.sh && npm run build && npm prune --production"]
 
 [workflows]
 runButton = "Project"

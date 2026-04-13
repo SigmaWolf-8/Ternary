@@ -2,8 +2,9 @@
 # PlenumNET .dockerignore — keep only dist/ and runtime essentials
 # ═══════════════════════════════════════════════════════════════════
 
-# Rust build artifacts (3.9 GB)
+# Rust build artifacts (5+ GB)
 target/
+**/target/
 ternary-math/target/
 libternary/target/
 services/inter-cube/target/
@@ -25,21 +26,11 @@ sign-here/
 # Kernel source (317 MB)
 src/
 
-# Frontend/backend source (compiled into dist/)
-client/
-server/
-shared/
-script/
-scripts/
-
-# Node modules (825 MB — rebuilt in deploy if needed)
-node_modules/
-
-# Git and CI (574 MB)
+# Git and CI (647 MB)
 .git/
 .github/
 
-# Dev tooling and caches
+# Dev tooling and caches (446 MB+)
 .local/
 .cache/
 .canvas/
@@ -50,7 +41,7 @@ artifacts/
 # Attached assets
 attached_assets/
 
-# Documentation and config
+# Documentation, config, and non-runtime dirs
 docs/
 salvi_docs/
 references/
@@ -59,6 +50,8 @@ kong/
 keys/
 github-push/
 assets/
+installer-output/
+plenumnet-data/
 
 # Test files
 tests/
@@ -67,11 +60,6 @@ tests/
 *.md
 *.txt
 *.log
-
-# TypeScript source files (compiled into dist/)
-*.ts
-*.tsx
-!dist/**
 
 # Config files not needed at runtime
 .replit
@@ -92,11 +80,15 @@ components.json
 package-lock.json
 docker-compose*.yml
 
-# Large media files
+# Large media / build outputs
 *.mp4
 *.mov
 *.zip
 *.tar.gz
 *.msi
-installer-output/
-plenumnet-data/
+*.wasm
+
+# Preserve dist/ and server/crypto/ for runtime
+!dist/
+!dist/**
+!server/crypto/sponge-native.node
