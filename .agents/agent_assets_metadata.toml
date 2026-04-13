@@ -600,3 +600,9 @@ id = "XgMyjce0Qf5DhmRr-67MD"
 uri = "file://ttc-engine-files.zip"
 type = "unspecified"
 title = "TTC v5.0.3 — Full Rust Source + N-API + TS Layer + Frontend"
+
+[[outputs]]
+id = "gT5dO7AYCdDH0XLvhXhdk"
+uri = "file://ttc-v510-preread-package.zip"
+type = "unspecified"
+title = "TTC v5.1.0 Pre-Read Package — 8 Rust Source Files + README"
