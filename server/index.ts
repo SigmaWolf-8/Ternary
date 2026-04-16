@@ -1848,17 +1848,26 @@ function startPqtiService(): ChildProcess | null {
   });
 
   app.get("/api/deploy-yoda", async (_req, res) => {
-    try {
-      const scriptPath = path.resolve("services/inter-cube/deploy-yoda.ps1");
-      const { readFile } = await import("fs/promises");
-      const script = await readFile(scriptPath, "utf-8");
-      res.setHeader("Content-Type", "text/plain; charset=utf-8");
-      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-      res.setHeader("Pragma", "no-cache");
-      res.send(script);
-    } catch {
-      res.status(404).send("# deploy-yoda.ps1 not found");
+    const candidates = [
+      path.resolve(process.cwd(), "client", "public", "install", "deploy-yoda.ps1"),
+      path.resolve(process.cwd(), "dist", "public", "install", "deploy-yoda.ps1"),
+      path.resolve(process.cwd(), "public", "install", "deploy-yoda.ps1"),
+      path.resolve(process.cwd(), "services", "inter-cube", "deploy-yoda.ps1"),
+    ];
+    const { readFile, stat } = await import("fs/promises");
+    for (const scriptPath of candidates) {
+      try {
+        await stat(scriptPath);
+        const script = await readFile(scriptPath, "utf-8");
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        return res.send(script);
+      } catch {
+        continue;
+      }
     }
+    res.status(404).send("# deploy-yoda.ps1 not found");
   });
 
   app.get("/api/deploy-yoda.bat", async (_req, res) => {

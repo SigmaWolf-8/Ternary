@@ -69,8 +69,17 @@ param(
 #                  Red=error/fail, DarkGray=detail, White=data/info
 # Do not introduce additional colors without updating this key.
 
-$DEPLOYER_VERSION = "v2.4.8"
-$RELEASE_TAG      = "v2.4.8"
+$_versionFile = Join-Path "C:\PlenumNET" "VERSION"
+if (Test-Path $_versionFile) {
+    $DEPLOYER_VERSION = "v" + (Get-Content $_versionFile -ErrorAction SilentlyContinue | Select-Object -First 1).Trim()
+} else {
+    try {
+        $DEPLOYER_VERSION = "v" + (Invoke-RestMethod -Uri "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/VERSION" -TimeoutSec 5).Trim()
+    } catch {
+        Write-Host "  [FAIL] Cannot determine version -- no local repo and GitHub unreachable" -ForegroundColor Red; exit 1
+    }
+}
+$RELEASE_TAG      = $DEPLOYER_VERSION
 $DAEMON_COUNT     = 3
 $REMOTE_CRS       = "https://plenumnet.replit.app"
 $BASE_PORT        = 11111
@@ -452,6 +461,13 @@ if (-not (Test-Path $RepoDir)) {
     Pop-Location
 }
 Write-Host "  [OK] Source ready (pinned to $RELEASE_TAG)" -ForegroundColor Green
+
+# Re-read VERSION from cloned repo (handles first-install case)
+$_versionFile = Join-Path $RepoDir "VERSION"
+if (Test-Path $_versionFile) {
+    $DEPLOYER_VERSION = "v" + (Get-Content $_versionFile -ErrorAction SilentlyContinue | Select-Object -First 1).Trim()
+    $RELEASE_TAG = $DEPLOYER_VERSION
+}
 
 # -- STEP 4/11: Building inter-cube daemon -------------------------------
 Write-Host ""
@@ -1399,6 +1415,45 @@ if (`$stopped) {
 `$runningServices = Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -eq 'Running' }
 `$healthyDaemons = (`$runningServices | Measure-Object).Count
 
+`$relayUrl = 'https://plenumnet.replit.app'
+`$relayStatusUrl = "`$relayUrl/api/salvi/inter-cube/relay/status"
+`$relayDisconnectedFile = Join-Path `$logDir 'relay-disconnected.flag'
+if (`$healthyDaemons -gt 0) {
+    try {
+        `$relayResp = Invoke-RestMethod -Uri `$relayStatusUrl -TimeoutSec 10 -ErrorAction Stop
+        `$relayConnected = [int]`$relayResp.connectedNodes
+        if (`$relayConnected -ge `$healthyDaemons) {
+            Write-WdLog "[OK] Relay: `$relayConnected/`$healthyDaemons daemons connected"
+            if (Test-Path `$relayDisconnectedFile) { Remove-Item `$relayDisconnectedFile -Force -ErrorAction SilentlyContinue }
+        } else {
+            Write-WdLog "[WARN] Relay: only `$relayConnected/`$healthyDaemons daemons connected"
+            if (Test-Path `$relayDisconnectedFile) {
+                `$flagAge = ((Get-Date) - (Get-Item `$relayDisconnectedFile).LastWriteTime).TotalSeconds
+                if (`$flagAge -gt 120) {
+                    Write-WdLog "[WARN] Relay disconnected for >`$([math]::Round(`$flagAge))s -- restarting all daemon services"
+                    Get-Service PlenumNET-Array3-* -ErrorAction SilentlyContinue | Where-Object { `$_.Status -eq 'Running' } | ForEach-Object {
+                        try {
+                            Restart-Service -Name `$_.Name -Force -ErrorAction Stop
+                            Write-WdLog "[OK] Restarted `$(`$_.Name) for relay reconnection"
+                            `$restartCount++
+                        } catch {
+                            Write-WdLog "[FAIL] Could not restart `$(`$_.Name): `$_"
+                        }
+                    }
+                    Remove-Item `$relayDisconnectedFile -Force -ErrorAction SilentlyContinue
+                } else {
+                    Write-WdLog "[OK] Relay disconnect flag age `$([math]::Round(`$flagAge))s < 120s -- waiting"
+                }
+            } else {
+                New-Item -ItemType File -Path `$relayDisconnectedFile -Force | Out-Null
+                Write-WdLog "[OK] Relay disconnect detected -- flag created, will restart after 120s if persistent"
+            }
+        }
+    } catch {
+        Write-WdLog "[WARN] Could not reach relay status endpoint: `$_ -- skipping relay check"
+    }
+}
+
 `$allProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId, ParentProcessId, Name
 `$childMap = @{}
 foreach (`$p in `$allProcs) {
@@ -2110,14 +2165,14 @@ Write-Host ""
 Write-Host "  Closing this window will NOT stop the nodes -- they run as services." -ForegroundColor DarkGray
 Write-Host "  Applications (e.g. YODA) connect via the relay to reach these nodes." -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  -- Upgrade Notes (v2.4.5) --" -ForegroundColor Cyan
-Write-Host "  What changed (cumulative v2.4.4 + v2.4.5):" -ForegroundColor DarkGray
-Write-Host "    - Slot registry: BOM-tolerant JSON parser, BOM-free file writes" -ForegroundColor DarkGray
-Write-Host "    - CRS slot (1.1.1) now probes correctly (self-hosted service detection)" -ForegroundColor DarkGray
-Write-Host "    - Gateway slot 2.2.2 auto-registered on coordinator node" -ForegroundColor DarkGray
-Write-Host "    - [SLOTS-N*] diagnostic logging for slot registry loading" -ForegroundColor DarkGray
-Write-Host "    - Monitor sends auth header and shows per-node error details" -ForegroundColor DarkGray
-Write-Host "    - Deployer verifies slot counts with retry (3 attempts)" -ForegroundColor DarkGray
+Write-Host "  -- Upgrade Notes (${RELEASE_TAG}) --" -ForegroundColor Cyan
+Write-Host "  What changed in ${RELEASE_TAG}:" -ForegroundColor DarkGray
+Write-Host "    - Telemetry: HModal square-wave fix -- sends immediately on connect (was 60s delay)" -ForegroundColor DarkGray
+Write-Host "    - Relay: mesh heartbeat queuing fix (97.7% delivery rate)" -ForegroundColor DarkGray
+Write-Host "    - Relay: drain double-count fix for accurate delivery stats" -ForegroundColor DarkGray
+Write-Host "    - Unified constants expansion (TM-2026-017 + TM-2026-028 + TM-2026-028a)" -ForegroundColor DarkGray
+Write-Host "    - Monitor v9.4.4: throughput, latency, load display" -ForegroundColor DarkGray
+Write-Host "    - Deploy: image size fix (was >8 GiB, now clean)" -ForegroundColor DarkGray
 Write-Host "  Re-running this deployer on an existing cluster is safe:" -ForegroundColor DarkGray
 Write-Host "    - Existing data and identity keys are preserved" -ForegroundColor DarkGray
 Write-Host "    - The .bat script always downloads the latest deployer" -ForegroundColor DarkGray
