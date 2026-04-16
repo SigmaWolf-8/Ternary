@@ -1,0 +1,24 @@
+#115 - Fix Relay Pong Timeout Disconnects
+What & Why
+All Array3 nodes (111.111.111.111.1, 211.111.111.111.1, 311.111.111.111.1) are getting disconnected every ~60-90 seconds due to WebSocket protocol-level pong timeouts, then reconnecting in a cycle that appears as ~5-minute disconnection intervals. The root cause is that relayLastPong is only updated by WebSocket protocol-level pong frames, but Replit's deployment proxy likely strips or doesn't forward these control frames. Meanwhile, application-level messages (including { type: "ping" } heartbeats) successfully flow but do NOT update relayLastPong, so the server kills active, healthy connections.
+
+Done looks like
+Nodes stay connected without repeated "no pong" disconnections in production logs
+The cluster-health endpoint shows stable connections without cycling disconnect/reconnect entries
+Application-level activity (any message from a node) resets the pong timeout, so nodes that are actively communicating are never killed by the pong check
+No regression in detecting genuinely dead connections (nodes that stop sending ALL traffic should still be pruned)
+Out of scope
+Changes to the client-side daemon reconnection logic
+Changes to the node-watchdog health state thresholds (UP/SUSPECT/DOWN)
+Changes to the LauncherPanel WebSocket client
+Tasks
+In the relay ping interval handler, update the pong timeout check to also consider entry.lastSeen — if the node has been seen recently via any message, treat it as alive and skip the pong timeout close.
+When an authenticated node sends an application-level { type: "ping" }, update relayLastPong in addition to entry.lastSeen, so the application-level heartbeat also satisfies the protocol-level pong check.
+As a belt-and-suspenders measure, update relayLastPong on any inbound message from an authenticated node (at the same point where entry.lastSeen is updated on line 2926-2928), so any traffic from the node resets the pong timer.
+Verify production logs no longer show repeated "no pong" disconnections after deployment.
+Relevant files
+server/index.ts:2682-2737
+server/index.ts:2758-2764
+server/index.ts:2926-2929
+server/index.ts:3174-3176
+server/services/node-watchdog.ts:22-25
