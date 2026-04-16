@@ -1,0 +1,214 @@
+# The Forge — Architecture Corrections, Round 3
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+*Addendum to TheForge-Architecture-Corrections-R2.md — April 16, 2026*
+
+Two critical corrections: (1) cells are fundamentally independent with configurable scale from single-cell-page to sub-pixel mesh, (2) variable per-side padding on any number of sides is a first-class cell property.
+
+Round 2's §2.1 claimed "all cabinets share the row's height" and called it "Uniform mode." That was wrong. It conflated a user-selectable grouping behavior with the fundamental cell model. This document corrects that.
+
+---
+
+## 1. Cell Independence — The Fundamental Model
+
+### 1.1 Cells Are Independent By Default
+
+Every cell in the cascade is an independent actor with its own dimensions, its own content, and its own constraints. Two cells in the same row do NOT share a height by default. They share an edge (Invariant 1: zero-gap edge identity), but the edge's position is determined by each cell's individual constraint, not by a shared row constraint.
+
+When cell A (height = 30") sits next to cell B (height = 24") in the same logical "row," the row itself is NOT a constraint object. It's a visual reading order. The cells compute their own heights. The baseline alignment, if any, is a derived property — not a declared one.
+
+**This is the correct model:** a cell's dimensions are determined by:
+1. Its content's demands (measured via cascade traversal to its children)
+2. Its own mode (Variable/Fixed/Presentation/Plasma)
+3. Its own min/pref/max values
+4. Its parent's available space (for flex distribution among siblings that share a container)
+5. Its own padding (per-side, configurable, covered in §2)
+
+The row/column in the prior document was presented as if it were a first-class constraint primitive. It isn't. **Rows and columns are emergent projections** of cell placement, not objects that impose uniformity.
+
+### 1.2 Joining and Locking — Opt-In Grouping
+
+When the user wants cabinets in a row to share a height (for example, all base cabinets along a wall aligning to 34.5" so the countertop lies flat), they explicitly JOIN those cells. Joining is a user action that creates a group constraint on top of the independent cell model.
+
+**Three join types** defined in the cascade:
+
+**Joined Heights** — selected cells compute a shared height as `max(min_height) ≤ h ≤ min(max_height)` across the group. A change to any member's content propagates to all. Used for: base cabinets sharing countertop elevation, upper cabinets aligning to a soffit, a row of drawers aligning their drawer fronts.
+
+**Joined Widths** — selected cells compute a shared width. Used rarely — perhaps a column of identical drawer stacks under different cabinet widths where the drawers themselves should match.
+
+**Joined Alignment** — selected cells share an alignment line but NOT a dimension. Example: the TOP of a base cabinet and the BOTTOM of the upper above it should align to form a continuous visual line, but their heights differ. The join declares "top of A = bottom of B + gap."
+
+Joined cells display a visual indicator (lock icon, highlighted edge, or corner ornament) in the editor. Breaking a join is a user action. Joined cells remain joined across sessions (persisted in the project).
+
+**Un-joined cells are the default.** Kitchen bases happen to all be 34.5" because the Kitchen catalog sets that as the pref_height for base cabinets — but each cabinet independently picks it up from the catalog. No joining is involved. If one cabinet needs a different height, it simply gets a different height. The others don't know or care.
+
+### 1.3 Scale — From Single Cell Page to Sub-Pixel Mesh
+
+Cell scale is configurable without bound. Forma Codex §2 specifies a minimum content cell size of 81 trit-pixels (3⁴) — but that is the MINIMUM for legible content at depth 0. The cascade supports:
+
+**Single-cell page:** X=1, Y=1 — one cell occupies the entire viewport. Useful for: a single full-page image, a presentation slide, a whole-wall elevation view where one cabinet fills the frame, a full-floor plan with no subdivision needed.
+
+**Standard grids:** 3×7 through 27×28 (the 31 Forma Codex presets). Coprime pairs. Suitable for document-like layouts, cabinet runs on walls, room floor plans.
+
+**Large grids:** 27×28=756 cells, and custom beyond. For full-house floor plans, complex commercial installations, or detailed part drawings.
+
+**Sub-pixel mesh:** When the cascade descends past depth 5 into fine-grained tool path generation, cells can be micron-scale — a cabinet panel with a 32mm hole pattern effectively has a mesh of cells at 32,000 µm pitch for hole positions, but within each of those cells, finer cells exist for the hole's geometry (cam, chamfer, chip breaker), down to the machine's resolution (~10 µm for a modern CNC).
+
+**There is no fixed scale for "a cell."** A cell is a constraint region. At depth 0 it might be an entire wall of a house (3m × 2.4m). At depth 5 it might be a single tool entry point on a panel (10 µm × 10 µm). The constraint math is identical at every scale — only the variable values differ.
+
+The 81 trit-pixel minimum is a RENDERING constraint for content legibility at display scale. It applies when cells are being drawn to a screen for human viewing. It does not apply at depths where cells represent geometric or mechanical concepts that aren't directly rendered (e.g., a boring operation cell at 5mm diameter is perfectly valid — it's just not a "cell" in the visual sense).
+
+### 1.4 Implications for the Constraint Solver
+
+The redistribution algorithm from Round 2 §1.2 still applies — but only among cells that share a constraint container. A row of un-joined cells does NOT invoke the algorithm for height distribution; each cell computes its height from its own content independently. The algorithm invokes for:
+
+- Cells sharing a parent container's width budget (flex in the width dimension)
+- Joined cells within a group (the join is the container)
+- Cells within an assembly that is itself flexing within a larger container
+
+The algorithm does NOT invoke for:
+
+- Independent cells in the same visual row (each takes its own height)
+- Cells at different cascade depths (depths don't compete for space)
+- Cells in different parent containers (isolated constraint universes)
+
+**This is more permissive than Round 2 implied.** Most cells operate freely. Constraint solving kicks in at boundaries where cells must share a resource — and those boundaries are mostly (a) the width of a wall allocated among cabinets, (b) explicit user-joined groups, (c) nested assemblies.
+
+---
+
+## 2. Per-Side Padding
+
+### 2.1 Padding Is Per-Side, Configurable, Any Combination
+
+Every cell has four padding values (or six in 3D):
+
+```
+padding = {
+    top:    n trit-pixels (or µm at geometric scales)
+    right:  n trit-pixels
+    bottom: n trit-pixels
+    left:   n trit-pixels
+    // in 3D:
+    front:  n
+    back:   n
+}
+```
+
+**Any side can have any value independently.** Padding on one side, none on others, different values on each side, uniform on all sides — all valid configurations. No side is coupled to any other unless the user explicitly joins them.
+
+**Padding sources** follow the override chain:
+
+1. Catalog default (e.g., Kitchen catalog specifies default cell padding = 3 trit-pixels on all sides)
+2. Project default (project-wide override, e.g., "this project uses 0 padding for tight layouts")
+3. Component override (per-cell override, e.g., "this specific cabinet has 0 top padding to create a flush top")
+4. Per-side override (finest grain, e.g., "this cabinet has 6mm left padding only, other sides inherit")
+
+### 2.2 Padding Semantics
+
+**Padding is interior space between cell border and content.** The cell's outer bounding box is `width × height`. The content area is `(width − left_padding − right_padding) × (height − top_padding − bottom_padding)`. The zero-gap edge identity applies to cell BORDERS (the outer edges). Padding lives INSIDE the cell, affecting content placement, not the cell's position in the cascade.
+
+Implications:
+
+- Two adjacent cells with zero-gap borders but different padding: the cells touch (borders shared), but the content within each is offset from the border by that cell's own padding. Visually, you see a gap between content, but the cells themselves have no gap.
+- A cell with 0 padding on its right side and its neighbor with 0 padding on its left side: content runs right up to the shared edge. Useful for seamless textures, continuous imagery, or butted cabinet construction where two side panels abut with no reveal.
+- A cell with positive padding on all sides: content floats inside, surrounded by breathing room. Default for most cabinet cells — prevents graphics from touching cabinet edges in elevation view.
+
+### 2.3 Padding in the Cabinet Context
+
+Padding has a specific meaning when applied to cabinet cells:
+
+| Padding Side | Cabinet Meaning |
+|---|---|
+| top_padding | Reveal above cabinet (gap between cabinet top and ceiling/upper-cabinet bottom) |
+| bottom_padding | Reveal below cabinet (gap above toe kick, or crown reveal below upper) |
+| left_padding | Reveal on left side (gap between this cabinet and the left neighbor) |
+| right_padding | Reveal on right side (gap between this cabinet and the right neighbor) |
+| front_padding (3D) | Setback from wall face (recessed cabinet) |
+| back_padding (3D) | Gap between cabinet back and wall (for plumbing, wiring) |
+
+**Consequence:** Reveals are not a special feature — they are just cell padding applied at the cabinet level. A "3mm reveal all around" is `padding = { top: 3mm, right: 3mm, bottom: 3mm, left: 3mm }`. A frameless European style (zero reveals) is `padding = { 0, 0, 0, 0 }`. A face-frame style with different reveals on top (1/4") vs sides (3/8") is expressible directly.
+
+### 2.4 Padding at the Part Level
+
+When the cascade descends to Depth 4 (parts), padding has a different meaning:
+
+- top_padding → edge setback from top of panel for system hole start position
+- bottom_padding → edge setback from bottom of panel for system hole end position
+- left_padding → front edge setback for front row of system holes
+- right_padding → rear edge setback for rear row of system holes
+
+A cabinet side panel with `padding = { top: 37mm, bottom: 37mm, left: 37mm, right: 37mm }` is a standard 32mm-system side panel where the system hole rows start 37mm from each edge. Change the padding values — get different edge setbacks. The catalog sets the defaults; the user can override per-cabinet or per-project.
+
+### 2.5 Padding at the Operation Level
+
+At Depth 5 (operations), padding represents tolerances and offsets:
+
+- Boring operations have zero padding by default (the hole IS the cell boundary)
+- Routing operations have padding = chip clearance around the cut path
+- Dados have padding = overcut allowance at start/stop
+
+These are less user-facing but expose to catalog authors who need fine control over machining parameters.
+
+### 2.6 Padding and the Flex Algorithm
+
+When cells flex within a container, padding is part of the cell's min/pref/max width calculation:
+
+```
+cell_total_width(c) = content_width(c) + left_padding(c) + right_padding(c)
+
+min_total_width(c) = content_min_width(c) + left_padding(c) + right_padding(c)
+pref_total_width(c) = content_pref_width(c) + left_padding(c) + right_padding(c)
+max_total_width(c) = content_max_width(c) + left_padding(c) + right_padding(c)
+```
+
+The flex distribution in Round 2 §1.2 operates on total widths including padding. Padding itself does not flex unless explicitly declared flexible (a rare case — e.g., a user-configurable "expand the gutter to fill available space").
+
+### 2.7 Padding UI
+
+In the frontend editor, padding is editable via:
+
+- Numeric input per side in the configurator panel (Four inputs: top, right, bottom, left)
+- Visual handles on the cell edges (drag to resize padding)
+- "Lock sides" toggle to edit all four sides uniformly (temporary couple)
+- "Link opposites" toggle (top/bottom linked, left/right linked)
+- Catalog preset selector ("European Frameless", "Shaker Face Frame", "Zero Reveal", etc.)
+
+The UI does NOT force sides to be linked. That's an opt-in convenience. The underlying data model always stores four independent values.
+
+---
+
+## 3. Summary of Corrections Round 3
+
+| Round 2 Error | Round 3 Correction |
+|---|---|
+| "All cabinets share the row's height" | Cells are independent; rows are visual projections, not constraint containers |
+| "Uniform mode is the kitchen default" | There is no uniform mode; cells are independent by default. Joining is a user action that creates opt-in grouping. |
+| Assumed cell dimensions come from parent rows | Cell dimensions come from content, own constraints, and parent container's available space (only if flexing among siblings) |
+| No explicit padding model | Per-side padding is a first-class cell property, configurable on any subset of sides, with defined meanings at each cascade depth |
+| Implied fixed cell scale | Cell scale is unbounded from single-cell-page (1×1) to sub-pixel mesh (µm-scale at depth 5) |
+
+---
+
+## 4. Revised Cascade Behavior Summary
+
+With independence and padding corrected, the cascade behaves as follows:
+
+**A project** contains rooms. Rooms are independent — two rooms don't share dimensions unless explicitly joined (rare).
+
+**A room** contains walls. Walls share corners (Invariant 1: edges) but their other dimensions are independent — the north wall's length doesn't constrain the east wall's length.
+
+**A wall** contains assemblies and cabinets. These flex within the wall's width budget (the only mandatory constraint share) but are independent in depth and height by default.
+
+**An assembly or cabinet** contains parts. Parts are typically joined (a cabinet's six sides all share dimensions with each other as constrained by the cabinet's outer size) — this joining is declared by the cabinet type in the catalog, not by user action.
+
+**A part** contains operations. Operations are independent — a boring pattern and a perimeter cut on the same panel don't constrain each other except where they explicitly interact (e.g., a hole can't be on a cut edge).
+
+**An operation** contains tool-path geometry. Geometry is mathematical — formulas from TM-2026-017 produce the exact points.
+
+Padding at every level provides per-side configurable spacing, with meaning that varies by depth (reveals at the wall, setbacks at the part, clearances at the operation).
+
+**This is the correct cell model.** The prior documents kept implying row/column uniformity as a default. It isn't. Independence is.
+
+---
+
+*Lo Sono Capomastro — Così sia.*

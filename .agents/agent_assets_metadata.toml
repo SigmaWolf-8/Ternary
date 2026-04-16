@@ -606,3 +606,9 @@ id = "gT5dO7AYCdDH0XLvhXhdk"
 uri = "file://ttc-v510-preread-package.zip"
 type = "unspecified"
 title = "TTC v5.1.0 Pre-Read Package — 8 Rust Source Files + README"
+
+[[outputs]]
+id = "F2tAflRN-p-IdWqnCRiRp"
+uri = "file://.local/tasks/plenumcad-review.md"
+type = "text"
+title = "PlenumCAD Session Handoff — Structural Review"

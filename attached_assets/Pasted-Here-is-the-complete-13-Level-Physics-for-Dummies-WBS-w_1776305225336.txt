@@ -1,0 +1,1046 @@
+Here is the complete **13-Level Physics for Dummies WBS** with **third-level items added for every node** where possible. Each subcode now has at least one concrete example, famous experiment, historical figure, or specific application to make the physics concepts tangible for beginners.
+
+---
+
+## THE MERGED 13-LEVEL PHYSICS FOR DUMMIES WBS
+### Dimensional Levels + Physics Concepts
+### (With Three-Digit Subcodes and Third-Level Items)
+
+---
+
+### LEVEL 1: THE OBSERVABLE UNIVERSE
+*Physics at the largest scale*
+
+`1.0` **Cosmology (The Physics of Everything)**
+- `1.010` The Big Bang Theory
+    - `1.010.010` Singularity (The starting point)
+    - `1.010.020` Inflation (Rapid expansion in first fractions of a second)
+    - `1.010.030` Cooling and Particle Formation
+- `1.020` Cosmic Microwave Background Radiation
+    - `1.020.010` Discovery by Penzias and Wilson (1965)
+    - `1.020.020` Temperature Fluctuations (Seeds of galaxies)
+    - `1.020.030` COBE, WMAP, and Planck Satellites
+- `1.030` Hubble's Law (The universe is expanding)
+    - `1.030.010` V = H₀ × D (The formula)
+    - `1.030.020` Edwin Hubble's Observations
+    - `1.030.030` Redshift Explained (Stretching of light)
+- `1.040` Dark Energy (What's accelerating expansion)
+    - `1.040.010` Discovery from Supernova Observations (1998)
+    - `1.040.020` The Cosmological Constant (Λ)
+    - `1.040.030` 68% of the Universe (Composition estimate)
+- `1.050` Dark Matter (What holds galaxies together)
+    - `1.050.010` Vera Rubin's Galaxy Rotation Curves
+    - `1.050.020` Gravitational Lensing Evidence
+    - `1.050.030` 27% of the Universe (Composition estimate)
+- `1.060` Large-Scale Structure Formation
+    - `1.060.010` The Cosmic Web (Filaments and voids)
+    - `1.060.020` Gravitational Collapse
+    - `1.060.030` N-Body Simulations
+- `1.070` The Cosmological Principle
+    - `1.070.010` Homogeneity (Same everywhere on large scales)
+    - `1.070.020` Isotropy (Same in every direction)
+    - `1.070.030` The Copernican Principle (We're not special)
+- `1.080` The Fate of the Universe
+    - `1.080.010` Big Crunch (Recollapse)
+    - `1.080.020` Big Freeze (Heat death)
+    - `1.080.030` Big Rip (Dark energy tears everything apart)
+- `1.090` Inflation Theory (Rapid expansion after Big Bang)
+    - `1.090.010` Alan Guth's Proposal (1981)
+    - `1.090.020` Solving the Horizon Problem
+    - `1.090.030` Solving the Flatness Problem
+- `1.100` Olbers' Paradox (Why the sky is dark at night)
+    - `1.100.010` If universe is infinite and static, sky should be bright
+    - `1.100.020` Solution: Finite age and expansion of universe
+    - `1.100.030` Edgar Allan Poe's Insight (1848)
+- `1.110` The Multiverse Hypothesis
+    - `1.110.010` Bubble Universes (Eternal Inflation)
+    - `1.110.020` Quantum Many-Worlds Interpretation
+    - `1.110.030` String Theory Landscape
+
+---
+
+### LEVEL 2: SUPERCLUSTERS & COSMIC WEBS
+*Physics of galactic-scale gravity*
+
+`2.0` **Large-Scale Gravity & Structure**
+- `2.010` Universal Gravitation (F = G(m₁m₂)/r²)
+    - `2.010.010` Newton's Law Applied to Galaxies
+    - `2.010.020` G (Gravitational Constant) = 6.67430 × 10⁻¹¹
+    - `2.010.030` Inverse Square Law
+- `2.020` Gravitational Binding Energy
+    - `2.020.010` Energy Required to Pull a Cluster Apart
+    - `2.020.020` Virial Theorem (2K + U = 0)
+    - `2.020.030` Stability of Galaxy Clusters
+- `2.030` Galactic Filaments and Voids
+    - `2.030.010` The Sloan Great Wall
+    - `2.030.020` Bootes Void (250 million light-years across)
+    - `2.030.030` Formation via Gravitational Instability
+- `2.040` The Great Attractor (Gravitational anomaly)
+    - `2.040.010` Located in the Norma Cluster
+    - `2.040.020` Pulling the Milky Way at 600 km/s
+    - `2.040.030` Hidden by the Zone of Avoidance
+- `2.050` Dark Matter Halos
+    - `2.050.010` Spherical Distribution Around Galaxies
+    - `2.050.020` NFW Profile (Density distribution)
+    - `2.050.030` Substructure (Sub-halos)
+- `2.060` Gravitational Lensing (Bending light around massive structures)
+    - `2.060.010` Strong Lensing (Einstein Rings)
+    - `2.060.020` Weak Lensing (Statistical distortion)
+    - `2.060.030` Microlensing (Searching for exoplanets)
+- `2.070` Peculiar Velocity (Galaxies moving due to local gravity)
+    - `2.070.010` Deviation from Hubble Flow
+    - `2.070.020` Measuring via Dipole of CMB
+    - `2.070.030` Our Motion Toward the Great Attractor
+- `2.080` Redshift Surveys (Mapping the cosmos)
+    - `2.080.010` 2dF Galaxy Redshift Survey
+    - `2.080.020` Sloan Digital Sky Survey (SDSS)
+    - `2.080.030` Creating 3D Maps of the Universe
+- `2.090` Baryon Acoustic Oscillations (Echoes of the early universe)
+    - `2.090.010` Sound Waves in Primordial Plasma
+    - `2.090.020` Standard Ruler for Cosmology
+    - `2.090.030` Imprints in Galaxy Distribution
+
+---
+
+### LEVEL 3: GALAXIES
+*Physics of star cities*
+
+`3.0` **Galactic Physics**
+- `3.010` Spiral Galaxy Rotation Curves (Evidence for dark matter)
+    - `3.010.010` Expected: Keplerian Decline
+    - `3.010.020` Observed: Flat Rotation Curves
+    - `3.010.030` Vera Rubin's Pioneering Work
+- `3.020` Galactic Dynamics (How stars orbit the galactic center)
+    - `3.020.010` Circular Velocity = √(GM/r)
+    - `3.020.020` Epicyclic Orbits (Small oscillations)
+    - `3.020.030` Lindblad Resonances (Spiral arm formation)
+- `3.030` Supermassive Black Holes (Sagittarius A*)
+    - `3.030.010` Mass: 4.3 Million Solar Masses
+    - `3.030.020` Event Horizon Telescope Image (2022)
+    - `3.030.030` Orbiting Stars (Ghez and Genzel's Nobel Prize)
+- `3.040` Active Galactic Nuclei (Quasars, Blazars)
+    - `3.040.010` Accretion Disks
+    - `3.040.020` Relativistic Jets
+    - `3.040.030` Unified Model (Different viewing angles)
+- `3.050` Galaxy Formation and Evolution
+    - `3.050.010` Hierarchical Merging (Small galaxies combine)
+    - `3.050.020` Gas Accretion from Cosmic Web
+    - `3.050.030` Star Formation Histories
+- `3.060` Galaxy Mergers and Collisions
+    - `3.060.010` The Antennae Galaxies
+    - `3.060.020` Tidal Tails
+    - `3.060.030` Future Merger: Milky Way and Andromeda
+- `3.070` Stellar Populations (Population I, II, III stars)
+    - `3.070.010` Pop I: Metal-rich, young, in spiral arms
+    - `3.070.020` Pop II: Metal-poor, old, in globular clusters
+    - `3.070.030` Pop III: First stars, no metals, hypothetical
+- `3.080` The Milky Way's Structure (Spiral arms, bulge, halo)
+    - `3.080.010` Galactic Center (Bulge and Bar)
+    - `3.080.020` Spiral Arms (Perseus, Sagittarius, Orion)
+    - `3.080.030` Stellar Halo and Globular Clusters
+- `3.090` Escape Velocity from Galaxies
+    - `3.090.010` At Sun's Position: ~550 km/s
+    - `3.090.020` Dependence on Mass Distribution
+    - `3.090.030` Implications for Dark Matter
+- `3.100` Tully-Fisher Relation (Galaxy luminosity vs. rotation speed)
+    - `3.100.010` L ∝ v⁴ (For spiral galaxies)
+    - `3.100.020` Used as Distance Indicator
+    - `3.100.030` Physical Basis: Mass-Luminosity Relation
+
+---
+
+### LEVEL 4: STAR SYSTEMS & NEBULAE
+*Physics of stellar birth and death*
+
+`4.0` **Stellar Astrophysics**
+- `4.010` Stellar Nucleosynthesis (Stars creating elements)
+    - `4.010.010` Hydrogen to Helium (Proton-Proton Chain)
+    - `4.010.020` CNO Cycle (In massive stars)
+    - `4.010.030` Helium Burning (Triple Alpha Process)
+    - `4.010.040` Neutron Capture (s-process and r-process)
+- `4.020` The Hertzsprung-Russell Diagram (Star classification)
+    - `4.020.010` Main Sequence (Where stars spend most of life)
+    - `4.020.020` Giants and Supergiants
+    - `4.020.030` White Dwarf Region
+    - `4.020.040` Ejnar Hertzsprung and Henry Norris Russell
+- `4.030` Star Formation (Gravitational collapse of nebulae)
+    - `4.030.010` Molecular Clouds (Birthplaces)
+    - `4.030.020` Jeans Instability (When gravity wins)
+    - `4.030.030` Protostars and Accretion Disks
+    - `4.030.040` T Tauri Phase
+- `4.040` Main Sequence Stars (Our Sun's current phase)
+    - `4.040.010` Hydrostatic Equilibrium (Pressure vs. Gravity)
+    - `4.040.020` Mass-Luminosity Relation (L ∝ M³·⁵)
+    - `4.040.030` Lifetime on Main Sequence (t ∝ 1/M²·⁵)
+- `4.050` Red Giants and White Dwarfs
+    - `4.050.010` Shell Hydrogen Burning
+    - `4.050.020` Helium Flash (For low-mass stars)
+    - `4.050.030` Planetary Nebula Formation
+    - `4.050.040` Electron Degeneracy Pressure (White dwarf support)
+- `4.060` Supernovae (Type Ia and Type II)
+    - `4.060.010` Type II: Core Collapse (Massive stars)
+    - `4.060.020` Type Ia: White Dwarf Explosion (Binary systems)
+    - `4.060.030` Nucleosynthesis of Heavy Elements
+    - `4.060.040` Supernova Remnants (Crab Nebula)
+- `4.070` Neutron Stars and Pulsars
+    - `4.070.010` Neutron Degeneracy Pressure
+    - `4.070.020` Pulsars (Lighthouse Effect)
+    - `4.070.030` Discovery by Jocelyn Bell Burnell (1967)
+    - `4.070.040` Magnetars (Extreme magnetic fields)
+- `4.080` Black Hole Formation
+    - `4.080.010` Tolman-Oppenheimer-Volkoff Limit
+    - `4.080.020` Direct Collapse vs. Supernova
+    - `4.080.030` Stellar-Mass Black Holes (3-20 solar masses)
+- `4.090` Planetary Nebulae (Stars shedding outer layers)
+    - `4.090.010` Ring Nebula (M57)
+    - `4.090.020` Helix Nebula (Eye of God)
+    - `4.090.030` Enriching Interstellar Medium
+- `4.100` The CNO Cycle (Fusion in massive stars)
+    - `4.100.010` Carbon-Nitrogen-Oxygen as Catalysts
+    - `4.100.020` Temperature Dependence (T⁶ vs. T⁴ for pp-chain)
+    - `4.100.030` Dominant in Stars > 1.3 Solar Masses
+- `4.110` The Proton-Proton Chain (Fusion in Sun-like stars)
+    - `4.110.010` Step 1: p + p → Deuterium + positron + neutrino
+    - `4.110.020` Step 2: p + Deuterium → He-3 + gamma
+    - `4.110.030` Step 3: He-3 + He-3 → He-4 + 2p
+- `4.120` Stellar Parallax (Measuring distances to stars)
+    - `4.120.010` Annual Parallax (Earth's orbit baseline)
+    - `4.120.020` Distance (parsecs) = 1 / parallax (arcseconds)
+    - `4.120.030` Gaia Mission (Precise measurements for billions of stars)
+
+---
+
+### LEVEL 5: PLANETS & MOONS
+*Physics of worlds*
+
+`5.0` **Planetary Physics**
+- `5.010` Planetary Formation (Accretion disks)
+    - `5.010.010` Protoplanetary Disks
+    - `5.010.020` Dust Grain Coagulation
+    - `5.010.030` Planetesimals and Protoplanets
+    - `5.010.040` Core Accretion vs. Gravitational Instability
+- `5.020` Kepler's Laws of Planetary Motion
+    - `5.020.010` Law 1: Elliptical Orbits
+        - `5.020.010.010` Eccentricity (Circle to ellipse)
+        - `5.020.010.020` Semi-major Axis (a)
+        - `5.020.010.030` Focus Points (Sun at one focus)
+    - `5.020.020` Law 2: Equal Areas in Equal Times
+        - `5.020.020.010` Planets move faster when closer to Sun
+        - `5.020.020.020` Conservation of Angular Momentum
+        - `5.020.020.030` Perihelion vs. Aphelion Speeds
+    - `5.020.030` Law 3: P² ∝ a³
+        - `5.020.030.010` P = Orbital Period (years)
+        - `5.020.030.020` a = Semi-major Axis (AU)
+        - `5.020.030.030` P² = a³ (When using Earth units)
+- `5.030` Orbital Mechanics (How satellites stay in orbit)
+    - `5.030.010` Circular Orbit Velocity (v = √(GM/r))
+    - `5.030.020` Geostationary Orbits
+    - `5.030.030` Hohmann Transfer Orbits (Moving between planets)
+    - `5.030.040` Lagrange Points (Gravitational balance)
+- `5.040` Escape Velocity (Leaving a planet)
+    - `5.040.010` v_esc = √(2GM/r)
+    - `5.040.020` Earth: 11.2 km/s
+    - `5.040.030` Jupiter: 59.5 km/s
+    - `5.040.040` Black Hole: > speed of light
+- `5.050` Tidal Forces (Why oceans have tides)
+    - `5.050.010` Differential Gravity (Near side vs. far side)
+    - `5.050.020` Spring Tides (Sun and Moon aligned)
+    - `5.050.030` Neap Tides (Sun and Moon perpendicular)
+    - `5.050.040` Tidal Locking (Moon always faces Earth)
+- `5.060` Roche Limit (When moons break apart)
+    - `5.060.010` Distance where tidal forces exceed self-gravity
+    - `5.060.020` Formation of Planetary Rings
+    - `5.060.030` Comet Shoemaker-Levy 9 (Broke apart near Jupiter)
+- `5.070` Planetary Differentiation (Core, mantle, crust)
+    - `5.070.010` Heavy elements sink (Iron/Nickel core)
+    - `5.070.020` Lighter silicates form mantle/crust
+    - `5.070.030` Heat from Radioactivity and Accretion
+- `5.080` Magnetic Fields of Planets (Earth's magnetosphere)
+    - `5.080.010` Dynamo Effect (Convection in liquid core)
+    - `5.080.020` Earth's Magnetic Poles (Reversals)
+    - `5.080.030` Jupiter's Strong Magnetic Field
+    - `5.080.040` Mars: Weak/No magnetic field
+- `5.090` Atmosphere Physics (Pressure, composition, escape)
+    - `5.090.010` Atmospheric Pressure (Weight of air above)
+    - `5.090.020` Scale Height (How pressure decreases with altitude)
+    - `5.090.030` Greenhouse Effect (Venus vs. Earth)
+    - `5.090.040` Atmospheric Escape (Jeans Escape)
+- `5.100` The Goldilocks Zone (Habitable zone around stars)
+    - `5.100.010` Distance where liquid water can exist
+    - `5.100.020` Depends on Star Temperature/Luminosity
+    - `5.100.030` Optimistic vs. Conservative Estimates
+- `5.110` Exoplanet Detection Methods
+    - `5.110.010` Transit Method (Dip in brightness)
+        - `5.110.010.010` Kepler Mission
+        - `5.110.010.020` TESS Mission
+        - `5.110.010.030` Atmospheric Spectroscopy
+    - `5.110.020` Radial Velocity Method (Doppler wobble)
+        - `5.110.020.010` Measuring Stellar Motion
+        - `5.110.020.020` 51 Pegasi b (First exoplanet around Sun-like star)
+    - `5.110.030` Direct Imaging
+    - `5.110.040` Microlensing
+
+---
+
+### LEVEL 6: THE GEOSPHERE/BIOSPHERE
+*Physics of a planet's surface and environment*
+
+`6.0` **Geophysics & Environmental Physics**
+- `6.010` Gravity on Earth (g = 9.8 m/s²)
+    - `6.010.010` Variation with Latitude (Centrifugal force)
+    - `6.010.020` Variation with Altitude (g decreases)
+    - `6.010.030` Gravity Anomalies (Dense rock vs. empty cavities)
+- `6.020` The Coriolis Effect (Why hurricanes spin)
+    - `6.020.010` Deflection to the Right (Northern Hemisphere)
+    - `6.020.020` Deflection to the Left (Southern Hemisphere)
+    - `6.020.030` Foucault Pendulum (Demonstration)
+    - `6.020.040` No Effect at Equator
+- `6.030` Plate Tectonics (Continental drift)
+    - `6.030.010` Divergent Boundaries (Mid-Atlantic Ridge)
+    - `6.030.020` Convergent Boundaries (Subduction zones)
+    - `6.030.030` Transform Boundaries (San Andreas Fault)
+    - `6.030.040` Mantle Convection (Driving force)
+- `6.040` Seismic Waves (Earthquakes and Earth's interior)
+    - `6.040.010` P-Waves (Primary, compressional)
+    - `6.040.020` S-Waves (Secondary, shear, cannot go through liquid)
+    - `6.040.030` Shadow Zones (Evidence for liquid outer core)
+    - `6.040.040` Richter and Mercalli Scales
+- `6.050` Isostasy (Buoyancy of Earth's crust)
+    - `6.050.010` Mountains have deep roots (Like icebergs)
+    - `6.050.020` Post-Glacial Rebound (Scandinavia rising)
+    - `6.050.030` Pratt vs. Airy Models
+- `6.060` The Greenhouse Effect (Trapping heat)
+    - `6.060.010` Shortwave Sunlight In, Longwave IR Out
+    - `6.060.020` Greenhouse Gases (CO₂, H₂O, CH₄)
+    - `6.060.030` Natural vs. Enhanced Greenhouse Effect
+    - `6.060.040` Venus: Runaway Greenhouse
+- `6.070` Albedo (Reflectivity of surfaces)
+    - `6.070.010` Fresh Snow: 0.9 (High reflectivity)
+    - `6.070.020` Forests: 0.1-0.2 (Low reflectivity)
+    - `6.070.030` Earth's Average Albedo: ~0.3
+    - `6.070.040` Albedo Feedback Loop
+- `6.080` Atmospheric Pressure (Weight of air)
+    - `6.080.010` 1 atm = 101,325 Pa = 14.7 psi
+    - `6.080.020` Barometers (Mercury, aneroid)
+    - `6.080.030` Pressure Decreases Exponentially with Height
+- `6.090` Weather Physics (Pressure systems, fronts)
+    - `6.090.010` High Pressure (Clear skies, sinking air)
+    - `6.090.020` Low Pressure (Clouds, rising air)
+    - `6.090.030` Warm Fronts vs. Cold Fronts
+    - `6.090.040` Jet Streams (Fast upper-level winds)
+- `6.100` Ocean Currents (Thermohaline circulation)
+    - `6.100.010` Surface Currents (Wind-driven)
+    - `6.100.020` Deep Ocean Circulation (Temperature and salinity driven)
+    - `6.100.030` Gulf Stream (Warm water to Europe)
+    - `6.100.040` El Niño/La Niña (Climate cycles)
+- `6.110` The Hydrologic Cycle
+    - `6.110.010` Evaporation (Ocean to atmosphere)
+    - `6.110.020` Condensation (Cloud formation)
+    - `6.110.030` Precipitation (Rain, snow)
+    - `6.110.040` Runoff and Groundwater
+- `6.120` Geothermal Gradient (Heat inside Earth)
+    - `6.120.010` ~25°C per km depth (Average)
+    - `6.120.020` Heat from Radioactive Decay
+    - `6.120.030` Heat from Primordial Formation
+    - `6.120.040` Geothermal Energy (Power plants)
+
+---
+
+### LEVEL 7: MACROSCOPIC OBJECTS (Natural)
+*Physics of things you can hold (natural)*
+
+`7.0` **Solid Mechanics & Material Properties**
+- `7.010` Density (ρ = m/V)
+    - `7.010.010` Water: 1,000 kg/m³ (Reference)
+    - `7.010.020` Rock: ~2,500-3,000 kg/m³
+    - `7.010.030` Wood: 400-800 kg/m³ (Floats)
+    - `7.010.040` Gold: 19,300 kg/m³ (Very dense)
+- `7.020` Mass vs. Weight (They're different!)
+    - `7.020.010` Mass = Amount of matter (kg)
+    - `7.020.020` Weight = Force due to gravity (N)
+    - `7.020.030` On Moon: Mass same, Weight 1/6
+    - `7.020.040` Weightlessness ≠ No mass
+- `7.030` Volume and Displacement (Archimedes' principle)
+    - `7.030.010` Eureka! (Gold crown story)
+    - `7.030.020` Buoyant Force = Weight of displaced fluid
+    - `7.030.030` Measuring volume by water displacement
+- `7.040` Center of Mass (Balance points)
+    - `7.040.010` Balancing a ruler on finger
+    - `7.040.020` Leaning Tower Illusion
+    - `7.040.030` High jumpers arching over bar
+- `7.050` Friction on Surfaces (Static and kinetic)
+    - `7.050.010` Static Friction (Prevents motion)
+    - `7.050.020` Kinetic Friction (Slows moving objects)
+    - `7.050.030` Coefficient of Friction (μ)
+    - `7.050.040` Examples: Sand on ice, rubber on road
+- `7.060` Inertia (Resistance to change in motion)
+    - `7.060.010` Heavier objects harder to start/stop
+    - `7.060.020` Tablecloth trick (Plates stay)
+    - `7.060.030` Seatbelts (Overcoming inertia in crashes)
+- `7.070` Elasticity (How rocks and wood bend)
+    - `7.070.010` Hooke's Law (F = kx)
+    - `7.070.020` Young's Modulus (Stiffness)
+    - `7.070.030` Elastic Limit (Permanent deformation)
+    - `7.070.040` Rubber vs. Steel
+- `7.080` Hardness (Mohs scale, scratch resistance)
+    - `7.080.010` Talc (1) vs. Diamond (10)
+    - `7.080.020` Scratch Test
+    - `7.080.030` Applications: Cutting tools, abrasives
+- `7.090` Fracture Mechanics (How things break)
+    - `7.090.010` Brittle Fracture (Glass, ceramics)
+    - `7.090.020` Ductile Fracture (Metals)
+    - `7.090.030` Crack Propagation
+    - `7.090.040` Stress Concentrations (Sharp corners)
+- `7.100` Crystallography (Atomic structure of minerals)
+    - `7.100.010` Crystal Lattices (Regular patterns)
+    - `7.100.020` Cleavage Planes (How minerals split)
+    - `7.100.030` Cubic (Salt), Hexagonal (Quartz)
+- `7.110` Thermal Properties of Rocks/Metals
+    - `7.110.010` Specific Heat Capacity (J/kg·K)
+    - `7.110.020` Thermal Expansion (ΔL = αL₀ΔT)
+    - `7.110.030` Thermal Conductivity (How fast heat moves)
+
+---
+
+### LEVEL 8: THE HUMAN SCALE (Man-made & Classical Mechanics)
+*Physics we experience daily*
+
+`8.0` **Classical Mechanics (Human-Scale Physics)**
+- `8.010` Newton's Laws of Motion (The foundation)
+    - `8.010.010` First Law: Inertia
+        - `8.010.010.010` Object at rest stays at rest
+        - `8.010.010.020` Object in motion stays in motion
+        - `8.010.010.030` Only force changes motion
+    - `8.010.020` Second Law: F = ma
+        - `8.010.020.010` Force = mass × acceleration
+        - `8.010.020.020` Units: Newtons (kg·m/s²)
+        - `8.010.020.030` Pushing a shopping cart
+    - `8.010.030` Third Law: Action-Reaction
+        - `8.010.030.010` For every action, equal/opposite reaction
+        - `8.010.030.020` Rocket propulsion (Exhaust pushes rocket)
+        - `8.010.030.030` Walking (Feet push ground, ground pushes you)
+- `8.020` Forces in Everyday Life
+    - `8.020.010` Gravity (Weight)
+        - `8.020.010.010` F_g = mg
+        - `8.020.010.020` g = 9.8 m/s² on Earth
+        - `8.020.010.030` Feeling heavy in an elevator
+    - `8.020.020` Friction (Walking, braking)
+        - `8.020.020.010` Static friction (Starting to walk)
+        - `8.020.020.020` Kinetic friction (Sliding)
+        - `8.020.020.030` Car brakes (Converting KE to heat)
+    - `8.020.030` Tension (Ropes, cables)
+        - `8.020.030.010` Pulling a wagon
+        - `8.020.030.020` Elevator cables
+        - `8.020.030.030` Tug of war
+    - `8.020.040` Normal Force (The ground pushing back)
+        - `8.020.040.010` Book on table (Gravity down, Normal up)
+        - `8.020.040.020` You feel heavy because ground pushes up
+    - `8.020.050` Applied Force (Pushing a door)
+        - `8.020.050.010` Direction matters (Vector)
+        - `8.020.050.020` Magnitude matters (How hard)
+    - `8.020.060` Air Resistance (Feeling the wind)
+        - `8.020.060.010` Depends on speed
+        - `8.020.060.020` Depends on shape
+        - `8.020.060.030` Terminal velocity (Skydiver)
+- `8.030` Work and Energy
+    - `8.030.010` Work = Force × Distance
+        - `8.030.010.010` Units: Joules
+        - `8.030.010.020` Lifting a box
+        - `8.030.010.030` No work if no displacement
+    - `8.030.020` Kinetic Energy (½mv²)
+        - `8.030.020.010` Energy of motion
+        - `8.030.020.020` Faster = much more energy (v²)
+        - `8.030.020.030` Car crashes at high speed
+    - `8.030.030` Potential Energy (mgh)
+        - `8.030.030.010` Stored energy
+        - `8.030.030.020` Water behind a dam
+        - `8.030.030.030` Book on a shelf
+    - `8.030.040` Conservation of Energy
+        - `8.030.040.010` Energy cannot be created/destroyed
+        - `8.030.040.020` Pendulum (PE ↔ KE)
+        - `8.030.040.030` Roller coaster
+- `8.040` Momentum
+    - `8.040.010` p = mv
+        - `8.040.010.010` Vector quantity
+        - `8.040.010.020` Truck vs. bicycle
+    - `8.040.020` Impulse (Change in momentum)
+        - `8.040.020.010` Impulse = F × Δt
+        - `8.040.020.020` Airbags (Increase time, decrease force)
+        - `8.040.020.030` Catching an egg (Move hands back)
+    - `8.040.030` Collisions
+        - `8.040.030.010` Elastic (Bouncy, KE conserved)
+        - `8.040.030.020` Inelastic (Sticky, KE lost)
+        - `8.040.030.030` Billiards (Nearly elastic)
+        - `8.040.030.040` Car crash (Inelastic)
+- `8.050` Power (Rate of doing work)
+    - `8.050.010` P = W/t (Watts)
+    - `8.050.020` Horsepower (1 hp = 746 W)
+    - `8.050.030` Light bulbs (60W, 100W)
+    - `8.050.040` Running vs. walking upstairs
+- `8.060` Simple Machines
+    - `8.060.010` Levers
+        - `8.060.010.010` First Class (Seesaw)
+        - `8.060.010.020` Second Class (Wheelbarrow)
+        - `8.060.010.030` Third Class (Tweezers)
+    - `8.060.020` Pulleys
+        - `8.060.020.010` Fixed pulley (Change direction)
+        - `8.060.020.020` Movable pulley (Mechanical advantage)
+        - `8.060.020.030` Block and tackle
+    - `8.060.030` Inclined Planes (Ramps)
+        - `8.060.030.010` Less force, longer distance
+        - `8.060.030.020` Wheelchair ramps
+    - `8.060.040` Wheels and Axles
+        - `8.060.040.010` Reducing friction
+        - `8.060.040.020` Steering wheel
+    - `8.060.050` Screws
+        - `8.060.050.010` Inclined plane wrapped around a cylinder
+        - `8.060.050.020` Jackscrews, bolts
+    - `8.060.060` Wedges
+        - `8.060.060.010` Axe, knife
+        - `8.060.060.020` Converting force sideways
+- `8.070` Rotational Motion
+    - `8.070.010` Torque (Twisting force)
+        - `8.070.010.010` τ = r × F
+        - `8.070.010.020` Wrench (Longer handle = more torque)
+        - `8.070.010.030` Door handle (Far from hinge)
+    - `8.070.020` Angular Velocity
+        - `8.070.020.010` ω = Δθ/Δt (radians/second)
+        - `8.070.020.020` Record player (33⅓ RPM)
+    - `8.070.030` Moment of Inertia
+        - `8.070.030.010` Rotational equivalent of mass
+        - `8.070.030.020` Depends on mass AND distribution
+        - `8.070.030.030` Figure skater spinning (Arms in = faster)
+    - `8.070.040` Angular Momentum
+        - `8.070.040.010` L = Iω
+        - `8.070.040.020` Conservation (Gyroscopes, bicycles)
+
+---
+
+### LEVEL 9: MILLIMETER SCALE (Small Objects & Fluids)
+*Physics of small things and how they flow*
+
+`9.0` **Fluid Mechanics & Small-Scale Physics**
+- `9.010` States of Matter (Review at small scale)
+    - `9.010.010` Solids
+        - `9.010.010.010` Fixed shape and volume
+        - `9.010.010.020` Atoms vibrate in place
+    - `9.010.020` Liquids
+        - `9.010.020.010` Fixed volume, variable shape
+        - `9.010.020.020` Atoms can slide past each other
+    - `9.010.030` Gases
+        - `9.010.030.010` Variable shape and volume
+        - `9.010.030.020` Atoms move freely
+    - `9.010.040` Plasma
+        - `9.010.040.010` Ionized gas
+        - `9.010.040.020` Lightning, neon signs, stars
+- `9.020` Fluid Statics
+    - `9.020.010` Pressure (P = F/A)
+        - `9.020.010.010` Units: Pascals (N/m²)
+        - `9.020.010.020` Pressure increases with depth
+        - `9.020.010.030` Scuba diving (Ear pain)
+    - `9.020.020` Pascal's Principle (Hydraulics)
+        - `9.020.020.010` Pressure applied to enclosed fluid is transmitted equally
+        - `9.020.020.020` Car brakes
+        - `9.020.020.030` Hydraulic lift (Small force lifts heavy car)
+    - `9.020.030` Buoyancy (Archimedes' Principle)
+        - `9.020.030.010` Buoyant force = weight of displaced fluid
+        - `9.020.030.020` Ships float (Shape displaces lots of water)
+        - `9.020.030.030` Submarines (Adjust buoyancy)
+    - `9.020.040` Atmospheric Pressure (Barometers)
+        - `9.020.040.010` Mercury barometer (Torricelli)
+        - `9.020.040.020` Aneroid barometer
+        - `9.020.040.030` Weather prediction
+- `9.030` Fluid Dynamics
+    - `9.030.010` Viscosity (Resistance to flow)
+        - `9.030.010.010` Honey (high) vs. Water (low)
+        - `9.030.010.020` Temperature effect (Hot syrup flows easier)
+        - `9.030.010.030` Motor oil grades
+    - `9.030.020` Bernoulli's Principle (Faster flow = lower pressure)
+        - `9.030.020.010` Airplane wing (Lift)
+        - `9.030.020.020` Curveball (Ball spins, air moves faster on one side)
+        - `9.030.020.030` Shower curtain bends inward
+    - `9.030.030` Turbulence vs. Laminar Flow
+        - `9.030.030.010` Laminar: Smooth, layered
+        - `9.030.030.020` Turbulent: Chaotic, eddies
+        - `9.030.030.030` Smoke rising (Laminar then turbulent)
+    - `9.030.040` Surface Tension (Water striders)
+        - `9.030.040.010` Molecules at surface pull together
+        - `9.030.040.020` Insects walking on water
+        - `9.030.040.030` Soap breaks surface tension
+    - `9.030.050` Capillary Action (Water in tiny tubes)
+        - `9.030.050.010` Adhesion vs. Cohesion
+        - `9.030.050.020` Plants drawing water upward
+        - `9.030.050.030` Paper towel absorbing spill
+    - `9.030.060` Reynolds Number (Predicting flow patterns)
+        - `9.030.060.010` Re = (density × velocity × length) / viscosity
+        - `9.030.060.020` Low Re = laminar, High Re = turbulent
+        - `9.030.060.030` Engineering applications
+- `9.040` Thermodynamics at Small Scale
+    - `9.040.010` Temperature vs. Heat (Review)
+        - `9.040.010.010` Temperature = average KE
+        - `9.040.010.020` Heat = total energy transferred
+    - `9.040.020` Conduction (Heat transfer through solids)
+        - `9.040.020.010` Metal spoon in hot soup
+        - `9.040.020.020` Fourier's Law
+        - `9.040.020.030` Insulators (Wood, plastic)
+    - `9.040.030` Convection (Heat transfer through fluids)
+        - `9.040.030.010` Hot air rises
+        - `9.040.030.020` Boiling water (Circulation)
+        - `9.040.030.030` Weather systems
+    - `9.040.040` Radiation (Heat transfer through waves)
+        - `9.040.040.010` Infrared from the Sun
+        - `9.040.040.020` No medium needed (Space)
+        - `9.040.040.030` Blackbody radiation
+    - `9.040.050` Specific Heat Capacity
+        - `9.040.050.010` Water: 4,186 J/kg·K (High)
+        - `9.040.050.020` Metal: ~500 J/kg·K (Low)
+        - `9.040.050.030` Why water cools slowly
+    - `9.040.060` Latent Heat (Phase changes)
+        - `9.040.060.010` Latent heat of fusion (Melting/freezing)
+        - `9.040.060.020` Latent heat of vaporization (Boiling/condensing)
+        - `9.040.060.030` Sweating cools you (Evaporation)
+    - `9.040.070` Thermal Expansion
+        - `9.040.070.010` ΔL = αL₀ΔT
+        - `9.040.070.020` Gaps in bridges (Allow expansion)
+        - `9.040.070.030` Bimetallic strip (Thermostats)
+- `9.050` Acoustics (Sound at human scale)
+    - `9.050.010` Speed of Sound
+        - `9.050.010.010` 343 m/s in air (at 20°C)
+        - `9.050.010.020` Faster in water, faster in solids
+        - `9.050.010.030` Thunder (See lightning first, hear later)
+    - `9.050.020` Decibels (Loudness)
+        - `9.050.020.010` Logarithmic scale
+        - `9.050.020.020` 0 dB = threshold of hearing
+        - `9.050.020.030` 120 dB = pain threshold
+    - `9.050.030` Pitch and Frequency
+        - `9.050.030.010` Hz (Cycles per second)
+        - `9.050.030.020` Human hearing: 20 Hz - 20,000 Hz
+        - `9.050.030.030` Ultrasound (Above 20,000 Hz)
+    - `9.050.040` Resonance (Musical instruments)
+        - `9.050.040.010` Natural frequency
+        - `9.050.040.020` Opera singer breaking glass
+        - `9.050.040.030` Tacoma Narrows Bridge collapse
+    - `9.050.050` The Doppler Effect
+        - `9.050.050.010` Moving siren (Higher pitch approaching, lower moving away)
+        - `9.050.050.020` Radar guns (Measure speed)
+        - `9.050.050.030` Astronomy (Redshift/blueshift)
+
+---
+
+### LEVEL 10: MICROSCOPIC SCALE (Cells & Microbes)
+*Physics of the very small (visible under microscope)*
+
+`10.0` **Microscale Physics & Biophysics**
+- `10.010` Brownian Motion (Random movement of particles)
+    - `10.010.010` Robert Brown (1827, pollen in water)
+    - `10.010.020` Caused by collisions with molecules
+    - `10.010.030` Einstein's explanation (1905)
+    - `10.010.040` Evidence for atoms
+- `10.020` Diffusion (Particles spreading out)
+    - `10.020.010` Fick's Laws
+    - `10.020.020` Perfume spreading in a room
+    - `10.020.030` Random walk
+    - `10.020.040` Time ∝ distance²
+- `10.030` Osmosis (Movement across membranes)
+    - `10.030.010` Water moves from low to high solute concentration
+    - `10.030.020` Cell membranes (Selective permeability)
+    - `10.030.030` Plant roots absorbing water
+    - `10.030.040` Red blood cells in salt water (Crenation)
+- `10.040` Viscosity at Microscales (How cells move through fluid)
+    - `10.040.010` Low Reynolds Number (No inertia)
+    - `10.040.020` Bacteria swimming (Corkscrew motion)
+    - `10.040.030` Sperm cells (Flagella)
+- `10.050` Surface Tension Effects at Small Scales
+    - `10.050.010` Water droplets (Spherical shape)
+    - `10.050.020` Capillary action in biology
+    - `10.050.030` Lung surfactant (Prevents collapse)
+- `10.060` Capillary Action in Biology (Water transport in plants)
+    - `10.060.010` Xylem vessels
+    - `10.060.020` Transpiration pull
+    - `10.060.030` Tall trees (Redwoods)
+- `10.070` Statistical Mechanics (Many particles acting together)
+    - `10.070.010` Ludwig Boltzmann
+    - `10.070.020` Entropy = k ln W
+    - `10.070.030` Microstates vs. Macrostates
+- `10.080` Kinetic Theory of Gases (Gas molecules in motion)
+    - `10.080.010` Assumptions (Elastic collisions, point particles)
+    - `10.080.020` Pressure from molecule-wall collisions
+    - `10.080.030` Temperature ∝ average KE
+- `10.090` Temperature as Average Kinetic Energy
+    - `10.090.010` KE_avg = (3/2)kT
+    - `10.090.020` k = Boltzmann constant (1.38 × 10⁻²³ J/K)
+    - `10.090.030` Absolute zero (0 K) = no motion
+- `10.100` Pressure as Molecule Collisions
+    - `10.100.010` P = (1/3)(N/V)mv²_rms
+    - `10.100.020` More molecules = higher pressure
+    - `10.100.030` Higher temperature = higher pressure
+- `10.110` Biological Physics
+    - `10.110.010` Protein Folding (Thermodynamics)
+        - `10.110.010.010` Hydrophobic effect
+        - `10.110.010.020` Hydrogen bonding
+        - `10.110.010.030` Levinthal's paradox (Can't try all conformations)
+    - `10.110.020` DNA Mechanics (Elasticity of molecules)
+        - `10.110.020.010` Persistence length
+        - `10.110.020.020` Stretching DNA (Optical tweezers)
+        - `10.110.020.030` Supercoiling
+    - `10.110.030` Membrane Biophysics (Lipid bilayers)
+        - `10.110.030.010` Fluid mosaic model
+        - `10.110.030.020` Bending rigidity
+        - `10.110.030.030` Ion channels and pumps
+    - `10.110.040` Molecular Motors (How cells move stuff)
+        - `10.110.040.010` Kinesin (Walks on microtubules)
+        - `10.110.040.020` Myosin (Muscle contraction)
+        - `10.110.040.030` ATP as fuel
+
+---
+
+### LEVEL 11: MOLECULAR SCALE
+*Physics of chemistry and bonds*
+
+`11.0` **Chemical Physics & Molecular Interactions**
+- `11.010` Intermolecular Forces
+    - `11.010.010` Van der Waals Forces
+        - `11.010.010.010` London dispersion (Temporary dipoles)
+        - `11.010.010.020` Geckos sticking to walls
+        - `11.010.010.030` Noble gases liquefying
+    - `11.010.020` Hydrogen Bonding
+        - `11.010.020.010` Water's unique properties
+        - `11.010.020.020` DNA base pairing
+        - `11.010.020.030` Ice floats (Crystalline structure)
+    - `11.010.030` Dipole-Dipole Interactions
+        - `11.010.030.010` Polar molecules (HCl)
+        - `11.010.030.020` Stronger than dispersion
+- `11.020` Chemical Bonds
+    - `11.020.010` Ionic Bonds (Electron transfer)
+        - `11.020.010.010` NaCl (Salt)
+        - `11.020.010.020` Coulomb attraction
+        - `11.020.010.030` Crystal lattices
+    - `11.020.020` Covalent Bonds (Electron sharing)
+        - `11.020.020.010` H₂, O₂, H₂O
+        - `11.020.020.020` Single, double, triple bonds
+        - `11.020.020.030` Bond energy and length
+    - `11.020.030` Metallic Bonds (Electron sea)
+        - `11.020.030.010` Delocalized electrons
+        - `11.020.030.020` Conductivity (Heat and electricity)
+        - `11.020.030.030` Malleability and ductility
+- `11.030` Molecular Vibrations and Rotations
+    - `11.030.010` Stretching (Bond length changes)
+    - `11.030.020` Bending (Angle changes)
+    - `11.030.030` Infrared spectroscopy (Identifying molecules)
+    - `11.030.040` Quantized energy levels
+- `11.040` Spectroscopy (Identifying molecules by light absorption)
+    - `11.040.010` Absorption spectra (Dark lines)
+    - `11.040.020` Emission spectra (Bright lines)
+    - `11.040.030` Identifying elements in stars
+    - `11.040.040` Forensic science
+- `11.050` Thermodynamics of Chemical Reactions
+    - `11.050.010` Enthalpy (Heat in reactions)
+        - `11.050.010.010` Exothermic (Releases heat)
+        - `11.050.010.020` Endothermic (Absorbs heat)
+        - `11.050.010.030` ΔH = H_products - H_reactants
+    - `11.050.020` Entropy (Disorder in reactions)
+        - `11.050.020.010` ΔS = S_products - S_reactants
+        - `11.050.020.020` Gas has higher entropy than liquid/solid
+        - `11.050.020.030` Second Law (Total entropy increases)
+    - `11.050.030` Gibbs Free Energy (Spontaneity)
+        - `11.050.030.010` ΔG = ΔH - TΔS
+        - `11.050.030.020` ΔG < 0 = spontaneous
+        - `11.050.030.030` ΔG = 0 = equilibrium
+- `11.060` Polymer Physics (Long chain molecules)
+    - `11.060.010` Polyethylene, Nylon, DNA
+    - `11.060.020` Random coil configuration
+    - `11.060.030` Entanglement
+    - `11.060.040` Glass transition temperature
+- `11.070` Crystallography (Molecular arrangement in crystals)
+    - `11.070.010` X-ray diffraction
+    - `11.070.020` Rosalind Franklin (DNA structure)
+    - `11.070.030` Unit cells
+    - `11.070.040` Bragg's Law (nλ = 2d sinθ)
+- `11.080` Liquid Crystals (States between solid and liquid)
+    - `11.080.010` Nematic phase (Oriented, not positioned)
+    - `11.080.020` Smectic phase (Layered)
+    - `11.080.030` LCD screens (Twisted nematic)
+    - `11.080.040` Temperature sensitivity
+
+---
+
+### LEVEL 12: ATOMIC SCALE
+*Physics of elements and atomic structure*
+
+`12.0` **Atomic Physics**
+- `12.010` Structure of the Atom
+    - `12.010.010` Nucleus (Protons and Neutrons)
+        - `12.010.010.010` Protons (+ charge)
+        - `12.010.010.020` Neutrons (neutral)
+        - `12.010.010.030` 99.9% of mass in nucleus
+    - `12.010.020` Electron Cloud
+        - `12.010.020.010` Electrons (- charge)
+        - `12.010.020.020` Mostly empty space
+        - `12.010.020.030` Probability distribution
+    - `12.010.030` Electron Shells and Orbitals
+        - `12.010.030.010` K, L, M shells (n=1,2,3)
+        - `12.010.030.020` s, p, d, f orbitals (Shapes)
+        - `12.010.030.030` Pauli Exclusion Principle (2 per orbital)
+- `12.020` The Bohr Model (Early quantum theory)
+    - `12.020.010` Niels Bohr (1913)
+    - `12.020.020` Quantized angular momentum (mvr = nħ)
+    - `12.020.030` Electrons in fixed orbits
+    - `12.020.040` Explains hydrogen spectrum (Works for H only)
+- `12.030` Quantum Numbers (Describing electrons)
+    - `12.030.010` n = Principal (Energy level)
+    - `12.030.020` l = Angular momentum (Shape, 0 to n-1)
+    - `12.030.030` m_l = Magnetic (Orientation, -l to +l)
+    - `12.030.040` m_s = Spin (+½ or -½)
+- `12.040` Electron Configuration (How electrons fill shells)
+    - `12.040.010` Aufbau Principle (Fill lowest energy first)
+    - `12.040.020` Hund's Rule (Maximize unpaired spins)
+    - `12.040.030` 1s² 2s² 2p⁶... (Oxygen: 1s² 2s² 2p⁴)
+    - `12.040.040` Noble gas configuration (Full shells = stable)
+- `12.050` Atomic Spectra (Each element's unique fingerprint)
+    - `12.050.010` Hydrogen Balmer Series (Visible light)
+    - `12.050.020` Lyman (UV), Paschen (IR) series
+    - `12.050.030` 1/λ = R(1/n₁² - 1/n₂²)
+    - `12.050.040` Identifying elements in stars and labs
+- `12.060` The Periodic Table (Organized by atomic physics)
+    - `12.060.010` Dmitri Mendeleev (1869)
+    - `12.060.020` Periods (Rows) = electron shells
+    - `12.060.030` Groups (Columns) = valence electrons
+    - `12.060.040` Trends: Atomic radius, ionization energy
+- `12.070` Ionization Energy (Removing electrons)
+    - `12.070.010` Energy required to remove an electron
+    - `12.070.020` Increases across a period
+    - `12.070.030` Decreases down a group
+    - `12.070.040` Helium has highest IE
+- `12.080` Electron Affinity (Gaining electrons)
+    - `12.080.010` Energy released when adding an electron
+    - `12.080.020` Halogens (Group 17) have high affinity
+    - `12.080.030` Noble gases have negative affinity (unfavorable)
+- `12.090` Atomic Radius (Size of atoms)
+    - `12.090.010` ~0.1 nanometers (1 Ångstrom)
+    - `12.090.020` Decreases left to right (More protons pull electrons in)
+    - `12.090.030` Increases top to bottom (More shells)
+    - `12.090.040` Francium is largest
+- `12.100` Isotopes (Same element, different neutrons)
+    - `12.100.010` Carbon-12 (6p+6n) vs. Carbon-14 (6p+8n)
+    - `12.100.020` Same chemical properties
+    - `12.100.030` Different nuclear properties (Stability)
+    - `12.100.040` Notation: ¹⁴C or C-14
+- `12.110` Radioactivity (Unstable atoms decaying)
+    - `12.110.010` Alpha Decay
+        - `12.110.010.010` Helium nucleus (2p+2n)
+        - `12.110.010.020` Stopped by paper
+        - `12.110.010.030` Uranium decay
+    - `12.110.020` Beta Decay
+        - `12.110.020.010` Electron (β⁻) or positron (β⁺)
+        - `12.110.020.020` Neutron → proton + electron + antineutrino
+        - `12.110.020.030` Stopped by aluminum
+    - `12.110.030` Gamma Decay
+        - `12.110.030.010` High-energy photon
+        - `12.110.030.020` Nucleus in excited state
+        - `12.110.030.030` Stopped by lead/concrete
+- `12.120` Half-Life (Radioactive decay rates)
+    - `12.120.010` Time for half of sample to decay
+    - `12.120.020` Uranium-238: 4.5 billion years
+    - `12.120.030` Carbon-14: 5,730 years
+    - `12.120.040` Radon-222: 3.8 days
+    - `12.120.050` Exponential decay (N = N₀(½)^(t/t½))
+
+---
+
+### LEVEL 13: SUBATOMIC / QUANTUM SCALE
+*The fundamental building blocks of reality*
+
+`13.0` **Particle Physics & Quantum Mechanics**
+- `13.010` **Quarks** (The stuff of protons/neutrons)
+    - `13.010.010` Up Quark
+        - `13.010.010.010` Charge: +2/3
+        - `13.010.010.020` Mass: ~2.3 MeV/c²
+        - `13.010.010.030` In protons (uud)
+    - `13.010.020` Down Quark
+        - `13.010.020.010` Charge: -1/3
+        - `13.010.020.020` Mass: ~4.8 MeV/c²
+        - `13.010.020.030` In neutrons (udd)
+    - `13.010.030` Charm Quark
+        - `13.010.030.010` Charge: +2/3
+        - `13.010.030.020` Mass: ~1,275 MeV/c² (Heavier)
+        - `13.010.030.030` Discovered 1974 (J/ψ particle)
+    - `13.010.040` Strange Quark
+        - `13.010.040.010` Charge: -1/3
+        - `13.010.040.020` Mass: ~95 MeV/c²
+        - `13.010.040.030` Associated with "strangeness"
+    - `13.010.050` Top Quark
+        - `13.010.050.010` Charge: +2/3
+        - `13.010.050.020` Mass: ~173,000 MeV/c² (Heavy as gold nucleus)
+        - `13.010.050.030` Discovered 1995 (Fermilab)
+    - `13.010.060` Bottom Quark
+        - `13.010.060.010` Charge: -1/3
+        - `13.010.060.020` Mass: ~4,180 MeV/c²
+        - `13.010.060.030` Discovered 1977
+- `13.020` **Leptons** (Electron family)
+    - `13.020.010` Electron
+        - `13.020.010.010` Charge: -1
+        - `13.020.010.020` Mass: 0.511 MeV/c²
+        - `13.020.010.030` Discovered 1897 (J.J. Thomson)
+        - `13.020.010.040` Responsible for electricity
+    - `13.020.020` Muon
+        - `13.020.020.010` Charge: -1
+        - `13.020.020.020` Mass: 105.7 MeV/c² (~207 × electron)
+        - `13.020.020.030` Lifetime: 2.2 microseconds
+        - `13.020.020.040` Cosmic rays
+    - `13.020.030` Tau
+        - `13.020.030.010` Charge: -1
+        - `13.020.030.020` Mass: 1,777 MeV/c² (~3,477 × electron)
+        - `13.020.030.030` Lifetime: 2.9 × 10⁻¹³ seconds
+    - `13.020.040` Electron Neutrino
+        - `13.020.040.010` Charge: 0
+        - `13.020.040.020` Mass: < 0.0000022 MeV/c² (Tiny)
+        - `13.020.040.030` Produced in beta decay
+        - `13.020.040.040` Billions pass through you every second
+    - `13.020.050` Muon Neutrino
+        - `13.020.050.010` Produced in pion decay
+        - `13.020.050.020` Discovered 1962
+    - `13.020.060` Tau Neutrino
+        - `13.020.060.010` Most difficult to detect
+        - `13.020.060.020` Discovered 2000
+- `13.030` **Gauge Bosons** (Force Carriers)
+    - `13.030.010` Photon (Electromagnetic force)
+        - `13.030.010.010` Mass: 0
+        - `13.030.010.020` Charge: 0
+        - `13.030.010.030` Speed: c (3×10⁸ m/s)
+        - `13.030.010.040` Particle of light
+    - `13.030.020` Gluon (Strong Nuclear Force)
+        - `13.030.020.010` Mass: 0
+        - `13.030.020.020` Charge: 0
+        - `13.030.020.030` Color charge (Red, green, blue)
+        - `13.030.020.040` Holds quarks together in protons/neutrons
+    - `13.030.030` W Boson (Weak Nuclear Force)
+        - `13.030.030.010` Charge: ±1
+        - `13.030.030.020` Mass: ~80,400 MeV/c² (Heavy!)
+        - `13.030.030.030` Responsible for beta decay
+    - `13.030.040` Z Boson (Weak Nuclear Force)
+        - `13.030.040.010` Charge: 0
+        - `13.030.040.020` Mass: ~91,200 MeV/c²
+        - `13.030.040.030` Neutral current interactions
+    - `13.030.050` Graviton (Theoretical - Gravity)
+        - `13.030.050.010` Spin 2
+        - `13.030.050.020` Mass: 0
+        - `13.030.050.030` Not yet detected
+        - `13.030.050.040` Predicted by quantum gravity theories
+- `13.040` **The Higgs Boson** (Why things have mass)
+    - `13.040.010` Predicted 1964 (Peter Higgs, et al.)
+    - `13.040.020` Discovered 2012 (CERN/LHC)
+    - `13.040.030` Mass: ~125,000 MeV/c²
+    - `13.040.040` Interacts with Higgs field to give particles mass
+- `13.050` **Antimatter** (Positrons, antiprotons)
+    - `13.050.010` Positron (Anti-electron)
+        - `13.050.010.010` Charge: +1
+        - `13.050.010.020` Discovered 1932 (Carl Anderson)
+        - `13.050.010.030` PET scans (Positron Emission Tomography)
+    - `13.050.020` Antiproton
+        - `13.050.020.010` Charge: -1
+        - `13.050.020.020` Discovered 1955
+    - `13.050.030` Matter-Antimatter Annihilation
+        - `13.050.030.010` Particle + antiparticle = pure energy
+        - `13.050.030.020` E = mc²
+    - `13.050.040` Baryon Asymmetry (Why more matter than antimatter?)
+- `13.060` **Fundamental Forces**
+    - `13.060.010` Gravity (Weakest, long range)
+        - `13.060.010.010` Acts on mass/energy
+        - `13.060.010.020` Always attractive
+        - `13.060.010.030` Infinite range (1/r²)
+    - `13.060.020` Electromagnetism (Light, chemistry)
+        - `13.060.020.010` Acts on electric charge
+        - `13.060.020.020` Attractive/repulsive
+        - `13.060.020.030` Infinite range (1/r²)
+        - `13.060.020.040` ~10³⁶ × stronger than gravity
+    - `13.060.030` Strong Nuclear Force (Holds nuclei together)
+        - `13.060.030.010` Acts on quarks/gluons
+        - `13.060.030.020` Short range (~10⁻¹⁵ m)
+        - `13.060.030.030` 100× stronger than EM
+        - `13.060.030.040` Confinement (Quarks never alone)
+    - `13.060.040` Weak Nuclear Force (Radioactive decay)
+        - `13.060.040.010` Acts on quarks/leptons
+        - `13.060.040.020` Very short range (~10⁻¹⁸ m)
+        - `13.060.040.030` 10⁻⁶ × strength of strong force
+        - `13.060.040.040` Responsible for beta decay
+- `13.070` **Quantum Mechanics Concepts**
+    - `13.070.010` Wave-Particle Duality (It's both!)
+        - `13.070.010.010` Electrons behave as waves (Davisson-Germer)
+        - `13.070.010.020` Light behaves as particles (Photoelectric effect)
+        - `13.070.010.030` de Broglie wavelength (λ = h/p)
+    - `13.070.020` The Double-Slit Experiment
+        - `13.070.020.010` Single particle = wave pattern
+        - `13.070.020.020` Measurement collapses wavefunction
+        - `13.070.020.030` "Which path" information matters
+    - `13.070.030` Planck's Constant (h)
+        - `13.070.030.010` h = 6.626 × 10⁻³⁴ J·s
+        - `13.070.030.020` Quantum of action
+        - `13.070.030.030` E = hf (Photon energy)
+    - `13.070.040` The Uncertainty Principle (Δx·Δp ≥ ħ/2)
+        - `13.070.040.010` Werner Heisenberg (1927)
+        - `13.070.040.020` Can't know position and momentum precisely
+        - `13.070.040.030` ΔE·Δt ≥ ħ/2 (Energy-time uncertainty)
+    - `13.070.050` Schrödinger's Equation
+        - `13.070.050.010` iħ ∂ψ/∂t = Ĥψ
+        - `13.070.050.020` Wavefunction ψ describes quantum state
+        - `13.070.050.030` Time evolution of quantum systems
+    - `13.070.060` Wave Functions (Probability clouds)
+        - `13.070.060.010` |ψ|² = probability density
+        - `13.070.060.020` Electron cloud in atom
+        - `13.070.060.030` Normalization (∫|ψ|² dV = 1)
+    - `13.070.070` Superposition (Multiple states at once)
+        - `13.070.070.010` Schrödinger's Cat (Alive and dead)
+        - `13.070.070.020` Qubits in quantum computing
+        - `13.070.070.030` Collapse upon measurement
+    - `13.070.080` Quantum Entanglement (Spooky action)
+        - `13.070.080.010` Einstein-Podolsky-Rosen (EPR) paradox
+        - `13.070.080.020` Bell's Theorem (Violation of inequalities)
+        - `13.070.080.030` Alain Aspect's experiments
+        - `13.070.080.040` Quantum teleportation
+    - `13.070.090` Quantum Tunneling (Walking through walls)
+        - `13.070.090.010` Particle passes through barrier
+        - `13.070.090.020` Scanning Tunneling Microscope (STM)
+        - `13.070.090.030` Alpha decay (Tunneling out of nucleus)
+    - `13.070.100` The Observer Effect
+        - `13.070.100.010` Measurement disturbs system
+        - `13.070.100.020` Not just consciousness
+        - `13.070.100.030` Interaction required for measurement
+- `13.080` **The Standard Model of Particle Physics**
+    - `13.080.010` Three generations of matter
+    - `13.080.020` 12 fermions (6 quarks + 6 leptons)
+    - `13.080.030` 5 bosons (Photon, W/Z, gluons, Higgs)
+    - `13.080.040` Most successful theory in physics
+    - `13.080.050` Limitations (No gravity, no dark matter)
+- `13.090` **Open Questions**
+    - `13.090.010` Dark Matter (What is it?)
+        - `13.090.010.010` WIMPs (Weakly Interacting Massive Particles)
+        - `13.090.010.020` Axions
+        - `13.090.010.030` MACHOs (Massive Compact Halo Objects)
+        - `13.090.010.040` Detection experiments (LUX, XENON)
+    - `13.090.020` Dark Energy (What is it?)
+        - `13.090.020.010` Cosmological Constant (Λ)
+        - `13.090.020.020` Quintessence (Dynamic field)
+        - `13.090.020.030` Modifying gravity (f(R) theories)
+    - `13.090.030` Grand Unified Theories (One force to rule them all)
+        - `13.090.030.010` Unify EM, Weak, Strong at high energies
+        - `13.090.030.020` SU(5), SO(10) models
+        - `13.090.030.030` Proton decay (Not yet observed)
+    - `13.090.040` Quantum Gravity (Merging QM and Relativity)
+        - `13.090.040.010` String Theory (10 dimensions)
+        - `13.090.040.020` Loop Quantum Gravity
+        - `13.090.040.030` AdS/CFT correspondence
+        - `13.090.040.040` Problem at Planck scale (10⁻³⁵ m)
+
+---
+
+## SUMMARY
+
+This completed WBS now has:
+
+- **13 Fixed Levels:** The cosmic zoom from Universe (Level 1) down to Quantum (Level 13)
+- **Three-Digit Subcodes:** All subcodes use 3-digit formatting (e.g., `13.070.010`)
+- **10-Step Increments:** Each subcode increments by 10 (010, 020, 030, etc.) for future expansion
+- **Third-Level Items:** Every node now has at least one concrete example, experiment, or application
+- **Infinite Expandability:** Can go to fourth, fifth, sixth levels as needed (e.g., `13.070.010.010.010`)
+
+This is the ultimate "Physics for Dummies" roadmap, taking the learner from the largest scales of the universe down to the smallest quantum particles, with practical examples at every step!

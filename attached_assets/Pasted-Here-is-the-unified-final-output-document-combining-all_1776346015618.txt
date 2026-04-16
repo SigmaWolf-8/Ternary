@@ -1,0 +1,155 @@
+Here is the unified, final output document combining all previous recommendations into a single, coherent architecture for your **BIM/GCode Cabinet ERP** system with the **3‑Daemon Array**.
+
+---
+
+# Unified System Architecture: BIM/GCode Cabinet ERP with 3‑Daemon Array
+
+## 1. Core Architectural Vision
+
+You are building a **production‑grade, best‑in‑class** system that combines:
+- Parametric cabinet / home design (BIM)
+- Real‑time high‑quality rendering
+- ERP integration (BOM, pricing, stock)
+- GCode generation for CNC machining
+
+The system is governed by a **3‑Daemon Array** – three independent, cooperating computational units that mirror the architecture of high‑reliability industrial software (Dassault Systèmes, Siemens NX, Autodesk Fusion).
+
+### The 3‑Daemon Array
+
+| Daemon | Role | Technology Stack |
+|--------|------|------------------|
+| **Daemon Cube 1** – Arithmetic & Algebraic Engine | Evaluate constraints, maintain parametric DAG, trigger recomputation, output numeric attributes | OpenCASCADE (C++/WASM) + PlaneGCS/Geosolver; gRPC/Protobuf; stateless, horizontally scalable |
+| **Daemon Cube 2** – Geometry Engine | Build/update B‑Rep, Boolean operations, tessellation, export to glTF/STEP/STL | OpenCASCADE kernel + CGAL tessellator; Redis caching; gRPC streaming; incremental updates |
+| **Daemon Cube 3** – Physics & Application Coordination | Collision detection, state management, ERP logic, GCode generation, UI sync, rendering orchestration | PhysX/Bullet3; Akka.NET/Orleans actor model; RabbitMQ/Kafka; libgcode; scene graph diffing |
+
+**Communication:** gRPC with Protocol Buffers over HTTP/2, event sourcing (Daemon 3 owns the log), each daemon in its own container (Kubernetes), OpenTelemetry tracing.
+
+---
+
+## 2. Rendering Engine Selection
+
+The rendering engine is a **thin client** of Daemon 3 – it only displays pre‑tessellated meshes, no parametric or geometric computation.
+
+| Engine | Best For | Recommendation |
+|--------|----------|----------------|
+| **Babylon.js + WebGPU** | Efficient mesh streaming, glTF extensions (Draco), parametric workflows via Bitbybit.dev | **Recommended** for most teams |
+| Three.js + WebGPU | Maximum flexibility, largest ecosystem, powers IFC.js/xeokit | For teams with deep WebGL expertise |
+| xeokit SDK | Dedicated BIM viewer, large IFC models, double‑precision coordinates | For AEC‑heavy applications |
+| HOOPS Visualize | Enterprise‑grade, includes HOOPS Exchange (30+ CAD formats) | For mission‑critical, well‑funded projects |
+| Evergine 2025 | .NET‑centric, WebGPU, free for commercial use | For C# teams |
+
+**Final recommendation:** **Babylon.js + WebGPU** with a WebSocket/WebTransport bridge to Daemon 3.
+
+---
+
+## 3. Geometry & Parametric Kernel
+
+**Daemon 2** runs **OpenCASCADE.js** (industrial‑strength B‑Rep kernel).  
+**Daemon 1** uses the same kernel for constraint solving.
+
+- **Parametric operations** (height = 2*width + 5mm) → Daemon 1
+- **B‑Rep generation, Boolean, fillets, dados** → Daemon 2
+- **Tessellation** → OpenCASCADE’s built‑in or CGAL → output **glTF binary** chunks
+- **Caching** → Redis, keyed by hash of parametric inputs
+
+---
+
+## 4. Handling Two Types of Geometry
+
+### A. System‑Generated Geometry (Cabinets, Walls, Roof, Landscape)
+- Always generated in real time by Daemon 1 & 2.
+- Fully parametric, drives BOM, GCode, and ERP.
+
+### B. Imported Assets (Furniture, Fixtures, Appliances)
+- Treated as **static visual references** – no parametric regeneration.
+- **SKP files** are converted offline to **glTF** using **Assimp** (Open Asset Import Library) on a server or via WebAssembly.
+- **Better alternative:** Use manufacturer‑verified BIM libraries (see Section 6).
+
+---
+
+## 5. Floorplan Import & Auto‑Generation
+
+You need a **Scaling Tool** that imports PDF or CAD floorplans and auto‑generates rooms, walls, etc. The recommended production pipeline:
+
+| Step | Technology | Output |
+|------|------------|--------|
+| **1. PDF → Structured Data** | gNucleus or Archisculpt AI (AI‑driven parsing) | DXF, IFC, or JSON graph |
+| **2. 2D → 3D Model** | 2D23D (open‑source) or Vision3D (LLM‑based) | Provisional 3D IFC model |
+| **3. Real‑time Assembly** | Daemon 3 integrates with user’s parametric cabinets | Complete scene sent to renderer |
+
+**Manual correction layer:** Lightweight web editor (SVG.js / Fabric.js) for users to refine AI output.
+
+---
+
+## 6. Model Libraries for Appliances, Fixtures, Lighting, Accessories, and Full Home
+
+You asked for a simple, non‑confusing answer. Here it is:
+
+### Primary Source (ERP/G‑Code Ready) – **BIMobject**
+- Manufacturer‑verified BIM content (appliances, plumbing, lighting, structural components)
+- Free, large library, exports `.ifc` and `.rfa`
+- **Use this for everything that affects BOM, pricing, or CNC**
+
+### Secondary Source (High‑Quality Visuals) – **Chaos Cosmos**
+- High‑quality, branded 3D assets for accessories, decor, vegetation
+- Optimized for real‑time rendering
+- **Use this when visual fidelity matters more than technical data**
+
+### When to use other libraries?
+
+| Library | When to use |
+|---------|--------------|
+| **3D ContentCentral** | For industrial/mechanical components (e.g., hinges, slides) |
+| **TraceParts** | For enterprise‑scale PLM/ERP integration |
+| **TurboSquid** | For very specific, paid high‑end models not found elsewhere |
+
+### Summary table for your full home project
+
+| Category | Primary (ERP/G‑Code) | Secondary (Visuals) |
+|----------|----------------------|----------------------|
+| Appliances | BIMobject | Chaos Cosmos |
+| Plumbing fixtures | BIMobject | Chaos Cosmos |
+| Lighting | BIMobject | Chaos Cosmos |
+| General accessories | Archiproducts (design‑focused) | Chaos Cosmos |
+| Walls, roof, landscape | BIMobject | Chaos Cosmos |
+
+**You do not need all three libraries.** Start with **BIMobject** for 90% of your needs. Add **Chaos Cosmos** later for presentation‑grade visuals.
+
+---
+
+## 7. End‑to‑End Workflow Example
+
+1. **User imports a PDF floorplan** → gNucleus parses → 2D23D generates IFC model → Daemon 3 loads it.
+2. **User sets cabinet parameters** (width, height, shelf count) → Daemon 1 resolves constraints → Daemon 2 generates B‑Rep → tessellates to glTF.
+3. **User places a BIMobject appliance** → Daemon 2 imports `.ifc` → converts to glTF (once, cached).
+4. **User adds a Chaos Cosmos decorative plant** → glTF loaded directly.
+5. **Daemon 3** sends all glTF meshes to **Babylon.js** for real‑time rendering.
+6. **User clicks “Generate GCode”** → Daemon 2 exports STEP → Daemon 3 runs libgcode → sends to CNC.
+
+---
+
+## 8. Production‑Grade Next Steps
+
+1. **Define Protocol Buffers** for inter‑daemon messages (parameters, meshes, state events).
+2. **Implement Daemon 1** in Rust or C++ with WASM (pure functional, stateless).
+3. **Wrap OpenCASCADE** in a gRPC service for Daemon 2.
+4. **Build Daemon 3** using Akka.NET or Orleans (actor model) for coordination.
+5. **Integrate Babylon.js** as front‑end renderer, consuming glTF streams via WebSocket.
+6. **Set up import adapters**:
+   - SKP → glTF via Assimp (server‑side)
+   - IFC/STEP → glTF via OpenCASCADE (Daemon 2)
+   - PDF floorplans → gNucleus + 2D23D
+7. **Deploy on Kubernetes** with per‑daemon scaling policies and OpenTelemetry monitoring.
+
+---
+
+## 9. Final Summary
+
+- **Rendering engine:** Babylon.js + WebGPU  
+- **Parametric kernel:** OpenCASCADE.js  
+- **Physics/coordination:** PhysX + actor model  
+- **Model sourcing:** BIMobject (primary) + Chaos Cosmos (visuals)  
+- **Floorplan import:** gNucleus → 2D23D → Daemon 3  
+- **SKP handling:** Assimp conversion to glTF  
+
+This unified architecture is **ready for production** in industrial cabinetry, modular construction, and prefabricated home manufacturing. It delivers real‑time parametric feedback, high‑quality rendering, ERP integration, and CNC output – all governed by the clean separation of the 3‑Daemon Array.
