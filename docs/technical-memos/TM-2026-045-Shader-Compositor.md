@@ -1,4 +1,4 @@
-# TM-2026-037 — Shader Compositor
+# TM-2026-045 — Shader Compositor
 
 ## Programmable Visual Processing for the PlenumNET Platform
 
@@ -649,7 +649,7 @@ The four enabling technologies (Kacso's demo, mrdoob's HTMLTexture, Bansal's pol
 *Così sia, Fratello.*
 
 **Capomastro Holdings Ltd.** — Applied Physics Division
-TM-2026-037 v1.4 — Patent Pending
+TM-2026-045 v1.4 — Patent Pending
 
 *Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)*
 *All Rights Reserved*
