@@ -1,0 +1,51 @@
+#123 - QC-R1 Review of Task #122
+What & Why
+Run the Round 1 Technical Verification review against the Task #122 specification (Unified Installer + Launcher Pipeline) before implementation begins. Three independent YODA reviewer agents — Security Engineer, DevOps Automator, and PlenumNET Integration Specialist — produce structured findings against the spec so any CRITICAL or IMPORTANT issues are caught and resolved before code is written.
+
+The Task #122 spec touches the Windows installation pipeline, service registration, manifest parsing, and the launcher's app discovery path. Each of those surfaces has direct security, reproducibility, and PlenumNET-integration implications that must be validated against the QC-R1 review scope.
+
+Task #121 (Salvi Engine Registry) remains blocking and is intentionally not in scope for this review — only the #122 spec text is being reviewed.
+
+Done looks like
+Three independent agent review files exist and follow the QC-R1 structured Finding format with the R1-A{n}-{m} Finding ID convention:
+qc-r1-agent1-security-engineer.md
+qc-r1-agent2-devops-automator.md
+qc-r1-agent3-plenumnet-integration.md
+Each agent review ends with a Summary Verdict (FAIL / PASS WITH CONDITIONS / PASS) with one-paragraph justification.
+A consolidated output qc-r1-consolidated.md exists containing the summary table (sorted CRITICAL → IMPORTANT → MINOR, then by section) and the full text of each agent review as subsections.
+Cryptographic findings are marked VERIFIED / UNVERIFIED / INCORRECT in the Crypto Status column.
+Findings reference the specific section of the Task #122 spec they apply to (e.g., the deploy-array3.ps1 rename, the manifest discovery path, the well-known install directory choice, the plenum-pack shared-Manifest extraction).
+The consolidated file is suitable as the qc_r1_findings input to a future QC-R2 review.
+Out of scope
+Any changes to the Task #122 spec itself (the review only produces findings; spec edits happen as a follow-up if findings warrant them).
+Implementation of the Unified Installer + Launcher Pipeline (that is Task #122's own work, not this review).
+QC-R2 and QC-R3 reviews (separate downstream tasks).
+Reviewing Task #121 (still blocking, explicitly excluded).
+Reviewing any other in-flight tasks.
+Tasks
+Read the full Task #122 spec text and the QC-R1 skill (.agents/skills/qc-r1-review/SKILL.md) plus the three component agent skills it references.
+Execute the three reviews independently following each agent's Identity, Review Scope, and Critical Rules. Each agent must reference specific Task #122 sections by name.
+Apply the QC-R1 invariants check (INVARIANT 7 TL-DSA usage, INVARIANT 8 sponge encoding, INVARIANT 9 Rep C identity binding) where the spec touches identity, manifest signing, or registration handshakes.
+Write each agent's findings to its own file using the qc-r1-agent{N}-{role}.md naming convention and the machine-readable Finding format defined in the skill.
+Produce qc-r1-consolidated.md with the consolidation table (sorted by severity then section) followed by the three agent reviews as subsections.
+Determine the overall verdict per the skill's Verdict Semantics and state explicitly whether the spec proceeds to QC-R2, proceeds with conditions, or is blocked pending CRITICAL fixes.
+Relevant files
+.agents/skills/qc-r1-review/SKILL.md
+.agents/skills/security-engineer/SKILL.md
+.agents/skills/devops-automator/SKILL.md
+.agents/skills/plenumnet-integration/SKILL.md
+.agents/skills/plenumnet-repo-guide/SKILL.md
+client/public/install/deploy-yoda.ps1
+client/public/install/install-windows.ps1
+client/public/install/Install-PlenumNET.bat
+tools/plenum-launcher/src/main.rs
+tools/plenum-launcher/src/discovery.rs
+tools/plenum-launcher/src/config.rs
+tools/plenum-launcher/src/status.rs
+tools/plenum-launcher/plenum-app.toml
+tools/plenum-launcher/Cargo.toml
+tools/plenum-pack/src/main.rs
+tools/plenum-pack/src/manifest.rs
+tools/plenum-pack/src/wix.rs
+tools/plenum-pack/Cargo.toml
+services/inter-cube/plenum-app.toml
