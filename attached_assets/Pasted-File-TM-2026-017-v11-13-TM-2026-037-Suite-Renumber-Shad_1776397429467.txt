@@ -1,0 +1,87 @@
+File TM-2026-017 v11.13 + TM-2026-037 Suite (Renumber Shader → 045)
+Three new monograph documents arrived from R. Salvi (Capomastro Holdings). User has confirmed two structural decisions:
+
+Delete the stale TM-2026-017 v6.0 duplicate in docs/monographs/ — drift risk eliminated.
+Renumber the existing Shader Compositor paper from TM-2026-037 to TM-2026-045 — freeing TM-2026-037 for the new "The Speed of Light" paper to claim its proper number in the 2026 namespace.
+
+View plan
+
+Checkpoint made
+9 hours ago
+
+4 messages & 20 actions
+
+Checkpoint made
+9 hours ago
+
+Worked for 2 minutes
+Is Task 115 done yet?
+
+9 hours ago
+
+1 message & 13 actions
+
+Worked for 48 seconds
+
+Pasted--115-Fix-Relay-Pong-Timeout-Disconnects-What-Why-All-Ar_1776366119288.txt
+9 hours ago
+
+2 messages & 6 actions
+
+Checkpoint made
+9 hours ago
+
+Worked for 26 seconds
+That's some type of bulshit answer, no you test it and deploy it since it will need to be updated anyway and tested.
+
+8 hours ago
+
+5 messages & 7 actions
+
+Checkpoint made
+8 hours ago
+
+Worked for 1 minute
+
+2 tasks started, 1 completed
+Updated environment
+Can you search and find where we were talking about organizing the Skills and enforcing their review? I also presented some context from another user on this and their solution.
+
+7 hours ago
+
+11 actions
+Found both threads. Here's what's on the record:
+
+1. Skill organization discussion (from my scratchpad + proposed tasks)
+The plan we landed on — not yet executed, still pending as "skill docs split":
+
+New skill	Content	Why separate
+plenumnet-invariants	Tabular mathematical/crypto/structural invariants (π=14, radian=13, R₆=364, 1 SFK foot=13in=1651/50cm, Salve Epoch, Cabibbo=R₃=13°, bridge κ, V/E=π=c², tropical year=1096822/3003 days, Rep A/B/C encoding rules, TL-Sponge-385 security level, etc.)	Foundational — must be queryable on its own, loaded cheaply, and used as source-of-truth. TM-2026-017 v11.13 + TM-2026-037 Speed of Light are the new source docs.
+plenumnet-enforcements	Forbidden files (compress/decompress, server/ternary.ts, ternarydb.tsx, deployments/, tunnel_auth.ts), build chain, version discipline (only edit VERSION file, build.rs auto-syncs), crate naming (sponge-napi → sponge-native), audit protocols, cargo check mandate	These are rules that gate writes — different from knowledge. Keeping them separate means an agent doing a write operation can load only the enforcements and move faster.
+plenumnet-repo-guide (slim)	Directory layout + module map only. The invariants and enforcements are removed and linked to the two skills above.	The current plenumnet-repo-guide is ~one huge description paragraph — too heavy to load on every session.
+You agreed this split should happen. It's currently pending — blocking tasks #121/#122 in the queue.
+
+2. Enforcing skill review (external-agent feedback)
+Two attached assets from another user/agent reviewing your QC-R1/R2/R3 skill templates:
+
+attached_assets/Pasted-These-are-a-significant-leap-beyond-what-I-produced-and_1774692869688.txt — reviews the QC-R3 skill at v1.2.0 and calls out three gaps:
+
+Stale R2 note (says "no R2 template exists" but it does at v1.2.0)
+R1 template contract gap (R3 UX Designer references passphrase_entropy_minimum_bits but R1 Security Engineer isn't instructed to produce it — consumer-side contract with no producer-side requirement)
+Component path convention mismatch (R3 uses ../brand-guardian/SKILL.md, R2 uses evidence-collector/SKILL.md — need to pick one directory layout)
+attached_assets/Pasted-The-Consolidation-Agent-section-in-the-SKILL-md-describ_1774690230784.txt — reviews the QC-R1 Consolidation Agent and calls out:
+
+Consolidation Agent isn't defined as a role — needs to be a 10th YODA agent, a script, or explicitly marked as human/orchestrator
+Cross-round CRITICAL disagreement escalation points forward to R3 (wrong — R3 agents have no security/DevOps expertise) — should escalate back to originating R1 agent
+Evidence Collector's ~/.plenumnet/identity/master.key path is Linux-only; Windows installer target needs %APPDATA%\{product}\identity\master.key
+"INVARIANT 7" and "INVARIANT 8" referenced but never defined — this is exactly what the plenumnet-invariants skill would fix
+Want me to propose a new task that bundles both threads? Something like:
+
+"Split plenumnet-repo-guide + address external QC skill review findings"
+
+Create plenumnet-invariants (defining INVARIANT 7/8 and all framework invariants)
+Create plenumnet-enforcements
+Slim plenumnet-repo-guide
+Fix the 3 QC-R3 gaps (stale R2 note, R1 contract, path convention)
+Fix the 4 QC-R1 Consolidation gaps (agent role, escalation direction, Windows path, invariant references → point to new skill)
+This way the external-agent feedback gets absorbed and the skill split happens in one coordinated pass, keeping the INVARIANT references properly linked. I'd need you to switch to Plan mode for me to file it.
