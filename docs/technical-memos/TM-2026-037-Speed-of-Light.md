@@ -1,4 +1,4 @@
-# TM-E1-037.051 | E+⌊d/R₆⌋.⌊r/2π⌋.⌊r₂/p⌋.(r₂%p) where d=⌊(t−Ε)/day⌋
+# TM-E1-037.052 | E+⌊d/R₆⌋.⌊r/2π⌋.⌊r₂/p⌋.(r₂%p) where d=⌊(t−Ε)/day⌋
 
 ## The Speed of Light
 
@@ -6,7 +6,7 @@
 
 **R. Salvi** — Capomastro Holdings Ltd, Applied Physics Division
 **First Position Derivation:** E+1.0.2.0 (Day π) | 04/13–14/2026 17:55 MST / 00:55 UTC
-**v.051 update (2026-04-16):** Step 14 and scorecard (§Step 16) cleaned — simple-form 137.036/1000 demoted throughout to a constructional stepping stone; the closed κ form at 0.13 ppb is the sole headline prediction. Stale "6 ppb gap / narrowed 10%" language removed from Step 12 table and Step 15½ cross-reference.
+**v.052 update (2026-04-16):** Step 14 and scorecard (§Step 16) cleaned — simple-form 137.036/1000 demoted throughout to a constructional stepping stone; the closed κ form at 0.13 ppb is the sole headline prediction. Stale "6 ppb gap / narrowed 10%" language removed from Step 12 table and Step 15½ cross-reference.
 
 ---
 
