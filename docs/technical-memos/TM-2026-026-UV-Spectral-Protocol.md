@@ -24,7 +24,7 @@ The orbifold Euler characteristic of the Brieskorn sphere Σ(7, 11, 13) is shown
 
 The protocol formalizes these derivations into a machine-readable specification: Rust data structures, deterministic band classification, exact rational ratios, and an API surface suitable for integration into sensing devices, atmospheric models, and consumer applications. The applied framework identifies fourteen industry domains — from phototherapy and germicidal disinfection to precision lithography and augmented reality — where first-principles UV definitions resolve the interoperability, calibration, and ambiguity problems inherent in the current empirical regime.
 
-**Parent documents:** TM-2026-017 v5.0 (Extended Geometric Framework, §16 UV Spectral Correspondence)
+**Parent documents:** TM-2026-017 v11.14 (Extended Geometric Framework, §16 UV Spectral Correspondence)
 
 ---
 

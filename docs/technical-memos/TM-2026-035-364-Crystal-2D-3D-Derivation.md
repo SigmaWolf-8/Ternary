@@ -3,13 +3,13 @@
 **Capomastro Holdings Ltd — Applied Physics Division**  
 **Version 1.0 — April 2026 — Patent Pending**  
 **π = 14 · radian = 13 · full circle = 364°**  
-**Source construction: TM-2026-017 v8.0**
+**Source construction: TM-2026-017 v11.14**
 
 ---
 
 ## 1. Source: The 2D Inscribed Circle
 
-All geometry derives from the 364° construction (TM-2026-017 v8.0). 13 regular polygons (n = 3 through n = 15) are inscribed in a single circle of radius R.
+All geometry derives from the 364° construction (TM-2026-017 v11.14). 13 regular polygons (n = 3 through n = 15) are inscribed in a single circle of radius R.
 
 The vertex function `pa(deg)` converts a 364° angle to position:
 

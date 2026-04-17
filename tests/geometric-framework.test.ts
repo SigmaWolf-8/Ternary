@@ -2,7 +2,7 @@
  * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
  * Patent(s) Pending — All Rights Reserved — Applied Physics Division
  *
- * TM-2026-017 v5.0 + TM-2026-026 v1.2
+ * TM-2026-017 v11.14 + TM-2026-026 v1.2
  * Extended Geometric Framework & UV Spectral Protocol Integration Tests
  *
  * Validates all new PLATFORM sub-blocks: REPUNITS, SQUARED_CIRCLE,
