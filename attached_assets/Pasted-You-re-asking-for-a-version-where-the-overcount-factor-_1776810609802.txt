@@ -1,0 +1,86 @@
+You're asking for a version where the overcount factor vanishes—where the algebraic limit of the parametric formula lands on $1 \cdot \frac{N}{\ln N}$, not $2e^{-\gamma}$. This requires staying in the exact integer domain (floor functions, GCD) and not taking the "continuous approximation" shortcut.
+
+Here is the parametric restatement using only real integers (floor, GCD, Möbius) such that the asymptotic constant truly is $1$.
+
+---
+
+Parametric Exact Formula with Constant $1$ Asymptotic
+
+Parameter Dictionary (Same as Before)
+
+Symbol Meaning Constraint
+$N$ Magnitude $N \ge 1$ integer
+$G = {g_1, \dots, g_k}$ Pairwise coprime generator set Each $g_i > 1$
+$P_G = \prod_{g \in G} g$ Generator product Square‑free
+$a = N^{1/2}$ Sieve cutoff (standard $\sqrt{N}$) 
+$G(a) = {g \in G : g \le a}$ Active generators 
+$\mu(d)$ Möbius function Standard
+
+---
+
+Lemma 1 (Exact Parametric Sieve — Integer‑Only)
+
+For any pairwise‑coprime generator set $G$, define the sieve residue count:
+
+S(N; G) = \sum_{d \mid P_G} \mu(d) \left\lfloor \frac{N}{d} \right\rfloor
+
+This is an exact integer for every $N$. It counts integers $\le N$ that share no factor with any $g \in G$.
+
+---
+
+Lemma 2 (No Continuous Approximation)
+
+Do not replace $\lfloor N/d \rfloor$ with $N/d$. Doing so introduces the spurious factor $2e^{-\gamma}$. Instead, keep the exact expression.
+
+---
+
+Lemma 3 (Prime Number Theorem as an External Statement)
+
+The Prime Number Theorem is a theorem about the true prime‑counting function $\pi(N)$. It can be expressed parametrically in terms of the exact sieve as follows:
+
+Define the full prime generator set $P_\infty = {2, 3, 5, 7, 11, \dots}$ (all primes). Then for $a = \lfloor\sqrt{N}\rfloor$, let $G = P_\infty(a)$ be the set of all primes $\le a$.
+
+The exact relationship between the prime count and the coprime count is:
+
+\pi(N) = \pi(a) - 1 + S(N; P_\infty(a))
+
+(This is Legendre's exact formula, unchanged.)
+
+Now, the Prime Number Theorem asserts:
+
+\lim_{N \to \infty} \frac{\pi(N)}{N / \ln N} = 1
+
+But crucially, this limit cannot be obtained by algebraically simplifying $S(N; G)$ alone. The naive approximation $S(N; G) \approx N \prod_{p \le a} (1-1/p)$ is not valid asymptotically because the error term from dropping the floor function does not vanish in the ratio $\frac{S(N;G)}{N/\ln N}$.
+
+---
+
+Lemma 4 (Where the Constant $1$ Comes From)
+
+The constant $1$ emerges only when you consider the joint distribution of all primes simultaneously, not just coprimality to a fixed finite set $G$. This is the content of the Prime Number Theorem and is proven via:
+
+· Complex analysis (Riemann zeta function) or
+· Elementary but intricate combinatorial sieves (Selberg, Erdős) that carefully bound the error terms.
+
+In the exact integer formulation, the constant $1$ is a property of the entire sequence of primes, not of any finite generator product.
+
+---
+
+Specialization Corollary (Your Framework)
+
+Let $b=3$, $G = {3,5,7,13}$, $N=364$, $a = 19$. Then the exact integer formula yields:
+
+S(364; \{3,5,7,13\}) = \sum_{d \mid 1365} \mu(d) \left\lfloor \frac{364}{d} \right\rfloor
+
+This sum can be computed exactly and gives the number of integers $\le 364$ coprime to $3,5,7,13$. But this number is not the number of primes $\le 364$. The difference consists of composites built from primes $>13$ that are $\le 364$ (e.g., $17 \times 19 = 323$), plus the primes $\le 13$ themselves.
+
+To get $\pi(364)$, you must add the primes $\le 13$ and subtract those composites. The asymptotic density of primes within the residue classes coprime to $3,5,7,13$ is governed by the full Prime Number Theorem in arithmetic progressions, and the overall density tends to $1/\ln(N)$, not $2e^{-\gamma}/\ln(N)$.
+
+---
+
+Summary: Why the Constant Is $1$ in the Exact Integer View
+
+Approach Constant Factor Reason
+Continuous approximation (drop floor) $2e^{-\gamma} \approx 1.1229$ Floor‑dropping error accumulates; product formula over‑sieves.
+Exact integer sum + PNT (external theorem) $1$ The PNT accounts for the exact distribution of primes among coprime residues; it is a theorem about $\pi(N)$, not $S(N;G)$.
+
+Thus, the only way to state a parametric formula with constant $1$ using only real integers is to keep the exact floor‑based Legendre sum and then invoke the Prime Number Theorem as an additional external fact about that sum's asymptotic behavior. The constant $1$ is not a direct algebraic consequence of the inclusion–exclusion product; it is the result of a deep cancellation of error terms that the continuous approximation fails to capture.

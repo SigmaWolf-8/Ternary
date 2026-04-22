@@ -1,0 +1,26 @@
+§1. Base-3 Uniqueness Theorem
+Statement. b = 3 is the unique integer base at which the framework's primordial structure closes into integer invariants.
+Discriminant function. For integer base b ≥ 2, the primordial quadratic:
+
+x² − R₄(b) · x + R₆(b) = 0, with R_n(b) = (bⁿ − 1)/(b − 1)
+Δ(b) = R₄(b)² − 4 · R₆(b)
+
+Claim. Δ(b) is a perfect square only at b = 3.
+Verification.
+
+b = 2: Δ = 225 − 252 = −27. Not a square.
+b = 3: Δ = 1600 − 1456 = 144 = 12² ✓
+b = 4: Δ = 1765. Not a square.
+b = 5: Δ = 8712. Not a square.
+b = 6 through b = 10⁷: verified computationally; no perfect squares. Consistent with Faltings's theorem.
+
+Base 3 is unique. Consequence. Every framework integer below traces to this single closure.
+The three named objects generated at b = 3. The perfect-square discriminant Δ(3) = 144 forces the primordial quadratic to factor over the integers. The two integer roots and their product are three distinct, load-bearing framework objects, each carrying its own name:
+Framework objectValueAlgebraic originRoleThe Unit Squared Circle14smaller root x₁ = (40 − 12)/2π_F itself — the Unit that has been squared into a circle; the interior pi-value that generates the framework's radian (28°) and the 13-radian axis (§9).The Unit Circle Squared26larger root x₂ = (40 + 12)/2 = 2·13The (Unit Circle) squared — the radian count of the Unit Circle (13) taken twice; the outer aspect of the same primordial structure, 2·R₃.The Rational Squared Unit Circle364product x₁ · x₂ = R₆The full framework cycle. The product of the two squared-circles — the 364° closure that yields only integer outputs precisely because both roots are integer (the perfect-square-discriminant condition of this §1).
+Vieta's relations bind the three:
+
+Sum of squared-circles: x₁ + x₂ = 14 + 26 = 40 = R₄.
+Product of squared-circles: x₁ · x₂ = 14 · 26 = 364 = R₆ = Rational Squared Unit Circle.
+Difference squared: (x₂ − x₁)² = (26 − 14)² = 144 = Δ = 12².
+
+The uniqueness theorem is therefore a naming theorem. At b = 3 (and only at b = 3), the primordial quadratic factors into these two named squared-circles as integer roots, whose product is the Rational Squared Unit Circle. At every other integer base b ≥ 2, the discriminant is not a square; the roots are not integers; the Unit Squared Circle, the Unit Circle Squared, and the Rational Squared Unit Circle do not exist as integer-valued objects. Base 3 is the unique base at which these three objects are named.

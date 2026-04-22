@@ -1,0 +1,79 @@
+This is a compact, tweetable GLSL fragment shader (the `#つぶやきGLSL` tag means “tweetable GLSL”, often seen on Shadertoy or Twitter). Let’s break it down line by line.
+
+## Inputs (implied by conventions)
+- `FC` → fragCoord (pixel coordinate, `vec2`)
+- `r` → resolution (iResolution, `vec2`)
+- `t` → time (iTime, `float`)
+- `o` → output color (fragColor, `vec4`)
+
+## Code (reformatted for readability)
+
+```glsl
+for(float i,g,e,s; ++i<18.;) {
+    vec3 p = vec3(
+        (FC.xy * 2. - r) / r.y * (9. + cos(t * .5) * 3.),
+        g + .2
+    ) * rotate3D(t * .5, vec3(-4, sin(t) + 7., 0));
+    s = 1.;
+    for(int i; i++<9; p = vec3(1.5,4,3) - abs(abs(p)*e - vec3(1,1.2,3)))
+        s *= e = max(.95, 9. / dot(p, p));
+    g += mod(length(p.yy), p.y) / s * .5;
+    o.rgb += hsv(.59, .4 - g, s / 4e3);
+}
+```
+
+## Step‑by‑step explanation
+
+### 1. Outer loop (`i` from 1 to 17)
+- `i` is unused inside – it only counts 18 iterations.  
+- Each iteration adds a layer / accumulation to the output.
+
+### 2. Build a base 3D point `p`
+- `(FC.xy * 2. - r) / r.y` → pixel coordinate mapped to [‑aspect, aspect] in x, [-1,1] in y (since divide by `r.y`).  
+- Multiply by `(9. + cos(t * 0.5) * 3.)` → a zoom factor that oscillates between 6 and 12.  
+- The y‑component is `g + 0.2` – `g` is an accumulator (initially 0, grows each iteration). So the ray origin shifts vertically over iterations.  
+- Then multiply by `rotate3D(t * 0.5, vec3(-4, sin(t)+7., 0))` → a 3D rotation matrix (function not shown, but standard: rotate around axis `(-4, sin(t)+7, 0)` by angle `t/2`).
+
+### 3. Inner loop – fractal / distance estimation
+- `s = 1.`; loop 9 times.  
+- `p = vec3(1.5,4,3) - abs(abs(p)*e - vec3(1,1.2,3))`  
+  This is the core:  
+  - `abs(p)*e` – scale and take absolute value (folds space).  
+  - subtract `vec3(1,1.2,3)` – shift.  
+  - `abs` again – second folding.  
+  - Finally subtract from a constant `(1.5,4,3)`.  
+  This is a **fractal / kaleidoscopic iteration** similar to a Menger sponge or a folding box fractal.  
+- `e = max(0.95, 9. / dot(p, p))` – `dot(p,p)` is squared distance from origin. `9./dot` is a small value when far away, but clamped to ≥0.95.  
+- `s *= e` – accumulates a kind of density / glow factor.
+
+### 4. Accumulate `g`
+- `g += mod(length(p.yy), p.y) / s * 0.5`  
+  - `length(p.yy)` = `abs(p.y)` (since `vec2(p.y,p.y)` length = `sqrt(2)*|p.y|`? Wait: `p.yy` creates a `vec2` with both components = `p.y`. Its length = `sqrt(p.y^2 + p.y^2) = sqrt(2)*|p.y|`. So it's a scaled version of `abs(p.y)`).  
+  - `mod( abs(p.y)*sqrt(2), p.y )` – odd modulo with the same `p.y`. That’s a bit weird but creates interesting banding.  
+  - Divide by `s` (the accumulated folding factor).  
+  - `*0.5` – step size.
+
+### 5. Output color
+- `hsv(.59, .4 - g, s / 4e3)` – convert HSV to RGB:  
+  - Hue fixed at 0.59 (≈ yellow‑green).  
+  - Saturation decreases as `g` grows (so more iterations → more washed out).  
+  - Value = `s / 4000` – very small (since `s` rarely exceeds maybe 10–100). This makes the color very dark except where `s` is large (near the fractal features).  
+- `o.rgb +=` – accumulate over the 18 outer iterations.
+
+## Visual result (expected)
+- A rotating, breathing **3D fractal** (Menger‑like or Kaleidoscopic IFS)  
+- Colored in yellow‑green hues, with brightness coming from high‑s regions (fractal surfaces)  
+- The `g` accumulator adds a time‑varying distortion / banding due to the `mod(length(p.yy), p.y)` term – gives a rippled or layered appearance along the y‑axis.  
+- The camera (or fractal) rotates and zooms slightly over time because of the `rotate3D` and the `cos(t*0.5)*3.` factor.  
+- Overall a glowing, intricate, abstract pattern – typical for tweetable GLSL.
+
+## Why tweetable?
+- Single `for` loop with no explicit functions (assuming `rotate3D` and `hsv` are standard helpers often included implicitly).  
+- Very few characters – fits in a tweet.  
+- Clever reuse of variables (`i`, `g`, `e`, `s`) and re‑assignment inside the inner `for`.
+
+## Note on correctness
+- The inner `for(int i; i++<9; ...)` re‑uses `i` – that shadows the outer `i`, but in GLSL it’s allowed (different scope).  
+- `rotate3D` and `hsv` are not defined here, but in typical “つぶやきGLSL” they are either built‑in or included in the boilerplate before this snippet.
+
+Would you like me to also produce a **live Shadertoy‑compatible version** with the missing functions added?

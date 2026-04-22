@@ -1,0 +1,208 @@
+enumNET — Rust Native Browser & GUI Component Inventory
+Generated 2026-04-08 from source verification of the SigmaWolf-8/Ternary repository.
+
+1. Rust Native Web Browser (Kernel)
+Location: src/kernel/src/browser/ — 12 modules, 7,267 lines total
+
+The PlenumBrowser is a kernel-level web browser with a complete rendering pipeline built in Rust. No Chromium, no WebKit — every stage is native Rust.
+
+Pipeline (execution order)
+Stage	Module	Lines	Description
+1. Parse	parse.rs	1,093	HTML5 tokenizer/tree builder (html5ever) + CSS parser (rust-cssparser). Produces DomNode tree and extracted style rules.
+2. Layout	layout.rs	938	Flexbox/Grid layout engine wrapping taffy. Font caching and text shaping via rustybuzz + fontdue.
+3. Script	script.rs	688	JavaScript/TernaryScript execution. DOM mutation bridge; script-triggered re-layout.
+4. Render	render.rs	390	RenderBackend trait, RenderPrimitive, RenderScene, RenderColor. Defines CPU and future GPU paths.
+4a. Render (CPU)	render_cpu.rs	1,046	Phase 1 CPU rendering via tiny-skia (2D shapes/paths) + resvg (SVG). CpuFramebuffer with dirty-rectangle tracking.
+5. Mesh Color	color.rs	757	PlenumColor — recursive polygon mesh → sRGB mapping (see §1a below).
+6. Encrypt	(in render_cpu)	—	Sponge-encrypts the framebuffer (sponge_encrypt_framebuffer) before display.
+7. Display	mod.rs	598	Pipeline orchestrator. Browser struct, viewport management, pipeline coordination.
+Supporting Modules
+Module	Lines	Description
+tabs.rs	602	Multi-tab management with process-like isolation and crash recovery.
+input.rs	344	Keyboard/mouse event routing to active tab.
+net.rs	180	Networking layer; routes requests through the kernel's z=0 distributor.
+mesh.rs	205	3D polygon mesh representations for the Mesh Color stage.
+home_page.rs	426	Default system home page / dashboard renderer.
+1a. PlenumColor System
+Primary file: src/kernel/src/browser/color.rs (757 lines) Mathematical foundation: src/kernel/src/distributor/coprime_polygon_pair.rs
+
+PlenumColor is a recursive polygon mesh mapping between sRGB and a ternary coordinate space. Key properties:
+
+540-node recursive mesh with coprime step 1,001 (7 × 11 × 13)
+Depth-3 LUT guarantees ≤1 LSB round-trip error
+Arc roots from the quadratic arc² − 832·arc + 118,300 = 0:
+ARC_RED = 182° (within the 364° ternary circle)
+ARC_GREEN = 650°
+ARC_BLUE = 240 (derived as 2 × φ(143))
+Bézier interpolation using arc-derived control points (4.8× quality improvement per depth level)
+Pipeline position: Stage 5, after CPU rendering, before encryption
+Initialization in kernel boot (src/kernel/src/main.rs):
+
+MeshPrecision::compute(3) — set up depth-3 precision
+MeshColorLut::build(3) — build the look-up table
+browser.apply_mesh_color() — per-frame framebuffer processing
+2. Rust Math Library (WASM-Exported)
+Location: ternary-math/src/ — 27 modules, 5,809 lines in key files
+
+The ternary-math crate is the mathematical kernel. It compiles to both native (N-API for server) and WASM (for browser). All browser-facing exports go through wasm_exports.rs.
+
+Core Modules
+Module	Lines	Description
+constants.rs	1,639	Single source of truth. Repunits, circle geometry, coprime arrays (§7/§8 via Task #99), UV spectral constants, polygon angles, compile-time assertions.
+tlsponge385.rs	861	TL-Sponge-385: 729-trit (3⁶) cryptographic sponge. Hash, key derivation, keystream, duplex encrypt.
+tribonacci.rs	690	Tribonacci constant τ ≈ 1.839, sequence generation, 28-dimension symmetry.
+torus.rs	596	Torus knot geometry and topological invariants.
+ternary_circle.rs	510	Z₂₈ cyclic group operations, 364° full circle, π = 14, degree/radian conversion.
+wasm_exports.rs	485	All #[wasm_bindgen] exports — §A (TL-Sponge-385), §B (Unified Constants).
+plenum_checksum.rs	398	Address validation and checksum algorithms.
+plenum_square.rs	342	3×3 circulant magic square {111, 14, 208}, generative root for all constants.
+repunit_circles.rs	132	Repunit R(n) = (3ⁿ−1)/2, circle hierarchy R₁–R₉.
+gf3_algebra.rs	97	GF(3) arithmetic: add/sub/mul/neg/inv, Rep B↔C conversion, Hamming distance, forgery detection. 22 pub functions, 9 tests.
+cube_addr.rs	59	Cube addressing for Inter-Cube network topology.
+WASM Exports (§A + §B, 485 lines)
+§A — Cryptographic Operations:
+
+sponge_hash, sponge_derive_key, sponge_keystream
+sponge_duplex_encrypt (low-level primitive)
+sponge_hash_tis, sponge_derive_key_tis (TIS-27 fast-path)
+§B — Unified Constants & Utilities:
+
+Repunit family: ternary_base, repunit_1 through repunit_6
+Circle geometry: quad_sum, quad_product, discriminant, root_x1, root_x2, circumference
+Spectral wavelengths: lambda_euv, lambda_uvc, boundary_uv_vis
+Coprime walk (Task #99): pentadecagon, lcm_primary, bridge_ratio_num
+Polygon/torus knot: polygon_count, central_angle_square, crossing_11_14
+Conversion utilities: ternary_deg_to_std_deg, std_rad_to_ternary_rad
+Hydrogen predictions: predict_lyman, predict_balmer, predict_paschen
+3. Server-Side Crypto Bridges
+Location: server/crypto/ — 6 TypeScript files + 1 native binary, 1,390 lines total
+
+These bridge Rust (native N-API or WASM) to the Node.js server.
+
+File	Lines	Description
+sponge-hash.ts	530	TL-Sponge-385 implementation with auto-dispatch to native Rust addon. Pure TS fallback. v1 + v2 (affine-composed Chi S-box over GF(27)).
+tl-dsa-bridge.ts	394	TL-DSA (Ternary Lattice Digital Signature Algorithm). Legacy HMAC simulation + modern native N-API public-key verification.
+key-management.ts	235	Key orchestration: TL-DSA, RSA-4096, mesh-signing keys. HSM/PKCS#11 in production, file-based in dev.
+pt26-bridge.ts	111	PT26-DSA Hypercube Walk Signatures via sponge-native.node.
+sponge-wasm-bridge.ts	80	WASM loader for ternary_math.wasm. Tries WASM, falls back to TS. Pattern template for all future WASM bridges.
+rsa4096-signing.ts	40	Classical RSA-4096 via Node.js crypto. Dual-signature compatibility.
+sponge-native.node	(binary)	Compiled Rust N-API addon for high-performance ternary crypto.
+4. Shared TypeScript Modules
+Location: shared/ — 30 files, 8,301 lines total
+
+These are the TS mirrors of the Rust math library, used as fallbacks and by the frontend directly.
+
+Core Math & Constants
+File	Lines	Description
+constants.ts	375	Master constants mirror: PLATFORM, CRT, PLENUM_SQUARE, COPRIME_POLYGON_PAIR, REPUNITS, POLYGON_CENTRAL_ANGLES, UV_SPECTRAL.
+plenum-square.ts	455	3×3 circulant magic square. PLENUM_MAGIC_CONSTANT = 333, PI_ESOTERIC = 14, COSMIC_CIRCUMFERENCE = 364. Family A–D, generateMagicSquare(), validateAll().
+ternary-circle.ts	336	Z₂₈ operations, FULL_CIRCLE_DEG = 364, PI_TERNARY = 14, degree/radian conversion.
+tribonacci-constants.ts	122	τ ≈ 1.839, TAU_POWERS, TRIBONACCI_SEQUENCE (first 20), VM_CONSTANTS (27-trit word, 27 registers, 729 max trits).
+repunit-circles.ts	211	Repunit hierarchy R₁–R₉, circle-to-calendar day conversion (Day Out of Time insertion).
+crt-fast-path.ts	158	CRT decomposition Z₃₆₄ ≅ Z₁₃ × Z₂₈. decompose(), reconstruct(), timestampToPosition().
+gf3-algebra.ts	78	GF(3) arithmetic: gf3Add, repCtoB, repBtoC, hasForgery.
+Crypto & Integrity
+File	Lines	Description
+tis-sponge.ts	69	TIS-27 fast integrity hash (43-bit security). tis27Hash(), tis27DeriveKey().
+repunit-checksum.ts	83	6-trit integrity check for 27-trit addresses. Horner's method mod R₆ (364).
+plenum-checksum.ts	271	Address validation and checksum computation.
+Quantum & Physics
+File	Lines	Description
+qutrit-basics.ts	183	Quantum ternary states (qutrits), SUFT branches (Past/Present/Future), Gell-Mann λ matrices, Born probabilities.
+qudit-basics.ts	218	Generalized qudit operations.
+qutrit-fault-tolerance.ts	234	[[3,1,2]]₃ stabilizer codes, syndrome measurement, magic state distillation.
+complex-utils.ts	184	Complex number arithmetic for quantum state manipulation.
+lagrangian-ternary-utils.ts	373	Lagrangian mechanics in ternary coordinates.
+lagrangian-qutrit-utils.ts	184	Lagrangian-qutrit coupling.
+noether-symmetries-utils.ts	260	Noether symmetry conservation checks.
+hamiltonian-constraints.ts	196	Hamiltonian energy conservation constraints.
+tribonacci-variational.ts	312	Tribonacci sequence variational analysis.
+Network & Platform
+File	Lines	Description
+metatronic-cube.ts	691	13-dimensional ternary network topology for Inter-Cube.
+service-catalog.ts	942	PlenumNET service registry and discovery.
+ops-protocol.ts	466	Operational protocol definitions.
+agent-array.ts	525	Agent Array configuration and management.
+agent-generators.ts	236	Agent instance generators.
+service-projection.ts	257	Service capability projection.
+saturnian-blueprint.ts	110	Saturnian geometry blueprint.
+saturnian-matrix-utils.ts	104	Saturnian matrix operations.
+plenum-square-utils.ts	104	Plenum Square utility functions.
+scopes.ts	144	API scope definitions.
+schema.ts	420	Drizzle ORM schema (database models).
+5. Client-Side Libraries
+Location: client/src/lib/
+
+File	Lines	Description
+tis27-hash.ts	214	Pure TS implementation of TIS-27. 729-trit state, 9-round sponge permutation, chiLayer (GF(27) S-box), thetaPiRc diffusion. Returns 16-char hex hash.
+6. GUI Components (React/JSX)
+Location: client/src/components/ — 10 custom components + 49 UI primitives, 6,209 lines in custom components
+
+Major Interactive Components
+Component	Lines	Description
+LauncherPanel.tsx	1,897	Slide-up management panel for PlenumNET. WebSocket connection to Inter-Cube daemon, product status monitoring (Array3, TDNS, NinjaExec), authentication challenge-response, widget/full display modes. z-index 9999.
+geometric-foundations.tsx	1,396	Landing page visualizations. Metatron's Cube (13-node animated SVG network), animated stat cards with cubic easing, built-in light/dark theming engine, scroll-triggered IntersectionObserver animations.
+ternary-vm-terminal.tsx	1,110	Xterm.js-based terminal emulator. 27-trit balanced ternary VM simulation with full ISA opcode table (core, crypto, SIMD, system, XPLENUM extensions). Interactive demos for Phase Encryption, Capability Security, side-channel masking. Custom ANSI brand colors.
+marketing-top-nav.tsx	869	Platform navigation bar with product menu, documentation links, authentication state.
+api-endpoint-catalog.tsx	429	Interactive API endpoint browser with filtering, search, and live testing.
+app-sidebar.tsx	298	Application sidebar navigation for authenticated views.
+marketing-footer.tsx	121	Platform footer with links, legal, and branding.
+InstallExtensionCard.tsx	89	TDNS browser extension installation dialog. Download trigger, step-by-step instructions, clipboard integration.
+UI Primitive Library (client/src/components/ui/)
+49 Radix UI / shadcn-based primitives: accordion, alert, alert-dialog, aspect-ratio, avatar, badge, breadcrumb, button, calendar, card, carousel, chart, checkbox, collapsible, command, context-menu, dialog, drawer, dropdown-menu, form, hover-card, input, input-otp, label, menubar, navigation-menu, pagination, popover, progress, radio-group, resizable, scroll-area, select, separator, sheet, sidebar, skeleton, slider, switch, table, tabs, textarea, toast, toaster, toggle, toggle-group, tooltip.
+
+7. Application Pages
+Location: client/src/pages/ — 27 pages, 25,120 lines total
+
+Ternary Math & Visualization Pages
+Page	Route	Lines	Key Features
+TernaryDB	/ternarydb	2,217	PlenumDB console. PostgreSQL ternary extension, Tribonacci indexing demo, 28-shard distribution model, compression ratios.
+Quantum Simulator	/quantum-sim	1,009	Qutrit fault tolerance dashboard. [[3,1,2]]₃ stabilizer simulation, magic state distillation, CNSA 2.0/FIPS compliance.
+HPTP Demo	/hptp	803	Femtosecond-precision timing. Live timestamps, 4-timestamp latency model, 42-calendar universal converter.
+Compression	/compression	982	TTC compression engine. File compress/decompress (.tern), phase encryption toggle, GF(3) format selection.
+Tribonacci 28DS	/tribonacci-28ds	349	28-Dimension Symmetry architecture. SVG 28-hour clock, Z₂₈ cyclic group visualization.
+FPGA Benchmarks	/fpga-benchmarks	749	XPLENUM FPGA synthesis results. Resource utilization across Artix-7/Zynq/UltraScale+, ternary vs binary comparison.
+13-Moon Calendar	/13-moon	677	13-Moon calendar reference (13 months × 28 days = 364 + Day Out of Time).
+ISA Security	/isa-security	666	176-opcode ternary ISA security analysis paper.
+VM Demo	/vm-demo	212	Ternary VM terminal launcher.
+Platform & Operations Pages
+Page	Route	Lines	Key Features
+Landing	/	2,285	Main landing page with geometric-foundations hero, product overview.
+Terminal	/terminal	2,007	Full terminal interface with VM integration.
+API Keys	/api-keys	1,690	API key management with scope selection and rotation.
+Agent Array	/agent-array	1,631	Agent Array management dashboard.
+API Demo	/api-demo	1,584	Interactive API endpoint testing.
+Distribution	/distribution	1,363	Platform distribution and installer downloads.
+GitHub Manager	/github	1,141	Repository management interface.
+TSA	/tsa	1,082	Time Stamping Authority configuration and certificates.
+Calendar	/calendar	1,055	Standard calendar views.
+Kong Konnect	/kong-konnect	1,008	Kong Gateway service management (293 endpoints).
+Compliance	/compliance	815	Compliance audit reports and certifications.
+Docs	/docs	351	Platform documentation hub.
+Whitepaper	/whitepaper	344	Technical whitepaper.
+About	/about	313	Platform overview.
+Admin	/admin	240	Admin dashboard.
+Contact	/contact	240	Contact information.
+Legal	/terms, /privacy, /security, /aup	231	Legal pages (shared component).
+Widget	/widget	24	Standalone LauncherPanel widget mode.
+8. Theming & Color System (CSS)
+Location: client/src/index.css
+
+The web client uses a Salvi Light/Dark Theme via Tailwind CSS custom properties:
+
+Primary: hsl(210, 100%, 45%) / hsl(210, 80%, 55%)
+Recursive elevation system: --elevate-1, btn-raised shadow utilities
+Dark mode: Class-based toggling on document.documentElement
+The geometric-foundations.tsx component includes its own extended theming engine with properties like cosmicBg, esoteric, primaryDim for the Metatron's Cube visualization.
+
+Summary Counts
+Layer	Files	Lines
+Rust Kernel Browser	12	7,267
+Rust Math Library (ternary-math)	11 key modules	5,809
+Server Crypto Bridges	6	1,390
+Shared TypeScript Modules	30	8,301
+Client Libraries	1	214
+GUI Components (custom)	10	6,209
+GUI Components (UI primitives)	49	—
+Application Pages	27	25,120
+Total	146	54,310+

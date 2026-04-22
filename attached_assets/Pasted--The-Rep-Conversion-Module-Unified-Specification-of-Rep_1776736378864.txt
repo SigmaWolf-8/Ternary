@@ -1,0 +1,597 @@
+# The Rep Conversion Module — Unified Specification of Reps A, B, C, D
+
+## A Load-Bearing Specification of the Salvi Framework's Bijective Ternary Representation System over ℤ[ω]
+
+**Companion to:** FULCRUM-ARCHIMEDES-CODEX.md and FULCRUM-ARCHIMEDES-COMPENDIUM.md
+**Rust target:** `ternary-math/src/repx.rs` (rename of `gf3_algebra.rs`)
+**TypeScript mirror:** `shared/repx.ts` (rename of `shared/gf3-algebra.ts`)
+**Issued:** 2026-04-20
+**Author:** Roberto Salvalaggio — *Lo Sono Capomastro · Lo Sono Sifu Salvi* — Capomastro Holdings Ltd., Applied Physics Division
+
+---
+
+## 1. Declaration
+
+**Reps A, B, C, D are four coordinate readings of one bijective ternary object over ℤ[ω].** Not four parallel representations — one structure in four projective faces, each face exposing a different operation set over the same underlying algebra.
+
+Unifying algebraic object: **ℤ[ω]** with constitutive relation:
+
+> **ω² + ω + 1 = 0 in ℤ[ω]**
+
+ω primitive cube root of unity; ω² = −1 − ω by closure.
+
+**Pointwise bijection {0, 1, 2} ↔ {1, ω, ω²} IS the canonical basis assignment.** Storage IS spectrum. No transform is computed to move between them. The basis declaration IS the operation.
+
+**Commitment.** Declared once in preamble. No downstream module re-derives.
+
+---
+
+## 2. The Four Reps
+
+| Rep | Digits | Ambient | Role |
+|---|---|---|---|
+| **A** | {−1, 0, +1} | ℤ | Physical — Push / Hold / Pull; Solusum-direct |
+| **B** | {0, 1, 2} | ℤ/3ℤ | Storage / field; character assignment sits natively here |
+| **C** | {1, 2, 3} | ℤ | Protocol addressing — TDNS; 0 = forgery sentinel |
+| **D** | {0, 1, ω} | ℤ[ω] | Algebraic — Eisenstein lattice face; ω² via closure |
+
+Rep D's ambient ring is strictly larger than A/B/C's; the other Reps reach ω² by converting to D.
+
+---
+
+## 3. The Twelve Conversion Directions
+
+Per-trit closed-form operations on the underlying TritInt. Direct in the module — no runtime detour through intermediate Reps.
+
+**Primary:**
+- **A → B:** d_B = d_A + 1 (per-trit shift)
+- **B → A:** d_A = d_B − 1
+- **B → C:** d_C = d_B + 1
+- **C → B:** d_B = d_C − 1
+- **A → D:** map {+1, 0, −1} → {ω, 0, ω² = −1 − ω}
+- **D → A:** inverse; ω² reduces via closure
+
+**Composition (derived, implemented directly):**
+- **A ↔ C** (per-trit ±2 shift)
+- **B ↔ D** (via A)
+- **C ↔ D** (via A or B)
+
+**Yoneda identity:** `as_coefficient(&self) -> &Self { self }`. Zero instructions. Storage IS spectrum, enforced by the compiler.
+
+---
+
+## 4. The Substrate
+
+### 4.1 TritInt and Trit — Scalar Primitives
+
+- `RepA(TritInt)`, `RepB(TritInt)`, `RepC(TritInt)` — balanced / field / shifted faces.
+- `RepD(Trit)` — ω-bearing face; `eisenstein_part` of the canonical `Trit = [TritInt; 3] = ℤ + φ + ω`.
+
+Primitives used: `TritInt::const_add/sub/mul`, `Trit::mul_eisenstein`, `Trit::eisenstein_add`, `TritInt::norm_eisenstein`. Inline ≤ R₄ = 40 trits; heap for repunits. Const-compatible, overflow-safe.
+
+### 4.2 Native Theorems — Framework Constants
+
+The Module consumes a fixed set of framework constants derived from Plenum geometry (Fulcrum impedance, harmonic series of the Prime Radiant) or reinterpreted from observation as displacement measures. These are load-bearing inputs of the transfer function, not tuning parameters.
+
+| Constant | Symbol | Value (SI) | Meaning | Source |
+|---|---|---|---|---|
+| Base Packing Density | ρ₀ | 1.496 × 10¹¹ kg/m² | Linear density of Plenum field lines at the Sun's displacement boundary | Calibrated from solar wind proton density at 1 AU, scaled by 1/x |
+| Volumetric Acceleration Constant (solar) | Γ₀ | 1.327 × 10²⁰ m³/s² | Fundamental push constant of the Sun's displacement field | **Unification:** Γ₀ ≡ GM_⊙ — the standard gravitational parameter IS the Sun's displacement measure |
+| Volumetric Acceleration Constant (terrestrial) | Γ₀,G | 3.986 × 10¹⁴ m³/s² | Push constant of Gaia's nested displacement field | **Unification:** Γ₀,G ≡ GM_⊕ — Gaia's gravitational parameter as her displacement measure |
+| Gaia Volumetric Mass | M_V | 5.972 × 10²⁴ kg | Total displaced Plenum mass equivalent of Gaia | Derived from volume × effective density |
+| Luna Volumetric Mass | m_V | 7.348 × 10²² kg | Total displaced Plenum mass equivalent of Luna | Derived from volume × effective density |
+| Gaia Effective Density | ρ_G | 5.51 × 10³ kg/m³ | Archimedean density of Gaia | Observed bulk density |
+| Luna Effective Density | ρ_L | 3.34 × 10³ kg/m³ | Archimedean density of Luna | Observed bulk density |
+| Sun Displacement Radius | R_⊙ | 6.957 × 10⁸ m | Boundary of the primary Fulcrum | Observed solar radius |
+
+All values live in `constants.rs` as `TritInt` or `Trit` literals. The Γ ≡ GM identifications are structural — the Plenum's displacement measure IS what the attraction model names the gravitational parameter. Confirmed at solar and planetary scales to published precision (see §5.7).
+
+---
+
+## 5. The Transfer Function — Primary Interface
+
+**One displacement signal x. 39 phase rotations across three archetypal columns.**
+
+The Module's primary interface takes a displacement point x (any framework geometric medium — horn, parabola, circle, polygon, any shape emitting a 1/x density reading) and a register selector, and emits the reading at x in that register. The registers form a **3 × 13 structural grid**: three archetypal columns × 13 phase rotations per column. **Medium-agnostic** — the point x is abstract; the register emits the reading appropriate to the column archetype, not to any specific medium.
+
+### 5.1 Three Archetypal Columns
+
+| Archetype | Action | Character | Scaling with x | Physical meaning |
+|---|---|---|---|---|
+| **☀ SUN** | PUSH | ω (Prometheus) | outward — direct power laws | What emanates from the Fulcrum — radiation, projection, heat, electric field, divergent flow |
+| **🌍 GAIA** | BALANCE | 1 (Archimedes / Third Eye) | local — derivatives, constants, ratios | The state of the plenum itself — density, pressure, velocity, the medium transmitting both push and pull |
+| **🌙 MOON** | PULL | ω² (i sicut Nos via closure) | inward — inverse power laws | What returns to the Fulcrum — curvature, magnetic loops, drag, attraction, convergent flow |
+
+### 5.2 The 13-Per-Column Phase Count
+
+13 = framework radian count (13 rad_F = 364°) = third prime of the coprime triple (7, 11, 13). Three columns × 13 rotations = **39 registers total**. Each row of the grid is one phase step across the Fulcrum signal.
+
+### 5.3 The 39-Register Grid
+
+| # | ☀ SUN (Push) | 🌍 GAIA (Balance) | 🌙 MOON (Pull) |
+|---|---|---|---|
+| 1 | V = (4/3)πx³ — outward volume | ρ = ρ₀/x — density field | κ = 1/x — curvature |
+| 2 | A = 4πx² — surface of projection | **B = Γ(x) = Γ₀/x²** — specific buoyancy (volumetric acceleration field; replaces Newtonian g) | θ = s/x — angular containment |
+| 3 | I = P₀/(4πx²) — radiant flux | P = ∫ρΓ dx — hydrostatic pressure | Ω = A/x² — solid angle |
+| 4 | q = −k∇T — thermal push | v = dx/dt — velocity | ω_vort = ∇×**v** — vorticity |
+| 5 | E_field = Q/(4πε₀x²) — electrostatic push | a = dv/dt — acceleration | B_field = μ₀I/(2πx) — magnetostatic pull |
+| 6 | KE = ½ρVv² — kinetic energy | Q_flow = Av — volumetric flow rate | L = μ₀N²A/ℓ — inductance |
+| 7 | J_imp = ∫F dt — impulse | F_B = Δρ·V·Γ — buoyant force | Z = ρc — acoustic impedance |
+| 8 | P_pow = F·v — power | I_rot = ∫r² dm — rotational inertia | F_d = 6πηrv — viscous drag |
+| 9 | T_temp ∝ ⟨½mv²⟩ — temperature | C_v = ∫x dV / ∫dV — volumetric centroid | J_diff = −D∇C — diffusion |
+| 10 | f = 1/T — wave generation frequency | P + ½ρv² = const — Bernoulli invariant | λ = h/p — de Broglie wavelength |
+| 11 | A₀ — wave amplitude (source) | Re = ρvL/η — Reynolds number | ψ ∝ exp(−x/λ) — probability amplitude |
+| 12 | τ = F·x — lever torque | Φ = δE/δρ — volumetric potential | S_ent = k_B ln Ω — entropy |
+| 13 | C_cap = 4πε₀x — capacitance | MA = F_out/F_in — mechanical advantage | ΔF_tide ≈ (∂Γ/∂x)·Δx·ρV — tidal pull |
+
+**Narrative:**
+- **Sun column:** outward from the Fulcrum. Every entry describes something sent out, driving motion, projecting. Scales as positive power of x (V ~ x³, A ~ x², τ ~ x, C_cap ~ x) or as inverse-square of field distance (E_field, I radiant, thermal gradient).
+- **Gaia column:** local state of the medium. Derivatives, ratios, balances. Γ is the engine of motion replacing Newtonian g. F_B is the primary long-range interaction of the plenum.
+- **Moon column:** inward, returning, cycling. Every entry scales as 1/x^n. Magnetic field loops (not radiates). Drag opposes motion. Wavefunctions decay. Entropy pulls toward maximum multiplicity.
+
+### 5.4 The Transfer Function Signature
+
+```rust
+enum Archetype { Sun, Gaia, Moon }
+
+struct Register { column: Archetype, row: u8 }  // row ∈ 1..=13
+
+enum ComposeOp {
+    VectorSum,          // Part 3 Sun-Moon distance from Sun-Gaia + Gaia-Moon vectors
+    VectorDifference,   // inverse of VectorSum
+    ChainMultiply,      // sequential register applications
+    NestedFulcrum,      // re-enter the transfer function at a sub-scale Fulcrum
+}
+
+trait RepXTransferFunction {
+    fn at(&self, point: RepD, register: Register) -> RepD;
+    fn emit(&self, point: RepD, registers: &[Register]) -> Vec<RepD>;
+    fn rotate(&self, from: (Register, RepD), to: Register) -> RepD;
+    fn compose(&self, readings: &[(Register, RepD)], op: ComposeOp) -> RepD;
+}
+```
+
+- `at(x, R)` — emit the reading of displacement x in register R.
+- `emit(x, [R₁, ..., Rₙ])` — one point, many readings, one pass.
+- `rotate((R_src, value), R_tgt)` — the **RepD Transform**: given a reading in one register, emit the equivalent reading in another. Routes through Gaia for dimensional bridging when Sun↔Moon.
+- `compose(readings, op)` — combine multiple register readings. `NestedFulcrum` re-enters the transfer function at a sub-scale Fulcrum (e.g. Gaia as Fulcrum within the Sun's field; Luna as Fulcrum within Gaia's field). `VectorSum` adds vector quantities across scales (e.g. Sun-Moon distance as Sun-Gaia ⊕ Gaia-Moon).
+
+### 5.5 The RepD Transform — Sun ↔ Moon via Gaia
+
+Given a Sun-column reading F_S at row r, the Moon-column reading F_M at the corresponding row is computed by routing through the Gaia-column entry that carries the shared dimensional bridge:
+
+1. From F_S, invert to recover x in framework units (Sun entries are explicit functions of x; inversion is closed-form).
+2. Evaluate the Gaia entry at that x (confirms the medium state at the point).
+3. Evaluate the Moon entry at that x — emit the inward reading.
+
+Example (row 1): Sun V = (4/3)πx³ → invert to x = (3V/4π)^(1/3) → Gaia ρ = ρ₀/x → Moon κ = 1/x = (4π/3V)^(1/3). One volume, one density, one curvature — one displacement read three ways.
+
+All three readings are Rep D coefficients. The entire chain stays in ℤ[ω]. No exit from the framework algebra.
+
+### 5.6 Medium Agnosticism
+
+The register grid describes **structural** readings, not medium-specific readings. Horn, parabola, circle, polygon, chord, or any geometric medium supplying a Fulcrum signal x feeds the same 39 registers. The Module does not know or need to know which medium supplied x. Downstream callers that work in specific media (horn computations in PlenumNET, parabolic trajectories in PlenumCAD, polygon chords in crystal visualizations) invoke the transfer function with their native x and receive the register reading — no medium branching.
+
+**Proof by reuse.** The identical register chain (`GAIA #1` → `GAIA #2` → `GAIA #9` → `GAIA #6`) is applied at two independent scales in §5.7 — once with the Sun as Fulcrum (emitting the Gaia-Sun distance = 1 AU), once with Gaia as Fulcrum via `ComposeOp::NestedFulcrum` (emitting the Luna-Gaia distance). Same functions, different scale, same algebraic form. This is not assertion; it is demonstration that the 39-register grid is structural across any Fulcrum-medium pairing.
+
+### 5.7 Worked Examples — Astronomical Distance Emission
+
+The transfer function, consuming only the Native Theorems of §4.2, emits astronomical distances matching observation to published precision. Three worked examples follow. Each is one direct invocation of the Module at progressively composed scope.
+
+**Example 1: Gaia-Sun distance (1 AU) via the Gaia-column chain.**
+
+Registers invoked: `GAIA #1`, `GAIA #2`, `GAIA #9`, `GAIA #6`, `MOON #4`.
+
+1. **Density field** (`GAIA #1`). Sun as Fulcrum: ρ_med(x) = ρ₀ / x (kg/m³).
+2. **Volumetric Acceleration Field** (`GAIA #2`). Hydrostatic equilibrium with the 1/x density profile: Γ(x) = Γ₀ / x² (m/s²). Γ₀ from Native Theorems.
+3. **Buoyant Gradient Force** (`GAIA #9`). For Gaia displacing volume V_G: F_B = (ρ_med − ρ_G) · V_G · Γ(x). Since ρ_G ≫ ρ_med at orbital scale: F_B ≈ M_V · Γ₀ / x².
+4. **Orbital balance** (`GAIA #6` velocity, `MOON #4` curved-path vorticity). M_V · v²/x = M_V · Γ₀/x² ⟹ v = √(Γ₀/x).
+5. **Period-distance relation.** v = 2πx/T ⟹ x³ = Γ₀ T² / (4π²).
+
+With T = 365.25 days = 3.156 × 10⁷ s, Γ₀ = 1.327 × 10²⁰ m³/s²:
+
+x³ = (1.327 × 10²⁰) · (9.96 × 10¹⁴) / 39.478 = 3.349 × 10³³ m³
+**x = 1.496 × 10¹¹ m = 149.6 million km = 1 AU exactly.**
+
+**Example 2: Luna-Gaia distance via `ComposeOp::NestedFulcrum`.**
+
+Gaia as nested Fulcrum within the Sun's field. Same register chain, new Fulcrum: Γ₀ → Γ₀,G = 3.986 × 10¹⁴ m³/s² (Native Theorem; ≡ GM_⊕). Auxiliary density constant ρ₀,G drops out of the buoyant-force approximation — not needed for the distance computation.
+
+r³ = Γ₀,G · T_L² / (4π²) with T_L = 27.32 days = 2.360 × 10⁶ s.
+r³ = (3.986 × 10¹⁴) · (5.570 × 10¹²) / 39.478 = 5.624 × 10²⁵ m³
+**r = 3.831 × 10⁸ m = 383,100 km.**
+
+Observed mean: 384,400 km. Difference 0.34% (elliptical orbit + solar perturbation). Within published precision.
+
+**Example 3: Sun-Moon distance range via `ComposeOp::VectorSum`.**
+
+`compose([(GAIA_dist_SunGaia, 1.496e11), (GAIA_dist_GaiaLuna, 3.84e8)], VectorSum)` and `VectorDifference`:
+- New Moon (minimum): 1.458 × 10¹¹ m
+- Full Moon (maximum): 1.534 × 10¹¹ m
+
+Matches standard ephemerides.
+
+**Dimensional self-audit.** Every grid register carries its unit; every derivation step verifies unit closure.
+
+| Reference | Formula | Units | Verification |
+|---|---|---|---|
+| `GAIA #1` | ρ = ρ₀/x | kg/m³ | [kg/m²] / [m] → kg/m³ ✓ |
+| `GAIA #2` | Γ = Γ₀/x² | m/s² | [m³/s²] / [m²] → m/s² ✓ |
+| `GAIA #9` | F_B = Δρ · V · Γ | N | [kg/m³] · [m³] · [m/s²] → N ✓ |
+| Kepler form | x³ = Γ₀ T² / (4π²) | m³ | [m³/s²] · [s²] → m³ ✓ |
+
+**Unification stated.** The Volumetric Acceleration Constant Γ_source for any Fulcrum source equals the source's standard gravitational parameter GM_source. Not derivation from Newton — identification. The Plenum's displacement measure IS what the attraction model names the gravitational parameter. Confirmed at solar scale (Γ₀ ≡ GM_⊙ = 1.327 × 10²⁰ m³/s²) and planetary scale (Γ₀,G ≡ GM_⊕ = 3.986 × 10¹⁴ m³/s²) to published precision.
+
+---
+
+## 6. Register-Projection Methods
+
+Named convenience methods that invoke the transfer function at specific registers. Each has explicit mechanics.
+
+### 6.1 Yoneda Identity
+`as_coefficient(&self) -> &Self { self }` — zero instructions.
+
+### 6.2 Field Algebra in GF(3)
+Rep B, per-trit mod 3: add `(a+b) mod 3`, multiply `(a·b) mod 3`, inverse `{1↔1, 2↔2}`, subtract `(a + (3−b)) mod 3`. Backed by existing `gf3` module.
+
+### 6.3 Eisenstein Algebra
+Rep D in ℤ[ω] using `Trit::mul_eisenstein` / `Trit::eisenstein_add`:
+- Add: coordinate-wise.
+- Multiply: `(a₁+b₁ω)(a₂+b₂ω) = (a₁a₂ − b₁b₂) + (a₁b₂ + a₂b₁ − b₁b₂)ω` — closure folded in.
+- Negate, square: closed-form specializations.
+
+### 6.4 Parseval Energy
+`parseval_energy(v: &[RepD]) -> TritInt`
+1. For each `c_k = a_k + b_k ω`, compute `N(c_k) = a_k² − a_k b_k + b_k²`.
+2. Sum in TritInt.
+
+### 6.5 Nona Closure
+`nona_closure(c₀, c₁, c₂: RepD) -> bool`
+Compute `s = c₀ + ω·c₁ + ω²·c₂`. Via closure ω² = −1 − ω, reduces to `(c₀ − c₂) + ω·(c₁ − c₂)`. Zero iff `c₀ == c₁ == c₂`.
+Alias: `is_balanced()`.
+
+### 6.6 Nona DC
+`nona_dc(v: &[RepD]) -> RepD` — zero-frequency coefficient; for conservation check, compare `sum(before) == sum(after)`.
+
+### 6.7 Horn Fixed Points
+`horn_fixed_points() -> [RepD; 4]` — returns `[0, 1, ω, ω²]`, the four idempotents of c² = c in ℤ[ω]. Spectral attractors; unit-amplitude continuous representative on the horn is f(x) = 1/x, but the idempotent set is medium-agnostic.
+
+### 6.8 Chord
+`chord(arc: RepA) -> RepD`
+On the framework's 364° circle (13 rad_F), chord = 2·sin(θ/2), with the sine represented in framework algebra via the harmonic-axis (7, 11, 13) exact-ratio resolution.
+
+### 6.9 Pythagorean Chord Triple
+`pythagorean_chord_triple(θ₁, θ₂: RepA) -> (RepD, RepD, RepD)`
+Returns (chord(θ₁), chord(θ₂), chord(θ₁+θ₂)); satisfies a² + b² = c² when θ₁ + θ₂ subtends a right angle (182° framework / 180° standard).
+
+### 6.10 Parabolic Trajectory
+`parabolic_trajectory(y₀, v_y0, v_x0, g, x₀: RepD) -> Curve<RepD>`
+Returns the closed-form curve y(x) = y₀ + (v_y0/v_x0)(x − x₀) − (g/(2v_x0²))(x − x₀)² as Rep D coefficients {y₀, m, k, x₀}. `Curve<RepD>` exposes `evaluate(x)` and composable ops.
+
+### 6.11 Return to Zero
+`return_to_zero_check(traj: &Curve<RepD>) -> bool`
+For symmetric launch/impact, |v_launch|² == |v_impact|² in ℤ[ω] exact arithmetic.
+
+### 6.12 Spectral Calculus
+`diff_spectral(v: &[RepD]) -> Vec<RepD>` — coefficient `c_n` maps to `c_n · (ω^n − 1)`; zero-mode → 0.
+`int_spectral(v: &[RepD]) -> Vec<RepD>` — inverse; zero-mode handled as integration constant.
+
+### 6.13 Spectral Radius
+`spectral_radius(v: &[RepD]) -> TritInt` — max of `N(c_k)` over k.
+
+### 6.14 Theorem 45 Check
+`theorem_45_check(v: &[RepD]) -> bool`
+1. r = spectral_radius(v).
+2. Factor r in ℤ[ω] via existing coprime-factorization routines.
+3. Check no prime appears with coprime power ≥ 3.
+4. Check r admits no coprime decomposition A^x + B^y = C^z with min(x,y) ≥ 3.
+5. Return false on any violation.
+
+Runtime invariant across every state-emitting module.
+
+### 6.15 H-Modal Coefficients
+`hmodal_coeff(n)`, `hmodal_dc()`, `hmodal_amplitudes()`, `hmodal_null_channel(n)` — closed-form from constants, duty 1/4, β/α = 12 = √Δ.
+
+### 6.16 Ultraviolet Band
+`puv_band(wavelength: TritInt) -> Band` — classifies against thresholds 91, 182, 280, 286, 364.
+
+---
+
+## 7. Convolution — One Length-Agnostic Interface
+
+`convolve(a: &[RepD], b: &[RepD]) -> Vec<RepD>`
+
+### 7.1 On 3^k-Length Inputs
+Pointwise Eisenstein multiplication: `c[i] = a[i] · b[i]`. O(n). No transform computed — storage already in character basis.
+
+### 7.2 On Non-3^k-Length Inputs
+Framework-native general-length operation in `ternary_lattice`, TritInt arithmetic, same Rep D output. Caller sees one interface.
+
+### 7.3 Polynomial / Lattice / Geometric Product / Tribonacci / Coprime / Borromean
+All exposed on Rep D face; backed by existing framework modules (`TernaryPolynomial`, `clifford::Multivector`, `tribonacci`, `coprime`, `borromean`). Bit-identical; RepX is the public surface.
+
+---
+
+## 8. Derivation Provenance
+
+**Convention: `SOURCE §LOCATOR` — no prose rows, no mixed formats.**
+
+SOURCE ∈ { CODEX, COMPENDIUM, TM-2026-NNN, NATIVE, BACKEND }. CODEX uses its own §N / §IX.N split; COMPENDIUM uses its roman §I–§XV / §IX.N split; TMs use §N.N. NATIVE = derived inside REPX from the §1 basis declaration. BACKEND = framework Rust module delegation.
+
+### 8.1 The 39-Register Grid
+
+| Register | Provenance |
+|---|---|
+| SUN #1 Volumetric expansion | CODEX §6 |
+| SUN #2 Surface of projection | CODEX §6 |
+| SUN #3 Radiant flux | CODEX §69 |
+| SUN #4 Thermal push | CODEX §69 |
+| SUN #5 Electrostatic push | CODEX §69 |
+| SUN #6 Kinetic energy | CODEX §50 |
+| SUN #7 Impulse | CODEX §50 |
+| SUN #8 Power | CODEX §50 |
+| SUN #9 Temperature | CODEX §69 |
+| SUN #10 Wave frequency | COMPENDIUM §IX.21 |
+| SUN #11 Wave amplitude source | COMPENDIUM §IX.21 |
+| SUN #12 Lever torque | CODEX §42 |
+| SUN #13 Capacitance | CODEX §69 |
+| GAIA #1 Density field | CODEX §9 |
+| GAIA #2 Volumetric acceleration Γ | CODEX §47 |
+| GAIA #3 Hydrostatic pressure | CODEX §55 |
+| GAIA #4 Velocity | CODEX §IX.16 |
+| GAIA #5 Acceleration | CODEX §IX.16 |
+| GAIA #6 Volumetric flow rate | CODEX §55 |
+| GAIA #7 Buoyant force | CODEX §55 |
+| GAIA #8 Rotational inertia | CODEX §53 |
+| GAIA #9 Volumetric centroid | CODEX §11 |
+| GAIA #10 Bernoulli invariant | CODEX §55 |
+| GAIA #11 Reynolds number | CODEX §55 |
+| GAIA #12 Volumetric potential | CODEX §50 |
+| GAIA #13 Mechanical advantage | CODEX §42 |
+| MOON #1 Curvature | CODEX §6 |
+| MOON #2 Angular containment | CODEX §11 |
+| MOON #3 Solid angle | CODEX §11 |
+| MOON #4 Vorticity | CODEX §69 |
+| MOON #5 Magnetostatic pull | CODEX §69 |
+| MOON #6 Inductance | CODEX §69 |
+| MOON #7 Acoustic impedance | COMPENDIUM §IX.21 |
+| MOON #8 Viscous drag | CODEX §55 |
+| MOON #9 Diffusion | CODEX §55 |
+| MOON #10 de Broglie wavelength | COMPENDIUM §IX.22 |
+| MOON #11 Probability amplitude | COMPENDIUM §IX.22 |
+| MOON #12 Entropy | COMPENDIUM §IX.22 |
+| MOON #13 Tidal pull | CODEX §47 |
+
+### 8.2 Core Methods
+
+| Method | Provenance |
+|---|---|
+| Bijection basis | NATIVE §1 |
+| Twelve conversions | CODEX §68 |
+| Yoneda identity | NATIVE §1 |
+| Field algebra GF(3) | BACKEND gf3 |
+| Eisenstein algebra | CODEX §78 |
+| parseval_energy | CODEX §78 |
+| nona_closure | CODEX §IX.22 |
+| nona_dc | CODEX §IX.22 |
+| horn_fixed_points | CODEX §IX.1 |
+| chord | CODEX §86 |
+| pythagorean_chord_triple | CODEX §86 |
+| parabolic_trajectory | CODEX §IX.16 |
+| return_to_zero_check | CODEX §IX.17 |
+| diff_spectral | NATIVE §6.12 |
+| int_spectral | NATIVE §6.12 |
+| spectral_radius | CODEX §78 |
+| theorem_45_check | CODEX §72 |
+| hmodal_coeff family | TM-2026-028 §3.1 |
+| puv_band | BACKEND puv_spectral |
+| convolve 3^k path | NATIVE §7.1 |
+| convolve general | BACKEND ternary_lattice |
+| polynomial / lattice | BACKEND ternary_lattice |
+| geometric product | BACKEND clifford |
+| tribonacci | BACKEND tribonacci |
+| coprime walk | BACKEND coprime |
+| borromean check | BACKEND borromean |
+| compose (VectorSum / NestedFulcrum) | NATIVE §5.4 |
+
+### 8.3 Native Theorems and Worked-Example Provenance
+
+| Item | Provenance |
+|---|---|
+| Base Packing Density ρ₀ | CALIBRATED solar-wind-proton-density at 1 AU |
+| Volumetric Acceleration Constant Γ₀ | NATIVE §4.2 — unification Γ₀ ≡ GM_⊙ |
+| Volumetric Acceleration Constant Γ₀,G | NATIVE §4.2 — unification Γ₀,G ≡ GM_⊕ |
+| Gaia / Luna Volumetric Mass, Effective Density | OBSERVED bulk values |
+| Sun Displacement Radius R_⊙ | OBSERVED solar radius |
+| Gaia-Sun distance derivation (1 AU) | NATIVE §5.7 Example 1 — pending absorption as COMPENDIUM §XVI |
+| Luna-Gaia distance (nested Fulcrum) | NATIVE §5.7 Example 2 — pending absorption as COMPENDIUM §XVI |
+| Sun-Moon distance range (VectorSum composition) | NATIVE §5.7 Example 3 — pending absorption as COMPENDIUM §XVI |
+
+**Note.** The Native Theorems and worked examples of §4.2 and §5.7 are corpus-weight material currently carried in this specification. Recommended absorption into the Codex / Compendium as a new canonical section (proposed title: **COMPENDIUM §XVI — Astronomical Distances as Transfer-Function Outputs of the Plenum**). Until absorbed, this spec is the canonical source; thereafter, provenance rows above update to COMPENDIUM §XVI.
+
+---
+
+## 9. Three Eyes ↔ Three Columns ↔ Three Characters
+
+| Eye | Column | Character | Role |
+|---|---|---|---|
+| Prometheus | SUN | ω | Push; sees what emanates; Foresight |
+| Archimedes | GAIA | 1 | Balance; witnesses the Fulcrum; Leverage |
+| *i sicut Nos* (Third Eye) | MOON | ω² (via closure) | Pull; sees what returns; Witness |
+
+The three characters of the Eisenstein closure, the three archetypes of the register grid, and the three Eyes of the Codex are **one structural triad** — three rotations of the one displacement signal across the Module's operation surface.
+
+---
+
+## 10. Cancellation Lattice as Transfer-Function Outputs
+
+| File | Register invocation | Closure |
+|---|---|---|
+| 1116 | GAIA Bernoulli balance | 0 |
+| 1117 | GAIA harmonic projection | DC = 0 |
+| 1118 | SUN-MOON pair cancellation | 0 |
+| 1119 | SUN wave + MOON impedance | 0 |
+| 1120 | GAIA angle balance | DC = 0 |
+| 1121 | MOON chord triple | 1² + 2 = 3 |
+| 1122 | SUN energy + MOON density (wave eq) | 0 |
+| 1123 | Eisenstein norm factorization | DC = 0 |
+
+One transfer function. Eight register invocations. Eight closures.
+
+---
+
+## 11. Downstream Module Inheritance
+
+| Module | Face | Column usage | Operations |
+|---|---|---|---|
+| TDNS v2.5 | Rep C | Gaia | zero-sentinel; nona_closure; 3^k subtree |
+| TLSponge-385 | B → D | Gaia | field mix; parseval preservation |
+| PlenumNET (Clavis Tier 3) | D | Moon | Eisenstein norm; theorem_45_check |
+| PlenumCAD | D | all three | geometric product; chord; parabolic |
+| XPlenum RISC-V | A | Gaia | balanced ternary ALU |
+| SignHere | C → D | Gaia | audit commit; parseval Merkle |
+| BIESSE CIX | D | Gaia | serialization boundary only |
+| SFK Pipeline | D | Moon | TIS-27 sponge derivation |
+
+RepX is the public surface. Every downstream operation is an invocation of the transfer function at some register.
+
+---
+
+## 12. Delivery Scope
+
+One delivery. No phase split. Organized in six sections.
+
+### 12.1 Module Structure
+
+1. Rename `ternary-math/src/gf3_algebra.rs` → `ternary-math/src/repx.rs`.
+2. Deprecated shim `#[deprecated] pub use repx as gf3_algebra` for one deprecation cycle.
+3. TypeScript mirror: rename `shared/gf3-algebra.ts` → `shared/repx.ts` using `bigint` for TritInt overflow parity.
+
+### 12.2 Core Types
+
+1. `RepA(TritInt)` — balanced face.
+2. `RepB(TritInt)` — field face.
+3. `RepC(TritInt)` — shifted face.
+4. `RepD(Trit)` — ω-bearing face on `eisenstein_part` of canonical Trit.
+
+### 12.3 Traits
+
+1. `RepX` — `as_a / as_b / as_c / as_d` no-op character projections (Yoneda identity).
+2. `RepXTransferFunction` — `at`, `emit`, `rotate`, `compose`.
+3. `RepXTransform` — register-projection methods of §6.
+
+### 12.4 Enums and Supporting Types
+
+1. `Archetype` — `{Sun, Gaia, Moon}`.
+2. `Register` — `{column: Archetype, row: u8 /* 1..=13 */}`.
+3. `ComposeOp` — `{VectorSum, VectorDifference, ChainMultiply, NestedFulcrum}`.
+
+### 12.5 Operations Implemented
+
+1. Twelve direct conversion directions in TritInt arithmetic (A↔B, B↔C, A↔D, A↔C, B↔D, C↔D).
+2. 39-register grid from §5.3, one method per register.
+3. `convolve` — length-agnostic single interface (3^k path + general path).
+4. Native Theorems of §4.2 declared as `TritInt` / `Trit` literals in `constants.rs` (ρ₀, Γ₀, Γ₀,G, M_V, m_V, ρ_G, ρ_L, R_⊙).
+5. Downstream call-site sweep through modules of §11.
+
+### 12.6 Test Coverage
+
+Tests organized in six groups:
+
+**Conversion tests:**
+1. All twelve conversion directions correctness.
+2. All twelve round-trip (A→B→A, etc.) identity.
+3. Past-R₄ inputs forcing inline → heap transition.
+
+**Grid and transfer-function tests:**
+4. All 39 register readings against closed-form reference values.
+5. `rotate` Sun↔Moon round-trip via Gaia dimensional bridge.
+6. `compose VectorSum` correctness on canonical vectors.
+7. `compose NestedFulcrum` correctness — sub-scale Fulcrum re-entry.
+
+**Astronomical distance reproduction tests (§5.7):**
+8. Gaia-Sun distance = 1 AU ± published precision (Example 1 chain).
+9. Luna-Gaia distance = 384,400 km ± 0.5% (Example 2 NestedFulcrum).
+10. Sun-Moon distance range = 1.458–1.534 × 10¹¹ m (Example 3 VectorSum).
+
+**Closure and invariant tests:**
+11. `nona_closure` accept and reject cases.
+12. `parseval_energy` preservation under round-trip operations.
+13. `horn_fixed_points` returns `[0, 1, ω, ω²]`.
+14. `theorem_45_check` accept and reject cases.
+
+**Geometric primitive tests:**
+15. `chord` emits (1, √2, √3) at archetypal arcs.
+16. `pythagorean_chord_triple` satisfies a² + b² = c² when arcs sum to right angle.
+17. `parabolic_trajectory` emits Theorem 1 closed-form.
+18. `return_to_zero_check` on symmetric trajectories.
+
+**Spectral operation tests:**
+19. `diff_spectral` / `int_spectral` round-trip (up to integration constant).
+20. `convolve` on 3^k inputs vs. brute-force O(n²) reference.
+21. `convolve` on non-3^k inputs against `ternary_lattice` reference.
+22. HModal coefficient family against `constants.rs` values.
+
+### 12.7 Build Acceptance
+
+1. `cargo build --workspace` green.
+2. `cargo test --workspace` all tests green.
+3. `npm run check` green.
+4. Zero algorithmic regression — all existing crypto / kernel / consensus paths produce bit-identical outputs before and after the sweep.
+
+---
+
+## 13. Out of Scope
+
+- Codex / Compendium edits.
+- Physics derivations beyond the 39 registers already in the grid.
+- Hopf-algebra label.
+- Algorithm changes to backend modules.
+- Forced 3^k adoption.
+- Performance work.
+
+---
+
+## 14. Structural Claim
+
+The Rep Conversion Module is the Salvi Framework's algebraic-geometric-spectral substrate:
+
+- One bijective ternary object in four coordinate faces.
+- One canonical basis — storage IS spectrum.
+- One transfer function — one displacement signal, 39 phase rotations, three archetypal columns.
+- Medium-agnostic — any geometric medium supplying x feeds the same grid. Proven by reuse at solar and planetary scales (§5.7).
+- Twelve conversion directions, TritInt-native.
+- One runtime invariant — `theorem_45_check`.
+- One convolution interface, length-agnostic, framework-native.
+- All downstream modules inherit the full operation surface through the Module.
+
+**Structural unification.** The Volumetric Acceleration Constant Γ_source for any Fulcrum source equals the source's standard gravitational parameter GM_source. Not derivation from Newton — identification. The Plenum's displacement measure IS what the attraction model names the gravitational parameter. Confirmed at solar scale (Γ₀ ≡ GM_⊙ = 1.327 × 10²⁰ m³/s²) and planetary scale (Γ₀,G ≡ GM_⊕ = 3.986 × 10¹⁴ m³/s²) to published precision. The Module consumes these as Native Theorems (§4.2) and emits astronomical distances (1 AU, Luna-Gaia mean, Sun-Moon range) to observational precision (§5.7).
+
+Every theorem in the Codex / Compendium corpus is a verified output of the transfer function at some register. Every engineering module downstream is an invocation.
+
+---
+
+## 15. Attestation
+
+Every formula, derivation, convention, and construction referenced originates in the Salvi Framework and is the exclusive intellectual property of **Roberto Salvalaggio — Sifu Salvi — Lo Sono Capomastro**, Founder and Principal Architect of **Capomastro Holdings Ltd., Applied Physics Division**.
+
+This specification is a faithful reading of material already derived in FULCRUM-ARCHIMEDES-CODEX.md and FULCRUM-ARCHIMEDES-COMPENDIUM.md. No new mathematics is introduced.
+
+> **Repercussions Clause (standing)**
+> **Repercussions are inherent to action — never to be inherited.** The author is sovereign as originator. Consequences manifest by the Universal Laws of **Duality**, **Attraction**, and **Action → Reaction**.
+
+---
+
+**Compendereiusum, The Fully Derived Squared Unit Circle Et All Frameworks & Theorems Are Patent Pending.**
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**
+
+**Capomastro Holdings Ltd (2026 E+1)**
+
+---
+
+**Inertia Et Quan Fa est Pax**
+
+**Lo Sono Capomastro. Lo Sono Solsum Librā Et Librā Ascendensum.**
+
+**Lo Sono Sifu Salvi**

@@ -1,0 +1,262 @@
+# £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+# Capomastro Holdings Ltd 2026
+
+---
+
+# Ω-28 — Deterministic Auto-Derived Trit System
+
+**Unified Document Classification Substrate · Rep C canonical · Four-Rep declared**
+
+**Version 1.0 · 2026-04-17**
+**Function Module: `mDTNS`**
+
+---
+
+## The Four Reps (canonical)
+
+| Rep | Values | Character |
+|---|---|---|
+| **A** | {−1, 0, +1} | balanced ternary, signed around zero |
+| **B** | {0, 1, 2} | unsigned, counting, natural-index |
+| **C** | {1, 2, 3} | one-indexed, positive, life-only (no zero) |
+| **D** | {−1, 0, W} | two numerics plus W slot off the arithmetic line |
+
+**27-trit vector:** Rep C object, $(t_1, \ldots, t_{27}) \in \{1,2,3\}^{27}$.
+**28-trit closure:** Rep C object, $(t_1, \ldots, t_{28}) \in \{1,2,3\}^{28}$.
+**Zero at doc/app level = corruption, not a state.** A native document reads exclusively in Rep C. A zero appearing in a live reading signals the view has fallen out of Rep C into Rep A or Rep B — and the drop itself is the corruption diagnostic.
+
+**Inter-Rep projections** (the 12 directed transitions between A, B, C, D):
+- Rep C → Rep B: subtract 1
+- Rep C → Rep A: subtract 2
+- Rep B → Rep A: subtract 1
+- Rep D: structural, not arithmetic — used where the classified object itself lives off the numeric line (see trit 28)
+
+---
+
+## The Three Admissible Operators
+
+Every trit is produced by exactly one of these. No thresholds, no high/medium/low, no yes/no/unknown.
+
+- **τ₁ — argmax trichotomy.** Three intrinsic counts $(a, b, c)$; trit = $\arg\max$.
+- **τ₂ — sign trichotomy.** Two intrinsic quantities $(p, q)$; trit = $\operatorname{sgn}(p - q)$.
+- **τ₃ — topological trichotomy.** Three structurally disjoint, exhaustive patterns.
+
+---
+
+## The 28 Trits (Rep C canonical)
+
+| # | Trit | State 1 | State 2 | State 3 | Op |
+|---|---|---|---|---|---|
+| 01 | Anchor vs now | past-bound | at-now | future-bound | τ₂ |
+| 02 | Tense argmax | past max | present max | future max | τ₁ |
+| 03 | Temporal topology | linear | cyclic | branching | τ₃ |
+| 04 | Modality argmax | linguistic max | visual max | auditory max | τ₁ |
+| 05 | Scale argmax | micro max | human max | cosmic max | τ₁ |
+| 06 | Structural topology | flat | tree | graph | τ₃ |
+| 07 | Authorship cardinality | one named | many named | collective | τ₃ |
+| 08 | Origin character | primary | derived | composed | τ₃ |
+| 09 | Signature count | zero sigs | one sig | many sigs | τ₃ |
+| 10 | Symbol family argmax | natural-lang max | formal-notation max | raw-bytes max | τ₁ |
+| 11 | Discourse family argmax | prose max | code max | structured-data max | τ₁ |
+| 12 | Illocution argmax | assertive max | directive max | expressive max | τ₁ |
+| 13 | Reference direction | all-internal | outward-cite | self-loop | τ₃ |
+| 14 | Chain position | standalone | chain-head | continuation | τ₃ |
+| 15 | Delta vs canonical | identical | content-equivalent | divergent | τ₃ |
+| 16 | Repetition scale | unique | local repeats | global repeats | τ₃ |
+| 17 | Self-reference kind | non-reflexive | explicit-reflexive | structural-reflexive | τ₃ |
+| 18 | Format argmax | structured max | semi-structured max | unstructured max | τ₁ |
+| 19 | Access class | open | key-gated | encrypted | τ₃ |
+| 20 | Audience frame | solo | group | public | τ₃ |
+| 21 | TTL posture | no TTL | TTL future | TTL past | τ₃ |
+| 22 | Seal state | unsealable | sealable | sealed | τ₃ |
+| 23 | Completion topology | fragment | bounded | cyclic | τ₃ |
+| 24 | Evolution mode | append-only | mutating | frozen | τ₃ |
+| 25 | Integrity argmax | uncovered max | hash-covered max | sig-covered max | τ₁ |
+| 26 | Logical state | consistent | direct contradiction | indirect contradiction | τ₃ |
+| 27 | Verification graph | self-attested | peer-attested | consensus-attested | τ₃ |
+| 28 | Title·Header Fingerprint | Flat (title only) | Spine (linear H¹…Hⁿ) | Branched (H-tree) | τ₃ |
+
+**Operator census:** τ₁ = 8, τ₂ = 1, τ₃ = 19. Total = **28**.
+
+---
+
+## Trit 28 — Full Rep Declaration
+
+Trit 28 is the single trit where Rep D's structure is native to the object being classified. Flat and Spine are 1-dimensional objects (point, line) living on the arithmetic axis; Branched is a 2-dimensional object (tree) off the axis.
+
+| Rep | Flat | Spine | Branched |
+|---|---|---|---|
+| **A** {−1, 0, +1} | −1 | 0 | +1 |
+| **B** {0, 1, 2} | 0 | 1 | 2 |
+| **C** {1, 2, 3} | 1 | 2 | 3 |
+| **D** {−1, 0, W} | −1 | 0 | **W** |
+
+---
+
+## Why Trit 28 Closes the Circle
+
+Ω-27 runs over Z₂₇ — the algebraic circle of the dual-circle topology. Trit 28 lifts onto Z₂₈ — the geometric circle. Twenty-seven machine trits of ternary self-description; one geometric trit that renders the document legible to a human before load. Algebra inside, geometry outside. Z₂₇ × Z₂₈ lattice fully populated. The circle closes.
+
+---
+
+## The Title·Header Fingerprint (FP₂₈)
+
+The trit-28 **value** places the document in {1, 2, 3} (Rep C). The **fingerprint** that travels with it:
+
+$$
+\text{FP}_{28}(\text{doc}) = \text{PH}\bigl(\text{Title} \,\Vert\, H^1_1 \,\Vert\, H^2_{1..k_1} \,\Vert\, H^1_2 \,\Vert\, H^2_{1..k_2} \,\Vert\, \ldots \,\Vert\, H^n_\ast\bigr)
+$$
+
+Document order preserved. Depth encoded positionally. Perfect hash over the framework's spatial-indexing primitive (same primitive as the radial-ring projection — one hash, two views). **Decodable** because the perfect hash is bijective over the declared domain: given FP₂₈, you recover Title + full header outline without opening the document body.
+
+### Flash card render by state
+
+- **State 1 — Flat:** decodes to `Title` only
+- **State 2 — Spine:** decodes to `Title ‖ H¹ ‖ H² ‖ …` as a linear list
+- **State 3 — Branched:** decodes to the full indented tree
+
+### Flash card — single document
+
+```
+┌──────────────────────────────────────────┐
+│ [FP₂₈: a7f3·2c19·845e·003b]              │
+│                                          │
+│ 017 — 364° Construction                  │
+│ ├─ Axioms                                │
+│ │   ├─ π = 14                            │
+│ │   ├─ Radian = 13                       │
+│ │   └─ Full circle = 364°                │
+│ ├─ The 13 Inscribed Polygons             │
+│ ├─ Coprime Group Selection               │
+│ └─ Torus Knot Visualization              │
+│                                          │
+│ Trit 28: 3 (Branched)                    │
+│ Ω-27 position: [ring 4, θ = 91°]         │
+└──────────────────────────────────────────┘
+```
+
+### Flash card — grouping
+
+Perfect-hash the set of trit-28 fingerprints for N documents → group signature decoding to the merged outline tree:
+
+```
+┌──────────────────────────────────────────┐
+│ GROUP: 017 family                        │
+│ [FP₂₈^group: 4d81·9b02·17aa·c5f9]        │
+│                                          │
+│ 017   — 364° Construction           (3)  │
+│ 017a  — Coprime Walk Companion      (2)  │
+│ 017b  — Kolmogorov Companion        (2)  │
+│ 034   — Disdyakis Bridge            (3)  │
+│ 035   — Crystal/Antiprism           (3)  │
+│                                          │
+│ Shared spine:                            │
+│   ├─ Axioms (5/5)                        │
+│   ├─ Geometric construction (5/5)        │
+│   └─ Ternary implementation (3/5)        │
+└──────────────────────────────────────────┘
+```
+
+Browse by group signature. Load nothing. Decide what to open.
+
+---
+
+## The Procrastinator Kicker — WBS as Emergent Geometry
+
+In-flight work and completed work live in different neighborhoods of Rep C Ω-28 space. Seven trits flip along the work-completion axis:
+
+| Trit | In-flight | Completed |
+|---|---|---|
+| 09 Signatures | 1 (zero sigs) | 2 or 3 |
+| 14 Chain position | 1 (standalone) | 3 (continuation) |
+| 15 Delta vs canon | 3 (divergent) | 1 (identical) |
+| 22 Seal state | 1 (unsealable) | 3 (sealed) |
+| 23 Completion | 1 (fragment) | 2 (bounded) |
+| 24 Evolution | 2 (mutating) | 3 (frozen) |
+| 25 Integrity argmax | 1 (uncovered max) | 3 (sig-covered max) |
+
+**Procrastination metric = Hamming distance in Rep C** between a document's current Ω-28 reading and its completed-form reading. Literal trit count of work remaining.
+
+**The WBS is emergent, not declared.** The framework's spatial-indexing primitive projects the Rep C Ω-28 vector to a position on the radial-ring topology. In-flight documents cluster near the center — closest to the worker, always findable. As trits flip — signatures added, seal applied, evolution frozen — the document migrates outward through the perfect hash toward the archival perimeter. No folder-dragging. No schema declared in advance. **The trit address IS the location, and the document walks itself home as it matures.** Same principle as Rep C PlenumNET addressing: address = location = identity.
+
+A procrastinator browsing the workspace sees: center cluster (in-flight), perimeter (archival), each document rendered as its trit-28 flash card with the outline visible. No folders. No filenames to remember. Geometry + human layer = the filing system, self-rendering.
+
+---
+
+## Function Module: `mDTNS`
+
+The module implementing Ω-28 is named **`mDTNS`** — **m**archable **D**ocument **T**rit **N**ative **S**ubstrate (read the initialism in context of the existing MDNS / TDNS distinction). `mDTNS` is the operational layer that:
+
+1. Runs all 28 τ-operators against a source document to produce the Rep C Ω-28 vector.
+2. Computes FP₂₈ (Title·Header Fingerprint) for the human layer.
+3. Projects the vector through the framework's spatial-indexing primitive to a radial-ring position.
+4. Emits all three orthogonal hashes (MDNS identity, Ω-27 classification, FP₂₈ flash card) as a unified readout.
+5. Re-runs on every document mutation — classification evolves, fingerprint updates, identity stays stable under the binding discipline.
+
+`mDTNS` is the *computation* of the native substrate. MDNS is *identity*. Ω-28 is the *self-declaration*. Three distinct concerns, one module, one pass.
+
+---
+
+## Integration with the Document Fabric
+
+Three orthogonal hashes over the same document:
+
+- **MDNS** = identity. Stable. TIS-27 over (immutable trits ‖ bound timestamp ‖ canonical body). Never moves across the doc's lifetime given the binding discipline.
+- **Ω-27** = machine classification. Migrates. Drives `position(handle) -> Position` on the radial-ring via the framework's spatial-indexing primitive.
+- **Trit 28 / FP₂₈** = human layer. Perfect-hash of Title + header spine. Decodable flash card.
+
+### Orthogonality
+
+Identity doesn't change when classification migrates. Classification migrates without changing the fingerprint. The fingerprint renders to the human independent of machine state. Three views, one substrate.
+
+### MDNS categories parameterize trit-28 extraction
+
+- **TechnicalMemo** — H¹…Hⁿ = section structure (typically Branched)
+- **CodeArtifact** — H¹…Hⁿ = module → function → doc-comment (Branched or Spine)
+- **LogEntry** — flat by construction, trit 28 = state 1 (Flat)
+- **AgentMemory** — usually Flat or Spine depending on thought complexity
+- **Configuration** — Spine (schema as linear hierarchy) or Branched (nested schema)
+- **GenericMarkdown** — whatever the author wrote
+
+### Proximity-as-relation
+
+Hamming distance in Rep C Ω-28 after spatial-indexing projection = semantic nearness. Foreign keys remain available for enforced referential integrity where proximity isn't strong enough.
+
+---
+
+## TriData, Not Metadata
+
+The τ-operators read the document's native Rep C substrate directly:
+- MDEnhanced cells (trits 4, 11, 18)
+- Chain graph (9, 14, 15, 27)
+- Guard-marked on-disk bytes (25)
+- Binding discipline declared by MDNS category (22, 24)
+- Title + header spine (28)
+
+Ω-28 is the document's **self-declaration**, re-computed on every mutation, never stored as external annotation. Classification *is* the document, not a tag applied to it.
+
+---
+
+## The System, Complete
+
+- **Four Reps declared.** A {−1,0,+1}, B {0,1,2}, C {1,2,3}, D {−1,0,W}.
+- **Three operators, only three.** τ₁ argmax, τ₂ sign, τ₃ topological. 8 + 1 + 19 = 28.
+- **28 trits, Rep C canonical.** Zero at doc level = corruption. Live substrate = {1,2,3}²⁸.
+- **Z₂₇ × Z₂₈ lattice fully populated.** Algebra + geometry. Machine + human.
+- **Three hashes, orthogonal.** MDNS (identity), Ω-27 (classification), FP₂₈ (flash card).
+- **WBS is emergent geometry.** Procrastinator Hamming distance drives automatic center-to-perimeter migration. The filing system files itself.
+- **Function module: `mDTNS`.** One pass, one module, unified readout.
+- **TriData, not metadata.** Self-declaration, not annotation.
+
+Twenty-eight trits. Four Reps. Three operators. One substrate. One document describing itself completely.
+
+---
+
+**Ω-28 · Version 1.0 · 2026-04-17 · `mDTNS`**
+
+Così sia, Fratello.
+
+---
+
+# £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+# Capomastro Holdings Ltd 2026

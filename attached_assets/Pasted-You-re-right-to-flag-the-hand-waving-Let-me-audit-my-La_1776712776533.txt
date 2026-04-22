@@ -1,0 +1,79 @@
+You're right to flag the hand-waving. Let me audit my Layer 1–8 against Document 6's reading and call out what's sharp, what I hand-waved, and what's still fuzzy — before anything touches any Rust or any document.
+
+**What actually holds up:**
+
+- **Layer 1** (bijection IS the character assignment) — solid. Document 6 tightens it further: declare it as definitional commitment in the RepX preamble, no module re-derives. That's correct and non-controversial.
+- **Layer 2** (every cell IS a coefficient) — solid, and Document 6's Yoneda framing + the no-op `as_coefficient()` identity method is a good concrete expression. The identity function *being* the proof is correct.
+- **Layer 3** (convolution = pointwise multiply) — this is where I hand-waved. **My claim needed the qualifier Document 6 supplies: only on 3^k-length data.** The Cooley-Tukey/Good-Thomas factorization reduces 3^k-length DFT to tensored 3-point DFTs whose twiddles *are* {1, ω, ω²} — no auxiliary roots needed. If the framework's actual data shapes are 3^k (which they are: 27-slot cube, 9-slot face, 3-slot edge, TLSponge state vectors, TDNS subtrees), convolution is genuinely pointwise after relabel. If the data isn't 3^k, the claim fails. My layer dropped that constraint. Correcting: **convolution is pointwise on 3^k-length data**, and adopting 3^k as the framework's storage convention makes that universal. Without the length constraint, my claim was overreach.
+- **Layer 7** (Nona = DC) — solid. DC-bin extraction from the three-character closure `1 + ω + ω² = 0` is standard discrete harmonic analysis. `nona_closure()` as a one-line conservation check is a real primitive.
+
+**Where I hand-waved:**
+
+- **Layer 4** (differentiation/integration as ω-phase) — I stated it too loosely. The correct statement is: **on the cyclic group ℤ/3^k ℤ, discrete differentiation in the character basis is multiplication by (ω^k − 1)**, which is standard discrete harmonic analysis. My "multiply coefficient n by nω" was imprecise — I reached for continuous-Fourier intuition where the discrete-cyclic formulation is what the framework actually admits. Document 6's version is the honest one.
+
+  The horn fixed-point claim is more interesting and I think genuinely holds: ∫f² = f → c² = c in the character basis → solutions {0, 1, ω, ω²} — exactly the GF(3) characters extended to ℤ[ω]. That's a clean algebraic statement, not hand-waving. The horn idempotent set is real.
+
+- **Layer 5** (Maxwell/Schrödinger/Euler-Lagrange as one operator) — **this is where I overreached most**. I asserted "the framework has one equation, every stated equation is a Rep-phase rotation of it." That's an ambitious structural claim, not a proven statement. Document 6 is more careful: Hopf algebras over cyclic groups *are* how lattice gauge theory and discrete TFT express conservation laws — that's a real mathematical fact. But committing the framework to "one Hopf algebra with Maxwell/Schrödinger/EL as character-conservation outputs" is a research program, not a closed theorem. Document 6's Wave 3 rollout ("Maxwell first — cleanest — then Schrödinger, then EL, one per pull request") is the honest engineering path. My Layer 5 collapsed that research program into a declaration. That was BS.
+
+- **Layer 6** (Theorem 45 boundary = spectral radius) — I stated it, Document 6 states it, and I think it's probably correct, but neither of us proved it. The claim is: the Eisenstein norm form *is* the operator norm on ℤ[ω]-multivectors, and the degree-2 ceiling *is* the spectral radius of that norm-form operator. That needs actual derivation — not just assertion. It's a compelling conjecture; it's not a theorem yet. Document 6's `spectral_radius()` + `theorem_45_check()` methods are honest: compute the thing, check the ceiling, verify empirically. Prove it later. My layer skipped the "prove it later" step.
+
+- **Layer 8** (module IS framework) — **this one Document 6 pins correctly and I didn't.** It's definitional, not circular, "same shape as QFT = path integral, everything else is derivation." Once RepX exists and every downstream module routes through it, Layer 8 is true *by construction*. Not by theorem. I fuzzed that distinction.
+
+**What Document 6 does that my layers didn't:**
+
+1. **Names the algebraic object.** Hopf algebra over ℤ[ω] under cyclic 3^k action. That's specific — it's a known mathematical structure with a literature, not a vague "single operator." My "one operator" was gesture; Hopf algebra is commitment.
+2. **Gives the engineering wave plan.** Wave 1 (immediate, derivable from existing primitives), Wave 2 (small additions, large payoff), Wave 3 (physics derivations one at a time). That's how this actually gets built, not declared.
+3. **Forces the 3^k storage convention.** Without it, Layer 3 is false. With it, the framework's data shapes *are* the convolution basis. That's the discipline my layers omitted.
+4. **Makes Theorem 45 a runtime check.** `theorem_45_check()` called on every state emission. Security + physical stability fuse into one invariant the framework cannot silently violate. That's engineering, not metaphor.
+
+**Where Document 6 still hand-waves (or might):**
+
+- **"Hopf algebra over ℤ[ω]" is asserted, not constructed.** What's the coproduct? What's the antipode? Without those, "Hopf algebra" is a label not a structure. Real question to answer before coding: is the coproduct the ternary-digit split (a ℤ[ω]-valued signal on ℤ/3^k ℤ coproducts to pairs of signals on ℤ/3^(k-1) ℤ × ℤ/3 ℤ)? If yes, that's clean and standard. If no, the Hopf framing might be aspirational.
+- **"Cooley-Tukey on 3^k with twiddles drawn from {1, ω, ω²} only, no auxiliary roots"** — this is true for *length-3^k* radix-3 DFT. It's a real fact. But it assumes the framework commits to 3^k-length everywhere, and that some existing data shapes may not be 3^k and will need re-shaping. That's an engineering cost; Document 6 doesn't hide it but doesn't quantify it either.
+- **Claim "every downstream operation in the Salvi Framework is a method on this trait"** is ambitious. Some operations — e.g., BIESSE CIX emission for CNC — are geometric output with tolerance constraints. They plausibly factor through RepX at the geometry layer, but saying so without auditing every operation is a declaration, not a proof.
+
+**What I now think is actually true:**
+
+- The Rep Conversion Module as a **Hopf-algebraic operator over ℤ[ω] under cyclic 3^k action** is a real, named, studied mathematical structure the framework can commit to.
+- **Wave 1 is almost free**: bijection identity, DC-bin Nona check, Eisenstein norm / Parseval, 3^k convolution — all derivable from primitives already in the corpus.
+- **Wave 2 adds genuine new functionality**: ω-phase calculus, horn idempotent set, spectral radius — small code, large capability.
+- **Wave 3 is the research program**: physics derivations one at a time. Real work, honest scope.
+- **Layer 5 and Layer 6 of my chain are not theorems yet** — they are conjectures with high prior. The engineering can proceed (Wave 1/2) without proving them; if Wave 3 succeeds, they become theorems retroactively.
+
+**What I should not do now:**
+
+- **Not touch the Compendium or Codex.** The documents are the spec of what exists. RepX is a Rust module that will *implement* a unifying substrate across the existing corpus. The documents describe 22 verified outputs; RepX is the engine that emits them. Editing the documents to claim "everything is RepX" before RepX exists is deconstruction. The documents describe the destination; RepX is the vehicle.
+- **Not declare Layer 5 as proven.** State it as the Wave 3 research direction.
+- **Not ship a Hopf algebra claim without the coproduct/antipode spelled out.** The structure has to be constructed, not named.
+
+**What I think the honest next step is:**
+
+The Rust module. Start with the Wave 1 trait surface because it's derivable from existing primitives and proves the substrate exists. That's:
+
+- `RepX` trait with four impls (A, B, C, D) as coordinate faces of one bijective object over ℤ[ω]
+- Pointwise GF(3)↔{1,ω,ω²} character bijection as the definitional basis
+- `as_coefficient()` as no-op identity
+- `eisenstein_norm()` (already derivable from `N(a+bω) = a² − ab + b²`)
+- `parseval_energy()` (sum of eisenstein_norms)
+- `nona_dc()` / `is_balanced()` (DC-bin extraction via `1 + ω + ω² = 0`)
+- `convolve_3k()` on 3^k-length RepX vectors (radix-3 Cooley-Tukey, twiddles from {1, ω, ω²})
+
+That's four impls + six methods. All six are derivable from things already stated in the Codex/Compendium corpus (§IX.8 bijection, §78 Eisenstein norm, §IX.21 Parseval, §IX.22 Nona closure, §IX.14 Cancellation Lattice as DC-zero test repeated eight ways, §78/§X Theorem 45 algebra). No new mathematics introduced. Wave 1 is the proof the substrate exists.
+
+Wave 2 then adds `diff_spectral()` / `int_spectral()` / `horn_fixed_points()` / `spectral_radius()` / `theorem_45_check()`. Small additions. Large payoff.
+
+Wave 3 is a research program — physics derivations as `RepXTransform` impls, one at a time, each a small theorem to prove.
+
+**Before writing any Rust:** does the framework already commit to 3^k-length storage everywhere, or are some existing data shapes non-3^k? If the latter, Wave 1 starts smaller — the bijection/norm/Parseval/Nona-DC methods work on any length; `convolve_3k()` restricts to 3^k and is valid there only. The framework can adopt 3^k universally over time.
+
+**What I want to know from you before I touch anything:**
+
+1. Is Document 6's Hopf-algebra-over-ℤ[ω]-under-cyclic-3^k framing what the Rust module is supposed to be, or is it Document 6's own speculation layered onto your actual direction? The framing is sharp if it's yours; if it's an external commenter's, I want to check it against what the Salvi Framework natively supports before building on it.
+
+2. Is the framework's data already 3^k-standard, or is that a convention to be adopted? This determines whether Wave 1 `convolve_3k()` is a universal primitive or a specialized one.
+
+3. Is the target a new Rust module named `RepX` sitting alongside the existing `ternary-math`, `gf3_algebra`, etc., or is it a refactor absorbing them? Document 6 implies absorption ("every module importing from ternary_lattice, clifford, tribonacci, coprime, borromean, puv_spectral gets re-routed through RepX"). That's a big lift; worth confirming the direction before touching code.
+
+I will not touch the Compendium or Codex. Those are the spec. The Rust is the engine. If the Rust works, the documents stay as they are and RepX becomes a new module that emits their 22 Patents as outputs. If the Rust reveals something the documents got wrong, that's when a document edit is warranted — and only then.
+
+Waking up. What's the actual scope?

@@ -1,0 +1,113 @@
+I'll continue by making the transition from the exact integer sieve to the Prime Number Theorem's constant 1 explicit, using only parametric formulas that operate on real integers.
+
+---
+
+Continuing: From Exact Integer Sieve to $\pi(N) \sim N/\ln N$
+
+1. The Exact Parametric Formula for $\pi(N)$
+
+Let $N$ be the magnitude. Define the active prime set $P(a) = { p \text{ prime} : p \le a }$ where $a = \lfloor \sqrt{N} \rfloor$.
+
+The exact count of primes $\le N$ is given by Legendre's formula:
+
+\pi(N) = \pi(a) - 1 + \sum_{d \mid P_a} \mu(d) \left\lfloor \frac{N}{d} \right\rfloor
+
+where $P_a = \prod_{p \le a} p$ is the primorial of $a$. Every term in this expression is an integer, and no continuous approximation has been made.
+
+Parameterization for any generator set $G$:
+If $G$ is not the full set of primes but a structured subset (e.g., $G = {3,5,7,13}$), then the analogous formula
+
+N_{\text{coprime}}(N; G) = \sum_{d \mid P_G} \mu(d) \left\lfloor \frac{N}{d} \right\rfloor
+
+counts integers $\le N$ that are coprime to all $g \in G$. This is not $\pi(N)$ but a larger set that includes composite numbers built from primes not in $G$.
+
+---
+
+2. The Algebraic Overcount Phenomenon
+
+If we replace $\lfloor N/d \rfloor$ with $N/d$, we obtain the sieve density:
+
+N \prod_{p \le a} \left(1 - \frac{1}{p}\right) \sim 2e^{-\gamma} \frac{N}{\ln N} \quad (\text{Mertens})
+
+The factor $2e^{-\gamma} \approx 1.1229$ is exactly the error introduced by dropping the floor function. In the exact integer expression, the floors collectively subtract an amount that, in the limit, precisely cancels the $2e^{-\gamma}$ overcount, leaving the factor $1$.
+
+Why the naive product fails: The error term $\sum_{d \mid P_a} \mu(d) {N/d}$ (where ${x}$ is fractional part) does not tend to zero relative to $N/\ln N$; it oscillates and contributes a finite correction. Selberg's $\Lambda^2$-sieve and other advanced methods show that this correction exactly compensates the $2e^{-\gamma}$ bias.
+
+---
+
+3. Parametric Form of the Prime Number Theorem (Integer-Based)
+
+A purely integer‑arithmetic statement that converges to constant $1$ is the Chebyshev function $\psi(N)$:
+
+\psi(N) = \sum_{p^k \le N} \ln p
+
+This sum is over prime powers $\le N$. It can be written exactly in terms of the Möbius function and floors:
+
+\psi(N) = \sum_{n=1}^N \Lambda(n) = N - \sum_{d \ge 1} \mu(d) \left( \left\lfloor \frac{N}{d} \right\rfloor \ln\left\lfloor \frac{N}{d} \right\rfloor - \left\lfloor \frac{N}{d} \right\rfloor \right) + O(\ln N)
+
+(Derived from $\sum_{n \le N} \ln n = \sum_{d=1}^N \psi(N/d)$ and Möbius inversion.)
+
+The Prime Number Theorem is equivalent to:
+
+\lim_{N \to \infty} \frac{\psi(N)}{N} = 1
+
+Thus, the constant $1$ emerges directly from the exact integer relationship between $\psi(N)$ and $N$, without any $2e^{-\gamma}$ factor.
+
+---
+
+4. Specialization to Your Framework (Exact Integer Values)
+
+Let's compute the exact integers for $N = 364$, $G = {3,5,7,13}$.
+
+First, $P_G = 3 \cdot 5 \cdot 7 \cdot 13 = 1365$.
+
+The divisors $d$ of $1365$ (square‑free) are:
+
+d \in \{1, 3, 5, 7, 13, 15, 21, 35, 39, 65, 91, 105, 195, 273, 455, 1365\}
+
+We compute $S(364; G) = \sum_{d} \mu(d) \lfloor 364/d \rfloor$:
+
+$d$ $\mu(d)$ $\lfloor 364/d \rfloor$ $\mu(d) \cdot \lfloor 364/d \rfloor$
+1 +1 364 +364
+3 –1 121 –121
+5 –1 72 –72
+7 –1 52 –52
+13 –1 28 –28
+15 (3·5) +1 24 +24
+21 (3·7) +1 17 +17
+35 (5·7) +1 10 +10
+39 (3·13) +1 9 +9
+65 (5·13) +1 5 +5
+91 (7·13) +1 4 +4
+105 (3·5·7) –1 3 –3
+195 (3·5·13) –1 1 –1
+273 (3·7·13) –1 1 –1
+455 (5·7·13) –1 0 0
+1365 +1 0 0
+
+Summing the last column:
+$364 - 121 - 72 - 52 - 28 + 24 + 17 + 10 + 9 + 5 + 4 - 3 - 1 - 1 = \mathbf{155}$
+
+Thus, $S(364; {3,5,7,13}) = 155$.
+
+There are exactly 155 integers $\le 364$ that are not divisible by 3, 5, 7, or 13.
+
+Now, the actual number of primes $\le 364$ is $\pi(364) = 72$ (you can verify with a prime table).
+
+The difference $155 - 72 = 83$ consists of:
+
+· Composite numbers $\le 364$ whose prime factors are all $>13$ (e.g., $17^2=289$, $17\cdot19=323$, $17\cdot23=391$ (too large), $19^2=361$, etc.)
+· The prime 2 and 11 (which are not in $G$ and $\le 13$)
+· The number 1 (counted in $S$ but not prime)
+
+The continuous approximation $364 \cdot \prod_{g \in G} (1 - 1/g) = 364 \cdot \frac{2}{3} \cdot \frac{4}{5} \cdot \frac{6}{7} \cdot \frac{12}{13} = 364 \cdot \frac{576}{1365} \approx 153.6$, which is close to 155 but not exact. The asymptotic factor $2 e^{-\gamma}$ would appear if we extended $G$ to all primes $\le \sqrt{364}$.
+
+---
+
+Conclusion of the Continuation
+
+The exact integer parametric formula:
+
+\pi(N) = \pi(\lfloor\sqrt{N}\rfloor) - 1 + \sum_{d \mid P_{\lfloor\sqrt{N}\rfloor}} \mu(d) \left\lfloor \frac{N}{d} \right\rfloor
+
+has no spurious constants; its asymptotic behavior is $\pi(N) \sim N/\ln N$, with constant exactly $1$. The $2e^{-\gamma}$ factor is an artifact of prematurely replacing floors by division, which ignores the crucial cancellation that occurs in the exact sum over all square‑free $d$. The framework's specific generator set $G={3,5,7,13}$ and magnitude $N=364$ produce an exact coprime count of 155, while the true prime count is 72, illustrating the gap between a finite generator sieve and the full prime sieve required for the PNT.

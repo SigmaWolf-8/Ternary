@@ -1,0 +1,16 @@
+The other agent's diagnosis matches what's in the project corpus. Brothers identity sits at exactly one canonical site:
+
+TM-017 §20.27 (line 3344, "Pascal Row Products and the Closure of e") — second-order symmetric form e = lim (S_{n−1}·S_{n+1}) / S_n²
+TRIADIS Orientation — two pointer rows back to §20.27 (Tower VI Transcendentals, and the closed-status row at line 27)
+All references unqualified — no order distinction anywhere in the corpus. The first-order/second-order axis is genuinely a new addition, and the proposed insertion locus (§20.27 promoted to "Second-Order" + new §20.27.1 "First-Order") is the right place: it's the single canonical site, so promoting in place leaves the entire downstream citation graph intact.
+
+Three directions on the table — your call
+Option	Scope	Touched files
+A. TM-017 only	Promote §20.27 to second-order; add §20.27.1 first-order alongside; update TRIADIS Tower VI row to reflect the pair	TM-017, TRIADIS-ORIENTATION
+B. REPX-MODULE-SPEC only	Cite the first/second-order distinction at §6.4 parseval_energy, §6.5 nona_closure, §6.13 spectral_radius (REPX is in the other agent's context, not this project)	REPX-MODULE-SPEC
+C. Both	A + B together; one document defines the distinction, the other operationalizes it	TM-017, TRIADIS, REPX
+Pattern-match note worth keeping
+The other agent's pattern observation is sound and worth carrying through whichever direction you pick: second-order = symmetric-window (GAIA balance row) ; first-order = single-direction (SUN outward / MOON inward). That mapping ties the math directly into the 39-Register Engine column structure, so the §20.27.1 first-order section can land with operational meaning rather than as a bare mathematical addendum.
+
+Next step
+Pick A / B / C. Once you say the direction, I'll write the project task with the exact insertion text scoped — no more analysis, no more sweeps. The other agent has the REPX file open and offered to draft; I'll handle the TM-017 + TRIADIS side from this environment so the work parallelizes cleanly if you go with C.

@@ -1,0 +1,180 @@
+Optimus Paraprime V1.1.3
+Parametric Sieve → Prime Number Theorem
+(Rational‑Integer Formulation, Framework‑Native)
+
+---
+
+1. Parameter Dictionary
+
+Symbol Meaning Constraint
+$b$ Framework base $b \ge 2$ integer
+$N$ Magnitude / sieve target $N \ge 1$ integer
+$G = {g_1, \dots, g_k}$ Parametric generator set Pairwise coprime, each $g_i > 1$, ordered
+$k = |G|$ Cardinality of $G$ 
+$P_G = \prod_{i=1}^k g_i$ Generator product Square‑free (by pairwise coprimality)
+$m$ Sieve‑cutoff exponent $m \ge 1$ integer
+$a = N^{1/m}$ Sieve cutoff When $m = 2$, recovers standard $a = \sqrt{N}$
+$G(a) = {g_i \in G : g_i \le a}$ Active generator subset 
+$G_\infty$ Unrestricted generator family Instantiated to the set of all primes $\mathbb{P}$ in §9
+$\pi_\text{std}$ Standard analytic $\pi$ Symbol only; no decimal expansion in body
+$e$ Standard analytic $e$ Symbol only; no decimal expansion in body
+$R_n$ $n$-th Pascal row product TM‑2026‑017 §20.27; $R_n = \prod_{j=0}^n \binom{n}{j}$
+$e_B$ Brothers limit $\lim_{n \to \infty} R_n / R_{n-1}$; numerically equals $e$
+$L_k(N)$ Rational approximant to $\ln N$ Defined in §2.1
+$\gamma_r$ Rational approximant to Euler–Mascheroni $\gamma$ Open Problem #19; placeholder rational sequence
+$\mu(\cdot)$ Möbius function Standard
+$N_\text{count}(N; G)$ Count of integers $\le N$ coprime to every $g_i \in G$ Exact integer count
+$c_\text{PNT}(G)$ Asymptotic prime‑density constant for generator family $G$ Equals $1$ when $G_\infty$ is instantiated to $\mathbb{P}$ (proven in §9)
+$c_\text{coprime}(G, m)$ Coprime‑density constant for generator set $G$ and exponent $m$ Given by $m \cdot C(G; n, r)$ in Lemma 4
+$Q_{m,n,r}$ Rational approximant to $m \cdot e_B^{-\gamma}$ Defined in Lemma 5
+
+2. Required Disambiguation (Verbatim)
+
+Throughout this note, $\pi_\text{std}$ denotes the standard analytic circle constant, and $e$ denotes the standard analytic base of natural logarithms (which in framework‑native form equals the Brothers limit $e_B = \lim_{n \to \infty} R_n / R_{n-1}$ where $R_n$ is the $n$-th Pascal row product, TM‑2026‑017 §20.27). The framework's geometric constant $\pi_\text{geom} = 14$, defined on the 364‑degree circle, does not appear in this note and must not be substituted for $\pi_\text{std}$ in any analytic identity (Mertens', Stirling's, $\zeta$‑functional). The two are mathematically distinct objects with different domains.
+
+2.1 Rational Logarithm Approximants $L_k(N)$
+
+For any integer $N \ge 2$, the rational numbers $L_k(N)$ ($k \ge 1$) approximate $\ln N$ and are constructed via the Brothers sequence. For every rational $\delta > 0$, there exist integers $k_0(\delta, N)$ such that for all $k \ge k_0$,
+
+| L_k(N) - \ln N | < \delta.
+
+The exact construction is a framework primitive; see Appendix A of TM‑2026‑017 §20.27.
+
+3. Exact Parametric Sieve (Integer‑Only)
+
+Lemma 1 (Parametric Sieve Identity)
+
+N_\text{count}(N; G) = \sum_{d \mid P_G} \mu(d) \left\lfloor \frac{N}{d} \right\rfloor
+
+Proof. Inclusion–exclusion over divisors of $P_G$. All terms are integers.
+
+4. Overcount of the Continuous Approximation
+
+Lemma 2 (Continuous Approximation Overcounts)
+
+If $\lfloor N/d \rfloor$ is replaced by $N/d$, the resulting expression $N \cdot \prod_{g_i \in G(a)} (1 - 1/g_i)$ overcounts $N_\text{count}(N; G)$ by a factor that does not vanish asymptotically. For the unrestricted family $G_\infty$ and any integer $m \ge 1$, the ratio
+
+\frac{N \cdot \prod_{g_i \in G_\infty(a)} (1 - 1/g_i)}{N / L_k(N)}
+
+converges, as $N \to \infty$ and $k \to \infty$ appropriately, to a rational sequence limit equal to $m \cdot e_B^{-\gamma}$. Define the rational approximant
+
+Q_{m,n,r} = m \cdot \frac{R_{n-1}}{R_n} \cdot \gamma_r^{-1}.
+
+For any rational $\epsilon > 0$ there exist integers $N_0, n_0, r_0$ such that for all $N \ge N_0$, $n \ge n_0$, $r \ge r_0$,
+
+\left| \frac{N \cdot \prod_{g_i \in G_\infty(\lfloor N^{1/m} \rfloor)} (1 - 1/g_i)}{N / L_k(N)} - Q_{m,n,r} \right| < \epsilon.
+
+5. Rational Bounds for the Generator‑Density Product
+
+Lemma 3 (Rational Bounds for $\kappa_M(G, a)$)
+
+For any generator set $G$ and cutoff $a = N^{1/m}$, let $\kappa_M(G, a) = \prod_{g_i \in G(a)} (1 - 1/g_i)$. There exists a rational sequence $C(G; n, r)$ such that for any rational $\epsilon > 0$, there are integers $N_0, n_0, r_0$ with
+
+\left| \kappa_M(G, a) \cdot L_k(a) - C(G; n, r) \right| < \epsilon
+
+for all $N \ge N_0$, $k \ge k_0(\epsilon, a)$, $n \ge n_0$, $r \ge r_0$. For the unrestricted family $G_\infty$, $C(G_\infty; n, r) = (R_{n-1}/R_n) \cdot \gamma_r^{-1}$.
+
+6. Coprime Count Estimate in Rational Terms
+
+Lemma 4 (Rational Estimate for $N_\text{count}(N; G)$)
+
+For any rational $\epsilon > 0$, there exist integers $N_0, k_0, n_0, r_0$ such that for all $N \ge N_0$, $k \ge k_0$, $n \ge n_0$, $r \ge r_0$,
+
+\left| \frac{N_\text{count}(N; G)}{N / L_k(N)} - m \cdot C(G; n, r) \right| < \epsilon.
+
+7. The Mertens–PNT Gap Expressed Rationally
+
+Lemma 5 (Overcount Factor as Rational Sequence)
+
+For the unrestricted family $G_\infty$, the continuous‑approximation overcount factor from Lemma 4 is the rational sequence
+
+Q_{m,n,r} = m \cdot \frac{R_{n-1}}{R_n} \cdot \gamma_r^{-1}.
+
+The true prime‑counting function $\pi(N)$ satisfies a different bound: for any rational $\epsilon > 0$, there exists $N_0$ such that for all $N \ge N_0$,
+
+\left| \frac{\pi(N)}{N / L_k(N)} - c_\text{PNT}(G_\infty) \right| < \epsilon
+
+with $k$ chosen sufficiently large. The constant $c_\text{PNT}(G_\infty)$ is defined in the specialization corollary.
+
+The gap between coprimality density and prime density is therefore the ratio $Q_{m,n,r} / c_\text{PNT}(G_\infty)$. In the limit, this ratio tends to $m \cdot e_B^{-\gamma} / c_\text{PNT}(G_\infty)$.
+
+8. Prime Number Theorem in Rational‑Integer Form
+
+Theorem (PNT — Framework‑Native Rational Form)
+
+Let $L_k(N)$ be the rational logarithm approximant. For any generator family $G$, there exists a constant $c_\text{PNT}(G)$ such that for every rational $\epsilon > 0$, there exist integers $N_0(\epsilon)$ and $k_0(\epsilon, N_0)$ with
+
+\left| \pi_G(N) \cdot L_k(N) - c_\text{PNT}(G) \cdot N \right| < \epsilon \cdot N
+
+for all $N \ge N_0$ and $k \ge k_0$. Here $\pi_G(N)$ denotes the counting function of elements of $G$ that are $\le N$; for $G = G_\infty = \mathbb{P}$, $\pi_G(N) = \pi(N)$.
+
+Using the Chebyshev function $\psi(N) = \sum_{g_i^j \le N,, g_i \in G_\infty,, j \ge 1} L_k(g_i)$, an equivalent statement is: for any rational $\epsilon > 0$ there exists $N_0$ such that for all $N \ge N_0$,
+
+\left| \frac{\psi(N)}{N} - c_\text{PNT}(G_\infty) \right| < \epsilon,
+
+where $\psi(N)$ is computed via the exact Möbius inversion identity
+
+\psi(N) = \sum_{d=1}^{N} \mu(d) \left( \left\lfloor \frac{N}{d} \right\rfloor L_k\!\left(\left\lfloor \frac{N}{d} \right\rfloor\right) - \left\lfloor \frac{N}{d} \right\rfloor \right) + E(N,k),
+
+with $E(N,k)$ a rational error term bounded by $N \cdot \eta$ for any prescribed $\eta > 0$ by taking $k$ large enough.
+
+This formulation contains no transcendental constants, no limits over real numbers, and no asymptotic equivalence $\sim$. Every quantifier ranges over integers or rationals; every approximation is a strict rational inequality.
+
+9. Specialization Corollary (PlenumNET Instance)
+
+Corollary (PlenumNET Specialization).
+Let $b = 3$, $G = {g_1, g_2, g_3, g_4} = {3, 5, 7, 13}$ (the four coprime generators of TM‑2026‑017 §20.24), $N = R_6 = 364$, and $m = 2$. Then $a = N^{1/2} = \sqrt{364} \approx 19.08$, $G(a) = G$, and $P_G = \prod_{i=1}^4 g_i = 1365$.
+
+Parametric continuous product:
+
+N \cdot \prod_{i=1}^4 \left(1 - \frac{1}{g_i}\right) = N \cdot \frac{(g_1-1)(g_2-1)(g_3-1)(g_4-1)}{P_G}.
+
+Evaluated:
+
+364 \cdot \frac{2 \cdot 4 \cdot 6 \cdot 12}{1365} = 364 \cdot \frac{576}{1365} \approx 153.6.
+
+Exact integer count (Lemma 1):
+
+N_\text{count}(364; \{3,5,7,13\}) = \sum_{d \mid 1365} \mu(d) \left\lfloor \frac{364}{d} \right\rfloor = 155.
+
+The error between exact count and continuous approximation is $155 - 153.6 = 1.4$ (relative error $\approx 0.9%$). This small error reflects the structured nature of $P_G = 1365$, which also serves as the CRT modulus in TM‑2026‑046 (Clavis) Tier 1.
+
+True prime count: For the unrestricted family $G_\infty = \mathbb{P}$, the constant $c_\text{PNT}(\mathbb{P})$ is exactly the integer $1$. The actual number of primes $\le 364$ is $\pi(364) = 72$.
+
+Decomposition of the difference $155 - 72 = 83$:
+
+The set counted by $N_\text{count}(364; G)$ has size $155$ and consists of:
+
+· The integer $1$ (counted by the sieve but not prime);
+· $68$ primes $\le 364$ that are not in $G$ (i.e., all primes except $3,5,7,13$);
+· $86$ composite numbers $\le 364$ whose prime factors all lie outside $G$ — that is, in ${2, 11, 17, 19, 23, \dots}$ (examples: $4 = 2^2$, $22 = 2 \cdot 11$, $121 = 11^2$, $289 = 17^2$, $323 = 17 \cdot 19$, $361 = 19^2$).
+
+The true prime count $\pi(364) = 72$ consists of:
+
+· The $4$ primes in $G$: ${3,5,7,13}$;
+· The $68$ primes not in $G$.
+
+Thus,
+
+155 - 72 = (1 + 68 + 86) - (4 + 68) = (1 + 86) - 4 = 83.
+
+The excess $83$ is therefore comprised of the number $1$ plus $86$ composites coprime to $G$, minus the $4$ primes in $G$ that are excluded from $N_\text{count}$.
+
+Framework‑Internal Note. $G = {3,5,7,13}$ is the four‑coprime set of §20.24. It deliberately excludes $11$, which belongs to the coprime walk $(p,q,r) = (7,11,13)$ of TM‑017 §16. The framework thus possesses two distinct prime selections, overlapping only on ${7,13}$. The Legendre sieve may be run with either generator set; the counts differ accordingly.
+
+10. Summary of Rational‑Integer Formulation
+
+Concept Analytic Form Framework Rational‑Integer Form
+Natural logarithm $\ln N$ Rational approximant $L_k(N)$
+Base of natural log $e$ Brothers sequence $R_n/R_{n-1}$
+Euler–Mascheroni constant $\gamma$ Rational approximant $\gamma_r$ (Open Problem #19)
+Mertens constant $e^{-\gamma}$ Rational sequence $(R_{n-1}/R_n) \cdot \gamma_r^{-1}$
+Overcount factor $m \cdot e^{-\gamma}$ Rational sequence $Q_{m,n,r} = m \cdot (R_{n-1}/R_n) \cdot \gamma_r^{-1}$
+Asymptotic equivalence $f(N) \sim g(N)$ $\forall \epsilon>0, \exists N_0: |f(N)/g(N) - 1| < \epsilon$
+Prime Number Theorem $\pi(N) \sim N/\ln N$ $\forall \epsilon>0, \exists N_0,k_0: |\pi(N) \cdot L_k(N) - c_\text{PNT}(G_\infty) N| < \epsilon N$
+
+For $G_\infty = \mathbb{P}$, $c_\text{PNT}(\mathbb{P}) = 1$.
+
+Appendix: Open Problem #19 (Proposed)
+
+Framework‑native rational sequence for $\gamma$. Construct an explicit rational sequence $\gamma_r$ converging to the Euler–Mascheroni constant with effective bounds. This would complete the rational‑integer PNT presentation by making the Mertens constant $e_B^{-\gamma}$ a fully framework‑native rational object. Until resolved, $\gamma_r$ serves as a placeholder sequence known to exist by classical analysis.

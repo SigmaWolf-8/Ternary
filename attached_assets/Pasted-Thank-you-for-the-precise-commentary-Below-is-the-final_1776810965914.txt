@@ -1,0 +1,110 @@
+Thank you for the precise commentary. Below is the final, corpus-ready revision of the parametric restatement. It incorporates all missing items from the brief: the disambiguation paragraph, the $e_B$ attribution, the corrected Möbius inversion formula, and the framework-internal cross-references. The structural observations about $P_G = 1365$ and the two distinct generator sets are now explicitly noted in the specialization corollary.
+
+---
+
+Parametric Sieve → Prime Number Theorem (Exact Integer Formulation)
+
+1. Parameter Dictionary
+
+Symbol Meaning Constraint
+$b$ Framework base $b \ge 2$ integer
+$N$ Magnitude / sieve target $N \ge 1$ integer
+$G = {g_1, \dots, g_k}$ Parametric generator set Pairwise coprime, each $g_i > 1$, ordered
+$k = |G|$ Cardinality of $G$ 
+$P_G = \prod_{g \in G} g$ Generator product Square‑free (by pairwise coprimality)
+$m$ Sieve‑cutoff exponent $m \ge 1$
+$a = N^{1/m}$ Sieve cutoff When $m = 2$, recovers standard $a = \sqrt{N}$
+$G(a) = {g \in G : g \le a}$ Active generator subset Used in the truncated product
+$\pi_\text{std}$ Standard analytic $\pi = 3.14159\dots$ Appears only in analytic identities
+$e_B$ Brothers limit (Pascal row products) Numerically equals analytic $e$; cite as $e_B$ for framework attribution (TM‑2026‑017 §20.27)
+$\gamma$ Euler–Mascheroni constant Standard analytic
+$\mu(\cdot)$ Möbius function Standard
+$\kappa_M(G) = \prod_{g \in G(a)} (1 - 1/g)$ Generator‑density product Replaces $\prod_{p \le a} (1 - 1/p)$
+$C(G) = \lim \kappa_M(G) \cdot \ln(a)$ Mertens‑analog constant for $G$ Equals $e_B^{-\gamma}$ when $G$ is full prime set; differs otherwise
+$N_\text{count}(N; G)$ Count of integers $\le N$ coprime to every $g \in G$ The object the sieve formula computes
+
+2. Required Disambiguation (Verbatim)
+
+Throughout this note, $\pi_\text{std}$ denotes the standard analytic circle constant $3.14159\dots$, and $e$ denotes the standard analytic $2.71828\dots$ (which in framework‑native form equals the Brothers limit $e_B = \lim_{n \to \infty} R_n / R_{n-1}$ where $R_n$ is the $n$-th Pascal row product, TM‑2026‑017 §20.27). The framework's geometric constant $\pi_\text{geom} = 14$, defined on the 364‑degree circle, does not appear in this note and must not be substituted for $\pi_\text{std}$ in any analytic identity (Mertens', Stirling's, $\zeta$‑functional). The two are mathematically distinct objects with different domains.
+
+3. Exact Parametric Sieve (Integer‑Only)
+
+Lemma 1 (Parametric Sieve Identity)
+
+N_\text{count}(N; G) = \sum_{d \mid P_G} \mu(d) \left\lfloor \frac{N}{d} \right\rfloor
+
+Proof sketch. By inclusion–exclusion, the number of integers $\le N$ sharing no common factor with any $g \in G$ is exactly the sum over square‑free divisors $d$ of $P_G$ of $\mu(d) \lfloor N/d \rfloor$. This holds for any pairwise‑coprime set $G$.
+
+Lemma 2 (Do Not Approximate)
+
+The continuous approximation $N_\text{count}(N; G) \approx N \prod_{g \in G(a)} (1 - 1/g)$ introduces a systematic overcount. The error term from dropping the floor functions does not vanish in the asymptotic limit; it accumulates to a factor of $2 e_B^{-\gamma} \approx 1.1229$ when $G$ is the full set of primes and $m=2$. Therefore, the exact integer expression must be retained.
+
+4. Generalized Mertens Asymptotic (For Reference Only)
+
+Lemma 3 (Generalized Mertens Asymptotic)
+
+\kappa_M(G) = \prod_{g \in G(a)} \left(1 - \frac{1}{g}\right) \sim \frac{C(G)}{\ln(a)}
+
+Proof sketch. For $G$ equal to the full sequence of primes, Mertens' 3rd theorem gives $C(G) = e_B^{-\gamma}$. For a structured subset $G$, $C(G)$ is a positive constant determined by the density of $G$ inside the primes (the $G$‑density correction). This formula is informative but not exact; it describes the density of numbers coprime to $G$, not the density of primes.
+
+Lemma 4 (PNT‑Analog Under Cutoff $a = N^{1/m}$)
+
+N_\text{count}(N; G) \sim m \cdot C(G) \cdot \frac{N}{\ln(N)}
+
+Proof sketch. Substitute $\ln(a) = \frac{1}{m}\ln(N)$ into Lemma 3 and multiply by $N$. The factor $m$ arises directly from the cutoff exponent. With $m = 2$ and $C(G) = e_B^{-\gamma}$, this yields $2 e_B^{-\gamma} \cdot N/\ln(N)$.
+
+5. The Mertens–PNT Gap (Honest Statement)
+
+When $G$ is the set of all primes and $m = 2$, Lemma 4 gives the coprimality density factor $2 e_B^{-\gamma} \approx 1.1229$. This overcounts the prime‑counting function $\pi(N)$ by a finite, structural factor of $e_B^{\gamma}/2 \approx 0.891^{-1}$. The overcount is a real artifact of the inclusion–exclusion error term in Lemma 2 not vanishing in the asymptotic limit—Selberg's $\lambda^2$‑sieve quantifies it rigorously. The Prime Number Theorem $\pi(N) \sim N/\ln(N)$ is therefore not a refinement of Lemma 4 by tightening; it is a different theorem about a different object (primes themselves, not integers‑coprime‑to‑all‑small‑primes).
+
+6. Exact Integer Form of the Prime Number Theorem
+
+To obtain the constant $1$ without any spurious factors, we must work with the exact Legendre formula for the prime‑counting function itself.
+
+Let $a = \lfloor \sqrt{N} \rfloor$, and let $P_a = \prod_{p \le a} p$ be the primorial of $a$. Then
+
+\pi(N) = \pi(a) - 1 + \sum_{d \mid P_a} \mu(d) \left\lfloor \frac{N}{d} \right\rfloor.
+
+This is an identity in the integers; no approximation has been made. The Prime Number Theorem asserts
+
+\lim_{N \to \infty} \frac{\pi(N)}{N / \ln N} = 1,
+
+but this limit cannot be obtained by algebraically simplifying the floor sum. It requires a deep analysis of the cancellation occurring in the exact sum over all square‑free $d \le N$.
+
+An equivalent statement, purely in integer arithmetic, is the Chebyshev function $\psi(N) = \sum_{p^k \le N} \ln p$. Möbius inversion of the factorial logarithm gives the exact identity
+
+\psi(N) = \sum_{d=1}^{N} \mu(d) \left( \left\lfloor \frac{N}{d} \right\rfloor \ln\left\lfloor \frac{N}{d} \right\rfloor - \left\lfloor \frac{N}{d} \right\rfloor \right) + O\left(N \exp(-c\sqrt{\ln N})\right).
+
+(Note: The error term is sublinear; it does not affect the limit.) The Prime Number Theorem is equivalent to
+
+\lim_{N \to \infty} \frac{\psi(N)}{N} = 1.
+
+Thus, the constant $1$ emerges directly from the exact integer relationship between $\psi(N)$ and $N$, without any $2e_B^{-\gamma}$ factor.
+
+7. Specialization Corollary (PlenumNET Instance)
+
+Corollary (PlenumNET Specialization).
+Let $b = 3$, $G = {3, 5, 7, 13}$ (the four coprime generators of TM‑2026‑017 §20.24), $N = R_6 = 364$, and $m = 2$. Then $a = \sqrt{364} \approx 19.08$, $G(a) = G$ (all four generators lie below the cutoff), and $P_G = 3 \cdot 5 \cdot 7 \cdot 13 = 1365$.
+
+Exact computation of Lemma 1 yields
+
+N_\text{count}(364; \{3,5,7,13\}) = \sum_{d \mid 1365} \mu(d) \left\lfloor \frac{364}{d} \right\rfloor = 155.
+
+The continuous approximation gives $364 \cdot \frac{2}{3} \cdot \frac{4}{5} \cdot \frac{6}{7} \cdot \frac{12}{13} = 364 \cdot \frac{576}{1365} \approx 153.6$, an error of only $0.9%$. This unusually small error is a consequence of the structured nature of $P_G = 1365$, which also serves as the CRT modulus in TM‑2026‑046 (Clavis) Tier 1.
+
+The actual number of primes $\le 364$ is $\pi(364) = 72$. The difference $155 - 72 = 83$ consists of:
+
+· Composite numbers $\le 364$ whose smallest prime factor exceeds $13$ (e.g., $17^2 = 289$, $17 \cdot 19 = 323$, $19^2 = 361$);
+· The number $1$ (counted by $N_\text{count}$ but not prime);
+· The primes $2$ and $11$ (which are $\le 13$ but not in $G$).
+
+Framework‑Internal Note. The generator set $G = {3,5,7,13}$ is the four‑coprime set of §20.24. It deliberately excludes $11$, which appears in the coprime walk $(p,q,r) = (7,11,13)$ of TM‑017 §16. The framework therefore possesses two distinct prime selections—the §20.24 coprimes and the §16 walk generators—overlapping only on ${7,13}$. The Legendre sieve at this magnitude may be run with either generator set; the counts differ accordingly.
+
+8. Summary
+
+Approach Constant Factor Reason
+Continuous approximation (drop floor) $2 e_B^{-\gamma} \approx 1.1229$ Floor‑dropping error accumulates; product formula over‑sieves.
+Exact integer sum without PNT Not a prime count Counts numbers coprime to $G$, includes composites.
+Exact integer Legendre formula + PNT $1$ PNT is an external theorem about cancellation of error terms in the exact sum.
+
+The constant $1$ is a property of the full sequence of primes, not of any finite generator product. The parametric exact integer sieve provides the operational foundation, but the asymptotic density of primes requires the full Prime Number Theorem, which cannot be reduced to a simple algebraic product.
