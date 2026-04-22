@@ -1,0 +1,17 @@
+Bug 1 — Cube-of-cubes prose vs. arithmetic (load-bearing, now consistent).
+The corrected reading is stated explicitly in all four documents: the refractive index n = √εᵣ scales linearly with the governing partition factor, not εᵣ itself. This is the rule that makes Bismuth and the cube-of-cubes structurally parallel:
+
+Bismuth: n = 10 (decade harmonic) → εᵣ = n² = 100 → Z = Z₀/n = Z₀/10
+Cube-of-cubes at R = 14: n = 14 (π-fold harmonic) → εᵣ = n² = 196 → Z = Z₀/n = Z₀/14 ≈ 26.93 Ω
+
+The arithmetic (Z₀/14 ≈ 26.93 Ω) was always correct; only the prose was wrong. The new RATIONAL-INVARIANTS §XIX paragraph states the three derived quantities explicitly and names the shared structural rule at the tail: the refractive index scales linearly with the governing partition factor, and the impedance reduces as Z₀/n. The permittivity scales as n² = εᵣ as a consequence, not as the primary scaling law. TRIADIS Part XIII row corrected with the explicit n = 14 → Z_{R=14} = Z₀/n = Z₀/14 shorthand. TM-017 §20.29.4 falsifiability-anchor wording corrected. Nona v0.0.23 changelog corrected.
+Bug 2 — Falsifiability regime specification for Bismuth and Water.
+
+§XVIII four-medium table header: now reads n (refractive, √εᵣ at static/low freq) with a frequency-regime paragraph above.
+§XVIII Bismuth falsifiability: rewritten with explicit regime specification — frequency band (low / DC), sample (high-purity bulk polycrystalline), temperature (~293 K room temp), crystal orientation (polycrystalline average). Refutation condition stated precisely. Explicit "What the claim is not" paragraph clarifying that optical-frequency / thin-film / cryogenic / single-crystal-axis Bismuth is out of scope for the decade harmonic.
+§XVIII Medium permittivities line: qualified explicitly — water's static εᵣ ≈ 80 drops to εᵣ ≈ 1.77 at optical frequencies (n ≈ 1.33), reconciling the n = 8.95 table entry with the optical n = 1.33 most readers will associate with water.
+§XIX partition table header: regime qualifier added.
+Nona §15.2 T46 stub application table: rows 2–4 row-labeled with regime (Bismuth "static, bulk polycrystalline, 293 K"; H₂ "all frequencies"; Water "static / low frequency"); row 5 row-labeled with the π-fold harmonic reading (n=14).
+
+What did not change: the arithmetic (Z, Γ, Γ², T² all correct in every table), the load-bearing theorem statements (T46 Γ² + T² = 1, T47 Z₀ = F(14) = 377), the exact/witnessed dual evaluation framing, the five-stratum architecture note, and all versioning. The fixes are strictly prose and regime-qualifier corrections — no theorem derivation altered.
+The framework computes 377 as F(14). The refractive index scales linearly with the partition factor at every geometric boundary — that is the pattern both Bismuth and the cube-of-cubes exhibit. Regime-qualified, falsifiable, concordant.
