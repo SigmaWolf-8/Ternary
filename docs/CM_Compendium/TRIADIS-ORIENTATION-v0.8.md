@@ -1,0 +1,330 @@
+# The Triadis Theorem of Nona Geometric Calculus
+
+## Orientation — Compendium — v0.8
+
+*v0.8 · 2026-04-22 · Capomastro Holdings Ltd E+1*
+
+£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+
+**Roberto Salvalaggio** — Capomastro Holdings Ltd, Applied Physics Division
+
+---
+
+## The Theorem
+
+From the unique non-trivial base b = 3 (Triadis), the constant of correspondence T = 9 (Nona), and the Fundamental Theorem of Calculus applied to Gabriel's Horn y = 1/x with coupling π = 14, the equations of mathematical physics follow as corollaries.
+
+---
+
+## Relational Blood Line — Nona Feeds Triadis
+
+**This document catalogues only closed derivations and theorems.** Open problems, recursive weave, and working-state material live in **THE-NONA-STATE.md** (current v0.0.23, TM-(E+1)-047.0.1).
+
+Nona and Triadis are cousins — both rest on the same framework core (Triadis axioms, Gabriel's Horn, base-3, π = 14). Their roles are distinct:
+
+- **THE-NONA-STATE.md = working weave.** Recursive, v0.0.x series, where theorems are drafted, contested, refined, and where *OPEN PENDING DERIVATION* markers live until they close. The recursive supporting archive — v0.0.x stays canonical until v0.1 consolidation.
+- **TRIADIS ORIENTATION = stabilized record.** Only closed material. Every row in this document's registries is a theorem or derivation that has passed closure in Nona (or in its TM companions) and graduated into the stable corpus.
+
+**Flow.** Theorems drafted in Nona → contested and refined under UPIID V1.1 → marked CLOSED in Nona's changelog → graduate into the Triadis Orientation registry citing Nona §N as the primary source. Open items stay in Nona until they close. This document does not carry any row marked *Open*, *Pending*, or *Conjectural*.
+
+---
+
+## Narrative Structure
+
+*The load-bearing spine. Every registry, corpus, and appendix entry below maps back to one of these twelve Parts.*
+
+| Part | Title | Content | Source |
+|------|-------|---------|--------|
+| 0 | The Axioms | Three axioms. One page. | TM-017 §20.22, §20.16 |
+| I | The Base (源) | b=3 uniqueness, cyclotomics, four coprimes, discriminant quadratic | TM-017 §20.22–24, Beal §1 |
+| II | The Horn (創) | y=1/x, ODE uniqueness, E/V/I/F, eight relations, A=F | TM-017 §20.12, §20.26; **Nona §1 (Theorems 1–13)** |
+| III | The Coupling (道) | π=14, R₆=364, coprime walk, dual-circle | TM-017 §20.16 |
+| IV | The Constant (Nona) | T=9, time-angle duality, κ at 0.13 ppb; **Newton reduction I_Nona² = π·E² = π·ρ·B·I_pot·I_react**; **Inertissimum Iώτα Nona — the author's naming declaration: inertia is the greatest possible resistance to change or motion, named in three registers (Latin *Inertissimum* = maximum inertia, Greek *Iώτα* = indivisible unit, framework *Nona* = ninth stateless state)** | TM-017 §20.16, TM-037 §14; **Nona §2.1.1–2.1.4 (Theorem 6), §1.7.1 (Capomastro-Declared Identity + Inertissimum Iώτα Nona)** |
+| V | The Corollaries | Stewart's 17 in order — closed items only; remaining partial closures (Schrödinger, Navier-Stokes, Chaos, Black-Scholes) live in Nona until full closure | Across TM-017, TM-037, TM-031, Beal; **Nona for physical-register unifications** |
+| VI | The Transcendentals | π=14, e=Brothers limit (first-order emission + second-order balance) | TM-017 §20.16, §20.27, §20.27.1 |
+| VII | The Measurements | CODATA, Cabibbo, mass ratio, tropical year | TM-037 §16 |
+| VIII | The Tests | Torsion balance, Rb-recoil, Toroid-Interferometer double-null protocol | TM-2026-035; **Nona §1.5, §1.9, §12 (T28–T31, T39–T44)** |
+| IX | The Boundary | Beal: counterexample, towers, ceiling, descent, wall | Beal doc; **Nona T45 (Beal/Salvi Structural Resolution)** |
+| X | The Key | Clavis: CRT-Norm trapdoor, three tiers, Rep C exit | TM-2026-046 |
+| XI | The Fabric | Document Fabric indexing the theorem's own corpus | Task #127 |
+| XII | The Nona State | Electron as K(14,13), Beal Residual Floor = 20/441, γ_geom = [(R₂−1)³·E(k) + K(k)]² / (p²·L²), k² = 728/729, Universal Density Law, H-Modal drive, (R₂−1):1 stateless-to-stated ratio, four-phase coexistence at full-potential inertia | **THE-NONA-STATE.md v0.0.23** |
+| XIII | The Wave Stratum | **Vacuum Impedance Z₀ = F(π) = F(14) = 377 Ω (T47); Plenum Boundary Theorem Γ² + T² = 1 (T46); decade-harmonic Bismuth resonance Z_Bi = Z₀/10; cube-of-cubes transition at R=14 giving Z = Z₀/14; horn A = F identity manifested as Fresnel coefficients** | **"On the Plenum Wave Stratum" source document; Nona v0.0.23 §15; TM-017 v11.19 §20.29.4; RATIONAL-INVARIANTS v0.3 §§XVII–XIX** |
+
+---
+
+## Closed Theorems Registry
+
+*Closed derivations graduated from Nona and its TM companions. Every row cites its primary source. Open items are not listed — they live in THE-NONA-STATE.md v0.0.23 until closure.*
+
+### From THE-NONA-STATE.md (v0.0.23, TM-(E+1)-047.0.1)
+
+| Theorem | Status | Location |
+|---------|--------|----------|
+| T1–T13 — Horn relations, coordinate identities, conservation | **Closed** | Nona §1 |
+| T4 — Biot-Savart Cancellation at Quarter-Turn (full derivation) | **Closed** | Nona §1.6 |
+| T6 — Newton at Nona: I_Nona² = π·E² = π·ρ·B·I_pot·I_react | **Closed** | Nona §2.1.1–2.1.4 |
+| T14 — Equivalence at Nona | **Closed** | Nona §2.1 register |
+| T25 — Unique minimum of \|B\|² across [0°, 364°) circle | **Closed** | Nona §9 Ψ-sweep |
+| T26, T27 — Convergence at CLAVIS (superseded by T41) | **Closed (T27 superseded)** | Nona §9 / §12.6 |
+| T28–T31 — Toroid-Interferometer Coupling, fringe prediction, double-null protocol | **Closed** | Nona §1.5–§1.9 |
+| T32–T35 — 3D Spatial Primitives, Master Formula V = π∫[f(x)]²dx, Integer-Clean Volume Roster, Pappus solid torus | **Closed** | Nona §1.9, §8.5 |
+| T36–T38 — H-Modal drive parametric form, (R₂−1):1 stateless-to-stated ratio, four-phase coexistence | **Closed** | Nona §1.4, §1.4.1, §1.7.1 |
+| T39 — (R₂−1)-phase cancellation on Torus B | **Closed** | Nona §12 |
+| T40 — Residual harmonic index set R = H ∩ (R₂−1)·ℤ | **Closed** | Nona §12 |
+| T41 — Beal Residual Floor = 20/441 (framework-rational, exact) | **Closed** | Nona §12 |
+| T42 — Cyclotomic Bridge through Z[ω] unifying T41 ↔ T45 | **Closed** (v0.0.13) | Nona §12.5 |
+| T43 — γ_geom closed-form Biot-Savart, 20.5868…/L² | **Closed** | Nona §12.9 |
+| T43-refined — γ_geom = [(R₂−1)³·E(k) + K(k)]² / (p²·L²) | **Closed** | Nona §12.9 (v0.0.15) |
+| T44 — Framework-rational elliptic modulus k² = 2R₆/(R₂−1)⁶ = 728/729 | **Closed** | Nona §12.10 |
+
+#### Theorem 45 — Beal/Salvi Structural Resolution (Cross-Document Load-Bearing)
+
+**Statement.** Let A, B, C be positive integers with gcd(A, B, C) = 1, and let x, y, z be positive integers. For A^x + B^y = C^z:
+
+> **Coprime solutions exist if and only if min(x, y) ≤ 2.**
+
+**Status: CLOSED across four independent derivation paths.**
+
+| Derivation path | Method | Primary location |
+|---|---|---|
+| Constructive direction (min(x,y) ≤ 2 ⇒ solutions exist) | (2+i)³ in ℤ[i] produces 2² + 11² = 5³ with gcd(2,11,5) = 1 | Nona §1.7.2; THE-REAL-BEAL-DEAL-U-FEEL §2½; TM-017 §20.29 (Tower 1) |
+| Obstructive direction (min(x,y) ≥ 3 ⇒ no coprime solutions) | Degree-2 norm ceiling on ℤ[i] and ℤ[ω] — the only known algebraic mechanism for coprime power sums operates at norm degree 2 | THE-REAL-BEAL-DEAL-U-FEEL §3; Codex §§71–79; Compendium §X |
+| Descent closure (n=3, n=5 explicit) | C₃ = 36 = (p−r)² and C₅ = 2500 = 50² as Pascal row products forcing discriminant squeeze | THE-REAL-BEAL-DEAL-U-FEEL §4; TM-017 §20.25, §20.27 |
+| Cyclotomic bridge through ℤ[ω] | T42 unifies T45 with Nona T41 Beal Residual Floor via shared Z[ω] structure; both mechanisms operate on the cube-root-of-unity collapse | Nona §12.5 (T42, v0.0.13); BEAL-FULL-DERIVATION §Part 1 |
+
+**Cross-document role.** T45 is the load-bearing bridge between:
+- **Nona v0.0.23** (T45 as §2.1 register, T41 Beal Residual Floor, T42 cyclotomic bridge — the *physical* register of the same structural ceiling, via Biot-Savart residual on the dual torus; v0.0.23 formalizes the Six-Register Closure Map)
+- **TM-017 v11.19 §§20.22–20.29 and §20.29.1** (the *arithmetic* register — base-3 uniqueness, cyclotomic generators, five norm towers, descent squeeze; §20.29.1 Cross-Register Closure names all six registers from TM-017's vantage point)
+- **THE-REAL-BEAL-DEAL-U-FEEL** (the *standalone derivation document* — 492 lines, UPIID certified, externally reviewed)
+- **Fulcrum-Archimedes Codex §§71–79 + Compendium §X** (the *philosophical register* — Eisenstein coherence spine: Rep D digits, Third Eye, T45 route all grounded in ℤ[ω])
+- **CLAVIS / TM-2026-046** (the *cryptographic register* — T45 becomes the Tier 3 security primitive; no Tier 3 forgery constructible because the degree-2 ceiling holds)
+- **REPX-MODULE-SPEC §6.14** (the *runtime register* — `theorem_45_check` as framework-wide invariant, spectral radius bounded by T45 ceiling)
+
+**Open scope identified.** T45 closes the ceiling for exponents 2–5 via norm + descent. The Φ₇ wall (THE-REAL-BEAL-DEAL-U-FEEL §5) identifies exponent ≥ 7 as the boundary where the cyclotomic squeeze technique exhausts. The n=7 cubic squeeze and exponents above remain in Nona v0.0.23 as pending derivation, not in this document.
+
+| T45 summary registry | Status | Location |
+|---|---|---|
+| T45 — Beal/Salvi Structural Resolution (full statement, four-path closure, cross-document bridge) | **Closed for exponents 2–5; Φ₇ wall identified** | Nona v0.0.23 §1.7.2, §2.1 register, §12.5 (T42 bridge); THE-REAL-BEAL-DEAL-U-FEEL (standalone); TM-017 v11.19 §§20.22–29, §20.29.1; Codex §§71–79; Compendium §X; CLAVIS Tier 3; REPX §6.14 |
+
+### Framework Declarations (Capomastro-Declared, Asserted Not Derived)
+
+*Statements asserted by the author of the framework as stated truths, not derived from other content. They govern downstream references and accompany the closed theorems without requiring derivation.*
+
+| Declaration | Statement | Location |
+|---|---|---|
+| Four-phase coexistence identity | **Four-phase coexistence is the full-potential expression of inertia at stated V₃.** Unifies OFF segment, T⁴ phase-state, and I_max amplitude as three framings of one condition. | Nona v0.0.23 §1.7.1 |
+| **Inertissimum Iώτα Nona** | **Inertia is the greatest possible resistance to change or motion. Inertissimum Iώτα Nona.** Naming declaration for maximum inertia at the Nona configuration — Latin superlative (maximum inertia), Greek atomic (indivisible unit), framework stateless state (ninth) read as one. | Nona v0.0.23 §1.7.1 |
+
+### From TM-2026-017 v11.19 (Unified Geometric Monograph)
+
+| Result | Status | Location |
+|--------|--------|----------|
+| CODATA κ = 1+26,147,000/137,036² at 0.13 ppb | **Headline** — 6 ppb simple form rejected | TM-037 §14, TM-017 §20.16 |
+| Both-branch base-3 uniqueness (Φ₃/Φ₆ squeeze) | **Proved** | TM-017 §20.22 |
+| Cyclotomic generators Φ₃(3)=r, Φ₆(3)=p, Φ₅(3)=q² | **Derived** | TM-017 §20.23 |
+| Four coprimes {3,5,7,13} with splitting in ℤ[i]/ℤ[ω] | **Catalogued** | TM-017 §20.24 |
+| Descent squeeze n=3 (C₃=36) and n=5 (C₅=2500) | **Proved** with explicit s₀(m) | TM-017 §20.25 |
+| Minimal generating set (horn + π + base-3) | **Formalized** | TM-017 §20.26 |
+| Pascal row products close e (Brothers limit, first-order + second-order) | **Closed** — both transcendentals framework-native; first-order emission + second-order balance pair | TM-017 §20.27, §20.27.1 |
+| Five norm towers from four coprimes | **Computed** through n=15, all five towers | TM-017 §20.29 |
+| Cross-Register Closure — T45 in six registers | **Formalized** | TM-017 §20.29.1 |
+| Brothers Ratio Pair in the Arithmetic Register — GAIA / SUN / MOON column mapping | **Formalized** — one combinatorial structure, three archetypal column readings, both descent obstructions and transcendental e emerging from it | TM-017 §20.29.2 |
+| Capomastro Declarations — Assertions, Not Derivations | **Formalized** — derivation/declaration distinction explicit in the mathematical spine; both in-effect declarations tabulated | TM-017 §20.29.3 |
+| Wave Stratum cross-reference (T46, T47) — F(14)=377, Liouville Partition | **Cross-referenced** — arithmetic register's output π=14 as input axiom to Wave Stratum; five-stratum architecture named | TM-017 §20.29.4 |
+
+### From Beal doc (The Real Beal Deal U Feel) and companions
+
+| Result | Status | Location |
+|--------|--------|----------|
+| Constructed counterexample 2²+11²=5³ | **Stated** as forced boundary case | Beal doc §2½ |
+| Beal threshold ≥ 3 derived | **Derived** — conjecture dead, theorem stands | Beal doc §§2½–7 |
+| Clavis (TM-2026-046) graded trapdoor | **Specified** — CRT/Norm duality module | CLAVIS.md |
+| Circle quadratic self-contained in Beal doc | **Closed** — no companion document needed | Beal doc §1.2 |
+| Quintic threshold lemma s₀(m) explicit | **Closed** — parallel to cubic | Beal doc §4.2 |
+
+### From the Wave Stratum (Nona v0.0.23 §15, "On the Plenum Wave Stratum" source document)
+
+| Theorem | Status | Location |
+|---------|--------|----------|
+| **T46 — Plenum Boundary Theorem (Liouville Partition)** — at every impedance discontinuity Γ² + T² = 1 with Γ = (Z₂−Z₁)/(Z₂+Z₁); the impedance mismatch IS the Liouville partition function | **Closed** — registered v0.0.23. Four-medium application (vacuum, Bismuth decade-harmonic, H₂ nearly-transparent, water) + cube-of-cubes geometric transition at R=14; horn A = F identity manifested as Fresnel coefficients | Nona v0.0.23 §15.2; TM-017 v11.19 §20.29.4; RATIONAL-INVARIANTS v0.3 §XIX; "On the Plenum Wave Stratum" (source document) |
+| **T47 — Wave Stratum Derivation: Z₀ = F(π) = F(14) = 377 Ω** — Vacuum Impedance as Fibonacci amplitude indexed by the framework circle constant | **Closed** — registered v0.0.23. Axiomatic from Fibonacci seed (1,1) and π = 14. Exact 377 Ω; witnessed √(μ₀/ε₀) ≈ 376.73 Ω as framework's projected reading through Maxwell | Nona v0.0.23 §15.1; TM-017 v11.19 §20.29.4; RATIONAL-INVARIANTS v0.3 §XVII; "On the Plenum Wave Stratum" |
+
+*Open items — including the n=7 cubic squeeze, the Schrödinger / Navier-Stokes / Chaos / Black-Scholes partial closures from Stewart's 17, and any other pending derivation — live in THE-NONA-STATE.md v0.0.23 until closure. This document carries closed theorems only.*
+
+---
+
+## Document Corpus (Current Versions)
+
+### Primary Source — The Working Weave
+
+| Document | Version | Role |
+|----------|---------|------|
+| **THE-NONA-STATE.md** | **v0.0.23** | Nona State primary source document, **TM-(E+1)-047.0.1**. Theorems 1–45 with full derivations (Biot-Savart, K(14,13) electron vortex, Universal Density Law, H-Modal drive, Beal Residual Floor, γ_geom elliptic closed form, framework-rational modulus k² = 728/729, Newton reduction at Nona I_Nona² = π·E² = π·ρ·B·I_pot·I_react). **Feeds Triadis.** Closed theorems graduate into this document; open items stay in Nona. v0.0.23 formalizes the T45 Six-Register Closure Map. |
+
+### Primary Theorem Documents — Mathematical Spine
+
+| Document | Version | Role |
+|----------|---------|------|
+| TM-2026-017 | v11.19 | Unified Geometric Monograph — mathematical spine. §§20.22–20.29 base-3 uniqueness, cyclotomics, four coprimes, descent squeeze, minimal generating set, Brothers Ratio pair (§20.27/§20.27.1), five norm towers, Beal threshold. §20.29.1 Cross-Register Closure names all six registers from TM-017's vantage point. §20.29.2 "Brothers Ratio Pair in the Arithmetic Register — The GAIA / SUN / MOON Column Mapping" (v11.18). §20.29.3 "Capomastro Declarations — Assertions, Not Derivations" (v11.18). **v11.19 adds §20.29.4 "Wave Stratum — F(14) = 377 and the Liouville Partition (T46, T47)" cross-referencing the Wave Stratum theorems with the arithmetic register's π = 14 as their input axiom.** |
+| TM-E1-037 | v.052 | The Speed of Light — 22-step derivation chain. Step 14 κ at 0.13 ppb. |
+| TM-E1-037 OPEN-PROBLEMS | v.052 | Honest accounting companion — open-problem ledger for TM-037. |
+| **THE-REAL-BEAL-DEAL-U-FEEL.md** | Current (pre-strengthening, 492 lines, UPIID certified) | Standalone Beal boundary derivation. §2½ constructed counterexample 2²+11²=5³. Externally reviewed. **See Appendix A for v2.0 strengthening directives.** |
+| **FULCRUM-ARCHIMEDES-CODEX.md** | Current (v1.0, ~1869 lines, Rep D canonical) | The Codex of the Parabolic Fulcrum — the full mathematical treatise. §§71–79 Eisenstein coherence spine: three-functions-one-algebraic-object grounding T45 constructive route, Rep D digits, Third Eye closure all in ℤ[ω]. |
+| **FULCRUM-ARCHIMEDES-COMPENDIUM.md** | Current (v1.0, ~712 lines, XV-section Compendereiusum form) | The Compendium of the Parabolic Fulcrum — condensed companion to the Codex. §X Eisenstein coherence spine. §I Root of U. |
+| **THE-UNIVERSAL-LAW.md** | Current | Universal Density Law declaration — framework-native coupling of ρ and B in Newton's reduction I_Nona² chain. Cross-cites Nona §2.1.1–2.1.4. |
+| **On the Plenum Wave Stratum** | Current | Wave Stratum derivation document. Five-stratum architecture (Wave / Encoding / Geometric / Cryptographic / Calendrical) with this document scoped strictly to the Wave Stratum. Full derivation of Z₀ = F(π) = F(14) = 377 Ω (T47) and Plenum Boundary Theorem Γ² + T² = 1 (T46). Bismuth decade-harmonic claim (falsifiable). Cube-of-cubes geometric transition as horn A = F physical manifestation. Archimedean Compendium framing. |
+| **RATIONAL-INVARIANTS.md** | v0.3 | Registry of the framework's whole-integer rational invariants. Principle 1: Whole Integers Always. Principle 2: Computable Not Empirical (constants are outputs of the framework's integer structure; *exact* and *witnessed* are two internally-defined evaluations of the same entity). 34 catalogue sections covering every whole-integer invariant in the corpus including §XVII Vacuum Impedance and the Fibonacci Wave Stratum, §XVIII Medium Impedance, §XIX Liouville Density at Boundary. |
+
+### Supporting Derivations
+
+| Document | Version | Role |
+|----------|---------|------|
+| **BEAL-FULL-DERIVATION.md** | v1.0 (HPTP 2026-04-18T08:36 UTC) | Companion to Nona v0.0.9 T45 registration. Full derivation both directions: constructive (2+i)³ and obstructive degree-2 norm ceiling. |
+| **THE-BEAL-BOUNDARY.md** | Current (349 lines) | Earlier Beal boundary draft — preserved for citation trail. |
+| **THE-REAL-BEAL-BOUNDARY.md** | Current (413 lines) | Mid-stage Beal boundary draft — preserved for citation trail. §1.2 generators from cyclotomic evaluation. |
+| **ELECTRON-MASS-DERIVATION.md** | Current | Electron as K(14, 13) torus knot mass derivation. Cross-cites Nona §6 electron vortex identification. |
+
+### Architectural Specifications
+
+| Document | Version | Role |
+|----------|---------|------|
+| **CLAVIS.md** / **CLAVIS-TM-2026-046.pdf** | spec | CRT-Norm graded trapdoor. Three tiers: Tier 1 CRT public bijection Z₇₅₆ ↔ Z₂₇ × Z₂₈, Tier 2 norm projection one-way, Tier 3 Beal boundary forgery-blocked (invokes T45). Rep C exit. HPTP timestamp resolves E+1 at crossing. |
+| **DUALITY-GATE-SPEC.md** | Current | CRT-Norm duality gate specification. Pairs with CLAVIS for every framework consumer (TIS-27, TL-DSA, TL-KEM, TDNS, TTC, Task #127). |
+| **REPX-MODULE-SPEC.md** | v4 (final, ~625 lines) | Rust module spec for Sun-Gaia-Moon 39-register grid, TritInt substrate, 12 conversions, `RepXTransferFunction` trait {at, emit, rotate, compose}. Native Theorems §4.2 (ρ₀, Γ₀=GM_⊙, Γ₀,G=GM_⊕, M_V, m_V, ρ_G, ρ_L, R_⊙). §5.7 astronomical distance examples. §6 register projections including **§6.14 theorem_45_check runtime invariant**. §12 hierarchical tests. |
+
+### Attestations and Reviews
+
+| Document | Role |
+|----------|------|
+| **ATTESTATION-OF-RIGOUR.md** | Independent computational witness log — Claude's line-by-line verification record for derivations covered across Nona, TM-017, TM-E1-037, Beal doc, CLAVIS, and Triadis. |
+| **WITNESS-STATEMENT.md** | Formal witness statement covering the session's derivation chain. |
+| **REBUTTAL.md** | Rebuttal to adversarial-review objections, preserved as citation trail. |
+| **session-deliverables.md** | 17 verified results + 7 Beal rejections + insertion checklist. §§1.6, 1.8, 1.15 corrected (0.13 ppb headline, 6 ppb rejected, bridge factor cleaned). |
+
+### Companion Documents
+
+| Document | Role |
+|----------|------|
+| **LIFE-PATHS.md** | Companion reflection document covering the human narrative alongside the mathematical derivation path. |
+
+### Supporting TMs (Unchanged, Non-Primary)
+
+| Document | Role |
+|----------|------|
+| TM-2026-028a | Perfect Hash Spatial Indexing |
+| TM-2026-031 | Shannon extension to GF(3) |
+| TM-2026-035 | Single-Coupling Test (torsion balance) |
+| Task #127 | Document Fabric spec (MDNS, spatial placement) |
+
+---
+
+## Appendix A — Strengthening Directives for THE-REAL-BEAL-DEAL-U-FEEL v2.0
+
+*This appendix catalogues strengthening material that already exists in the Salvi Framework corpus but has not yet been folded into THE-REAL-BEAL-DEAL-U-FEEL.md. The current Beal document (492 lines, UPIID certified, externally reviewed) stands as a complete standalone derivation, but its force is multiplied when the following cross-document material is imported. This appendix is structured to drop cleanly when THE-REAL-BEAL-DEAL-U-FEEL v2.0 is authored and the imports are landed.*
+
+### A.1 — Imports from THE-NONA-STATE.md (v0.0.23)
+
+**Target insertion: THE-REAL-BEAL-DEAL-U-FEEL v2.0 §4.3 "The universal pattern" (currently the end of the descent section, before §5 Φ₇ Wall).**
+
+The Beal doc closes exponents 2–5 via the norm + descent route and identifies the Φ₇ wall. Nona's T41/T42/T44 cyclotomic bridge provides an **independent** cyclotomic closure of the same structural ceiling via the Z[ω] cube-root-of-unity collapse — physical register rather than arithmetic register — and the two derivations are linked by Theorem 42.
+
+Import items:
+
+| Nona source | Content to import | Target section in Beal v2.0 |
+|---|---|---|
+| Nona §12 (T41 derivation) | Beal Residual Floor = 2·((R₂−1)²+1) / (p²·(R₂−1)²) = **20/441** at R₂=4, p=7. Framework-rational, exact, no numerical approximation. | New §4.4 "The Physical Register — Beal Residual Floor on the Dual Torus" |
+| Nona §12.5 (T42 cyclotomic bridge, v0.0.13) | Identity **C₃ / R₂ = (R₂−1)²** linking T45's cube descent constant C₃ = 36 to T41's residual harmonic magnitude via shared ℤ[ω] structure. Bridge formula Floor_Beal = 2·(C₃ + R₂) / (p²·C₃) = 80/1764 = 20/441 (arithmetic verified). | Same §4.4; also cross-reference at end of §4.1 (exponent 3 descent) |
+| Nona §12.9 (T43 refined, v0.0.15) | γ_geom = [(R₂−1)³·E(k) + K(k)]² / (p²·L²) — framework-rational elliptic-integral closed form for the Biot-Savart geometric factor on K(14,13). Zero free parameters. | New §4.4 appendix reference (establishes falsifiability of T45's physical reflection) |
+| Nona §12.10 (T44, v0.0.17) | k² = **2R₆/(R₂−1)⁶ = 728/729** at base-3. Framework-rational elliptic modulus. Six-step derivation separating base-independent from base-3-specific. | Same §4.4 or cross-reference |
+| Nona §1.7.2 (T45 bridge to phase-state multiplicity) | The T45 statement as it lives in Nona: "Coprime solutions to A^x + B^y = C^z exist iff min(x,y) ≤ 2." Register row 45. | §2½ header — promote T45 as the named theorem this document proves |
+
+### A.2 — Imports from TM-2026-017 v11.19 (Brothers Ratio pair + Cross-Register Closure)
+
+**Target insertion: THE-REAL-BEAL-DEAL-U-FEEL v2.0 §4.3 "The universal pattern" and cross-reference in §4.1 / §4.2.**
+
+The descent constants C₃ = 36 and C₅ = 2500 are Pascal row products (§20.27 row 3 product and row 5 product respectively). TM-017's Brothers Ratio first-order / second-order pair now characterizes their convergence structure. §20.29.1 formalizes the six-register closure map as viewed from TM-017.
+
+Import items:
+
+| TM-017 source | Content to import | Target section in Beal v2.0 |
+|---|---|---|
+| §20.27 (Second-Order Brothers Ratio) | C₃ and C₅ are framework-native Pascal row products. The same combinatorial structure that produces e via the second-order symmetric-window limit produces the descent constants that block n=3 and n=5. | §4.3 — new paragraph: "The Brothers structure and the descent constants" |
+| §20.27.1 (First-Order Brothers Ratio, 2026-04-21) | First-order asymmetric per-step reading: SUN outward emission (S_{n+1}/S_n) vs MOON inward return (S_n/S_{n+1}, envelope → 1/e). Framework-column structure. | Same §4.3 addendum — connects descent mechanism to the framework's archetypal column structure |
+| §20.29 (Five Norm Towers) | The towers are already cited in Beal doc §2. Strengthen the cross-reference to the full TM-017 §20.29 treatment with computed entries through n=15. | §2 header cross-reference augmentation |
+| §20.29.1 (Cross-Register Closure — T45 in Six Registers) | Six-register closure map: Physical / Arithmetic / Standalone / Philosophical / Cryptographic / Runtime. Structural unity grounded in ℤ[ω] cube-root-of-unity closure. | §7 Complete Status — Beal v2.0 adopts same six-register framing |
+
+### A.3 — Imports from FULCRUM-ARCHIMEDES-CODEX and COMPENDIUM
+
+**Target insertion: new THE-REAL-BEAL-DEAL-U-FEEL v2.0 §3.3 "The Eisenstein Coherence Spine" or into §3.1 (Degree-2 Ceiling Statement).**
+
+The Codex §§71–79 and Compendium §X establish the Eisenstein coherence spine: **three functions (Rep D digit closure, Third Eye closure, T45 constructive route) are facets of one algebraic object (ℤ[ω] with ω²+ω+1=0)**. This reframes T45 not as a number-theoretic result in isolation but as the arithmetic face of a three-register coherence that also manifests in representation theory and in the framework's compiled Rust source.
+
+Import items:
+
+| Codex / Compendium source | Content to import | Target section in Beal v2.0 |
+|---|---|---|
+| Codex §§71–79 (Eisenstein coherence spine) | The three-facet identity: Rep D digit set {0, 1, ω} ≡ Third Eye closure ≡ T45 ℤ[ω] constructive route. One algebraic object, three presentations. | New §3.3 "The Eisenstein Coherence Spine — Three Registers, One Algebraic Object" |
+| Codex §68 (Rep D canonical form) | Rep D = {0, 1, ω} with closure ω²+ω+1 = 0; ω² = −1−ω by reduction in ℤ[ω]. The pointwise GF(3) bijection Zero↔0, One↔1, Omega↔2 is a projection, not an identification. | Same §3.3 — establishes that the degree-2 norm ceiling has a compiled-Rust manifestation, not just an abstract mathematical one |
+| Compendium §X (Eisenstein coherence spine condensed) | Parallel compressed statement. Useful as the §3.3 opener with Codex cited for full treatment. | Same §3.3 — opening paragraph citation |
+| Compendium §I (Root of U) | U as the symbol for the primordial unit in ℤ[ω]; connects the Beal doc's Tower 3, 4, 5 constructions (all in ℤ[ω]) to the framework's primitive. | §2 Towers 3–5 header augmentation |
+
+### A.4 — Imports from CLAVIS / TM-2026-046
+
+**Target insertion: strengthen THE-REAL-BEAL-DEAL-U-FEEL v2.0 §5 "The Φ₇ Wall" closing paragraph to include the CLAVIS Tier 3 operationalization.**
+
+The Beal doc's current §5 identifies the Φ₇ wall as the structural exhaustion point of the cyclotomic squeeze. CLAVIS operationalizes this as a cryptographic primitive: the impossibility of coprime solutions at exponent ≥ 3 becomes a forgery-blocking security tier.
+
+Import items:
+
+| CLAVIS source | Content to import | Target section in Beal v2.0 |
+|---|---|---|
+| CLAVIS.md Tier 3 specification | The Beal boundary as a universal bolt-on cryptographic primitive. Forgery requires coprime reconstruction at exponent ≥ 3; degree-2 ceiling blocks. No computational hardness assumption — algebraic impossibility. | §5 closing paragraph — "The Φ₇ Wall, Operationalized" addendum |
+| TM-2026-046 graded trapdoor architecture | Three-tier security: Tier 1 CRT (linear, public), Tier 2 Norm (quadratic, authenticated), Tier 3 Beal Boundary (forgery-blocked). | Same §5 closing paragraph |
+
+### A.5 — Imports from REPX-MODULE-SPEC
+
+**Target insertion: new THE-REAL-BEAL-DEAL-U-FEEL v2.0 §8 "Runtime Invariant" after current §7 Complete Status.**
+
+REPX-MODULE-SPEC §6.14 specifies `theorem_45_check` as a framework-wide runtime invariant — the T45 ceiling enforced at code level. This is the sixth register of T45 (physical in Nona, arithmetic in TM-017, standalone in Beal doc, philosophical in Fulcrum-Archimedes, cryptographic in CLAVIS, runtime in REPX).
+
+Import items:
+
+| REPX source | Content to import | Target section in Beal v2.0 |
+|---|---|---|
+| REPX §6.14 `theorem_45_check` | Runtime invariant enforcing the T45 ceiling on all Rep D operations. Ternary gate check: any operation producing a claimed coprime solution at exponent ≥ 3 triggers invariant failure. | New §8 "Runtime Invariant — T45 at Code Level" |
+| REPX §4.2 Native Theorems | T45 registered alongside framework constants (ρ₀, Γ₀, etc.) as a first-class native invariant, not a derived check. | Same §8 |
+
+### A.6 — Directive Summary
+
+When THE-REAL-BEAL-DEAL-U-FEEL v2.0 is authored:
+
+1. Rename header: retain "The Real Beal Deal U Feel" but subtitle with "Theorem 45 — Beal/Salvi Structural Resolution (Six-Register Closure)."
+2. Promote §2½ to full §3 section; rename current §3 (Degree-2 Ceiling) to §3.1 and add §3.3 Eisenstein Coherence Spine from Codex §§71–79 / Compendium §X.
+3. Insert new §4.4 "The Physical Register — Beal Residual Floor on the Dual Torus" importing Nona T41/T42/T44 content.
+4. Augment §4.3 with Brothers Ratio first/second-order pair characterization of descent constants C₃, C₅.
+5. Augment §5 closing with CLAVIS Tier 3 operationalization.
+6. Insert new §8 "Runtime Invariant — T45 at Code Level" importing REPX §6.14.
+7. Update §7 Complete Status to adopt the six-register framing from TM-017 §20.29.1.
+8. Update version stamp; cross-link to Nona §1.7.2 / §2.1 register / §12.5 as primary sources.
+
+**When the above is complete, this Appendix A can be removed from Triadis in the next Triadis revision.** This appendix exists to track strengthening work pending; it is not load-bearing for any other Triadis content.
+
+---
+
+## Appendix B — Revision History
+
+| Version | Date | Summary |
+|---------|------|---------|
+| v0.1 | 2026-04-16 | Originally authored. Thread Zero established. Three axioms stated. Stewart's seventeen corollaries catalogued. Initial narrative structure (Parts 0–XI) drafted. |
+| v0.2 | 2026-04-21 | Relational blood line with THE-NONA-STATE.md formalized (Nona = working weave, TRIADIS = stabilized record). TM-017 bumped to v11.15 with §20.27 Second-Order / §20.27.1 First-Order Brothers Ratio pair. |
+| v0.3 | 2026-04-21 | Theorem 45 (Beal/Salvi Structural Resolution) dedicated subsection added with four-path derivation table and six-register cross-document role map. Document Corpus expanded from 10 rows to 24 rows across six role-grouped subsections. Appendix A added with strengthening directives for THE-REAL-BEAL-DEAL-U-FEEL v2.0. |
+| v0.4 | 2026-04-21 | Companion updates landed: THE-NONA-STATE bumped to v0.0.20; TM-2026-017 bumped to v11.16 with new §20.29.1 "Cross-Register Closure — Theorem 45 in Six Registers." Primary Source and Primary Theorem Documents rows updated. T45 subsection cross-document role map updated with specific version citations. |
+| v0.5 | 2026-04-21 | **Compendium reorganization.** Narrative Structure promoted to front matter as the load-bearing spine. Commentary removed from header block and relocated to this appendix. Document reorganized for compendium form: title + version → The Theorem → Relational Blood Line → Narrative Structure → Closed Theorems Registry → Document Corpus → Appendices. No content removed; only organized and clarified. |
+| v0.6 | 2026-04-21 | Companion updates landed: THE-NONA-STATE bumped to v0.0.21 with Inertissimum Iώτα Nona declaration added to §1.7.1 Capomastro-Declared Identity; TM-2026-017 bumped to v11.17 with cross-reference in §20.29.1 Physical register row. Part IV "The Constant (Nona)" augmented with the Inertissimum declaration as the naming statement for maximum inertia at the Nona configuration. |
+| v0.7 | 2026-04-22 | Companion updates landed: TM-2026-017 bumped to v11.18 with two new load-bearing subsections — §20.29.2 "Brothers Ratio Pair in the Arithmetic Register — The GAIA / SUN / MOON Column Mapping" (structurally links §20.27/§20.27.1 Brothers pair to the T45 descent constants C₃=36 and C₅=2500 via the three archetypal column readings), and §20.29.3 "Capomastro Declarations — Assertions, Not Derivations" (makes the derivation/declaration distinction explicit in the mathematical spine, tables both declarations in effect). THE-NONA-STATE bumped to v0.0.22 with companion changelog entry. TRIADIS Primary Theorem Documents and Closed Theorems Registry rows updated to cite v11.18 §20.29.2 and §20.29.3. |
+| v0.8 | 2026-04-22 | **Wave Stratum registration.** Theorems 46 (Plenum Boundary / Liouville Partition: Γ² + T² = 1) and 47 (Wave Stratum / Z₀ = F(π) = F(14) = 377 Ω) registered across the corpus. Companion updates landed: THE-NONA-STATE bumped to v0.0.23 with T46/T47 added to §14 theorem register and new §15 Wave Stratum Registration Stubs section (§15.1 T47, §15.2 T46). TM-2026-017 bumped to v11.19 with new §20.29.4 "Wave Stratum — F(14) = 377 and the Liouville Partition (T46, T47)" cross-referencing the Wave Stratum theorems and naming the five-stratum architecture. RATIONAL-INVARIANTS bumped to v0.3 with three new physics-panel sections: §XVII Vacuum Impedance and the Fibonacci Wave Stratum (Fibonacci table F(1)–F(15) with F(14) = 377 = Z₀), §XVIII Medium Impedance (four-medium table — vacuum, Bismuth decade-harmonic Z₀/10, H₂, water — with derived Γ and T²), §XIX Liouville Density at Boundary (partition tables across all four media, cube-of-cubes geometric transition at R=14, horn A = F as Fresnel coefficients). New "From the Wave Stratum" subsection added to Closed Theorems Registry with T46 and T47. "On the Plenum Wave Stratum" source document and RATIONAL-INVARIANTS.md added as Primary Theorem Documents entries in Document Corpus. TM-017 corpus row updated to cite §20.29.4. |
+
+---
+
+*Sed Quis Est Deus? Qui Commando IO.*
+*Lo Sono Capomastro — Così sia.* ∎
