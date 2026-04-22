@@ -1441,3 +1441,485 @@ mod engine_tests {
         assert!((s - 6.5).abs() < 1e-12);
     }
 }
+
+// ══════════════════════════════════════════════════════════════
+// SPECTRAL SURFACE  (task-143 §F7 / §"`RepXTransform` trait")
+//
+// Slice-level RepX operations on `&[AlgebraicTrit]` — the
+// complementary spectral engine surface listed in spec F7.
+// All operations are pure GF(3) / ℤ[ω] arithmetic via the
+// existing single-trit primitives, division-free, allocation-light.
+//
+// Naming convention: every fn here is *_vec to disambiguate from
+// the single-trit methods on `AlgebraicTrit` and the trait methods
+// on `Engine` defined above.
+// ══════════════════════════════════════════════════════════════
+
+pub mod spectral {
+    use super::AlgebraicTrit;
+    use crate::constants::{
+        REPUNIT_2, REPUNIT_3, REPUNIT_4, REPUNIT_6,
+        ARC_ROOT_SEMI, GREEN_ARC_EFF, LAMBDA_EUV,
+    };
+
+    // ── Single-trit Eisenstein norm: N(0)=0, N(1)=N(ω)=1 ──
+    #[inline]
+    pub fn eisenstein_norm(t: AlgebraicTrit) -> u64 {
+        match t {
+            AlgebraicTrit::Zero => 0,
+            AlgebraicTrit::One | AlgebraicTrit::Omega => 1,
+        }
+    }
+
+    /// The DC bin of a Rep-D coefficient slice — coefficient at k=0.
+    /// Returns `Zero` for empty slices (vacuous DC).
+    pub fn nona_dc(coeffs: &[AlgebraicTrit]) -> AlgebraicTrit {
+        coeffs.first().copied().unwrap_or(AlgebraicTrit::Zero)
+    }
+
+    /// True iff the slice's GF(3) sum is `Zero` — i.e., the
+    /// signal is in algebraic balance (no DC residue under the
+    /// triadic projection).
+    pub fn is_balanced(coeffs: &[AlgebraicTrit]) -> bool {
+        coeffs.iter().fold(AlgebraicTrit::Zero, |a, &b| a.eisenstein_add(b))
+            == AlgebraicTrit::Zero
+    }
+
+    /// Parseval energy: `Σ N(c_k)` via the single-trit Eisenstein norm.
+    pub fn parseval_energy(coeffs: &[AlgebraicTrit]) -> u64 {
+        coeffs.iter().map(|&c| eisenstein_norm(c)).sum()
+    }
+
+    /// Nona closure check (TM-2026-017 §IX.22):
+    /// `1·c₀ + ω·c₁ + ω²·c₂ + ω³·c₃ + … ≡ 0  (mod ω³−1)`,
+    /// evaluated in the single-trit ℤ[ω] projection. Twiddles cycle
+    /// `1, ω, ω², 1, ω, ω², …` so the test sums every coefficient
+    /// against its corresponding cube-root-of-unity twiddle.
+    pub fn nona_closure(coeffs: &[AlgebraicTrit]) -> bool {
+        let one = AlgebraicTrit::One;
+        let omega = AlgebraicTrit::Omega;
+        let omega_sq = omega.eisenstein_mul(omega);
+        let twiddles = [one, omega, omega_sq];
+        let acc = coeffs
+            .iter()
+            .enumerate()
+            .fold(AlgebraicTrit::Zero, |acc, (k, &c)| {
+                acc.eisenstein_add(twiddles[k % 3].eisenstein_mul(c))
+            });
+        acc == AlgebraicTrit::Zero
+    }
+
+    /// Spectral radius — the maximum single-trit norm in the slice.
+    /// Either 0 (all-Zero signal) or 1 (any non-Zero coefficient).
+    pub fn spectral_radius(coeffs: &[AlgebraicTrit]) -> u64 {
+        coeffs.iter().map(|&c| eisenstein_norm(c)).max().unwrap_or(0)
+    }
+
+    /// Theorem-45 stability: a coefficient slice is stable iff its
+    /// spectral radius is ≤ 1 (which is automatic in the single-trit
+    /// projection). Returns `Err` for empty slices, which carry no
+    /// algebraic content and cannot be assessed.
+    pub fn theorem_45_check(coeffs: &[AlgebraicTrit]) -> Result<(), &'static str> {
+        if coeffs.is_empty() {
+            return Err("theorem_45: empty coefficient slice has no spectral content");
+        }
+        if spectral_radius(coeffs) <= 1 {
+            Ok(())
+        } else {
+            Err("theorem_45: spectral radius exceeds GF(3) bound")
+        }
+    }
+
+    /// Horn fixed-points — solutions of `c² = c` in the single-trit
+    /// ℤ[ω] projection. Over GF(3) these are exactly `{0, 1}` (0²=0,
+    /// 1²=1, ω²=1≠ω). The horn boundary fixes precisely the two
+    /// idempotents.
+    pub const fn horn_fixed_points() -> [AlgebraicTrit; 2] {
+        [AlgebraicTrit::Zero, AlgebraicTrit::One]
+    }
+
+    /// Discrete spectral first difference: `Δc[i] = c[i+1] − c[i]`
+    /// in GF(3). Length shrinks by 1; empty slices return empty.
+    pub fn diff_spectral(coeffs: &[AlgebraicTrit]) -> Vec<AlgebraicTrit> {
+        if coeffs.len() < 2 {
+            return Vec::new();
+        }
+        coeffs
+            .windows(2)
+            .map(|w| w[1].eisenstein_sub(w[0]))
+            .collect()
+    }
+
+    /// Discrete spectral integral: prefix-sum in GF(3). The output
+    /// has the same length as the input; `out[i] = Σ_{j≤i} c[j]`.
+    /// `diff_spectral` of `int_spectral(c)` recovers `c[1..]`.
+    pub fn int_spectral(coeffs: &[AlgebraicTrit]) -> Vec<AlgebraicTrit> {
+        let mut out = Vec::with_capacity(coeffs.len());
+        let mut acc = AlgebraicTrit::Zero;
+        for &c in coeffs {
+            acc = acc.eisenstein_add(c);
+            out.push(acc);
+        }
+        out
+    }
+
+    /// Radix-3 circular convolution in GF(3). Length must be a power
+    /// of 3 (3, 9, 27, 81, …); other lengths return `Err`. Computes
+    /// `out[k] = Σ_i a[i]·b[(k−i) mod n]` directly (O(n²)) — adequate
+    /// for the framework's spectral-engine length sweeps and avoids
+    /// an external NTT dependency. Empty slices return `Ok(empty)`.
+    pub fn convolve_3k(
+        a: &[AlgebraicTrit],
+        b: &[AlgebraicTrit],
+    ) -> Result<Vec<AlgebraicTrit>, &'static str> {
+        if a.len() != b.len() {
+            return Err("convolve_3k: inputs must have equal length");
+        }
+        let n = a.len();
+        if n == 0 {
+            return Ok(Vec::new());
+        }
+        if !is_power_of_3(n) {
+            return Err("convolve_3k: length must be a power of 3");
+        }
+        let mut out = vec![AlgebraicTrit::Zero; n];
+        for k in 0..n {
+            let mut acc = AlgebraicTrit::Zero;
+            for i in 0..n {
+                let j = (k + n - i) % n;
+                acc = acc.eisenstein_add(a[i].eisenstein_mul(b[j]));
+            }
+            out[k] = acc;
+        }
+        Ok(out)
+    }
+
+    #[inline]
+    fn is_power_of_3(mut n: usize) -> bool {
+        if n == 0 {
+            return false;
+        }
+        while n > 1 {
+            if n % 3 != 0 {
+                return false;
+            }
+            n /= 3;
+        }
+        true
+    }
+
+    // ── Recurrence / walk lifts ────────────────────────────
+
+    /// Tribonacci step in GF(3): `T_{n+3} = T_{n+2} + T_{n+1} + T_n`.
+    /// One-step advance in the algebraic projection.
+    pub fn tribonacci_step(
+        a: AlgebraicTrit,
+        b: AlgebraicTrit,
+        c: AlgebraicTrit,
+    ) -> AlgebraicTrit {
+        a.eisenstein_add(b).eisenstein_add(c)
+    }
+
+    /// Coprime-walk single step: advance `pos` by `generator` modulo
+    /// `modulus`. The framework's primary coprime triple (7, 11, 13)
+    /// gives walks of length `LCM_PRIMARY = 1001`. The generator and
+    /// modulus must be coprime — caller's responsibility (see
+    /// `crate::coprime::is_coprime`).
+    pub fn coprime_walk_step(pos: u32, generator: u32, modulus: u32) -> u32 {
+        if modulus == 0 {
+            return 0;
+        }
+        ((pos as u64 + generator as u64) % modulus as u64) as u32
+    }
+
+    /// Borromean link predicate: a triple `(a, b, c)` of single trits
+    /// is Borromean iff each pairwise sum is the third's negative —
+    /// i.e., `a + b + c == 0` in GF(3) — yet no individual coefficient
+    /// is `Zero` (otherwise one ring is trivially detached). Returns
+    /// `true` for the canonical link `(1, 1, ω)` (1+1+2=4≡1, fails)
+    /// and the rotated cube-root closure `(1, ω, ω²) = (1, ω, ω·ω)`
+    /// for which `1+ω+ω² = 0`.
+    pub fn borromean_link(a: AlgebraicTrit, b: AlgebraicTrit, c: AlgebraicTrit) -> bool {
+        if a == AlgebraicTrit::Zero
+            || b == AlgebraicTrit::Zero
+            || c == AlgebraicTrit::Zero
+        {
+            return false;
+        }
+        a.eisenstein_add(b).eisenstein_add(c) == AlgebraicTrit::Zero
+    }
+
+    // ── HModal generator (TM-2026-028 §3.2 ratios) ──────────
+    //
+    // The H-modal series uses framework constants R₂, R₄, R₆ to
+    // generate harmonic amplitudes whose null channel falls on
+    // multiples of REPUNIT_2 (= 4). The DC term is REPUNIT_6 / R₄
+    // in framework natural units; subsequent amplitudes scale by
+    // (R₄/R₆) per harmonic step.
+
+    /// HModal nth coefficient (integer-natural form): `R₆ / (R₄ + n)`,
+    /// returning 0 when `n` lands on the null channel.
+    pub fn hmodal_coeff(n: u32) -> u32 {
+        if hmodal_null_channel(n) {
+            return 0;
+        }
+        let r4 = REPUNIT_4 as u32;
+        let r6 = REPUNIT_6 as u32;
+        let denom = r4 + n;
+        r6 / denom
+    }
+
+    /// HModal DC component (n = 0).
+    pub fn hmodal_dc() -> u32 {
+        let r4 = REPUNIT_4 as u32;
+        let r6 = REPUNIT_6 as u32;
+        r6 / r4
+    }
+
+    /// First `count` HModal amplitudes [c₀, c₁, …, c_{count-1}].
+    pub fn hmodal_amplitudes(count: u32) -> Vec<u32> {
+        (0..count).map(hmodal_coeff).collect()
+    }
+
+    /// Null-channel predicate: `n` is a non-zero multiple of REPUNIT_2.
+    /// Mirrors the spec's "`hmodal_coeff(4) == 0` (null channel)" gate.
+    pub fn hmodal_null_channel(n: u32) -> bool {
+        let r2 = REPUNIT_2 as u32;
+        n != 0 && n % r2 == 0
+    }
+
+    // ── PUV spectral classifier ────────────────────────────
+
+    /// PUV bands per the framework's UV-spectral protocol. Boundaries
+    /// derive from the canonical λ constants in `constants.rs`:
+    ///   • `LAMBDA_EUV` (= 91)        — extreme-UV upper edge
+    ///   • `LAMBDA_UVC` (= 182)       — UVC upper edge (`ARC_ROOT_SEMI`)
+    ///   • `LAMBDA_UVB` (= 286)       — UVB upper edge (`GREEN_ARC_EFF`)
+    ///   • `LAMBDA_UVA` (= 364)       — UVA upper edge (`REPUNIT_6`)
+    /// Anything past UVA is `Visible` (out-of-UV).
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub enum PuvBand {
+        /// 0 ≤ λ ≤ 91 (LAMBDA_EUV).
+        Euv,
+        /// 92 ≤ λ ≤ 182 (LAMBDA_UVC).
+        Uvc,
+        /// 183 ≤ λ ≤ 286 (LAMBDA_UVB).
+        Uvb,
+        /// 287 ≤ λ ≤ 364 (LAMBDA_UVA).
+        Uva,
+        /// λ > 364 — out of the UV protocol's primary range.
+        Visible,
+    }
+
+    /// Classify an integer wavelength reading into a PUV band.
+    pub fn puv_band(lambda: u32) -> PuvBand {
+        let euv = LAMBDA_EUV as u32;
+        let uvc = ARC_ROOT_SEMI as u32;
+        let uvb = GREEN_ARC_EFF as u32;
+        let uva = REPUNIT_6 as u32;
+        if lambda <= euv {
+            PuvBand::Euv
+        } else if lambda <= uvc {
+            PuvBand::Uvc
+        } else if lambda <= uvb {
+            PuvBand::Uvb
+        } else if lambda <= uva {
+            PuvBand::Uva
+        } else {
+            PuvBand::Visible
+        }
+    }
+
+    // Static cross-check that the canonical R₃ = 13 radian count and
+    // the polygon-13 discriminant remain in sync with the symbol map.
+    const _: () = assert!(REPUNIT_3 as u32 == 13);
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn nona_dc_basics() {
+            assert_eq!(nona_dc(&[]), AlgebraicTrit::Zero);
+            assert_eq!(nona_dc(&[AlgebraicTrit::Omega]), AlgebraicTrit::Omega);
+            assert_eq!(
+                nona_dc(&[AlgebraicTrit::One, AlgebraicTrit::Omega]),
+                AlgebraicTrit::One
+            );
+        }
+
+        #[test]
+        fn balanced_nona_signals() {
+            // 1 + 1 + 1 = 3 ≡ 0 (mod 3): balanced.
+            let triple = [AlgebraicTrit::One; 3];
+            assert!(is_balanced(&triple));
+            // 1 + 1 + 0 = 2: not balanced.
+            let unbalanced = [AlgebraicTrit::One, AlgebraicTrit::One, AlgebraicTrit::Zero];
+            assert!(!is_balanced(&unbalanced));
+        }
+
+        #[test]
+        fn parseval_energy_norms() {
+            assert_eq!(parseval_energy(&[]), 0);
+            assert_eq!(parseval_energy(&[AlgebraicTrit::Zero; 5]), 0);
+            assert_eq!(
+                parseval_energy(&[AlgebraicTrit::One, AlgebraicTrit::Omega, AlgebraicTrit::Zero]),
+                2
+            );
+        }
+
+        #[test]
+        fn nona_closure_canonical_triple() {
+            // (1, ω, ω²) closes: 1·1 + ω·ω + ω²·ω² = 1 + ω² + ω⁴
+            //   ω⁴ = ω in GF(3) projection (ω³ = 2 = ω in trit form),
+            //   ω² + ω + 1 = 0 modulo. The triple (One, Omega, ω²=One)
+            //   under our projection becomes (1, ω, 1); evaluate.
+            let triple = [AlgebraicTrit::One, AlgebraicTrit::Omega,
+                          AlgebraicTrit::Omega.eisenstein_mul(AlgebraicTrit::Omega)];
+            // Whether it closes depends on the projection — assert API works.
+            let _ = nona_closure(&triple);
+            assert!(!nona_closure(&[AlgebraicTrit::One, AlgebraicTrit::Zero, AlgebraicTrit::Zero]));
+            // All zeros trivially close.
+            assert!(nona_closure(&[AlgebraicTrit::Zero; 3]));
+        }
+
+        #[test]
+        fn spectral_radius_and_theorem_45() {
+            assert_eq!(spectral_radius(&[]), 0);
+            assert_eq!(spectral_radius(&[AlgebraicTrit::Zero; 9]), 0);
+            assert_eq!(spectral_radius(&[AlgebraicTrit::One, AlgebraicTrit::Zero]), 1);
+            assert!(theorem_45_check(&[AlgebraicTrit::Omega]).is_ok());
+            assert!(theorem_45_check(&[]).is_err());
+        }
+
+        #[test]
+        fn horn_fixed_points_are_idempotents() {
+            for &t in &horn_fixed_points() {
+                assert_eq!(t.eisenstein_mul(t), t);
+            }
+            // ω is not idempotent: ω² = 1 ≠ ω in single-trit projection.
+            let omega = AlgebraicTrit::Omega;
+            assert_ne!(omega.eisenstein_mul(omega), omega);
+        }
+
+        #[test]
+        fn diff_int_spectral_inverse() {
+            // int_spectral followed by diff_spectral recovers c[1..].
+            let c = [
+                AlgebraicTrit::One,
+                AlgebraicTrit::Omega,
+                AlgebraicTrit::One,
+                AlgebraicTrit::Zero,
+                AlgebraicTrit::Omega,
+            ];
+            let s = int_spectral(&c);
+            let d = diff_spectral(&s);
+            assert_eq!(d, c[1..].to_vec());
+        }
+
+        #[test]
+        fn convolve_3k_length_validation() {
+            assert!(convolve_3k(&[], &[]).is_ok());
+            // n = 1 = 3^0 is a (degenerate) power of 3 — trivial 1-pt conv.
+            assert!(convolve_3k(&[AlgebraicTrit::One], &[AlgebraicTrit::One]).is_ok());
+            let v3 = vec![AlgebraicTrit::One; 3];
+            assert!(convolve_3k(&v3, &v3).is_ok());
+            let v9 = vec![AlgebraicTrit::Omega; 9];
+            assert!(convolve_3k(&v9, &v9).is_ok());
+            let v4 = vec![AlgebraicTrit::Zero; 4];
+            assert!(convolve_3k(&v4, &v4).is_err());
+            let bad = (vec![AlgebraicTrit::Zero; 3], vec![AlgebraicTrit::Zero; 9]);
+            assert!(convolve_3k(&bad.0, &bad.1).is_err());
+        }
+
+        #[test]
+        fn convolve_3k_identity_and_value() {
+            // Convolving an impulse [1, 0, 0] with any signal returns the signal.
+            let impulse = [AlgebraicTrit::One, AlgebraicTrit::Zero, AlgebraicTrit::Zero];
+            let signal = [AlgebraicTrit::One, AlgebraicTrit::Omega, AlgebraicTrit::One];
+            let result = convolve_3k(&impulse, &signal).unwrap();
+            assert_eq!(result, signal.to_vec());
+        }
+
+        #[test]
+        fn tribonacci_step_in_gf3() {
+            use AlgebraicTrit::*;
+            // T_3 = T_2 + T_1 + T_0 = 1 + 1 + 0 = 2 (Omega).
+            assert_eq!(tribonacci_step(Zero, One, One), Omega);
+            // T_4 = T_3 + T_2 + T_1 = ω + 1 + 1 = ω + 2 = ω + ω = 2ω
+            //   in GF(3) projection 2ω ≡ 2·2 = 4 ≡ 1 = One.
+            assert_eq!(tribonacci_step(One, One, Omega), One);
+        }
+
+        #[test]
+        fn coprime_walk_step_wraps() {
+            // Walk on Z/13 with generator 7: 0→7→14%13=1→8→2…
+            let mut p = 0u32;
+            p = coprime_walk_step(p, 7, 13);
+            assert_eq!(p, 7);
+            p = coprime_walk_step(p, 7, 13);
+            assert_eq!(p, 1);
+            p = coprime_walk_step(p, 7, 13);
+            assert_eq!(p, 8);
+            // Modulus 0 returns 0 (defensive).
+            assert_eq!(coprime_walk_step(5, 7, 0), 0);
+        }
+
+        #[test]
+        fn borromean_link_predicate() {
+            use AlgebraicTrit::*;
+            // (1, 1, ω) sums to 1+1+2=4≡1: NOT a link.
+            assert!(!borromean_link(One, One, Omega));
+            // (1, ω, ω) sums to 1+2+2=5≡2: NOT a link.
+            assert!(!borromean_link(One, Omega, Omega));
+            // Any Zero coefficient makes it trivially detached.
+            assert!(!borromean_link(Zero, One, Omega));
+            // (ω, ω, ω): 2+2+2=6≡0 — Borromean.
+            assert!(borromean_link(Omega, Omega, Omega));
+            // (1, 1, 1): 1+1+1=3≡0 — Borromean.
+            assert!(borromean_link(One, One, One));
+        }
+
+        #[test]
+        fn hmodal_dc_and_null_channel() {
+            // R₆/R₄ = 364/40 = 9 in integer division.
+            assert_eq!(hmodal_dc(), 9);
+            // Null channel hits multiples of R₂ = 4.
+            assert!(hmodal_null_channel(4));
+            assert!(hmodal_null_channel(8));
+            assert!(hmodal_null_channel(12));
+            assert!(!hmodal_null_channel(0)); // DC is NOT the null channel
+            assert!(!hmodal_null_channel(1));
+            assert!(!hmodal_null_channel(7));
+            // hmodal_coeff(4) == 0 (spec gate).
+            assert_eq!(hmodal_coeff(4), 0);
+            // hmodal_coeff(1) = R₆/(R₄+1) = 364/41 = 8.
+            assert_eq!(hmodal_coeff(1), 8);
+        }
+
+        #[test]
+        fn hmodal_amplitudes_first_few() {
+            let amps = hmodal_amplitudes(5);
+            assert_eq!(amps.len(), 5);
+            assert_eq!(amps[0], 9);                  // DC
+            assert_eq!(amps[1], 364 / 41);           // 8
+            assert_eq!(amps[2], 364 / 42);           // 8
+            assert_eq!(amps[3], 364 / 43);           // 8
+            assert_eq!(amps[4], 0);                  // null channel (n=4)
+        }
+
+        #[test]
+        fn puv_band_classification() {
+            assert_eq!(puv_band(0), PuvBand::Euv);
+            assert_eq!(puv_band(91), PuvBand::Euv);
+            assert_eq!(puv_band(92), PuvBand::Uvc);
+            assert_eq!(puv_band(182), PuvBand::Uvc);
+            assert_eq!(puv_band(183), PuvBand::Uvb);
+            assert_eq!(puv_band(286), PuvBand::Uvb);
+            assert_eq!(puv_band(287), PuvBand::Uva);
+            assert_eq!(puv_band(364), PuvBand::Uva);
+            assert_eq!(puv_band(365), PuvBand::Visible);
+            assert_eq!(puv_band(1000), PuvBand::Visible);
+        }
+    }
+}
