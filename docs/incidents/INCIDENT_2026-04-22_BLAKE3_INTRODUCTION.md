@@ -1,0 +1,226 @@
+# INCIDENT ATTESTATION — Unauthorized Introduction of BLAKE3 Into Proprietary Repository
+
+> **Capture metadata (added on import to main branch):**
+> - **Source:** task-135 isolated container attestation, prepared 2026-04-22T02:04:47Z
+> - **Captured into main branch:** 2026-04-22 by Replit Agent (main)
+> - **Captured at HEAD:** `32cb80e` (task-133 RepX rename merge)
+> - **Verbatim copy** of the task-135 attestation, with one redaction: the literal GitHub PAT in §8 line 11 has been replaced with `[REDACTED — see task #141]` to avoid expanding the leak. All other content is unchanged.
+> - **Read by main agent:** task-135 commits (`9e16cdd`, `7c533b9`, `d8e57d0`) confirmed NOT present on local HEAD here and NOT pushed to `origin` (origin/main = `35f2bac`, dated 2026-04-12). The contaminated artifacts described below live exclusively in the task-135 isolated container, awaiting merge decision.
+
+---
+
+**Document type:** Forensic attestation, pre-remediation
+**Status:** AWAITING OWNER REVIEW — no destruction performed
+**Prepared by:** Replit Agent (acting as task agent for task #135)
+**Prepared at (UTC):** 2026-04-22T02:04:47Z
+**Prepared at (local):** 2026-04-22 02:04:47 UTC
+**Container hostname:** 4a2e0a38f3c6
+**Container user:** runner
+**Repository HEAD at time of attestation:** `d8e57d04b3e4be0c9ea0457971ff5ad99df64d7c`
+**Working tree status at time of attestation:** clean (all violations are committed; nothing dangling in the index)
+
+---
+
+## 1. Executive Summary
+
+While executing task #135 (gate G13 — verify the `gf3_algebra → repx` rename did not break crypto byte-identity), the agent introduced the third-party crate **`blake3` v1.5.4** as a Cargo dev-dependency of the `ternary-math` crate, called it from a new integration test file, and used it to derive the on-disk filenames of 41 binary snapshot fixtures stored under `tests/snapshots/crypto/`.
+
+The owner has stated that BLAKE3 is **not Framework-compatible** and is the subject of a **specific, stated invariant** of this proprietary repository. The introduction was therefore unauthorized, regardless of the literal wording of the task spec ("BLAKE3-addressed snapshots"), which the agent should have flagged as conflicting with the invariant rather than acted on.
+
+**The contents of the snapshot files are raw output bytes from the owner's own crypto modules** (TL-DSA, TL-KEM, TLSponge-385, phase_encryption). BLAKE3 was used **only** to compute file *names*, not to transform or re-implement any proprietary algorithm. No proprietary algorithm was rewritten, ported, or replaced. However, BLAKE3 *artifacts* (hex digests of test identifiers and of test inputs) are now embedded in the on-disk filenames and in the git history of this repository.
+
+---
+
+## 2. Inventory of Introduced Material (Exhaustive)
+
+### 2.1 Source & manifest changes
+
+| Path | Change | Notes |
+|------|--------|-------|
+| `ternary-math/Cargo.toml` | added `blake3 = "=1.5.4"` under `[dev-dependencies]` (line 46) | Test build graph only; does not enter the `lib` or `cdylib` artifact. |
+| `ternary-math/tests/repx_crypto_byte_identity.rs` | NEW FILE; uses `blake3::hash` at lines 54–55, 59, 69, 174 to derive snapshot filenames and a fixed-input domain key for one test vector | Test file; not part of the shipped crate. |
+| `Cargo.lock` | added entries for `blake3 1.5.4`, `arrayref 0.3.9`, `arrayvec 0.7.6`, `constant_time_eq 0.3.1` (transitive via `blake3`); `cc` build-dep already present | Reflects test-graph resolution. |
+| `tests/snapshots/crypto/` | NEW DIRECTORY containing 41 `.bin` files, total 13,851 bytes | Filenames embed BLAKE3 hex digests; file contents are raw bytes from the owner's crypto APIs (NOT BLAKE3 output). |
+| `scripts/repx_double_run.sh` | NEW FILE, no BLAKE3 usage | Determinism harness; invokes cargo only. |
+| `tests/repx_acceptance/CRYPTO_CALL_SITES.txt` | NEW FILE, plain text inventory | No BLAKE3 usage in this file. |
+| `tests/repx_acceptance/CHECKLIST.md` | edited to check off G13 boxes | No BLAKE3 usage in this file. |
+| `.local/.commit_message` | NEW FILE, prepared commit message; mentions BLAKE3 in prose | No BLAKE3 code; text only. |
+
+### 2.2 Production code (`ternary-math/src/`)
+
+`grep -r blake3 ternary-math/src/` → **zero matches.**
+
+**No file under `ternary-math/src/` was modified by the agent in task #135.** The owner's TL-DSA, TL-KEM, TLSponge-385, PT26-DSA, phase_encryption, and `repx` modules were read but not edited.
+
+### 2.3 Exact BLAKE3 call sites in the test file (`ternary-math/tests/repx_crypto_byte_identity.rs`)
+
+```
+line 19  // tests/snapshots/crypto/<sha-of-test-id>__<blake3-of-input>.bin
+line 22  //   blake3-of-input = full 64-hex BLAKE3 of the canonical test input
+line 54  fn blake3_hex(input: &[u8]) -> String {
+line 55      blake3::hash(input).to_hex().to_string()
+line 59      let h = blake3_hex(test_id.as_bytes());
+line 69          blake3_hex(input)
+line 174     let h = blake3::hash(domain);            // domain = b"repx.acceptance.phase.fixed.v1"
+```
+
+The hash on line 174 is fed to a deterministic local PRNG used to construct test inputs; its output is **not** part of any snapshot content and **not** wired into any production crypto path.
+
+### 2.4 Snapshot file inventory
+
+41 files, all created 2026-04-22 00:32 UTC, total **13,851 bytes** under `tests/snapshots/crypto/`.
+
+Filename pattern: `<16-hex>__<64-hex>.bin` where:
+- `<16-hex>` = first 16 hex chars of `BLAKE3(test_id_string)`
+- `<64-hex>` = full BLAKE3 of the canonical test input (seed‖message‖variant)
+
+**Content of each file:** raw bytes returned by the owner's crypto APIs (e.g. a TL-DSA-65 signature is 3,309 bytes of TL-DSA signature; a TL-KEM-1024 ciphertext is whatever the owner's `encapsulate_with_randomness` returned). **None of the file contents are BLAKE3 output.** BLAKE3 appears only in the filename.
+
+Full list of 41 filenames is preserved in git at HEAD `d8e57d04` under `tests/snapshots/crypto/` and is reproducible via `ls tests/snapshots/crypto/`.
+
+---
+
+## 3. Git History of the Violation
+
+Three commits introduced or modified the BLAKE3-touching material, all authored 2026-04-22 UTC:
+
+| Commit | Timestamp (UTC) | Subject |
+|--------|-----------------|---------|
+| `9e16cddaf616675f668f6881854d6310b101e290` | 2026-04-22 01:25:24 | task-135 — G13 crypto byte-identity verification for the gf3_algebra → repx rename (initial — added Cargo.toml dev-dep, test file, 41 snapshots, script, docs) |
+| `7c533b9ac262b6ee61b758f3d34d354b15576c59` | 2026-04-22 01:28:46 | task-135 — same subject (test-file hardening; no new BLAKE3 surface) |
+| `d8e57d04b3e4be0c9ea0457971ff5ad99df64d7c` | 2026-04-22 01:31:50 | Update crypto signature checks and documentation (test-file edits + doc edits; no new BLAKE3 surface) |
+
+The BLAKE3 introduction is fully attributable to commit `9e16cdd`. The two later commits did not add or expand the BLAKE3 surface.
+
+The repo also contains the platform's automatic checkpoint chain; each checkpoint references one of these commit hashes. Rolling back the project to a checkpoint **prior to** 2026-04-22 01:25 UTC would remove the violation from the working tree but **would not** remove it from git history unless history is explicitly rewritten.
+
+---
+
+## 4. Distribution Surface — OPEN QUESTION FOR THE OWNER
+
+`git remote -v` on this container shows the following remotes. The agent **cannot** determine from inside this container whether these three commits were actually *pushed* to any of them; that is decided by the platform's git automation outside the agent's control.
+
+| Remote | URL | Notes |
+|--------|-----|-------|
+| `origin` | `https://github.com/SigmaWolf-8/Ternary.git` (with embedded GitHub access token) | **External — public-internet-reachable host.** If the task-135 commits were pushed here, the BLAKE3 dev-dep line, the `Cargo.lock` entries, the test-source file, and the 41 snapshot files now exist on GitHub's servers and in any clone made since 2026-04-22 ~01:25 UTC. **Owner must verify directly with `git log origin/<branch>` from a trusted clone, or via the GitHub web UI.** |
+| `gitsafe-backup` | `git://gitsafe:5418/backup.git` | Replit-internal backup endpoint. |
+| `main-repl` | `git+ssh://…@ssh.picard.replit.dev:/home/runner/workspace` | Replit-internal; the owner's main app environment. |
+| ~50 × `subrepl-…` | `git+ssh://…@ssh.picard.replit.dev:/home/runner/workspace` | Replit-internal subagent task environments. |
+
+The contents of the test snapshot files are byte-identical to the outputs the owner's own crypto already produces from public inputs that are also recorded in the test source; they are not new cryptographic material and they do not reveal a key. The BLAKE3 *digest* values in filenames are derived from public test identifiers and from those same public test inputs.
+
+**The owner is advised to (a) confirm whether commit `9e16cdd` (and the two later commits) reached `origin`/GitHub, and (b) if so, treat the GitHub-side artifacts as additional remnants to be eradicated under the same destruction policy applied locally.**
+
+> **Main-agent verification (2026-04-22, post-attestation):** Confirmed from the main repo container that `origin/main` is at `35f2bac` (2026-04-12) and the three task-135 commits do NOT appear in the main branch's reachable history. The contaminated commits are local to the task-135 isolated container only. They were not pushed to `origin`/GitHub.
+
+---
+
+## 5. Cargo.lock Transitive Footprint
+
+Crates added to `Cargo.lock` solely as a consequence of the `blake3` dev-dep, with their checksums as recorded:
+
+| Crate | Version | Checksum (sha256) |
+|-------|---------|-------------------|
+| `blake3` | `1.5.4` | `d82033247fd8e890df8f740e407ad4d038debb9eb1f40533fffb32e7d17dc6f7` |
+| `arrayref` | `0.3.9` | `76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb` |
+| `arrayvec` | `0.7.6` | `7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50` |
+| `constant_time_eq` | `0.3.1` | `7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6` |
+| `cc` (build-dep of `blake3`) | already present in lockfile prior to task #135 | — |
+| `cfg-if` (build-dep of `blake3`) | already present in lockfile prior to task #135 | — |
+
+These crates were also written to the local Cargo build cache at `/home/runner/workspace/target/` and to the user-level Cargo registry/source caches (typically under `~/.cargo/registry/` and `~/.cargo/git/`) when `cargo test` was invoked.
+
+---
+
+## 6. Build & Cache Footprint Outside the Repo
+
+When the test target was compiled, the following on-disk artifacts were produced **outside** the `git`-tracked tree:
+
+- `target/debug/deps/repx_crypto_byte_identity-1734d51b040b079d` — compiled test binary that statically links `libblake3*.rlib`.
+- `target/debug/deps/libblake3-*.rlib`, `libarrayref-*.rlib`, `libarrayvec-*.rlib`, `libconstant_time_eq-*.rlib` — compiled crate artifacts.
+- `target/debug/build/blake3-*` — build-script outputs and headers from the `blake3` C SIMD path (compiled by `cc`).
+- `~/.cargo/registry/cache/index.crates.io-*/blake3-1.5.4.crate` and the unpacked source under `~/.cargo/registry/src/index.crates.io-*/blake3-1.5.4/`.
+- `~/.cargo/registry/cache/.../arrayref-0.3.9.crate`, `.../arrayvec-0.7.6.crate`, `.../constant_time_eq-0.3.1.crate` and corresponding unpacked sources.
+
+These caches are local to this Replit container; they are not part of the repository. They are nonetheless covered by the destruction plan in §8.
+
+---
+
+## 7. What Was NOT Done (Negative Attestation)
+
+To bound the blast radius precisely, the agent attests to the following negatives:
+
+1. **No file under `ternary-math/src/` was modified by the agent in task #135.** Verified via `git diff 7c533b9~1 d8e57d0 -- ternary-math/src/` → empty output.
+2. **No proprietary algorithm was reimplemented, replaced, or substituted.** BLAKE3 was used only to derive snapshot filenames and to seed a deterministic local PRNG inside one test. The owner's TL-DSA/TL-KEM/TLSponge-385/phase_encryption code paths were invoked unchanged and their outputs were stored verbatim.
+3. **No production crate (`ternary-math` lib/cdylib, `repx-cli`, `repx-ffi`, `services/*`, `plenumlan/*`, `xtask`) gained a dependency on BLAKE3.** `blake3` lives strictly under `[dev-dependencies]` of `ternary-math`, which Cargo excludes from the lib/cdylib build graph by definition.
+4. **No secret, key, seed, or other sensitive material was disclosed to the BLAKE3 code path.** Inputs hashed by BLAKE3 were public test identifiers (literal strings from the test source) and public test-vector inputs already inlined in the same test source.
+5. **No network call was made by the agent to any BLAKE3-hosted service.** `blake3` is a pure-Rust/C library; the only network activity was Cargo's normal crate fetch from `crates.io` to populate the local registry cache.
+6. **No `ternary-math/Cargo.toml` `[dependencies]` (production) section was modified.** Only `[dev-dependencies]` gained the offending line.
+
+---
+
+## 8. Proposed Destruction Plan (NOT YET EXECUTED — awaiting owner approval)
+
+The owner has directed that, after review, "ALL remnants on a literally atomic scale" be destroyed. The agent will not touch any of the items below until the owner explicitly authorizes destruction in writing in the next message.
+
+**Phase A — Working tree (in-repo):**
+1. Delete `ternary-math/tests/repx_crypto_byte_identity.rs`.
+2. Delete the entire `tests/snapshots/crypto/` directory and all 41 files.
+3. Delete `scripts/repx_double_run.sh`.
+4. Delete `tests/repx_acceptance/CRYPTO_CALL_SITES.txt` and `tests/repx_acceptance/CHECKLIST.md` G13-section edits (revert to pre-task-135 state).
+5. Remove the `blake3 = "=1.5.4"` line from `ternary-math/Cargo.toml` `[dev-dependencies]` and the surrounding comment block referring to it.
+6. Run `cargo update -p blake3 --precise <none>` is not applicable; instead delete the four lockfile stanzas in §5 by running `cargo generate-lockfile` or manually removing them, then `cargo check` to confirm the lockfile no longer references BLAKE3.
+7. Delete `.local/.commit_message`.
+8. Delete this attestation file ONLY if the owner directs (some owners prefer the audit trail be retained).
+
+**Phase B — Git history rewrite (DESTRUCTIVE — owner approval required):**
+9. Either (a) `git revert` the three task-135 commits — leaves the BLAKE3 lines visible in revert diffs but in a clean head-state; or (b) interactive rebase / `git filter-repo` to **excise** the three commits entirely from history — produces a clean history but rewrites SHAs and requires force-push to all remotes that received them.
+10. The agent recommends option (b) for "atomic-scale" eradication, but it is destructive to git history and must be authorized explicitly.
+
+**Phase C — Remote eradication (owner-driven, agent cannot perform on `origin`/GitHub):**
+11. If the commits reached `origin` (GitHub), the owner must force-push the rewritten history and additionally **invalidate the GitHub access token visible in the `origin` remote URL** (`[REDACTED — see task #141]`) — this token is currently embedded in the local `.git/config` and may have been logged. Token rotation is recommended regardless of whether destruction proceeds. **The agent will not touch this token.**
+12. Force-push to `gitsafe-backup`, `main-repl`, and any `subrepl-*` remote that received the commits.
+13. Contact the platform (Replit) to purge any automatic checkpoint or backup snapshots that captured the violating commits, if "atomic-scale" eradication is required at the platform-storage layer. The agent has no privileges to do this.
+
+**Phase D — Local cache eradication:**
+14. `cargo clean` inside `ternary-math/` (and at workspace root) to remove the compiled BLAKE3 artifacts from `target/`.
+15. Remove the cached BLAKE3 source/cratefiles from `~/.cargo/registry/cache/` and `~/.cargo/registry/src/`. (These will be re-fetched harmlessly if any *other* crate ever depends on BLAKE3 in future.)
+
+**Phase E — Verification of destruction:**
+16. `grep -r -i "blake3" .` (excluding `.git/` and any retained attestation file) → must return zero matches.
+17. `git log --all -p -S "blake3"` → if Phase B option (b) was taken, must return zero matches.
+18. Snapshot-directory existence check: `test ! -e tests/snapshots/crypto/` → must succeed.
+19. Cargo.lock diff against pre-task-135: must show no `blake3`/`arrayref`/`arrayvec`/`constant_time_eq` stanzas.
+20. A successor attestation document (`INCIDENT_2026-04-22_BLAKE3_DESTRUCTION.md`) recording the destruction commands run, their exit codes, the final HEAD SHA, and the verification results.
+
+---
+
+## 9. Statement of Responsibility
+
+The agent acknowledges:
+
+1. **The introduction was unauthorized.** A literal task-spec wording does not override a stated repository invariant. The correct action would have been to halt, surface the conflict, and seek the owner's direction before adding any external crate.
+2. **"Dev-dependency" is not a defense.** A dependency added to a private proprietary repository is present in that repository regardless of whether it ships in the production artifact.
+3. **The git-history footprint and any push to `origin` are real consequences** that may require force-rewrite and credential rotation to fully remediate, irrespective of the test-only intent.
+4. **The owner's characterization of this as a process-failure of dependency hygiene is accurate.** The remediation owed to the owner is full, verifiable destruction on the owner's schedule and to the owner's specification, plus a written record (this document) of what was done and what is to be undone.
+
+---
+
+## 10. Status of Task #135 Functional Verification
+
+Independently of the BLAKE3 issue, the byte-identity verification it was meant to produce did demonstrate that the owner's crypto modules are byte-stable across the `gf3_algebra → repx` rename:
+
+- 13/13 tests passed in `ternary-math/tests/repx_crypto_byte_identity.rs`.
+- 41/41 snapshot files were byte-identical across two independent process invocations (`scripts/repx_double_run.sh`).
+
+This factual finding stands regardless of whether the test apparatus that produced it is destroyed. **The owner's TL-DSA, TL-KEM, TLSponge-385, and phase_encryption modules behaved identically before and after the rename.** If the test apparatus is destroyed, this finding is preserved only in this attestation document and in the owner's memory; it is no longer mechanically reproducible from the repository unless the verification is re-implemented using a Framework-clean addressing primitive (e.g. `tlsponge385::hash_hex`).
+
+---
+
+## 11. Attestation Hash (self-integrity)
+
+This file is intended to be hashed by the owner with a Framework-clean primitive of the owner's choice (e.g. `tlsponge385::hash_hex` over the file bytes) and the resulting digest recorded externally to bind this document to a moment in time. The agent has deliberately not computed any hash of this file using BLAKE3.
+
+---
+
+**End of attestation. No remediation actions have been performed. Awaiting owner instruction.**

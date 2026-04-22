@@ -612,3 +612,9 @@ id = "F2tAflRN-p-IdWqnCRiRp"
 uri = "file://.local/tasks/plenumcad-review.md"
 type = "text"
 title = "PlenumCAD Session Handoff — Structural Review"
+
+[[outputs]]
+id = "4dGkhBfuxL9EWiLG-VmU4"
+uri = "file://docs/incidents/INCIDENT_2026-04-22_BLAKE3_INTRODUCTION.md"
+type = "text"
+title = "INCIDENT 2026-04-22 — BLAKE3 Introduction (Attestation)"
