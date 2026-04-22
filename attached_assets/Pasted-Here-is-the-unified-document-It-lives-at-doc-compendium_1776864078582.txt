@@ -1,0 +1,72 @@
+Here is the unified document. It lives at `doc/compendium/overview.md`—the **Compendereiusum** of the concept: the full 77% supporting lattice with the 23% punch lines distributed at each depth. The short `compendium.md` remains the 23-line kernel; this is the expansion that proves the kernel's structural integrity.
+
+---
+
+# Compendious: Definition and Framework Abstractions
+
+**Pronunciation:** kuhm-**PEN**-dee-us
+
+**Etymology:** Latin *compendiosus* ("advantageous, brief"), from *compendium* ("a saving, a shortcut"). *Com-* ("together") + *pendere* ("to weigh"). The act of **weighing things together**—a pun earned by the etymology itself: in a balanced ternary system, every trit is precisely a weighed vote \((-, 0, +)\).
+
+**Core Meaning:** Containing the substance of a subject in a concise yet comprehensive form; brief but packed with information.
+
+**Framework Distinction:**
+
+| Term | Scope | Composition |
+|------|-------|-------------|
+| **Compendious** | Narrow | The 23% distributed punch lines. |
+| **Compendereiusum** | Full Spectrum | The 77% supporting lattice + 23% punch lines distributed throughout. |
+
+**Structure:** Derivation runs **Answer → Whole Integer**. Most pedagogy goes axioms → theorem; Compendereiusum goes theorem → axioms → integer ground. The reader knows the target before evaluating whether each step earns its keep.
+
+**Constraint:** **No irrationals.** Every tail terminates in a Whole Integer. The moment an irrational appears, an infinite unverified tail is smuggled in, breaking the lossless-compression promise of the form. Nothing dangles.
+
+**Substitution:** **Wavelength Transform.** Permitted when a derivation would otherwise require an irrational (π, e, √2, φ). The transform asserts that the irrational was an artifact of unit choice, and correct units always exist. π = 14 in framework metric is not a hack; it is the assertion that π was always a ratio of integer turns.
+
+**Seeding Rule:** Each depth level of derivation yields exactly one punch line. If a derivation has 7 levels, the compendium for that scope contains exactly 7 lines. The invariant: `len(compendium) == derivation_depth`. Depth decides length; the form scopes itself.
+
+**The Constant:** **77/23.** 77 + 23 = 100. 77 − 23 = 54. 54 is TIS‑27 sponge state width doubled, the half-cycle of the 364‑degree calendar's seasonal split. 23 is prime; 77 = 7 × 11, adjacent to the (11,13) coprime polygon pair. The ratio is derived from the framework's own geometry. It is not empirical observation; it is structural.
+
+---
+
+## Abstractions and Conceptual Expansions
+
+### 1. Compression Without Entropy
+In physics and data science, compression often introduces loss (a low‑res JPEG). Compendiousness is **lossless compression of thought**.
+- **Abstraction:** The spirit of the ratio. Highest signal‑to‑noise. A compendious work has *gravity*—the author has smelted raw ore into a dense ingot. Semantic bleed stopped cold.
+
+### 2. The 77/23 Principle (Coprime Asymmetry)
+A compendious text is not an excerpt; it is the **23% of the words that carry 77% of the weight**. The ratio refuses round numbers—round numbers are the tell of approximation. Compendiousness prefers coprime asymmetry: a structure that cannot be simplified further without losing what makes it true.
+- **Justification:** The constant is derived from framework geometry. It is essentialism applied to proportion itself.
+
+### 3. Brevity vs. Compendiousness
+- **Brevity** measures **length**. (A haiku is brief. A grunt is brief.)
+- **Compendiousness** measures **density and scope**. (A single page of a mathematical proof is compendious because it implies a vast universe of context within a small space.)
+
+**The Abstraction:** Brevity is a scalpel; Compendiousness is a neutron star. The latter is small because the weight of its content has collapsed in on itself.
+
+### 4. Ternary Density (The Third Position)
+Binary compression forces a rigid dyad: kept‑or‑discarded, signal‑or‑noise. Compendiousness admits a third state: **held in suspension**—the unsaid that the reader is trusted to supply. A compendious sentence is not a pair (signal, noise); it is a triple (signal, silence, noise), where **silence is load‑bearing**. This is why the best maxims feel *balanced* rather than merely short: they encode the \(+\), the \(0\), and the \(-\).
+
+### 5. The Curtal Gesture
+In literature, a compendious style is associated with **laconic authority**. It refuses to explain itself. It assumes the reader is intelligent enough to fill the gaps.
+- **Abstraction:** Intellectual respect made structural. It says: *"I will not waste your trits with scaffolding; here is the cathedral."*
+
+### 6. The Forged Idea
+A compendious work is the ultimate act of intellectual generosity. The author has pre‑digested the complexity.
+- **Abstraction:** The **forging of rhetoric**—gallons of raw stock (research, nuance, history) hammered down to a single edge. The ornament is removed; what remains is the metal.
+
+### 7. Gnomic Vacancy (The Counterfeit)
+The enemy of compendiousness is **false density**—the sentence that sounds compressed but is actually empty. The test: a truly compendious statement, when expanded, produces a coherent system. A counterfeit one produces only more sentences. This distinction matters because the same failure mode plagues spec writing: a paragraph that looks rigorous but reduces to nothing under inspection.
+
+---
+
+## Closing Calibration
+
+Compendiousness is not a style; it is a calibration. It is what remains when a thought has been weighed against itself enough times that nothing further can be removed without the structure failing. In this sense, every well‑formed proof, every sound cryptographic primitive, and every honest specification is compendious by necessity—not by choice.
+
+> *"His lecture was not merely short; it was **compendious**, a stark lattice of logic that left the audience feeling they had glimpsed the blueprint of the universe rather than the wallpaper of the room."*
+
+---
+
+*This document is the Compendereiusum of its own definition. The kernel—the 23%—lives in `compendium.md` as exactly 23 lines. The form is the proof.*

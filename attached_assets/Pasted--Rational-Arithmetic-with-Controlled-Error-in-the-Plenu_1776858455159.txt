@@ -1,0 +1,28 @@
+**Rational Arithmetic with Controlled Error** in the Plenum Compendium means that **every numerical operation is performed exactly on rational numbers**, and when an irrational value (such as a logarithm or exponential) is required, it is replaced by a **rational approximant** accompanied by an **explicit, provable error bound**.
+
+In standard computational mathematics, one uses floating‑point numbers (IEEE 754) which are dyadic rationals with a fixed mantissa length. The error of each operation is not tracked explicitly; instead, one relies on statistical rounding‑error analysis or interval arithmetic after the fact. The Plenum Compendium takes a different, stricter approach:
+
+1. **All numbers are rational.** The only numbers that appear in computations are integers or ratios of integers.
+
+2. **Irrational constants are replaced by rational sequences.** For example:
+   - The natural logarithm $\ln N$ is replaced by $L_k(N)$, a rational number that satisfies $|L_k(N) - \ln N| < \delta_k$ for a known, computable $\delta_k$.
+   - The exponential $e^x$ is replaced by $\exp_{B,t}(x) = \left(1 + \frac{x}{t}\right)^t$, where $t$ is an integer chosen so that the truncation error is below a prescribed bound.
+
+3. **Error bounds are explicit and guaranteed.** Every approximant comes with a proof (within the framework) that the error does not exceed a specific rational number. For instance, the resolution of Open Problem #19 gave $|\gamma_r - \gamma| < \frac{3}{2r}$ for the Euler–Mascheroni constant.
+
+4. **Operations are performed with exact rational arithmetic.** Addition, subtraction, multiplication, and division of rationals are exact. When a function like $\sqrt{x}$ or $\exp(x)$ is needed, it is computed using a rational algorithm that outputs both a rational result and a certified error bound.
+
+5. **The final result is a rational number with a guaranteed interval containing the true value.** This is similar in spirit to interval arithmetic, but the intervals are derived analytically from the framework's primitives rather than from floating‑point rounding.
+
+### Example: Verifying a Zero of $L(s,\chi)$
+
+Suppose we wish to verify that $L(1/2 + i\gamma, \chi) = 0$ for a given $\chi$ and a candidate $\gamma$. The framework would:
+
+- Approximate the $L$‑function using the Euler product truncated at a large bound $X$, with the tail bounded by an explicit rational expression.
+- Replace the terms $p^{-1/2 - i\gamma}$ with rational approximants computed via the Brothers exponential and $L_k(p)$.
+- The result is a rational number $R$ together with a proven bound $|R - L(1/2 + i\gamma, \chi)| \le \varepsilon$.
+- If $|R| \le \varepsilon$, then $L(1/2 + i\gamma, \chi)$ is within $2\varepsilon$ of zero.
+
+Because $\varepsilon$ can be made arbitrarily small by increasing the parameters $k$, $t$, and $X$, this method can **rigorously certify** that the value is zero to any desired precision. This is a **proof** in the rational‑integer framework, not a floating‑point heuristic.
+
+This is what distinguishes the Compendium's computational claims from standard numerical verification: the arithmetic is exact, the errors are controlled analytically, and the final certificate is a mathematical proof within the axiomatic system.

@@ -1,0 +1,513 @@
+# Plenum Repository — Unified Architecture
+
+## Guaranteed Gates · Witnesses · Array 3 · Native SQL · Post‑Quantum Security
+
+**Version 1.0 · Capomastro Holdings Ltd. · 2026‑04‑22**
+
+---
+
+# £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+
+---
+
+## Prologue: The Living Crystal
+
+The Plenum Repository is a **self‑indexing crystal lattice**. Every document, engine, log, and computational artifact occupies a deterministic position within a five‑family directory tree that mirrors the fundamental registers of the plenum: **Density, Buoyancy/Displacement, Pressure/Diffusion, Electromagnetic Field, and Harmonic Modes**.
+
+The filesystem **is** the index. The path **is** the classification. Queries are filesystem traversals. Invariants are enforced by gates at every directory level. Every operation is witnessed, timestamped, and legally bound. A native SQL engine answers complex queries directly from the lattice. Array 3—a trio of sidecar daemons—provides all Algebraic, Calculus/Geometric, and Mathematical Physics computations as a shared service for every PlenumNET application. Post‑quantum encryption and compression protect data at rest and in transit. Ninja Exec guards the keys and signs the receipts.
+
+No external axioms. No separate database. No central registry. Only the plenum, made manifest as directories and files.
+
+---
+
+## 1. Core Principles
+
+1. **The Filesystem is the Index.** Every document is stored at a path constructed from its five‑family classification. The directory tree mirrors the categorical skeleton of the framework.
+
+2. **Content‑Addressed Storage.** Every file is named by its TIS‑27 identity hash (MDNS). Distinct content → distinct address. Collision‑free by cryptographic guarantee.
+
+3. **Guaranteed Gates.** Every directory is a gate. Invariants are checked on write. Violations are blocked or warned, and all outcomes are witnessed.
+
+4. **Array 3 — Shared Computational Backend.** Three daemons (`plenum‑algebra`, `plenum‑calculus`, `plenum‑physics`) provide all framework‑native math. Installed once, used by all applications.
+
+5. **Native SQL Engine.** A SQL interface over the filesystem and extended attributes supports the 14 canonical queries and ad‑hoc queries with lattice‑aware operators.
+
+6. **Post‑Quantum Security.** All encryption, signatures, and hashing use framework‑native ternary primitives: TIS‑27, TL‑Sponge‑385, TL‑DSA‑87.
+
+7. **Witnessed and Legally Bound.** Every file operation produces a signed, HPTP‑timestamped receipt in a Merkle chain. Legal headers are woven into every document.
+
+8. **Compression.** Rep C Run‑Length encoding reduces size before encryption.
+
+---
+
+## 2. Repository Directory Structure — The Five Families
+
+```
+plenum/
+├── density/
+│   ├── mass/
+│   ├── charge/
+│   ├── specific_gravity/
+│   └── nuclear_saturation/
+│
+├── buoyancy_displacement/
+│   ├── volume/
+│   ├── buoyant_lift/
+│   ├── archimedean/
+│   └── nuclear_binding/
+│
+├── pressure_diffusion/
+│   ├── gradient/
+│   ├── fluid_pressure/
+│   ├── sound_waves/
+│   ├── heat_conduction/
+│   └── strong_force_saturation/
+│
+├── electromagnetic_field/
+│   ├── e_field/
+│   ├── b_field/
+│   ├── wave_equation/
+│   ├── light/
+│   ├── radio/
+│   ├── diffraction/
+│   ├── atomic_spectra/
+│   └── lorentz_force/
+│
+├── harmonic_modes/
+│   ├── eisenstein/
+│   ├── primes_7_11_13/
+│   ├── bessel/
+│   ├── spherical_harmonics/
+│   ├── nuclear_shells/
+│   ├── atomic_orbitals/
+│   └── diffraction_patterns/
+│
+├── .gates/                    # Gate definitions (inherited)
+├── .witness/                  # Receipt chain and violations
+├── .quarantine/               # Files that failed block invariants
+├── .keys/                     # Public key certificates
+├── .cache/                    # QARBAS materialized views
+├── attestation/               # UPIID V1.1 chains, root certificates
+├── engines/                   # Compiled WASM modules (mirrors family tree)
+└── meta/                      # Symlink farms for alternative views
+    ├── by_date/
+    ├── by_author/
+    └── by_ring/
+```
+
+**File Naming:** Files are named by their **MDNS hash** (TIS‑27, 54 trits) plus extension, e.g., `3a7f9c...e2b1.md`. Human‑readable slugs may be symlinked.
+
+---
+
+## 3. Document Identity — The Three Hashes
+
+Every document carries three orthogonal identifiers, computed at write time and stored as extended attributes.
+
+| Hash | Attribute Name | Content | Purpose |
+|:---|:---|:---|:---|
+| **MDNS** | `user.mdts.mdns` | TIS‑27 hash of full document content (54 trits) | Cryptographic identity — "What exact document is this?" |
+| **Classification** | `user.mdts.omega28` | 28‑trit classification vector (Rep C, 28 trits) | Structural identity — "What kind of document is this?" |
+| **FP₂₈** | `user.mdts.fp28` | TIS‑27 hash of title + header outline (54 trits) | Outline fingerprint — "What does its structure look like?" |
+
+These three hashes answer three independent questions and form the foundation for all indexing and foreign keys.
+
+### 3.1 The 28‑Trit Classification Vector
+
+The classification vector is derived by the Forma Codex Document Classification Engine. It consists of 27 classification trits (Who/What/Where/When/Why/How/Peace) plus the FP₂₈ fingerprint trit. Values are Rep C {1,2,3}; zero is structurally excluded (corruption detection).
+
+The vector determines the document's **ring position** in the Z₂₇ lattice via the Chinese Remainder Theorem on the coprime triple (7,11,13), yielding a unique residue modulo 1001.
+
+---
+
+## 4. Primary and Foreign Keys
+
+### 4.1 Primary Key — MDNS Hash
+
+The **MDNS hash** is the primary key. It is content‑addressed: identical content yields identical MDNS. The file is stored under its classification path with the MDNS as filename.
+
+### 4.2 Foreign Keys — Four Modes
+
+Documents reference other documents via four FK modes, stored as extended attributes or in YAML frontmatter.
+
+| Mode | Attribute | Value | Semantics |
+|:---|:---|:---|:---|
+| **FK‑by‑Identity** | `user.mdts.fk.identity.<n>` | Target MDNS hash | References exact document; broken if target deleted or content changed. |
+| **FK‑by‑Classification** | `user.mdts.fk.classification.<n>` | 28‑trit vector + Hamming tolerance | References documents of a structural kind. |
+| **FK‑by‑Fingerprint** | `user.mdts.fk.fp28.<n>` | Target FP₂₈ hash | References documents with a specific header outline, survives content changes. |
+| **FK‑by‑AngularBacking** | `user.mdts.fk.tier.<n>` | Tier level (1‑4) + angle tolerance | References documents with sufficient geometric backing tier. |
+
+The gatekeeper validates FKs on write and maintains an in‑memory index for fast resolution.
+
+---
+
+## 5. Guaranteed Gates — Invariant Enforcement
+
+Every directory in the repository is a **gate**. A `.plenum-gate.toml` file (inherited from parents) defines invariants that files must satisfy when written into that directory.
+
+### 5.1 Gate Definition
+
+```toml
+[gate]
+name = "density-gate"
+enforce = true
+
+[[invariants]]
+name = "density_non_negative"
+check = "density >= 0"
+on_violation = "block"
+
+[[invariants]]
+name = "horn_profile"
+check = "rho(x) == 1/x"
+on_violation = "warn"
+
+[[attestation]]
+require_signature = true
+min_key_tier = 2
+```
+
+### 5.2 Invariant Examples
+
+| Gate | Invariant | Check |
+|:---|:---|:---|
+| `density/` | Density non‑negative | `ρ ≥ 0` |
+| `density/mass/` | Horn profile | `ρ(x) = 1/x` for defined x |
+| `electromagnetic_field/` | Maxwell compliance | `∇·E = ρ/ε` (within tolerance) |
+| `harmonic_modes/` | Prime chord closure | `mode ∈ {7,11,13}` or combination |
+| `any` | Theorem‑45 | No coprime solution with exponents ≥3 |
+| `any` | Liouville conservation | Phase‑space density conserved |
+
+Complex checks call Array 3 daemons.
+
+### 5.3 Gatekeeper Daemon
+
+`plenum-gatekeeper` watches the filesystem (inotify/FSEvents/USN journal). On file write:
+
+1. Parse content and metadata.
+2. Evaluate all invariants for the directory and its ancestors.
+3. **Block violation:** Move file to `.quarantine/`, write violation witness.
+4. **Warn violation:** Accept file, write warning witness.
+5. **Pass:** Write receipt witness, update chain head, set extended attributes.
+
+---
+
+## 6. Witnessing and Timestamping
+
+Every file operation that passes a gate produces a **witness**—a signed, HPTP‑timestamped record in a Merkle chain.
+
+### 6.1 Witness Chain Structure
+
+```
+.witness/
+├── chain_head          # Latest chain hash (TIS‑27)
+├── receipts/
+│   └── YYYY-MM-DDThh-mm-ss-fffffffff_<hash>.receipt
+└── violations/
+    └── YYYY-MM-DDThh-mm-ss-fffffffff_<hash>.violation
+```
+
+### 6.2 Receipt Contents
+
+- HPTP timestamp (femtosecond precision)
+- File MDNS hash
+- Gate path and invariants checked
+- Signatures (author, gatekeeper)
+- Parent chain hash → new chain hash
+
+### 6.3 Violation Records
+
+Include all of the above plus the failed invariant and the offending value.
+
+---
+
+## 7. Legal Headers
+
+Every file carries a **legal header** as YAML frontmatter (for Markdown) or as an extended attribute `user.mdts.legal`. The header includes:
+
+```yaml
+---
+copyright: "£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎"
+governance: "UPIID V1.1"
+author: "Roberto Salvalaggio"
+jurisdiction: "Sherwood Park, Alberta, Canada"
+signature: "<TL‑DSA‑87 signature over content>"
+---
+```
+
+The gatekeeper verifies the header's presence and signature. Files lacking a valid legal header are rejected.
+
+---
+
+## 8. Array 3 — The Three Computational Daemons
+
+Array 3 is a singleton installation (`/opt/plenum/array3/`) that provides all framework‑native mathematics. Every PlenumNET application uses these daemons via gRPC.
+
+### 8.1 Daemon 1 — Algebraic Engine (`plenum-algebra`)
+
+| Endpoint | Description |
+|:---|:---|
+| `Repunit(n)` | Returns Rₙ = (3ⁿ−1)/2 |
+| `Cyclotomic(n)` | Returns Φₙ(3) |
+| `CoprimeWalk(steps)` | Streams (x,y) positions on the (7,11,13) walk |
+| `Theorem45Check(A,B,C,x,y,z)` | Verifies no coprime solution with exponents ≥3 |
+
+### 8.2 Daemon 2 — Calculus/Geometric Engine (`plenum-calculus`)
+
+| Endpoint | Description |
+|:---|:---|
+| `HornEvaluate(x)` | Returns V(x)=π/x, I(x)=π/x², E(x)=1/x |
+| `VolumeOfRevolution(curve, bounds)` | Computes volume using π=14 |
+| `BiotSavart(torus_params)` | Returns B‑field residual and γ_geom |
+| `EllipticIntegral(k)` | Returns E(k) and K(k) at framework‑rational k² |
+
+### 8.3 Daemon 3 — Mathematical Physics Engine (`plenum-physics`)
+
+| Endpoint | Description |
+|:---|:---|
+| `FineStructure()` | Returns 1/α = 137.036 |
+| `MassRatio()` | Returns m_p/m_e = 1836.15285… |
+| `UVSpectrum(series)` | Returns wavelengths 91, 182, 286, 364 nm |
+| `GRHDecision(T, epsilon)` | Returns ceiling decision for GRH |
+
+### 8.4 Shared Constants and Authentication
+
+All three daemons load `/etc/plenum/constants.toml` (π=14, radian=13, base=3, etc.), signed by Ninja Exec. Every gRPC call requires a capability token in the `plenum-api-key` header. Tokens are verified, and permissions (e.g., `algebra:read`, `physics:compute`) are enforced.
+
+---
+
+## 9. Native SQL Engine (`plenum-sqld`)
+
+The repository includes a SQL engine that presents the filesystem and extended attributes as virtual tables. It answers the 14 canonical queries (and more) with lattice‑aware operators.
+
+### 9.1 Virtual Table `documents`
+
+| Column | Type | Source |
+|:---|:---|:---|
+| `handle` | TEXT | MDNS hash (PK) |
+| `path` | TEXT | Full filesystem path |
+| `classification` | BLOB | `user.mdts.omega28` (28 trits) |
+| `fp28` | BLOB | `user.mdts.fp28` (54 trits) |
+| `ring` | INTEGER | Computed from classification via CRT |
+| `trit01` … `trit28` | INTEGER | Individual trits (1‑3) |
+| `modified` | TIMESTAMP | File mtime |
+| `sealed` | BOOLEAN | `trit25 == 3` |
+| `workflow_state` | INTEGER | `trit26` |
+| `author` | TEXT | From legal header |
+
+Additional tables: `fk_identity`, `fk_classification`, `fk_fingerprint`, `fk_tier`, `cell_dependencies`.
+
+### 9.2 Lattice‑Aware Operators
+
+| Operator | Description |
+|:---|:---|
+| `NEAR(handle)` | Orders by ring distance from given document |
+| `RING(handle, k)` | Documents within `k` rings |
+| `DISTANCE(h1, h2)` | Lattice distance in ring steps |
+| `HAMMING(v1, v2)` | Differing trits between two classification vectors |
+| `TRIT[n] OF handle` | Returns nth trit |
+| `FP28_DECODES_TO(pattern)` | Documents matching outline pattern |
+
+### 9.3 QARBAS — Continuous Incremental Maintenance
+
+The 14 canonical queries are **QARBAS** (Queries Answered Recursively Before Asked, Statefully). The gatekeeper maintains materialized views in `.cache/`. The SQL engine serves queries directly from these caches. Updates are incremental; staleness is structurally impossible.
+
+### 9.4 Example Query — Procrastinator's Desk
+
+```sql
+SELECT handle, fp28_decode(handle) AS outline,
+       HAMMING(classification, completed_form) AS work_remaining
+FROM documents
+WHERE trit25 < 3 AND trit24 < 3 AND trit22 < 3
+ORDER BY DISTANCE(@my_anchor) ASC;
+```
+
+---
+
+## 10. Encryption and Compression
+
+### 10.1 Framework‑Native Cryptographic Primitives
+
+| Primitive | Purpose | Parameters |
+|:---|:---|:---|
+| **TIS‑27** | Hash function | 54‑trit output, 4 rounds, stride 13 |
+| **TL‑Sponge‑385** | AEAD, KDF | 729‑trit state, 9 rounds |
+| **TL‑DSA‑87** | Signatures | 87‑trit signatures, NIST Level‑5 equivalent |
+| **Rep C Run‑Length** | Compression | Variable‑length encoding of ternary data |
+
+### 10.2 Encryption at Rest
+
+Every file is individually encrypted:
+
+1. Plaintext is compressed with **Rep C Run‑Length**.
+2. A file encryption key (FEK) is derived: `FEK = TL‑Sponge‑385::derive(MDNS, salt)`. Salt is a random 27‑trit nonce stored in `user.mdts.salt`.
+3. Compressed plaintext is encrypted with **TL‑Sponge‑385 AEAD**. Ciphertext is written to disk.
+4. FEK is wrapped with the repository master key (held by Ninja Exec) and stored in `user.mdts.fek`.
+
+**Encryption Gate:** Gatekeeper verifies presence of wrapped FEK, unwraps via Ninja Exec, and verifies AEAD tag. Failure → quarantine.
+
+### 10.3 Encryption in Transit
+
+All inter‑component communication uses **PlenumLAN secure channels**:
+
+- Mutual TLS with TL‑DSA‑87 certificates.
+- Perfect forward secrecy via ephemeral TL‑Sponge‑385 keys.
+- AEAD encryption of all messages.
+
+**mTLS Gate:** Daemons only connect to peers presenting valid certificates signed by the Plenum Root CA.
+
+### 10.4 Compression
+
+- **At rest:** Rep C Run‑Length before encryption (~40% reduction for Markdown/ternary data).
+- **In transit:** Same compression before AEAD encryption.
+
+**Compression Bomb Gate:** Decompressor rejects files expanding >100× compressed size.
+
+---
+
+## 11. Ninja Exec — Local Signing Agent
+
+**Ninja Exec** is the sole holder of private key material. It runs as a daemon with keys protected by `mlock`.
+
+**Responsibilities:**
+
+- Manage repository master key (FEK wrapping/unwrapping).
+- Manage TL‑DSA‑87 key pairs for service identities.
+- Sign witness receipts, legal headers, and API responses.
+- Verify signatures on incoming documents.
+- Provide Unix socket API (`/run/plenum/ninja.sock`).
+
+**API:**
+
+| Command | Input | Output |
+|:---|:---|:---|
+| `SIGN <key_id> <data>` | Key ID, data | `SIGNATURE <sig>` |
+| `VERIFY <pubkey> <data> <sig>` | Public key, data, signature | `VALID` or `INVALID` |
+| `WRAP_KEY <key_id> <plaintext>` | Key ID, plaintext key | `WRAPPED <ciphertext>` |
+| `UNWRAP_KEY <wrapped>` | Wrapped key | `UNWRAPPED <plaintext>` |
+
+**Key Access Gate:** Clients must present a capability token (signed assertion of permissions) issued by the Plenum Directory Service. Tokens are short‑lived.
+
+**CLI:** `ninja-cli` provides administrative commands for key generation, rotation, and manual signing.
+
+---
+
+## 12. Security Gates Summary
+
+| Gate | Enforces | Failure Action |
+|:---|:---|:---|
+| **Encryption Gate** | Valid wrapped FEK, AEAD tag verifies | Reject → quarantine |
+| **Signature Gate** | File signed by authorized key | Reject → quarantine |
+| **Legal Header Gate** | YAML frontmatter with copyright and UPIID statement | Reject → quarantine |
+| **Invariant Gates** | Directory‑specific mathematical/physical invariants | Block or warn |
+| **FK Consistency Gate** | All `fk_identity` targets exist | Warn |
+| **Compression Bomb Gate** | Decompressed size ≤ 100 × compressed size | Reject → quarantine |
+| **API Auth Gate** | Valid capability token on all daemon requests | Reject with UNAUTHENTICATED |
+| **mTLS Gate** | Valid TL‑DSA‑87 certificates on all network connections | Connection refused |
+
+All gates produce signed witness receipts.
+
+---
+
+## 13. Operational Flow — A File's Journey
+
+1. **Creation:** Application writes document to appropriate family directory (e.g., `harmonic_modes/atomic_orbitals/<mdns>.md`).
+2. **Gatekeeper intercepts:** Filesystem event triggers `plenum-gatekeeper`.
+3. **Legal header check:** Verifies YAML frontmatter and signature.
+4. **Invariant evaluation:** Calls Array 3 daemons for complex checks.
+5. **FK validation:** Verifies all foreign key targets.
+6. **Encryption & compression:** If not already done, applies Rep C Run‑Length and TL‑Sponge‑385 AEAD.
+7. **Witness generation:** On pass, writes receipt, updates chain head, sets extended attributes.
+8. **Quarantine:** On block violation, moves file to `.quarantine/` and writes violation witness.
+9. **Cache update:** Gatekeeper updates in‑memory index and QARBAS materialized views.
+
+---
+
+## 14. Complete Directory Tree with Extended Attributes
+
+```
+plenum/
+├── density/
+│   ├── mass/
+│   ├── charge/
+│   ├── specific_gravity/
+│   └── nuclear_saturation/
+├── buoyancy_displacement/
+│   ├── volume/
+│   ├── buoyant_lift/
+│   ├── archimedean/
+│   └── nuclear_binding/
+├── pressure_diffusion/
+│   ├── gradient/
+│   ├── fluid_pressure/
+│   ├── sound_waves/
+│   ├── heat_conduction/
+│   └── strong_force_saturation/
+├── electromagnetic_field/
+│   ├── e_field/
+│   ├── b_field/
+│   ├── wave_equation/
+│   ├── light/
+│   ├── radio/
+│   ├── diffraction/
+│   ├── atomic_spectra/
+│   └── lorentz_force/
+├── harmonic_modes/
+│   ├── eisenstein/
+│   ├── primes_7_11_13/
+│   ├── bessel/
+│   ├── spherical_harmonics/
+│   ├── nuclear_shells/
+│   ├── atomic_orbitals/
+│   └── diffraction_patterns/
+├── .gates/
+│   ├── root.plenum-gate.toml
+│   └── (per‑directory overrides)
+├── .witness/
+│   ├── chain_head
+│   ├── receipts/
+│   └── violations/
+├── .quarantine/
+├── .keys/
+├── .cache/
+├── attestation/
+├── engines/
+└── meta/
+    ├── by_date/
+    ├── by_author/
+    └── by_ring/
+```
+
+**Extended Attributes per File:**
+
+| Attribute | Content |
+|:---|:---|
+| `user.mdts.mdns` | TIS‑27 identity hash (54 trits) |
+| `user.mdts.omega28` | 28‑trit classification vector (Rep C) |
+| `user.mdts.fp28` | TIS‑27 header fingerprint (54 trits) |
+| `user.mdts.fek` | Wrapped file encryption key |
+| `user.mdts.salt` | 27‑trit nonce for FEK derivation |
+| `user.mdts.signature` | TL‑DSA‑87 signature over (mdns ∥ omega28 ∥ fp28) |
+| `user.mdts.compressed_size` | Original plaintext size |
+| `user.mdts.legal` | YAML legal header (optional; may be in file frontmatter) |
+| `user.mdts.fk.identity.<n>` | Target MDNS for FK‑by‑Identity |
+| `user.mdts.fk.classification.<n>` | 28‑trit vector + tolerance for FK‑by‑Classification |
+| `user.mdts.fk.fp28.<n>` | Target FP₂₈ for FK‑by‑Fingerprint |
+| `user.mdts.fk.tier.<n>` | Tier level + angle tolerance for FK‑by‑AngularBacking |
+
+---
+
+## Epilogue: The Sealed Crystal
+
+The Plenum Repository is complete. Every file is classified, encrypted, compressed, signed, witnessed, and legally bound. The five families provide a self‑indexing structure that requires no external database. The gates enforce invariants at every level. Array 3 provides the computational heartbeat, ensuring the laws of the framework are executed identically everywhere. The native SQL engine answers complex queries directly from the lattice. Ninja Exec guards the keys and signs the receipts. The witness chain provides an immutable audit trail.
+
+**The repository is a living crystal of the Plenum. The filesystem is the index. The path is the query. The gates are sealed. The witnesses watch. The ninja guards. Array 3 computes.**
+
+**Peace B. All on B.**
+
+---
+
+*Roberto Salvalaggio*  
+*Capomastro Holdings Ltd. — Applied Physics Division*  
+*Sherwood Park, Alberta, Canada*
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**
