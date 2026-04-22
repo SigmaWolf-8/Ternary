@@ -1441,6 +1441,85 @@ const _: () = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// §RepX  PHYSICS-ENGINE CONSTANTS (task-133)
+//
+// Values used by the executable physics engine in `repx.rs`.
+// Each constant carries a source comment naming its derivation,
+// an OT-ID, or its calibration anchor. Symbol Map entries are
+// the canonical names referenced by `repx.rs`; bare numeric
+// literals matching these values are forbidden inside `repx.rs`.
+// ══════════════════════════════════════════════════════════════
+
+// ── Pure-integer Symbol Map additions ──────────────────────
+
+/// 36 = (P13 − P7)² = (13 − 7)² = 6². Used in TM-2026-017 §20.16
+/// fine-structure α⁻¹ closed form. Canonical form is `(P13 − P7)²`
+/// only — earlier `(R₃ − R₁)² − 1` (143) and `(P11 − P5)²` forms
+/// are WITHDRAWN per QC-R1 R1-A3-2.
+pub const T_36: u32 = ((P13 - P7) as u32).pow(2);
+const _: () = assert!(T_36 == 36);
+
+/// α⁻¹ stepping-stone integer 137,036 = 1000 · α⁻¹.
+/// `α⁻¹ = (P11² + REPUNIT_2²) + (P13 − P7)² / (LCM_PRIMARY − 1)`
+///       = 137 + 36/1000 = 137.036  (TM-2026-017 §20.16)
+pub const ALPHA_INV_INT: u32 =
+    (P11 * P11 + REPUNIT_2 * REPUNIT_2) * (LCM_PRIMARY - REPUNIT_1) + T_36;
+const _: () = assert!(ALPHA_INV_INT == 137_036);
+
+/// Rydberg-derived numerator used by the OT-1c residual EP κ_ep
+/// derivation (TM-2026-017 §20.16 κ Rydberg prediction).
+/// `κ_ep = 1 + RYDBERG_NUM_TM017 / ALPHA_INV_INT²`.
+///
+/// Closed form per Symbol Map row 26147:
+/// `ROOT_X2 * (LCM_PRIMARY − REPUNIT_1) + TERNARY_BASE * P7 * P7`
+///   = 26 · 1000 + 3 · 49 = 26 147.
+///
+/// With this value: κ_ep − 1 ≈ 26 147 / 137 036² ≈ 1.392×10⁻⁶,
+/// and the OT-1c residual EP `Δa/a = α²·(κ_ep − 1) ≈ 7.41×10⁻¹¹`.
+pub const RYDBERG_NUM_TM017: u32 =
+    ROOT_X2 * (LCM_PRIMARY - REPUNIT_1) + TERNARY_BASE * P7 * P7;
+const _: () = assert!(RYDBERG_NUM_TM017 == 26_147);
+
+/// F8 fine-structure bridge coefficient numerator: `κ_bridge = 91.127/91`
+/// (TM-2026-017 §18). DISTINCT from `kappa_ep()` used in OT-1c residual EP.
+pub const KAPPA_BRIDGE_NUM: u32 = 91_127;
+/// F8 fine-structure bridge coefficient denominator: `91.000`.
+pub const KAPPA_BRIDGE_DEN: u32 = 91_000;
+
+/// Brieskorn singularity Milnor number (referenced by the algebraic
+/// surfaces underlying the (p, q, r) coprime triple).
+pub const MILNOR_NUMBER: u32 = 720;
+
+// ── OT-1c residual EP function ─────────────────────────────
+
+/// κ_ep = 1 + RYDBERG_NUM_TM017 / ALPHA_INV_INT² — closed-form,
+/// not a bare constant, because the derivation IS the closure (OT-1c).
+/// MUST NOT be conflated with the F8 bridge `KAPPA_BRIDGE_NUM/DEN`.
+#[inline]
+pub fn kappa_ep() -> f64 {
+    1.0 + (RYDBERG_NUM_TM017 as f64) / ((ALPHA_INV_INT as f64).powi(2))
+}
+
+// ── SI calibration anchors (f64) for the 39-register grid ──
+
+/// Horn-radius density boundary RHO_0 = 1.15×10⁻² kg/m³, derived
+/// from the OT-1g horn fixed-point boundary `f(1) = 1`. Replaces
+/// the prior solar-wind matter-density calibration.
+pub const RHO_0: f64 = 1.15e-2; // kg/m³ — SI-ANCHOR: FRAMEWORK-DERIVED (OT-1g)
+
+/// Γ₀ ≡ GM_⊙ — SI calibration anchor for the Gaia #2 volumetric
+/// downpull register. NOT a derivation; an SI bridge.
+pub const GAMMA_0: f64 = 1.327_124_400_18e20; // m³/s² — SI-ANCHOR: IAU-2015
+
+/// Γ₀,G ≡ GM_⊕ — SI calibration anchor for Earth-as-Gaia (Luna-Gaia
+/// nested-fulcrum worked example). NOT a derivation; an SI bridge.
+pub const GAMMA_0_G: f64 = 3.986_004_418e14; // m³/s² — SI-ANCHOR: IAU-2015
+
+/// Speed of light c² ≡ π_fw under OT-1a horn fixed-point boundary;
+/// SI bridge for the Moon #7 acoustic-impedance register.
+pub const C_LIGHT: f64 = 2.997_924_58e8; // m/s — SI-ANCHOR: CODATA-2018 (exact)
+
+// ══════════════════════════════════════════════════════════════
 // TESTS
 // ══════════════════════════════════════════════════════════════
 

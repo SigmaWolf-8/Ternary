@@ -1,0 +1,19 @@
+[package]
+name = "repx-ffi"
+version = "0.1.0"
+edition = "2021"
+description = "RepX C ABI surface — extern \"C\" wrappers around the Engine façade"
+license = "LicenseRef-Proprietary"
+
+[lib]
+name = "repx_ffi"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ternary-math = { path = "../ternary-math" }
+
+# NOTE (task-133 follow-up): the spec requires panic = "abort" on this
+# crate's [profile.release] AND [profile.dev]. Cargo only honours profile
+# overrides at the workspace root; workspace already has release=abort.
+# Adding dev=abort affects every member crate and is a workspace-level
+# decision deferred to a separate task.

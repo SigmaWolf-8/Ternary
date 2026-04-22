@@ -12,7 +12,7 @@
 // before any handler runs. Called directly as a crate function.
 
 use serde_json::Value;
-use ternary_math::gf3_algebra;
+use ternary_math::repx as gf3_algebra;
 use ternary_math::trit_int::TritInt;
 
 // ═══════════════════════════════════════════════════════════════════════

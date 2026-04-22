@@ -1,0 +1,13 @@
+[package]
+name = "repx-cli"
+version = "0.1.0"
+edition = "2021"
+description = "RepX command-line entry point — describe / read / find / convert"
+license = "LicenseRef-Proprietary"
+
+[[bin]]
+name = "repx"
+path = "src/main.rs"
+
+[dependencies]
+ternary-math = { path = "../ternary-math" }

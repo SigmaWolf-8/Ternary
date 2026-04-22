@@ -17,6 +17,9 @@ members = [
     "ninja-exec",
     "yoda-cli",
     "yoda-widget",
+    "repx-cli",
+    "repx-ffi",
+    "xtask",
 ]
 exclude = [
     "libternary",

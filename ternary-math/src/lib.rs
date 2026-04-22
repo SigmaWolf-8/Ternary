@@ -32,7 +32,11 @@ pub mod trit;
 pub mod tri182;
 pub mod ags;
 pub mod gf3;
-pub mod gf3_algebra;
+pub mod repx;
+/// Deprecated alias for `repx`. Was previously named `gf3_algebra`.
+/// Use the `repx` module directly for new code.
+#[deprecated(since = "0.2.0", note = "use `repx`")]
+pub use crate::repx as gf3_algebra;
 pub mod clifford;
 pub mod radix;
 pub mod torus;

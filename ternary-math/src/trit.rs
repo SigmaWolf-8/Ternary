@@ -35,7 +35,7 @@
 //! - Triangles, meshes, manifolds — built on Trit
 
 use crate::trit_int::{TritInt, Overflow};
-use crate::gf3_algebra::{AlgebraicTrit, gf3_add, gf3_sub, gf3_mul, gf3_square};
+use crate::repx::{AlgebraicTrit, gf3_add, gf3_sub, gf3_mul, gf3_square};
 use crate::constants;
 use zeroize::Zeroize;
 use std::fmt;

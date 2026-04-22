@@ -29,7 +29,7 @@ mod relay_integration {
     use ternary_math::sponge::hash_hex;
     use ternary_math::trit_int::TritInt;
     use ternary_math::coprime;
-    use ternary_math::gf3_algebra;
+    use ternary_math::repx as gf3_algebra;
 
     // ═══════════════════════════════════════════════════════════
     // ERROR CODES

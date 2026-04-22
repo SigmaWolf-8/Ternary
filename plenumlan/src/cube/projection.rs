@@ -13,7 +13,7 @@
 //! determines one cube dimension via `project_to_gf3(k, DIMS_PER_GROUP)`
 //! with polarity-adjusted dimensions.
 
-use ternary_math::gf3_algebra::project_to_gf3;
+use ternary_math::repx::project_to_gf3;
 
 use super::constants::{CLASSIFICATION_DIMS, CUBE_DIMS, DIMS_PER_GROUP};
 

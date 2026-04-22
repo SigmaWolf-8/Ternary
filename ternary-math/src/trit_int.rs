@@ -57,7 +57,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem::ManuallyDrop;
 use std::ops::{Add, Sub, Mul, Div, Rem, AddAssign, SubAssign, MulAssign};
-use crate::gf3_algebra::AlgebraicTrit;
+use crate::repx::AlgebraicTrit;
 use zeroize::Zeroize;
 
 // ══════════════════════════════════════════════════════════════
@@ -2368,7 +2368,7 @@ mod tests {
 
     #[test]
     fn repr_d_values() {
-        use crate::gf3_algebra::AlgebraicTrit::*;
+        use crate::repx::AlgebraicTrit::*;
         // 14 = 112₃ → Rep D MSB-first: [One, One, Omega]
         let repr = TritInt::from_u64(14).to_repr_d();
         assert_eq!(repr, vec![One, One, Omega]);

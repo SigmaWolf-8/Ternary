@@ -1,0 +1,10 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+description = "Workspace task runner — `cargo xtask repx-zero-error` orchestrates G1–G14"
+license = "LicenseRef-Proprietary"
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
