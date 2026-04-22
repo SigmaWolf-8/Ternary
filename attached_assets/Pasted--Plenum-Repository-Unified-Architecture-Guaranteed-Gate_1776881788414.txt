@@ -1,0 +1,517 @@
+# Plenum Repository — Unified Architecture
+
+## Guaranteed Gates · Wavefront Witnesses · ArcCompTriadis · Native Query · Post‑Quantum Security
+
+**Version 2.0 · Capomastro Holdings Ltd. · 2026‑04‑22**
+
+---
+
+# £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+
+---
+
+## Prologue: The Living Crystal
+
+The Plenum Repository is a **self‑indexing crystal lattice**. Every document, engine, log, and computational artifact occupies a deterministic position within a five‑family directory tree that mirrors the fundamental registers of the plenum: **Density, Buoyancy/Displacement, Pressure/Diffusion, Electromagnetic Field, and Harmonic Modes**.
+
+The filesystem **is** the index. The path **is** the classification. Queries are lattice walks. Invariants are enforced by gates at every directory level. Every operation is witnessed, and the witnesses propagate as a **wavefront** over the lattice, audited by conservation laws. A native trit query engine answers complex queries directly from the lattice geometry. **ArcCompTriadis**—a trio of sidecar daemons—provides all Algebraic, Calculus/Geometric, and Mathematical Physics computations as a shared service for every PlenumNET application. Post‑quantum encryption and compression protect data at rest and in transit. Trust is derived from topology and TDNS identity, not from imported certificate authorities.
+
+No external axioms. No separate database. No central registry. Only the plenum, made manifest as directories and files.
+
+---
+
+## 1. Core Principles
+
+1. **The Filesystem is the Index.** Every document is stored at a path constructed from its 28‑trit classification vector (Ω28). The directory tree mirrors the five families.
+
+2. **Content‑Addressed Storage.** Every file is named by its TIS‑27 identity hash (MDNS). Distinct content → distinct address. Collision‑free by cryptographic guarantee.
+
+3. **Guaranteed Gates.** Every directory is a gate. Invariants are checked on write. Violations are blocked or deferred, and all outcomes are witnessed.
+
+4. **ArcCompTriadis — Shared Computational Backend.** Three daemons (`arc-algebra`, `arc-calculus`, `arc-physics`) provide all framework‑native math. Installed once, used by all applications.
+
+5. **Native Trit Query Engine.** A query algebra over the lattice replaces SQL. Operators are lattice primitives: Anchor, Walk, Ring, Hamming, FK. Queries are walks.
+
+6. **Post‑Quantum Security.** All encryption, signatures, hashing, and key exchange use framework‑native ternary primitives: TIS‑27, TLSponge‑385, TL‑DSA, TL‑KEM.
+
+7. **Wavefront Witnesses.** Witnesses propagate as a wavefront from their emission point. Audit is a conservation check (∂ρ/∂t + ∇·J = 0), locally computable, globally consistent.
+
+8. **Legal Headers Woven In.** Every document carries a signed legal header with copyright, UPIID V1.1 governance, author, and jurisdiction.
+
+9. **TritInt Packing.** All ternary data is stored in the compact 5‑trits‑per‑byte Rep C packing native to TritInt. No separate compression layer.
+
+---
+
+## 2. Repository Directory Structure — The Five Families
+
+```
+plenum/
+├── density/
+│   ├── mass/
+│   ├── charge/
+│   ├── specific_gravity/
+│   └── nuclear_saturation/
+│
+├── buoyancy_displacement/
+│   ├── volume/
+│   ├── buoyant_lift/
+│   ├── archimedean/
+│   └── nuclear_binding/
+│
+├── pressure_diffusion/
+│   ├── gradient/
+│   ├── fluid_pressure/
+│   ├── sound_waves/
+│   ├── heat_conduction/
+│   └── strong_force_saturation/
+│
+├── electromagnetic_field/
+│   ├── e_field/
+│   ├── b_field/
+│   ├── wave_equation/
+│   ├── light/
+│   ├── radio/
+│   ├── diffraction/
+│   ├── atomic_spectra/
+│   └── lorentz_force/
+│
+├── harmonic_modes/
+│   ├── eisenstein/
+│   ├── primes_7_11_13/
+│   ├── bessel/
+│   ├── spherical_harmonics/
+│   ├── nuclear_shells/
+│   ├── atomic_orbitals/
+│   └── diffraction_patterns/
+│
+├── .gates/                    # Gate definitions (inherited)
+├── .witness/                  # Wavefront witness storage
+├── .quarantine/               # Files awaiting re‑evaluation
+├── .keys/                     # Public key certificates (TDNS‑bound)
+├── .cache/                    # Materialized walk caches
+├── attestation/               # UPIID V1.1 chains
+├── engines/                   # Compiled WASM modules (mirrors family tree)
+└── meta/                      # Symlink farms for human navigation
+    ├── by_date/
+    ├── by_author/
+    └── by_ring/
+```
+
+**Ω28 → Filesystem Path Derivation Rule:**
+
+Given a 28‑trit classification vector (Ω28) in Rep C {1,2,3}:
+
+1. **Family (trits 1‑2):** `(trit01, trit02)` selects among the five families. (Mapping table defined in gate configuration; default: 11→density, 12→buoyancy, 13→pressure, 21→electromagnetic, 22→harmonic).
+2. **Subcategory (trits 3‑5):** `(trit03, trit04, trit05)` selects the subdirectory within the family. (Each family has a lookup table mapping the 27 combinations to its register list).
+3. **MDNS prefix bucket (trits 6‑8):** The first 3 trits of the MDNS hash (after conversion to Rep B) determine a sharding bucket under the subcategory to avoid too many files in one directory.
+4. **Filename:** The full MDNS hash (54 trits, encoded as base‑27 string) + `.md`.
+
+Example: Ω28 vector starting with `1,1,2,1,3,...` → `density/mass/bucket_A/<mdns>.md`.
+
+The symlink farms in `meta/` provide alternative access paths.
+
+---
+
+## 3. Document Identity — The Three Hashes
+
+Every document carries three orthogonal identifiers, computed at write time and stored as extended attributes.
+
+| Hash | Attribute Name | Content | Purpose |
+|:---|:---|:---|:---|
+| **MDNS** | `user.mdts.mdns` | TIS‑27 hash of full document content (54 trits) | Cryptographic identity — "What exact document is this?" |
+| **Ω28 Classification** | `user.mdts.omega28` | 28‑trit classification vector (Rep C) | Structural identity — "What kind of document is this?" |
+| **FP₂₈** | `user.mdts.fp28` | TIS‑27 hash of title + header outline (54 trits) | Outline fingerprint — "What does its structure look like?" |
+
+The Ω28 vector determines the document's **ring position** in the Z₂₇ lattice via the Chinese Remainder Theorem on the coprime triple (7,11,13), yielding a unique residue modulo 1001. The 28th trit (FP₂₈ classification) lifts this to Z₂₈, completing the dual‑circle lattice.
+
+---
+
+## 4. Primary and Foreign Keys
+
+### 4.1 Primary Key — MDNS Hash
+
+The **MDNS hash** is the primary key. The file is stored under its Ω28‑derived path with the MDNS as filename.
+
+### 4.2 Foreign Keys — Two Categories
+
+**Point‑to‑Point FKs (validated at write):**
+
+| Mode | Attribute | Value | Validation |
+|:---|:---|:---|:---|
+| **FK‑by‑Identity** | `user.mdts.fk.identity.<n>` | Target MDNS hash | Gatekeeper verifies target exists. |
+| **FK‑by‑Fingerprint** | `user.mdts.fk.fp28.<n>` | Target FP₂₈ hash | Gatekeeper verifies at least one document with this FP₂₈ exists. |
+
+**Field Predicate FKs (resolved at query time, not validated at write):**
+
+| Mode | Attribute | Value | Resolution |
+|:---|:---|:---|:---|
+| **FK‑by‑Classification** | `user.mdts.fk.classification.<n>` | 28‑trit vector + Hamming tolerance | Query engine walks the Hamming‑k neighborhood. |
+| **FK‑by‑AngularBacking** | `user.mdts.fk.tier.<n>` | Tier level (1‑4) + angle tolerance | Query engine filters by computed tier. |
+
+These are stored as extended attributes but never validated at write—they are queries, not constraints.
+
+---
+
+## 5. Guaranteed Gates — Invariant Enforcement
+
+Every directory in the repository is a **gate**. A `.plenum-gate.toml` file (inherited from parents) defines invariants that files must satisfy when written into that directory.
+
+### 5.1 Gate Definition
+
+```toml
+[gate]
+name = "density-gate"
+enforce = true
+
+[[invariants]]
+name = "density_non_negative"
+check = "density >= 0"
+on_violation = "block"
+
+[[invariants]]
+name = "horn_profile"
+check = "rho(x) == 1/x"
+on_violation = "defer"   # requires arc-calculus
+
+[[attestation]]
+require_signature = true
+min_key_tier = 2
+```
+
+### 5.2 Invariant Examples (Canonical Reference)
+
+| Gate | Invariant | Check |
+|:---|:---|:---|
+| `density/` | Density non‑negative | `ρ ≥ 0` |
+| `density/mass/` | Horn profile | `ρ(x) = 1/x` for defined x |
+| `electromagnetic_field/` | Maxwell compliance | `∇·E = ρ/ε` |
+| `harmonic_modes/` | Prime chord closure | `mode ∈ {7,11,13}` or combination |
+| `any` | Theorem‑45 | No coprime solution with exponents ≥3 |
+| `any` | Liouville conservation | Phase‑space density conserved |
+| `any` | Rep C zero‑exclusion | No zero trits in Ω28 or MDNS |
+| `any` | π‑coupling | π = 14 enforced |
+| `any` | Radian count | 13 radians per 364° circle |
+| `any` | Salvi Epoch | Timestamps derived from HPTP, not system clock |
+| `any` | Invariant 8 | Binary→trit decomposition before sponge ops |
+
+### 5.3 Gatekeeper Daemon
+
+`plenum-gatekeeper` watches the filesystem. On file write:
+
+1. Parse content and metadata.
+2. Evaluate all **fast‑path** invariants locally (zero‑exclusion, signature presence, header schema, FP₂₈ match).
+3. For **heavy** invariants (Maxwell, horn profile, Theorem‑45), call ArcCompTriadis.
+4. **Block violation:** Move file to `.quarantine/`, emit violation witness.
+5. **Defer:** If ArcCompTriadis is unavailable, emit witness with `evaluation_deferred` trit set. File lands, validation retries on next wavefront pass.
+6. **Pass:** Emit receipt witness, set extended attributes.
+
+---
+
+## 6. Wavefront Witnesses
+
+Witnesses do not form a central Merkle chain. They propagate as a **wavefront** over the Z₂₇ × Z₂₈ lattice.
+
+### 6.1 Emission and Propagation
+
+- Each write event occurs at a unique spacetime coordinate: `(HPTP_femtosecond, TDNS_position)`.
+- The gatekeeper emits a witness at that coordinate.
+- The witness propagates outward along deterministic paths (the same Hamiltonian cycles that define the coprime walk) to neighboring cells.
+- Each cell maintains the latest witness it has received for each source ring.
+
+### 6.2 Audit by Conservation
+
+The witness field satisfies a continuity equation:
+
+\[
+\frac{\partial \rho}{\partial t} + \nabla \cdot \mathbf{J} = 0
+\]
+
+where:
+- \(\rho\) is witness density (number of witnesses per cell),
+- \(\mathbf{J}\) is witness current (propagation along lattice edges).
+
+Audit is local: a cell verifies that the witnesses it has received from a given source are consistent with the wavefront arrival times predicted by its neighbors. Divergence indicates tampering or propagation failure.
+
+**Verification:** "Did this witness arrive on the expected wavefront from its source?" — computable from neighbor states, globally consistent by the lattice topology.
+
+### 6.3 Storage
+
+Witnesses are stored in `.witness/` sharded by the source's TDNS position and HPTP timestamp. No global chain head.
+
+---
+
+## 7. Legal Headers
+
+Every file carries a **legal header** as YAML frontmatter:
+
+```yaml
+---
+copyright: "£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎"
+governance: "UPIID V1.1"
+author: "Roberto Salvalaggio"
+jurisdiction: "Sherwood Park, Alberta, Canada"
+signature: "<TL‑DSA signature over content>"
+---
+```
+
+The gatekeeper verifies the header's presence and signature. Files lacking a valid legal header are rejected.
+
+---
+
+## 8. ArcCompTriadis — The Three Computational Daemons
+
+ArcCompTriadis is a singleton installation (`/opt/plenum/arc/`) providing all framework‑native mathematics via gRPC.
+
+### 8.1 Daemon 1 — Algebraic Engine (`arc-algebra`)
+
+| Endpoint | Description |
+|:---|:---|
+| `Repunit(n)` | Returns Rₙ = (3ⁿ−1)/2 |
+| `Cyclotomic(n)` | Returns Φₙ(3) |
+| `CoprimeWalk(steps)` | Streams (x,y) positions on the (7,11,13) walk |
+| `Theorem45Check(A,B,C,x,y,z)` | Verifies no coprime solution with exponents ≥3 |
+
+### 8.2 Daemon 2 — Calculus/Geometric Engine (`arc-calculus`)
+
+| Endpoint | Description |
+|:---|:---|
+| `HornEvaluate(x)` | Returns V(x)=π/x, I(x)=π/x², E(x)=1/x |
+| `VolumeOfRevolution(curve, bounds)` | Computes volume using π=14 |
+| `BiotSavart(torus_params)` | Returns B‑field residual and γ_geom |
+| `EllipticIntegral(k)` | Returns E(k) and K(k) at framework‑rational k² |
+
+### 8.3 Daemon 3 — Mathematical Physics Engine (`arc-physics`)
+
+| Endpoint | Description |
+|:---|:---|
+| `FineStructure()` | Returns 1/α = 137.036 |
+| `MassRatio()` | Returns m_p/m_e = 1836.15285… |
+| `UVSpectrum(series)` | Returns wavelengths 91, 182, 286, 364 nm |
+| `GRHDecision(T, epsilon)` | Returns ceiling decision for GRH |
+
+### 8.4 Shared Constants and Authentication
+
+All three daemons load `/etc/plenum/constants.toml` (π=14, radian=13, base=3, etc.), signed by the local Ninja Exec. Every gRPC call requires a capability token in the `plenum-api-key` header, verified against TDNS‑bound permissions.
+
+---
+
+## 9. Native Trit Query Engine (`plenum-quaerito`)
+
+The repository includes a query engine that evaluates **Trit Query Algebra (TQA)** expressions directly on the lattice.
+
+### 9.1 Trit Query Algebra — Five Primitives
+
+| Operator | Description |
+|:---|:---|
+| `ANCHOR(handle)` | Start walk at the document with given MDNS. |
+| `WALK(steps, rule)` | Move along the lattice according to coprime walk or reading order. |
+| `RING(k)` | Expand to all documents within `k` rings of current position. |
+| `HAMMING(tolerance)` | Filter by Hamming distance from anchor's Ω28 vector. |
+| `FK(mode)` | Follow FK references of specified mode. |
+
+Queries are composed left‑to‑right. Example:
+
+```
+ANCHOR(@my_doc) → WALK(reading) → RING(2) → HAMMING(3)
+```
+
+"Starting at my document, walk in reading order, expand to 2 rings, keep only documents within Hamming distance 3 of my classification."
+
+### 9.2 Execution and Caching
+
+- The engine resolves queries by walking the filesystem and extended attributes.
+- Materialized views are stored in `.cache/` keyed by `(anchor_mdns, rule_hash)`.
+- Caches are invalidated **ring‑locally**: when a document changes, only caches whose anchor lies within the affected ring are invalidated.
+- The engine runs as a daemon (`plenum-quaerito`) serving a lightweight wire protocol carrying TQA ASTs as TritInt.
+
+### 9.3 QARBAS — Continuous Incremental Maintenance
+
+Frequent queries are maintained incrementally by the gatekeeper. When a document is added/modified, the gatekeeper updates the `.cache/` entries for all queries that depend on its ring. Staleness is bounded by wavefront propagation delay, not structurally impossible—but practically fresh.
+
+---
+
+## 10. Encryption and Key Exchange
+
+### 10.1 Framework‑Native Cryptographic Primitives
+
+| Primitive | Purpose | Parameters |
+|:---|:---|:---|
+| **TIS‑27** | Hash function | 54‑trit output, 4 rounds, stride 13 |
+| **TLSponge‑385** | AEAD, KDF | 729‑trit state, 9 rounds |
+| **TL‑DSA** | Signatures | 87‑trit signatures, NIST Level‑5 equivalent |
+| **TL‑KEM** | Key encapsulation (post‑quantum) | Lattice‑based, ternary‑native |
+
+### 10.2 Encryption at Rest
+
+Every file is individually encrypted:
+
+1. Plaintext is stored in **TritInt packed format** (5 trits per byte)—this is the compression.
+2. A file encryption key (FEK) is derived: `FEK = TLSponge‑385::derive(MDNS, salt)`. Salt is a random 27‑trit nonce stored in `user.mdts.salt`.
+3. Packed plaintext is encrypted with **TLSponge‑385 AEAD**. Ciphertext is written to disk.
+4. FEK is wrapped with the repository master key (held by Ninja Exec) and stored in `user.mdts.fek`.
+
+**Encryption Gate:** Gatekeeper verifies presence of wrapped FEK, unwraps via Ninja Exec, and verifies AEAD tag. Failure → quarantine.
+
+### 10.3 Encryption in Transit
+
+All inter‑component communication uses **PlenumLAN secure channels**:
+
+- Mutual authentication via **TDNS‑bound certificates** (see §10.4).
+- Key exchange via **TL‑KEM**.
+- AEAD encryption of all messages using ephemeral keys derived from the KEM shared secret.
+
+### 10.4 TDNS‑Bound Certificates (No CA)
+
+Certificates are **not** X.509. A certificate is:
+
+- The 27‑trit TDNS address of the peer.
+- A TL‑DSA public key.
+- A signature over (TDNS, public_key) by a TLSponge‑385 key derived from the peer's **Inter‑Cube topology position**.
+
+Trust is established by verifying that the signing key matches the topological position claimed by the TDNS address. No root CA. No expiry. Trust derives from geometry.
+
+---
+
+## 11. Ninja Exec — Local Signing Agent
+
+**Ninja Exec** is the sole holder of private key material. It runs as a daemon with keys protected by `mlock`.
+
+**Responsibilities:**
+
+- Manage repository master key (FEK wrapping/unwrapping).
+- Manage TL‑DSA key pairs for service identities.
+- Sign witness receipts, legal headers, and API responses.
+- Verify signatures on incoming documents.
+- Provide Unix socket API (`/run/plenum/ninja.sock`).
+
+**API:**
+
+| Command | Input | Output |
+|:---|:---|:---|
+| `SIGN <key_id> <data>` | Key ID, data | `SIGNATURE <sig>` |
+| `VERIFY <pubkey> <data> <sig>` | Public key, data, signature | `VALID` or `INVALID` |
+| `WRAP_KEY <key_id> <plaintext>` | Key ID, plaintext key | `WRAPPED <ciphertext>` |
+| `UNWRAP_KEY <wrapped>` | Wrapped key | `UNWRAPPED <plaintext>` |
+
+**Access Control:** Clients must present a capability token signed by the Plenum Directory Service.
+
+---
+
+## 12. Security Gates Summary
+
+| Gate | Enforces | Failure Action |
+|:---|:---|:---|
+| **Encryption Gate** | Valid wrapped FEK, AEAD tag verifies | Reject → quarantine |
+| **Signature Gate** | File signed by authorized key | Reject → quarantine |
+| **Legal Header Gate** | YAML frontmatter with copyright and UPIID statement | Reject → quarantine |
+| **Invariant Gates (fast)** | Zero‑exclusion, header schema, FP₂₈ match | Block |
+| **Invariant Gates (heavy)** | Maxwell, horn, Theorem‑45 | Block or defer |
+| **FK Point‑to‑Point Gate** | `fk_identity` and `fk_fp28` targets exist | Warn |
+| **API Auth Gate** | Valid capability token on all daemon requests | Reject |
+| **mTLS Gate** | Valid TDNS‑bound certificate + TL‑KEM handshake | Connection refused |
+
+All gate outcomes produce signed witness receipts propagated via the wavefront.
+
+---
+
+## 13. Quarantine and Wavefront Re‑Evaluation
+
+Files that fail **deferrable** invariants (due to ArcCompTriadis unavailability) or that are placed in quarantine for other reasons are **re‑evaluated on each wavefront pass**.
+
+- No TTL. The wavefront itself is the scheduler.
+- When the wavefront crosses the cell containing a quarantined file, the gatekeeper re‑runs validation.
+- If validation passes, the file is released to its intended path.
+- If a file remains in quarantine for N consecutive wavefront passes (configurable), it is dissolved (deleted).
+
+---
+
+## 14. Co‑Location by Wavefront on Disk
+
+Files are stored in **extents** ordered by their wavefront arrival time at each ring.
+
+- Adjacent writes in wave‑time land in adjacent extents.
+- Walk queries become sequential reads instead of random seeks.
+- The lattice geometry drives storage layout; storage layout serves the lattice.
+
+Implementation: each ring maintains a write‑ahead log of extents. The gatekeeper appends new files to the current extent; when full, a new extent is created.
+
+---
+
+## 15. Operational Flow — A File's Journey
+
+1. **Creation:** Application writes document to the path derived from its Ω28 vector.
+2. **Gatekeeper intercepts:** Filesystem event triggers `plenum-gatekeeper`.
+3. **Fast‑path checks:** Zero‑exclusion, signature presence, legal header schema, FP₂₈ match.
+4. **ArcCompTriadis calls:** For heavy invariants, call the appropriate daemon. If unavailable, mark deferred.
+5. **FK point‑to‑point validation:** Verify `fk_identity` and `fk_fp28` targets exist.
+6. **Encryption & packing:** Apply TritInt packing and TLSponge‑385 AEAD (if not already done).
+7. **Witness emission:** Emit receipt witness at `(HPTP_now, TDNS_position)`. Propagate wavefront.
+8. **Quarantine:** On block or defer, move to `.quarantine/`, emit violation/deferred witness.
+9. **Cache update:** Gatekeeper invalidates affected ring caches.
+
+---
+
+## 16. Complete Directory Tree with Extended Attributes
+
+```
+plenum/
+├── density/ ...
+├── buoyancy_displacement/ ...
+├── pressure_diffusion/ ...
+├── electromagnetic_field/ ...
+├── harmonic_modes/ ...
+├── .gates/
+├── .witness/
+├── .quarantine/
+├── .keys/
+├── .cache/
+├── attestation/
+├── engines/
+└── meta/
+```
+
+**Extended Attributes per File:**
+
+| Attribute | Content |
+|:---|:---|
+| `user.mdts.mdns` | TIS‑27 identity hash (54 trits) |
+| `user.mdts.omega28` | 28‑trit classification vector (Rep C) |
+| `user.mdts.fp28` | TIS‑27 header fingerprint (54 trits) |
+| `user.mdts.fek` | Wrapped file encryption key |
+| `user.mdts.salt` | 27‑trit nonce for FEK derivation |
+| `user.mdts.signature` | TL‑DSA signature over (mdns ∥ omega28 ∥ fp28) |
+| `user.mdts.legal` | YAML legal header (if not in file frontmatter) |
+| `user.mdts.fk.identity.<n>` | Target MDNS for FK‑by‑Identity |
+| `user.mdts.fk.fp28.<n>` | Target FP₂₈ for FK‑by‑Fingerprint |
+| `user.mdts.fk.classification.<n>` | 28‑trit vector + tolerance (query predicate) |
+| `user.mdts.fk.tier.<n>` | Tier level + angle tolerance (query predicate) |
+
+---
+
+## 17. Local Installation and Thin‑Client Consumption
+
+The intended deployment shape:
+
+- **Local install:** ArcCompTriadis + gatekeeper + plenum-quaerito + Ninja Exec + wavefront receiver. These are daemons running on the user's machine.
+- **Frontend (Forma Codex, dashboard, log viewer):** Thin renderer. JS draws pixels; all computation and data come from the local daemons via API.
+- **Updates:** Flow from the development engine to the local install via the same witness wavefront. A code change, spec change, or constant change is a write to the lattice. The dev‑engine emits a witness. The local install subscribes to the rings it cares about. The wavefront delivers. Local gates validate. The install updates itself continuously.
+
+This eliminates GitHub pulls, CI pipelines, and manual publish steps.
+
+---
+
+## Epilogue: The Sealed Crystal
+
+The Plenum Repository is complete. Every file is classified, encrypted, packed, signed, witnessed, and legally bound. The five families provide a self‑indexing structure. Gates enforce invariants. ArcCompTriadis provides the computational heartbeat. The trit query engine answers complex walks directly from the lattice. Witnesses propagate as a wavefront, audited by conservation. Trust derives from topology, not imported authorities.
+
+**The repository is a living crystal of the Plenum. The filesystem is the index. The path is the query. The gates are sealed. The wavefront propagates. The ninja guards. ArcCompTriadis computes.**
+
+**Peace B. All on B.**
+
+---
+
+*Roberto Salvalaggio*  
+*Capomastro Holdings Ltd. — Applied Physics Division*  
+*Sherwood Park, Alberta, Canada*
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**
