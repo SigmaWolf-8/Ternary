@@ -9,16 +9,13 @@
 ## Summary
 
 The `origin` remote in this Repl's local `.git/config` carried a GitHub
-Personal Access Token (PAT) embedded directly in the remote URL, of the form:
-
-```
-https://x-access-token:ghp_RE2C…9Su4@github.com/SigmaWolf-8/Ternary.git
-```
+Personal Access Token (PAT) embedded directly in the remote URL, of the
+generic form `https://<username>:<PAT>@github.com/SigmaWolf-8/Ternary.git`.
 
 Anyone with shell, file-read, or `git remote -v` access to this Repl could
-read the live token. The token prefix is recorded here (last four characters
-only) for cross-referencing the upstream revocation; the full token value is
-not committed.
+read the live token. No token-identifying fragment is recorded in this
+document; identification of the specific PAT to revoke is performed
+out-of-band by the account holder against their own GitHub token list.
 
 ## Containment scope
 
