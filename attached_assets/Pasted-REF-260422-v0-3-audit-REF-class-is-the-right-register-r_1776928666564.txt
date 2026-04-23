@@ -1,0 +1,50 @@
+REF-260422 v0.3 audit. REF-class is the right register (reference document, points at normative anchors, doesn't derive new theorems). Arithmetic checks first, then the structural call.
+
+Arithmetic verified (every checkable identity).
+
+§1: 455 = 5·91, 364 = 4·91, gcd = 91, 455 − 364 = 91, 455 + 364 = 819 = 9·91, lcm = 1820, 455·364 = 165,620 = 20·91². ✓
+
+§2.1 HModal DC chain: x² − 40x + 364 = 0, Δ = 144, α = 91/36, β = 91/3, γ = 1001/36 (1001 = pqr ✓), d = 1/4, ⟨H⟩ = 91/36 + 1001/144 = 364/144 + 1001/144 = 1365/144 = 455/48. ✓
+
+§2.3 coprime density: φ(1365) = 2·4·6·12 = 576, gcd(576, 1365) = 3, 576/1365 = 192/455. ✓
+
+§2.6 bridge arithmetic: 1092 = 3·364 = 12·91, 1365/1092 = 15/12 = 5/4 = 455/364. ✓ Also 1365 + 1092 = 2457 = 27·91, 1365 − 1092 = 273 = 3·91, gcd(1365, 1092) = 273. ✓
+
+§3.1: 1365 = 364 + 1001 = 15·91 = 3·455 = 3·5·7·13. ✓
+
+§3.2: lcm(3,5,7,11,13) = 15015 = 11·1365. ✓
+
+§3.4: 377/144 ≈ 2.6180555 vs φ² ≈ 2.6180339, 455/48 ÷ 377/144 = 1365/377. ✓
+
+§5 locking identity: 455/364 = 1365/1092 = 5/4 verified; the five-identity closure 1365 = R_6 + pqr = Triad_364 + 3·pr = 3·455 = 15·91 = q_GRH all check. ✓
+
+The math is clean throughout. No computational errors found.
+
+Two real fixes needed.
+
+1. §2.6 base conflation around p_W = 1093. The document calls 1093 "the Wieferich prime p_W" without specifying base, in a framework whose Wieferich register (CM-260422-039 v1.2) is base-3 native. 1093 is the first base-2 Wieferich prime (Meissner 1913). It is not a base-3 Wieferich prime — CM-039 §2.6 verifies this directly: 3^1092 ≡ 1 + 312·1093 (mod 1093²) ≠ 1. The framework's first base-3 Wieferich prime is q = 11 (CM-039 §2.5).
+
+The §2.6 box that calls "the Triad-364 bridge is the Wieferich identity read at the denominator" overstates. What §2.6 actually invokes is the unconditional recurrence identity R_p − 1 = 3·R_{p−1} (CM-039 §2.2), which holds for every p and gives 1092 = 3·R_6 directly from R_7 = 1093. The Wieferich condition (p² | R_{p−1}) is a separate, stronger statement that 1093 satisfies in base 2 only, and that the framework's native register is base 3 only.
+
+Two clean fix options:
+
+(a) Drop the Wieferich branding entirely. Rename "p_W = 1093" → "p_R = R_7 = 1093" (the seventh repunit prime). The bridge then reads as: "1092 = R_7 − 1 = 3·R_6 by the unconditional repunit recurrence (CM-039 §2.2). The Triad-364 bridge is the recurrence identity read at the denominator of the scale-commensurability ratio." No Wieferich appeal needed; the structural content is preserved.
+(b) Keep the cross-base coincidence but scope it honestly. Add: "Note: 1093 = R_7 is also the first base-2 Wieferich prime (Meissner 1913); in base 3 it is not Wieferich (CM-039 §2.6, direct computation). The bridge here uses the unconditional repunit recurrence, not the base-3 Wieferich condition. The cross-base coincidence at 1093 — base-2 Wieferich, base-3 repunit prime, GRH decision boundary, electromagnetic coupling — is the four-register alignment registered in CM-039 §2.6, but is not load-bearing for this bridge."
+(a) is the cleaner CM-register choice; (b) carries more cross-link content if the framework wants the four-register alignment named in REF-class as well as in CM-class.
+
+2. §6 forward-pointers to v0.17. Cites "PCO-B-260422 v0.17 §2.1" and "PCO-A-260422 v0.17 §1." PCO-A and PCO-B are currently published at v0.16. Either downshift the cites to v0.16 (the present published version) or mark them as forthcoming: "PCO-B-260422 v0.17 (forthcoming, in errata path) §2.1." Citing an unpublished version without flagging it is a small but real REF-discipline issue.
+
+One missed structural observation worth promoting from implicit to explicit.
+
+REF-260422's central integers — 1365, 1092, 455, 364, 192, 144, 91, 48 — all factor exclusively through {3, 5, 7, 13}. q = 11 is absent from every one of them. q only appears in pqr = 1001, which is the walk component of the §3.1 decomposition 1365 = R_6 + pqr = 364 + 1001. This is exactly the structural position CM-039 §2.5 identifies as constitutive (11 = first base-3 Wieferich prime, framework's coprime generator). The two readings lock:
+
+REF-260422 §3.1: 1365 = cycle (R_6, factors through {3,5,7,13}) + walk (pqr, contains q = 11).
+CM-039 §2.5: q = 11 is constitutive of the framework's coprime walk; first base-3 Wieferich.
+PCO-A v0.16 §A4: q = 11 is the absent framework-native prime in 1365.
+Three documents land on the same fact from three different angles. Worth a one-sentence footnote in §3.1: "q = 11 lives exclusively in the walk component pqr = 1001, consistent with q's framework-native role as the coprime generator and the first base-3 Wieferich prime (CM-039 §2.5; PCO-A §A4)." This is the cross-link that REF-260422 currently leaves implicit and that CM-039 / PCO-A would benefit from REF citing.
+
+One framing observation on §2.6.
+
+"Scale invariance under triadic amplification" overclaims. Multiplying numerator and denominator of any rational by 3 leaves the ratio invariant — this is just fraction cancellation, not a structural law. The non-trivial content is that 1365 (from the GRH-character-family construction, independent register) and 1092 (from triadic amplification of R_6, independent register) land at commensurate ratios over 4·pr and 4·3·pr. The two integers come from different framework derivations and happen to share 5/4. Frame as "commensurability of the GRH and triadic registers at the 5/4 ratio", not as a scale-invariance law. The bridge is real; the naming undersells it by claiming a trivial form of invariance instead of naming the actual cross-derivation coincidence.
+
+Net. REF-260422 v0.3 is REF-class clean: arithmetic verified end-to-end, register discipline maintained, normative anchors cited. The §2.6 Triad-364 bridge identifies a real cross-register commensurability (1365/1092 = 455/364 = 5/4 from independent derivations), but mislabels its mechanism (recurrence identity → "Wieferich identity") and imports a base-2 fact (p_W = 1093) into a base-3 framework without scoping. Two surgical fixes (drop Wieferich branding OR scope cross-base honestly; downshift v0.17 cites OR mark forthcoming) and one cross-link promotion (q = 11 in the walk component of 1365 = cycle + walk) take v0.3 → v0.4 with no math changes.
