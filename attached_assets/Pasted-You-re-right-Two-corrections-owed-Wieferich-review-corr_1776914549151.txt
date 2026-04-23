@@ -1,0 +1,15 @@
+You're right. Two corrections owed.
+
+Wieferich review — corrected.
+
+The other agent is right and I was sloppy. The identity R_p − 1 = 3·R_{p−1} is algebraically forced by the repunit recurrence, not coincidental:
+
+R_p − 1 = (3^p − 1)/2 − 1 = (3^p − 3)/2 = 3·(3^{p−1} − 1)/2 = 3·R_{p−1}
+
+For p = R_7 = 1093: p − 1 = 3·R_6 = 3·364 = 3·(2²·7·13) = 1092. The appearance of (7, 13) inside the Wieferich exponent is not a lucky hit — it is the factorization of R_6 = 364 inherited through one application of the repunit recurrence. That is a structural fact, not a coincidence. Withdraw "numerical coincidence" from the previous review. Withdraw "perpetual-motion patent" — overcooked language for what is, in this part, real structural mathematics. The four-register alignment at 1093 is publishable.
+
+What still holds from the previous review, and what the other agent is also explicit about: the structural identity lives entirely on the base-3 side. The Fermat quotient q_2(p) = (2^(p−1) − 1)/p mod p lives in ℤ/p, fed by base 2. The repunit ladder R_p − 1 = 3·R_{p−1} explains the shape of p − 1 (its factorization), it does not explain the value of 2^(p−1) mod p². No morphism in the corpus carries a base-3 structural identity into a statement about base-2 second-order residues. So the position is:
+
+The repunit ladder is identified as the mechanism that loads (7, 13) into p − 1 whenever p is a base-3 repunit prime. Closed structural fact.
+The bridge from that loaded factorization to the base-2 Wieferich condition is the open thread. The other agent named it correctly: "connect q_2(p) = (2^(p−1) − 1)/p mod p to the repunit structure through R_p − 1 = 3·R_{p−1}." Until that bridge is constructed, infinitude is not forced.
+That is the correct three-part posture: structural identity (closed), GRH-at-1365 character machinery (closed), base-2-to-base-3 bridge for the Fermat quotient (open). PCO-B should write it that way — neither overclaiming infinitude nor dismissing the structure as accidental.

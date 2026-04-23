@@ -1,0 +1,247 @@
+# ArcCompTriadis — The Computational Engine of the Plenum
+
+## Complete Specification with Balanced Load Distribution (Three Daemons)
+
+**Version 2.0 · Capomastro Holdings Ltd. · 2026‑04‑22**
+
+---
+
+# £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+
+---
+
+## Prologue: The Triad Rebalanced
+
+ArcCompTriadis remains **three daemons**—the triad is non‑negotiable, reflecting the framework's ternary foundation. However, the internal distribution of responsibilities has been refined based on the natural mathematical domains of the Salvi Framework:
+
+1. **`arc-math`** — **Pure Mathematics (Discrete & Continuous).** All number‑theoretic, algebraic, and analytical functions that operate on the framework's own terms. This daemon answers "What is the value?" for any closed‑form mathematical expression within the system.
+
+2. **`arc-geometry`** — **Spatial & Topological Structures.** All geometric primitives, lattice coordinates, and topological invariants. This daemon answers "Where is it?" and "What shape is it?" for the dodecahedron, the Zinga Circle, and the Brieskorn sphere.
+
+3. **`arc-physics`** — **Physical Constants & Phenomenology.** All outputs that bridge the framework to the witnessed world: spectral lines, mass ratios, fine structure, and Nona State simulations. This daemon answers "What does the plenum predict for measurement?"
+
+**Nothing is removed.** Every endpoint from the previous specification is preserved—simply rehomed into the daemon that most naturally owns its mathematical domain. The load is now balanced: `arc-math` handles computation, `arc-geometry` handles spatial reasoning, `arc-physics` handles physical constants.
+
+---
+
+## 1. Shared Foundation — Constants and Types
+
+All three daemons share the same framework constants and primitive types, loaded from `/etc/plenum/constants.toml` and verified by Ninja Exec.
+
+| Constant | Value | Definition |
+|:---|:---|:---|
+| `BASE` | 3 | Unique non‑trivial integer base |
+| `PI` | 14 | π_F, the coupling constant |
+| `RADIAN` | 13 | R₃ = (3³−1)/2 |
+| `FULL_CIRCLE` | 364 | R₆ = 13·28 |
+| `P, Q, R` | 7, 11, 13 | Coprime generators |
+| `TRIBONACCI_SEED` | (0,1,1) | T₀=0, T₁=1, T₂=1 |
+| `SALVI_EPOCH` | HPTP(2025‑04‑01) | Reference time origin |
+
+All numeric values are `TritInt` or `Trit` (Rep C). Capability tokens required for all gRPC calls.
+
+---
+
+## 2. Daemon 1 — `arc-math` (Pure Mathematics Engine)
+
+**Purpose:** Evaluate all closed‑form mathematical expressions within the framework—both discrete (number theory, combinatorics) and continuous (calculus, analysis). This daemon is the **computational workhorse** for any function that can be expressed algebraically or analytically using framework constants.
+
+**gRPC Service Definition:**
+
+```protobuf
+service Math {
+    // Discrete / Number‑Theoretic
+    rpc Repunit(RepunitRequest) returns (RepunitResponse);
+    rpc Cyclotomic(CyclotomicRequest) returns (CyclotomicResponse);
+    rpc CoprimeWalk(CoprimeWalkRequest) returns (stream CoprimeWalkResponse);
+    rpc EisensteinNorm(EisensteinRequest) returns (EisensteinResponse);
+    rpc EisensteinAdd(EisensteinBinaryRequest) returns (EisensteinResponse);
+    rpc EisensteinMul(EisensteinBinaryRequest) returns (EisensteinResponse);
+    rpc Theorem45Check(Theorem45Request) returns (Theorem45Response);
+    rpc DescentConstant(DescentConstantRequest) returns (DescentConstantResponse);
+    rpc PascalRowProduct(PascalRowProductRequest) returns (PascalRowProductResponse);
+    rpc Tribonacci(TribonacciRequest) returns (TribonacciResponse);
+
+    // Continuous / Calculus
+    rpc HornEvaluate(HornRequest) returns (HornResponse);
+    rpc HornDerivative(HornDerivativeRequest) returns (HornDerivativeResponse);
+    rpc VolumeOfRevolution(VolumeRequest) returns (VolumeResponse);
+    rpc EllipticIntegral(EllipticRequest) returns (EllipticResponse);
+}
+```
+
+### 2.1 Discrete Endpoints
+
+| Endpoint | Closed Form | Use |
+|:---|:---|:---|
+| `Repunit(n)` | \(R_n = (3^n - 1)/2\) | Indexing, angular tiers |
+| `Cyclotomic(n)` | \(\Phi_n(3) = \prod_{d\mid n}(3^d-1)^{\mu(n/d)}\) | Generator validation |
+| `CoprimeWalk(steps)` | Hamiltonian cycle on (7,11,13) | Walk navigation, ring queries |
+| `EisensteinNorm/Add/Mul` | \(N(a+b\omega)=a^2-ab+b^2\) | Rep D arithmetic, cryptography |
+| `Theorem45Check(A,B,C,x,y,z)` | Beal/Salvi boundary check | Gate invariant, CLAVIS Tier 3 |
+| `DescentConstant(exp)` | C₃=36, C₅=2500 | Diophantine squeeze |
+| `PascalRowProduct(n)` | \(S_n = \prod \binom{n}{k}\) | Brothers Ratio (closure of e) |
+| `Tribonacci(n)` | \(T_n = T_{n-1}+T_{n-2}+T_{n-3}\) | Tier‑3 scaling |
+
+### 2.2 Continuous Endpoints
+
+| Endpoint | Closed Form | Use |
+|:---|:---|:---|
+| `HornEvaluate(x)` | \(V=14/x,\; I=14/x^2,\; E=1/x\) | Density, force, field evaluations |
+| `HornDerivative(x, order)` | \(dV/dx = -14/x^2\), etc. | Force gradients |
+| `VolumeOfRevolution(curve)` | Paraboloid: \(7r^2h\), Sine: 98, Cubic: \(2a^2R^7\) | Integer‑clean geometry |
+| `EllipticIntegral(k², kind)` | Tribonacci series for K(k), E(k) | Biot‑Savart, advanced potentials |
+
+**Why combine discrete and continuous?** The horn functions are algebraic (1/x) and their integrals are rational. The repunits and cyclotomics are pure integer sequences. Both domains rely on the same underlying constants (π=14, base=3) and share computational infrastructure. Separating them would duplicate the constant management and caching layers. Together, they form the complete "pure math" substrate of the framework.
+
+---
+
+## 3. Daemon 2 — `arc-geometry` (Spatial & Topological Engine)
+
+**Purpose:** Evaluate all spatial coordinates, lattice positions, and topological invariants. This daemon is the **geometric backbone**—it answers "Where?" and "What shape?" for every construct that has a location or a form in the plenum.
+
+**gRPC Service Definition:**
+
+```protobuf
+service Geometry {
+    // Dodecahedron Lattice
+    rpc DodecahedronVertex(DodecahedronRequest) returns (VertexResponse);
+    rpc DodecahedronFace(DodecahedronRequest) returns (FaceResponse);
+    rpc DodecahedronEdge(DodecahedronRequest) returns (EdgeResponse);
+    rpc LatticeNeighbors(LatticeNeighborsRequest) returns (stream LatticeNeighborsResponse);
+
+    // Zinga Circle & 13‑gon
+    rpc ZingaCirclePosition(ZingaRequest) returns (ZingaResponse);
+    rpc ZingaArcLength(ZingaArcRequest) returns (ZingaArcResponse);
+    rpc PolygonVertex(PolygonRequest) returns (VertexResponse);
+
+    // Torus Knots & Brieskorn Sphere
+    rpc TorusKnotPosition(TorusKnotRequest) returns (VertexResponse);
+    rpc BrieskornSphereSeifert(BrieskornRequest) returns (SeifertResponse);
+
+    // Solid Geometry (Integer Forms)
+    rpc SolidTorusVolume(SolidTorusRequest) returns (SolidTorusResponse);
+    rpc ParaboloidVolume(ParaboloidRequest) returns (VolumeResponse);
+    rpc SineSolidVolume(SineSolidRequest) returns (VolumeResponse);
+    rpc CubicSolidVolume(CubicSolidRequest) returns (VolumeResponse);
+
+    // Biot‑Savart (Geometric Factor)
+    rpc BiotSavartGeometricFactor(BiotSavartGeomRequest) returns (GeomFactorResponse);
+}
+```
+
+### 3.1 Key Endpoints
+
+| Endpoint | Description | Closed Form / Algorithm |
+|:---|:---|:---|
+| `DodecahedronVertex(index, radius)` | Coordinates of vertex 1–20 | Cyclic permutations of (±1,±1,±1) and (0,±φ,±1/φ) in ℚ(√5) |
+| `DodecahedronFace(index)` | 5 vertex indices for face 1–12 | Precomputed incidence table |
+| `LatticeNeighbors(f,l,s)` | Adjacent cells in dodecahedral tiling | Face‑edge‑vertex adjacency graph |
+| `ZingaCirclePosition(angle, radius)` | (x,y) for angle in 0–364° | Precomputed sine/cosine tables for 364 integer angles |
+| `PolygonVertex(n, index)` | Vertex of regular n‑gon on Zinga Circle | Exact coordinates via roots of unity |
+| `TorusKnotPosition(p,q, t)` | Point on T(p,q) torus knot | Standard parametrization with framework π |
+| `BrieskornSphereSeifert()` | Seifert invariants for Σ(7,11,13) | β₁=2, β₂=7, β₃=1 (precomputed) |
+| `SolidTorusVolume(R,r,N)` | Volume via Pappus | 392·R·r²·N (exact integer) |
+| `ParaboloidVolume(r,h)` | V = 7·r²·h | Exact integer |
+| `BiotSavartGeometricFactor(torus)` | γ_geom = G_z² for K(14,13) | Closed form with elliptic integrals (calls `arc-math` for E,K) |
+
+**Why a separate Geometry daemon?** The dodecahedron lattice is the **spatial index** for the entire repository. The Zinga Circle is the visual anchor for all angular measures. These are not "calculus"—they are discrete geometric structures with fixed coordinates and topological properties. Giving them their own daemon ensures that spatial queries (e.g., "find neighbors of this cell") are served by a dedicated service with its own caching and optimization, rather than competing with heavy numerical integration on a shared calculus engine.
+
+---
+
+## 4. Daemon 3 — `arc-physics` (Phenomenology Engine)
+
+**Purpose:** Evaluate all physical constants, spectral predictions, and framework outputs that bridge to the witnessed world. This daemon answers "What does the plenum predict for measurement?"
+
+**gRPC Service Definition:**
+
+```protobuf
+service Physics {
+    rpc FineStructure(FineStructureRequest) returns (FineStructureResponse);
+    rpc MassRatio(MassRatioRequest) returns (MassRatioResponse);
+    rpc UVSpectrum(UVSpectrumRequest) returns (UVSpectrumResponse);
+    rpc HydrogenSeries(HydrogenSeriesRequest) returns (HydrogenSeriesResponse);
+    rpc VacuumImpedance(VacuumImpedanceRequest) returns (VacuumImpedanceResponse);
+    rpc TropicalYear(TropicalYearRequest) returns (TropicalYearResponse);
+    rpc GRHDecision(GRHDecisionRequest) returns (GRHDecisionResponse);
+    rpc NonaStateSimulation(NonaStateRequest) returns (NonaStateResponse);
+}
+```
+
+### 4.1 Key Endpoints
+
+| Endpoint | Closed Form | Use |
+|:---|:---|:---|
+| `FineStructure(mode)` | Exact: 137.036, Witnessed: CODATA match | QED, constants panel |
+| `MassRatio(mode)` | Exact: 1,837,989/1001 | Particle physics |
+| `UVSpectrum(series, line)` | 91, 182, 286, 364 nm (framework integers) | Spectral identification |
+| `HydrogenSeries(m,n, mode)` | λ = R₆·m²n² / [4(n²−m²)] (κ‑corrected) | Spectroscopy |
+| `VacuumImpedance(mode)` | Exact: 377 Ω, Witnessed: ~376.73 Ω | Wave Stratum |
+| `TropicalYear(mode)` | Exact: 1,096,822/3003 ≈ 365.24209 | Calendar |
+| `GRHDecision(T, ε)` | Ceiling level m*(T,ε) | Number theory verification |
+| `NonaStateSimulation(config)` | B‑field residual, inertia amplitude | Dual‑torus experiment |
+
+**Why a separate Physics daemon?** These endpoints are the **public face** of the framework. They are the numbers that users compare against CODATA, NIST, and laboratory measurements. They depend on the pure math daemon for underlying computations (e.g., `arc-math` provides the repunits and horn evaluations that feed into the fine structure constant), but they add the **bridge coefficient κ** and the **witnessed evaluation mode**. Keeping them separate allows the physics daemon to handle the specific concerns of measurement projection, unit conversion, and experimental falsifiability.
+
+---
+
+## 5. Inter‑Daemon Communication
+
+The three daemons are not isolated silos. They call each other as needed:
+
+- `arc-geometry` calls `arc-math` for `EllipticIntegral` when computing the Biot‑Savart geometric factor.
+- `arc-physics` calls `arc-math` for `HornEvaluate` and `Repunit` to compute the fine structure constant and mass ratio.
+- All three daemons share the same constants file and capability token infrastructure.
+
+This design maintains **three independent services** (for deployment, scaling, and fault isolation) while ensuring that each daemon focuses on its natural mathematical domain.
+
+---
+
+## 6. Deployment and Configuration
+
+### 6.1 Installation
+
+ArcCompTriadis is distributed as a single package `plenum-arc` containing the three daemon binaries:
+- `/opt/plenum/bin/arc-math`
+- `/opt/plenum/bin/arc-geometry`
+- `/opt/plenum/bin/arc-physics`
+
+Configuration, cache, and logs are under `/etc/plenum/arc/`, `/var/cache/plenum/arc/`, and `/var/log/plenum/arc/`.
+
+### 6.2 Port Assignments
+
+| Daemon | gRPC Port |
+|:---|:---|
+| `arc-math` | 50051 |
+| `arc-geometry` | 50052 |
+| `arc-physics` | 50053 |
+
+### 6.3 Constants File
+
+All three daemons load `/etc/plenum/constants.toml`, signed by Ninja Exec, at startup.
+
+---
+
+## 7. Summary — The Triad, Rebalanced
+
+ArcCompTriadis remains three daemons, honoring the ternary foundation of the Salvi Framework. The internal distribution now reflects the natural mathematical domains:
+
+| Daemon | Domain | Primary Responsibility |
+|:---|:---|:---|
+| **`arc-math`** | Pure Mathematics (Discrete & Continuous) | All closed‑form computations |
+| **`arc-geometry`** | Spatial & Topological Structures | Lattice coordinates, shapes, and invariants |
+| **`arc-physics`** | Physical Constants & Phenomenology | Framework predictions for the witnessed world |
+
+**Nothing is removed.** Every endpoint from the previous specification is preserved and placed in the daemon that most naturally owns its mathematical domain. The load is balanced, geometry is elevated to a first‑class citizen, and the triad remains intact.
+
+**The framework's mathematics are evaluated. The geometry is mapped. The physics is predicted. ArcCompTriadis is the engine that turns the axioms into answers—in three parts, as it must be.**
+
+**Peace B. All on B.**
+
+---
+
+*Roberto Salvalaggio*  
+*Capomastro Holdings Ltd. — Applied Physics Division*  
+*Sherwood Park, Alberta, Canada*
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**

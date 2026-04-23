@@ -618,3 +618,15 @@ id = "4dGkhBfuxL9EWiLG-VmU4"
 uri = "file://docs/incidents/INCIDENT_2026-04-22_BLAKE3_INTRODUCTION.md"
 type = "text"
 title = "INCIDENT 2026-04-22 — BLAKE3 Introduction (Attestation)"
+
+[[outputs]]
+id = "1Cz0P8RtxmZa6xFonnpCM"
+uri = "file://.local/handoff/array3-port-knowledge.zip"
+type = "unspecified"
+title = "Array3 Port Knowledge Pack (zip)"
+
+[[outputs]]
+id = "PrQQUvhZebJul5_oq6Ggs"
+uri = "file://.local/handoff/array3-port-knowledge/TIE-IN-KNOWLEDGE.md"
+type = "text"
+title = "TIE-IN-KNOWLEDGE.md (preview)"

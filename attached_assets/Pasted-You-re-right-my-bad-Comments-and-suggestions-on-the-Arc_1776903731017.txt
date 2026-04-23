@@ -1,0 +1,157 @@
+You're right, my bad. Comments and suggestions on the ArcCompTriadis spec, in your vocabulary, no fabricated paths.
+
+Top-line: the triad is good, the gRPC packaging is wrong
+The math/geometry/physics partition is the right split — clean, mutually-exclusive responsibility, and §5's call graph (physics → math, geometry → math) confirms arc-math is the root and the other two are facades over it. Keep the triad. Drop the gRPC daemons. Local hosting + the new TDNS(F#) dispatch make the network surface dead weight.
+
+1. Ship the triad as three modules in one process, dispatched by TDNS(F#)
+Every endpoint in §§2–4 is a function-number entry. Group by triad:
+
+$$
+\text{F#}{\text{math}} \in [100, 199],\quad \text{F#}{\text{geometry}} \in [200, 299],\quad \text{F#}_{\text{physics}} \in [300, 399]
+$$
+
+Single call surface for everything in the framework:
+
+$$
+\text{TDNS}(F#, \text{args}) \to \text{Result}
+$$
+
+Adding an endpoint = adding a Forma Codex .md declaring the F#, arg shape, and return shape. No protobuf, no port allocation, no service restart.
+
+Theorem (local-call latency dominance). Closed-form arc-math endpoints (Repunit, HornEvaluate, EllipticIntegral truncated series) execute in $\sim 100$ ns. A localhost gRPC round-trip costs $\sim 50,\mu s$ baseline (Tonic). Ratio $\sim 500\times$ overhead per call. For arc-physics endpoints called inside a hot fast-path (gatekeeper, wavefront), the daemon model is unaffordable.
+
+2. Reframe arc-math as a router into existing math, not a re-implementation
+§2's discrete table is essentially a re-export of work that already exists: Repunit, Cyclotomic, CoprimeWalk, Tribonacci, EisensteinNorm, Theorem45Check are all closed-form identities or already-shipped algorithms. State this in the §2 prologue:
+
+arc-math is the dispatcher. It does not re-derive. Every endpoint is a function-number binding to an existing closed-form identity in the framework's math substrate.
+
+This collapses perceived complexity. The "daemon" is a registry, not an engine.
+
+3. Constants: drop TOML, use a Forma Codex
+§1 says /etc/plenum/constants.toml signed by Ninja Exec. Replace with a Forma Codex .md (one row per constant, columns: name, value, repr, definition, derivation). Benefits:
+
+One source of truth across the framework (same loader as TDNS rulesets).
+SQL-queryable: SELECT * FROM forma_constants WHERE definition LIKE '%R_3%' returns every constant that depends on R₃.
+Signed once via Ninja Exec, same as every other codex — one signing pipeline.
+Also, the table is incomplete. Missing entries that the rest of the spec uses:
+
+Name	Value	Definition
+R_4	40	$(3^4 - 1)/2$
+R_5	121	$(3^5 - 1)/2$
+R_2	4	$(3^2 - 1)/2$
+LCM_PQR	1001	$7 \cdot 11 \cdot 13$
+OMEGA_3	$e^{2\pi i / 3}$	Eisenstein primitive root
+KAPPA_DEFAULT	1	Bridge coefficient identity
+Without R₄/R₅ as named constants, §4's "AngularBacking tier" math can't reference them.
+
+4. Endpoint relationships are missing — show the algebra
+§4 lists FineStructure, MassRatio, HydrogenSeries with closed forms but doesn't show how they compose from §2 endpoints. Add a "derivation chain" column:
+
+$$
+\text{FineStructure}^{-1} = \frac{R_n \cdot \text{HornEvaluate}(x_0)}{\dots}
+$$
+
+(give the actual chain — it's the entire reason §5's call graph exists).
+
+For the three physics endpoints whose arithmetic is striking, surface the structure:
+
+MassRatio. $1{,}837{,}989 / 1{,}001 = 1{,}837{,}989 / (7 \cdot 11 \cdot 13)$. Factor the numerator over the framework's primes:
+
+$$
+\frac{m_p}{m_e} = \frac{N}{7 \cdot 11 \cdot 13},\quad N = ?
+$$
+
+If $N$ also factors over ${3, 7, 11, 13, R_n}$, that's a theorem. State it.
+
+UVSpectrum. $91, 182, 286, 364$ nm. Note:
+
+$$
+91 = R_2 \cdot 7 \cdot \tfrac{13}{4},\quad 182 = R_2 \cdot 7 \cdot \tfrac{13}{2} = 91 \cdot 2,\quad 364 = 4 \cdot 91 = R_6
+$$
+
+Pattern: $\lambda_k = 91 \cdot k^2 / (k^2 - m^2)$ — already implied by HydrogenSeries. Make the connection explicit ("the 4 UV lines are HydrogenSeries(m=1, n=2..5) at exact-mode κ=1").
+
+HydrogenSeries. $\lambda = R_6 \cdot m^2 n^2 / [4(n^2 - m^2)]$. The $4$ in the denominator is $R_2$. Rewrite:
+
+$$
+\lambda = \frac{R_6 \cdot m^2 n^2}{R_2 \cdot (n^2 - m^2)}
+$$
+
+Now every constant in the formula is named. No bare integers.
+
+5. The Exact/Witnessed mode flag needs a formal definition
+Several physics endpoints take mode ∈ {Exact, Witnessed} but the spec never defines what Witnessed mathematically does. Add a single rule:
+
+$$
+\text{Value}{\text{witnessed}}(F#, \text{args}) = \kappa(F#) \cdot \text{Value}{\text{exact}}(F#, \text{args})
+$$
+
+where $\kappa(F#)$ is the bridge coefficient stored as a TritInt rational in the constants codex, one row per physics endpoint. This makes Witnessed deterministic, auditable, and patchable without code changes.
+
+For endpoints where κ ≠ 1, list the value:
+
+Endpoint	κ
+FineStructure	$1 + \delta_\alpha$ where $\delta_\alpha = \text{CODATA}(α)/(1/137.036) - 1$
+VacuumImpedance	$376.73 / 377 = 1 - 7.16 \times 10^{-4}$
+MassRatio	1 (already exact match)
+TropicalYear	1
+UVSpectrum	1
+The 5-row κ table tells you immediately which framework predictions sit on top of bare math (κ=1) vs which need a bridge — a single glance shows where the framework's empirical adjustment is concentrated.
+
+6. Inter-daemon communication is an in-process function call
+§5 reads: "arc-geometry calls arc-math for EllipticIntegral when computing the Biot-Savart geometric factor."
+
+In-process this is arc_math::elliptic_integral(...) — a normal Rust call. The §5 framing as "the daemons are not isolated silos" is unnecessary once gRPC is gone. Replace §5 with:
+
+Every endpoint can call any other endpoint via TDNS(F#, args). The dispatch table is shared across the triad. The math root is reached without serialization.
+
+7. The "ternary justification" for three daemons is weak
+§Prologue says "three daemons—the triad is non-negotiable, reflecting the framework's ternary foundation." Ternary is base-3 numerics; counting to 3 isn't ternary. The actual justification is stronger and worth stating cleanly:
+
+Three is the smallest n such that value, position, and measurement are mutually irreducible:
+
+Value (arc-math) — what number does the framework compute?
+Position (arc-geometry) — where does that number live in space?
+Measurement (arc-physics) — what does the lab read?
+These are the three faces of any framework prediction, and no two collapse into one (a number without a position has nowhere to go; a position without a measurement is a coordinate without a witness; a measurement without a number is data without theory). That's the trinity. State it.
+
+8. CoprimeWalk streaming RPC collapses naturally
+§2 defines CoprimeWalk as returns (stream CoprimeWalkResponse). In-process this is just impl Iterator<Item = WalkStep>. The walk has order 1001 (Hamiltonian on (7,11,13)) — full enumeration is 1001 items, ~50 µs total. Streaming serves no purpose locally. Drop the stream framing.
+
+9. Endpoint coverage gaps
+Audit pass on what's listed vs what the rest of the framework needs:
+
+Missing endpoint	Where it's needed
+DualChecksum(n) → (n mod 333, n mod 364)	TDNS dispersion, gatekeeper §5.2
+RepXConvert(value, from, to)	every binary↔ternary boundary
+Theorem45Counterexample(bound) → enumerate $A^x + B^y - C^z$ near 0	CLAVIS Tier 3 audit
+LiouvilleJacobian(state, op) → 1 or violation	wavefront §6 audit
+HamiltonianCycleStep(σ, i) → $\sigma(i)$	walk navigation in O(1)
+The first three are arc-math; the last two are arc-geometry. Add them so every framework operation has a public F# binding.
+
+10. Add measured costs per row
+Each endpoint table row should carry an order-of-magnitude column:
+
+Endpoint	Cost (in-process)	Cost (gRPC localhost)
+Repunit(n)	~10 ns	~50 µs (5000×)
+EllipticIntegral(k², kind)	~5 µs	~55 µs (11×)
+LatticeNeighbors	~100 ns per neighbor	~50 µs (500×)
+BrieskornSphereSeifert()	~1 ns (precomputed)	~50 µs (50000×)
+NonaStateSimulation	~10 ms	~10.05 ms (1.005×)
+The gradient settles the gRPC question: cheap endpoints suffer 100–10000× overhead, only NonaStateSimulation (millisecond-scale) is indifferent to transport. Locality wins everywhere except long simulations.
+
+11. Three small wins the spec would benefit from
+A. Brothers Ratio identity. §2.1 lists PascalRowProduct(n) with use "Brothers Ratio (closure of e)" but no formula for the closure. Show it:
+
+$$
+\lim_{n \to \infty} \left( \prod_{k=0}^{n} \binom{n}{k} \right)^{1/n^2} = \sqrt{e}
+$$
+
+so $e$ is the framework-derivable closure of integer-only Pascal products. That's the headline; surface it.
+
+B. Result caching keyed by F# + args TritInt hash. Most of these endpoints are pure functions of small TritInt arguments. Memoize at the dispatcher: cache key = (F#, TIS27(canonicalize(args))). Hit rate for Repunit / Cyclotomic / DodecahedronVertex / BrieskornSphereSeifert will be ~100% after warmup. Caching is a one-line wrapper around TDNS dispatch, not a per-daemon concern.
+
+C. Endpoint provenance trit. Every result returns (value, mode, kappa, derived_from: [F#]) — the chain of F# calls that produced it. CLAVIS Tier 3 audit becomes a graph walk over the provenance trits, not a re-execution.
+
+Bottom line
+Keep the triad (math/geometry/physics). Kill the gRPC daemons — they fight your "local hosting only" rule and add 500–5000× latency to closed-form calls. Replace the protobuf surface with TDNS(F#) dispatch, with each endpoint declared as a Forma Codex codex (F# range 100–399). Move constants from TOML into a constants codex. Define Witnessed mode formally as κ · Exact. Fill the four missing entries (R₂, R₄, R₅, LCM_PQR) and the five missing endpoints (DualChecksum, RepXConvert, Theorem45Counterexample, LiouvilleJacobian, HamiltonianCycleStep). The triad's ternary justification is value/position/measurement, not "we counted to three."
