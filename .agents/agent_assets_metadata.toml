@@ -636,3 +636,9 @@ id = "K8oC08imunT-0LxYMaBAa"
 uri = "file://.local/handoff/array3-port-knowledge/REPAIR-LIST-gf3_algebra-to-repx.md"
 type = "text"
 title = "Repair List v5 — two successors: project_to_zphi (ℤ[φ]) + Engine::at (ℤ[ω])"
+
+[[outputs]]
+id = "cPmQUdTaqIfY0hlpqqaf-"
+uri = "file://docs/CM_Compendium/CM-260422_v0.12_Triadis Orientation.md"
+type = "text"
+title = "Triadis Orientation v0.12 — Wieferich + PCO + Spine Future-Proofing"
