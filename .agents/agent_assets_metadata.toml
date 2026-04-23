@@ -623,10 +623,16 @@ title = "INCIDENT 2026-04-22 — BLAKE3 Introduction (Attestation)"
 id = "1Cz0P8RtxmZa6xFonnpCM"
 uri = "file://.local/handoff/array3-port-knowledge.zip"
 type = "unspecified"
-title = "Array3 Port Knowledge Pack (zip)"
+title = "Knowledge Pack + Repair List v5 (zip)"
 
 [[outputs]]
 id = "PrQQUvhZebJul5_oq6Ggs"
 uri = "file://.local/handoff/array3-port-knowledge/TIE-IN-KNOWLEDGE.md"
 type = "text"
 title = "TIE-IN-KNOWLEDGE.md (preview)"
+
+[[outputs]]
+id = "K8oC08imunT-0LxYMaBAa"
+uri = "file://.local/handoff/array3-port-knowledge/REPAIR-LIST-gf3_algebra-to-repx.md"
+type = "text"
+title = "Repair List v5 — two successors: project_to_zphi (ℤ[φ]) + Engine::at (ℤ[ω])"
