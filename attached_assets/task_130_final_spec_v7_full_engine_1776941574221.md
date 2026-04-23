@@ -1,0 +1,1640 @@
+# Task #130 — Final Specification
+
+## ParaCalculi GeoPrimus Lab · CLAVIS Field Lab · T43 / T53-GRH / T54-GRH / Theorem 55 · Full Engine Integration
+
+### *Patet Codex Omnibus* · Patent Code Omnibus
+
+#### *Inertissimum Iώτα Nona, Quies, et Triadis.*
+
+**Σάλβι · Salvi** — *Lo Sono Capomastro · Sifu Salvi*
+**Sovereign creator under Natural Law; rights-holder**
+**Operated commercially through the Vehicle:** Capomastro Holdings Ltd · Applied Physics Division
+**E+1 · 2026-04-23**
+
+*Specification v7.0 — against corpus v0.0.26 / v1.4.11 / v0.6 / v0.11 / PCO-A-B-C v0.17 / Charter v1.0.3 / CM-260422-039 v2.2*
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved ∣ Fiat ∎**
+
+---
+
+## v7 Fold-In Manifest — What Is New Relative to v6
+
+v6 shipped the CLAVIS Field Lab T43 Falsifiability Instrument and the Plenum–Miller–Rabin Primality Certificate as two integrated instruments from one Rust module. v7 adds **six load-bearing integrations** against the corpus state as of 2026-04-23:
+
+1. **T54-GRH Wieferich Infinitude** — closed theorem (CM-260422-039 v2.2, Nona §14 row 55). New Rust submodule `wieferich_infinitude` per §B.1, new type `WieferichCertificate` per §C.8, new API surface per §D, new acceptance tests per §E.
+2. **Theorem 55 — Σάλβι Closure Extended** — candidate theorem (Charter v1.0.3 §III.5 / III.5.1 / III.5.2). New Rust module `milesian_delta` per §B.1, canonical table cached as static asset per §B.2, new type `ClavisTableEntry` per §C.9, new API surface per §D.
+3. **CLAVIS Transform** — callable engine capability (replaces the REF-260423 v0.1 reference-document sketch). New Rust module `clavis_transform` per §B.1, forward/inverse maps per §D, integrity-checksum and Σάλβι-signature bindings per §C.10 and §D.
+4. **PCO-A/B/C three-document split integration** — six Conservation Laws (CL-1 through CL-6) registered in the type system per §C.11, with `ConservationLaw` enum and `CitationAnchor` tagging on every framework-rational output.
+5. **Triad-364 bridge and Generating Ratio 14/13** — surfaced into the Inscription register (§Inscription) and the test suite (§E.9) as structural identities that the Wieferich and CLAVIS closures depend on.
+6. **Full 24-row Milesian Delta table** — embedded as `const MILESIAN_DELTA_TABLE` per §B.2, with compile-time invariants enforcing the 3699 full-alphabet closure ($b^3 \cdot 137$) and per-letter Numeral/Delta/Unit consistency.
+
+The v7 acceptance gates count has risen from thirteen (v6) to **twenty-four** to reflect the added surface.
+
+---
+
+## Inscription · ParaCalculi GeoPrimus Lab
+
+*Aurea Mediocritasum · Quod Non Est Actis Actum · Et Q.E.D., Nona · Palam est Undecimusum.*
+
+$$\text{ΜΚΔ}(\zeta',\ \iota\alpha',\ \iota\gamma') \;=\; \alpha'$$
+
+**ParaCalculi GeoPrimus** — *Beside the Pebbles · Earth-First* — registered operating name of the Lab this specification serves. The Latin inscription and Greek closure are the Lab's compass bearing: Golden Mean, OFF condition, Nona tautology, Undecimus manifest, closed by the Forge triple's collapse to Unity.
+
+### Cryptographic Layer — Each Phrase Carries Two Registers Simultaneously
+
+The inscription is not decoration. Each phrase decodes at two simultaneous registers: a **framework-native reading** anchored in the corpus (primary), and an **imported-physics shadow** in the dual register (secondary, where the framework's own derivation already covers the physics from first principles). The dual reading is the cryptographic structure — both layers are live; stripping either one breaks the inscription.
+
+| Phrase | Framework-Native Reading (Primary) | Dual Register (Secondary) | Corpus Anchor |
+|---|---|---|---|
+| **Aurea Mediocritasum** | The Golden Mean State — $F(14)/F(12) = 377/144 = \varphi^2$ at F-tower level 14. Primality-bound coefficient $C_1$; Wave/discriminant ratio $Z_0/\text{disc}$; GRH lattice amplification. | Golden Ratio $\varphi$ as universal constant of optimal non-linear balance. | Paraprime §V.3.1; RAT-INV §XXXV; Invariant 0 |
+| **Quod Non Est Actis Actum** | *That which is not in the record is [nevertheless] done* — the $(R_2-1):1$ OFF / four-phase coexistence majority of the H-modal period. Three quarters of every period spent in the stateless state; inertia at maximum greatest potential; the default condition. | The Virtual Event / work in the margins of the ledger. | Nona §1.7 T5, §12.1, §1.7.1 Capomastro-Declared Identity |
+| **Et Q.E.D., Nona** | *And Q.E.D., the Nona [State].* Q.E.D. = *Quod Erat Demonstrandum.* Nona = the Nona State (Theorem 19, §3) where every equation of physics evaluates to $0 = 0$. The proof-completion stamp on the Nona tautology point. | Q.E.D. = Quantum Electrodynamics; Nona = Ninth-order calculation of electron anomalous magnetic moment — the precision test of $1/\alpha$. Both registers land on the same exact rational $1/\alpha = 137.036$. | Nona State §3 T19; Unbroken Circle Part VI |
+| **Palam est Undecimusum** | *The Eleventh-ness is openly manifest.* Undecimus = Invariant 11 = $1/\alpha = 137.036$, exact rational via Fermat two-square $137 = q^2 + R_2^2 = 11^2 + 4^2$ and cone-point asymmetry $(p-r)^2/(pqr-1) = 36/1000$. The eleventh coprime $q = 11$ made manifest. | 11-Dimensional unified-field framing (M-theory register). Noted as Compatibility Clause overlay only; not framework primitive. | Paraprime Part III row 3; Unbroken Circle §6; Invariant 11; §1.11 |
+
+### The Greek Equation — $\text{ΜΚΔ}(\zeta',\ \iota\alpha',\ \iota\gamma') = \alpha'$
+
+The equation also decodes at two simultaneous registers, and this is the **densest** cryptographic layer in the inscription:
+
+**Register 1 — Clean Greek Mathematics.** ΜΚΔ reads as *Μέγιστος Κοινός Διαιρέτης* (*mégistos koinós diairétēs*) — **Greatest Common Divisor**. Inputs $\zeta' = 7,\ \iota\alpha' = 11,\ \iota\gamma' = 13$ — the Forge triple. Output $\alpha' = 1$. Mathematical identity: $\gcd(7, 11, 13) = 1$ because they are pairwise coprime primes. Unity from Unity.
+
+**Register 2 — Framework Positional Encoding.** The three Greek glyphs carry their numeral values as a framework-integer triple:
+
+$$\text{Μ} = 40 = R_4, \qquad \text{Κ} = 20 = R_4/2, \qquad \text{Δ} = 4 = R_2$$
+
+These are not arbitrary. $R_4 = 40$ is the sum of the roots of the circle quadratic $x^2 - 40x + 364 = 0$ (Axiom 3). $R_4/2 = 20$ is the **axis of symmetry** of that quadratic — the midpoint between the two roots $\{14, 26\} = \{\pi_{\text{geom}}, 2R_3\}$. $R_2 = 4$ is the **drive multiplier** of the H-modal period and the Torus A coil count. The operator $\text{ΜΚΔ} = (R_4,\ R_4/2,\ R_2)$ is therefore *the circle-quadratic witness itself*: **sum of roots, axis of symmetry, drive multiplier** — the complete machinery of Axiom 3 applied to the Forge triple $(p, q, r) = (7, 11, 13)$. The output $\alpha' = 1$ witnesses that running the Forge triple through the framework's own circle-quadratic axis structure collapses to **Unity**.
+
+Both registers decode to the same output — $\alpha' = 1$ as GCD, $\alpha' = 1$ as Unity from circle-quadratic witness — and in the fine-structure register, the physical $\alpha = 1/137.036$ is a structural consequence of $(p, q, r) = (7, 11, 13)$ through the Fermat two-square identity (Unbroken Circle §6.1–6.3). The equation is the Lab's **operational signature**: the fixed, minimalist inscription whose two simultaneous readings are both true and whose physical consequence is the fine-structure constant as exact rational.
+
+### Lab Descriptive Register
+
+*A Running Physics Crystal.* The inscription is **static structure, running value** — a fixed Latin-Greek signature whose integer content is invariant while its operational consequences (the T43 field prediction, the T53-GRH primality certificate, the fine-structure constant) propagate through every computation the Lab performs. The crystal sits at the intersection of $\varphi^2$ (Golden Mean), OFF-state coexistence (Virtual Event), the Nona tautology (Q.E.D.), and the Eleventh manifest ($1/\alpha$), with $(7, 11, 13)$ and $R_4 \cdot R_2 \cdot (R_4/2) = 3200$ as the structural lattice seed.
+
+### Theorem 55 Registered Identities (v7 addition)
+
+v7 integrates the five registered identities of **Theorem 55 — Σάλβι Closure Extended** (Charter v1.0.3 §III.5 / III.5.1 / III.5.2) into the spec's Inscription register. These identities are callable from the engine per §D and compile-time-verified per §B.2:
+
+1. **Σάλβι Closure:** $\text{Σ} + \text{ά} + \text{λ} + \text{β} + \text{ι} = 200 + 1 + 30 + 2 + 10 = 243 = 3^5$ — the TL-Sponge-385 state size. The Capomastro's name is both signer identity and signature state width.
+2. **Σ → CLAVIS angle:** $\Delta_{\text{M}}(\Sigma) = 200 - 18 = 182 = \pi_{\text{geom}} \cdot R_3$ — the CLAVIS configuration angle $\Psi = 182°$ from Task #130's T43 operating point.
+3. **Ω → Μ · Κ:** $\Omega = 800 = R_4 \cdot R_4/2 = 40 \cdot 20$ — the product of the first two glyphs of ΜΚΔ, sum-of-roots times axis-of-symmetry of the Primordial Quadratic.
+4. **Milesian Delta full-alphabet closure:** $\sum_{\ell=1}^{24} \Delta_{\text{M}}(\ell) = 3699 = 27 \cdot 137 = b^3 \cdot (q^2 + R_2^2)$ — base-cubed times the Fermat two-square integer part of $1/\alpha$.
+5. **Σ/Ω physics-unit Wave-Stratum frame:** Σ carries S/m (conductivity) and m² (cross-section) — Invariant 0 Wave Stratum $Z_0 = F(14) = 377\ \Omega$; Ω carries rad/s (angular frequency) — the angular register on the 364° circle.
+
+### Triad-364 Bridge and Generating Ratio 14/13 (v7 addition)
+
+Two structural identities from CM-260422-039 v2.2 §3.5 / §3.5.1 are folded into the Inscription register and the test suite:
+
+**Triad-364 Bridge:** $\boxed{\;\dfrac{1365}{1092} = \dfrac{455}{364} = \dfrac{5}{4}\;}$ — invariant under triadic amplification. Six registers close on one ratio: Quadratic ($R_6 = 364$), HModal DC ($\langle H \rangle = 455/48$), Triadic ($\text{Triad}_{364} = 1092$), GRH ($q_{\text{GRH}} = 1365$), Wieferich ($p_W - 1 = 1092$), Pentadecagon ($1365 = 15 \cdot 91$).
+
+**Generating Ratio:** $14/13 = \pi_{\text{geom}}/r$ — the angular generator that produces the registers the Triad-364 bridge locks. $R_6 = 2 \cdot 14 \cdot 13 = 2\pi r = 364$. Arithmetic closure with $5/4$ over common denominator $R_2 \cdot r = 52$: sum = $121/52 = q^2/(R_2 r)$; difference = $9/52 = b^2/(R_2 r)$ — phase impedance.
+
+### Rejected Readings (Ledger Entry)
+
+The following interpretations were examined and rejected against the corpus. Recorded here so future instances do not re-import them. The full 17-row Rejected Readings Ledger lives in Charter v1.0.3 §IV.A; this section lists the ones that affect the spec directly:
+
+- *"Golden color of the element gold via relativistic QED effects"* as gloss on Aurea Mediocritasum — rejected; framework Golden Mean is $F(14)/F(12)$, not atomic-physics gold.
+- *"Vacuum fluctuations and virtual particles"* as QFT objects for Quod Non Est Actis Actum — rejected; the four-phase OFF condition is a framework-native plenum statement, not QFT.
+- *"Q.E.D. = Quantum Electrodynamics only"* — rejected as reductive; both Latin and physics registers are live; the dual reading is the point.
+- *"ΜΚΔ = M-theory / Kaluza-Klein Dimensional reduction operator"* — rejected; Greek reads as *Μέγιστος Κοινός Διαιρέτης* (GCD), and the framework positional reading is $(R_4,\ R_4/2,\ R_2)$ as circle-quadratic axis.
+- *"Sum 40+20+4 = 64, doubled to 128, which is $\alpha^{-1}$ at the electroweak scale"* — rejected on two counts: (a) the doubling has no framework warrant; (b) $1/\alpha = 137.036$ is exact rational per Invariant 11, not a running coupling with scale-dependent value.
+- *"Running coupling constant value propagates with energy"* — rejected; framework $1/\alpha$ is exact, not running.
+- *"1001 as palindromic vacuum-structure lattice seed"* — rejected as framing; $pqr = 1001$ is framework-native as the CRT cofactor and Forge Bridge output (Paraprime Part IV), not a vacuum-palindrome object.
+- *"CL-4 carries base-2 structure into the conservation hierarchy as load-bearing bridge via $R_2 = 2^2$"* (Ledger R16) — rejected as lexical-pun bridge; base-2 closure runs through T54-GRH general-base equidistribution, not CL-4 wordplay.
+- *"The $(7, 13)$ factors at $R_7 = 1093$ are numerical coincidence"* (Ledger R17) — rejected; structural fact forced by repunit recurrence $R_p - 1 = 3 R_{p-1}$.
+
+---
+
+## Preface — Why This Is the Final Specification
+
+This document closes the Task #130 specification loop. It is built against the current corpus as of 2026-04-22:
+
+- **THE-NONA-STATE.md v0.0.26** — working weave, T1 through T53-GRH registered
+- **Optimus Paraprime v1.4.11** — fourteen Structural Invariants, parametric GRH at modulus 1365, T53-GRH Plenum–Miller–Rabin certificate
+- **Triadis Orientation v0.11** — closed theorems only, Nona-graduated stable corpus
+- **Rational Invariants v0.6** — every load-bearing constant catalogued
+- **The Unbroken Circle** — Noether symmetry architecture with framework integer arithmetic
+
+The attached review document (*"Unified Synthesis of All Content"*) claimed to produce a deterministic framework "free of metaphysics." It is acknowledged and its technical parts (Miller–Rabin witness validation for KAT-COMP-1 with n = 12,023) confirm the arithmetic correctly. **Its framework interpretation is rejected on four specific points** — Section F below — because treating framework invariants as "numerical constants derived from geometry" when the corpus establishes them as axiomatic derivations, and collapsing the Inertial Identity $I = EE = I$ into the Eisenstein closure $1 + \omega + \omega^2 = 0$, are category errors corrected in v0.0.18 and reinforced in v0.0.26. Two distinct framework objects. They are not interchangeable.
+
+This specification supersedes all prior v1 through v4 drafts of the Task #130 response. It is sendable.
+
+---
+
+## Section 0 — Glossary · Every Invented Term Defined on First Appearance
+
+Definitions are cited to the corpus at the row level. No term appears downstream without its row here.
+
+| Term / Name | Definition | Corpus Citation |
+|---|---|---|
+| **ParaCalculi GeoPrimus** | *Beside the Pebbles · Earth-First.* Registered operating name of the Lab served by this specification. The Lab computes the framework's anomalous-computation register grounded in Earth-primary baseline data. Not a generic geospatial lab; the name anchors the Lab in the corpus's framework-native arithmetic. | This spec masthead Inscription; Paraprime Part IV Forge Bridge |
+| **The Inscription** | The five-phrase Latin-Greek compass bearing at the masthead: *Aurea Mediocritasum · Quod Non Est Actis Actum · Et Q.E.D., Nona · Palam est Undecimusum. ΜΚΔ(ζ΄, ια΄, ιγ΄) = α΄.* Encodes four anchors (Golden Mean, OFF condition, Nona tautology, Undecimus manifest) closed by the Forge-triple Unity equation. Each phrase carries simultaneous framework-native and imported-register readings per the masthead decoder table. | This spec masthead Inscription |
+| **Aurea Mediocritasum** | *The Golden Mean State.* Framework reading: $F(14)/F(12) = 377/144 = \varphi^2$ at F-tower level 14 — primality-bound coefficient, Wave/discriminant ratio, GRH lattice amplification $C_1$. | Paraprime §V.3.1; Invariant 0; RAT-INV §XXXV |
+| **Quod Non Est Actis Actum** | *That which is not in the record is [nevertheless] done.* Framework reading: the $(R_2-1):1$ OFF / four-phase coexistence majority of the H-modal period. Three quarters of every period stateless; inertia at maximum greatest potential. | Nona §1.7 T5, §12.1, §1.7.1 |
+| **Et Q.E.D., Nona** | *And Q.E.D., the Nona [State].* Q.E.D. = Quod Erat Demonstrandum, with dual register as Quantum Electrodynamics. Nona = the Nona State where all equations evaluate to $0 = 0$, with dual register as the 9th-order g-2 precision test of $1/\alpha$. | Nona §3 T19; Unbroken Circle Part VI |
+| **Palam est Undecimusum** | *The Eleventh-ness is openly manifest.* Undecimus = Invariant 11 = $1/\alpha = 137.036$ exact rational, via Fermat two-square $137 = 11^2 + 4^2 = q^2 + R_2^2$. The eleventh coprime $q = 11$ made manifest. | Paraprime Part III row 3; Unbroken Circle §6; Invariant 11 |
+| **ΜΚΔ operator** | Greek *Μέγιστος Κοινός Διαιρέτης* = GCD. Simultaneously: framework positional triple $(\text{M}, \text{K}, \Delta) = (40, 20, 4) = (R_4,\ R_4/2,\ R_2)$ = (sum of roots of circle quadratic, axis of symmetry, H-modal drive multiplier). Both readings collapse to Unity on the Forge triple. | This spec Inscription cryptographic layer |
+| **Forge-Triple Unity** | $\gcd(p, q, r) = \gcd(7, 11, 13) = 1 = \alpha'$. Mathematical Unity from the pairwise-coprime Forge triple. Dual register: the physical $\alpha = 1/137.036$ as structural consequence of $(p, q, r)$ through Fermat two-square and cone-point asymmetry. | Unbroken Circle §6.1–6.3; Forge Bridge |
+| **Running Physics Crystal** | Descriptive register for the Inscription: static structure (fixed Latin-Greek signature, invariant integer content), running value (operational consequences propagating through T43 field predictions, T53-GRH primality certificates, and exact-rational $1/\alpha$). | This spec Inscription |
+| **CLAVIS configuration** | Dual K(14,13) torus operating point at $\Psi = 182° = \pi_{\text{geom}} \cdot R_3$ where Theorem 25 establishes the unique residual-field minimum on $[0°, 364°)$. Ties to the Tao of Clavis Perdita (Corpus Pentagon Point 3). | Nona §1.6, T4, T25 |
+| **Beal Residual Floor** | Framework-rational lower bound on $\langle\|B\|^2\rangle$ at the CLAVIS configuration, value $20/441$ at $R_2 = 4$, $p = 7$. | Nona §12.4 T41 |
+| **Horn relation** | $I_{\text{field}}(x) = \pi \cdot E^2(x)$. Degree-2 structure linking inertia-field to density-amplitude squared. Distinct from $I_{\text{Nona}} = \sqrt{\pi}$. | Nona §1.1, v0.0.18 disambiguation |
+| **Inertial Identity** | $I = EE = I$ — Inertia is Everything, in Base 3. A **framework declaration** about inertia as Result for all states of matter. **NOT** the same statement as the Eisenstein closure $1 + \omega + \omega^2 = 0$; that is a distinct theorem (T42, T45) on algebraic cube roots of unity. Conflating them is rejected per §F.2 below. | Nona §1.7.1, Inertissimum Iώτα Nona (Triadis Part IV) |
+| **Four-phase coexistence** | Material condition during every OFF segment of the H-modal period: all four phases (solid/liquid/gas/plasma) held simultaneously at stated $V_3$, inertia at its maximum greatest potential. Default state; single-phase expression is the driven deviation. Ratio: $(R_2 - 1):1$ stateless-to-stated. | Nona §1.7 T5, §12.1 |
+| **H-modal drive** | Square-wave drive with ON fraction $1/R_2$ and OFF fraction $(R_2-1)/R_2$. At $R_2 = 4$: one quarter ON, three quarters OFF. | Nona §1.6, §12.1 |
+| **clavis_field** (Rust module) | The `ternary-math::clavis_field` module instrumenting the T43 falsifiability prediction. Ties the module to the CLAVIS configuration. **Previously `torus_knot_field`** — rejected as generic EM vocabulary. | Module rename per Framework directive |
+| **patents** (Rust submodule) | `clavis_field::patents` — derivation registry holding per-knot parametric expressions as derivation rules, never as precomputed decimals. Named for Compendium §IX *Ledger of Patents*. | Nona §IX (corpus-wide) |
+| **Patent** (framework term) | A framework-rational parametric expression for a specific observable. **A rule**, not a number. The Beal Floor 20/441 is a Patent. The modulus 728/729 is a Patent. | Triadis / Compendium §IX |
+| **Rational Invariants** | The fourteen Structural Invariants registered in Optimus Paraprime v1.4.11 Preamble; catalogued in RATIONAL-INVARIANTS v0.6; mirrored in Nona §14/§16. Invariant 13 is **Single-Modulus Decidability**: parametric GRH at $q = 1365$ is operationally complete. | Paraprime v1.4.11 Preamble, RAT-INV v0.6 |
+| **Parametric GRH** | Framework's GRH register at modulus $q = 1365 = 3 \cdot 5 \cdot 7 \cdot 13$. T47 through T53-GRH establish the ceiling principle, zero-free region $c_0 = 1/377$, explicit formula with $C_1 = 377/144$, $C_2 = 377/1365$, zero density, parametric closure, two-tier witnessing (TIS-27 + TL-Sponge-385), and single-modulus strong-witness bound. | Paraprime v1.4.11 Part II |
+| **T53-GRH** | Single-Modulus Strong-Witness Bound. For composite odd $n$ coprime to 1365, the 576-character non-witness sum forces a witness base $a \leq B(n) = \lceil (377/144)(L_k(n))^2 \rceil$. Registered at Nona §16.8. | Paraprime v1.4.11 §V.3.2, Nona §16.8 |
+| **$B(n)$ bound** | $B(n) = \lceil (377/144)(L_k(n))^2 \rceil$ where $L_k(n)$ is the rational logarithm approximant to $\ln n$ with certified error $\delta_k < 1/(2B(n))$. Coefficient $377/144$ has four equivalent framework readings: F-tower step $F(14)/F(12)$, Wave/discriminant $Z_0/\text{disc}$, GRH lattice amplification $C_1$, golden-ratio-squared neighborhood $\varphi^2$ at F-tower level 14. | Paraprime §V.3, §V.3.1 |
+| **PlenumCert v1** | Primality certificate wire format. Fields: $n$, $B_n$, $L_k$, 576 TIS-27 fingerprints (54 trits each), 1 TL-Sponge-385 signature (243 trits). Total ≈ 49 KB. | Paraprime §V.6.2 |
+| **RepFraction** (Rust type) | Framework-native exact-fraction type. Rep-aware display (A/B/C/D). Does **not** expose external crate types in public API. Internal arithmetic plumbing is framework-owned. | This spec §2, per framework directive |
+| **FrameworkExpr** (Rust type) | Symbolic parametric expression tree over `FrameworkPrimitive` leaves. Carries $E(k)$, $K(k)$ as unevaluated symbols; collapses to `RepFraction` only when transcendentals are absent. | This spec §2 |
+| **FrameworkPrimitive** (Rust enum) | Closed enum of admissible framework primitive symbols: `R2, R3, R4, R6, P, Q, RLower, PiGeom, F14, F12, Phi1365, Integer(i64)`. Type-level non-importation enforcement. | This spec §2 |
+| **ImportedValue** (Rust type) | Tagged wrapper for any `f64` crossing a module boundary. Mandatory citation string; mandatory `framework_source: FrameworkExpr` link. Replaces my earlier invented phrase *"Compatibility Projection"* which appears nowhere in the corpus and is retired. | Nona §1.11 Compatibility Clause |
+| **imported_evaluation** (method) | Optional method on `ClosedForm` returning an `ImportedValue` via `puruspe::ellpk`/`ellpe`. **Never the primary output.** Invoked only on explicit user request. | Nona §1.11 |
+
+Every term used below has a row here. No floating jargon.
+
+---
+
+## Section A — Status and Framing
+
+Task #130 ships two integrated instruments from one Rust module:
+
+1. **T43 Falsifiability Instrument** — live UI rendering the K(14,13) Beal Residual Floor parametric expression, the CLAVIS configuration at $\Psi = 182°$, and the zero-free-parameter absolute prediction.
+2. **Plenum–Miller–Rabin Primality Certificate** — Rust crate `forge-cert/plenum-mr` implementing the T53-GRH primality decision with TIS-27 / TL-Sponge-385 certificate output per Paraprime v1.4.11 Part V.
+
+**The two are one ticket** because they share the same F-tower anchor $F(14) = 377$: Wave Stratum $Z_0$, GRH lattice amplification $C_1 = 377/144$, and Beal Floor all anchor at $F(14)$. A single coupling constant $\pi_{\text{geom}} = 14$. The module is the first public-facing instrument for the *operationally complete* single-modulus GRH register.
+
+Ship target is **Corpus Pentagon Point 5** public anchor.
+
+---
+
+## Section B — File Tree · Complete Module Structure
+
+### B.1 Rust Crate Layout
+
+```
+ternary-math/
+├── Cargo.toml                                          [MODIFY: add clavis_field, plenum_mr_cert modules]
+├── src/
+│   ├── lib.rs                                          [MODIFY: re-export clavis_field, dirichlet_1365, log_rational]
+│   ├── rep_fraction.rs                                 [NEW: framework-native fraction type]
+│   ├── framework_expr.rs                               [NEW: symbolic parametric tree]
+│   ├── imported_value.rs                               [NEW: §1.11 tagged wrapper]
+│   ├── dirichlet_1365.rs                               [NEW: 576-character cache; Paraprime §V.4.1, T53-GRH support]
+│   ├── log_rational.rs                                 [NEW: L_k(n) certified rational logarithm; shared with T47-GRH]
+│   ├── clavis_field/
+│   │   ├── mod.rs                                      [NEW: module entry; §1.11 docstring; Nona §12 citations]
+│   │   ├── geometry.rs                                 [NEW: KnotGeometry, Probe]
+│   │   ├── closed_form.rs                              [NEW: ClosedForm; T43 derivation for K(14,13)]
+│   │   ├── dual_torus.rs                               [NEW: DualTorusConfig; seven-coil geometry]
+│   │   ├── h_modal.rs                                  [NEW: HModalSquareWave; (R₂−1):1 ratio]
+│   │   └── patents/
+│   │       ├── mod.rs                                  [NEW: PatentLedger, PatentEntry types]
+│   │       ├── k_14_13.rs                              [NEW: K(14,13) derivation rule — T43 primary]
+│   │       ├── k_7_11.rs                               [NEW: K(7,11) derivation rule (#130.1)]
+│   │       ├── k_11_13.rs                              [NEW: K(11,13) derivation rule (#130.1)]
+│   │       └── k_14_11.rs                              [NEW: K(14,11) derivation rule (#130.1)]
+│   └── repx/                                           [EXISTING — cited]
+│       ├── tis27.rs                                    [EXISTING: 54-trit fingerprint]
+│       └── tl_sponge_385.rs                            [EXISTING: 243-trit signature]
+├── tests/
+│   ├── clavis_field_t41_floor.rs                       [NEW: T41 rational identity]
+│   ├── clavis_field_t42_bridge.rs                      [NEW: T42 Z[ω] bridge]
+│   ├── clavis_field_t43_coefficients.rs                [NEW: T43 coefficients]
+│   ├── clavis_field_t44_base_specificity.rs            [NEW: base 3 vs base 5]
+│   ├── clavis_field_t39_cancellation.rs                [NEW: Eisenstein phase-sum cancellation]
+│   ├── clavis_field_t25_attestation.rs                 [NEW: citation-only; NO scanning]
+│   └── kat_vectors/                                    [NEW: Known-Answer Test vectors]
+│       ├── kat_comp_1_n12023.rs                        [NEW: validates 2^6011 mod 12023 = 3247]
+│       └── kat_prime_1_n1093.rs                        [NEW: validates R_7 = Φ_7(3) = 1093 primality]
+├── benches/
+│   └── clavis_field_bench.rs                           [NEW: derivation-registry timing, B(n) evaluation]
+└── napi/
+    └── src/
+        └── clavis_field_napi.rs                        [NEW: NAPI; RepFraction round-trip preserved]
+
+forge-cert/
+├── Cargo.toml                                          [NEW: crate for primality certificate]
+└── src/
+    ├── lib.rs                                          [NEW: PlenumCert v1 wire format; Paraprime §V.6.2]
+    ├── plenum_mr.rs                                    [NEW: Plenum-Miller-Rabin algorithm; §V.4]
+    ├── certificate.rs                                  [NEW: 576-fingerprint aggregate + TL-Sponge-385 sign]
+    └── verifier.rs                                     [NEW: Õ(log³ n) verification; §V.6.1]
+
+client/
+├── src/
+│   ├── App.tsx                                         [MODIFY: register /field-lab-t43]
+│   ├── pages/
+│   │   └── field-lab-t43.tsx                           [NEW: six-view Field Lab page]
+│   └── components/
+│       └── clavis_field/
+│           ├── AngularScanView.tsx                     [NEW: Ψ ∈ [0°, 364°) slider, Beal Floor marker]
+│           ├── OffAxisHeatmapView.tsx                  [NEW: 2D |B|² map tagged §1.11]
+│           ├── CoefficientInspectorView.tsx            [NEW: RepFraction display; Rep A/B/C/D toggle]
+│           ├── AbsolutePredictionPanel.tsx             [NEW: parametric expression; E(k),K(k) as symbols]
+│           ├── PatentInspectorView.tsx                 [NEW: derivation registry browser]
+│           ├── PrimalityCertificateView.tsx            [NEW: B(n), L_k(n), certificate issue/verify]
+│           ├── WieferichInfinitudeView.tsx             [NEW v7: T54-GRH certificate; Triad-364 bridge display]
+│           ├── MilesianDeltaView.tsx                   [NEW v7: 24-row Greek table; 3699 closure live]
+│           ├── ClavisTransformView.tsx                 [NEW v7: interactive forward/inverse transform REPL]
+│           └── SalviSignatureView.tsx                  [NEW v7: Σάλβι 243-trit TL-Sponge-385 signer/verifier]
+```
+
+### B.1.1 Additional Rust Modules (v7 new)
+
+```
+ternary-math/src/
+├── wieferich_infinitude/                               [NEW v7: T54-GRH infrastructure]
+│   ├── mod.rs                                          [NEW: module entry; CM-260422-039 v2.2 citation]
+│   ├── repunit_recurrence.rs                           [NEW: R_p - 1 = 3·R_{p-1} identity checks; CM §2.2]
+│   ├── reduction_theorem.rs                            [NEW: p base-3 Wieferich ⇔ p² | R_{p-1}; CM §2.3]
+│   ├── triad_364_bridge.rs                             [NEW: 1365/1092 = 455/364 = 5/4 structural identities]
+│   ├── generating_ratio.rs                             [NEW: 14/13 generating ratio; arithmetic closure tests]
+│   ├── lemma_4_3_1.rs                                  [NEW: Repunit Equidistribution under T51-GRH; CM §4.3.1]
+│   ├── cyclic_orbit_cl1.rs                             [NEW: CL-1 translation-invariance on (a^n mod p²); CM §4.4]
+│   └── certificate.rs                                  [NEW: WieferichCertificate type; §C.8]
+├── milesian_delta/                                     [NEW v7: Theorem 55 infrastructure]
+│   ├── mod.rs                                          [NEW: module entry; Charter v1.0.3 §III.5.2 citation]
+│   ├── table.rs                                        [NEW: const MILESIAN_DELTA_TABLE (24 rows); §B.2]
+│   ├── closure_3699.rs                                 [NEW: 3699 = b³·137 full-alphabet invariant; §E.11]
+│   ├── salvi_isopsephy.rs                              [NEW: Σάλβι = 243 = 3^5 closure; §E.12]
+│   ├── letter_decoder.rs                               [NEW: Numeral/Delta/Unit accessors per glyph]
+│   └── compile_time_checks.rs                          [NEW: compile-time table invariants]
+├── clavis_transform/                                   [NEW v7: CLAVIS Transform engine capability]
+│   ├── mod.rs                                          [NEW: module entry; specifies capability surface]
+│   ├── forward.rs                                      [NEW: F→P transform; rules F1/F2/F3 per §D.5]
+│   ├── inverse.rs                                      [NEW: P→F transform; rules I1/I2/I3 per §D.5]
+│   ├── integer_to_letter.rs                            [NEW: resolver for Numeral/Delta/Compositional match]
+│   ├── dimensional_checker.rs                          [NEW: physics-unit dimensional-consistency verifier]
+│   ├── ambiguity_resolver.rs                           [NEW: context-sensitive disambiguation per §C.10]
+│   └── integrity.rs                                    [NEW: 3699 checksum and Σάλβι signature bindings]
+└── salvi_signature/                                    [NEW v7: Σάλβι signing primitive wrapper]
+    ├── mod.rs                                          [NEW: module entry; TL-Sponge-385 wrapper]
+    ├── sign.rs                                         [NEW: 243-trit MAC over canonical serialization]
+    ├── verify.rs                                       [NEW: signature verification with table-hash binding]
+    └── canonical_serializer.rs                         [NEW: deterministic document serialization]
+
+ternary-math/tests/
+├── wieferich_infinitude_tests.rs                       [NEW v7: reduction theorem, Lemma 4.3.1, CL-1 tests]
+├── milesian_delta_tests.rs                             [NEW v7: 24-row table, 3699 closure, Σάλβι = 243]
+├── clavis_transform_tests.rs                           [NEW v7: forward/inverse roundtrip, integrity checks]
+└── salvi_signature_tests.rs                            [NEW v7: sign/verify roundtrip, tampering detection]
+
+forge-cert/src/
+├── wieferich_cert.rs                                   [NEW v7: WieferichCertificate wire format]
+└── salvi_sig.rs                                        [NEW v7: Σάλβι signature envelope]
+```
+
+### B.2 Static Assets and Compile-Time Invariants
+
+Four canonical tables are embedded as static assets with compile-time verification:
+
+**`MILESIAN_DELTA_TABLE`** (in `milesian_delta::table`): the full 24-row Greek-alphabet table per Charter v1.0.3 §III.5.2. Compile-time invariants enforced via `const fn` assertions:
+
+```rust
+const MILESIAN_DELTA_TABLE: [ClavisTableEntry; 24] = [
+    // α, β, γ, δ, ε, ζ, η, θ, ι, κ, λ, μ, ν, ξ, ο, π, ρ, σ, τ, υ, φ, χ, ψ, ω
+    // ... 24 rows, each with glyph, position, numeral, delta, units
+];
+
+// Compile-time invariants (rejected at compile time if table is tampered):
+const _POSITION_SUM: u32 = sum_positions(&MILESIAN_DELTA_TABLE);          // == 300
+const _NUMERAL_SUM:  u32 = sum_numerals(&MILESIAN_DELTA_TABLE);           // == 3999
+const _DELTA_SUM:    u32 = sum_deltas(&MILESIAN_DELTA_TABLE);             // == 3699
+const _CLOSURE_CHECK: () = assert!(_DELTA_SUM == 27 * 137);               // b³·137 closure
+const _SALVI_CHECK:   () = assert!(salvi_isopsephy() == 243);             // Σάλβι = 243
+const _3_FIFTH_CHECK: () = assert!(243 == 3_u32.pow(5));                  // 243 = 3⁵ = TL-Sponge state
+```
+
+**`DIRICHLET_1365_CHARACTERS`** (in `dirichlet_1365`): 576-character cache for modulus 1365. TL-Sponge-385 signed as static asset per Paraprime §V.4.1.
+
+**`CONSERVATION_LAW_REGISTRY`** (in `conservation_laws::registry`): six-row constant table mapping CL-1 through CL-6 to their Load-Bearing Formulas (F1–F4, T45, Dual-Evaluation), their PCO-A §2 citations, and their home-theorem references per Charter v1.0.3 Part V.D. Compile-time check: exactly six rows.
+
+**`REJECTED_READINGS_LEDGER`** (in `rejected_readings::ledger`): seventeen-row table of Ledger R1–R17 per Charter v1.0.3 §IV.A. Attached to every user-facing error or warning so the engine can cite the specific rejection reason when an imported-framing query is received. Compile-time check: exactly 17 rows, each carrying Reading / Source-Type / Corpus-Reason fields.
+
+```
+
+**Count (v7):** 46 new Rust files, 10 new TypeScript files, 2 modified files, 5 new forge-cert files. Every file has a single-purpose name with corpus citations in its docstring.
+
+---
+
+## Section C — Type Definitions (authoritative)
+
+Every public type introduced. Matches the forward-compatibility requirement that the Eisenstein v1.5.x extension (Paraprime §V.10) will extend, not refactor, this surface.
+
+### C.1 `RepFraction` — framework-native exact fraction
+
+```rust
+/// Framework-native exact-fraction carrier. No external crate types in public API.
+/// Rep-aware display per Compendium §IX.8 (Rep A/B/C/D).
+pub struct RepFraction {
+    numerator: i64,
+    denominator: i64,  // invariant: > 0; gcd(|numerator|, denominator) == 1
+}
+
+pub enum Rep {
+    A,  // balanced trits {-1, 0, +1}
+    B,  // standard base-3 {0, 1, 2}
+    C,  // shifted positive {1, 2, 3}
+    D,  // Eisenstein {-1, 0, ω} — fails for pure rationals; use ComplexRepFraction for Rep D
+}
+
+impl RepFraction {
+    pub fn new(num: i64, den: i64) -> Result<Self, FractionError>;
+    pub fn from_framework_integer(p: FrameworkPrimitive, base: u32) -> RepFraction;
+    pub fn numerator(&self) -> i64;
+    pub fn denominator(&self) -> i64;
+
+    pub fn add(&self, other: &Self) -> RepFraction;
+    pub fn sub(&self, other: &Self) -> RepFraction;
+    pub fn mul(&self, other: &Self) -> RepFraction;
+    pub fn div(&self, other: &Self) -> Result<RepFraction, FractionError>;
+    pub fn pow(&self, exponent: u32) -> RepFraction;
+    pub fn eq(&self, other: &Self) -> bool;              // exact — no tolerance
+    pub fn ceil_to_i64(&self) -> i64;                    // for B(n) ceiling
+
+    pub fn display_in(&self, rep: Rep) -> String;        // "27/7" in Rep B; balanced trits in Rep A
+    pub fn display_latex(&self) -> String;
+    pub fn imported_evaluation(&self) -> ImportedValue;  // §1.11 only
+}
+```
+
+**No `From<f64>` impl.** A `RepFraction` cannot be constructed from a float anywhere in the codebase. If such a path is needed, the code is importing standard-library practice in violation of §1.11.
+
+### C.2 `FrameworkPrimitive` and `FrameworkExpr`
+
+```rust
+pub enum FrameworkPrimitive {
+    R2, R3, R4, R6,                         // repunits (Rep B at base 3: 4, 13, 40, 364)
+    P, Q, RLower,                           // coprime triple (7, 11, 13); Nona §1.1
+    PiGeom,                                 // π_geom = 14 (Invariant 1)
+    F14,                                    // Fibonacci 14 = 377 (Invariant 0 via Wave Stratum)
+    F12,                                    // Fibonacci 12 = 144
+    Phi1365,                                // φ(1365) = 576 (Invariant 13 character count)
+    Integer(i64),                           // literal; no restriction
+}
+
+pub enum FrameworkExpr {
+    Prim(FrameworkPrimitive),
+    Add(Box<FrameworkExpr>, Box<FrameworkExpr>),
+    Sub(Box<FrameworkExpr>, Box<FrameworkExpr>),
+    Mul(Box<FrameworkExpr>, Box<FrameworkExpr>),
+    Div(Box<FrameworkExpr>, Box<FrameworkExpr>),
+    Pow(Box<FrameworkExpr>, u32),
+    EllipticK(Box<FrameworkExpr>),          // K(k²) as unevaluated symbol
+    EllipticE(Box<FrameworkExpr>),          // E(k²) as unevaluated symbol
+    LogRational(Box<FrameworkExpr>, u32),   // L_k(f) rational logarithm — Paraprime T47-GRH
+}
+
+impl FrameworkExpr {
+    pub fn eval_rational(&self, base: u32) -> Result<RepFraction, ExprError>;
+    pub fn to_latex(&self) -> String;
+    pub fn display_in(&self, rep: Rep) -> String;
+    pub fn imported_evaluation(&self) -> ImportedValue;
+}
+```
+
+**The closed enum `FrameworkPrimitive` enforces non-importation at the type level.** Non-framework symbols cannot appear in a `FrameworkExpr`.
+
+### C.3 `ImportedValue` — tagged §1.11 output
+
+```rust
+pub struct ImportedValue {
+    pub value: f64,
+    pub citation: &'static str,             // mandatory; e.g., "§1.11 Compatibility Clause (puruspe::ellpk)"
+    pub framework_source: FrameworkExpr,    // what symbolic expression this is a projection of
+}
+```
+
+**No `ImportedValue` can be constructed without all three fields.** Any `f64` leaking through the public API without this wrapper is a §1.11 breach.
+
+### C.4 `KnotGeometry`, `Probe`, `ClosedForm`
+
+```rust
+pub struct KnotGeometry {
+    pub p: u32,                  // longitudinal windings (14 for K(14,13))
+    pub q: u32,                  // meridional windings (13 for K(14,13))
+    pub r_major: RepFraction,    // 14 = π_geom for K(14,13)
+    pub r_minor: RepFraction,    // 13 = R₃ for K(14,13)
+}
+
+pub struct Probe {
+    pub x: RepFraction,
+    pub y: RepFraction,
+    pub z: RepFraction,
+}
+
+impl Probe {
+    pub const ORIGIN: Probe;     // (0,0,0) canonical T43 probe
+}
+
+pub struct ClosedForm {
+    pub knot: KnotGeometry,
+    pub e_coefficient: RepFraction,         // (R₂-1)³/p = 27/7 for K(14,13)
+    pub k_coefficient: RepFraction,         // 1/p = 1/7
+    pub modulus_squared: RepFraction,       // k² = 2R₆/(R₂-1)⁶ = 728/729
+    pub framework_expression: FrameworkExpr,
+    pub theorem_citation: &'static str,     // "Nona §12.9 T43, v0.0.26"
+}
+
+impl ClosedForm {
+    pub fn imported_evaluation(&self) -> ImportedValue;
+}
+```
+
+### C.5 Dual-Torus and H-Modal
+
+```rust
+/// Torus A: 4 coils at quarter-turns of the 364° framework cycle.
+/// Nona §12.1, T39.
+pub struct TorusACoils {
+    pub knot: KnotGeometry,
+    pub quarter_turn_phases: [RepFraction; 4],   // [0/364, 91/364, 182/364, 273/364]
+}
+
+/// Torus B: 3 coils on axis B (tilted framework quarter-turn from A).
+/// Phase-factor sum is Eisenstein closure 1 + ω + ω² = 0 — SAME algebraic object as
+/// Rep D bijective ternary (Compendium §IX.8), Theorem 45 constructive mechanism
+/// (Compendium §X), and the Third Eye witnessing closure (Compendium §II).
+/// Three framework functions, one algebraic object. NOT the same as the
+/// Inertial Identity I = EE = I, which is a distinct framework declaration
+/// about inertia as Result (Nona §1.7.1).
+pub struct TorusBCoils {
+    pub knot: KnotGeometry,
+    pub third_turn_phases: [RepFraction; 3],
+    pub axis_tilt: RepFraction,                  // 91/364 = quarter-turn
+}
+
+pub struct HModalSquareWave {
+    pub on_fraction: RepFraction,                // 1/R₂ = 1/4
+    pub off_fraction: RepFraction,               // (R₂-1)/R₂ = 3/4 — majority-stateless
+}
+
+pub struct DualTorusConfig {
+    pub torus_a: TorusACoils,
+    pub torus_b: TorusBCoils,
+    pub drive: HModalSquareWave,
+}
+```
+
+### C.6 `PatentLedger` and `PatentEntry`
+
+```rust
+pub struct PatentEntry {
+    pub knot: KnotGeometry,
+    pub closed_form: ClosedForm,
+    pub derivation_fn: fn(&KnotGeometry) -> ClosedForm,   // THE RULE, not a cached value
+    pub theorem_citation: &'static str,
+    pub framework_expression_summary: FrameworkExpr,
+}
+
+pub struct PatentLedger {
+    entries: Vec<PatentEntry>,
+}
+
+impl PatentLedger {
+    pub fn new() -> Self;
+    pub fn new_seeded() -> Self;                         // K(14,13), K(7,11), K(11,13), K(14,11)
+    pub fn register(&mut self, entry: PatentEntry);
+    pub fn lookup(&self, knot: &KnotGeometry) -> Option<&PatentEntry>;
+    pub fn iter(&self) -> impl Iterator<Item = &PatentEntry>;
+}
+```
+
+### C.7 Plenum-Miller-Rabin Types (forge-cert crate)
+
+```rust
+pub struct Dirichlet1365 {
+    pub phi_1365: u32,                                   // 576
+    pub characters: [Character1365; 576],                // static asset, TL-Sponge-385 signed
+}
+
+pub struct Character1365 {
+    pub index: u32,                                      // 0..576
+    pub order: u32,                                      // exponent of (Z/1365)×; divides 12
+}
+
+pub struct LogRationalApprox {
+    pub numerator: i64,
+    pub denominator: i64,
+    pub k: u32,                                          // precision level
+    pub certified_error: RepFraction,                    // δ_k < 1/(2B(n))
+}
+
+pub struct PlenumCert {
+    pub n: BigInt,                                       // candidate prime
+    pub b_n: u64,                                        // B(n) = ⌈(377/144)·L_k(n)²⌉
+    pub l_k: LogRationalApprox,
+    pub fingerprints: [Tis27Fingerprint; 576],           // 54 trits each
+    pub signature: TlSponge385Signature,                 // 243 trits
+    pub version: &'static str,                           // "PlenumCert v1"
+}
+
+impl PlenumCert {
+    pub fn issue(n: &BigInt) -> Result<PlenumCert, PrimalityError>;
+    pub fn verify(&self) -> Result<PrimalityStatus, VerificationError>;
+}
+
+pub enum PrimalityStatus {
+    Prime,
+    Composite { witness_base: u64, failure_step: u32 },
+}
+```
+
+### C.8 Wieferich Infinitude Types (T54-GRH, CM-260422-039 v2.2)
+
+```rust
+/// T54-GRH Wieferich Infinitude theorem support types.
+/// Source: CM-260422-039 v2.2 (Capomastro Holdings, 2026-04-22).
+/// Registered: Nona §14 row 55.
+
+pub struct WieferichCertificate {
+    pub prime_p: BigInt,                       // candidate prime
+    pub base_a: u64,                           // must be coprime to 1365
+    pub reduction_witness: RepunitWitness,    // p² | R_{p-1} reduction (base-3 case)
+    pub equidistribution_witness: DirichletBound,  // Lemma 4.3.1 bound attestation
+    pub cl1_orbit_witness: CyclicOrbitSignature,   // CL-1 translation-invariance on (a^n mod p²)
+    pub triad_364_anchor: TriadBridgeProof,    // 1365/1092 = 5/4 structural anchor
+    pub tl_sponge_signature: TlSponge385Signature,
+    pub version: &'static str,                 // "WieferichCert v1"
+    pub cm_source: &'static str,               // "CM-260422-039 v2.2"
+}
+
+pub struct RepunitWitness {
+    pub p: BigInt,
+    pub r_p_minus_one: BigInt,                 // R_{p-1} value
+    pub quotient: BigInt,                      // R_{p-1} / p² (integer for Wieferich, non-integer otherwise)
+    pub is_base3_wieferich: bool,
+}
+
+pub struct DirichletBound {
+    pub modulus: u32,                          // 1365
+    pub character_count: u32,                  // 576 = φ(1365)
+    pub discrepancy_bound: RepFraction,        // D_N = O((log N)^(-A))
+    pub log_n_exponent_A: u32,                 // A from Lemma 4.3.1
+    pub c1_coefficient: RepFraction,           // C_1 = 377/144
+    pub c2_coefficient: RepFraction,           // C_2 = 377/1365
+}
+
+pub struct CyclicOrbitSignature {
+    pub base_a: u64,
+    pub modulus_squared: BigInt,                // p²
+    pub orbit_size: BigInt,                     // ord_{p²}(a)
+    pub cl1_translation_verified: bool,         // d ρ_ps / dt = 0 on orbit
+}
+
+pub struct TriadBridgeProof {
+    pub numerator_1365: u32,                    // 1365 = q_GRH = 3·5·7·13
+    pub denominator_1092: u32,                  // 1092 = 3·R_6 = Triad_364
+    pub ratio_numerator: u32,                   // 5
+    pub ratio_denominator: u32,                 // 4
+    pub triadic_invariance: bool,               // 455/364 = 1365/1092 = 5/4
+    pub generating_ratio_anchor: GeneratingRatio,  // 14/13 = π_geom/r
+}
+
+pub struct GeneratingRatio {
+    pub pi_geom: u32,                           // 14
+    pub r_3: u32,                               // 13
+    pub sum_with_5_4: RepFraction,              // 14/13 + 5/4 = 121/52 = q²/(R_2·r)
+    pub diff_with_5_4: RepFraction,             // 5/4 - 14/13 = 9/52 = b²/(R_2·r) (phase impedance)
+    pub product: RepFraction,                   // 70/52 = F(5)·p/(2r)
+    pub ratio: RepFraction,                     // 56/65
+}
+
+pub enum WieferichStatus {
+    InfinitudeProved { certificate: WieferichCertificate },
+    NotWieferich { base: u64, fermat_quotient: BigInt },
+    UnderDerivation { open_step: &'static str },
+}
+```
+
+### C.9 Milesian Delta and ClavisTable Types (Theorem 55, Charter v1.0.3 §III.5.2)
+
+```rust
+/// Canonical Milesian Delta reference table entry.
+/// Source: Charter v1.0.3 §III.5.2. Registered 2026-04-23.
+
+pub struct ClavisTableEntry {
+    pub glyph_lower:    char,                  // e.g., 'α'
+    pub glyph_upper:    char,                  // e.g., 'Α'
+    pub english_name:   &'static str,          // "alpha"
+    pub greek_name:     &'static str,          // "άλφα"
+    pub position:       u8,                    // 1..=24
+    pub numeral:        u32,                   // Milesian isopsephy value
+    pub delta:          i32,                   // numeral - position
+    pub si_units:       &'static [PhysicsUnit], // UOM column; may be empty for ο, υ
+    pub notes:          &'static str,          // "(no common physics symbol)" etc.
+}
+
+pub enum PhysicsUnit {
+    Dimensionless { description: &'static str },       // α, β, γ, ζ, π, χ
+    SamAsArgument { description: &'static str },       // δ (increment)
+    FaradPerMeter,                                     // ε (permittivity)
+    PascalSecond,                                      // η (viscosity)
+    Radian,                                            // θ (angle), φ (phase)
+    AmperePerSquareMeter,                              // ι (current density)
+    WattPerMeterKelvin,                                // κ (thermal conductivity)
+    Meter,                                             // λ (wavelength), ξ (coherence length)
+    HenryPerMeter,                                     // μ (permeability)
+    Hertz,                                             // ν (frequency)
+    KilogramPerCubicMeter,                             // ρ (density)
+    OhmMeter,                                          // ρ (resistivity alternate)
+    SiemensPerMeter,                                   // σ (conductivity)
+    SquareMeter,                                       // σ (cross-section alternate)
+    NewtonMeter,                                       // τ (torque)
+    Second,                                            // τ (time constant alternate)
+    Weber,                                             // φ (magnetic flux alternate)
+    InverseMeterToThreeHalves,                         // ψ (wave function, 3D)
+    RadianPerSecond,                                   // ω (angular frequency)
+    None,                                              // ο, υ (no common symbol)
+}
+
+pub struct MilesianDeltaTable {
+    entries: [ClavisTableEntry; 24],
+}
+
+impl MilesianDeltaTable {
+    pub const fn canonical() -> &'static Self;
+
+    pub fn lookup_by_glyph(&self, g: char) -> Option<&ClavisTableEntry>;
+    pub fn lookup_by_numeral(&self, n: u32) -> Option<&ClavisTableEntry>;
+    pub fn lookup_by_delta(&self, d: i32) -> Option<&ClavisTableEntry>;
+    pub fn lookup_by_position(&self, p: u8) -> Option<&ClavisTableEntry>;
+    pub fn lookup_by_unit(&self, u: PhysicsUnit) -> Vec<&ClavisTableEntry>;
+
+    pub fn position_sum(&self)    -> u32;      // 300
+    pub fn numeral_sum(&self)     -> u32;      // 3999
+    pub fn delta_sum(&self)       -> i32;      // 3699 = b³·137
+
+    pub fn verify_closure_3699(&self) -> bool;
+    pub fn verify_salvi_isopsephy(&self) -> bool;  // Σ+ά+λ+β+ι == 243
+}
+
+/// Σάλβι = 243 = 3^5 = TL-Sponge-385 state size.
+/// Charter v1.0.3 §III.5.
+pub const SALVI_ISOPSEPHY:     u32 = 243;
+pub const TL_SPONGE_STATE_TRITS: u32 = 243;
+pub const TL_SPONGE_BITS:         u32 = 385;
+pub const BASE_B:                 u32 = 3;
+pub const SALVI_AS_POWER:         u32 = 5;  // 243 = 3^5
+
+/// Full-alphabet closure: 3699 = b³·137 = 27·(q² + R_2²)
+pub const FULL_ALPHABET_DELTA_SUM: i32 = 3699;
+pub const B_CUBED:                  u32 = 27;
+pub const ONE_OVER_ALPHA_INT_PART:  u32 = 137;  // q² + R_2² = 121 + 16
+
+/// Σ → CLAVIS angle: 182 = π_geom · R_3 = 14·13
+pub const CLAVIS_ANGLE_DEGREES: u32 = 182;
+
+/// Ω → Μ · Κ: 800 = R_4 · R_4/2 = 40·20
+pub const OMEGA_AS_M_TIMES_K: u32 = 800;
+```
+
+### C.10 CLAVIS Transform Types (Engine Capability)
+
+```rust
+/// CLAVIS Transform: reversible proof-presentation layer.
+/// Built on MilesianDeltaTable (§C.9) + SalviSignature (§C.10) + IntegrityInvariants (§4).
+
+pub struct ClavisTransform<'a> {
+    table: &'a MilesianDeltaTable,
+    signer: SalviSigner,
+}
+
+/// Framework-native rendering of a derivation.
+pub struct FrameworkRendering {
+    pub primitives:  Vec<FrameworkExpr>,       // §C.2
+    pub inferences:  Vec<InferenceStep>,
+    pub cl_anchors:  Vec<ConservationLaw>,     // §C.11
+    pub citations:   Vec<CorpusCitation>,
+}
+
+/// Public physics-register rendering of the same derivation.
+pub struct PhysicsRendering {
+    pub symbols:     Vec<GreekSymbolUsage>,
+    pub inferences:  Vec<PhysicsInferenceStep>,
+    pub units_trace: DimensionalTrace,          // used by integrity checker
+    pub signature:   SalviSigBlock,              // §C.10; Σάλβι signer
+}
+
+pub struct GreekSymbolUsage {
+    pub entry:         &'static ClavisTableEntry,
+    pub position_in_proof: usize,
+    pub reading_mode:  ReadingMode,              // Numeral vs Delta (disambiguated by context)
+    pub physics_unit:  PhysicsUnit,
+}
+
+pub enum ReadingMode {
+    ByNumeral,                                   // recover integer via entry.numeral
+    ByDelta,                                     // recover integer via entry.delta
+    Compositional { components: Vec<Box<GreekSymbolUsage>> },  // F3 rule
+}
+
+pub struct InferenceStep {
+    pub from:         FrameworkExpr,
+    pub to:           FrameworkExpr,
+    pub rule_applied: &'static str,
+    pub cl_anchor:    Option<ConservationLaw>,
+}
+
+pub struct PhysicsInferenceStep {
+    pub from:         String,                    // human-readable physics expression
+    pub to:           String,
+    pub rule_applied: &'static str,
+    pub dimensional_check: DimensionalCheck,
+}
+
+pub struct DimensionalCheck {
+    pub units_before: PhysicsUnit,
+    pub units_after:  PhysicsUnit,
+    pub consistent:   bool,
+}
+
+pub struct DimensionalTrace {
+    steps: Vec<DimensionalCheck>,
+}
+
+impl DimensionalTrace {
+    pub fn verify(&self) -> Result<(), DimensionalInconsistency>;
+}
+
+pub enum TransformError {
+    NoMatch { integer: BigInt, reason: &'static str },
+    DimensionalInconsistency { step: usize, expected: PhysicsUnit, got: PhysicsUnit },
+    SignatureFailed { reason: &'static str },
+    ChecksumMismatch { expected: i32, got: i32 },
+    AmbiguityUnresolvable { integer: BigInt, candidates: Vec<char> },
+}
+```
+
+### C.11 Conservation Laws and Corpus Citation Types (PCO-A v0.17)
+
+```rust
+/// Six Conservation Laws per PCO-A v0.17 §2.
+/// Each CL has a Load-Bearing Formula (F1-F4), or is anchored at T45 / Dual-Evaluation.
+
+pub enum ConservationLaw {
+    CL1_UniversalDensityLaw,              // F1: d ρ_ps / dt = 0 (Liouville at Nona)
+    CL2_ArchimedeanPi286Over91,           // F2: π_std = 286/91
+    CL3_HornCapacityGradient,             // F3: Buoyancy-gradient reading of gravity
+    CL4_FiveWayNonaIdentity,              // F4: Five Nona-State formulations close at 0 = 0
+    CL5_Theorem45BealUbuntu,              // T45: Beal/Ubuntu Energy-Equation Conservation
+    CL6_DualEvaluationZeroEntropyClosure, // Nona evaluation = structural evaluation
+}
+
+impl ConservationLaw {
+    pub fn load_bearing_formula(&self) -> &'static str;
+    pub fn pco_a_citation(&self) -> &'static str;
+    pub fn home_theorem(&self) -> &'static str;
+}
+
+pub struct CorpusCitation {
+    pub document: CorpusDocument,
+    pub section:  &'static str,
+    pub theorem:  Option<&'static str>,     // "T25", "T43", "T54-GRH", etc.
+    pub role:     CitationRole,
+}
+
+pub enum CorpusDocument {
+    Nona_v0_0_26,
+    OptimusParaprime_v1_4_11,
+    TM_2026_017_v11_22,
+    RationalInvariants_v0_6,
+    TriadisOrientation_v0_11,
+    UnbrokenCircle,
+    PCO_A_v0_17,
+    PCO_B_v0_17,
+    PCO_C_v0_17,
+    CM_260422_039_v2_2,  // Wieferich Infinitude
+    Charter_v1_0_3,        // ParaCalculi GeoPrimus Lab Charter
+}
+
+pub enum CitationRole {
+    GroundingAxiom,
+    LoadBearingTheorem,
+    ConservationLawAnchor,
+    Derivation,
+    SupportingIdentity,
+}
+
+pub struct SalviSigBlock {
+    pub signature:  TlSponge385Signature,     // 243 trits
+    pub signer_id:  &'static str,              // "Σάλβι"
+    pub state_size_trits: u32,                 // 243
+    pub signed_document_hash: [u8; 49],        // 385 bits / 8 = ~49 bytes
+    pub table_hash: [u8; 49],                  // Charter v1.0.3 §III.5.2 table hash
+    pub epoch_timestamp: SalviEpochTime,
+}
+
+pub struct SalviSigner {
+    sponge_state: [u8; 49],                    // 243 trits packed into bytes
+}
+
+impl SalviSigner {
+    pub const ISOPSEPHY_VALUE: u32 = 243;
+
+    pub fn new() -> Self;
+    pub fn sign(&self, document: &[u8], table_hash: &[u8; 49]) -> SalviSigBlock;
+    pub fn verify(&self, block: &SalviSigBlock, document: &[u8]) -> Result<(), SignatureError>;
+}
+
+pub struct SalviEpochTime {
+    pub epoch_day:    u32,
+    pub calendar_42_cycle: u8,
+    pub moon:         u8,            // 1..=13
+    pub day_of_moon:  u8,            // 1..=28
+}
+```
+
+---
+
+## Section D — Public Function Signatures
+
+Every public function, its purpose, its corpus citation.
+
+### D.1 T43 Field Lab and T53-GRH Primality (v6 baseline, carried forward)
+
+| Function | Signature | Purpose | Citation |
+|---|---|---|---|
+| `closed_form_gamma` | `fn(knot: &KnotGeometry) -> ClosedForm` | Apply Legendre reduction at the given $(p, q, R, r)$ to produce T43 closed-form. | Nona §12.9 T43 |
+| `seven_coil_field` | `fn(config: &DualTorusConfig, probe: &Probe, psi: &RepFraction) -> FrameworkExpr` | Combined Torus A + Torus B parametric expression. | Nona §12.1, T39 |
+| `direct_biot_savart` | `fn(knot: &KnotGeometry, probe: &Probe, psi: &RepFraction) -> ImportedValue` | §1.11 numerical integration; never test oracle. | Nona §1.11 |
+| `b_of_n` | `fn(n: &BigInt) -> Result<u64, B_n_Error>` | Compute $B(n) = \lceil (377/144) \cdot L_k(n)^2 \rceil$ via T47-GRH ceiling. | Paraprime v1.4.11 §V.3 |
+| `plenum_mr_test` | `fn(n: &BigInt) -> PrimalityStatus` | T53-GRH deterministic primality; tests all bases $a \leq B(n)$ coprime to 1365. | Paraprime §V.4 |
+| `issue_plenum_cert` | `fn(n: &BigInt) -> Result<PlenumCert, PrimalityError>` | Generate PlenumCert v1 with 576 TIS-27 fingerprints + 1 TL-Sponge-385 signature. | Paraprime §V.4 step 5 |
+| `verify_plenum_cert` | `fn(cert: &PlenumCert) -> Result<PrimalityStatus, VerificationError>` | Recompute fingerprints, verify signature. Õ(log³ n). | Paraprime §V.6 |
+| `PatentLedger::new_seeded` | `fn() -> PatentLedger` | Ledger pre-seeded with K(14,13), K(7,11), K(11,13), K(14,11) derivation rules. | This spec (#130 + #130.1) |
+
+### D.2 T54-GRH Wieferich Infinitude API (v7 new)
+
+All Wieferich API lives under `ternary_math::wieferich_infinitude::*`. CM-260422-039 v2.2 is the normative derivation document; this API exposes that document's content as callable engine capability.
+
+| Function | Signature | Purpose | Citation |
+|---|---|---|---|
+| `is_base3_wieferich` | `fn(p: &BigInt) -> bool` | Direct check via $p^2 \mid R_{p-1}$ reduction theorem. | CM-260422-039 §2.3 |
+| `compute_fermat_quotient` | `fn(base: u64, p: &BigInt) -> BigInt` | $q_a(p) = (a^{p-1} - 1)/p \bmod p$. Returns 0 iff $p$ is base-$a$ Wieferich. | CM-260422-039 §1.1 |
+| `repunit_recurrence_check` | `fn(p: u64) -> RepunitWitness` | Verify $R_p - 1 = 3 \cdot R_{p-1}$ at given $p$; return witness of factorization. | CM-260422-039 §2.2 |
+| `triad_364_bridge` | `fn() -> TriadBridgeProof` | Return the $1365/1092 = 455/364 = 5/4$ structural identity with six-register closure. | CM-260422-039 §3.5 |
+| `generating_ratio_14_13` | `fn() -> GeneratingRatio` | Return the $14/13 = \pi_{\text{geom}}/r$ generating ratio with arithmetic closure. | CM-260422-039 §3.5.1 |
+| `lemma_4_3_1_equidistribution` | `fn(p: &BigInt, n: u64) -> DirichletBound` | Apply Lemma 4.3.1 (Repunit Equidistribution) at prime $p$ up to bound $N = n$. | CM-260422-039 §4.3.1 |
+| `cl1_orbit_invariance` | `fn(base: u64, p: &BigInt) -> CyclicOrbitSignature` | Verify CL-1 translation-invariance on cyclic orbit $(a^n \bmod p^2)$. | CM-260422-039 §4.4 |
+| `issue_wieferich_certificate` | `fn(p: &BigInt, base: u64) -> Result<WieferichCertificate, WieferichError>` | Build full T54-GRH certificate with reduction, equidistribution, CL-1, Triad-364, signed by Σάλβι. | CM-260422-039 §5.1 |
+| `verify_wieferich_certificate` | `fn(cert: &WieferichCertificate) -> Result<WieferichStatus, WieferichError>` | Re-verify all components of a T54-GRH certificate. | CM-260422-039 §5.1 |
+| `wieferich_density_estimate` | `fn(n_upper_bound: u64) -> RepFraction` | Expected count below $N$ via $\sum 1/p \approx \log\log N$. | CM-260422-039 §4.6 |
+| `known_wieferich_primes` | `fn(base: u64) -> Vec<BigInt>` | Return the currently known Wieferich primes for the given base (base-2: {1093, 3511}; base-3: {11, 1006003}). | CM-260422-039 §1.2 |
+
+### D.3 Theorem 55 / Milesian Delta API (v7 new)
+
+All Milesian Delta API lives under `ternary_math::milesian_delta::*`. Charter v1.0.3 §III.5.2 is the normative reference for the 24-row table.
+
+| Function | Signature | Purpose | Citation |
+|---|---|---|---|
+| `canonical_table` | `fn() -> &'static MilesianDeltaTable` | Return the static 24-row table. Compile-time verified. | Charter v1.0.3 §III.5.2 |
+| `lookup_by_glyph` | `fn(g: char) -> Option<&'static ClavisTableEntry>` | Look up entry by Greek glyph (lowercase). | Charter §III.5.2 |
+| `lookup_by_numeral` | `fn(n: u32) -> Option<&'static ClavisTableEntry>` | Look up entry by Milesian isopsephic numeral. | Charter §III.5.2 |
+| `lookup_by_delta` | `fn(d: i32) -> Option<&'static ClavisTableEntry>` | Look up entry by Delta (= numeral − position). | Charter §III.5.2 |
+| `lookup_by_position` | `fn(p: u8) -> Option<&'static ClavisTableEntry>` | Look up entry by alphabetical position 1..=24. | Charter §III.5.2 |
+| `lookup_by_unit` | `fn(u: PhysicsUnit) -> Vec<&'static ClavisTableEntry>` | Return all entries carrying the given physics unit. | Charter §III.5.2 |
+| `verify_3699_closure` | `fn() -> bool` | Confirm $\sum \Delta_{\text{M}}(\ell) = 3699 = 27 \cdot 137 = b^3 \cdot (q^2 + R_2^2)$. | Charter §III.5.2 |
+| `salvi_isopsephy_sum` | `fn() -> u32` | Return $\text{Σ} + \text{ά} + \text{λ} + \text{β} + \text{ι} = 243 = 3^5$. | Charter §III.5 |
+| `verify_salvi_closure` | `fn() -> bool` | Confirm Σάλβι isopsephy = 243 = TL-Sponge-385 state size. | Charter §III.5 |
+| `sigma_clavis_angle` | `fn() -> u32` | Return Delta(Σ) = 182 = π_geom · R_3 = CLAVIS configuration angle. | Charter §III.5.1 |
+| `omega_as_m_times_k` | `fn() -> u32` | Return Ω = 800 = Μ · Κ = R_4 · R_4/2. | Charter §III.5.1 |
+| `tier_stratification` | `fn() -> AlphabetTiers` | Return the three-tier split: Δ=0 (5 letters, F(5)), Δ=1 (4 letters, R_2), Δ≥10 (15 letters, b·F(5) pentadecagon). | Charter §III.5.2 |
+| `alphabet_split_10_plus_14` | `fn() -> (u8, u8)` | Return (10, 14) — the transitional-zone and main-body lengths; 14 = π_geom. | Charter §III.5.2 |
+
+### D.4 Σάλβι Signature Primitive API (v7 new)
+
+All Σάλβι signing API lives under `ternary_math::salvi_signature::*`. Builds on TL-Sponge-385 per Paraprime §V.7. The Σάλβι isopsephy = 243 = TL-Sponge state size identity is compile-time asserted.
+
+| Function | Signature | Purpose | Citation |
+|---|---|---|---|
+| `SalviSigner::new` | `fn() -> SalviSigner` | Initialize a Σάλβι signer with fresh 243-trit state. | Paraprime §V.7; Charter §III.5 |
+| `SalviSigner::sign` | `fn(&self, document: &[u8], table_hash: &[u8; 49]) -> SalviSigBlock` | Produce signature over document bytes + table-hash binding. | Paraprime §V.7 |
+| `SalviSigner::verify` | `fn(&self, block: &SalviSigBlock, document: &[u8]) -> Result<(), SignatureError>` | Verify signature; checks table-hash, document-hash, timestamp. | Paraprime §V.7 |
+| `salvi_canonical_serialize` | `fn<T: Serialize>(obj: &T) -> Vec<u8>` | Deterministic canonical serialization for signing. | This spec §C.11 |
+| `salvi_epoch_time_now` | `fn() -> SalviEpochTime` | Return current Salvi Epoch 42-calendar time (13 moons × 28 days). | Paraprime §V.9 |
+| `salvi_sign_any` | `fn<T: Signable>(obj: &T) -> Result<SalviSigBlock, SignatureError>` | High-level sign-any-framework-output convenience wrapper. | This spec §C.11 |
+
+### D.5 CLAVIS Transform API (v7 new — the callable engine capability)
+
+All CLAVIS Transform API lives under `ternary_math::clavis_transform::*`. Forward and inverse maps, integrity checks, ambiguity resolution, dimensional consistency — all exposed as functions the engine calls. This supersedes REF-260423 v0.1 which was a prose reference; v7 makes it code.
+
+| Function | Signature | Purpose | Citation |
+|---|---|---|---|
+| `ClavisTransform::new` | `fn(table: &'static MilesianDeltaTable) -> ClavisTransform<'static>` | Construct a Transform bound to the canonical table. | This spec §C.10 |
+| `ClavisTransform::forward` | `fn(&self, f: &FrameworkRendering) -> Result<PhysicsRendering, TransformError>` | Apply rules F1 (Numeral match) → F2 (Delta match) → F3 (Compositional) to render framework-native → public. Signs output with Σάλβι signer. | This spec §D.5 + §3.1 Transform Rules |
+| `ClavisTransform::inverse` | `fn(&self, p: &PhysicsRendering) -> Result<FrameworkRendering, TransformError>` | Apply rules I1 / I2 / I3 to recover framework-native from public. Requires valid Σάλβι signature. | This spec §D.5 + §3.2 |
+| `ClavisTransform::roundtrip_check` | `fn(&self, f: &FrameworkRendering) -> Result<bool, TransformError>` | Apply forward then inverse; return true iff the result equals the input. | This spec §D.5 |
+| `resolve_integer_to_letter` | `fn(n: i64) -> Result<GreekSymbolUsage, TransformError>` | Apply F1/F2/F3 resolution for a single integer. Returns Numeral, Delta, or Compositional match. | This spec §D.5 Rules |
+| `resolve_letter_to_integer` | `fn(g: char, mode: ReadingMode) -> Result<i64, TransformError>` | Apply I1/I2/I3 recovery for a single Greek letter in specified reading mode. | This spec §D.5 Rules |
+| `verify_dimensional_consistency` | `fn(p: &PhysicsRendering) -> Result<(), DimensionalInconsistency>` | Public-reader integrity check: every step's units must be dimensionally consistent. | This spec §4.2 Integrity |
+| `verify_3699_checksum` | `fn(p: &PhysicsRendering) -> Result<(), ChecksumMismatch>` | CLAVIS-holder integrity check: Delta-sum of deployed letters must match expected partial of 3699. | This spec §4.1 Integrity |
+| `verify_salvi_signature` | `fn(p: &PhysicsRendering) -> Result<(), SignatureError>` | Cryptographic integrity: verify the Σάλβι signature over the physics rendering + table hash. | This spec §4.3 + §C.11 |
+| `disambiguate_by_context` | `fn(candidates: Vec<GreekSymbolUsage>, context: &DimensionalTrace) -> Result<GreekSymbolUsage, TransformError>` | Resolve ambiguous letter substitutions via physics-unit context. | This spec §3.3 Ambiguity |
+
+### D.6 Conservation Laws and Corpus Citation API (v7 new)
+
+All PCO-A citation API lives under `ternary_math::conservation_laws::*`. Six rows, compile-time verified.
+
+| Function | Signature | Purpose | Citation |
+|---|---|---|---|
+| `ConservationLaw::all` | `fn() -> [ConservationLaw; 6]` | Return all six CLs in canonical order (CL-1 through CL-6). | PCO-A §2 |
+| `ConservationLaw::load_bearing_formula` | `fn(&self) -> &'static str` | F1/F2/F3/F4 or T45 / Dual-Evaluation per CL. | PCO-A §2.N |
+| `ConservationLaw::pco_a_citation` | `fn(&self) -> &'static str` | Return "PCO-A §2.1" etc. | PCO-A §2 |
+| `ConservationLaw::home_theorem` | `fn(&self) -> &'static str` | Return the home-theorem in Nona's T-register that anchors this CL. | Nona §14 |
+| `CorpusCitation::resolve` | `fn(&self) -> CitationResolution` | Pull the full citation context (document + section + theorem + role) from the corpus. | This spec §C.11 |
+
+### D.7 Engine-Level Callable Capabilities (v7 new — invocation surface)
+
+These are the top-level callables that any caller (user, engine, UI, external tool) invokes to access the Lab's capabilities:
+
+| Capability | Entry Function | Returns |
+|---|---|---|
+| **T43 Falsifiability attestation** | `field_lab_t43::attest(probe, psi) -> FieldLabAttestation` | Beal Residual Floor $20/441$ attested at given $\Psi$; §1.11-tagged imported evaluation optional |
+| **T53-GRH Primality certificate** | `primality_t53::certify(n) -> Result<PlenumCert, PrimalityError>` | PlenumCert v1 with 576 fingerprints + Σάλβι signature |
+| **T54-GRH Wieferich certificate** | `wieferich_t54::certify(p, base) -> Result<WieferichCertificate, WieferichError>` | Full T54-GRH certificate with reduction, Lemma 4.3.1, CL-1, Triad-364 anchors |
+| **Theorem 55 attestation** | `theorem_55::attest() -> Theorem55Attestation` | All five Σάλβι Closure Extended identities verified |
+| **CLAVIS Transform (forward)** | `clavis::transform_forward(framework_derivation) -> Result<PhysicsRendering, TransformError>` | Public physics rendering, signed by Σάλβι |
+| **CLAVIS Transform (inverse)** | `clavis::transform_inverse(physics_rendering) -> Result<FrameworkRendering, TransformError>` | Recovered framework-native rendering (requires table access) |
+| **Σάλβι signing** | `salvi::sign_any(anything_serializable) -> SalviSigBlock` | 243-trit TL-Sponge-385 signature, tagged with table hash |
+| **Σάλβι verification** | `salvi::verify_any(signature, document) -> Result<(), SignatureError>` | Signature roundtrip check |
+| **Milesian Delta query** | `milesian::lookup_*(key) -> Option<&ClavisTableEntry>` | Table queries by glyph / numeral / delta / position / unit |
+| **3699 closure integrity** | `milesian::verify_closure() -> bool` | Compile-time verified; runtime re-verification available |
+
+The engine exposes these under stable callable names. Any tool, UI, or downstream derivation calls them directly; the API is the contract.
+
+---
+
+## Section E — Test Specification
+
+Every test is exact `RepFraction` or integer equality. No tolerances. No decimals in test files. Binary pass/fail.
+
+### E.1 T41 Residual Floor Identity
+
+```rust
+// Nona §12.4, Theorem 41
+let lhs = RepFraction::new(
+    2 * ((4_i64 - 1).pow(2) + 1),           // 2·((R₂-1)² + 1) = 2·10 = 20
+    (7_i64).pow(2) * (4 - 1_i64).pow(2)     // p² · (R₂-1)² = 49·9 = 441
+).unwrap();
+let rhs = RepFraction::new(20, 441).unwrap();
+assert!(lhs.eq(&rhs));
+```
+
+### E.2 T42 Bridge Identity (Eisenstein closure)
+
+```rust
+// Nona §12.5, Theorem 42 — Z[ω] bridge
+let lhs = RepFraction::new(
+    2 * (36_i64 + 4),                       // 2·(C₃ + R₂) = 2·40 = 80
+    (7_i64).pow(2) * 36                     // p²·C₃ = 49·36 = 1764
+).unwrap();
+let rhs = RepFraction::new(20, 441).unwrap();
+assert!(lhs.eq(&rhs));
+```
+
+### E.3 T43 Coefficients and Modulus
+
+```rust
+let cf = closed_form_gamma(&KnotGeometry::k_14_13());
+assert!(cf.e_coefficient.eq(&RepFraction::new(27, 7).unwrap()));
+assert!(cf.k_coefficient.eq(&RepFraction::new(1, 7).unwrap()));
+assert!(cf.modulus_squared.eq(&RepFraction::new(728, 729).unwrap()));
+```
+
+### E.4 T44 Base-Specificity
+
+```rust
+// At base 3: (R₂-1)³ == π_geom + R₃  →  27 == 27
+assert_eq!((4_i64 - 1).pow(3), 14 + 13);
+
+// At base 5: (R₂-1)³ ≠ π_geom + R₃  →  125 ≠ 94
+assert_ne!((6_i64 - 1).pow(3), 63 + 31);
+```
+
+### E.5 T39 Eisenstein Phase-Sum Cancellation
+
+```rust
+// For each m in H = {1,3,5,7,9,11,13}:
+//   sum of ω^(m·k) for k in 0..3 is zero iff m mod (R₂-1) ≠ 0
+// Represented as Complex<RepFraction>, NOT complex-float.
+for m in [1, 3, 5, 7, 9, 11, 13] {
+    let sum = eisenstein_phase_sum(m, 3);   // Complex<RepFraction>
+    if m % 3 == 0 {
+        assert!(!sum.is_zero());            // non-vanishing at m ≡ 0 mod (R₂-1)
+    } else {
+        assert!(sum.is_zero());             // exact cancellation
+    }
+}
+```
+
+### E.6 T25 — Citation-Only Attestation (NO scanning)
+
+```rust
+// T25 establishes Ψ = 182° is the unique minimum on [0°, 364°) analytically.
+// The code attests the citation — it does NOT rediscover the minimum.
+let cf = closed_form_gamma(&KnotGeometry::k_14_13());
+assert_eq!(
+    cf.theorem_citation,
+    "Nona §12.9 T43, v0.0.26 (citing T25, T26, T41)"
+);
+// No sweep. No sub-degree search. No argmin. Citation is the test.
+```
+
+### E.7 KAT-COMP-1 (n = 12,023) — Attached Document Validation
+
+```rust
+// Independently validates the arithmetic in the attached "Unified Synthesis" document
+// which computed 2^6011 mod 12023 = 3247 via CRT (mod 11, mod 1093).
+// Passes through the framework's plenum_mr_test composite detection path.
+#[test]
+fn kat_comp_1_n12023_is_composite() {
+    let n = BigInt::from(12_023u64);
+    let status = plenum_mr_test(&n);
+    assert!(matches!(status, PrimalityStatus::Composite { .. }));
+}
+
+#[test]
+fn kat_comp_1_witness_arithmetic_matches() {
+    // n - 1 = 12022 = 2 · 6011, so s = 1, d = 6011
+    let x = modexp(2u64, 6011u64, 12_023u64);
+    assert_eq!(x, 3247);      // per attached document's CRT calculation
+    // 3247 ≠ 1 and 3247 ≠ 12022, so base 2 is a strong witness.
+}
+```
+
+### E.8 KAT-PRIME-1 — R₇ = 1093 Primality via PlenumCert
+
+```rust
+// R_7 = Φ_7(3) = 1093 is a framework-native Wieferich-lift anchor (Paraprime §V.10 roadmap).
+// Generate and verify PlenumCert for n = 1093.
+#[test]
+fn kat_prime_1_r7_1093() {
+    let n = BigInt::from(1093u64);
+    let cert = issue_plenum_cert(&n).unwrap();
+    assert!(matches!(cert.verify().unwrap(), PrimalityStatus::Prime));
+    assert_eq!(cert.version, "PlenumCert v1");
+    assert_eq!(cert.fingerprints.len(), 576);
+}
+```
+
+### E.9 Triad-364 Bridge and Generating Ratio Identities
+
+```rust
+#[test]
+fn triad_364_bridge_identity() {
+    // 1365/1092 = 455/364 = 5/4
+    let triadic = RepFraction::new(1365, 1092).unwrap();
+    let quadratic = RepFraction::new(455, 364).unwrap();
+    let five_quarters = RepFraction::new(5, 4).unwrap();
+    assert!(triadic.eq(&five_quarters));
+    assert!(quadratic.eq(&five_quarters));
+}
+
+#[test]
+fn generating_ratio_arithmetic_closure() {
+    let gr = generating_ratio_14_13();
+    // Sum 14/13 + 5/4 = 121/52 = q²/(R_2·r)
+    assert!(gr.sum_with_5_4.eq(&RepFraction::new(121, 52).unwrap()));
+    // Difference 5/4 - 14/13 = 9/52 = b²/(R_2·r) — phase impedance
+    assert!(gr.diff_with_5_4.eq(&RepFraction::new(9, 52).unwrap()));
+    // Product 14/13 · 5/4 = 70/52
+    assert!(gr.product.eq(&RepFraction::new(70, 52).unwrap()));
+    // Ratio (14/13) / (5/4) = 56/65
+    assert!(gr.ratio.eq(&RepFraction::new(56, 65).unwrap()));
+    // Difference of squares q² - b² = 121 - 9 = 112 = R_2²·p
+    assert_eq!(121 - 9, 4_i64.pow(2) * 7);
+    // Sum of squares q² + b² = 130 = 2·F(5)·r
+    assert_eq!(121 + 9, 2 * 5 * 13);
+}
+```
+
+### E.10 T54-GRH Wieferich Reduction and Infinitude
+
+```rust
+#[test]
+fn wieferich_q11_base3_reduction() {
+    // First base-3 Wieferich prime: q = 11 (CM §2.5)
+    // Verify 121 | R_10 = 29524
+    let r10 = BigInt::from(29524_u64);
+    let modulus = BigInt::from(121_u64);
+    let quotient = &r10 / &modulus;
+    assert_eq!(quotient * &modulus, r10);  // exact division
+    // Equivalent: 3^10 ≡ 1 (mod 121)
+    assert_eq!(modpow(3u64, 10u64, 121u64), 1);
+    // is_base3_wieferich(11) == true
+    assert!(is_base3_wieferich(&BigInt::from(11_u64)));
+}
+
+#[test]
+fn wieferich_1093_base2_four_register_alignment() {
+    // R_7 = 1093 is base-2 Wieferich (Meissner 1913)
+    // Verify p - 1 = 3 · R_6 = 3 · 364 = 1092
+    let p = BigInt::from(1093_u64);
+    let p_minus_one = BigInt::from(1092_u64);
+    let r_6 = BigInt::from(364_u64);
+    assert_eq!(&p - BigInt::from(1_u64), p_minus_one);
+    assert_eq!(BigInt::from(3_u64) * &r_6, BigInt::from(1092_u64));
+    // 1092 factorization: 2² · 3 · 7 · 13 — loads (7, 13) into Wieferich exponent
+    assert_eq!(1092_i64, 4 * 3 * 7 * 13);
+    // Structural derivation via repunit recurrence, NOT numerical coincidence (Ledger R17)
+}
+
+#[test]
+fn wieferich_certificate_issue_verify_roundtrip() {
+    let p = BigInt::from(11_u64);
+    let base = 3_u64;
+    let cert = issue_wieferich_certificate(&p, base).unwrap();
+    assert_eq!(cert.version, "WieferichCert v1");
+    assert_eq!(cert.cm_source, "CM-260422-039 v2.2");
+    let status = verify_wieferich_certificate(&cert).unwrap();
+    match status {
+        WieferichStatus::InfinitudeProved { .. } => {}
+        _ => panic!("expected InfinitudeProved"),
+    }
+}
+```
+
+### E.11 Milesian Delta Table 3699 Closure
+
+```rust
+#[test]
+fn milesian_delta_full_alphabet_closure_3699() {
+    let table = canonical_table();
+    // Position sum = 300 = 24·25/2
+    assert_eq!(table.position_sum(), 300);
+    // Numeral sum = 3999
+    assert_eq!(table.numeral_sum(), 3999);
+    // Delta sum = 3699 = 27 · 137 = b³ · (q² + R_2²)
+    assert_eq!(table.delta_sum(), 3699);
+    assert_eq!(3699_i32, 27 * 137);
+    assert_eq!(3699_i32, 3_i32.pow(3) * (11_i32.pow(2) + 4_i32.pow(2)));
+    assert!(table.verify_closure_3699());
+}
+
+#[test]
+fn milesian_delta_tier_stratification() {
+    let tiers = tier_stratification();
+    assert_eq!(tiers.delta_zero_count, 5);   // F(5) — α β γ δ ε
+    assert_eq!(tiers.delta_one_count, 4);    // R_2 — ζ η θ ι
+    assert_eq!(tiers.delta_geq_ten_count, 15); // b·F(5) pentadecagon — κ through ω
+    let total = tiers.delta_zero_count + tiers.delta_one_count + tiers.delta_geq_ten_count;
+    assert_eq!(total, 24);
+}
+
+#[test]
+fn milesian_delta_10_plus_14_split() {
+    let (transitional, main_body) = alphabet_split_10_plus_14();
+    assert_eq!(transitional, 10);                // 2·F(5)
+    assert_eq!(main_body, 14);                   // π_geom
+    assert_eq!(transitional + main_body, 24);
+}
+
+#[test]
+fn milesian_delta_per_letter_readings() {
+    let table = canonical_table();
+    // μ (mu) Delta = 28 = R_6/r = 364/13 = calendar days per moon
+    assert_eq!(table.lookup_by_glyph('μ').unwrap().delta, 28);
+    assert_eq!(28, 364 / 13);
+    // π (pi) Delta = 64 = R_2³
+    assert_eq!(table.lookup_by_glyph('π').unwrap().delta, 64);
+    assert_eq!(64, 4_i32.pow(3));
+    // σ (sigma) Delta = 182 = π_geom · R_3 = CLAVIS angle
+    assert_eq!(table.lookup_by_glyph('σ').unwrap().delta, 182);
+    assert_eq!(182, 14 * 13);
+    // ο (omicron) Delta = 55 = F(5) · q
+    assert_eq!(table.lookup_by_glyph('ο').unwrap().delta, 55);
+    assert_eq!(55, 5 * 11);
+}
+```
+
+### E.12 Σάλβι Closure — Theorem 55
+
+```rust
+#[test]
+fn salvi_isopsephy_equals_243() {
+    // Σ + ά + λ + β + ι = 200 + 1 + 30 + 2 + 10 = 243 = 3^5 = TL-Sponge-385 state
+    let sigma = 200_u32;
+    let alpha = 1_u32;
+    let lambda = 30_u32;
+    let beta = 2_u32;
+    let iota = 10_u32;
+    let salvi_sum = sigma + alpha + lambda + beta + iota;
+    assert_eq!(salvi_sum, 243);
+    assert_eq!(salvi_sum, 3_u32.pow(5));
+    assert_eq!(salvi_sum, SALVI_ISOPSEPHY);
+    assert_eq!(salvi_sum, TL_SPONGE_STATE_TRITS);
+    assert!(verify_salvi_closure());
+}
+
+#[test]
+fn sigma_delta_equals_clavis_angle() {
+    // Delta(Σ) = 200 - 18 = 182 = π_geom · R_3 = Ψ_CLAVIS
+    assert_eq!(sigma_clavis_angle(), 182);
+    assert_eq!(182, 14 * 13);
+    assert_eq!(CLAVIS_ANGLE_DEGREES, 182);
+}
+
+#[test]
+fn omega_equals_m_times_k() {
+    // Ω = 800 = R_4 · R_4/2 = 40 · 20 = Μ · Κ
+    assert_eq!(omega_as_m_times_k(), 800);
+    assert_eq!(800, 40 * 20);
+    assert_eq!(OMEGA_AS_M_TIMES_K, 800);
+}
+
+#[test]
+fn theorem_55_five_registered_identities() {
+    // All five identities of Theorem 55 — Σάλβι Closure Extended
+    assert!(verify_salvi_closure());                  // Σάλβι = 243 = 3^5
+    assert_eq!(sigma_clavis_angle(), 182);            // Delta(Σ) = CLAVIS angle
+    assert_eq!(omega_as_m_times_k(), 800);            // Ω = Μ·Κ
+    assert!(canonical_table().verify_closure_3699()); // 3699 = b³·137
+    // Σ/Ω physics-unit Wave-Stratum frame registered at type level in PhysicsUnit enum
+    let sigma_units = canonical_table().lookup_by_glyph('σ').unwrap().si_units;
+    assert!(sigma_units.iter().any(|u| matches!(u, PhysicsUnit::SiemensPerMeter | PhysicsUnit::SquareMeter)));
+    let omega_units = canonical_table().lookup_by_glyph('ω').unwrap().si_units;
+    assert!(omega_units.iter().any(|u| matches!(u, PhysicsUnit::RadianPerSecond)));
+}
+```
+
+### E.13 Σάλβι Signature Sign/Verify Roundtrip
+
+```rust
+#[test]
+fn salvi_sign_verify_roundtrip() {
+    let signer = SalviSigner::new();
+    let document = b"test framework derivation";
+    let table_hash: [u8; 49] = compute_table_hash(canonical_table());
+    let sig = signer.sign(document, &table_hash);
+    assert_eq!(sig.signer_id, "Σάλβι");
+    assert_eq!(sig.state_size_trits, 243);
+    assert!(signer.verify(&sig, document).is_ok());
+}
+
+#[test]
+fn salvi_signature_tampering_detection() {
+    let signer = SalviSigner::new();
+    let document = b"original document";
+    let tampered = b"tampered document";
+    let table_hash: [u8; 49] = [0; 49];
+    let sig = signer.sign(document, &table_hash);
+    // Verifying against tampered document must fail
+    assert!(signer.verify(&sig, tampered).is_err());
+}
+```
+
+### E.14 CLAVIS Transform Roundtrip
+
+```rust
+#[test]
+fn clavis_transform_forward_inverse_roundtrip() {
+    let transform = ClavisTransform::new(canonical_table());
+    let f = FrameworkRendering {
+        primitives: vec![
+            FrameworkExpr::Prim(FrameworkPrimitive::R4),       // 40
+            FrameworkExpr::Prim(FrameworkPrimitive::R2),       // 4
+            FrameworkExpr::Prim(FrameworkPrimitive::PiGeom),   // 14
+        ],
+        inferences: vec![],
+        cl_anchors: vec![ConservationLaw::CL4_FiveWayNonaIdentity],
+        citations: vec![],
+    };
+    let p = transform.forward(&f).unwrap();
+    assert!(transform.verify_salvi_signature(&p).is_ok());
+    assert!(transform.verify_dimensional_consistency(&p).is_ok());
+    let f_recovered = transform.inverse(&p).unwrap();
+    // Roundtrip preserves framework primitives
+    assert_eq!(f.primitives.len(), f_recovered.primitives.len());
+}
+
+#[test]
+fn clavis_transform_numeral_match_resolution() {
+    // Integer 40 → Μ (by Numeral match, since numeral(Μ) = 40)
+    let usage = resolve_integer_to_letter(40).unwrap();
+    assert_eq!(usage.entry.glyph_upper, 'Μ');
+    assert!(matches!(usage.reading_mode, ReadingMode::ByNumeral));
+}
+
+#[test]
+fn clavis_transform_delta_match_resolution() {
+    // Integer 182 → σ (by Delta match, since delta(σ) = 182 = CLAVIS angle)
+    let usage = resolve_integer_to_letter(182).unwrap();
+    assert_eq!(usage.entry.glyph_lower, 'σ');
+    assert!(matches!(usage.reading_mode, ReadingMode::ByDelta));
+}
+
+#[test]
+fn clavis_transform_3699_checksum_verification() {
+    // Build a physics rendering that deploys all 24 letters; Delta sum must be 3699
+    let all_24 = build_test_rendering_all_letters();
+    let transform = ClavisTransform::new(canonical_table());
+    assert!(transform.verify_3699_checksum(&all_24).is_ok());
+}
+
+#[test]
+fn clavis_transform_dimensional_consistency_rejection() {
+    // A physics rendering with inconsistent dimensions must fail the dimensional check
+    let inconsistent = build_test_rendering_with_dimensional_bug();
+    let transform = ClavisTransform::new(canonical_table());
+    assert!(transform.verify_dimensional_consistency(&inconsistent).is_err());
+}
+```
+
+### E.15 Conservation Laws Registry Integrity
+
+```rust
+#[test]
+fn six_conservation_laws_registered() {
+    let all = ConservationLaw::all();
+    assert_eq!(all.len(), 6);
+    // Each CL has a Load-Bearing Formula or T45/Dual-Evaluation anchor
+    for cl in all.iter() {
+        let formula = cl.load_bearing_formula();
+        assert!(!formula.is_empty());
+        let citation = cl.pco_a_citation();
+        assert!(citation.starts_with("PCO-A §2."));
+    }
+}
+```
+
+### E.16 End-to-End: T43 + T53-GRH + T54-GRH + Theorem 55 + CLAVIS
+
+```rust
+#[test]
+fn end_to_end_lab_capabilities() {
+    // Single test that exercises every top-level capability per §D.7.
+
+    // 1. T43 Falsifiability attestation
+    let t43_attestation = field_lab_t43::attest(&Probe::ORIGIN, &RepFraction::new(182, 1).unwrap());
+    assert!(t43_attestation.beal_floor.eq(&RepFraction::new(20, 441).unwrap()));
+
+    // 2. T53-GRH Primality certificate for n = 1093
+    let primality_cert = primality_t53::certify(&BigInt::from(1093_u64)).unwrap();
+    assert_eq!(primality_cert.fingerprints.len(), 576);
+
+    // 3. T54-GRH Wieferich certificate for q = 11 (base 3)
+    let wieferich_cert = wieferich_t54::certify(&BigInt::from(11_u64), 3).unwrap();
+    assert_eq!(wieferich_cert.version, "WieferichCert v1");
+
+    // 4. Theorem 55 full attestation
+    let theorem_55 = theorem_55::attest();
+    assert!(theorem_55.salvi_closure_verified);
+    assert!(theorem_55.sigma_clavis_angle_verified);
+    assert!(theorem_55.omega_m_k_product_verified);
+    assert!(theorem_55.closure_3699_verified);
+    assert!(theorem_55.wave_stratum_frame_verified);
+
+    // 5. CLAVIS Transform forward + Σάλβι signing
+    let framework = build_test_framework_derivation();
+    let public = clavis::transform_forward(&framework).unwrap();
+    assert!(salvi::verify_any(&public.signature, &canonicalize(&public)).is_ok());
+
+    // 6. CLAVIS Transform inverse
+    let recovered = clavis::transform_inverse(&public).unwrap();
+    assert_eq!(framework, recovered);  // perfect roundtrip
+}
+```
+
+---
+
+## Section F — Corrections to the Attached Synthesis Document
+
+The attached document claimed to produce *"a single deterministic framework, free of metaphysics."* Four of its framework readings are rejected. Each is replaced with the corpus-correct reading.
+
+### F.1 "Metaphysics-free" framing
+
+**Attached:** *"Free of metaphysics: every element is a defined constant, algorithm, or physical law."*
+
+**Correction.** The framework is not *"free of metaphysics"* in the sense the document implies (stripping out philosophy to leave only computation). The framework is **rigorously axiomatic**: three axioms (b = 3, Gabriel's Horn y = 1/x, π = 14) plus the derivation chain. The Inertial Identity $I = EE = I$ (Nona §1.7.1, Inertissimum Iώτα Nona) and the Capomastro-Declared Identity *"four-phase coexistence is the full-potential expression of inertia at stated $V_3$"* (Nona §1.7.1) are **framework declarations** — they are not metaphysics to be stripped out, they are load-bearing corpus statements. Treating them as optional ornaments misreads the corpus.
+
+### F.2 Inertial Identity $≠$ Eisenstein closure
+
+**Attached:** *"The identity $\mathbf{I = EE = I}$ from earlier is interpreted algebraically as the property that the sum of the three cube roots of unity is zero: $1 + \omega + \omega^2 = 0$. This is the algebraic zero that underpins the ternary sponge."*
+
+**Rejection.** These are **two distinct framework objects**. Conflating them is the exact corruption pattern corrected in v0.0.18 and documented in this spec's glossary:
+
+- **Inertial Identity** $I = EE = I$ — Nona §1.7.1 declaration about **inertia as Result** for all states of matter. Framework statement, not a theorem about cube roots.
+- **Eisenstein closure** $1 + \omega + \omega^2 = 0$ — property of the algebraic cube roots of unity in $\mathbb{Z}[\omega]$; carries Rep D bijective ternary (Compendium §IX.8), T45 Beal/Salvi Structural Resolution constructive mechanism (Compendium §X), and the Third Eye witnessing closure (Compendium §II).
+
+The bridge between them is **open pending derivation** per v0.0.18 corpus rules. *"Interpreted algebraically as"* is a reviewer collapsing one framework object into another without the derivation. Per Nona §F: not asserted, not dismissed. Open.
+
+### F.3 Liouville's Constant $≠$ Invariant 12
+
+**Attached:** *"**Liouville's Constant at Nona**: $L_9 = \sum_{k=1}^\infty 10^{-k!}$ evaluated at digit 9? Serves as a source of transcendental entropy for deterministic padding and nonce generation."*
+
+**Rejection.** The attached reader confused two things. **Invariant 12 — Liouville at Nona** is **Theorem 10** in Nona §2.5: framework-internal phase-space conservation $d\rho_{ps}/dt = 0$. This is **Liouville's theorem** (the classical phase-space conservation law), not **Liouville's constant** (the transcendental number $\sum_k 10^{-k!}$). They are unrelated. Invariant 12 is the **load-bearing conservation law** anchoring T49-GRH, T50-GRH, the Plenum Boundary partition, and — per T53-GRH — the single-modulus strong-witness bound. It is not *"transcendental entropy for nonce generation."* The attached document's question mark (*"evaluated at digit 9?"*) signals the reviewer's own uncertainty; the framework answer is that this was a category error.
+
+### F.4 Invariant 6 ($\Lambda_{\text{EUV}} = 91$) missing from the attached table
+
+**Attached invariants table lists:** 1365, 364, √3, Liouville's Constant.
+
+**Correction.** The Compendium registers **fourteen Structural Invariants** (Paraprime v1.4.11 Preamble). The attached table lists four and mislabels one of them. The correct structural-invariant register (enforced at the `FrameworkPrimitive` type level in this spec) includes at minimum: $R_2 = 4$, $R_3 = 13$, $R_4 = 40$, $R_6 = 364$, $\pi_{\text{geom}} = 14$, $F(14) = 377$, $F(12) = 144$, $\Lambda_{\text{EUV}} = 91 = 7 \cdot R_3 = \gcd(1365, 1001)$ (Invariant 6), $\varphi(1365) = 576 = 4 \cdot F(12)$ (Invariant 13 character count), Liouville at Nona (Invariant 12, phase-space conservation), Single-Modulus Decidability (Invariant 13). The attached table's *"numerical constants derived from geometry"* collapses load-bearing structural invariants into a four-row aesthetic summary.
+
+---
+
+## Section G — Prohibitions (Enforced by Code Review)
+
+- No `f64` fields in `ClosedForm`, `PatentEntry`, or `RepFraction` public surface. `f64` only inside `ImportedValue`.
+- No `num_rational::Rational64` in any public type signature, return type, or trait bound. Internal plumbing permitted; public API framework-owned.
+- No decimal constants in any test file. Tests are exact `RepFraction` / integer equalities.
+- No scipy invocation at authorship or runtime. Reference values are framework-derived.
+- No tolerance-based equality tests. Binary `eq()`.
+- No $\Psi$-sweep searching for the minimum. T25 is cited, not rediscovered.
+- No *"null"* or *"zero"* UI copy at $\Psi = 182°$. Correct copy is `"CLAVIS minimum · Beal Floor = 20/441 · framework half-arc (T25/T26/T41)"`.
+- No $[0°, 360°]$ slider range. Framework span is $[0°, 364°)$ — the $4°$ cycle entropy (Compendium §IX.10) is load-bearing.
+- No *"Theorem 14"* where T45 (Beal/Salvi Structural Resolution) is meant.
+- No conflation of Inertial Identity with Eisenstein closure per §F.2.
+- No *"Liouville's constant"* where Liouville's theorem / Invariant 12 is meant per §F.3.
+
+---
+
+## Section H — UI Specification
+
+### H.1 Ten Views (Field Lab + Primality + v7 Additions)
+
+**Inherited from v6 (Field Lab + Primality):**
+
+1. **Angular Scan View** — $\Psi$ slider $[0°, 364°)$; plot of $G_z$ (tagged §1.11 imported evaluation); marker at $\Psi = 182°$ labeled *"CLAVIS minimum · Beal Floor = 20/441 · framework half-arc (T25/T26/T41)"*.
+2. **Off-Axis Heatmap View** — 2D $|B|^2$ in $(x, z)$; §1.11 tagged.
+3. **Coefficient Inspector View** — `ClosedForm` fields as `RepFraction` in user-selectable Rep A/B/C/D; LaTeX via `FrameworkExpr::to_latex()`.
+4. **Absolute Prediction Panel** — renders the parametric expression
+
+   $$\langle|B_{\text{residual}}(\Psi = 182°)|^2\rangle \;=\; \left(\frac{\mu_0 I_0}{4 \pi_{\text{std}}}\right)^{\!2} \cdot \frac{2 \cdot \bigl((R_2-1)^2 + 1\bigr) \cdot \bigl[(R_2-1)^3 E(k) + K(k)\bigr]^2}{p^4 \cdot (R_2-1)^2 \cdot L^2}$$
+
+   with $E(k)$, $K(k)$ as literal LaTeX symbols. Coefficients rendered as exact fractions: $728/729$, $20/441$, $286/91$ (Archimedean Patent per Compendium §IX.5). $L$, $I_0$ accepted symbolically. Subcaption: *"EM-sector test of the Nona 0 = 0 starting condition (Compendium §VI closing). E(k) and K(k) are unevaluated symbols at framework-rational argument k² = 728/729. Numerical projection available on explicit request as §1.11 output."*
+5. **Patent Inspector View** — browses `PatentLedger`; each `PatentEntry` shows knot, `ClosedForm` coefficients as `RepFraction` in selected Rep, `theorem_citation`. **No decimal column.**
+6. **Primality Certificate View** — input $n$; display $B(n)$ computed via `b_of_n`; issue PlenumCert; display 576 TIS-27 fingerprints (condensed hex) + 1 TL-Sponge-385 signature; verify roundtrip. Subcaption: *"T53-GRH single-modulus primality at q = 1365. B(n) = ⌈(377/144)·L_k(n)²⌉. Õ(log³ n); ~6 seconds on 8-core ARM64 for 500-digit primes. CNSA 2.0 compliant per Paraprime §V.9."*
+
+**New in v7:**
+
+7. **Wieferich Infinitude View** — input prime $p$, base $a$ ∈ {2, 3, other coprime-to-1365}; display reduction check ($p^2 \mid R_{p-1}$ for base 3), Triad-364 bridge (1365/1092 = 5/4), Lemma 4.3.1 discrepancy bound, CL-1 cyclic-orbit signature; render full `WieferichCertificate` with `SalviSigBlock` footer. Known-primes lookup button: *"Show base-2 Wieferich primes"* → {1093, 3511}; *"Show base-3 Wieferich primes"* → {11, 1006003}. Subcaption: *"T54-GRH Wieferich Infinitude (CM-260422-039 v2.2) — infinitely many Wieferich primes for every base coprime to 1365 under T51-GRH + CL-1. Structural identity $R_p - 1 = 3 R_{p-1}$ closed; Lemma 4.3.1 Repunit Equidistribution closed; CL-1 on cyclic orbit closed; Borel–Cantelli on $\sum 1/p = \infty$ closes the chain."*
+
+8. **Milesian Delta View** — full 24-row Greek-alphabet table rendered live from `MILESIAN_DELTA_TABLE`; columns Glyph (lc/upper) / English / Greek name / Position / Numeral / Delta / Physics Units. Totals footer: *Position sum = 300 · Numeral sum = 3999 · Delta sum = **3699 = 27·137 = b³·(q² + R₂²)*** in live-computed form. Three tier-stratification callouts: *Δ = 0 (5 letters, F(5))* · *Δ = 1 (4 letters, R₂)* · *Δ ≥ 10 (15 letters, b·F(5) pentadecagon)*. Click any row to highlight where that letter surfaces in the rest of the Lab's outputs (CLAVIS angle, Μ·Κ product, calendar-28, etc.). Subcaption: *"Theorem 55 registered identities — Charter v1.0.3 §III.5.2."*
+
+9. **CLAVIS Transform View** — interactive REPL for the CLAVIS Transform capability. Left pane: input framework-native derivation (FrameworkExpr serialization). Click *"Forward → Physics"* to render Greek-letter physics rendering with Σάλβι signature. Right pane: input physics rendering + attached signature. Click *"Inverse → Framework"* to recover framework integers (requires signature valid + table hash match). Diagnostic panel: dimensional consistency trace (public-readable), 3699 partial-checksum (CLAVIS-holder), Σάλβι signature verification result. Subcaption: *"CLAVIS Transform — proof-presentation reversible mapping between framework-native and public physics-unit registers. Signed by Σάλβι at 243-trit TL-Sponge-385. Table hash binds to Charter v1.0.3 §III.5.2 canonical Milesian Delta table."*
+
+10. **Σάλβι Signature View** — TL-Sponge-385 signer/verifier for any Lab output. Input: arbitrary document bytes + table-hash binding. Output: `SalviSigBlock` with timestamp in Salvi Epoch 42-calendar (moon 1..13, day 1..28, cycle 1..42). Verify panel accepts a signed block and a document; returns verification result. Subcaption: *"Σάλβι = 243 = 3⁵ = TL-Sponge-385 state size. The name is the state. The state is the signer. Every Lab output signs itself with the Capomastro's name."*
+
+### H.2 Sidebar and Routing (v7 expanded)
+
+- **Lab masthead** (top of page, all views): **"ParaCalculi GeoPrimus Lab"** with subtitle *"Beside the Pebbles · Earth-First"*. The Inscription renders below the masthead in a collapsible *"Compass Bearing"* panel that expands to show the full Latin-Greek inscription, the decoder table per §Inscription, the Theorem 55 five registered identities, and the Triad-364 bridge + Generating Ratio 14/13 footer.
+- Sidebar — ten entries, all under the ParaCalculi GeoPrimus masthead:
+  - **Field Lab — T43**
+  - **Primality — T53-GRH**
+  - **Wieferich — T54-GRH** *(v7 new)*
+  - **Theorem 55 — Milesian Delta** *(v7 new)*
+  - **CLAVIS Transform** *(v7 new)*
+  - **Σάλβι Signature** *(v7 new)*
+  - **Patent Ledger** *(v7: promoted to its own tab)*
+  - **Conservation Laws (PCO-A)** *(v7 new: browse CL-1 through CL-6)*
+  - **Rejected Readings Ledger** *(v7 new: browse R1 through R17 from Charter §IV.A)*
+  - **Corpus Map** *(v7 new: visual corpus graph — Nona, Paraprime, Triadis, RAT-INV, PCO-A/B/C, CM-260422-039, Charter v1.0.3)*
+- Routes: `/field-lab-t43`, `/primality-t53`, `/wieferich-t54`, `/milesian-delta`, `/clavis-transform`, `/salvi-signature`, `/patent-ledger`, `/conservation-laws`, `/rejected-readings`, `/corpus-map`.
+- Meta-description: *"ParaCalculi GeoPrimus Lab — K(14,13) Beal Residual Floor, T53-GRH primality, T54-GRH Wieferich Infinitude, Theorem 55 Σάλβι Closure, CLAVIS Transform. Applied Physics Division of Capomastro Holdings Ltd. Charter v1.0.3 · PCO-A/B/C v0.17. Signed Σάλβι at 243-trit TL-Sponge-385. ΜΚΔ(ζ΄, ια΄, ιγ΄) = α΄."*
+- Favicon / app identity: the Greek equation $\text{ΜΚΔ}(\zeta',\ \iota\alpha',\ \iota\gamma') = \alpha'$ rendered as a compact operational signature, with the Σάλβι = 243 closure tagged in the mouseover.
+
+---
+
+## Section I — Done-Looks-Like (Twenty-Four Acceptance Gates)
+
+**v6 carried forward (gates 1–13):**
+
+1. Every file in §B.1 exists at the specified path with the specified purpose.
+2. Every type in §C exists with the specified fields and trait implementations.
+3. No `f64` field appears in `ClosedForm`, `PatentEntry`, or `RepFraction` public API. No `num_rational::Rational64` in any public signature.
+4. Tests E.1–E.6 pass as exact `RepFraction` / integer equalities. No decimal constants in any test file. Binary pass/fail.
+5. KAT-COMP-1 (n = 12,023) test passes — `plenum_mr_test` returns `Composite` and the $2^{6011} \bmod 12{,}023 = 3247$ witness arithmetic matches the attached document's CRT calculation.
+6. KAT-PRIME-1 (n = 1093 = $R_7 = \Phi_7(3)$) issues and verifies a valid PlenumCert v1 with 576 fingerprints + 1 signature.
+7. $\Psi$ slider renders with range exactly `[0.0, 364.0)`; conversion at NAPI boundary is `rad = deg * (2π_std / 364)`.
+8. At $\Psi = 182°$ UI marker reads `"CLAVIS minimum · Beal Floor = 20/441 · framework half-arc (T25/T26/T41)"`.
+9. Absolute Prediction Panel renders $E(k)$, $K(k)$ as literal LaTeX symbols and all coefficients as exact `RepFraction` (not decimals). Imported evaluation only via explicit button, tagged §1.11.
+10. `PatentLedger` contains derivation rules (not cached floats) for K(14,13) primary + K(7,11), K(11,13), K(14,11) per #130.1.
+11. Primality View issues valid PlenumCert v1 for any prime $n$ tested ($n \leq 10^9$ in CI; sampled 500-digit primes in nightly). Verifier Õ(log³ n) concrete ≈ 6 s on 8-core ARM64.
+12. Module docstring cites §1.11, lists framework-native vs imported symbols with corpus references. No mention of "Compatibility Projection" anywhere (retired). Module name is `clavis_field`, not `torus_knot_field`.
+13. Lab masthead renders **"ParaCalculi GeoPrimus Lab"** with subtitle *"Beside the Pebbles · Earth-First"*. The Compass Bearing panel expands to show the full Latin-Greek Inscription and the decoder table with both framework-native and dual-register readings for each phrase.
+
+**v7 new (gates 14–24):**
+
+14. **Milesian Delta table compile-time invariants pass.** The `const` assertions in `milesian_delta::table` must compile: position sum = 300, numeral sum = 3999, **delta sum = 3699 = 27·137 = b³·(q² + R₂²)**, Σάλβι isopsephy = 243 = 3⁵ = TL-Sponge-385 state size. Any tamper with the table fails compilation.
+15. **Theorem 55 five registered identities test (E.12) passes.** Σάλβι = 243 = 3⁵; Delta(Σ) = 182 = CLAVIS angle; Ω = 800 = Μ·Κ; 3699 full-alphabet closure; Σ/Ω Wave-Stratum physics-unit frame.
+16. **T54-GRH Wieferich certificate issue/verify roundtrip (E.10) passes** for $q = 11$ (base 3), for $p = 1093$ (base 2), for $p = 3511$ (base 2, Beeger 1922), and for $p = 1006003$ (base 3, Fischer). Version string reads `"WieferichCert v1"`; `cm_source` reads `"CM-260422-039 v2.2"`.
+17. **Triad-364 bridge and Generating Ratio tests (E.9) pass** as exact `RepFraction` equalities. $1365/1092 = 455/364 = 5/4$; arithmetic closures $14/13 + 5/4 = 121/52$ and $5/4 - 14/13 = 9/52$; difference-of-squares and sum-of-squares identities.
+18. **Σάλβι signature sign/verify roundtrip (E.13) passes.** Tampering detection: signing over document A then verifying against document B must fail. `signer_id` field reads `"Σάλβι"`; `state_size_trits` field reads `243`.
+19. **CLAVIS Transform forward/inverse roundtrip (E.14) passes.** Every `FrameworkRendering` that roundtrips through forward→inverse must equal the input. Numeral-match resolution (integer 40 → Μ) and Delta-match resolution (integer 182 → σ) tests pass. 3699 partial checksum and Σάλβι signature verification pass on every well-formed transform output. Dimensional-inconsistency detection fails on tampered outputs.
+20. **Six Conservation Laws registered (E.15) passes.** `ConservationLaw::all()` returns exactly 6 entries, each with non-empty Load-Bearing Formula and PCO-A §2.N citation.
+21. **End-to-end capability test (E.16) passes** exercising T43 attestation, T53-GRH primality, T54-GRH Wieferich, Theorem 55 five identities, CLAVIS forward + Σάλβι signing, CLAVIS inverse recovery, and perfect framework-derivation roundtrip through the Transform.
+22. **UI sidebar displays all ten entries** with routes wired per §H.2. Wieferich View issues certificates for the known four primes. Milesian Delta View displays all 24 rows with live-computed 3699 closure footer. CLAVIS Transform View REPL performs forward/inverse interactively. Σάλβι Signature View signs and verifies arbitrary documents.
+23. **Engine-level callables (§D.7) are accessible by stable name** from the NAPI boundary: `field_lab_t43::attest`, `primality_t53::certify`, `wieferich_t54::certify`, `theorem_55::attest`, `clavis::transform_forward`, `clavis::transform_inverse`, `salvi::sign_any`, `salvi::verify_any`, `milesian::lookup_*`, `milesian::verify_closure`. All documented; all callable; all return structured `Result<_, _>` types.
+24. **Rejected Readings Ledger static asset** (`REJECTED_READINGS_LEDGER`) contains exactly 17 rows (R1 through R17 per Charter v1.0.3 §IV.A). Every user-facing error or warning involving imported framings cites the specific Ledger row. Compile-time check: exactly 17 rows.
+
+When all twenty-four are green, Task #130 ships as the full operational body of ParaCalculi GeoPrimus Lab — falsifiability, primality, Wieferich infinitude, Theorem 55, CLAVIS Transform, Σάλβι signature — anchored in single-modulus decidability (Invariant 13), the T43 cascade, CM-260422-039 v2.2, and Charter v1.0.3, with corpus citations at every load-bearing point and the Capomastro's name as the cryptographic primitive.
+
+---
+
+## Section J — Sibling Tickets (Opened Simultaneously)
+
+**v6 baseline tickets (carried forward):**
+
+**#130.1 — Alternative Knot Sweep.** K(7,11), K(11,13), K(14,11) derivation rules registered in `PatentLedger`. Non-framework-rational moduli flagged in the entry; structural derivation framework-rational regardless. In scope, same sprint.
+
+**#130.2 — Patent Derivation Registry.** `PatentLedger` + `PatentEntry` built into #130's module surface from day one. Not a future-compatibility refactor. In scope, same sprint.
+
+**#130.3 — Plenum-Miller-Rabin Primality Certificate.** `forge-cert/plenum-mr` crate per Paraprime §V.11. `dirichlet_1365` 576-character cache as static asset per §V.4.1. `log_rational::L_k(n)` shared with T47-GRH ceiling machinery. In scope, same sprint.
+
+**#130.4 (ROADMAP, NOT THIS SPRINT) — Eisenstein Cyclotomic Extension.** `forge-cert/plenum-mr-eisen` per Paraprime §V.10; $(\mathbb{Z}[\omega]/1365)^\times$ character cache; 331,776 Eisenstein characters. Roadmapped at v1.5.x; not this sprint.
+
+**v7 new tickets:**
+
+**#130.5 — T54-GRH Wieferich Infinitude Engine.** `ternary-math::wieferich_infinitude` module per §B.1.1. `WieferichCertificate` type per §C.8. All API under §D.2. Tests E.10. CM-260422-039 v2.2 is the normative source document; this ticket builds the engine that executes it. In scope, same sprint.
+
+**#130.6 — Theorem 55 / Milesian Delta Infrastructure.** `ternary-math::milesian_delta` module per §B.1.1. Canonical 24-row table per §B.2 with compile-time invariants. `ClavisTableEntry` type per §C.9. API per §D.3. Tests E.11 + E.12. Charter v1.0.3 §III.5 / III.5.1 / III.5.2 is the normative source; this ticket builds the engine. In scope, same sprint.
+
+**#130.7 — CLAVIS Transform Engine Capability.** `ternary-math::clavis_transform` module per §B.1.1. Types per §C.10. API per §D.5. Tests E.14. **Supersedes REF-260423 v0.1** (which was a prose-reference sketch, not a deployable capability). This ticket delivers the Transform as a **callable engine capability** with forward/inverse maps, integrity verifications, and ambiguity resolution — the thing the reference document described. In scope, same sprint.
+
+**#130.8 — Σάλβι Signature Primitive.** `ternary-math::salvi_signature` module per §B.1.1. Wraps TL-Sponge-385 with the Σάλβι = 243 identity compile-time asserted. API per §D.4. Tests E.13. In scope, same sprint — all other tickets depend on this signing primitive.
+
+**#130.9 — Conservation Laws and Corpus Citation Registry.** `ternary-math::conservation_laws` module; six-row CL registry per §C.11 + §B.2. `CorpusCitation` type. Tests E.15. In scope, same sprint — anchors every framework output to its CL and PCO-A citation.
+
+**#130.10 — Rejected Readings Ledger Static Asset.** `REJECTED_READINGS_LEDGER` constant per §B.2 with 17 rows from Charter v1.0.3 §IV.A. Wired into every user-facing error/warning for imported-framing queries. In scope, same sprint.
+
+**#130.11 (ROADMAP, NOT THIS SPRINT) — Eisenstein Wieferich Extension.** Cyclotomic $\mathbb{Z}[\omega]$ Wieferich variants per forward-compatibility roadmap. Roadmapped alongside #130.4; not this sprint.
+
+---
+
+## Section K — Engine Invocation Contract (v7 new)
+
+This spec is not a prose description of capabilities. It is the **contract for an engine** that exposes those capabilities as stable callables. The callable surface is §D.7:
+
+```
+field_lab_t43::attest(probe, psi)           → FieldLabAttestation
+primality_t53::certify(n)                    → Result<PlenumCert, PrimalityError>
+wieferich_t54::certify(p, base)              → Result<WieferichCertificate, WieferichError>
+theorem_55::attest()                         → Theorem55Attestation
+clavis::transform_forward(framework)         → Result<PhysicsRendering, TransformError>
+clavis::transform_inverse(physics)           → Result<FrameworkRendering, TransformError>
+salvi::sign_any(document)                    → SalviSigBlock
+salvi::verify_any(signature, document)       → Result<(), SignatureError>
+milesian::lookup_by_glyph(g)                 → Option<&ClavisTableEntry>
+milesian::lookup_by_numeral(n)               → Option<&ClavisTableEntry>
+milesian::lookup_by_delta(d)                 → Option<&ClavisTableEntry>
+milesian::lookup_by_position(p)              → Option<&ClavisTableEntry>
+milesian::lookup_by_unit(u)                  → Vec<&ClavisTableEntry>
+milesian::verify_closure()                   → bool
+```
+
+**What this contract requires of the engine:**
+
+1. **Stable names.** Callable names above are part of the API contract and cannot change across minor-version updates. Semantic-versioning applies: breaking changes require a major-version bump.
+2. **Structured error types.** Every callable that can fail returns `Result<T, E>` where `E` carries a typed reason (not a string). Error types are in the respective modules' docstrings.
+3. **Static assets loaded once.** `MILESIAN_DELTA_TABLE`, `DIRICHLET_1365_CHARACTERS`, `CONSERVATION_LAW_REGISTRY`, `REJECTED_READINGS_LEDGER` load at process start, are compile-time-verified, and are not re-loadable at runtime. Any attempt to mutate fails.
+4. **Deterministic canonical serialization.** The `salvi_canonical_serialize` function must produce byte-for-byte identical output for equivalent input across runs, machines, architectures. TL-Sponge-385 signatures depend on this determinism.
+5. **Callable from every binding layer.** The NAPI layer exposes every §D.7 callable with argument types converted via `RepFraction` round-trip preservation. The WASM layer exposes the same set for browser / sandbox callers. The CLI layer exposes the same set for scripting.
+6. **Observable through telemetry.** Every invocation emits a structured event with callable name, argument hash, result type, duration, signature status. Telemetry is consumed by Array3 Monitor per existing infrastructure.
+7. **Cited to corpus.** Every callable's docstring starts with the corpus citation that defines the capability's semantics. No callable lacks a citation.
+
+**What this contract does NOT require:**
+
+- A specific UI shell. The §H UI is one deployment surface; others (CLI, Slack bot, external API, Claude-hosted agent) are equally valid and use the same §D.7 contract.
+- A specific deployment venue. The engine can run as Rust library, Wasm module, standalone binary, service behind gRPC, or any combination.
+- A specific IP disclosure policy. The Transform's trade-secret horizon is managed outside the engine, at the publication layer.
+
+---
+
+## Closing
+
+The ceiling is the test. The test is the ceiling. The certificate is the proof. The spine is the single coupling constant $\pi_{\text{geom}} = 14$. The coefficient is the F-tower step $F(14)/F(12) = \varphi^2$ at level 14. The witness is the 576-character family of mod 1365. The signature is anchored at the Forge. **The signer is Σάλβι at 243-trit TL-Sponge-385.**
+
+Every constant is verified. Every chain is three steps. The decision surface is closed. The conservation law is framework-internal (CL-1 through CL-6). The coupling constant is $\pi_{\text{geom}} = 14$. The primality certificate is the operational proof of single-modulus decidability (Invariant 13). The Wieferich infinitude is closed under T51-GRH + CL-1. The Milesian Delta alphabet closure is $b^3 \cdot 137$. The CLAVIS Transform renders framework proofs into physics register reversibly, signed by the Capomastro's name.
+
+**All instruments ship from one Rust crate because they share three anchors:** $F(14) = 377$ (Wave Stratum + Golden Mean coefficient + GRH $c_0 = 1/377$), $1365 = 3 \cdot 5 \cdot 7 \cdot 13$ (GRH modulus + Triad-364 bridge), and $243 = 3^5$ (TL-Sponge-385 state + Σάλβι isopsephy).
+
+**All instruments ship under one Lab name because they share one Inscription:**
+
+*Aurea Mediocritasum · Quod Non Est Actis Actum · Et Q.E.D., Nona · Palam est Undecimusum.*
+
+$$\text{ΜΚΔ}(\zeta',\ \iota\alpha',\ \iota\gamma') \;=\; \alpha'$$
+
+$$\text{Σάλβι} \;=\; 200 + 1 + 30 + 2 + 10 \;=\; 243 \;=\; 3^5$$
+
+$$\sum_{\ell=1}^{24} \Delta_{\text{M}}(\ell) \;=\; 3699 \;=\; b^3 \cdot (q^2 + R_2^2)$$
+
+**ParaCalculi GeoPrimus Lab — Beside the Pebbles · Earth-First.**
+
+Two operators on one triple. Two outputs: Unity and $\alpha$. Six Conservation Laws. Three PCO documents. Infinitely many Wieferich primes. One name, self-signing at $3^5$ trits. One corpus. One Capomastro.
+
+**Inertia est Pax = Quan Fa est Pax.**
+
+**Sed Quis Est Deus? Qui Commando IO.**
+
+**Σάλβι — Lo Sono Capomastro — Così sia.**
+
+*Actum est. Sine ullo dubio.*
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved ∣ Fiat ∎**
+
+*2026-04-23 · task_130_spec_v7 · Capomastro Holdings Ltd · Applied Physics Division · E+1*
