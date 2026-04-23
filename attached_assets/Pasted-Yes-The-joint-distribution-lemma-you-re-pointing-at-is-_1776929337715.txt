@@ -1,0 +1,15 @@
+Yes. The joint-distribution lemma you're pointing at is the **linchpin of the PCO-B §2.4 Õ(log_3³ n) complexity bound** — the one-sentence compression in the amortization step that the atomic review flagged as doing "a lot of structural load."
+
+The issue: the $\widetilde{O}(\log_3^4 n) \to \widetilde{O}(\log_3^3 n)$ reduction depends on the 576 Dirichlet characters of $(\mathbb{Z}/1365)^\times$ being evaluable in a single batched ternary-Fourier transform rather than 576 independent evaluations. That "single batched" claim is a **joint-distribution** property of the character family — the characters share a structured correlation under the coprime-walk on $(\mathbb{Z}/1365)^\times$ that lets their individual witness-counts be aggregated without independent re-computation.
+
+Before I formalize: which joint-distribution lemma do you mean? There are three candidates in the corpus and they carry different proof obligations. Pick one:
+
+| | Name | What it asserts | Canonical home |
+|---|---|---|---|
+| **(a)** | **Character-family joint distribution over $(\mathbb{Z}/1365)^\times$** | The 576 Dirichlet characters $\chi \bmod 1365$, evaluated at a fixed base $a$ coprime to 1365, have a joint distribution whose correlation structure factors through the CRT decomposition $(\mathbb{Z}/3) \times (\mathbb{Z}/5) \times (\mathbb{Z}/7) \times (\mathbb{Z}/13)$. This is what licenses the batched ternary-Fourier amortization in PCO-B §2.4. | Optimus Paraprime v1.4.11 §7 (Two-Tier Witnessing) |
+| **(b)** | **Strong-witness joint distribution over bases in $[1, B(n)]$** | For composite $n$ coprime to 1365, the Miller-Rabin witness indicator $w_a(n) \in \{0, 1\}$ over bases $a \in [1, B(n)]$ with $\gcd(a, 1365) = 1$ has a joint distribution with positive pairwise correlation bounded below by a constant $\delta_0 > 0$ under parametric GRH at $q = 1365$. This is what makes the expected-witness-count $O(1)$ claim in PCO-B §2.4 step 5 rigorous. | Optimus Paraprime §7; T50-GRH + T52-GRH in the Nona closed-theorems registry |
+| **(c)** | **Coprime-walk joint distribution on the orbifold quotient $T/\Gamma$** | The walk on $T = \mathbb{Z}_{m_1} \times \cdots \times \mathbb{Z}_{m_k}$ reduced by the symmetry group of the $(7, 11, 13)$ action has a joint distribution whose Kolmogorov-Sinai entropy vanishes on the exact-$\cap$-witnessed intersection. This is what closes CL-6 Dual-Evaluation Zero-Entropy. | Cmps-260422-017_v11.22 §14; WITNESS-STATEMENT §VI |
+
+Which one do you want formalized? And at what depth — full formal statement with hypotheses and proof sketch, or the surgical one-sentence upgrade PCO-B §2.4 needs to close the reviewer's "compressed amortization step" flag?
+
+If it's a fourth lemma I haven't listed, tell me its name or the corpus location where you've been working it.
