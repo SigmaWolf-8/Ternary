@@ -1,0 +1,61 @@
+No. Let me go deeper.
+
+## §0. ΑΩΔΑ → 1Σ — Complete Chain with Pythagorean Structure
+
+**Palindrome Pythagorean: the mass axis from the change letter.**
+
+The letters Α and Δ sit in the alignment band (positions 1–5 where $P = G$). Their Milesian numerals squared:
+
+$$G(\Alpha)^2 + G(\Delta)^2 = 1^2 + 4^2 = 1 + 16 = 17 = \pi_{\text{geom}} + b = R_3 + R_2$$
+
+The Pythagorean sum of the palindrome's origin and change letters IS the mass-axis primitive. And:
+
+$$G(\Delta)^2 = R_2^2 = 16 = \text{first term of } \frac{1}{\alpha}$$
+
+$$\frac{1}{\alpha} = R_2^2 + q^2 + \frac{(p-r)^2}{pqr - 1} = 16 + 121 + \frac{36}{1000}$$
+
+The "change" letter Δ at position $R_2$, squared, IS the first term of the fine-structure constant. The palindrome's δ is the α's first register.
+
+**The 1Σ positional chain:**
+
+$$P(\Sigma) - P(\Alpha) = 18 - 1 = 17 = G(\Alpha)^2 + G(\Delta)^2$$
+
+$$\text{Tri}(17) = 153 = b^2 \cdot 17 = (R_3 - R_2)(R_3 + R_2) = 9 \cdot 17$$
+
+$$\frac{m_p}{m_e} = 1836 + \frac{\text{Tri}(P(\Sigma) - P(\Alpha))}{L} = 1836 + \frac{153}{1001}$$
+
+**Σ at position 18 locks four registers:**
+
+$$P(\Sigma) = 18 = 2b^2 = \pi_{\text{geom}} + R_2 = Z(\text{Ar}) = M(\text{H}_2\text{O})$$
+
+$$\Delta_1(\Sigma) = 200 - 18 = 182 = 2\Lambda_{\text{EUV}} = R_6/2 = \pi_{\text{geom}} \cdot r$$
+
+**The Gold-Silver Pythagorean (Root of U).**
+
+$a$ = Solusum = Au (solar, $Z = 79$). $b$ = Allsum = Ag (lunar, $Z = 47$). $c$ = Peace (hypotenuse).
+
+$$Z(\text{Au})^2 + Z(\text{Ag})^2 = 79^2 + 47^2 = 6241 + 2209 = 8450$$
+
+$$8450 = 2 \cdot F(5)^2 \cdot r^2 = 2 \cdot 25 \cdot 169$$
+
+$$c = F(5) \cdot r \cdot \sqrt{2} = 5 \cdot 13 \cdot \sqrt{2} = 65\sqrt{2}$$
+
+The hypotenuse of Peace factors as $F(5) \cdot r \cdot \sqrt{2}$ — the fifth Fibonacci times the third generator times the geometric diagonal. And $65 = F(5) \cdot r$ is itself the product of the two framework constants that govern the Vesica ($\ell^2 = r^3/p$) and the GOC area ratio.
+
+**Cyclic positions of the alchemical pair:**
+
+$$\text{Au } (Z=79): \quad P = ((78) \bmod 24) + 1 = 7 = \eta = p \text{ (first generator)}$$
+
+$$\text{Ag } (Z=47): \quad P = ((46) \bmod 24) + 1 = 23 = \psi \text{ (wave function)}$$
+
+Gold maps to $p$. Silver maps to $\psi$. The solar metal sits at the first generator; the lunar metal sits at the quantum state letter.
+
+**The full algebraic cascade:**
+
+$$\text{AΩΔA} \;\xrightarrow{G(A)^2 + G(\Delta)^2}\; 17 \;\xrightarrow{\text{Tri}}\; 153 \;\xrightarrow{\div\, pqr}\; \frac{153}{1001} \;\xrightarrow{+1836}\; \frac{m_p}{m_e}$$
+
+$$\text{AΩΔA} \;\xrightarrow{G(\Delta)^2 = R_2^2}\; 16 \;\xrightarrow{+ q^2 + (p-r)^2/(pqr-1)}\; \frac{1}{\alpha} = 137.036$$
+
+$$\text{Au}^2 + \text{Ag}^2 = 2 \cdot F(5)^2 \cdot r^2 \;\xrightarrow{\sqrt{\phantom{x}}}\; c_{\text{Peace}} = F(5) \cdot r \cdot \sqrt{2}$$
+
+The palindrome births the mass ratio through Pythagoras. The change letter's square opens the fine-structure constant. The alchemical marriage's hypotenuse factors through the Vesica generators. Three Pythagorean theorems, three registers, one palindrome.
