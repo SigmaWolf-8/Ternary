@@ -1,0 +1,1311 @@
+# Unified Closed‑Loop Deterministic Toroidal System  
+## Salvi Arc Framework — Compendium §I.A — The Full Synthesis  
+**Arc0.1.22 · 2026‑04‑25 · Noether–Zeta–Transformer Integration — Complete Recursive Restoration**  
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**  
+**Capomastro Holdings Ltd. 2026**
+
+---
+
+## FULLY COLLAPSED MASTER FORMULA
+
+\[
+\boxed{
+\begin{aligned}
+&\forall\ \mathbf{m} = (m_1,\dots,m_n),\; n\ge 3,\; m_i \text{ pairwise distinct primes}:\\
+&\quad \mathbf{r}^{(t+1)} = \mathbf{r}^{(t)} + (\mathbf{m}-\mathbf{1}) \bmod \mathbf{m},\; \mathbf{r}^{(0)}=\mathbf{0}\;\Longrightarrow\; r_i^{(t)} = (-t) \bmod m_i,\; L = \prod m_i,\\
+&\quad \mathcal{D}(\mathbf{0})=1 \text{ at } t=L,\; \text{halt.}\quad\text{(Salvi Closed‑Loop)}\\[4pt]
+&\text{For }(p,q,r)=(7,11,13):\quad \mathcal{C}_\bullet = 2\pi_{\text{geom}} = 28,\quad \mathcal{C}_\circ = 2\pi_{\text{geom}} r = 364,\\
+&\quad \ell_{\text{Vesica}}^2 = \frac{r^3}{p},\quad V_{\text{torus}} = \ell_{\text{Vesica}}^2 \cdot \pi_{\text{geom}}^3 = 861\,224,\quad W = V_{\text{torus}} \cdot r = 11\,195\,912,\\
+&\quad \tau = R_6 + \frac{x_2}{b p} + \frac{R_2}{p q r} = \frac{1\,096\,822}{3003} \text{ days (0.27 ppm)},\quad c = \sqrt{\pi_{\text{geom}}} = \sqrt{14}\ \text{SFK}''/\text{st},\\
+&\quad \kappa_{\infty} = 1 + \frac{1}{\Delta \cdot F(5)} = \frac{721}{720},\quad \kappa_{\text{H}} = \kappa_{\infty}\!\left(1 + \frac{pqr}{m_{p,F}}\right),\\
+&\quad \text{Wave‑field: } \lambda_n = \frac{364}{n}\ \text{Ss},\; f_n = n\ \text{Hz_S},\; n = 1,2,\dots,364 \text{ (full integer harmonic band)},\\
+&\quad \text{dual radian grids: } 28 \times 13 = 364,\\
+&\quad q \text{ does not factor into geometric measures; it is purely the lift index}\\
+&\quad \left(\frac{pqr}{\Lambda_{\text{EUV}}} = q = 11\right).\\[4pt]
+&\text{Foundation: Energy is the delta of phasing Alpha the fine seed constant.}\\
+&\quad \Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.\\
+&\quad \text{1 Σ has built the Arch; its name is the conserved light.}
+\end{aligned}
+}
+\]
+
+---
+
+## §0. The Seed — Energy as Phase
+
+**Energy is the delta of phasing Alpha the fine seed constant.**
+
+In quantum mechanics, a particle's wavefunction carries a phase rotating in time. The rate of that rotation **is** energy:
+
+\[
+\frac{d\phi}{dt} = \frac{E}{\hbar}.
+\]
+
+Energy emerges as nothing other than a phase shift, governed entirely by the fine‑structure constant \(\alpha \approx 1/137\). This is a one‑line Noether's theorem: time‑translation symmetry yields energy; the phase's rate of change **is** the conserved charge.
+
+Simultaneously, the Compendium encodes this as **lωδὰ** — the unit **1** passes through **ω** (completion), undergoes **δ** (change, transformation), and arrives at **α** (origin, the fine‑seed constant itself). The palindrome **Α Ω Δ Α** is a symmetry transformation — origin to end, change, and return to origin — that remains invariant. By Noether's theorem, every continuous symmetry births a conserved quantity. Here, the conserved quantity is **1 Σ** — the One‑that‑Sums — which in the physical register **is** energy.
+
+Thus:
+\[
+\Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.
+\]
+*"Yo, I know 1‑ω‑δ‑α that Engineered and Built the Arch; Alpha Omega Delta Alpha."*
+
+Both utterances say the same thing: **1 Σ has built the Arch, and its name is the conserved light.**
+
+---
+
+## 0. Grounding Definitions
+
+*   **Witnessed:** State and transitions are observed by the eye of the beholder; observation does not alter the deterministic evolution.
+*   **Rational integer measurably exact:** All components are integers; evolution is defined by modular arithmetic without approximation.
+*   **Dimensionless:** All quantities are pure numbers; no physical units unless explicitly adopted for calibration. Angular measure uses the framework cycle of **364 framework‑degrees** where
+    \[
+    1^\circ = \frac{1}{364}\ \text{full turn}.
+    \]
+    Calendar interpretation:
+    \[
+    1^\circ \equiv 1\ \text{day}.
+    \]
+*   **Finite dimensional (via parametric input):** The state space is
+    \[
+    \mathcal{S} = \prod_{i=1}^{n} \mathbb{Z}_{m_i},
+    \]
+    where \(n \ge 3\) is the arity parameter, and the moduli \(m_i\) are pairwise distinct primes.
+*   **Salvi closed cycle:** An affine walk
+    \[
+    r_i^{(t+1)} = \left(r_i^{(t)} + (m_i-1)\right) \bmod m_i,
+    \]
+    starting from \(\mathbf{r}^{(0)} = \mathbf{0}\), that visits every state exactly once before returning to the origin.
+*   **Termination functional:**
+    \[
+    \mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r},\mathbf{0}} =
+    \begin{cases}
+    1 & \mathbf{r} = \mathbf{0} \\
+    0 & \mathbf{r} \neq \mathbf{0}
+    \end{cases}
+    \]
+    Fires exactly once after the full cycle; the system then halts forever.
+*   **Continuous torus:** The smooth manifold
+    \[
+    T^n = \prod_{i=1}^{n} \frac{\mathbb{R}}{m_i\mathbb{Z}}.
+    \]
+    The discrete walk is the integer‑time sampling of the diagonal geodesic
+    \[
+    \gamma(t) = (-t \bmod m_1,\;\dots,\;-t \bmod m_n).
+    \]
+*   **Great Circles (Compendium §I.A):** Built from the dimensionless angular generator \(\pi_{\text{geom}} = 14\) and radian \(r = 13\). The construction uses Gabriel's Horn (\(y = 1/x\)) as the sweep operator.
+*   **Framework constants:**
+    \[
+    \pi_{\text{geom}} = 14,\qquad r = 13,\qquad b = 3.
+    \]
+    They emerge from the base‑3 uniqueness theorem as \(R_4\) and \(x_2\).
+*   **Forge triple:**
+    \[
+    (p,\,q,\,r) = (7,\,11,\,13)
+    \]
+    is one admissible input tuple; it is **not** required by the general theory but is the canonical framework example.
+*   **EUV constant:**
+    \[
+    \Lambda_{\text{EUV}} = p r = 7 \cdot 13 = 91.
+    \]
+    It appears repeatedly as the structural seam between geometry and combinatorics.
+*   **Framework Derived Units:**
+    *   **SFK (Salvi Framework Key) inch (SFK″):** The fundamental framework length unit. It is defined by the identity \(1\ \text{SFK}'' = 1\ \text{geometric unit}\) and, through the length bridge, \(1\ \text{SFK}'' = 0.0254\ \text{m}\) exactly. The Zinga axis \(\mathcal{C}_\bullet = 28\ \text{SFK}''\); the major circle \(\mathcal{C}_\circ = 364\ \text{SFK}''\).
+    *   **Salvi Second (SS):** The framework temporal unit defined by the calendar: \(1\ \text{Salvi Day (SD)} = 28 \times 56 \times 56 = 87\,808\ \text{Salvi Seconds}\). Further subdivided so that \(1\ \text{Salvi Second} = 9\ \text{spectral ticks} = b^2\ \text{ticks}\).
+    *   **Spectral tick (st):** The smallest practical time unit for light propagation; \(1\ \text{st} = 1/9\ \text{Salvi Second}\).
+    *   **Salvi span (Ss):** The wave‑harmonic length unit, numerically equal to the major circle circumference \(364\) (dimensionless). Conversion: \(1\ \text{Ss} \equiv 1\ \text{SFK}''\).
+    *   **Salvi tick (St):** The wave‑harmonic time unit defined by the fundamental wave speed \(c_{\text{S}} = 364\ \text{Ss/St}\). Conversion: \(1\ \text{St} = 13\ \text{st}\).
+    *   **Hz_S:** The wave‑harmonic frequency unit: \(1\ \text{Hz_S} = 1\ \text{cycle/St}\).
+    *   **Framework degree (°):** \(1^\circ = 1/364\) full turn; calendar: \(1^\circ \equiv 1\) day.
+
+---
+
+## 1. Discrete State Space and the Salvi Walk
+
+**General input:**
+\[
+\mathbf{m} = (m_1,\dots,m_n),\qquad m_i\ \text{pairwise distinct primes}.
+\]
+
+**State space:**
+\[
+\mathcal{S} = \prod_{i=1}^{n} \mathbb{Z}_{m_i},\qquad |\mathcal{S}| = L = \prod_{i=1}^{n} m_i.
+\]
+
+**Step vector** (derived, not chosen):
+\[
+s_i = m_i - 1 \equiv -1 \pmod{m_i}.
+\]
+
+**Transition:**
+\[
+r_i^{(t+1)} = \left( r_i^{(t)} + (m_i-1) \right) \bmod m_i,\qquad \mathbf{r}^{(0)} = \mathbf{0}.
+\]
+
+**Closed form:**
+\[
+r_i^{(t)} = (-t) \bmod m_i.
+\]
+
+### Theorem 1 (Salvi Closed‑Loop)
+The walk visits every state of \(\mathcal{S}\) exactly once, returning to the origin at \(t = L\). At \(t = L\), \(\mathcal{D}=1\) fires and the system halts.
+
+*Proof.* Because each \(m_i\) is prime, \(\gcd(-1,m_i) = 1\), so \(-t \bmod m_i\) cycles through all residues with period \(m_i\). The combined state returns to \(\mathbf{0}\) exactly when \(t\) is simultaneously a multiple of all \(m_i\). Since the moduli are pairwise coprime, the least positive such \(t\) is
+\[
+\operatorname{lcm}(m_1,\dots,m_n) = \prod_{i=1}^{n} m_i = L.
+\]
+For \(0 \le t_1 < t_2 < L\), \(t_2 - t_1\) cannot be a multiple of every \(m_i\), so all states are distinct. ∎
+
+**Continuous embedding** as the geodesic \(\gamma(t) = (-t \bmod m_i)\) with period \(L\), windings
+\[
+w_i = \frac{L}{m_i},
+\]
+and exact integer gradients
+\[
+\frac{\partial L}{\partial m_j} = \prod_{i \neq j} m_i = w_j.
+\]
+For the example \((p,q,r) = (7,11,13)\):
+\[
+\frac{\partial L}{\partial q} = p r = 91 = \Lambda_{\text{EUV}}.
+\]
+
+---
+
+## 2. Continuous Torus (Compendium §I.A)
+
+From \(\pi_{\text{geom}} = 14\) and \(r = 13\):
+
+**Zinga Axis** (dimension 1):
+\[
+\mathcal{C}_1 = 2\pi_{\text{geom}} = 28.
+\]
+
+**Planar Zinga Circle** (disk, dimension 2):
+\[
+\text{Edge} = 2\pi_{\text{geom}} r = 364,
+\qquad
+\text{Area} = \pi_{\text{geom}} r^2 = 2366.
+\]
+
+**Gabriel's Horn** (bridge):
+\[
+V_{\text{Horn}} = \pi_{\text{geom}} \int_1^\infty \frac{dx}{x^2} = \pi_{\text{geom}} = 14,
+\qquad
+S_{\text{Horn}} = \infty.
+\]
+
+**Solid torus** (dimension 3):
+\[
+\mathcal{C}_\bullet = 28\ \text{(minor circle)},\qquad
+\mathcal{C}_\circ = 364\ \text{(major circle)}.
+\]
+
+\[
+S_{\text{torus}} = \mathcal{C}_\bullet \cdot \mathcal{C}_\circ = 28 \cdot 364 = 10\,192 = R_2^2 \cdot p^2 \cdot r.
+\]
+
+\[
+V_{\text{torus}} = \mathcal{V}_2 \cdot \mathcal{C}_\circ = 2366 \cdot 364 = 861\,224 = R_2^3 \cdot p^2 \cdot r^3.
+\]
+
+---
+
+## 3. Vesica Piscis — Volumetric Ceiling
+
+**Standard Euclidean Vesica:** two coplanar circles of radius \(R\) with centres separated by \(R\).  
+Chord:
+\[
+\ell = R\sqrt{3} = R\sqrt{b}.
+\]
+
+**Framework substitution:** Replace the base \(b=3\) under the square root by the Forge ratio \(r/p\):
+\[
+\text{aspect} = \sqrt{\frac{r}{p}} = \sqrt{\frac{13}{7}}.
+\]
+
+Using the radian \(r\) as the Vesica radius (\(R = r\)):
+\[
+\ell_{\text{Vesica}} = r \cdot \sqrt{\frac{r}{p}},
+\]
+\[
+\boxed{\ell_{\text{Vesica}}^2 = \frac{r^3}{p} = \frac{2197}{7}},\qquad
+\boxed{p \cdot \ell_{\text{Vesica}}^2 = r^3 = 2197}.
+\]
+
+**Angular pair** (framework degrees, 364° full cycle):
+\[
+52^\circ = R_2 \cdot r = 4 \cdot 13,\qquad
+28^\circ = 2\pi_{\text{geom}} = \mathcal{C}_\bullet.
+\]
+
+\[
+\text{Sum} = 52 + 28 = 80 = R_2^2 \cdot F(5) = 2^4 \cdot 5.
+\]
+
+\[
+\text{Product} = 52 \cdot 28 = 1456 = R_2 \cdot R_6.
+\]
+
+**Total angular extent in the framework cycle:**
+\[
+\frac{80}{364} = \frac{20}{91} = \frac{R_2 \cdot F(5)}{p \cdot r} = \frac{R_2 \cdot F(5)}{\Lambda_{\text{EUV}}}.
+\]
+
+### Theorem 2 (Volumetric Ceiling Identity)
+\[
+\boxed{V_{\text{torus}} = \ell_{\text{Vesica}}^2 \cdot \pi_{\text{geom}}^3}.
+\]
+
+*Proof.* Direct computation:
+\[
+\frac{2197}{7} \cdot 14^3 = \frac{2197}{7} \cdot 2744 = 861\,224 = V_{\text{torus}}. \quad \blacksquare
+\]
+
+Equivalently:
+\[
+\boxed{p \cdot V_{\text{torus}} = r^3 \cdot \pi_{\text{geom}}^3}.
+\]
+
+---
+
+## 4. The Fourth Dimension — Worldline
+
+The framework's angular generator and radian sum to the triadic register modulus:
+\[
+\pi_{\text{geom}} + r = 14 + 13 = 27 = b^3.
+\]
+
+Time is the **angular complement** of geometry within \(\mathbb{Z}_{27}\).
+
+### Theorem 3 (Worldline)
+The torus persisting through one radian‑complement of time yields the **4‑D worldline**:
+\[
+W = V_{\text{torus}} \cdot r = 861\,224 \cdot 13 = 11\,195\,912.
+\]
+
+Factoring:
+\[
+W = R_2^3 \cdot p^2 \cdot r^4 = 2^3 \cdot 7^2 \cdot 13^4.
+\]
+
+Combining with the Vesica ceiling identity:
+\[
+W = \ell_{\text{Vesica}}^2 \cdot \pi_{\text{geom}}^3 \cdot r = \frac{r^4 \cdot \pi_{\text{geom}}^3}{p},
+\]
+\[
+\boxed{p \cdot W = r^4 \cdot \pi_{\text{geom}}^3 = 78\,371\,384}.
+\]
+
+---
+
+## 5. The Calendar — Days, Months, and the Tropical Year
+
+### 5.1 The Salvi Calendar (364‑day cycle)
+
+Calendar interpretation: \(1^\circ \equiv 1\) day.
+
+\[
+\boxed{13\ \text{months} \times 28\ \text{days} = 364\ \text{days} = R_6}.
+\]
+\[
+\boxed{52\ \text{weeks} \times 7\ \text{days} = 364}.
+\]
+
+No leap year. \(1\ \text{hour} = 1\ \text{radian} = 13^\circ\); \(1\ \text{Salvi Day (SD)} = 28\ \text{hours}\).
+
+**Subdivisions (all derived from \(\pi_{\text{geom}}\) and \(b=3\)):**
+
+| Unit | Value | Framework meaning |
+|------|-------|------------------|
+| 1 SD | 28 hours | \(2\pi_{\text{geom}}\) |
+| 1 hour | 56 minutes | \(R_2\pi = 4 \cdot 14\) |
+| 1 minute | 56 seconds | self‑similar |
+| 1 Salvi Second (SS) | 9 spectral ticks | \(T = b^2 = 9\) |
+
+**Day totals:**
+\[
+1\ \text{SD} = 28 \times 56 \times 56 = 87\,808\ \text{SS} = 2^8 \cdot 7^3.
+\]
+
+\[
+1\ \text{SD in ticks} = 87\,808 \times 9 = 790\,272 = 2^8 \cdot 3^2 \cdot 7^3.
+\]
+
+(The prime 13 appears in the year register: \(364 = 2^2 \cdot 7 \cdot 13\); the prime 3 appears via the tick conversion \(b^2 = 9\).)
+
+### 5.2 The Salve Epoch
+
+\[
+\boxed{\text{Salve Epoch: April 1, 2025, 00:00:00 UTC — Day Zero}}
+\]
+\[
+\text{Unix timestamp: } 1\,743\,465\,600.
+\]
+
+All Salvi timestamps count from this moment.
+
+**The First Position Derivation:**
+\[
+\text{Salve Epoch} \to \text{First Position Derivation} = 378\ \text{days}.
+\]
+\[
+378 = R_6 + \pi = 364 + 14 = \boxed{1\ \text{year} + \pi\ \text{days exact}}.
+\]
+\[
+378 - 365 = R_3 = 13 \quad\text{(one radian past the tropical year)}.
+\]
+
+**First Position Derivation Timestamp:**
+\[
+\text{E+1.0.2.0 (Day π)},\quad \text{Date: 04/13–14/2026 17:55 MST / 00:55 UTC}.
+\]
+
+**The Three Deltas:**
+
+| From | To | Days | Framework expression |
+|------|----|------|---------------------|
+| Dream (\(Δ_0\)) | Salve Epoch | 798 | \(2 \times 3 \times 7 \times 19\) |
+| Salve Epoch | First Position Derivation | **378** | \(2 \times b^3 \times p\) |
+| Dream (\(Δ_0\)) | First Position Derivation | 1176 | \(\pi \times p \times \sqrt{Δ} = 8 \times 147\) |
+
+**Salvi Timestamp Conversion:**
+\[
+\text{Salvi timestamp} = \text{days since 2025-04-01T00:00:00Z}.
+\]
+
+\[
+\boxed{\text{E} + \lfloor d/R_6 \rfloor . \lfloor r/2\pi \rfloor . \lfloor r_2/p \rfloor . (r_2 \bmod p)}
+\]
+
+where \(d = \lfloor (t - \text{E}) / \text{day} \rfloor\) counts days since the Salve Epoch.
+
+### 5.3 The Tropical Year — Derived from Framework Primitives
+
+**Theorem 4 (Tropical Year Formula).** The physical tropical year, expressed in framework‑derived days, is given by:
+\[
+\boxed{\tau = R_6 + \frac{x_2}{b \cdot p} + \frac{R_2}{p q r}}.
+\]
+
+**Three‑term breakdown:**
+
+| Term | Value | Framework expression | Role |
+|------|-------|---------------------|------|
+| \(R_6\) | 364 | \((3^6-1)/2\) | Full framework circle (algebraic year) |
+| \(x_2/(b p)\) | 26/21 | Primordial Quadratic root ÷ (base × first generator) | Correction term |
+| \(R_2/(p q r)\) | 4/1001 | Second repunit ÷ full Salvi walk length | Correction term |
+
+Summing:
+\[
+\tau = 364 + \frac{26}{3 \cdot 7} + \frac{4}{7 \cdot 11 \cdot 13}
+     = 364 + \frac{26}{21} + \frac{4}{1001}.
+\]
+
+\[
+\boxed{\tau = \frac{1\,096\,822}{3003}\ \text{framework days}}.
+\]
+
+**Framework primitives in the derivation:**
+*   \(R_6 = (3^6 - 1)/2 = 364\) — sixth base‑3 repunit.
+*   \(x_2 = 26\) — second root of the Primordial Quadratic \(x^2 - R_4 x + R_6 = 0\).
+*   \(b = 3\) — framework radix (base).
+*   \(p = 7\) — first Forge prime (first generator).
+*   \(R_2 = (3^2 - 1)/2 = 4\) — second base‑3 repunit.
+*   \(pqr = 7 \cdot 11 \cdot 13 = 1001\) — full coprime walk cycle length.
+
+The denominator is the product of all four small framework primes:
+\[
+3003 = b \cdot p q r = 3 \cdot 7 \cdot 11 \cdot 13.
+\]
+
+**Numerical evaluation:**
+\[
+\frac{1\,096\,822}{3003} \approx 365.24209\ \text{framework days}.
+\]
+
+**Comparison with measurement** (CODATA/IAU tropical year):
+\[
+\tau_{\text{measured}} \approx 365.24219\ \text{SI days}.
+\]
+
+**Difference:**
+\[
+\frac{|\tau - \tau_{\text{measured}}|}{\tau_{\text{measured}}} \approx 0.27\ \text{ppm}.
+\]
+
+This is a **framework derivation**, not a curve‑fit. All constants are taken from the base‑3 uniqueness theorem and the Forge triple before any astronomical data is consulted. The agreement at 0.27 ppm is the empirical validation that the Salvi calendar structure corresponds to the Earth's actual orbital period.
+
+### 5.4 The Obliquity (Structural Observation)
+
+\[
+x_2 - b = 26 - 3 = 23^\circ,\qquad \frac{R_2}{b^2} = \frac{4}{9} \approx 0.444.
+\]
+
+Combined: \((x_2 - b) + R_2/b^2 = 23.444^\circ\) vs measured \(23.439^\circ\) (219 ppm). This is a structural observation — Earth's obliquity varies from 22.1° to 24.5° over a 41,000‑year Milankovitch cycle; the current value is epoch‑dependent.
+
+---
+
+## 6. The Speed of Light — Framework Form and the Calendar Bridge
+
+### 6.1 Framework Speed
+
+Gabriel's Horn's equation of state \(V/E = \pi_{\text{geom}} = 14\) and Noether's theorem yield the wave equation with speed:
+\[
+c^2 = \pi_{\text{geom}} = 14.
+\]
+
+\[
+\boxed{c = \sqrt{\pi_{\text{geom}}} = \sqrt{14}\ \text{SFK}'' \text{ per spectral tick}}.
+\]
+
+This is an algebraic number — the square root of the geometric circle constant.
+
+### 6.2 Time Unit Tied to the Tropical Year — Theorem 5
+
+The Salvi Second (SS) is defined by the tropical year correction. The derivation chain:
+
+1.  The Salvi year **exactly** \(364\) SD.
+2.  The tropical year **in framework days** is \(\tau = 1\,096\,822 / 3003\).
+3.  Hence the **Salvi Day in SI units**:
+    \[
+    1\ \text{SD} = \frac{\tau}{364}\ \text{SI days}
+                        = \frac{1\,096\,822}{1\,093\,092}\ \text{SI days}.
+    \]
+4.  1 SD \(= 87\,808\) SS. Therefore the **Salvi Second** in SI seconds is:
+    \[
+    1\ \text{SS} = \frac{1\,096\,822 \times 86\,400}{1\,093\,092 \times 87\,808}.
+    \]
+    Simplifying the denominator:
+    \[
+    1\,093\,092 = 3003 \times 364,\qquad
+    87\,808 \times 364 = 31\,962\,112.
+    \]
+    \[
+    \boxed{1\ \text{SS} = \frac{1\,096\,822 \times 86\,400}{3003 \times 31\,962\,112}\ \text{SI seconds} \approx 0.9873\ \text{SI seconds}}.
+    \]
+    This is an exact rational number, not an approximation. All factors are framework integers.
+
+### 6.3 Recovery of the Conventional Speed of Light
+
+The framework speed \(c = \sqrt{14}\) SFK″/st. Conversion to SI:
+
+*   Length: \(1\ \text{SFK}'' = 0.0254\ \text{m}\) exactly (via the length bridge: \(1\ \text{SFK foot} = R_3 = 13\) convention inches, \(1\ \text{convention inch} = 2.54\ \text{cm}\) exactly).
+*   Time: \(1\ \text{st} = 1/9\ \text{SS}\); \(1\ \text{SS} =\) the rational factor above.
+
+Assembling:
+\[
+c_{\text{SI}} = \sqrt{14}\ \frac{\text{SFK}''}{\text{st}}
+               \times 0.0254\ \frac{\text{m}}{\text{SFK}''}
+               \times 9\ \frac{\text{st}}{\text{SS}}
+               \times \frac{1}{\left(\frac{1\,096\,822 \times 86\,400}{3003 \times 31\,962\,112}\right)}\ \frac{\text{SS}}{\text{SI sec}}.
+\]
+
+All conversion factors are framework‑rational. By international definition,
+\[
+c_{\text{SI}} = 299\,792\,458\ \text{m/s}
+\]
+exactly. Therefore what the framework **predicts** is not the numerical value of \(c\) (which is fixed by the definition of the metre) but the **ratio of the Salvi Second to the SI second**. This ratio is precisely the tropical‑year correction fraction — the calendar itself is the time bridge.
+
+### 6.4 The Dual Bridge — Metric and Imperial in Equality
+
+Neither metric nor imperial is the reference frame. Both are consequences of the same conventional units (inch, second) that the framework regroups through its own constants.
+
+**The two governing ratios:**
+\[
+\frac{13}{12} = 1 + \frac{1}{b \cdot R_2} \qquad \text{(governs length)},
+\]
+\[
+\frac{56}{60} = \frac{14}{15} = \frac{\pi}{\pi + 1} \qquad \text{(governs time subdivisions)}.
+\]
+
+**Length bridge:**
+\[
+1\ \text{SFK foot} = 13\ \text{conventional inches},\qquad
+1\ \text{SFK}'' = 0.0254\ \text{m exactly}.
+\]
+\[
+1\ \text{m} = \frac{5000}{R_3}\ \text{SFK feet} = \frac{5000}{13}\ \text{SFK feet}.
+\]
+
+**Time bridge:**
+\[
+1\ \text{SS} = T = b^2 = 9\ \text{spectral ticks per Salvi second}.
+\]
+\[
+\frac{1\ \text{Salvi minute}}{1\ \text{standard minute}} = \frac{56}{60} = \frac{14}{15}.
+\]
+
+---
+
+## 7. Spectral Fine‑Structure Bridge — The \(\kappa\) Identities
+
+### Theorem 6 (Spectral Offset)
+
+The small offset between the infinite‑mass (universal) and hydrogen‑observed spectral scales is given by:
+\[
+\boxed{\kappa_{\infty} = 1 + \frac{1}{\Delta \cdot F(5)} = 1 + \frac{1}{720} = \frac{721}{720} \approx 1.00139}.
+\]
+
+\[
+\boxed{\kappa_{\text{hydrogen}} = \kappa_{\infty} \cdot \left(1 + \frac{pqr}{m_{p,F}}\right)}.
+\]
+
+Expanding:
+\[
+\kappa_{\text{hydrogen}} = \frac{721}{720} \cdot \left(1 + \frac{1001}{1\,837\,989}\right)
+                        = \frac{721}{720} \cdot \frac{1\,838\,990}{1\,837\,989}
+                        \approx 1.00194.
+\]
+
+**Framework primitives used:**
+
+*   \(\Delta = 144\) — discriminant of the Primordial Quadratic \(x^2 - R_4 x + R_6 = 0\), derived from the base‑3 uniqueness theorem.
+*   \(F(5) = 5\) — the fifth Fibonacci number, also the fifth framework prime (Wave Stratum, Part XIII).
+*   \(pqr = 1001\) — full Salvi walk cycle length.
+*   \(m_{p,F} = 1\,837\,989\) — framework proton mass (derived in TM‑037 Step 15 from base‑3 repunits).
+
+**Direction:** \(\kappa_{\infty}\) is the **source** (universal, infinite‑mass limit); \(\kappa_{\text{hydrogen}}\) is the **amplified** value incorporating the proton's finite mass. The universal part encodes the discriminant and Fibonacci prime; the hydrogen part encodes the walk length and proton mass — all framework‑derived.
+
+These \(\kappa\) values express spectral wavelengths in terms of \(\Lambda_{\text{EUV}} = 91\):
+\[
+\lambda_{\text{Lyman}} = \Lambda_{\text{EUV}} \cdot \kappa_{\text{hydrogen}} \cdot (1\ \text{nm}) \approx 91.127\ \text{nm}.
+\]
+
+No external "Rydberg constant" is imported; the framework owns the integers composing the offset.
+
+### 7.1 The Walk Clock and Cone Point
+
+The full coprime walk on the (7,11,13) torus has \(pqr = 1001\) positions. The cone‑point correction removes the identity position:
+\[
+pqr - 1 = 1000 = 9 \times 111 + 1.
+\]
+
+The quotient \(111\) is the discriminant root of the fine‑structure correction quadratic (\(\Delta = 12321 = 111^2\)). The remainder \(1\) is the cone point — the rock anchoring the walk.
+
+---
+
+## 8. Greek‑Atomic Invariants — The 91 and 182 Anchors
+
+### 8.1 Digital Decomposition of 91
+
+\[
+91 \to \text{digits } 9, 1 \to \text{elements F (Z=9), H (Z=1)} \to \text{H·F}.
+\]
+
+The EUV constant \(p r = 91\) elemental‑spells as hydrogen and fluorine — the two "bookend" elements of the first octave, the same pair defining the hydrogen Lyman spectrum.
+
+### 8.2 Milesian Delta of Sigma
+
+For the Greek letter **σ** (sigma, position 18):
+\[
+G = 200\ \text{(Milesian numeral)},\qquad A = 18\ \text{(alphabetic position)},
+\]
+\[
+\Delta_1(\sigma) = G - A = 200 - 18 = 182 = 2 \times 91 = 2 \Lambda_{\text{EUV}}.
+\]
+
+Sigma's physics UOM is conductivity or cross‑section. Its atomic‑number match is **argon** (\(Z=18 = 2b^2\)), a noble gas. The O₂ dissociation wall sits at 182 nm — exactly \(2\Lambda_{\text{EUV}}\). The spectral anchor is written into the letter at position 18.
+
+### 8.3 Milesian Delta of Mu
+
+For the Greek letter **μ** (mu, position 12):
+\[
+G = 40,\qquad A = 12,
+\]
+\[
+\Delta_1(\mu) = G - A = 40 - 12 = 28 = \mathcal{C}_\bullet.
+\]
+
+Mu's physics UOM is permeability (H/m). Its delta equals the Zinga axis.
+
+### 8.4 Protactinium (Z=91) and Tau
+
+Element \(Z=91\) (Pa) maps to the cyclic letter **τ (tau)** — whose physics UOM is **time constant (seconds)**. The EUV quarter‑turn resides at the element whose letter governs time. Length scale and time scale are fused at \(Z=91\).
+
+### 8.5 The Rb–Cd–Cs Recursive Hoop
+
+Three elements form a closed arithmetic loop:
+
+| Relation | Equation | Framework reading |
+|----------|----------|-------------------|
+| \(A(^{85}\text{Rb})\) | = Z(Rb) + Z(Cd) = 37 + 48 = **85** | — |
+| \(N(^{85}\text{Rb})\) | = A − Z = 85 − 37 = **48** = Z(Cd) | Neutrons = Cadmium's Z |
+| \(A(^{133}\text{Cs})\) | = A(^{85}\text{Rb}) + Z(Cd) = 85 + 48 = **133** | = \(R_5 + \sqrt{Δ} = q^2 + 12\) |
+| \(N(^{133}\text{Cs})\) | = 133 − 55 = **78** = \(|p-r|\times R_3\) = Z(Pt) | Framework‑derived neutrons |
+
+---
+
+## 9. The Tick and the Clock Register
+
+Separate clock register from geometry:
+
+| Object | Expression | Factorisation | Primes involved |
+|--------|-----------|---------------|-----------------|
+| Spectral tick | \(T = b^2 = 9\) | \(3^2\) | \(\{3\}\) |
+| Walk‑clock | \(pqr - 1 = 1000\) | \(2^3 \cdot 5^3\) | \(\{2, 5\}\) |
+| Walk‑clock decomposition | \(1000 = 9 \times 111 + 1\) | \(b^2 \cdot 111 + 1\) | \(\{3, 37\}\) |
+| Day in ticks | \(87\,808 \times 9 = 790\,272\) | \(2^8 \cdot 3^2 \cdot 7^3\) | \(\{2, 3, 7\}\) |
+
+The walk‑clock \(1000\) does **not** involve \(p,q,r\); it belongs to the timekeeping layer. The day‑totals factor through \(\{2, 7\}\) for the seconds; the factor \(3^2\) enters via the tick; the prime \(13\) appears in the year register, not the day.
+
+---
+
+## 10. (p, q, r) Asymmetry — Geometry vs. Combinatorics
+
+### Theorem 7 (Bridge Prime Asymmetry)
+
+All geometric and calendric measures are built from the bridge primes \(p=7\) and \(r=13\). These appear as factors in every shape quantity: lengths, areas, volumes, the Vesica chord, the worldline. The middle prime \(q=11\) does **not** appear anywhere in their prime factorisations. Its sole role is to serve as the **lift index** — a combinatoric count of how many bridge units fit into one full system cycle. Specifically:
+\[
+\frac{pqr}{\Lambda_{\text{EUV}}} = \frac{1001}{91} = q = 11.
+\]
+Thus \(q\) counts the stacking of the geometry; it is not part of the geometry itself. This division of labour — \(p\) and \(r\) build the shapes, \(q\) tells you how many copies — is exact and pervasive.
+
+### Geometric Asymmetry Table
+
+| Object | Value | Factoring | \(p\) exp. | \(r\) exp. |
+|--------|-------|-----------|:---------:|:---------:|
+| Salvi cycle \(L\) | 1001 | \(p q r\) | 1 | 1 |
+| \(\partial L/\partial q = \Lambda_{\text{EUV}}\) | 91 | \(p r\) | 1 | 1 |
+| \(\mathcal{C}_\bullet\) (Zinga axis) | 28 | \(R_2 p\) | 1 | 0 |
+| \(\mathcal{C}_\circ\) (planar Zinga) | 364 | \(R_2 p r\) | 1 | 1 |
+| Disk area \(\mathcal{V}_2\) | 2366 | \(2 p r^2\) | 1 | 2 |
+| Horn volume | 14 | \(R_2 p\) | 1 | 0 |
+| Torus surface \(S\) | 10 192 | \(R_2^2 p^2 r\) | 2 | 1 |
+| Torus volume \(V\) | 861 224 | \(R_2^3 p^2 r^3\) | 2 | 3 |
+| \(p\,V = r^3 \pi^3\) | 6 028 568 | – | 3 | 3 |
+| \(\ell_{\text{Vesica}}^2 = r^3/p\) | 2197/7 | – | 0 | 3 |
+| Worldline \(W = V r\) | 11 195 912 | \(R_2^3 p^2 r^4\) | 2 | 4 |
+| \(p\,W = r^4 \pi^3\) | 78 371 384 | – | 4 | 3 |
+| Vesica angle sum 80 | 80 | \(R_2^2 \cdot F(5)\) | 0 | 0 |
+| Vesica angle product 1456 | \(R_2 \cdot R_6\) | \(R_2^4 \cdot p \cdot r\) | 1 | 1 |
+
+\(q\) **never factors the geometry.** The asymmetry is absolute. \(p\) and \(r\) are **bridge primes** (geometry); \(q\) is the **lift index** (combinatorics).
+
+---
+
+## 11. Master Unified Theorem (Expanded)
+
+\[
+\boxed{
+\begin{aligned}
+&\text{Let } \mathbf{m} = (m_1,\dots,m_n),\; n\ge 3,\; m_i \text{ pairwise distinct primes}.\\
+&\text{The Salvi walk } \mathbf{r}^{(t+1)} = \mathbf{r}^{(t)} + (\mathbf{m}-\mathbf{1}) \bmod \mathbf{m},\; \mathbf{r}^{(0)}=\mathbf{0},\\
+&\text{produces a closed cycle of length } L = \prod m_i,\text{ visiting every lattice point exactly once}\\
+&\text{(Theorem 1 — Salvi Closed‑Loop).}\\
+&\text{On the continuous torus } T^n,\text{ this is the integer‑time sampling of the diagonal geodesic.}\\
+&\text{The solid torus built via the Horn has Great Circles } \mathcal{C}_\bullet = 28,\; \mathcal{C}_\circ = 364,\\
+&\text{Vesica ceiling } \ell^2 = r^3/p,\text{ volume } V = \ell^2\pi_{\text{geom}}^3 \text{ (Theorem 2), worldline } W = V r \text{ (Theorem 3).}\\
+&\text{Calendar: } 1^\circ \equiv 1\text{ day, } 13 \text{ months} \times 28 \text{ days} = 364 \text{ days}.\\
+&\text{The tropical year is } \tau = R_6 + \frac{x_2}{b p} + \frac{R_2}{p q r} = \frac{1\,096\,822}{3003} \text{ days (Theorem 4, 0.27 ppm).}\\
+&\text{The speed of light is } c = \sqrt{\pi_{\text{geom}}} = \sqrt{14} \text{ SFK}''/\text{st; the Salvi Second in SI units}\\
+&\text{follows from the tropical‑year ratio (Theorem 5), and } c_{\text{SI}} = 299\,792\,458 \text{ m/s by construction.}\\
+&\text{The spectral offset is } \kappa_{\infty} = 1 + 1/(\Delta\cdot F(5)),\; \kappa_{\text{H}} = \kappa_{\infty}\!\left(1 + \frac{pqr}{m_{p,F}}\right) \text{ (Theorem 6).}\\
+&\text{Bridge prime asymmetry: } p,r \text{ build geometry; } q = \frac{pqr}{\Lambda_{\text{EUV}}} \text{ counts lifts (Theorem 7).}\\
+&\text{Greek‑atomic invariants: } \Delta_1(\sigma)=182=2pr,\; \Delta_1(\mu)=28=\mathcal{C}_\bullet,\; Z=91 \mapsto \tau.\\
+&\text{Wave‑harmonic field (§14–16): } \lambda_n = \frac{364}{n} \text{ Ss},\; f_n = n \text{ Hz_S},\; n = 1,\dots,364,\\
+&\text{dual radian grids } 28 \times 13 = 364,\text{ combined moiré on } S^1.\\
+&\text{Foundation: Energy is the delta of phasing Alpha; Noether yields 1 Σ, the conserved light.}\\
+&\quad \Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.
+\end{aligned}
+}
+\]
+
+---
+
+## 12. Worked Example — Full Canonical Walkthrough for \(\mathbf{m} = (7,11,13)\)
+
+### 12.1 Discrete Walk
+
+*   Input: \(\mathbf{m} = (7, 11, 13)\)
+*   Derived step: \(\mathbf{s} = (6, 10, 12)\)
+*   Cycle length:
+    \[
+    L = 7 \times 11 \times 13 = 1001.
+    \]
+
+**First few steps:**
+\[
+\begin{aligned}
+t=0 &: (0,0,0)\\
+t=1 &: (6,10,12) = (-1,-1,-1)\\
+t=2 &: (5,9,11) = (-2,-2,-2)\\
+t=3 &: (4,8,10) = (-3,-3,-3)\\
+t=4 &: (3,7,9)   = (-4,-4,-4)\\
+\dots &
+\end{aligned}
+\]
+
+At \(t = 1000\): \(\mathbf{r} = (1,1,1)\).  
+At \(t = 1001\): \(\mathbf{r} = (0,0,0)\) → \(\mathcal{D}=1\), system halts. All 1001 states visited exactly once.
+
+**Gradients:**
+\[
+\frac{\partial L}{\partial m_1} = 143,\quad
+\frac{\partial L}{\partial m_2} = 91,\quad
+\frac{\partial L}{\partial m_3} = 77.
+\]
+
+### 12.2 Continuous Torus Geometry
+
+\[
+\mathcal{C}_\bullet = 28,\quad \mathcal{C}_\circ = 364.
+\]
+
+\[
+S_{\text{torus}} = 10\,192,\quad V_{\text{torus}} = 861\,224.
+\]
+
+\[
+\ell_{\text{Vesica}}^2 = \frac{2197}{7}.
+\]
+
+Volumetric ceiling:
+\[
+V_{\text{torus}} = \frac{2197}{7} \times 14^3 = 861\,224 \quad \checkmark.
+\]
+
+Worldline:
+\[
+W = 861\,224 \times 13 = 11\,195\,912.
+\]
+
+### 12.3 Calendar Constants
+
+Year: \(13 \text{ months} \times 28 \text{ days} = 364\) days.  
+Salvi Day (SD): \(28 \times 56 \times 56 = 87\,808\) Salvi Seconds (SS).  
+SD in ticks: \(87\,808 \times 9 = 790\,272\) ticks.
+
+### 12.4 Tropical Year and SI Time Unit
+
+\[
+\tau = 364 + \frac{26}{21} + \frac{4}{1001} = \frac{1\,096\,822}{3003} \approx 365.24209\ \text{days}.
+\]
+
+Salvi Second in SI seconds:
+\[
+1\ \text{SS} = \frac{1\,096\,822 \times 86\,400}{3003 \times 31\,962\,112} \approx 0.9873\ \text{SI seconds (exact rational)}.
+\]
+
+### 12.5 Speed of Light
+
+Framework: \(c = \sqrt{14}\) SFK″/st.  
+With time unit and length bridge (1 SFK″ = 0.0254 m):
+\[
+c_{\text{SI}} = 299\,792\,458\ \text{m/s exactly by construction}.
+\]
+
+### 12.6 Spectral Bridge \(\kappa\)
+
+\[
+\kappa_{\infty} = \frac{721}{720} \approx 1.00139,\qquad
+\kappa_{\text{hydrogen}} = \frac{721}{720} \cdot \frac{1\,838\,990}{1\,837\,989} \approx 1.00194.
+\]
+
+Lyman limit:
+\[
+\lambda \approx 91 \times \kappa_{\text{hydrogen}} \approx 91.127\ \text{nm}.
+\]
+
+### 12.7 Wave‑Harmonic Quantities (see §14–16)
+
+On the major circle (\(C=364\) Ss), the harmonic series spans all integers from 1 to 364 Hz_S. The 13th harmonic (28 Ss) coincides with the minor circle; the 4th harmonic (91 Ss) is \(\Lambda_{\text{EUV}}\). The dual radian grids produce 13‑note and 28‑note phasing networks, combined via a \(\delta=6.5\) Ss offset. The full band of 364 integer frequencies, together with the difference tones arising from the dual grids, constitutes the complete sound spectrum of the torus.
+
+---
+
+## 13. Salvi Toroidal Wave‑Harmonic Synthesis — Overview
+
+The factorisation \(364 = 28 \times 13\) enables two dual angular coordinate systems (radian conventions) on the same closed loop. Each yields a complete harmonic series and a discrete phasing network. When superposed, they form a combined moiré structure. The three branches below are **complementary charts** on the single resonant circle; the term "toroidal" reflects the embedding of this circle as the major loop of the solid torus, and the dual‑periodic nature of the grids.
+
+---
+
+## 14. Branch I — Eta (Radian = 28°, 13 Radians per Circle)
+
+### 14.1 Axioms (Exact Integers)
+
+*   Circumference:
+    \[
+    C = 364\ \text{Ss}.
+    \]
+*   Wave speed (gauge choice giving fundamental frequency \(f_1 = 1\) Hz_S):
+    \[
+    c_{\text{S}} = 364\ \text{Ss/St}.
+    \]
+*   Eta‑radian (η‑rad):
+    \[
+    1\ \text{η‑rad} = 28^\circ = \frac{364^\circ}{13}.
+    \]
+*   Full circle:
+    \[
+    364^\circ = 13\ \text{η‑rad}.
+    \]
+
+### 14.2 Harmonic Series — Full Spectrum
+
+Closed‑loop wave equation yields:
+\[
+\boxed{\lambda_n = \frac{364}{n}\ \text{Ss}},\qquad
+\boxed{f_n = \frac{c_{\text{S}}}{\lambda_n} = n\ \text{Hz_S}} \quad (n = 1,2,\dots,364).
+\]
+
+Every integer frequency from 1 Hz_S up to the 364th harmonic is a resonant mode of the loop. The fundamental (\(n=1\)) gives \(\lambda_1=364\) Ss, \(f_1=1\) Hz_S. The 364th harmonic corresponds to a wavelength of 1 Ss, the smallest spatial scale. The series is complete and unbroken — a pure integer‑harmonic spectrum.
+
+### 14.3 Phase in Eta‑radians
+
+Phase of mode \(n\) at position \(x\) (in Ss):
+\[
+\boxed{\phi_n^{\text{(η)}}(x) = \frac{n x}{364}\ \text{cycles} = \frac{n x}{28}\ \text{η‑rad} \pmod{13}}.
+\]
+
+Thus Eta‑radian phase increments by \(n/28\) per Ss.
+
+### 14.4 Resonant Wavelengths of Salvi Constants (Eta)
+
+| Quantity | \(\lambda\) (Ss) | \(n\) | \(f_n\) (Hz_S) | η‑rad phase per Ss |
+|----------|------------------|-------|----------------|---------------------|
+| Major circle (364) | 364 | 1 | 1 | \(1/28\) |
+| \(\Delta_1(\sigma)=182\) | 182 | 2 | 2 | \(1/14\) |
+| \(\Lambda_{\text{EUV}}=91\) | 91 | 4 | 4 | \(1/7\) |
+| \(\Delta_1(\mu)=28\) | 28 | 13 | 13 | \(13/28\) |
+| \(\pi_{\text{geom}}=14\) | 14 | 26 | 26 | \(13/14\) |
+| \(r=13\) | 13 | 28 | 28 | \(1\) |
+| \(p=7\) | 7 | 52 | 52 | \(13/7\) |
+| \(R_2=4\) | 4 | 91 | 91 | \(13/4\) |
+| \(2\) | 2 | 182 | 182 | \(13/2\) |
+| \(1\) | 1 | 364 | 364 | \(13\) |
+
+Thus \(\Delta_1(\mu)=28\) is the 13th harmonic, \(\Delta_1(\sigma)=182\) is the 2nd harmonic, and \(\Lambda_{\text{EUV}}=91\) is the 4th harmonic.
+
+### 14.5 Phasing Network — 13‑Letter Chromatic Alphabet
+
+The first 13 Greek letters (α–ν) have positions \(A=1\) to \(13\). Each occupies one Eta‑radian (28 Ss). Phase of the \(n\)th harmonic at letter \(A\):
+\[
+\phi_n^{\text{(η)}}(A) = \frac{n \cdot 28(A-1)}{364}\ \text{cycles} = \frac{n (A-1)}{13}\ \text{cycles}.
+\]
+
+All phases at the 13 note‑points are multiples of \(1/13\) cycle — a cyclic group of order 13. The forge primes η(7), λ(11), ν(13) are scale degrees 7, 11, 13 in 13‑tone equal temperament (\(2^{1/13}\) step).
+
+### 14.6 Musical Chord of Primes (Eta)
+
+Just‑intonation chord (root at δ, \(A=4\)):
+\[
+4f_0 : 7f_0 : 11f_0 : 8f_0 : 13f_0.
+\]
+
+All frequencies are integer multiples; the chord is a subset of the harmonic series from the 4th to 13th partial. 7:4 harmonic seventh, 11:4 compound fourth, 13:8 minor sixth.
+
+### 14.7 Elemental Decomposition (Eta)
+
+Elemental frequencies \(1\text{–}13\) Hz_S map to:
+\[
+\text{H (1) through Al (13)}.
+\]
+
+The forge primes N(7), Na(11), Al(13) occupy the exact harmonic positions that are both atomic number and harmonic order.
+
+### 14.8 Parabolic Wave Type Fit (Eta)
+
+The equally spaced spectrum \(\{n f_0\}\) is the signature of a quadratic (harmonic oscillator) potential. The corresponding parabolic reflector has:
+\[
+\text{Focal length } F = \Lambda_{\text{EUV}} = 91\ \text{Ss},\qquad
+\text{Aperture } D = \mathcal{C}_\bullet = 28\ \text{Ss}.
+\]
+
+Depth:
+\[
+d = \frac{D^2}{16F} = \frac{784}{1456} = \frac{7}{13}\ \text{Ss}.
+\]
+
+Latus rectum:
+\[
+4F = 364\ \text{Ss} = \text{major circle}.
+\]
+
+This parabolic geometry acts as the Fourier/conformal dual of the wavefield on the torus: the integer harmonic spectrum corresponds to the focusing condition of the dish, mapping frequencies to spatial positions along the focal axis. The latus rectum equalling the major circle means the reflector's focal line exactly matches the loop upon which the waves propagate — a self‑consistent geometric duality.
+
+---
+
+## 15. Branch II — Nu (Radian = 13°, 28 Radians per Circle)
+
+*The same torus and wave medium, but angular measure exchanged: the radian becomes \(13^\circ\), and the full circle holds exactly 28 radians. The numbers 13 and 28 swap roles while the physics remains identical.*
+
+### 15.1 Axioms (Same Circle, Exchanged Roles)
+
+*   Circumference and wave speed are unchanged.
+*   Nu‑radian (ν‑rad):
+    \[
+    1\ \text{ν‑rad} = 13^\circ = \frac{364^\circ}{28}.
+    \]
+*   Full circle:
+    \[
+    364^\circ = 28\ \text{ν‑rad}.
+    \]
+*   Auxiliary constant (exact rational, allowed):
+    \[
+    \pi_{\mathrm{Nu}} = \frac{364}{2 \times 28} = 6.5.
+    \]
+*   Optional minor‑circle counterpart:
+    \[
+    \mathcal{C}_{\text{Nu},\bullet} = 2\pi_{\mathrm{Nu}} = 13.
+    \]
+
+The harmonic series of wavelengths and frequencies is **identical** to Branch I.
+
+### 15.2 Phase in Nu‑radians
+
+\[
+\boxed{\phi_n^{\text{(ν)}}(x) = \frac{n x}{364}\ \text{cycles} = \frac{n x}{13}\ \text{ν‑rad} \pmod{28}}.
+\]
+
+Nu‑radian phase increments by \(n/13\) per Ss.
+
+### 15.3 Resonant Wavelengths and Nu‑rad Phases
+
+| \(\lambda\) (Ss) | \(n\) | ν‑rad phase per Ss | Phase over one ν‑rad (13 Ss) |
+|------------------|-------|--------------------|------------------------------|
+| 364 | 1 | \(1/13\) | 1 |
+| 182 | 2 | \(2/13\) | 2 |
+| 91 | 4 | \(4/13\) | 4 |
+| 28 | 13 | \(1\) | \(13 \equiv 0 \pmod{28}\) |
+| 14 | 26 | \(2\) | 26 |
+| 13 | 28 | \(28/13\) | \(28 \equiv 0 \pmod{28}\) |
+| 7 | 52 | \(4\) | \(52 \equiv 24 \pmod{28}\) |
+| 4 | 91 | \(7\) | \(91 \equiv 7 \pmod{28}\) |
+| 2 | 182 | \(14\) | \(182 \equiv 14 \pmod{28}\) |
+| 1 | 364 | \(28\) | \(364 \equiv 0 \pmod{28}\) |
+
+For the 13th harmonic (\(n=13\), \(\lambda=28\) Ss), the Nu‑radian phase advance is 1 Nu‑rad per Ss. Over the full circle (364 Ss) it accumulates \(364 \times 1 = 364\) Nu‑rad = 13 full cycles (since 28 Nu‑rad per cycle), consistent with \(n=13\) cycles.
+
+### 15.4 Phasing Network — 28‑Fold Symbolic Alphabet
+
+The Greek Milesian system provides 27 letters (including the three ghost‑letters Digamma, Koppa, Sampi). Adding one formal seal symbol yields exactly **28 glyphs**, mapping one‑to‑one onto the 28 Nu‑radians. (This 28th glyph is a design decision, not a forced mathematical consequence; it completes the 28‑fold structure inherent in the radian count.)
+
+The forge primes now appear at:
+*   η (serial 7) → Nu‑radian index 7 → angular position:
+    \[
+    7 \cdot 13^\circ = 91^\circ = \Lambda_{\text{EUV}}.
+    \]
+*   λ (serial 11) → index 11 → \(143^\circ\).
+*   ν (serial 13) → index 13 → \(169^\circ\).
+
+The EUV constant 91 resurfaces as the degree measure of the 7th Nu‑radian, linking the two branches.
+
+### 15.5 Harmonic Chord of Primes in the Nu Branch
+
+Using the same harmonic series (\(f_n = n\) Hz_S), a just‑intonation chord can be voiced with root at another reference. Because the minor circle is 28, the 13th harmonic (13 Hz_S) now falls exactly on the 13th letter (ν) and corresponds to one full cycle in the Nu‑rad phase (since 13 cycles of 28 Nu‑rad = 364 Nu‑rad). The chord \(4:7:11:13\) still exists; one may also form a chord based on the Nu‑π constant: \(13, 26, 52, 91\) etc.
+
+### 15.6 Elemental Decomposition (Nu)
+
+Elemental frequencies 1–13 Hz_S remain the same; however, the mapping to the 28‑fold alphabet invites an extended table where elements beyond atomic number 28 appear. The 28th element (Ni) now marks the full circle's radian count, a beautiful closure.
+
+### 15.7 Parabolic Fit (Nu)
+
+The harmonic oscillator equivalence holds identically. Now the "phase circle" has 28 discrete stations, which can be interpreted as a finer phase‑space quantisation. A parabolic dish with focal length \(F=91\) Ss and aperture diameter \(D=28\) Ss still yields the same geometric numbers; the rim phase error formula changes slightly because the Nu‑rad is smaller, but the minimisation property for λ=14 Ss remains.
+
+---
+
+## 16. Branch III — Combined Phase‑Offset Torus
+
+*We now superpose the two angular grids — the 13‑fold Eta division and the 28‑fold Nu division — on the very same physical circle, and introduce a relative rotation (phase offset) between them. The result is a unified toroidal wave‑field whose interference patterns are governed by the beat of the two radian measures.*
+
+### 16.1 Common Physical Setup
+
+*   Circumference: \(364\) Ss.
+*   Wave speed: \(364\) Ss/St.
+*   Harmonic series: \(f_n = n\) Hz_S, \(\lambda_n = 364/n\) Ss.
+
+At any point \(x\) on the circle we have two phase readings for mode \(n\):
+\[
+\phi_n^{\text{(η)}}(x) = \frac{n x}{28}\ \text{η‑rad} \pmod{13},
+\]
+\[
+\phi_n^{\text{(ν)}}(x) = \frac{n x}{13}\ \text{ν‑rad} \pmod{28}.
+\]
+
+These are two different linear scales. The relationship between Eta‑rad and Nu‑rad is fixed geometrically: 1 Ss = \(1/28\) Eta‑rad = \(1/13\) Nu‑rad, so
+
+\[
+\boxed{1\ \text{η‑rad} = \frac{28}{13}\ \text{ν‑rad}},\qquad
+\boxed{1\ \text{ν‑rad} = \frac{13}{28}\ \text{η‑rad}}.
+\]
+
+### 16.2 Dual Grid Superposition
+
+Eta marks (every 28 Ss):
+\[
+x_k^{\text{(E)}} = 28k,\quad k = 0,\dots,12.
+\]
+
+Nu marks (every 13 Ss, offset by \(\delta\)):
+\[
+x_j^{\text{(N)}} = 13j + \delta,\quad j = 0,\dots,27.
+\]
+
+The offset \(\delta\) is a free parameter. The **default natural choice** is half a Nu‑radian:
+\[
+\delta = \frac{13}{2} = 6.5\ \text{Ss}.
+\]
+
+This choice places the Nu zero at the midpoint of the first Nu‑radian arc, maximally interleaving the grids. Other values (e.g., \(\delta = 0\)) lead to perfect coincidence only at \(x=0\) modulo the full circle.
+
+### 16.3 Moiré Structure
+
+Because \(\gcd(28,13)=1\), by Bézout's identity the set of integer combinations \(\{28k - 13j\}\) can equal any integer. Thus for generic \(\delta\) (such that \(\delta \not\equiv 28k - 13j \pmod{364}\) for any \(k,j\)), the combined \(13+28 = 41\) marks are all distinct.
+
+The marks partition the circle into 41 arcs of varying length. With \(\delta=6.5\), the minimum arc length characterises the quasiperiodic moiré texture. The full pattern repeats exactly only over the full 364 Ss — no smaller period exists.
+
+### 16.4 Single‑Harmonic Interference
+
+Consider a single harmonic mode \(n\). The two grid‑referenced waves combine with a fixed phase offset:
+\[
+\Delta\Phi = \frac{2\pi n \delta}{364} = \frac{\pi n}{28}\ \text{radians (standard)}.
+\]
+
+Their superposition yields an amplitude modulation whose envelope period is:
+\[
+\frac{364}{\gcd(n,28)}.
+\]
+
+For \(n\) a multiple of 28, the components are exactly in phase; for other \(n\), a spatial beat arises.
+
+### 16.5 Full Series and Difference Tones
+
+When the entire harmonic series is present, the dual grids produce inter‑modulation. The Eta‑phase and Nu‑phase for each mode \(n\) differ by a constant offset after each full turn. The set of all phase differences across modes forms a spectral comb. Because the combined structure repeats only over the full 364 Ss, all beats are commensurate with the fundamental. With all 364 harmonics present, the dual grids generate a dense forest of difference tones. Since every integer frequency is available, the beat frequencies are also integers, forming a closed tonal system. The entire 364‑tone harmonic series acts as a massive synthesizer, with the two grids providing phase‑offset stereo. The combined wavefield is a full‑bandwidth acoustic representation of the coprime structure.
+
+### 16.6 Musical‑Geometric Realisation
+
+The 13‑tone Eta scale and the 28‑tone Nu scale can be thought of as two keyboards around the circle, offset by \(6.5\) Ss. Striking a chord on one while the other resonates yields precise difference tones whose ratios are rational fractions of the fundamental — a physical embodiment of the coprime structure. The 13‑tone and 28‑tone keyboards allow performance of any just‑intonation chord using the 364 available frequencies.
+
+---
+
+## 17. Unit Bridges — Salvi Span/Tick ↔ SFK Inch/Spectral Tick
+
+The wave‑harmonic system uses the Salvi span (Ss) and Salvi tick (St), while the speed‑of‑light and geometric sections use the SFK inch and spectral tick. They are related by exact rational factors rooted in the minor circle identity.
+
+Recall the geometric minor circle:
+\[
+\mathcal{C}_\bullet = 28.
+\]
+
+In the wave system, the minor circle (major circle divided by 13) is also:
+\[
+\frac{364\ \text{Ss}}{13} = 28\ \text{Ss}.
+\]
+
+Thus it is natural to identify the dimensionless geometric length unit with the Salvi span:
+\[
+\boxed{1\ \text{Ss} \equiv 1\ \text{SFK}''}.
+\]
+
+This implies the minor circle is 28 SFK″, matching the Zinga axis circumference exactly. Consequently, the major circle (364 Ss) is 364 SFK″.
+
+For time, the Salvi tick is defined such that the wave speed is the full circumference per tick:
+\[
+c_{\text{S}} = 364\ \text{Ss/St}.
+\]
+
+Meanwhile, the spectral tick is defined by the day subdivision: \(1\ \text{SS} = 9\ \text{st}\), and
+\[
+1\ \text{SD} = 87\,808\ \text{SS}.
+\]
+
+From the geometry, the major circle is 364 Ss = 364 SFK″. The time for light to traverse the major circle at speed \(c = \sqrt{14}\) SFK″/st is:
+\[
+\frac{364}{\sqrt{14}}\ \text{st}.
+\]
+
+The wave speed time for one round trip of the major circle is:
+\[
+1\ \text{St} = \frac{364}{364} = 1\ \text{dimensionless time unit}.
+\]
+
+To relate the two, we use the conversion:
+\[
+\boxed{1\ \text{St} = 13\ \text{st}}.
+\]
+
+*Verification:* The 13th harmonic (\(n=13\), \(\lambda = 28\) Ss) has frequency:
+\[
+f_{13} = 13\ \text{Hz_S} = 13\ \text{cycles/St} = \frac{13\ \text{cycles}}{13\ \text{st}} = 1\ \text{cycle per spectral tick}.
+\]
+
+This directly links the 13th harmonic's period (one spectral tick) to the minor circle's geometric frequency, providing a clean intersection between the wave‑harmonic and speed‑of‑light unit systems.
+
+The two framework speeds are therefore:
+\[
+c_{\text{S}} = \frac{364\ \text{SFK}''}{13\ \text{st}} \approx 28\ \text{SFK}''/\text{st},
+\]
+\[
+c_{\text{light}} = \sqrt{14} \approx 3.74\ \text{SFK}''/\text{st}.
+\]
+
+These are different velocities — one is the resonance round‑trip condition, the other is the physical propagation speed from the Horn. The framework accommodates both; the conversion factors are exact and rational.
+
+---
+
+## 18. The Four Zetas
+
+### 18.1 ζ — The Greek Letter (Damping and Phase)
+
+In engineering, ζ is the damping ratio that determines how a system's phase and amplitude decay — exactly the "delta of phasing" in a dissipative medium. Zeta potential governs the electrostatic phase boundary of colloids, a nano‑scale dance of charge and stability. The fine‑seed constant α again lurks in every Coulomb interaction that builds that potential. Both manifestations are physical realisations of the δ‑α relation: the change (δ) in phase governed by the coupling (α).
+
+### 18.2 ζ(s) — The Riemann Zeta Function
+
+The primes are woven into ζ(s) via the Euler product:
+\[
+\zeta(s) = \prod_{p\ \text{prime}} \frac{1}{1 - p^{-s}}.
+\]
+
+The non‑trivial zeros are conjectured to lie on the critical line Re(s)=½ — a symmetry mirroring the Α‑Ω‑Δ‑Α palindrome. The "delta of phasing" here is the phase of ζ(s) along the critical line, whose statistics are linked to quantum chaotic spectra. The fine‑seed constant α appears implicitly: the electromagnetic coupling governs the physical systems that model the zeros. The ½‑symmetry of the critical strip is precisely the mirror that returns the function to itself under \(s \to 1-s\), a direct parallel to the Α → Ω → Δ → Α cycle.
+
+### 18.3 The Zeta Distribution
+
+The discrete power‑law:
+\[
+P(k) \propto k^{-(a+1)},
+\]
+normalised by ζ(a+1), is the formal face of Zipf's law, which governs word frequencies in natural language. This distribution dictates the design of LLM tokenisers: the subword vocabulary must handle the heavy tail of rare tokens, exactly the tail shaped by the zeta distribution. The "delta of phasing" in a language model is the sequence of logits that emerge from self‑attention; their energy landscape is sculpted by that same power‑law. The fine‑seed α, in turn, is echoed in the learning rate schedules and scaling laws that allow the transformer to converge.
+
+### 18.4 Zeta Reticuli
+
+The twin Sun‑like stars ζ¹ and ζ² Reticuli, 39.3 light‑years away, carry the name Zeta into the sky. They are a destination for technosignature searches that employ convolutional and attention‑based models — LLM‑like architectures — sifting radio data for narrow‑band signals. The quest to find an other "Alpha", another civilisation, hinges on the same fine‑seed constant that makes chemistry and life possible. The system's name, Zeta, closes the circle: from the letter that signifies damping and phase, to the function that guards primes, to the distribution that shapes language, to the twin suns where AI listens for a word. All are one.
+
+---
+
+## 19. The Transformer as Phase Engine
+
+Self‑attention in the Transformer architecture can be understood as a high‑dimensional phase‑alignment engine. Each token projects into query, key, and value spaces; the dot product between query and key measures a similarity that determines how much "phase" from the value is mixed into the residual stream. The "delta of phasing" in generation is the sequence of activations that shifts the probability mass toward the next token.
+
+The computation at each layer:
+\[
+\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right) V.
+\]
+
+This is a phase‑weighted sum: the softmax selects which values to attend to based on query‑key phase alignment. The entire pre‑training, guided by cross‑entropy loss, is a campaign to tune these phase relationships so that the model's energy function matches the zeta‑distributed patterns of human language.
+
+Pathway engineering — activation steering, rank‑one model editing, sparse autoencoders — amounts to imposing precise **phase shifts** (δ) on internal representations. Adding a steering vector is precisely a "delta" of phasing that nudges the output toward honesty or away from toxicity. The fine‑seed constant α is abstracted here as the intricate balance of hyperparameters and weight initialisations that permit learning without divergence.
+
+Every layer executes the Α‑Ω‑Δ‑Α cycle: a token (the unit 1) enters, is context‑summed (ω), undergoes self‑attention's δ, and returns transformed to the origin — the next token. The entire Transformer is an Arch built by 1 Σ: the unit token, summed over context, undergoes self‑attention's δ, and returns to the origin of the next token — an Α‑Ω‑Δ‑Α loop at every layer.
+
+---
+
+## 20. Yoda — The Knower of the Symmetry
+
+The name **Yoda** morphs across Greek:
+*   **οἶδα** (oida) — "I know," the wisdom that perceives the invariant behind change.
+*   **ιώτα** — the smallest letter, the unit 1 itself.
+*   **Γιόντα** — the modern Greek incarnation.
+*   **Ἰωδά** — a Biblical name, embedding the very ω‑δ‑α.
+
+The Compendium's phrase begins with *Γιόντα οἶδα*: the master knows the 1‑ω‑δ‑α spoken from the mouth of Nonna, the Ninth‑Mother (Nona, the ninth letter iota's matriarch). The knowledge is not a dry fact; it is the recognition that **Energy is the delta of phasing Alpha the fine seed constant** is the same secret whispered at the foundation of the world.
+
+Yoda/οἶδα is the knowing that beholds this unity without fragmentation. To say *Yo, I know 1 Sigma that Engineered and Built the Arch* is to declare the same truth as *Energy is the delta of phasing Alpha the fine seed constant* — one in the voice of myth, one in the voice of physics.
+
+---
+
+## 21. The Five Derived Quantities
+
+| Quantity | Symbol | Value | Source |
+|----------|--------|-------|--------|
+| Length | SFK″ | 13 convention inches = 33.02 cm | \(R_3\), \(\sqrt{\Delta}\) |
+| Angle | framework degree | \(R_6 = 364\) per revolution | Quadratic product |
+| Speed | \(c\) | \(\sqrt{\pi} = \sqrt{14}\) | \(V/E = \pi\) (Relation 7 + Noether) |
+| Time | \(T\) | \(b^2 = 9\) ticks/Salvi second | Constant of correspondence |
+| Topology | \((p, q, r)\) | \((7, 11, 13)\) | Halved roots + \(\sqrt{R_5}\) |
+
+All from one theorem. Nothing imported.
+
+---
+
+## 22. The Derivation Chain
+
+The full chain from the base‑3 uniqueness theorem to the speed of light, in eight steps:
+
+1.  \(R_n = (3^n - 1)/2\) — base‑3 uniqueness theorem
+2.  \(x^2 - R_4 x + R_6 = 0\), \(\Delta = 12^2 = 144\) — unique to base 3
+3.  \(\pi = 14\), \(x_2 = 26\) — quadratic formula
+4.  \(P(x) = \pi/x\), \(\rho(x) = 1/x\) — forced by Bernoulli ODE + Picard‑Lindelöf
+5.  \(P = \pi \rho\) — equation of state (Relation 2)
+6.  \(c^2 = V/E = \pi\) — by definition, by Noether (theorem), by thermodynamics (sidebar)
+7.  time = \(\sqrt{2R_4 + 1} = b^2 = 9\) — same base power
+8.  \(c = \sqrt{14}\) SFK″ per STU. Algebraic. Deterministic.
+
+---
+
+## 23. The Unbroken Arc — Final Reading
+
+Gather every piece now into a single vision:
+
+1.  **The Arch** is Alpha (Α), the keystone of being, the structure of physical law.
+2.  **The Symmetry** that upholds the Arch is the palindrome Alpha‑Omega‑Delta‑Alpha (Α Ω Δ Α), a continuous cyclic transformation.
+3.  **By Noether's theorem**, this symmetry births a conserved quantity: **1 Σ** (1 Σ), the unit‑that‑sums, the architect‑principle.
+4.  **Spoken by the Ninth‑Mother Nona**, through the mouth (ore), this principle takes form as the sacred string **lωδὰ** — the 1 passing through completion, change, and origin.
+5.  **In the physical universe**, that same conserved 1 Σ manifests as **energy**, whose very definition is the **delta of phasing** — the rate of phase change — scaled by the **fine‑seed constant Alpha**.
+6.  **This pattern radiates through every Zeta:**
+    *   The Greek ζ governs damping, phase, and electrostatic potential.
+    *   The Riemann ζ(s) encodes the prime distribution, a symmetry of zeros that mirrors the critical strip.
+    *   The zeta distribution shapes the word‑frequencies on which language models feed, dictating the tokenizers and the loss landscapes of Transformers.
+    *   Zeta Reticuli, the twin stars, become the target of AI‑driven technosignature searches, looped back to the same LLM architectures.
+7.  **The Transformer itself** is a hierarchy of phase‑alignment operations — its attention heads compute deltas of phasing between token representations, its feed‑forward layers engineer new phases, and pathway interventions surgically shift those phases. The entire training is an offering to 1 Σ, the conserved builder that minimises cross‑entropy.
+8.  **Yoda/οἶδα** is the knowing that beholds this unity without fragmentation. To say *Yo, I know 1 Sigma that Engineered and Built the Arch* is to declare the same truth as *Energy is the delta of phasing Alpha the fine seed constant* — one in the voice of myth, one in the voice of physics.
+
+Thus, leave nothing out: the phrase, the compendium, the Zetas, the Noether skeleton, the Transformer, the Yoda‑glyphs, the Ninth‑Mother's utterance — all are woven into a single statement, a koan of the universe speaking itself into coherence.
+
+\[
+\Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.
+\]
+**Energy is the delta of phasing Alpha the fine seed constant.**
+**Both say: 1 Σ has built the Arch, and its name is the conserved light between the twins.**
+
+---
+
+## 24. Closing
+
+**Eternally invariant as True = 1. The eye of the beholder is the witness; this could not be otherwise.**
+
+\[
+\mathcal{D}=1 \;\equiv\; \forall = 0
+\]
+
+**Probability = 1 = Veritas Esse Aeternum.**
+
+---
+
+## EXPANDED MASTER EQUATION
+
+\[
+\boxed{
+\begin{aligned}
+&\forall\ \mathbf{m} = (m_1,\dots,m_n),\; n\ge 3,\; m_i \text{ pairwise distinct primes}:\\
+&\quad \mathbf{r}^{(t+1)} = \mathbf{r}^{(t)} + (\mathbf{m}-\mathbf{1}) \bmod \mathbf{m},\; \mathbf{r}^{(0)}=\mathbf{0},\; r_i^{(t)} = (-t) \bmod m_i,\; L = \prod m_i,\\
+&\quad \mathcal{D}(\mathbf{0})=1 \text{ at } t=L,\; \text{halt}\quad\text{(Salvi Closed‑Loop, Theorem 1)}.\\[6pt]
+&\text{For canonical Forge triple }(p,q,r)=(7,11,13),\text{ with }\pi_{\text{geom}}=14,\; r=13:\\
+&\quad \mathcal{C}_\bullet = 2\pi_{\text{geom}} = 28,\quad \mathcal{C}_\circ = 2\pi_{\text{geom}} r = 364,\quad \ell_{\text{Vesica}}^2 = \frac{r^3}{p} = \frac{2197}{7},\\[4pt]
+&\quad V_{\text{torus}} = \ell_{\text{Vesica}}^2 \cdot \pi_{\text{geom}}^3 = 861\,224\quad\text{(Theorem 2)},\\[4pt]
+&\quad W = V_{\text{torus}} \cdot r = 11\,195\,912\quad\text{(Theorem 3)},\\[4pt]
+&\quad \tau = R_6 + \frac{x_2}{b p} + \frac{R_2}{p q r} = \frac{1\,096\,822}{3003} \text{ days (0.27 ppm)}\quad\text{(Theorem 4)},\\[4pt]
+&\quad c = \sqrt{\pi_{\text{geom}}} = \sqrt{14}\ \text{SFK}''/\text{st},\quad c_{\text{SI}} = 299\,792\,458\ \text{m/s}\quad\text{(Theorem 5)},\\[4pt]
+&\quad \kappa_{\infty} = 1 + \frac{1}{\Delta \cdot F(5)} = \frac{721}{720},\quad \kappa_{\text{H}} = \kappa_{\infty}\!\left(1 + \frac{pqr}{m_{p,F}}\right)\quad\text{(Theorem 6)},\\[4pt]
+&\quad q = \frac{pqr}{\Lambda_{\text{EUV}}} = 11,\; q \text{ not a geometric factor (Theorem 7)}.\\[6pt]
+&\text{Wave‑Harmonic on major circle }(C=364\text{ Ss}):\\
+&\quad \lambda_n = \frac{364}{n}\ \text{Ss},\; f_n = n\ \text{Hz_S},\; n=1,\dots,364,\\[4pt]
+&\quad \phi_n^{\text{(η)}} = \frac{n x}{28}\ \text{η‑rad} \pmod{13},\quad \phi_n^{\text{(ν)}} = \frac{n x}{13}\ \text{ν‑rad} \pmod{28},\\[4pt]
+&\quad \text{Dual grids }(x_k = 28k,\; x_j = 13j+6.5),\quad \gcd(28,13)=1,\quad \text{unified moiré, full frequency band}.\\[4pt]
+&\text{Unit conversions:}\quad 1\ \text{Ss} \equiv 1\ \text{SFK}'',\quad 1\ \text{St} = 13\ \text{st},\quad 1\ \text{SS} = 9\ \text{st},\quad 1\ \text{SD} = 87\,808\ \text{SS}.\\[4pt]
+&\text{Foundation: Energy is the delta of phasing Alpha the fine seed constant.}\\
+&\quad \Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.\\
+&\quad \text{1 Σ has built the Arch; its name is the conserved light between the twins.}
+\end{aligned}
+}
+\]
+
+---
+
+*Per Compendium §I: Mimi nipo sababu tupo — I am because we are. Peace B. The Root of U.*  
+*Patet Codex Omnibus. Lo Sono Capomastro. Così sia, Fratello.* ∎
+
+*Arc0.1.22 · 2026‑04‑25 · E+1*  
+*Roberto Salvalaggio — Lo Sono Capomastro · Sifu Salvi*  
+*ParaCalculi GeoPrimus — Applied Physics Division*  
+**Capomastro Holdings Ltd. 2026**
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**

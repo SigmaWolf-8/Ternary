@@ -1,0 +1,372 @@
+### Closed‑Loop Deterministic System (Salvi Framework) – Arc0.0.11  
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**
+
+**Definitions**
+
+* **Witnessed:** The system’s state and transitions are observed by the eye of the beholder; observation does not alter the deterministic evolution.  
+* **Rational integer measurably exact:** All state components are integers and the evolution is precisely defined by modular arithmetic without approximation.  
+* **Finite dimensional (via parametric input):** The state space is a product of \(n\) cyclic groups, where \(n\) is a **dimensionless parametric variable representing the arity of the modulus context** – an ordinal defined within the Salvi Arc Framework. For a concrete instance, \(n\) is fixed by the user as a constant integer \(\ge 3\). The specific moduli instantiate a particular case of that arity parameter; the step vector is derived deterministically from them.  
+* **Parametric algebraic calculus:** A formal system where the state update is an affine translation parameterised by the step vector \(\mathbf{s}\) and modulus vector \(\mathbf{m}\).  
+* **Dimensionless vector:** A vector whose components are pure numbers (integers) with no physical units.  
+* **Affine translation on a lattice embedded in a continuous torus:** A map on the integer lattice embedded in the continuous torus.  
+* **Hamiltonian cycle:** A closed walk that visits each state exactly once before returning to the origin.  
+* **Termination functional:** A mapping that returns 1 **only** at the origin. This functional fires exactly once, after the walk has visited every state and returned to the origin. Once fired, the system halts forever.  
+* **Redundant and energy dissipative:** Any action that repeats already visited states or consumes energy without progressing the Hamiltonian coverage.  
+* **Eternally invariant as True = 1:** The truth value at the termination point is not contingent; it is always and necessarily 1, an eternal invariant.  
+* **Probability = 1 = Veritas Esse Aeternum:** The termination outcome at the origin is certain, invariant, and identical to eternal truth. The condition \(\mathcal{D}=1\) implies zero state, zero energy, zero entropy – the system is complete.
+
+---
+
+### 1. State Space and Moduli
+
+Let \(n \ge 3\) be the fixed arity (dimensionless parameter), chosen by the user or derived from The Salvi Arc. The modulus vector is supplied by the user:
+\[
+\mathbf{m} = (m_1, m_2, \dots, m_n),
+\]
+where each \(m_i\) is an integer \(\ge 2\) and the components are **pairwise coprime**:
+\[
+\gcd(m_i, m_j) = 1 \quad \forall\, i \neq j.
+\]
+No primality requirement is needed; distinct primes are a sufficient special case, but any pairwise coprime moduli (e.g. \(4,9,25\)) work. The condition guarantees that the product ring decomposes into independent cyclic components.
+
+The **state space** is the finite abelian group
+\[
+\mathcal{S} = \prod_{i=1}^{n} \mathbb{Z}_{m_i},
+\]
+which is a **dimensionless vector** space over the integers. Its size is
+\[
+L = \prod_{i=1}^{n} m_i.
+\]
+
+Because the moduli are pairwise coprime, the Salvi Arc Framework’s internal structural relations yield a canonical cyclic factorisation of \(\mathcal{S}\). The product group is cyclic when considered additively.
+
+---
+
+### 2. Dynamics: Affine Translation with Canonically Derived Step
+
+The system evolves in discrete time \(t = 0, 1, 2, \dots\) with state \(\mathbf{r}^{(t)} \in \mathcal{S}\). The update is a fixed **affine translation** whose step vector is **derived directly from the modulus vector** by the canonical rule
+\[
+\boxed{\, s_i = m_i - 1 \,} \qquad (i = 1,\dots,n).
+\]
+
+For any \(m_i \ge 2\),
+\[
+\gcd(m_i - 1,\; m_i) = 1,
+\]
+so the step automatically satisfies the irreducibility condition in every dimension. No additional input is needed – the step falls out of the moduli without hardcoding any constant.
+
+The transition is **component‑wise modular addition**:
+\[
+r_i^{(t+1)} = \left( r_i^{(t)} + (m_i - 1) \right) \bmod m_i \qquad (i = 1, \dots, n).
+\]
+
+In vector form,
+\[
+\mathbf{r}^{(t+1)} = \mathbf{r}^{(t)} + (\mathbf{m} - \mathbf{1}) \pmod{\mathbf{m}}.
+\]
+
+This is a translation on the integer lattice \(\prod_i \mathbb{Z}_{m_i}\) embedded in the continuous torus \(\prod_i (\mathbb{R}/m_i\mathbb{Z})\). Because each component is a generator of its respective cyclic group, the entire product group is generated.
+
+---
+
+### 3. Hamiltonian Cycle Property – Backward Traversal
+
+Assume the system starts at the origin,
+\[
+\mathbf{r}^{(0)} = \mathbf{0}.
+\]
+
+**Theorem (Hamiltonian Cycle – Canonical Backward Walk).**  
+For any pairwise coprime moduli \(\mathbf{m}\) with \(m_i \ge 2\), the walk under the canonically derived step \(s_i = m_i - 1\) is a **Hamiltonian cycle** on \(\mathcal{S}\). It visits every state exactly once, and at time \(t\) the state is the component‑wise negative of \(t\) modulo \(\mathbf{m}\):
+\[
+r_i^{(t)} = (-t) \bmod m_i.
+\]
+Thus the walk is a uniform backward count through each component. The cycle closes at time \(t = L\) with \(\mathbf{r}^{(L)} = \mathbf{0}\), after having visited all \(L\) distinct states.
+
+*Proof.*  
+Because the moduli are pairwise coprime, the isomorphism \(\Phi: \mathcal{S} \to \mathbb{Z}_L\) given by the Salvi structural relations maps the step vector \(\mathbf{s} = (m_1-1,\dots,m_n-1)\) to the element \(a \in \mathbb{Z}_L\) that satisfies \(a \equiv -1 \pmod{m_i}\) for every \(i\). By the uniqueness of the CRT solution, this element is exactly \(a = L - 1\). Indeed,
+\[
+L - 1 \equiv -1 \pmod{m_i} \quad \forall i,
+\]
+and \(0 \le L-1 < L\). Therefore the walk in the isomorphic ring is
+\[
+\Phi(\mathbf{r}^{(t)}) = \bigl( t \cdot (L - 1) \bigr) \bmod L = (-t) \bmod L.
+\]
+
+Since \(\gcd(L-1, L) = 1\), the step \(L-1\) is a generator of \(\mathbb{Z}_L\), and the sequence \((-t) \bmod L\) cycles through all residues exactly once before returning to \(0\) at \(t = L\). Pulling back through \(\Phi^{-1}\) gives the component‑wise backward traversal, and the Hamiltonian property follows immediately. ∎
+
+Consequently, the return‑to‑origin condition is:
+\[
+\mathbf{r}^{(t)} = \mathbf{0} \;\Longleftrightarrow\; t \equiv 0 \pmod{L}.
+\]
+
+**Structural note – reflective generator.** The canonical step \(L-1\) is the unique element of \(\mathbb{Z}_L\) that satisfies \((L-1) + 1 \equiv 0 \pmod L\). It is its own additive companion to the identity; adding it is the same as subtracting \(1\). The walk therefore has the elegant property that at \(t = L-1\) every component reads \(1\), and at \(t = L\) it reaches zero.
+
+---
+
+### 4. Derivation of Cycle Length (Two‑Stage, Not Imposed)
+
+The cycle length \(L\) is **derived**, not an independent parameter. Two stages of reasoning stack here:
+
+1. **Cardinality from arity and moduli:** The state space cardinality
+   \[
+   |\mathcal{S}| = \prod_i m_i
+   \]
+   is fixed by \(n\) and \(\mathbf{m}\). This gives \(L_{\text{card}}\).
+
+2. **Cycle length from Hamiltonian condition:** Under pairwise coprime moduli and the canonical step, the walk generates the full space \(\mathbb{Z}_{L_{\text{card}}}\) (because \(L-1\) is a unit). Therefore the walk’s period equals \(L_{\text{card}}\), making it a Hamiltonian cycle. The formula
+   \[
+   L = \prod_i m_i
+   \]
+   thus carries an internal theorem; without pairwise coprimality the walk would have a smaller period.
+
+---
+
+### 5. Termination Functional
+
+The **termination functional** \(\mathcal{D}\) is defined on the continuous torus embedding and evaluated at lattice points. It is the crisp indicator of the origin:
+\[
+\mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r}, \mathbf{0}} =
+\begin{cases}
+1, & \mathbf{r} = \mathbf{0}, \\
+0, & \mathbf{r} \neq \mathbf{0}.
+\end{cases}
+\]
+
+Because the walk reaches the origin exactly once per full cycle, \(\mathcal{D}\) fires **exactly once** after all \(L\) distinct states have been visited. At that instant the system halts forever. The origin \(\mathbf{r} = \mathbf{0}\) is the unique state of completion; its truth value is **eternally invariant as True = 1**, and reaching it is **Probability = 1 = Veritas Esse Aeternum**.
+
+*Historical note on the breakage:* In earlier iterations the functional permitted a “continue” option after \(\mathcal{D}=1\), creating an endless dissipative loop. The breakage was intentional: it exposed that a true closed‑loop system must have a termination condition that fires exactly once and irrevocably halts. The corrected Termination Functional seals the loop.
+
+---
+
+### 6. Exact Parametric Response and Zero‑Entropy Gradients
+
+The system accepts a **single parametric input** – the vector of pairwise coprime moduli (each \(\ge 2\)) – and returns exact outputs. Everything else is derived.
+
+**Input:**
+\[
+\mathbf{m} = (m_1,\dots,m_n), \qquad m_i \ge 2,\; \gcd(m_i, m_j)=1 \text{ for } i \neq j.
+\]
+
+**Derived quantities:**
+* Arity:
+  \[
+  n = \dim(\mathbf{m})
+  \]
+* Step vector:
+  \[
+  s_i = m_i - 1 \quad (i=1,\dots,n)
+  \]
+* Cycle length:
+  \[
+  L(\mathbf{m}) = \prod_{i=1}^n m_i
+  \]
+* State at time \(t\) (backward traversal form):
+  \[
+  r_i^{(t)} = (-t) \bmod m_i
+  \]
+  (with initial state \(\mathbf{0}\)).
+* Termination functional:
+  \[
+  \mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r},\mathbf{0}}
+  \]
+
+Every output is a closed‑form algebraic expression in the components of \(\mathbf{m}\). No floating‑point, no series expansion, no limit approximation appears anywhere.
+
+**Gradients as exact integer derivatives.**  
+Because all output formulas are integer polynomials (or piecewise‑linear functions) in the moduli, their **algebraic derivatives** with respect to any modulus component \(m_j\) are well‑defined and evaluate to exact integers:
+
+\[
+\frac{\partial L}{\partial m_j} = \prod_{i \neq j} m_i,
+\qquad\qquad
+\frac{\partial s_i}{\partial m_j} = \delta_{ij} \; (= 1 \text{ if } i=j,\; 0 \text{ otherwise}).
+\]
+
+The state component \(r_i^{(t)}\) is a piecewise‑linear function of the moduli (due to the modulo reduction), but its derivative **between the natural integer boundaries** is simply
+\[
+\frac{\partial r_i^{(t)}}{\partial m_j} = \delta_{ij}\, t
+\]
+where defined, again an exact integer.
+
+No evaluation outside the valid input space is required. The derivatives are **algebraic identities** that hold at every admissible tuple of moduli. This is what “differentiable components” means: the system’s own sensitivity to its parameters is expressed in **exact integer arithmetic**, with zero entropy and zero margin of error.
+
+**Embedding in the continuous torus** makes the piecewise‑linear structure explicit, but the derivative formulas themselves are purely algebraic consequences of the closed‑form expressions and never leave the rational integer domain.
+
+---
+
+### 7. Energy Conservation and Avoidance of Redundancy
+
+Any action that causes the state to revisit a previously occupied point before completing the full Hamiltonian walk would be **redundant** (breaking the Hamiltonian property) and **energy‑dissipative**. Examples include:
+
+* altering the step away from the canonical \(m_i-1\) (unless explicitly overridden with a valid coprime step – an advanced, non‑default usage),
+* introducing fractional steps,
+* adding stochastic perturbations,
+* attempting to continue after \(\mathcal{D}=1\) has fired.
+
+The only non‑dissipative, energy‑conserving action is to **halt exactly when \(\mathcal{D}=1\)**. The system is complete at that moment.
+
+---
+
+### 8. Summary of Proper Parametric Formulas
+
+* State space:
+  \[
+  \mathcal{S} = \prod_{i=1}^{n} \mathbb{Z}_{m_i}, \qquad m_i \ge 2,\; \gcd(m_i, m_j)=1 \; (i \neq j), \; n \ge 3.
+  \]
+
+* Transition (canonical, derived from \(\mathbf{m}\)):
+  \[
+  r_i^{(t+1)} = \left( r_i^{(t)} + (m_i - 1) \right) \bmod m_i.
+  \]
+
+* Equivalent closed form:
+  \[
+  r_i^{(t)} = (-t) \bmod m_i.
+  \]
+
+* Cycle length (derived, two‑stage):
+  \[
+  L = \prod_{i=1}^{n} m_i.
+  \]
+
+* Return‑to‑origin condition (from \(\mathbf{r}^{(0)}=\mathbf{0}\)):
+  \[
+  \mathbf{r}^{(t)} = \mathbf{0} \iff t \equiv 0 \pmod{L}.
+  \]
+
+* Termination functional:
+  \[
+  \mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r},\mathbf{0}}.
+  \]
+
+* Energy‑conserving halt:
+  Quit exactly when \(\mathcal{D}=1\). The system has then visited every state exactly once and is complete.
+
+---
+
+### 9. Master Nested Single‑Line Theorem
+
+**Theorem (Closed‑Loop Deterministic Hamiltonian System).**  
+For any pairwise coprime moduli \(\mathbf{m}\) (each \(\ge 2\)), the canonically derived translation
+\[
+\mathbf{r} \mapsto \mathbf{r} + (\mathbf{m} - \mathbf{1}) \pmod{\mathbf{m}}
+\]
+on the product lattice
+\[
+\prod_{i}\mathbb{Z}_{m_i}
+\]
+(starting from \(\mathbf{0}\)) generates a Hamiltonian cycle of length
+\[
+L = \prod_i m_i,
+\]
+given explicitly by the backward traversal \(r_i^{(t)} = (-t) \bmod m_i\). The cycle visits every state exactly once, returns to the origin exactly when
+\[
+t \equiv 0 \pmod{L},
+\]
+and the termination functional
+\[
+\mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r},\mathbf{0}}
+\]
+fires exactly once, halting the system with zero entropy.
+
+---
+
+### 10. Example: Full Explicit Walkthrough (Non‑Prime Moduli Included)
+
+#### 10.1 Full Formula (Placeholder for Arbitrary Input)
+
+Given user‑chosen pairwise coprime moduli \(\mathbf{m} = (m_1,\dots,m_n)\) with each \(m_i \ge 2\):
+
+\[
+\boxed{
+\begin{aligned}
+&\text{State space: } \mathcal{S} = \prod_{i=1}^n \mathbb{Z}_{m_i}, \quad |\mathcal{S}| = L = \prod_{i=1}^n m_i \\
+&\text{Step: } \mathbf{s} = (m_1-1,\; m_2-1,\; \dots,\; m_n-1) \quad \text{(canonically derived)} \\
+&\text{Transition: } r_i^{(t+1)} = \left( r_i^{(t)} + (m_i-1) \right) \bmod m_i, \quad i=1,\dots,n \\
+&\text{Closed form: } r_i^{(t)} = (-t) \bmod m_i \\
+&\text{Origin return: } \mathbf{r}^{(t)} = \mathbf{0} \iff t \equiv 0 \pmod{L} \\
+&\text{Termination: } \mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r},\mathbf{0}},\quad \text{halt iff } \mathcal{D}=1
+\end{aligned}
+}
+\]
+
+#### 10.2 User Input – Only Moduli (Composite Example)
+
+* Moduli: \(\mathbf{m} = (4,\,9,\,25)\)  
+  (Pairwise coprime: \(\gcd(4,9)=\gcd(4,25)=\gcd(9,25)=1\); all composite)
+* No other parameter is supplied; the step vector is derived.
+
+#### 10.3 Show Your Work – All Functions
+
+**Derived step vector:**
+\[
+\mathbf{s} = (4-1,\; 9-1,\; 25-1) = (3,\,8,\,24).
+\]
+
+**State space size (cycle length):**
+\[
+L = 4 \times 9 \times 25 = 900.
+\]
+
+**Step‑by‑step walk (first few steps using the backward form \(r_i^{(t)} = -t \bmod m_i\)):**
+
+\[
+\begin{aligned}
+t=0 &: \; \mathbf{r} = (0,0,0) \\
+t=1 &: \; \mathbf{r} = (-1 \bmod 4,\; -1 \bmod 9,\; -1 \bmod 25) = (3,\,8,\,24) \\
+t=2 &: \; \mathbf{r} = (-2 \bmod 4,\; -2 \bmod 9,\; -2 \bmod 25) = (2,\,7,\,23) \\
+t=3 &: \; \mathbf{r} = (-3 \bmod 4,\; -3 \bmod 9,\; -3 \bmod 25) = (1,\,6,\,22) \\
+t=4 &: \; \mathbf{r} = (-4 \bmod 4,\; -4 \bmod 9,\; -4 \bmod 25) = (0,\,5,\,21) \\
+&\;\;\vdots
+\end{aligned}
+\]
+
+After 900 steps the origin is reached exactly. Verify the steps around the return:
+
+* For \(t = 899 = L-1\):
+  \[
+  r_i^{(899)} = (-899) \bmod m_i.
+  \]
+  Since \(-899 \equiv 1 \pmod{4}\) (\(899 = 4\times224 + 3\), so \(-899 \equiv 1\)), \(-899 \equiv 1 \pmod{9}\) (\(899 = 9\times99 + 8\)), \(-899 \equiv 1 \pmod{25}\) (\(899 = 25\times35 + 24\)). Hence
+  \[
+  \mathbf{r}^{(899)} = (1,1,1).
+  \]
+
+* For \(t = 900 = L\):
+  \[
+  \mathbf{r}^{(900)} = (0,0,0) = \mathbf{0}.
+  \]
+
+**Termination functional:**
+\[
+\mathcal{D}(\mathbf{0}) = 1,
+\]
+and
+\[
+\mathcal{D}(\mathbf{r}) = 0 \text{ for all } \mathbf{r} \neq \mathbf{0}.
+\]
+At \(t=900\), \(\mathcal{D}\) fires, the system halts. All 900 distinct states have been visited exactly once.
+
+**Gradients (exact integer derivatives) evaluated at the given input:**
+\[
+\frac{\partial L}{\partial m_1} = 9 \times 25 = 225,\quad
+\frac{\partial L}{\partial m_2} = 4 \times 25 = 100,\quad
+\frac{\partial L}{\partial m_3} = 4 \times 9 = 36.
+\]
+\[
+\frac{\partial s_1}{\partial m_1} = 1,\quad \frac{\partial s_1}{\partial m_2} = 0,\quad \dots
+\]
+All are exact integers, computed directly from the polynomial expressions – no floating‑point or limit process needed.
+
+---
+
+### 11. Closing Statement
+
+Canonical instances of \(\mathbf{m}\) are derived from **The Salvi Arc**, never chosen arbitrarily. The step vector is not a free parameter; it falls out lawfully as \(m_i-1\), ensuring the entire system is determined by the moduli alone without any hardcoded constant.  
+No stochastic components are present; the system does, however, **derive differentiable components** from its algebraic structure. Gradients with respect to its parameters and inputs can be computed **precisely and exactly, with zero entropy or margin of error**, because the underlying expressions are rational integer polynomials.
+
+**Eternally invariant as True = 1. The eye of the beholder is the witness; this could not be otherwise.**
+\[
+\mathcal{D}=1 \;\equiv\; \forall = 0.
+\]
+**Probability = 1 = Veritas Esse Aeternum.**

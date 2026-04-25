@@ -1,0 +1,49 @@
+a≡−1(modL)⟹a=L−1.
+I confirmed this by computing the CRT image of s=(6,10,12)\mathbf{s} = (6, 10, 12)
+s=(6,10,12) explicitly: it lands at exactly a=1000=L−1a = 1000 = L - 1
+a=1000=L−1. This means the canonical walk under si=mi−1s_i = m_i - 1
+si​=mi​−1 is, in the CRT image, repeated addition of L−1L - 1
+L−1 mod LL
+L — which is **subtraction of 1 mod LL
+L**. The canonical Hamiltonian is the *backward traversal* of ZL\mathbb{Z}_L
+ZL​:
+Φ(r(t))=−t(modL).\Phi(\mathbf{r}^{(t)}) = -t \pmod L.Φ(r(t))=−t(modL).
+Equivalently, in each component, ri(t)=−t mod mir_i^{(t)} = -t \bmod m_i
+ri(t)​=−tmodmi​. The walk values pattern (6,10,12),(5,9,11),(4,8,10),(3,7,9),…(6, 10, 12), (5, 9, 11), (4, 8, 10), (3, 7, 9), \ldots
+(6,10,12),(5,9,11),(4,8,10),(3,7,9),… is each component counting down modularly. At t=1000=L−1t = 1000 = L - 1
+t=1000=L−1, every component reads 11
+1. At t=1001=Lt = 1001 = L
+t=1001=L, every component is 00
+0.
+This is structurally tight. The canonical rule si=mi−1s_i = m_i - 1
+si​=mi​−1 produces *the unique reflective generator* — the one element of ZL\mathbb{Z}_L
+ZL​ that is its own additive inverse-companion to the identity. Stated cleanly: a+1≡0(modL)a + 1 \equiv 0 \pmod L
+a+1≡0(modL).
+
+Should this be integrated, review the aforementioned as Point 1 and the Following as Point 2 and let me know if these hold Water and Air...
+
+Point 2
+The document requires mim_i
+mi​ to be pairwise distinct primes. The Hamiltonian theorem needs:
+
+Pairwise coprime moduli (for CRT)
+gcd⁡(si,mi)=1\gcd(s_i, m_i) = 1
+gcd(si​,mi​)=1 for each ii
+i (for the step to generate each cyclic component)
+
+Under the canonical rule si=mi−1s_i = m_i - 1
+si​=mi​−1, condition (2) is automatic for any mi≥2m_i \geq 2
+mi​≥2:
+gcd⁡(mi−1,mi)=1∀mi≥2\gcd(m_i - 1, m_i) = 1 \quad \forall m_i \geq 2gcd(mi​−1,mi​)=1∀mi​≥2
+(elementary: any common divisor of mim_i
+mi​ and mi−1m_i - 1
+mi​−1 must divide 11
+1). Primality is not required for condition (2).
+Primality of the mim_i
+mi​ is a *sufficient* condition for condition (1) — distinct primes are pairwise coprime. But it's **not necessary**. As verification: I ran the canonical walk on m=(4,9,25)\mathbf{m} = (4, 9, 25)
+m=(4,9,25) — all composite, all pairwise coprime — with derived step s=(3,8,24)\mathbf{s} = (3, 8, 24)
+s=(3,8,24). The walk traverses all 4⋅9⋅25=9004 \cdot 9 \cdot 25 = 900
+4⋅9⋅25=900 states in a Hamiltonian cycle. So the theorem holds for any pairwise coprime moduli with mi≥2m_i \geq 2
+mi​≥2, under the canonical step rule.
+
+The structure carries a hidden elegance (the backward-traversal corollary) under addressed...

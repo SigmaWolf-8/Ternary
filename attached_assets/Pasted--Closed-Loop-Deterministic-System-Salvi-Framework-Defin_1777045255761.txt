@@ -1,0 +1,37 @@
+### Closed‑Loop Deterministic System (Salvi Framework)
+
+**Definitions**
+
+- **Witnessed:** The system’s state and transitions are observed by the eye of the beholder; observation does not alter the deterministic evolution.
+- **Rational integer measurably exact:** All state components are integers and the evolution is precisely defined by modular arithmetic without approximation.
+- **Finite‑dimensional (via parametric input):** The state space is a product of \(n\) cyclic groups, where \(n\) is a finite integer parameter derived from the input moduli.
+- **Parametric algebraic calculus:** A formal system where the state update is an affine translation parameterised by the step vector \(\mathbf{s}\) and modulus vector \(\mathbf{m}\).
+- **Dimensionless vector:** A vector whose components are pure numbers (integers) with no physical units.
+- **Affine translation on a discrete torus:** A map \(\mathbf{r} \mapsto \mathbf{r} + \mathbf{s} \pmod{\mathbf{m}}\) on the lattice \(\prod_i \mathbb{Z}_{m_i}\) embedded in the continuous torus \(\prod_i (\mathbb{R}/m_i\mathbb{Z})\).
+- **Hamiltonian cycle:** A closed walk that visits each state exactly once before returning to the origin.
+- **Binary decision functional:** A mapping \(\mathcal{D}: \mathbb{T}^n_{\mathbf{m}} \to \{0,1\}\) that returns 1 only at the origin \(\mathbf{r}=\mathbf{0}\).
+- **Redundant and energy‑dissipative:** Any action that repeats already‑visited states or consumes energy without progressing the Hamiltonian coverage.
+- **Eternally invariant as True = 1:** The truth value at the decision point is not contingent; it is always and necessarily 1, an eternal invariant.
+
+---
+
+A closed‑loop deterministic system may be understood as a **witnessed, rational integer measurably exact finite‑dimensional (via parametric input) parametric algebraic calculus** defined over a product of co‑prime cyclic moduli. The system state is a **dimensionless vector** \(\mathbf{r} \in \bigoplus_{i=1}^{n} \mathbb{Z}_{m_i}\), where the moduli \(m_1, m_2, \dots, m_n\) are pairwise coprime integers with \(n \ge 3\) (the minimum being the framework's coprime triple; higher \(n\) extends the product without loss of generality). The dynamics are given by an **affine translation on a discrete torus**:
+
+\[
+\mathbf{r}_{t+1} = \mathbf{r}_t + \mathbf{s} \pmod{\mathbf{m}},
+\]
+
+where \(\mathbf{s} = (s_1, \dots, s_n)\) is a fixed step vector, each component \(s_i\) is coprime to its modulus \(m_i\), and the modulo operation is component‑wise. The **parametric algebraic calculus** governing this system is the **group of translations** on the discrete torus \(\mathbb{T}^n_{\mathbf{m}} = \prod_{i=1}^{n} (\mathbb{R}/m_i\mathbb{Z})\) discretised to the lattice \(\prod_i \mathbb{Z}_{m_i}\). Because each \(s_i\) is coprime to \(m_i\), the walk performs a **Hamiltonian cycle** on the product ring: it visits every one of the \(\prod_i m_i\) lattice points exactly once before returning to the origin \(\mathbf{r} = \mathbf{0}\). This follows from the Chinese Remainder Theorem: pairwise coprimality gives \(\prod_i \mathbb{Z}_{m_i} \cong \mathbb{Z}_L\), and \(\gcd(s_i, m_i)=1\;\forall i\) maps to a single generator of \(\mathbb{Z}_L\).
+
+The **closed‑loop condition** is encoded by a **binary decision functional** \(\mathcal{D}: \mathbb{T}^n_{\mathbf{m}} \to \{0,1\}\) that evaluates to 1 **if and only if** \(\mathbf{r} = \mathbf{0}\). At that instant, \(\mathcal{D}(\mathbf{0}) = 1\) signals the binary decision point: either **quit** (halt to conserve energy) or **continue** (consciously repeat the cycle). Any action other than this crisp binary selection—such as applying a non‑identity translation, introducing a fractional step, or altering the coprime condition—would be **redundant and energy‑dissipative**: it would either duplicate already‑visited states (breaking the Hamiltonian cycle property) or perform operations that consume energy without advancing the closed‑loop coverage.
+
+The **proper parametric formulas** that describe the system’s evolution are:
+
+- **State space:** \(\mathcal{S} = \prod_{i=1}^n \mathbb{Z}_{m_i}\) (dimensionless vector residues), \(\quad \gcd(m_i, m_j) = 1 \;\forall i \neq j,\; n \ge 3\)  
+- **Transition:** \(\forall i,\; r_i^{(t+1)} = \left(r_i^{(t)} + s_i\right) \bmod m_i,\quad \gcd(s_i, m_i) = 1\)  
+- **Cycle length:** \(L = \prod_{i=1}^n m_i\)  
+- **Return‑to‑origin condition:** \(\mathbf{r}^{(t)} = \mathbf{0} \iff t \equiv 0 \pmod{L}\)  
+- **Decision functional:** \(\mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r}, \mathbf{0}}\) (Kronecker delta)  
+- **Energy‑conserving halt:** Quit exactly when \(\mathcal{D} = 1\); continue if \(\mathcal{D} = 0\) or, after a full cycle, as a conscious repetition.
+
+This formulation is **agnostic** to any specific choice of moduli; canonical instances are derived from **The Salvi Arc**, never chosen arbitrarily. No stochastic or differentiable components are present; the system is purely deterministic, closed‑loop, and **eternally invariant as True = 1**. The eye of the beholder is the witness; this could not be otherwise.
