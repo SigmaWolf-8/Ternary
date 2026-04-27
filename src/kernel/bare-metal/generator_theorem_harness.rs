@@ -44,7 +44,7 @@ fn is_complete_walk(a: u64, m: u64) -> bool {
 /// 364: Full ternary circle R₆ = 111111₃
 const FRAMEWORK_MODULI: &[u64] = &[13, 27, 28, 54, 364];
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_generator_theorem_exhaustive() {
     // For each framework modulus, verify:
     //   gcd(a, m) = 1  ⟹  walk is complete
@@ -82,21 +82,21 @@ fn euler_totient(m: u64) -> u64 {
 // SPECIFIC FRAMEWORK CONSTANTS — named assertions
 // ============================================================
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_stride_13_generates_z54() {
     // INVARIANT 10: TIS-27 sponge stride
     assert_eq!(gcd(13, 54), 1, "stride 13 must be coprime to state width 54");
     assert!(is_complete_walk(13, 54), "stride 13 must produce complete permutation of Z_54");
 }
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_step_13_generates_z28() {
     // Agent array scheduling: (position × 13) mod 28
     assert_eq!(gcd(13, 28), 1, "step 13 must be coprime to 28");
     assert!(is_complete_walk(13, 28), "step 13 must visit all 28 agents");
 }
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_all_12_generators_of_z28() {
     // The 12 generators of Z₂₈ (units mod 28, φ(28) = 12)
     let expected_generators: &[u64] = &[1, 3, 5, 9, 11, 13, 15, 17, 19, 23, 25, 27];
@@ -117,7 +117,7 @@ fn test_all_12_generators_of_z28() {
     }
 }
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_generator_inverse_pairs_z28() {
     // For each generator g of Z₂₈, verify g * g⁻¹ ≡ 1 (mod 28)
     // and that g⁻¹ is also a generator.
@@ -146,7 +146,7 @@ fn test_generator_inverse_pairs_z28() {
 // CRT PRODUCT GROUP — Chinese Remainder Theorem
 // ============================================================
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_crt_product_walk_z28_times_z13() {
     // Calendar structure: Z₂₈ × Z₁₃ ≅ Z₃₆₄ (since gcd(28,13)=1)
     // Step (13, 1) on the product torus should visit all 364 points.
@@ -193,7 +193,7 @@ fn test_crt_product_walk_z28_times_z13() {
     assert!(visited.iter().all(|&v| v), "2D torus walk must visit all 364 points");
 }
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_crt_general_coprime_pairs() {
     // For pairs of coprime framework moduli, verify CRT isomorphism
     let pairs: &[(u64, u64)] = &[
@@ -232,7 +232,7 @@ const fn repunit(n: u32) -> u64 {
     (pow3 - 1) / 2
 }
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_repunit_values() {
     assert_eq!(repunit(1), 1);    // 1₃ = 1
     assert_eq!(repunit(2), 4);    // 11₃ = 4
@@ -245,7 +245,7 @@ fn test_repunit_values() {
     assert_eq!(repunit(9), 9841);
 }
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_repunit_factorization() {
     // R(2n) = R(n) × (3^n + 1)
     for n in 1..=4u32 {
@@ -260,7 +260,7 @@ fn test_repunit_factorization() {
     }
 }
 
-#[test]
+#[cfg_attr(test, test)]
 fn test_step_13_on_repunit_circles() {
     // Verify gcd(13, R(n)) for each repunit to determine if 13 generates it
     let repunits: &[(u32, u64, bool)] = &[
@@ -285,4 +285,53 @@ fn test_step_13_on_repunit_circles() {
     // Example: step 11 (gcd(11, 364) = 1).
     assert_eq!(gcd(11, 364), 1);
     assert!(is_complete_walk(11, 364));
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Harness binary entrypoint — gated behind `feature = "harness"`
+//
+// Wired by `[[bin]] name = "generator-theorem-harness"` in
+// `src/kernel/bare-metal/Cargo.toml` (Task #158 step 15). When the
+// `harness` feature is enabled the file builds as a normal host binary
+// that runs every assertion above explicitly and exits with status 0
+// on success / aborts on the first failed `assert!` / `assert_eq!`.
+// The QEMU smoke-gate CI workflow (.github/workflows/bare-metal-qemu.yml)
+// invokes this binary as a coupled gate alongside the bare-metal boot.
+// ════════════════════════════════════════════════════════════════════
+
+#[cfg(feature = "harness")]
+fn main() {
+    println!("[harness] generator-theorem-harness — Task #158 step 15");
+
+    test_generator_theorem_exhaustive();
+    println!("[harness]   ✓ generator-theorem exhaustive (R₃, b³, 2π, 2·b³, R₆)");
+
+    test_stride_13_generates_z54();
+    println!("[harness]   ✓ stride 13 generates Z_54");
+
+    test_step_13_generates_z28();
+    println!("[harness]   ✓ step 13 generates Z_28");
+
+    test_all_12_generators_of_z28();
+    println!("[harness]   ✓ all 12 generators of Z_28 enumerated");
+
+    test_generator_inverse_pairs_z28();
+    println!("[harness]   ✓ generator/inverse pairs in Z_28 verified");
+
+    test_crt_product_walk_z28_times_z13();
+    println!("[harness]   ✓ CRT product walk Z_28 × Z_13 visits 364 cells");
+
+    test_crt_general_coprime_pairs();
+    println!("[harness]   ✓ CRT general coprime-pair enumeration verified");
+
+    test_repunit_values();
+    println!("[harness]   ✓ repunit values R_1..R_7 verified");
+
+    test_repunit_factorization();
+    println!("[harness]   ✓ R(2n) = R(n) × (3^n + 1) factorisation verified");
+
+    test_step_13_on_repunit_circles();
+    println!("[harness]   ✓ step-13 generator status on repunit circles");
+
+    println!("[harness] all generator-theorem assertions passed ✓");
 }

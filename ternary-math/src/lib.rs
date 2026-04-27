@@ -26,6 +26,22 @@
 //! - **ternary_circle**: Canonical ternary circle geometry (364°, π=14, 1 rad=13°, Z₂₈)
 //! - **tribonacci**: Native base-3 Tribonacci generator with A/B/C representation interchange
 //! - **borromean**: Borromean ternary XOR invariant for three-party cryptographic protocols
+//!
+//! ## Canonical engine re-export (Task #158 I-48 anchor)
+//!
+//! The single source of pure-ternary mathematical truth for the
+//! workspace lives in [`algeometric_arc_sigma182_calculi`] (re-exported
+//! here as [`aasc`]). Per-module shims that route `TritInt`, `repx`,
+//! `tri182`, `borromean`, `plenum_square`, `ternary_circle`,
+//! `coprime`, `repunit_circles`, `tribonacci`, `gf3` over the canonical
+//! engine are landing incrementally — see Task #158 step 14 and the
+//! Task #154 `M1A.std-shim` rebuild for status. New code should reach
+//! into [`aasc`] directly; the existing `TritInt` and helper module
+//! surface stays put behind `host_u32`/`host_u64`/`host_u128`/
+//! `from_host_u64`/`from_host_u128`/`const_eq` boundary methods until
+//! the per-module rewrites complete.
+pub use ::aasc;
+
 pub mod constants;
 pub mod trit_int;
 pub mod trit;

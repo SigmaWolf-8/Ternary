@@ -1,0 +1,111 @@
+# Bare-Metal QEMU Smoke Gate — Task #158 step 15
+#
+# Couples the freestanding `plenumnet-kernel` boot under QEMU with the
+# Generator Theorem proof harness (Task #158 step 15) so the bare-metal
+# target gates on every PR that touches the kernel surface or the
+# canonical pure-ternary engine `algeometric-arc-sigma182-calculi`.
+#
+# This workflow runs on a self-hosted runner labelled `bare-metal`
+# because:
+#   • the bare-metal crate uses a custom target spec
+#     (`x86_64-ternary-none.json`) and a pinned nightly with `rust-src`,
+#   • the QEMU smoke step needs `qemu-system-x86_64`, KVM access, and a
+#     serial console; standard GitHub-hosted runners cannot deliver
+#     deterministic timing for the boot/self-test combination.
+# The audit doc (`docs/audit/bare-metal-incorporation.md`) records the
+# canonical command set that this workflow mirrors. Any change to the
+# commands must be reflected in both files.
+
+name: bare-metal-qemu
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/kernel/**'
+      - 'algeometric-arc-sigma182-calculi/**'
+      - 'ternary-math/**'
+      - '.github/workflows/bare-metal-qemu.yml'
+  pull_request:
+    paths:
+      - 'src/kernel/**'
+      - 'algeometric-arc-sigma182-calculi/**'
+      - 'ternary-math/**'
+      - '.github/workflows/bare-metal-qemu.yml'
+  workflow_dispatch:
+
+# QEMU-bound runs are slow; one-at-a-time per ref keeps the runner sane.
+concurrency:
+  group: bare-metal-qemu-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  qemu-smoke:
+    name: bare-metal boot + harness (QEMU)
+    # Self-hosted runner with: nightly rust + rust-src, qemu-system-x86_64,
+    # KVM access. See repo runner setup notes.
+    runs-on: [self-hosted, bare-metal]
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain — confirm nightly + rust-src present
+        working-directory: src/kernel/bare-metal
+        run: |
+          rustup show
+          rustup component list --installed | grep -q rust-src
+
+      # ---- Generator Theorem proof harness (host build, gated) ----
+      # Validates pure number-theoretic invariants the kernel ternary
+      # surface relies on (Task #158 step 15). The harness is wired as
+      # `[[bin]] generator-theorem-harness` behind `feature = "harness"`
+      # in `src/kernel/bare-metal/Cargo.toml`.
+      - name: Build generator-theorem harness
+        working-directory: src/kernel/bare-metal
+        run: |
+          cargo build --release \
+            --features harness \
+            --bin generator-theorem-harness
+
+      - name: Run generator-theorem harness
+        working-directory: src/kernel/bare-metal
+        run: |
+          ./target/release/generator-theorem-harness
+
+      # ---- Bare-metal kernel image (freestanding target) ----
+      - name: Build bare-metal kernel image
+        working-directory: src/kernel/bare-metal
+        run: |
+          cargo build --release \
+            --target x86_64-ternary-none.json \
+            -Z build-std=core,alloc
+
+      # ---- QEMU smoke boot ----
+      # Boots the freestanding kernel, lets the embedded `selftest`
+      # module run, captures the serial output, and asserts the
+      # success sentinel. Timeout caps a hung boot at 90s.
+      - name: QEMU smoke boot
+        working-directory: src/kernel/bare-metal
+        run: |
+          set -o pipefail
+          timeout 90 qemu-system-x86_64 \
+            -kernel target/x86_64-ternary-none/release/plenumnet-kernel \
+            -nographic -serial mon:stdio \
+            -no-reboot -no-shutdown \
+            | tee qemu-smoke.log
+          # The kernel prints this sentinel after selftest::run_all() succeeds.
+          grep -q '\[selftest\] OK' qemu-smoke.log
+
+      - name: Upload QEMU serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-smoke-log
+          path: src/kernel/bare-metal/qemu-smoke.log
+          if-no-files-found: ignore
+          retention-days: 14

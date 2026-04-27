@@ -32,6 +32,12 @@ lazy_static = { version = "1.4", features = ["spin_no_std"] }
 libm = "0.2"
 hashbrown = { version = "0.14", default-features = false, features = ["ahash"] }
 plenum-std = { path = "../plenum-std", optional = true }
+# Single canonical pure-ternary engine. Default features disabled to keep
+# the kernel `no_std`-clean. The kernel `ternary` module re-exports aasc
+# symbols (`Trit`, `TritVec`, `Representation`) so downstream consumers —
+# including the bare-metal target via the `no_std` feature — can migrate
+# off the kernel-local types onto the canonical engine. (Task #158 I-47.)
+algeometric-arc-sigma182-calculi = { path = "../../algeometric-arc-sigma182-calculi", default-features = false }
 
 [dependencies.html5ever]
 version = "0.27"

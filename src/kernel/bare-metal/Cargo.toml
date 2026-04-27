@@ -12,9 +12,34 @@ license = "LicenseRef-Proprietary"
 repository = "https://github.com/SigmaWolf-8/Ternary"
 publish = false
 
+[features]
+# Default = bare-metal kernel build only.
+default = []
+# `harness` exposes the host-side Generator Theorem proof harness as a
+# regular `[[bin]]` (`generator-theorem-harness`). The harness validates
+# the framework moduli {R₃, b³, 2π, 2·b³, R₆} for the Generator Duality
+# Theorem and is consumed by the QEMU smoke-gate CI step
+# (.github/workflows/bare-metal-qemu.yml). See Task #158 step 15 +
+# docs/audit/bare-metal-incorporation.md.
+harness = []
+
 [[bin]]
 name = "ternary-kernel"
 path = "src/main.rs"
+
+# Host-side Generator Theorem proof harness — gated behind `harness`.
+# Built with the host toolchain (NOT the bare-metal target spec): the
+# file uses `Vec` and host integers and exists to validate the pure
+# number-theoretic invariants the kernel ternary surface relies on.
+# Wiring rationale and run commands are in
+# docs/audit/bare-metal-incorporation.md (§“Generator harness wiring”).
+[[bin]]
+name = "generator-theorem-harness"
+path = "generator_theorem_harness.rs"
+required-features = ["harness"]
+test = false
+bench = false
+harness = false
 
 [dependencies]
 plenumnet-kernel = { path = "..", features = ["no_std"], default-features = false }

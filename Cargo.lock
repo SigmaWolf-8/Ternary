@@ -3993,6 +3993,7 @@ dependencies = [
 name = "plenumnet-kernel"
 version = "0.1.0"
 dependencies = [
+ "algeometric-arc-sigma182-calculi",
  "boa_engine",
  "criterion",
  "cssparser 0.33.0",
@@ -5557,6 +5558,7 @@ name = "ternary-math"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
+ "algeometric-arc-sigma182-calculi",
  "criterion",
  "flate2",
  "getrandom 0.2.17",

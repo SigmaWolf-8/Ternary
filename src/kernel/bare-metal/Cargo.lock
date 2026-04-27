@@ -15,6 +15,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "algeometric-arc-sigma182-calculi"
+version = "0.1.0"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -62,6 +66,7 @@ dependencies = [
 name = "plenumnet-kernel"
 version = "0.1.0"
 dependencies = [
+ "algeometric-arc-sigma182-calculi",
  "hashbrown",
  "lazy_static",
  "libm",

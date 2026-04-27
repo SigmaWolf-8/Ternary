@@ -12,10 +12,27 @@
 //
 // See LICENSE in the repository root for full terms.
 
-//! Ternary Computing Module
+//! Ternary Computing Module — **`aasc` compatibility shim**
 //!
-//! Implements the Unified Ternary Logic System from the Salvi Framework whitepaper.
-//! All operations are performed in GF(3) (Galois Field of 3 elements).
+//! This module is a backward-compatibility shim over the canonical
+//! pure-ternary engine [`algeometric_arc_sigma182_calculi`] (re-exported
+//! at the bottom of this file as [`AascTrit`] and [`TritVec`]).
+//! It preserves every symbol downstream consumers — including the
+//! bare-metal target at `src/kernel/bare-metal/` — already import:
+//! `Trit`, `Tryte`, `TernaryWord`, `Representation`,
+//! `convert_representation`, `pack_trits`, `unpack_trits`,
+//! `packed_map`, `packed_zip`, `is_valid_packed`,
+//! `packed_shift_left`, `packed_shift_right`, `packed_rotate_left`,
+//! `packed_reduce`, `packed_convert`, `pack_single_trit`,
+//! `scalar_to_trit`, `information_density`, `DensityComparison`.
+//!
+//! The local `Trit`/`Tryte` types remain a thin Rep-A `i8` wrapper so
+//! kernel internal call sites that depend on the `Trit { value: i8 }`
+//! field shape (vm/engine.rs, vm/cache.rs, kani_proofs.rs and the rest
+//! of `src/kernel/src/`) keep compiling unchanged. The arithmetic is
+//! GF(3)-equivalent to `aasc::Trit` by construction (Task #158 I-47:
+//! shim parity, zero divergence). Migration of those call sites onto
+//! `aasc::Trit` directly is follow-up work.
 //!
 //! # Representations
 //! - **A (Computational)**: {-1, 0, +1} - For arithmetic operations
@@ -26,6 +43,22 @@
 //! - A→B: f(a) = a + 1
 //! - A→C: f(a) = a + 2
 //! - B→C: f(b) = b + 1
+//!
+//! # Migration anchor
+//!
+//! New code should prefer the canonical engine types re-exported below
+//! (`AascTrit`, `TritVec`). The legacy `Trit`/`Tryte` symbols are kept
+//! solely for the freestanding kernel + bare-metal symbol surface.
+
+// ── aasc canonical engine re-exports ────────────────────────────────
+//
+// The single source of mathematical truth. Forward-migration anchor for
+// the kernel and the bare-metal target. The local `Trit`/`Representation`
+// types defined below remain available under their existing names to
+// preserve the freestanding kernel API surface (Task #158 I-47).
+pub use aasc::trit::Trit as AascTrit;
+pub use aasc::tritvec::TritVec;
+pub use aasc::trit::Representation as AascRepresentation;
 
 /// A single trit (ternary digit)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,18 +116,25 @@ impl Trit {
         Self { value: -self.value }
     }
 
+    /// GF(3) addition. Delegates to the canonical `aasc::Trit::add` so
+    /// the kernel and the canonical engine share one mathematical truth
+    /// (Task #158 I-47, shim parity). Inputs/outputs use the kernel's
+    /// Rep-A `i8` storage; the bridge to/from aasc is a constructor +
+    /// accessor pair on the canonical Trit enum.
     #[inline(always)]
     pub fn add(&self, other: &Trit) -> Self {
-        let sum = (self.value + other.value).rem_euclid(3);
-        let normalized = if sum == 2 { -1 } else { sum as i8 };
-        Self { value: normalized }
+        let a = AascTrit::from_a(self.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
+        let b = AascTrit::from_a(other.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
+        Self { value: a.add(b).value_a() }
     }
 
+    /// GF(3) multiplication. Delegates to the canonical `aasc::Trit::mul`.
+    /// See the doc on `add` for the bridge contract.
     #[inline(always)]
     pub fn multiply(&self, other: &Trit) -> Self {
-        let product = (self.value * other.value).rem_euclid(3);
-        let normalized = if product == 2 { -1 } else { product as i8 };
-        Self { value: normalized }
+        let a = AascTrit::from_a(self.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
+        let b = AascTrit::from_a(other.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
+        Self { value: a.mul(b).value_a() }
     }
 
     #[inline(always)]
@@ -396,6 +436,16 @@ impl Tryte {
             multiplier *= 3;
         }
         result
+    }
+
+    /// Host-integer view of this tryte's decimal value, widened to `u64`.
+    ///
+    /// Mirrors the `host_u64` boundary on `aasc::TritVec` / `TritInt`
+    /// (Task #158 I-48) — the **only** place a host integer appears in
+    /// the kernel ternary surface, kept here for backward compatibility
+    /// with downstream consumers (and the existing self-test suite).
+    pub fn host_u64(&self) -> u64 {
+        self.to_decimal() as u64
     }
 
     /// Get trits
@@ -723,6 +773,7 @@ mod tests {
         for val in [0u16, 1, 100, 364, 365, 500, 728] {
             let tryte = Tryte::from_decimal(val).unwrap();
             assert_eq!(tryte.to_decimal(), val, "Roundtrip failed for decimal {}", val);
+            assert_eq!(tryte.host_u64(), val as u64, "host_u64 boundary mismatch for decimal {}", val);
         }
     }
 
@@ -739,6 +790,7 @@ mod tests {
         for val in [0u16, 100, 365, 728] {
             let tryte = Tryte::from_decimal(val).unwrap();
             assert_eq!(tryte.not().not().to_decimal(), val);
+            assert_eq!(tryte.not().not().host_u64(), val as u64);
         }
     }
 
