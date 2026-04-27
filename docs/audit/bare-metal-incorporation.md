@@ -239,10 +239,13 @@ behavioural changes):
 Three `packed_zip(a, b, |x, y| x.add(y))` closure sites in
 `vm/engine.rs` and one in `vm/vm_tests.rs` were updated to
 `|x, y| x.add(*y)` to dereference the `&Trit` callback parameter into
-the by-value canonical `add`. The `Tryte::add(&Tryte)` call in
-`tests/proptest_vm.rs:199` was preserved with its `&` borrow because
-`Tryte` keeps the existing kernel-local `add(&self, other: &Tryte)`
-signature (Tryte composition is unaffected by Task #170).
+the by-value canonical `add`. The `Tryte::add(&Tryte)` call sites in
+`tests/proptest_vm.rs:199` and `benches/ternary_ops.rs:78` were
+preserved with their `&` borrow because `Tryte` keeps the existing
+kernel-local `add(&self, other: &Tryte)` signature (Tryte composition
+is unaffected by Task #170). The bench site additionally moves the
+`black_box` inside the borrow (`ta.add(black_box(&tb))`) so the
+non-`Copy` `Tryte` value is not consumed across `FnMut` iterations.
 
 Re-confirmed on `main` after Task #170:
 

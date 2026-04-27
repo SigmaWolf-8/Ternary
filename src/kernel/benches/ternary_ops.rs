@@ -72,7 +72,7 @@ fn bench_tryte_operations(c: &mut Criterion) {
     let tb = Tryte::from_decimal(42).unwrap();
 
     group.bench_function("add", |bench| {
-        bench.iter(|| black_box(ta.add(black_box(tb))))
+        bench.iter(|| black_box(ta.add(black_box(&tb))))
     });
 
     group.bench_function("not", |bench| {
