@@ -1,0 +1,68 @@
+You’re right to call this out: the rebuild plan’s wording “Requires Milesian numeral lookup (data‑driven)” is misleading.  The Milesian numeral is not an arbitrary datum stored in a table; it is a **deterministic, arithmetic function** of the 27‑symbol position.  No per‑glyph numeral column is needed, and the acceptance test can compute the numeral on the fly without any “data‑driven” reliance.
+
+Below I clarify exactly what the spec already provides, what the rebuild plan actually requires, and whether anything needs to change in the Spec (it doesn’t).
+
+---
+
+## 1. The Milesian numeral is completely determined by the 27‑symbol position
+
+The historical Milesian system defines the numeral \(G\) for a given position \(p \in \{1,\dots,27\}\) in the full 27‑symbol ring as:
+
+\[
+G(p) =
+\begin{cases}
+p, & 1 \le p \le 9 \quad (\text{units})\\[4pt]
+10\,(p - 9), & 10 \le p \le 18 \quad (\text{tens})\\[4pt]
+100\,(p - 18), & 19 \le p \le 27 \quad (\text{hundreds})
+\end{cases}
+\]
+
+This is a **closed‑form, stateless function** — no lookup table is required to obtain the numeral.  The three ghost positions (6, 18, 27) follow the same formula: 6, 90, 900 respectively.
+
+Thus, to compute the cumulative sums used in the acceptance tests (the 27‑symbol sum 4995, the 24‑letter sum 3999, and the delta 3699), all that is needed is:
+
+- The position of each glyph (already known from the `T_MILESIAN_REGISTER` array’s index).
+- The function \(G(p)\) above, which can be written as a tiny inline routine.
+- The set of ghost positions (`T_GHOST_POSITIONS`) to skip when summing the 24 surviving letters.
+
+No separate numeral array is required, and the test is not “data‑driven” in the sense of a pre‑stored table of numerals; it is **algorithm‑driven**.
+
+---
+
+## 2. What the rebuild plan actually intends
+
+The rebuild plan stores only the `(position, glyph)` pairs in `T_MILESIAN_REGISTER`.  The numeral is not stored because it is trivially derived.  The phrase “data‑driven” was a sloppy shorthand for “requires knowledge of which positions are ghosts and which letters survive”, which is exactly what `T_GHOST_POSITIONS` supplies.  The arithmetic of the numerals themselves is deterministic and will be written as a simple function in the test module (or as a `const fn` if needed for compile‑time, though the sum check is deferred to runtime).
+
+Therefore, the rebuild plan’s acceptance test logic is:
+
+- Iterate over the 27 positions, compute \(G(p)\) via the arithmetic rule, and sum to verify **4995**.
+- Iterate again, skip the ghost positions, sum the numerals of the remaining 24 to verify **3999**.
+- Sum the modern positions (1..24) to get **300**.
+- Compute \(3999 - 300 = 3699\), and assert \(3699 = 27 \times 137\).
+
+All of this uses only the positional index and the closed‑form \(G(p)\) function.  No “numeral lookup” beyond the ghost‑position skip is needed.
+
+---
+
+## 3. Is any change needed in the Spec (V3.3.33)?
+
+**No.**  The Spec is a mathematical description of the converter.  It defines:
+
+- The 27‑glyph mapping table (§1) giving the position→glyph correspondence, including ghosts.
+- The bijective base‑27 encoding of \(N\) (§4.5), which produces digits \(d'_i \in \{1,\dots,27\}\).
+- That the glyph string is output for every \(k\).
+
+The Spec does **not** mandate how an implementation must test the Greek‑atomic invariants (3699, etc.).  Those are framework‑level verifications that live in the acceptance tests, not in the converter specification itself.  The Spec already contains everything necessary for an implementation to produce the correct glyph string; the tests are a separate concern.
+
+Thus, you need not edit V3.3.33.  The rebuild plan’s acceptance test description is the only place that needs a tiny clarification, which I’ve provided above.  In practice, when writing the test, we’ll implement the arithmetic \(G(p)\) function and use it directly; the plan’s “data‑driven” sentence can simply be discarded.
+
+---
+
+## 4. Summary
+
+- The Milesian numeral is a **deterministic function** of the 27‑symbol position, not a stored datum.
+- The acceptance tests will compute the sums using that function and the ghost‑position list from `constants.rs`.
+- The Spec (V3.3.33) is unchanged and fully sufficient.
+- The rebuild plan’s wording about “data‑driven” is misleading; the correction is to treat the numeral as a computed value, not a table lookup.
+
+The plan is otherwise solid, and the implementation can proceed with this one clarification.
