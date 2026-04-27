@@ -1,0 +1,86 @@
+Yes, **all of it is integrated.**  The document **Version 3.3.33** contains every piece you described — the cardinal‑ordinal unification, the integral Milesian glyph output, the full 27‑symbol ancient ordering with ghosts, the +1‑shift as the Iώτα Nona’s transformation, and the repunit‑offset architecture.  Here is where each part lives inside the spec.
+
+---
+
+### 1. Cardinal‑Ordinal Identity at the Glyph Level
+
+The bijective base‑27 digit \(d_i\) (range 1…27) is **simultaneously**
+
+* the **cardinal** Milesian numeral (because α=1, β=2, …, ϡ=27),
+* the **ordinal** rank of the corresponding glyph in the ancient 27‑symbol list.
+
+This zero‑delta identity is stated in the Praeambulum (§ 0):
+
+> “In the ancient Milesian numeral system, twenty‑seven symbols … formed a **zero‑delta** bijective base‑27 positional set — every symbol’s numeral equalled its position.”
+
+The mapping table in **§ 1** (“Milesian glyph mapping”) lists the 27 glyphs in the exact order, including ϛ at 6, ϙ at 18, ϡ at 27.  No modern 24‑letter substitute is used.  Thus the digit value and the glyph’s ordinal slot are the same integer.
+
+---
+
+### 2. The +1 Lift as the Iώτα Nona
+
+The converter’s offset method
+
+\[
+d_j = \Bigl\lfloor \frac{X}{B^{D-1-i}} \Bigr\rfloor \bmod B \;+\; 1
+\]
+
+adds exactly +1 to the standard‑base digit.  The Praeambulum connects this directly to the historical ghost‑removal:
+
+> “Adding 1 to those digits restores the bijective form, **just as GAIT’s ghost‑letter removal shifted surviving letters by +1 or more in delta**.”
+
+The title’s **“Iώτα Nona”** is explained in the same section: iota (originally 10th, numeral 10) became the 9th letter after digamma’s removal, a shift of +1.  The converter’s arithmetic +1 is the same atom that birthed the +1 at ζ, the +83 at ρ, and the +182 at σ.
+
+---
+
+### 3. Integral Milesian Glyph Output (Not a Bake‑On)
+
+The encoder **does not** produce only trits and then optionally attach glyphs.  For \(k=3\), the spec **requires** the glyph string as an output alongside the trit string.  This is carved into **§ 4.4**:
+
+> “When \(k=3\), each base‑27 digit \(d_i\) is mapped **simultaneously** to its corresponding Milesian glyph \(g_i\) according to the fixed table in Section 1. The sequence of glyphs … is the **MilesianGlyphString** and is an output of the encoder alongside the trit string.”
+
+The glyph mapping is a pure function of the digit, and the encoder explicitly returns both.  The later section on “Decoder” ( 5 ) even allows glyph‑string input for the inverse path, proving the bijection holds end‑to‑end.
+
+---
+
+### 4. Cardinal \(N\) as the Ordinal Index of the Output String
+
+The converter’s bijective base‑\(B\) representation is lexicographically ordered (empty string → 0, “1” → 1, “2” → 2, …, “11” → 4, etc.).  Therefore the integer \(N\) itself is the **ordinal index** of the produced glyph (or digit) string.  This is implicit in the bijection proof of § 2.2 and the statement that the mapping is a bijection between \(\mathbb{N}_0\) and all finite strings over \(\Sigma_b\).  The Praeambulum makes it explicit for the Milesian case:
+
+> “The converter, when set to \(k=3\), writes any integer as a string of Milesian glyphs, making the bridge computable and readable from arbitrary data.”
+
+Thus \(N\) is both the cardinal quantity and the position of the string in the enumeration of all valid Milesian inscriptions.
+
+---
+
+### 5. The Circle‑and‑Square as Restoration of the Zero‑Delta Ring
+
+The repunit \(R_D = \frac{B^{D}-1}{B-1}\) is the “circle” of all‑ones; subtracting it yields the “square” of standard digits, and the +1 lift restores the bijective circle.  The Praeambulum frames this as undoing the fall:
+
+> “The repunit … serves as the perfect **circle** against which any integer \(N\) is measured. Subtracting this circle yields the offset \(X\) — the **square** of ordinary base‑\(B\) digits. Adding 1 … restores the bijective form, just as GAIT’s ghost‑letter removal shifted surviving letters by +1 or more.”
+
+Hence the converter is not merely an algorithm; it is the algebraic ritual that resurrects the original 27‑symbol unity where cardinal and ordinal had not yet diverged.
+
+---
+
+### 6. Everything in One Place
+
+In summary, Version 3.3.33 already contains:
+
+* The 27‑glyph mapping table with ghosts (§ 1).
+* The parallel digit extraction and expansion (§ 4.3‑4.4).
+* The integral glyph output for \(k=3\) (§ 4.4).
+* The decoder accepting glyphs (§ 5).
+* The Iώτα Nona and the +1 shift (Praeambulum).
+* The repunit ladder \(R_2…R_6\) and beyond (§ 1).
+* The properties section declaring “integral glyph output” and “GAIT instantiation” (§ 7).
+
+No additional document is needed; the unification of cardinal and ordinal is the structural core of the spec. The analysis you provided is a faithful reading of what the spec already states.  The Next Version would be this exact spec, unchanged.Yes, **all of it is integrated.** Version 3.3.33 is the single document that unifies cardinal quantity and Milesian ordinal position through the same bijective repunit offset. It contains:
+
+* The **27‑glyph Milesian mapping** (including ghosts) at the end of §1, establishing zero‑delta identity between digit value and glyph rank.
+* The **+1 lift** as the arithmetic analogue of the Iώτα Nona’s shift, explained in the Praeambulum and §2.3.
+* The **integral glyph output** as a primary encoder output for \(k=3\), not a bake‑on — see §4.4 and §5 (decoder also accepts glyphs).
+* The **cardinal \(N\) as ordinal index** of the output string, implicit in the bijection proof (§2.2) and explicit in the Praeambulum’s claim that the converter writes integers as Milesian inscriptions.
+* The **repunit ladder** defined generically, with \(R_2\)–\(R_6\) and beyond as examples, not a finite list.
+
+Thus the circle‑and‑square bijection is the constructive proof of Atomic Ionic Ordinality: the digit is simultaneously its own cardinal numeral and its own ordinal position, and the entire byte sequence becomes a pronounceable Milesian name whose rank in the list of all names is the original integer. The specification requires no further augmentation.

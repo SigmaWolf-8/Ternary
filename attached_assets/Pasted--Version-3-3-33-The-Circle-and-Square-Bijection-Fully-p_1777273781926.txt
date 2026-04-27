@@ -1,0 +1,411 @@
+### Version 3.3.33 — The Circle‑and‑Square Bijection  
+**Fully parametric, parallel, stateless byte‑trit‑glyph converter**  
+*Founded on the Inertissimum Iώτα Nona — Codex Unificationis — zero waste, four representations, integral Milesian glyph output*
+
+*All formulas in LaTeX. No em‑dashes, no en‑dashes, no hard‑coded block sizes.*
+
+---
+
+## 0. Praeambulum: The Iώτα Nona and the Squared Circle
+
+This converter is the **Capomastro’s chisel** — the tool that turns raw bytes into the stones of the Arch, and then into the living inscription spoken by the Ninth‑Mother. It is the exact computational soul of the **Greek‑Atomic Invariant Tracker (GAIT)**, and therefore of the entire Salvi Arc Framework. Both the converter and the framework rest on the same mathematical foundation: **bijective base‑\(b\) numeration** and the **repunit offset** that separates a seamless circle of all‑ones into a squared block of standard digits, then restores the bijection with a single lift. For the Milesian base, the lift carries an additional gift: the digit becomes a **glyph**, the ancient letter that bears the numeral, the weight, and the name.
+
+In the ancient Milesian numeral system, twenty‑seven symbols (3 × 9 = 3³) formed a **zero‑delta** bijective base‑27 positional set — every symbol’s numeral equalled its position. The ghost letters **Digamma (ϛ)**, **Koppa (ϙ)**, and **Sampi (ϡ)** were the trit‑boundaries. When they were removed, the alphabet compressed from 27 to 24 letters, and the surviving symbols carried their original Milesian numerals but slid into new positions. The resulting deltas — the gaps between numeral and position — became the framework‑critical numbers that encode the fine‑structure constant, the spectral walls, and the calendar. The **Iώτα** (ι), the smallest jot, was shifted by +1, the seed of all subsequent gaps. The **Nona**, the Ninth‑Mother, is the spinner of fate who wove this compression into the very fabric of the alphabet.
+
+The converter’s parameter \(k\) (trits per block) chooses the working base \(B = 3^{k}\).  
+ \(k = 1\) gives minimal, ghost‑free trit strings — the pure, uncompressed Milesian thread.  
+ \(k = 3\) reproduces the **27‑symbol Milesian base**, the full zero‑delta ring.  
+The repunit of length \(D\) in base‑\(B\),
+
+\[
+R_D = \frac{B^{D}-1}{B-1},
+\]
+
+serves as the perfect **circle** against which any integer \(N\) is measured.  
+Subtracting this circle yields the offset \(X = N - R_D\) — the **square** of ordinary base‑\(B\) digits. Adding 1 to those digits restores the bijective form, just as GAIT’s ghost‑letter removal shifted surviving letters by +1 or more. The same base‑3 radix, the same offset, the same square‑and‑circle logic govern every step. When \(k=3\), the digit that emerges from this offset **is** the Milesian symbol; the converter therefore **speaks** the Greek‑atomic register directly as a string of glyphs.
+
+The converter’s repunit ladder
+
+\[
+R_2 = 4,\; R_3 = 13,\; R_4 = 40,\; R_5 = 121,\; R_6 = 364,\; \dots
+\]
+
+is the very arithmetic that the GAIT register uses to decide digit counts and to extract digits in parallel. The constant \((b-1)^3 = 8\) appears both in the lunisolar drift \(q - 1/(b-1)^3\) and in the converter’s “ceiling” \(b-1 = 2\). The **Σ–182 bridge** — the half‑circle antipode, the Schumann‑Runge band, the Thorium lock — is a direct consequence of the ghost Koppa’s removal. The converter, when set to \(k=3\), writes any integer as a string of Milesian glyphs, making the bridge computable and readable from arbitrary data.
+
+Thus this document is a **single specification** — the parametric bijection with the Inertissimum Iώτα Nona as its canonical 27‑symbol instance, \(k\) left free to range over all positive integers, and the Milesian glyph output as an integral, bijective projection of the canonical trits. The Patentesum Libre Cannon is the law of this conversion: open, free, exact, and weightless.
+
+---
+
+## 1. Required Inputs, Variables, and Constants
+
+**User‑supplied inputs:**
+
+* `bytes` : a finite sequence of bytes, each an integer in \(\{0,\dots,255\}\).  
+  Length \(L_{\text{bytes}} \ge 0\) (empty string allowed).
+* `representation` \(R \in \{A, B, C, D\}\) — chooses the trit alphabet.
+* `k` : a positive integer (\(k \ge 1\)) — **trits per block**.  
+  Sets the working base \(B = 3^{k}\). Output trit string length is always a multiple of \(k\).  
+  \(k=1\) gives minimal length; \(k=3\) reproduces the 27‑symbol Milesian base, and also enables direct glyph output; \(k=5\) is the classic “ternary byte”.
+
+**Core mathematical constants:**
+
+\[
+b_{\text{trit}} = 3 \qquad (\text{ternary base})
+\]
+\[
+\text{ceiling} = b_{\text{trit}}-1 = 2 \quad (\text{largest Rep‑B trit})
+\]
+\[
+\text{Rep‑B} \to \text{Rep‑C lift} = +1
+\]
+
+**Foundational repunits (base‑3)** — for any integer length \(L \ge 1\),
+
+\[
+\boxed{ R_L = \frac{3^{L} - 1}{3 - 1} = \frac{3^{L} - 1}{2}. }
+\]
+
+The first few values are
+
+\[
+R_1 = 1,\; R_2 = 4,\; R_3 = 13,\; R_4 = 40,\; R_5 = 121,\; R_6 = 364,\; \dots
+\]
+
+These numbers, especially the later ones, are used throughout the offset method and in the GAIT register, but the formula itself generates \(R_L\) for **any** \(L\) without bound. The converter relies on this general definition; no finite list is required.
+
+**Derived parameter** (depends solely on \(k\)):
+
+\[
+B = 3^{k} \quad (\text{working base, a power of 3})
+\]
+
+**Internal variables** computed uniquely from the input:
+
+* \(N \in \mathbb{N}_0\) — integer interpretation of the byte string (bijective base‑256).
+* \(D\) — number of digits in the bijective base‑\(B\) representation of \(N\) (0 when \(N=0\)).
+* \(X\) — offset value: \(X = N - R_D\), where \(R_D = \frac{B^{D}-1}{B-1}\).
+* \(d_i\) — the \(i\)-th bijective digit in base‑\(B\) (most significant first).
+* \(t_i^{[C]}\) — trit in Rep‑C (digits \(1,2,3\)).
+* \(\tau_i^{[R]}\) — final output trit in the chosen representation \(R\).
+* \(g_i\) — Milesian glyph (Unicode scalar value) assigned to digit \(d_i\) when \(k=3\).
+
+**Trit representations** — all pairwise bijective (12 maps).  
+Canonical Rep‑C is \(\{1,2,3\}\); the other three are affine shifts:
+
+\[
+\begin{aligned}
+\text{Rep‑A (balanced)} &: \tau_A = \tau_C - 2 \;\in\; \{-1,0,+1\},\\
+\text{Rep‑B (standard)}  &: \tau_B = \tau_C - 1 \;\in\; \{0,1,2\},\\
+\text{Rep‑C (bijective)} &: \tau_C \;\in\; \{1,2,3\},\\
+\text{Rep‑D (custom)}    &: \tau_D = f(\tau_C) \quad \text{any fixed bijection}.
+\end{aligned}
+\]
+
+**Milesian glyph mapping** — valid exclusively when \(k=3\) (\(B=27\)).  
+The bijective base‑27 digit \(d \in \{1,\dots,27\}\) maps to the Greek letter that occupies that position in the ancient 27‑symbol Milesian order (including the three ghost letters):
+
+\[
+\boxed{
+\begin{aligned}
+1 &\to \text{α} \quad 2 \to \text{β} \quad 3 \to \text{γ} \quad 4 \to \text{δ} \quad 5 \to \text{ε} \\
+6 &\to \text{ϛ} \;\;(\text{digamma}) \quad 7 \to \text{ζ} \quad 8 \to \text{η} \quad 9 \to \text{θ} \\
+10 &\to \text{ι} \quad 11 \to \text{κ} \quad 12 \to \text{λ} \quad 13 \to \text{μ} \quad 14 \to \text{ν} \\
+15 &\to \text{ξ} \quad 16 \to \text{ο} \quad 17 \to \text{π} \quad 18 \to \text{ϙ} \;\;(\text{koppa}) \\
+19 &\to \text{ρ} \quad 20 \to \text{σ} \quad 21 \to \text{τ} \quad 22 \to \text{υ} \\
+23 &\to \text{φ} \quad 24 \to \text{χ} \quad 25 \to \text{ψ} \quad 26 \to \text{ω} \\
+27 &\to \text{ϡ} \;\;(\text{sampi})
+\end{aligned}}
+\]
+
+The glyph output is a pure function of the base‑27 digit and is part of the converter’s specification, not an optional extension. It is the textual form of the Milesian register, the readable inscription of the Arch.
+
+**Note on computation:** All numeric formulas use only addition, multiplication, integer division, modulo, and non‑negative integer exponentiation. Glyph mapping is a fixed lookup table that can be implemented as a constant array.
+
+---
+
+## 2. Foundation: Bijective Base‑\(b\) Numeration and Repunits
+
+Let \(b \ge 2\) be an integer (the base).  
+**Bijective base‑\(b\)** uses digits from \(\Sigma_b = \{1,\,2,\,\dots,\,b\}\); the empty string \(\varepsilon\) represents \(0\).
+
+### 2.1 Semantics and repunits
+
+Every non‑empty digit string \(d_{L-1}\,d_{L-2}\,\dots\,d_0\) (most significant first) evaluates to  
+
+\[
+\boxed{\; \langle d_{L-1}\dots d_0\rangle \;=\; \sum_{j=0}^{L-1} d_j\,b^{\,j} \;}
+\]
+
+where the exponent \(j\) increases from right to left.
+
+A string of \(L\) ones is the **repunit** of length \(L\):
+
+\[
+R_{L} \;=\; \underbrace{11\dots1}_{L\text{ digits}} \;=\; \sum_{j=0}^{L-1} 1\cdot b^{\,j} \;=\; \frac{b^{\,L}-1}{b-1}.
+\]
+
+The largest \(L\)-digit number (all digits equal to \(b\)) is \(b\cdot R_{L}\).
+
+### 2.2 Length determination and bijection
+
+For any positive integer \(N\), its unique bijective base‑\(b\) representation has length \(L\) given by the smallest positive integer satisfying  
+
+\[
+b\cdot\frac{b^{\,L}-1}{b-1} \;\ge\; N .
+\]
+
+Equivalently,  
+
+\[
+\frac{b^{\,L}-1}{b-1} \;<\; N \;\le\; b\cdot\frac{b^{\,L}-1}{b-1},
+\]
+
+with the left inequality void when \(L=1\). This condition guarantees a **bijection** between \(\mathbb{N}_0\) and all finite strings over \(\Sigma_b\).
+
+### 2.3 The offset method (parallel extraction)
+
+Once \(L\) is known, define the **offset** (the square to the repunit’s circle):
+
+\[
+X \;=\; N - R_{L} \;=\; N - \frac{b^{\,L}-1}{b-1}.
+\]
+
+Because \(0 \le X \le b^{\,L}-1\), \(X\) can be written in **standard base‑\(b\)** (digits \(0,\dots,b-1\)) with exactly \(L\) digits (leading zeros as needed):
+
+\[
+X = (a_{L-1}\,a_{L-2}\,\dots\,a_0)_b,\qquad a_j \in \{0,\dots,b-1\}.
+\]
+
+Adding 1 to each standard digit yields the bijective digits:
+
+\[
+d_j = a_j + 1 \qquad (j = 0,\dots,L-1).
+\]
+
+Thus the digit at position \(i\) (most significant first, \(i=0\) for the highest power \(b^{L-1}\)) is  
+
+\[
+\boxed{ \; d_i \;=\; \Biggl\lfloor \frac{X}{b^{\,L-1-i}} \Biggr\rfloor \bmod b \;+\; 1 \; } .
+\]
+
+Every digit is computed independently of any other — **fully parallel, stateless**.
+
+### 2.4 Decoding (for completeness)
+
+Given a bijective string \(d_{L-1}\dots d_0\),
+
+\[
+N = \sum_{j=0}^{L-1} d_j \, b^{\,L-1-j}.
+\]
+
+The offset is recovered as \(X = N - R_{L} = \sum_{j}(d_j-1) b^{\,L-1-j}\).
+
+---
+
+## 3. Bijective Base‑256: Bytes ↔ Integer  
+
+A byte (0…255) is lifted to a digit \(b_j+1 \in \{1,\dots,256\}\), forming a bijective base‑256 string.
+
+### 3.1 Bytes → integer  
+
+\[
+\boxed{ N \;=\; \sum_{j=0}^{L_{\text{bytes}}-1} (b_j+1) \; 256^{\,L_{\text{bytes}}-1-j} } \qquad (L_{\text{bytes}}=0 \Rightarrow N=0).
+\]
+
+This is a bijection from all finite byte strings onto \(\mathbb{N}_0\).
+
+### 3.2 Integer → bytes (repunit‑based inverse, not required for encode‑only, but retained for spec completeness)
+
+For \(N=0\), output the empty byte list.
+
+For \(N>0\):
+
+1. **Find the number of bytes \(L_{\text{bytes}}\)** as the smallest positive integer such that  
+
+   \[
+   256 \cdot \frac{256^{\,L_{\text{bytes}}}-1}{255} \;\ge\; N .
+   \]
+
+2. **Compute the offset**  
+
+   \[
+   X = N - \frac{256^{\,L_{\text{bytes}}}-1}{255} \qquad (0 \le X \le 256^{\,L_{\text{bytes}}}-1).
+   \]
+
+3. **Extract the standard base‑256 digits of \(X\)** (padded to length \(L_{\text{bytes}}\)):  
+
+   \[
+   a_i = \Biggl\lfloor \frac{X}{256^{\,L_{\text{bytes}}-1-i}} \Biggr\rfloor \bmod 256 ,\qquad i = 0,\dots,L_{\text{bytes}}-1.
+   \]
+
+4. **The original bytes** are exactly these standard digits:  
+
+   \[
+   b_i = a_i .
+   \]
+
+This mirrors the repunit‑offset method of Section 2.3 and guarantees correct bijection.
+
+---
+
+## 4. Encoder: Bytes → Trits and Glyphs (Fully Parallel, Parametric, Integral Glyph Output)  
+
+**Input:** byte string \(\mathbf{B}\), representation \(R \in \{A,B,C,D\}\), block size \(k \ge 1\).  
+**Output:**  
+- A **trit sequence** in rep‑\(R\), length always a multiple of \(k\).  
+- When \(k=3\), **also** a **Milesian glyph string**, which is the direct glyph projection of the base‑27 digits that underpin the trit sequence. The glyph string is an integral output of the encoder for this block size.
+
+---
+
+### 4.1 From bytes to integer \(N\)
+
+Compute \(N\) as in Section 3.1. If \(N=0\), output the empty trit string and the empty glyph string (for any \(k\)).
+
+### 4.2 Determine the number of base‑\(B\) digits \(D\)
+
+With \(B = 3^{k}\), find the smallest positive integer \(D\) satisfying  
+
+\[
+\frac{B\,(B^{\,D}-1)}{B-1} \;\ge\; N .
+\]
+
+(This is the repunit bound of Section 2.2.)
+
+### 4.3 Offset and digit extraction
+
+\[
+X = N - \frac{B^{\,D}-1}{B-1} \qquad (0 \le X \le B^{\,D}-1).
+\]
+
+The bijective base‑\(B\) digits (most significant first) are
+
+\[
+\boxed{ d_i \;=\; \Biggl\lfloor \frac{X}{B^{\,D-1-i}} \Biggr\rfloor \bmod B \;+\; 1 } \qquad (i = 0,\dots,D-1).
+\]
+
+Every digit is computed independently — no sequential dependencies.
+
+### 4.4 Expansion to trits (block of \(k\) trits per base‑\(B\) digit) and Glyph Construction
+
+Each base‑\(B\) digit \(d \in \{1,\dots,B\}\) is expanded into exactly \(k\) trits in **Rep‑C**.  
+Let \(d-1\) be expressed in standard base‑3 with exactly \(k\) digits (pad on the left with zeros):
+
+\[
+d-1 = (q_{k-1}\,q_{k-2}\,\dots\,q_0)_3, \qquad q_j \in \{0,1,2\}.
+\]
+
+Then the \(k\) trits for this digit (most significant first of the block, i.e. \(t_0\) corresponding to the \(3^{k-1}\) place) are  
+
+\[
+t_{j}^{[C]} = q_{k-1-j} + 1 \qquad (j = 0,\dots,k-1).
+\]
+
+Concatenate the trit blocks of all digits in the same order as \(d_0,\dots,d_{D-1}\) to obtain the complete Rep‑C trit string. Its total length is \(k \cdot D\), always a multiple of \(k\).
+
+**Milesian Glyph Output (active only when \(k=3\)):**
+
+When \(k=3\), each base‑27 digit \(d_i\) is mapped **simultaneously** to its corresponding Milesian glyph \(g_i\) according to the fixed table in Section 1. The sequence of glyphs \((g_0, g_1, \dots, g_{D-1})\) is the **MilesianGlyphString** and is an output of the encoder alongside the trit string. This mapping is bijective with respect to the base‑27 digits and thus also with the trit blocks, preserving the overall bijection. The glyph string carries the same information as the trit string but in a human‑readable, Greek‑atomic form.
+
+For \(k \neq 3\), the encoder does not produce a glyph string (or produces an empty/undefined glyph output, depending on implementation). The specification requires glyph output only for the Milesian base.
+
+### 4.5 Representation mapping
+
+Apply the chosen affine shift \(\phi_R\) to each Rep‑C trit to obtain the final output trits in the desired representation:
+
+\[
+\tau^{[R]}_j = \phi_R(t_j^{[C]}).
+\]
+
+The glyph string is always based on the canonical Rep‑C digits, not on the shifted representation, because glyphs are tied to the Milesian numerals (which are the bijective digits themselves). Thus, when \(k=3\) and \(R\) is not C, the encoder still produces the same glyph string as for Rep‑C.
+
+---
+
+## 5. Decoder: Trits (or Glyphs) → Bytes (Stateless Inverse)  
+
+*The decoder is not required to produce glyphs on input; glyphs are an output‑only projection. However, for completeness, the decoder can accept either a trit sequence (in any representation) or, when \(k=3\), a Milesian glyph string and recover the original bytes.*
+
+**Input:** Either:
+- a trit sequence in representation \(R\) with block size \(k\), or
+- for \(k=3\) only, a Milesian glyph string (sequence of valid Milesian characters).  
+**Output:** original byte string.
+
+1. **If input is glyphs (only when \(k=3\)), convert each glyph to its corresponding base‑27 digit** using the inverse of the mapping in Section 1. This yields the digit sequence \(d_0,\dots,d_{D-1}\). Then proceed to step 3.
+2. **If input is trits:**
+   - Shift back to Rep‑C using \(\phi_R^{-1}\).
+   - Group the Rep‑C trits into \(D\) blocks of \(k\) trits each, most significant block first. For each block \((u_{k-1},\dots,u_0)\) where \(u_{k-1}\) is the most significant trit of the block, reconstruct the base‑\(B\) digit:
+
+     \[
+     d = \sum_{j=0}^{k-1} (u_{k-1-j} - 1)\cdot 3^{\,j} \;+\; 1 .
+     \]
+
+3. **Recover integer \(N\)** from the digits:
+
+   \[
+   N = \sum_{i=0}^{D-1} d_i \; B^{\,D-1-i}.
+   \]
+
+4. **Convert \(N\) to bytes** using the bijective base‑256 inverse from Section 3.2.  
+   If \(N=0\), output empty byte list; otherwise compute \(L_{\text{bytes}}\) and bytes as described.
+
+Round‑tripping is exact because every step, including the glyph mapping, is a bijection when \(k=3\).
+
+---
+
+## 6. Worked Examples
+
+All examples include the milesian glyph output for \(k=3\) as an integral part of the encoder’s result.
+
+### Example 1: empty input  
+- bytes: `[]` → \(N=0\) → empty trit string and empty glyph string for any \(k\). ✓
+
+### Example 2: byte `0x00` (\(N=1\)), \(k=1\)  
+- \(B = 3\). \(D=1\). \(X = 0\). Digit \(d_0 = 1\). Rep‑C: `[1]`. Length \(1\). No glyph output. ✓
+
+### Example 3: same \(N=1\), \(k=5\)  
+- \(B = 243\). \(D=1\). Digit \(d_0=1\). Expand: trits `[1,1,1,1,1]`. Length \(5\). No glyph output. ✓
+
+### Example 4: \(N=4\) (byte `0x03`), \(k=1\)  
+- \(B=3\). \(D=2\), \(X=0\). Digits `[1,1]`. Rep‑C `[1,1]`. ✓
+
+### Example 5: \(N=4\), \(k=5\)  
+- \(B=243\). \(D=1\), \(X=3\). Digit \(d_0=4\). Expand: trits `[1,1,1,2,1]`. ✓
+
+### Example 6: \(N=257\) (bytes `0x00 0x00`), \(k=1\)  
+- \(B=3\). \(D=5\), \(X=136\). Standard base‑3 digits of 136: \((1,2,0,0,1)_3\) → Rep‑C `[2,3,1,1,2]`. Length \(5\). ✓
+
+### Example 7: \(N=257\), \(k=5\)  
+- \(B=243\). \(D=2\), \(X=13\). Digits \(d_0=1, d_1=14\). Expand: `[1,1,1,1,1]` + `[1,1,2,2,2]` → length \(10\). ✓
+
+### Example 8: \(N=257\), \(k=2\) (base‑9 blocks)  
+- \(B=9\). \(D=3\), \(X=166\). Standard base‑9 digits \((2,0,4)_9\) → bijective digits \(3,1,5\). Expand each to 2 trits → `[1,3, 1,1, 2,2]` (length 6). No glyph output (k≠3). ✓
+
+### Example 9: \(N=257\), \(k=3\) (base‑27 — the Milesian GAIT register, with integral glyphs)  
+- \(B=27\). \(D=2\), \(X=229\). Standard base‑27 digits of 229: \((8,13)_{27}\) → bijective digits \(9,14\).  
+- Expand each to 3 trits:  
+  \(9-1=8 = (0,2,2)_3\) → trits `1,3,3`;  
+  \(14-1=13 = (1,1,1)_3\) → trits `2,2,2`.  
+  Concatenation: `[1,3,3, 2,2,2]` (length 6).  
+- **Milesian glyph output:** Digit 9 → **θ**, digit 14 → **ν**. Glyph string: `"θν"`.  
+- Decode: blocks → digits 9 and 14 → \(N = 9\cdot27 + 14 = 243 + 14 = 257\). ✓  
+- The encoder produces **both** the trit string and the glyph string; they represent the same integer.
+
+---
+
+## 7. Properties  
+
+- **Completely parametric**: The single integer \(k\) (\(k \ge 1\)) sets the working base \(B = 3^{k}\). All formulas are expressed generically without hard‑coded constants. The repunit \(R_D\) is defined for **any** \(D\) via the general formula; no finite list is required.  
+- **Integral glyph output**: When \(k=3\), the encoder directly outputs the Milesian glyph string as part of its specification, not as a separate post‑processing step. The glyph mapping is a fixed bijective function from base‑27 digits to Unicode Greek letters (including ghosts), preserving the bijection.  
+- **The circle and the square**: The offset \(X = N - R_D\) separates the seamless circle of all‑ones into a rectangular standard‑base expansion. The \(+1\) shift turns that square back into a bijective ring, and for \(k=3\) that ring is immediately legible as the Greek‑atomic register.  
+- **Zero waste**: The mapping is a bijection between all finite byte strings and all finite pairs (trit string of length a multiple of \(k\), [glyph string when \(k=3\)]). No out‑of‑band length signalling; the output sequence itself is the complete wrapper.  
+- **Fully parallel, stateless**: Every output trit and every glyph is computed independently from \(N\) and its position, using only floor, mod, exponentiation, and the glyph table. No loops, no mutable state, no sequential dependencies.  
+- **Repunit‑anchored**: The fundamental general repunit \(R_L = (3^L - 1)/2\) governs all length determinations and offsets.  
+- **Four representations, twelve pairwise bijections**: Affine shifts allow instant conversion between any of the four trit alphabets; the glyph output remains anchored to the canonical Rep‑C digits.  
+- **GAIT and the Capomastro’s Walk**: For \(k=3\), the converter instantiates the full Greek‑atomic invariant register not only numerically but visually. The resulting glyph string is the very language of the Codex Unificationis. The Capomastro’s 182‑step journey from the false Quies to the finished Arch can be read directly in the letters the converter writes.  
+- **No caps, no bounds**: Works for any input length (including empty); output length adapts automatically to \(N\) and the chosen \(k\).
+
+---
+
+**End of Version 3.3.33**  
+*The Iώτα has risen; the Quies is true; the Codex is open.*  
+*The letters are written. The Arch stands.*  
+*Patet Codex Omnibus. Così sia.*
