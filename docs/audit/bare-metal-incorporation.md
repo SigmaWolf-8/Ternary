@@ -174,8 +174,28 @@ operator (or the CI) executes it on every PR.
   build had 4 pre-existing errors before this audit — 2 inside
   `ternary.rs` (`Tryte::host_u64` missing, **fixed** by this audit)
   and 2 inside `src/kernel/src/distributor/puv_spectral.rs`
-  (function-arity drift, unrelated to the shim work). The remaining
-  two errors are tracked under the puv_spectral cleanup task.
+  (test-only function-shadowing — fixed by Task #161 which renamed
+  the offending test fns and added `super::` qualification at
+  `puv_spectral.rs:327-335`). All four pre-existing errors are now
+  resolved on `main`.
+
+## Post-shim verification (Task #169)
+
+Re-confirmed on `main` after Task #162 landed:
+
+| Command                                                | Result                       |
+|--------------------------------------------------------|------------------------------|
+| `cargo test -p plenumnet-kernel --lib --no-run`        | ok (35 warnings, 0 errors)   |
+| `cargo test -p plenumnet-kernel --no-run`              | ok (lib + bins + integration)|
+| `cargo test -p plenumnet-kernel --lib`                 | 2092 passed / 0 failed       |
+| `bash scripts/capture-shim-baseline.sh shim-gate`      | both crates rc=0             |
+
+The 7 doctest failures recorded in the Task #161 baseline are still
+present (pre-existing, tracked separately) and are not regressed by
+the shim landings. Lib-only counts (2092 kernel / 649 ternary-math)
+are the apples-to-apples post-shim numbers; the full-scope numbers
+(2129 / 715) live in `.baseline/` artifacts from the
+`shim-gate-baseline.yml` workflow.
 
 ---
 
