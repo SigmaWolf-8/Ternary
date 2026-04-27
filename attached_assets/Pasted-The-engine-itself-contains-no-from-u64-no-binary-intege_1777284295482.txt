@@ -1,0 +1,186 @@
+The engine itself contains **no** `from_u64`, no binary integers, no byte‑to‑trit conversion.  
+All inputs are provided directly as `TritVec` values. Constants are defined using a macro that builds trit vectors from trit literals at compile time.  
+This keeps the engine pure ternary and fully agnostic.
+
+---
+
+## 1.  Trit
+
+```rust
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Trit {
+    One   = 1,
+    Two   = 2,
+    Three = 3,
+}
+```
+
+---
+
+## 2.  TritVec
+
+```rust
+pub struct TritVec {
+    // Most significant trit first.
+    // Empty vector = 0.
+    trits: Vec<Trit>,
+}
+```
+
+**Core operations** (all trit‑wise, Rep‑C only):
+
+- `add`, `sub`, `mul`, `divmod` (returns quotient and remainder), `inc`, `is_empty`, `compare`.
+
+**Constructors** (no binary arithmetic):
+
+```rust
+impl TritVec {
+    /// Empty (zero)
+    pub fn empty() -> Self { ... }
+    /// Single trit
+    pub fn single(t: Trit) -> Self { ... }
+    /// From slice of trits, most significant first
+    pub fn from_trits(trits: &[Trit]) -> Self { ... }
+}
+```
+
+**Compile‑time macro** for convenience:
+
+```rust
+macro_rules! tritvec {
+    ( $( $t:expr ),* ) => {
+        TritVec::from_trits(&[ $( Trit::from_u8($t) ),* ])
+    };
+}
+// Trit::from_u8 just matches 1->One, 2->Two, 3->Three – no arithmetic.
+```
+
+Examples:
+
+```rust
+let seven    = tritvec![2, 1];        // 2×3 + 1 = 7
+let eleven   = tritvec![3, 2];        // 3×3 + 2 = 11
+let thirteen = tritvec![1, 1, 1];    // 1×9 + 1×3 + 1 = 13
+let base_27  = tritvec![3, 3, 3];    // 27
+let base_256 = tritvec![2, 3, 1, 1, 1]; // 256
+```
+
+All framework constants (28, 91, 182, 364, 1001, …) are defined exactly once as `TritVec` literals using this macro.
+
+---
+
+## 3.  Walk Engine
+
+```rust
+pub struct Walk {
+    moduli: Vec<TritVec>,
+    step:    Vec<TritVec>,   // m_i - 1
+    state:   Vec<TritVec>,   // residues (0 = empty)
+    t:       TritVec,        // time (starts empty)
+}
+
+impl Walk {
+    pub fn new(moduli: Vec<TritVec>) -> Self {
+        let step = moduli.iter()
+            .map(|m| m.sub(&TritVec::single(Trit::One)))
+            .collect();
+        Walk {
+            state: vec![TritVec::empty(); moduli.len()],
+            moduli,
+            step,
+            t: TritVec::empty(),
+        }
+    }
+
+    pub fn step(&mut self) {
+        for i in 0..self.moduli.len() {
+            let sum = self.state[i].add(&self.step[i]);
+            self.state[i] = if sum.compare(&self.moduli[i]) != Ordering::Less {
+                sum.sub(&self.moduli[i])
+            } else {
+                sum
+            };
+        }
+        self.t = self.t.add(&TritVec::single(Trit::One));
+    }
+
+    pub fn is_origin(&self) -> bool {
+        self.state.iter().all(|r| r.is_empty())
+    }
+
+    pub fn crt_recover(&self) -> TritVec {
+        // Pre‑compute M_i, inv_i as TritVecs once (outside, using TritVec arithmetic)
+        // Return Σ state[i] * M_i * inv_i mod L
+        // ...
+    }
+}
+```
+
+---
+
+## 4.  Milesian Glyph Output
+
+Given a `TritVec` representing any integer \(N\):
+
+```rust
+pub fn milesian_glyph(n: &TritVec) -> String {
+    let base27 = tritvec![3, 3, 3];
+    let mut remaining = n.clone();
+    let mut digits = vec![];
+
+    if remaining.is_empty() {
+        return String::new(); // empty for N=0
+    }
+
+    while !remaining.is_empty() {
+        let (quot, rem) = remaining.divmod(&base27);
+        // rem is 0..26, digit = rem + 1
+        let digit = rem.inc();
+        digits.push(digit);
+        remaining = quot;
+    }
+    digits.reverse();
+
+    // Map digit (1‑27) to glyph
+    const GLYPHS: [char; 27] = [
+        'α','β','γ','δ','ε','ϛ','ζ','η','θ',
+        'ι','κ','λ','μ','ν','ξ','ο','π','ϙ',
+        'ρ','σ','τ','υ','φ','χ','ψ','ω','ϡ'
+    ];
+
+    digits.iter().map(|d| {
+        let idx = d.to_u64() as usize - 1; // to_u64 only for indexing – tiny boundary, acceptable.
+        GLYPHS[idx]
+    }).collect()
+}
+```
+
+Note: `digit.to_u64()` is a trivial conversion of a TritVec that is guaranteed to be ≤27 back to a Rust integer for array indexing. It does not involve arithmetic.
+
+---
+
+## 5.  Complete Agnostic Usage
+
+```rust
+// User supplies moduli in TritVec form – no from_u64 anywhere.
+let moduli = vec![
+    tritvec![2, 1],      // 7
+    tritvec![3, 2],      // 11
+    tritvec![1, 1, 1],   // 13
+];
+
+let mut walk = Walk::new(moduli);
+
+// Optionally seed state from a pre‑computed TritVec‑based seed (no bytes inside engine).
+// The engine itself never touches bytes.
+
+loop {
+    walk.step();
+    let n = walk.crt_recover();
+    let glyph = milesian_glyph(&n);
+    println!("t = {}   glyph = {}", walk.t, glyph); // walk.t Display can show trits
+    if walk.is_origin() { break; }
+}
+```
+
+The engine is ternary pure. The `tritvec!` macro and literals eliminate all binary numbers from the system. The only remaining bridge to the outside world is the optional byte‑to‑TritVec conversion utility, which resides outside the engine core and may use binary; it is not required for the engine to function.
