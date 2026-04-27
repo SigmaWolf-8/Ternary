@@ -98,24 +98,49 @@ fn spec_v3_3_33_repx_from_bijective() {
 
 #[test]
 fn spec_v3_3_33_milesian_first_few_glyphs() {
-    // 0 = (empty in Milesian — divmod(0, 27) terminates immediately)
-    // 1 = α   (position 0)
-    // 27 = αα (position 1, then position 0): 27 = 1·27 + 0 → digits LSB [0, 1] → MSB "βα"  ?
+    // Spec v3.3.33 §4.5 — the glyph string is the bijective base-27
+    // representation of N over the Milesian alphabet (positions 1..27,
+    // with ghosts at 6 = digamma, 18 = qoppa, 27 = sampi).
     //
-    // Actually in our LSB-first decomposition:
-    //   27 mod 27 = 0 → α; 27 / 27 = 1 → 1 mod 27 = 1 → β; 1 / 27 = 0 → stop
-    //   Digits LSB = [α, β]; MSB = "βα"
-    // That's the canonical Milesian convention: most-significant glyph
-    // appears first in the rendered string.
-    let zero = TritVec::from_rep_b(&[0]).unwrap();
-    assert_eq!(glyphs_msb(&zero), "");
+    //   N = 0  → ""           (no digits)
+    //   N = 1  → "α"          (position 1)
+    //   N = 6  → "ϛ"          (position 6 = digamma, ghost)
+    //   N = 18 → "ϟ"          (position 18 = qoppa, ghost)
+    //   N = 26 → "ω"          (position 26)
+    //   N = 27 → "ϡ"          (position 27 = sampi, ghost)
+    //   N = 28 → "αα"         (28 = 1·27 + 1 → bijective digits LSB [1,1])
+    //   N = 54 → "αϡ"         (54 = 1·27 + 27 → bijective digits LSB [27,1])
+    let cases: &[(u8, &str)] = &[
+        (0, ""),
+        (1, "α"),
+        (6, "ϛ"),
+        (18, "ϟ"),
+        (26, "ω"),
+        (27, "ϡ"),
+        (28, "αα"),
+        (54, "αϡ"),
+    ];
+    for &(n, expected) in cases {
+        let v = TritVec::from_rep_b(&decimal_to_repb(n as u64)).unwrap();
+        assert_eq!(
+            glyphs_msb(&v),
+            expected,
+            "milesian glyph mismatch for N = {n}: expected `{expected}`",
+        );
+    }
+}
 
-    let one = TritVec::from_rep_b(&[1]).unwrap();
-    assert_eq!(glyphs_msb(&one), "β"); // position 1 → β  (positions 0..26: α β γ δ ε ϛ ζ η θ ι κ λ μ ν ξ ο π ϟ ρ σ τ υ φ χ ψ ω ϡ)
-                                        // Wait: position 0 = α, position 1 = β. Value 1 = position 1?
-                                        // No: value 1 mod 27 = 1 → MilesianDigit{position: 1} → glyph β.
-                                        // Hmm — that's a Milesian convention question. The Greek
-                                        // alphabet starts at α = 1, so position 0 should be α
-                                        // representing value 0, position 1 = β representing value 1.
-                                        // We follow the "value-equals-position" convention here.
+/// Render a `u64` as the MSB-first base-3 (Rep-B) digit sequence used
+/// by `TritVec::from_rep_b`. `0` → `[0]`.
+fn decimal_to_repb(mut n: u64) -> Vec<u8> {
+    if n == 0 {
+        return alloc::vec![0];
+    }
+    let mut digits: Vec<u8> = Vec::new();
+    while n > 0 {
+        digits.push((n % 3) as u8);
+        n /= 3;
+    }
+    digits.reverse();
+    digits
 }

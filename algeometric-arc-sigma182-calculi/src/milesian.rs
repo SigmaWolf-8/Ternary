@@ -3,16 +3,34 @@
 // Applied Physics Division — Salvi Framework
 // PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
 
-//! # `milesian` — `divmod(b³)` over the b³-glyph table
+//! # `milesian` — bijective base-`b³` over the Milesian glyph table
 //!
 //! The Milesian register has `b³ = 27` glyphs — one per Greek-alphabet
-//! position (with the three ghost letters reinstated). Any TritVec
-//! decomposes into a sequence of Milesian glyphs by repeated division
-//! by `b³`:
+//! position **1..=27** with the three ghost letters reinstated
+//! (digamma at position 6, qoppa at position 18, sampi at position 27).
+//!
+//! Per Spec v3.3.33 §4.5 the glyph string is the **bijective base-27
+//! representation** of `N`. Bijective base-`b` uses digits `1..=b`
+//! (no zero digit), so the natural numeral line is:
 //!
 //! ```text
-//!     digit_i = n  mod b³
-//!     n       = n  div b³
+//!     N = 0  → ""           (empty)
+//!     N = 1  → α            (digit 1)
+//!     N = 27 → ϡ            (digit 27 = sampi)
+//!     N = 28 → αα           (digits LSB [1, 1])
+//! ```
+//!
+//! The decomposition recurrence is the canonical bijective form:
+//!
+//! ```text
+//!     while n > 0:
+//!         (q, r) = divmod(n, b³)
+//!         if r == 0:
+//!             digit = b³          (= 27, ghost-letter ϡ)
+//!             q     = q - 1       (carry the borrow)
+//!         else:
+//!             digit = r
+//!         emit digit; n = q
 //! ```
 //!
 //! At the boundary the engine emits a `&'static str` glyph from the
@@ -24,44 +42,52 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use crate::arithmetic::{cmp, divmod};
+use crate::arithmetic::{cmp, divmod, sub};
 use crate::constants::{__tb, B3_INT};
 use crate::tritvec::TritVec;
 
-/// The b³-glyph table. 27 entries, indexed `0..=26` by Milesian
-/// position. Glyphs are the canonical Greek alphabet positions
-/// extended with the three ghost letters at positions 6 (digamma),
-/// 18 (qoppa), and 26 (sampi).
+/// The b³-glyph table. 27 entries, indexed `0..=26` by `(position - 1)`.
+/// Glyphs are the canonical Greek alphabet positions 1..=27 extended
+/// with the three ghost letters: digamma (position 6), qoppa
+/// (position 18), sampi (position 27).
 pub const GLYPH_TABLE: [&str; 27] = [
-    "α", "β", "γ", "δ", "ε", "ϛ", // 6 = digamma (ghost)
-    "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "ο", "π", "ϟ", // 18 = qoppa (ghost)
-    "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω", "ϡ", // 27 = sampi (ghost)
+    "α", "β", "γ", "δ", "ε", "ϛ", // position 6 = digamma (ghost)
+    "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ", "ο", "π", "ϟ", // position 18 = qoppa (ghost)
+    "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω", "ϡ", // position 27 = sampi (ghost)
 ];
 
 /// One decoded Milesian digit.
+///
+/// `position` is the **1-indexed Milesian position**, in `1..=27`,
+/// matching Spec v3.3.33 §1 (`MilesianGlyph` carries position 1..27).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MilesianDigit {
-    /// Position in the b³ register, `0..=26`.
     position: u8,
 }
 
 impl MilesianDigit {
-    /// Construct from an in-range position. Returns `None` outside
-    /// `0..27`.
+    /// Construct from an in-range Milesian position `1..=27`.
+    /// Returns `None` for `0` or anything `> 27`.
     #[inline]
     pub const fn new(position: u8) -> Option<Self> {
-        if position < 27 {
+        if position >= 1 && position <= 27 {
             Some(Self { position })
         } else {
             None
         }
     }
 
+    /// The 1..=27 Milesian-position integer.
+    #[inline]
+    pub const fn position(self) -> u8 {
+        self.position
+    }
+
     /// **The single permitted Rep-B-narrowing call** — turn a digit
-    /// into its `usize` table index (I-3).
+    /// into its `usize` table index, `(position - 1)` (I-3).
     #[inline]
     pub const fn to_index(self) -> usize {
-        self.position as usize
+        (self.position - 1) as usize
     }
 
     /// Look up the glyph for this digit.
@@ -76,21 +102,36 @@ fn b3_tv() -> TritVec {
     TritVec::from_trits(&[__tb(1), __tb(0), __tb(0), __tb(0)])
 }
 
+/// `1` as a TritVec (`[1]` in Rep-B base-3).
+fn one_tv() -> TritVec {
+    TritVec::from_trits(&[__tb(1)])
+}
+
 /// Decompose a non-negative TritVec into Milesian digits, **least-
-/// significant first**. Each digit is a value in `0..b³`.
+/// significant first**. Each digit carries a 1..=27 Milesian position
+/// (bijective base-27 per Spec v3.3.33 §4.5).
 pub fn digits_lsb(n: &TritVec) -> Vec<MilesianDigit> {
     let mut out = Vec::new();
     let zero = TritVec::zeros(1);
     let base = b3_tv();
+    let one = one_tv();
     let mut current = n.clone().trim_leading_zeros();
 
     while cmp(&current, &zero) == core::cmp::Ordering::Greater {
-        let (q, r) = divmod(&current, &base).expect("b³ ≠ 0");
-        // r is a TritVec representing 0..=26 in Rep-B base-3.
-        // Convert via the at-most-3-trit window to a u8 ≤ 26.
+        let (mut q, r) = divmod(&current, &base).expect("b³ ≠ 0");
+        // `r` is a TritVec representing 0..=26 in Rep-B base-3.
         let r_val = small_repb_to_u8(&r);
-        // Boundary narrow: r_val < b³, fits a u8.
-        let d = MilesianDigit::new(r_val as u8).expect("r < b³");
+        // Bijective adjustment: r == 0 means "carry the borrow" — the
+        // emitted digit is the full base (27 = sampi, ϡ) and q is
+        // decremented by 1.
+        let digit_val: u8 = if r_val == 0 {
+            q = sub(&q, &one).expect("q ≥ 1 when r == 0 because n > 0");
+            27
+        } else {
+            r_val as u8
+        };
+        // Boundary narrow: digit_val ∈ 1..=27, fits a u8.
+        let d = MilesianDigit::new(digit_val).expect("1 ≤ digit ≤ 27");
         out.push(d);
         current = q;
     }
@@ -119,6 +160,6 @@ fn small_repb_to_u8(t: &TritVec) -> u32 {
 }
 
 const _: () = {
-    // 27 entries
+    // 27 entries — one per Milesian position 1..=27.
     assert!(GLYPH_TABLE.len() == 27);
 };
