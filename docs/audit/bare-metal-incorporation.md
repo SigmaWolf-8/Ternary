@@ -377,15 +377,37 @@ After the script returns:
 
 ### Rotation
 
-Tokens are short-lived; the runner installation itself can be
-re-pointed at a fresh token without redoing the OS-level
-prerequisites:
+GitHub mints **two distinct tokens** for self-hosted runners and
+the script and runbook treat them separately:
+
+- **Registration token** (`RUNNER_TOKEN`) — minted from
+  `Settings → Actions → Runners → New self-hosted runner`.
+  Single-use, ~1 hour TTL. Required by `./config.sh` to register a
+  new runner OR to `--replace` an existing one with the same name.
+- **Removal token** (`RUNNER_REMOVAL_TOKEN`) — minted from
+  `Settings → Actions → Runners → <existing runner> → Remove`.
+  Required by `./config.sh remove` to deregister a runner that the
+  same host owns.
+
+Most rotations only need a fresh registration token because
+`./config.sh --replace` performs the GitHub-side swap atomically.
+The script clears any stale local `.runner` / `.credentials` files
+so the same RUNNER_NAME re-registers cleanly without an explicit
+removal step:
 
 ```bash
-# Re-run the same script with a fresh RUNNER_TOKEN — the script's
-# config step uses --replace, so the same RUNNER_NAME re-registers
-# cleanly (Step 1–3 are idempotent and short-circuit).
-export RUNNER_TOKEN='AAAA…'   # fresh token from the GitHub UI
+# Common case — rotate the registration secret only.
+export RUNNER_TOKEN='AAAA…'   # fresh registration token
+bash scripts/bootstrap-bare-metal-runner.sh
+```
+
+If the runner is wedged on the GitHub side (e.g., a previous
+`config.sh` crashed mid-handshake and left an orphan registration),
+supply both tokens to force a clean unregister-then-reregister:
+
+```bash
+export RUNNER_TOKEN='AAAA…'           # fresh registration token
+export RUNNER_REMOVAL_TOKEN='BBBB…'   # fresh removal token for the same runner
 bash scripts/bootstrap-bare-metal-runner.sh
 ```
 
@@ -395,7 +417,7 @@ To fully decommission a host:
 cd "$RUNNER_HOME"
 sudo ./svc.sh stop
 sudo ./svc.sh uninstall
-./config.sh remove --token "$REMOVAL_TOKEN"   # also from the GitHub UI
+./config.sh remove --token "$REMOVAL_TOKEN"   # removal token, NOT a registration token
 ```
 
 ### Troubleshooting

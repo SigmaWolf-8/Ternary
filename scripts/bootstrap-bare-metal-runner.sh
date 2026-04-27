@@ -72,7 +72,11 @@ fi
 if [[ -z "${RUNNER_URL:-}" || -z "${RUNNER_TOKEN:-}" ]]; then
     fail "RUNNER_URL and RUNNER_TOKEN are required. Get the token from:
        Settings → Actions → Runners → New self-hosted runner (Linux x64).
-       The token is single-use and expires after ~1 hour."
+       The token is single-use and expires after ~1 hour.
+       NOTE: this is the *registration* token, not the *removal* token.
+             GitHub mints them separately. Only set RUNNER_REMOVAL_TOKEN
+             below if you want a clean re-registration on a host that
+             already has a stale .runner file."
 fi
 
 RUNNER_NAME="${RUNNER_NAME:-$(hostname)}"
@@ -80,6 +84,10 @@ RUNNER_USER="${RUNNER_USER:-$USER}"
 RUNNER_HOME="${RUNNER_HOME:-/home/$RUNNER_USER/actions-runner}"
 RUNNER_LABELS="${RUNNER_LABELS:-self-hosted,bare-metal,Linux,X64}"
 RUNNER_VERSION="${RUNNER_VERSION:-2.319.1}"
+# Optional — distinct from RUNNER_TOKEN. Only required when re-registering
+# a host that already has a stale .runner file. Mint via:
+#   Settings → Actions → Runners → <existing runner> → Remove → copy token.
+RUNNER_REMOVAL_TOKEN="${RUNNER_REMOVAL_TOKEN:-}"
 
 case "$RUNNER_LABELS" in
     *bare-metal*) ;;
@@ -184,14 +192,30 @@ else
     ok "Runner archive already present — skipping download."
 fi
 
-# Configure (idempotent — `--replace` lets the same name re-register cleanly).
+# Configure. `--replace` is the supported re-registration path: it takes the
+# *registration* token and force-replaces any existing runner that owns the
+# same name in GitHub's runner table, so the operator does NOT need a
+# separate removal token in the common case.
+#
+# We only call `./config.sh remove` (which DOES need a removal token) when
+# the operator explicitly supplies RUNNER_REMOVAL_TOKEN. Without that token
+# the call would fail silently and leave a stale `.runner` file on disk —
+# `--replace` then takes care of the GitHub-side cleanup.
 log "Registering runner with GitHub..."
+if [[ -f "$RUNNER_HOME/.runner" && -n "$RUNNER_REMOVAL_TOKEN" ]]; then
+    log "Stale .runner detected and RUNNER_REMOVAL_TOKEN supplied — unconfiguring first."
+    sudo -u "$RUNNER_USER" -H bash -c "
+        cd '$RUNNER_HOME'
+        ./config.sh remove --token '$RUNNER_REMOVAL_TOKEN' || true
+    "
+elif [[ -f "$RUNNER_HOME/.runner" ]]; then
+    log "Stale .runner detected (no removal token) — relying on --replace for the GitHub-side swap."
+    # Drop the local marker so config.sh does not refuse to write a new one.
+    sudo -u "$RUNNER_USER" -H rm -f "$RUNNER_HOME/.runner" "$RUNNER_HOME/.credentials" "$RUNNER_HOME/.credentials_rsaparams"
+fi
+
 sudo -u "$RUNNER_USER" -H bash -c "
     cd '$RUNNER_HOME'
-    if [[ -f .runner ]]; then
-        # Already configured — unconfigure first so a fresh token works.
-        ./config.sh remove --token '$RUNNER_TOKEN' || true
-    fi
     ./config.sh \
         --url '$RUNNER_URL' \
         --token '$RUNNER_TOKEN' \
