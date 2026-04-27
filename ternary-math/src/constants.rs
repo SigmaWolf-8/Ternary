@@ -146,6 +146,42 @@ pub const T_Z28_ORDER: TritInt = TritInt::from_trits(&[1, 0, 0, 1]);
 /// Circumference = 1554 = 2010120₃.
 pub const T_CIRCUMFERENCE: TritInt = TritInt::from_trits(&[0, 2, 1, 0, 1, 0, 2]);
 
+// ── Milesian Register (Spec v3.3.33 §1) ─────────────────────
+//
+// b³ = 27 = 1000₃ is the bijective base of the Milesian numeral
+// system. The register lists the 27 canonical glyphs in
+// position order. Three positions hold ghost glyphs (digamma at
+// 6, koppa at 18, sampi at 27); they are present in the register
+// because positions are bijective and structural.
+//
+// The Milesian numeral G(p) is a closed-form arithmetic function
+// of position (units / tens / hundreds), not a stored datum, so
+// no T_GHOST_NUMERALS array is exported.
+
+/// b³ = 27 = 1000₃. Bijective base of the Milesian system per
+/// Spec §1; the 27-symbol register size. Aliased to
+/// `T_DISCRIMINANT_2_SQRT` (their identity is asserted in the
+/// compile-time block below).
+pub const T_BASE_PRIME_27: TritInt = T_DISCRIMINANT_2_SQRT;
+
+/// The 27-symbol Milesian alphabet in canonical position order
+/// (Spec §1). Positions 6, 18, 27 hold the three ghosts
+/// digamma (ϛ), koppa (ϙ), sampi (ϡ).
+pub const T_MILESIAN_REGISTER: [(u32, char); 27] = [
+    ( 1, 'α'), ( 2, 'β'), ( 3, 'γ'), ( 4, 'δ'), ( 5, 'ε'),
+    ( 6, 'ϛ'), ( 7, 'ζ'), ( 8, 'η'), ( 9, 'θ'),
+    (10, 'ι'), (11, 'κ'), (12, 'λ'), (13, 'μ'), (14, 'ν'),
+    (15, 'ξ'), (16, 'ο'), (17, 'π'), (18, 'ϙ'),
+    (19, 'ρ'), (20, 'σ'), (21, 'τ'), (22, 'υ'),
+    (23, 'φ'), (24, 'χ'), (25, 'ψ'), (26, 'ω'), (27, 'ϡ'),
+];
+
+/// Positions of the three ghost glyphs (digamma, koppa, sampi).
+/// Used by acceptance tests when extracting the ghost-position
+/// numeral sum that participates in the framework cumulative
+/// delta identity 3699 = 27 × 137.
+pub const T_GHOST_POSITIONS: [u32; 3] = [6, 18, 27];
+
 // ── Compile-time derivation verification ────────────────────
 
 const _: () = {
@@ -183,6 +219,34 @@ const _: () = {
     // Magic constant: 3 × center
     assert!(T_MAGIC_CONSTANT.to_u32_const()
             == T_CENTER.const_mul(TritInt::from_trits(&[0, 1])).to_u32_const());
+
+    // ── Milesian register identities (Spec v3.3.33 §1) ───────
+    //
+    // The bijective base of the Milesian system equals
+    // T_DISCRIMINANT_2_SQRT (= 27 = b³ = 3³ = 1000₃).
+    assert!(T_BASE_PRIME_27.const_eq(T_DISCRIMINANT_2_SQRT));
+    assert!(T_BASE_PRIME_27.const_eq(TritInt::from_trits(&[0, 0, 0, 1])));
+
+    // The 27-symbol register has exactly 27 entries with
+    // positions 1..=27 in canonical order.
+    assert!(T_MILESIAN_REGISTER.len() == 27);
+    let mut __milesian_idx: usize = 0;
+    while __milesian_idx < 27 {
+        assert!(T_MILESIAN_REGISTER[__milesian_idx].0
+                == (__milesian_idx as u32) + 1);
+        __milesian_idx += 1;
+    }
+
+    // The three ghost positions (digamma, koppa, sampi).
+    assert!(T_GHOST_POSITIONS.len() == 3);
+    assert!(T_GHOST_POSITIONS[0] == 6);
+    assert!(T_GHOST_POSITIONS[1] == 18);
+    assert!(T_GHOST_POSITIONS[2] == 27);
+
+    // Each ghost position carries its expected glyph.
+    assert!(T_MILESIAN_REGISTER[5].1  == 'ϛ');   // position 6
+    assert!(T_MILESIAN_REGISTER[17].1 == 'ϙ');   // position 18
+    assert!(T_MILESIAN_REGISTER[26].1 == 'ϡ');   // position 27
 };
 
 // ══════════════════════════════════════════════════════════════

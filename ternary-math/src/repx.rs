@@ -286,6 +286,240 @@ pub fn batch_b_to_a(trits: &[u8]) -> Vec<i8> {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Circle-and-Square Bijection — Spec v3.3.33 §1, §4
+//
+// Encoder-facing typed wrappers for the byte → trit + Milesian
+// glyph pipeline. These types are the public surface of the
+// encoder (Step 4 / S007). All values are ternary-typed; host
+// integers appear only in:
+//   - explicit constructors that validate their argument and
+//     return Option,
+//   - position indices into the 27-symbol Milesian register,
+//   - block-size and length counts (which are not values).
+//
+// The encoder body itself is added in S007. This block adds only
+// the wrappers needed by the encoder and by acceptance tests.
+// ══════════════════════════════════════════════════════════════
+
+/// One of the four canonical trit alphabets (Spec §1):
+/// A — balanced  {−1, 0, +1};
+/// B — standard  { 0, 1, 2};
+/// C — bijective { 1, 2, 3} (canonical);
+/// D — algebraic over ℤ[ω].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Representation { A, B, C, D }
+
+impl Representation {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Representation::A => "A",
+            Representation::B => "B",
+            Representation::C => "C",
+            Representation::D => "D",
+        }
+    }
+}
+
+/// φ_R: Rep-C → Rep-R affine projection (Spec §1).
+/// Input must be a Rep-C value in {1, 2, 3}; output range
+/// depends on R. Rep-D is taken as identity-on-{1,2,3} here;
+/// the algebraic ω-form lives on `AlgebraicTrit` in trit_int.rs.
+#[inline]
+pub const fn phi_r(rep: Representation, c_value: u8) -> i8 {
+    match rep {
+        Representation::A => (c_value as i8) - 2,  // {−1, 0, +1}
+        Representation::B => (c_value as i8) - 1,  // { 0, 1, 2}
+        Representation::C =>  c_value as i8,        // { 1, 2, 3}
+        Representation::D =>  c_value as i8,        // {1,2,3} canonical
+    }
+}
+
+/// φ_R⁻¹: Rep-R → Rep-C inverse affine projection (Spec §1).
+#[inline]
+pub const fn phi_r_inv(rep: Representation, r_value: i8) -> u8 {
+    match rep {
+        Representation::A => (r_value + 2) as u8,
+        Representation::B => (r_value + 1) as u8,
+        Representation::C =>  r_value as u8,
+        Representation::D =>  r_value as u8,
+    }
+}
+
+/// A single trit, stored canonically in Rep-C ({1, 2, 3}).
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Trit(u8);
+
+impl Trit {
+    /// Construct from a Rep-C literal. Returns `None` if the
+    /// input is not in {1, 2, 3}.
+    #[inline]
+    pub const fn from_rep_c(c_value: u8) -> Option<Self> {
+        if c_value >= 1 && c_value <= 3 { Some(Trit(c_value)) } else { None }
+    }
+
+    /// Construct from a Rep-B literal. Returns `None` if the
+    /// input is not in {0, 1, 2}.
+    #[inline]
+    pub const fn from_rep_b(b_value: u8) -> Option<Self> {
+        if b_value <= 2 { Some(Trit(b_value + 1)) } else { None }
+    }
+
+    /// Construct from a Rep-A literal. Returns `None` if the
+    /// input is not in {−1, 0, +1}.
+    #[inline]
+    pub const fn from_rep_a(a_value: i8) -> Option<Self> {
+        if a_value >= -1 && a_value <= 1 {
+            Some(Trit((a_value + 2) as u8))
+        } else {
+            None
+        }
+    }
+
+    /// Project to Rep-R.
+    #[inline]
+    pub const fn project(self, rep: Representation) -> i8 {
+        phi_r(rep, self.0)
+    }
+
+    #[inline] pub const fn rep_c(self) -> u8 { self.0 }
+    #[inline] pub const fn rep_b(self) -> u8 { self.0 - 1 }
+    #[inline] pub const fn rep_a(self) -> i8 { (self.0 as i8) - 2 }
+}
+
+/// A trit sequence carrier — the encoder's per-byte output
+/// (Spec §4.4). Holds the trit sequence in canonical Rep-C and
+/// the block size k that produced it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TritString {
+    trits: Vec<Trit>,
+    block_size_k: usize,
+}
+
+impl TritString {
+    pub fn empty(block_size_k: usize) -> Self {
+        Self { trits: Vec::new(), block_size_k }
+    }
+
+    pub fn from_trits(trits: Vec<Trit>, block_size_k: usize) -> Self {
+        Self { trits, block_size_k }
+    }
+
+    #[inline] pub fn len(&self) -> usize { self.trits.len() }
+    #[inline] pub fn is_empty(&self) -> bool { self.trits.is_empty() }
+    #[inline] pub fn block_size_k(&self) -> usize { self.block_size_k }
+    #[inline] pub fn trits(&self) -> &[Trit] { &self.trits }
+
+    pub fn push(&mut self, t: Trit) { self.trits.push(t); }
+
+    /// Project the whole sequence into Rep-R.
+    pub fn project(&self, rep: Representation) -> Vec<i8> {
+        self.trits.iter().map(|t| t.project(rep)).collect()
+    }
+
+    /// Convenience: Rep-C view ({1, 2, 3} per slot).
+    pub fn as_rep_c(&self) -> Vec<u8> {
+        self.trits.iter().map(|t| t.rep_c()).collect()
+    }
+
+    /// Convenience: Rep-B view ({0, 1, 2} per slot).
+    pub fn as_rep_b(&self) -> Vec<u8> {
+        self.trits.iter().map(|t| t.rep_b()).collect()
+    }
+
+    /// Convenience: Rep-A view ({−1, 0, +1} per slot).
+    pub fn as_rep_a(&self) -> Vec<i8> {
+        self.trits.iter().map(|t| t.rep_a()).collect()
+    }
+}
+
+/// A byte typed wrapper for the encoder input boundary
+/// (Spec §3). Carries one source byte; the value is private
+/// to the type so the encoder cannot smuggle binary integers
+/// through the public surface.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Byte(u8);
+
+impl Byte {
+    #[inline] pub const fn new(value: u8) -> Self { Byte(value) }
+    #[inline] pub const fn value(self) -> u8 { self.0 }
+}
+
+/// A byte sequence — the encoder's input (Spec §3). The
+/// constructor takes a host byte slice because that is the only
+/// shape a host can supply; the carrier itself is `Byte`-typed.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct ByteString {
+    bytes: Vec<Byte>,
+}
+
+impl ByteString {
+    pub fn empty() -> Self { Self { bytes: Vec::new() } }
+
+    pub fn from_host_bytes(host_bytes: &[u8]) -> Self {
+        Self { bytes: host_bytes.iter().map(|&b| Byte::new(b)).collect() }
+    }
+
+    #[inline] pub fn len(&self) -> usize { self.bytes.len() }
+    #[inline] pub fn is_empty(&self) -> bool { self.bytes.is_empty() }
+    #[inline] pub fn bytes(&self) -> &[Byte] { &self.bytes }
+}
+
+/// A single Milesian glyph (Spec §1, §4.5). Drawn from the
+/// 27-symbol register declared in `crate::constants`.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilesianGlyph(char);
+
+impl MilesianGlyph {
+    /// Lookup the glyph at register position `p ∈ {1,…,27}`
+    /// using `crate::constants::T_MILESIAN_REGISTER` as the
+    /// source of truth.
+    pub fn from_position(p: u32) -> Option<Self> {
+        if (1..=27).contains(&p) {
+            let (_, glyph) =
+                crate::constants::T_MILESIAN_REGISTER[(p - 1) as usize];
+            Some(MilesianGlyph(glyph))
+        } else {
+            None
+        }
+    }
+
+    #[inline] pub const fn glyph(self) -> char { self.0 }
+}
+
+/// The Milesian glyph string — Spec §4.5 universal output.
+/// Produced for every encoding regardless of k. Empty when N = 0.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct MilesianGlyphString {
+    glyphs: Vec<MilesianGlyph>,
+}
+
+impl MilesianGlyphString {
+    pub fn empty() -> Self { Self { glyphs: Vec::new() } }
+
+    pub fn from_glyphs(glyphs: Vec<MilesianGlyph>) -> Self {
+        Self { glyphs }
+    }
+
+    pub fn push(&mut self, g: MilesianGlyph) { self.glyphs.push(g); }
+
+    #[inline] pub fn len(&self) -> usize { self.glyphs.len() }
+    #[inline] pub fn is_empty(&self) -> bool { self.glyphs.is_empty() }
+    #[inline] pub fn glyphs(&self) -> &[MilesianGlyph] { &self.glyphs }
+
+    /// String form built from the 27-symbol register.
+    pub fn as_string(&self) -> String {
+        self.glyphs.iter().map(|g| g.glyph()).collect()
+    }
+}
+
+impl std::fmt::Display for MilesianGlyphString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for g in &self.glyphs { write!(f, "{}", g.glyph())?; }
+        Ok(())
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
 // TESTS
 // ══════════════════════════════════════════════════════════════
 
