@@ -1,0 +1,36 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division — Salvi Framework
+# PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
+
+[package]
+name = "algeometric-arc-sigma182-calculi"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+description = "Algeometric Arc Sigma182 Calculi — single canonical pure ternary computation crate (Salvi Framework)"
+license = "LicenseRef-Proprietary"
+authors = ["Salvi — Capomastro Holdings Ltd."]
+repository = "https://github.com/SigmaWolf-8/Ternary"
+publish = false
+readme = "README.md"
+keywords = ["ternary", "post-quantum", "salvi", "geometric"]
+categories = ["mathematics", "no-std"]
+
+[lib]
+name = "aasc"
+path = "src/lib.rs"
+
+[features]
+# Default = pure engine, no_std + alloc only.
+# `bridge` enables the byte ↔ TritVec boundary module (gated for I/O at the rim).
+# `std` enables std-only conveniences (Display impls reaching for String formatting beyond core).
+default = []
+bridge = []
+std = []
+
+[dependencies]
+# Pure engine — no external crates in core. core + alloc only.
+
+[dev-dependencies]
+# Test-only deps. These never enter the lib output.
