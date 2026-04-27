@@ -265,6 +265,154 @@ are not exercised on the workspace host; both consume the same
 `KernelTritExt`-bearing `ternary` shim and were updated for source
 compatibility under Phase 2.
 
+## Bare-metal runner provisioning (Task #171)
+
+The `bare-metal-qemu.yml` workflow targets
+`runs-on: [self-hosted, bare-metal]`. Until a runner with that
+label is registered, the workflow is *dark* — the gate is
+configured but never executes — so bare-metal regressions can ship
+undetected. This section is the operator runbook for keeping the
+runner alive and rotating it.
+
+### Label contract
+
+The workflow's `runs-on` matrix requires **two** labels and is
+satisfied by any runner that carries both:
+
+- `self-hosted` — implicit on every self-hosted runner.
+- `bare-metal` — must be added explicitly at registration time
+  (`./config.sh --labels self-hosted,bare-metal,Linux,X64`).
+
+Adding extra labels (e.g. `Linux`, `X64`, `kvm`) is fine; removing
+either of the two contract labels breaks the gate.
+
+### Host requirements
+
+| Requirement                | Why                                                           |
+|----------------------------|----------------------------------------------------------------|
+| Linux x86_64               | The custom target spec is `x86_64-ternary-none.json`.         |
+| `qemu-system-x86_64`       | Smoke step boots the freestanding kernel under QEMU.          |
+| `/dev/kvm` + KVM group     | Without KVM the boot falls back to TCG and may exceed the 90s `timeout` cap. |
+| Pinned **nightly** Rust    | `src/kernel/bare-metal/rust-toolchain.toml` pins `channel = "nightly"`. |
+| `rust-src` component       | `-Z build-std=core,alloc` requires the source of `core`/`alloc`. |
+| `build-essential`/`gcc`    | Required by the linker (`linker.ld`) and `build.rs`.          |
+| `git`, `curl`, `jq`, `ca-certificates`, `libicu`, `libssl`, `zlib` | Runtime deps of the GitHub Actions runner agent. |
+| Outbound HTTPS to `github.com` and `objects.githubusercontent.com` | Job pickup, artifact upload, runner self-update. |
+
+The CI matrix-side `bare-metal-validation.yml` workflow
+(`runs-on: ubuntu-latest`) is a *separate, complementary* gate that
+does NOT require the self-hosted runner; it gives a partial signal
+on PRs even if the self-hosted runner is offline, but it does not
+replace the QEMU smoke gate's serial-log assertion.
+
+### Toolchain pin
+
+The runner inherits the toolchain channel from the in-tree
+`rust-toolchain.toml`:
+
+```toml
+# src/kernel/bare-metal/rust-toolchain.toml
+[toolchain]
+channel = "nightly"
+components = ["rust-src"]
+```
+
+`rustup show` inside `src/kernel/bare-metal/` (the workflow's
+`working-directory`) auto-installs the pinned channel on first run.
+**Do not** override this with a system-wide default toolchain — the
+workflow's `Toolchain — confirm nightly + rust-src present` step
+fails fast if the resolved channel is not `nightly` or if
+`rust-src` is missing.
+
+### One-shot registration
+
+`scripts/bootstrap-bare-metal-runner.sh` is the operator-runnable
+script that performs steps 1–2 of the task end-to-end on the
+runner host:
+
+1. Installs OS prerequisites (QEMU, KVM tools, build-essential,
+   curl, jq, libicu, libssl, git).
+2. Adds the runner user to the `kvm` group.
+3. Installs nightly Rust + `rust-src` under the runner user.
+4. Downloads the pinned actions-runner release, registers it with
+   the operator-supplied token, and applies the
+   `self-hosted,bare-metal,Linux,X64` label set.
+5. Installs the runner as a systemd service and starts it.
+
+Operator workflow:
+
+```bash
+# On the runner host (NOT the Replit workspace, NOT inside CI):
+export RUNNER_URL='https://github.com/SigmaWolf-8/Ternary'
+# Get the registration token from:
+#   Settings → Actions → Runners → "New self-hosted runner" → copy the token.
+# It is single-use and expires after ~1 hour.
+export RUNNER_TOKEN='AAAA…'
+
+# Optional overrides:
+#   RUNNER_NAME      (default: hostname)
+#   RUNNER_HOME      (default: $HOME/actions-runner)
+#   RUNNER_USER      (default: $USER)
+#   RUNNER_VERSION   (default: pinned in the script)
+
+bash scripts/bootstrap-bare-metal-runner.sh
+```
+
+After the script returns:
+
+1. Confirm the runner shows up as **Idle** at
+   `${RUNNER_URL}/settings/actions/runners`.
+2. Trigger the workflow on demand:
+   `gh workflow run bare-metal-qemu.yml --ref main` (or just push
+   any change touching `src/kernel/**`,
+   `algeometric-arc-sigma182-calculi/**`, `ternary-math/**`, or
+   `.github/workflows/bare-metal-qemu.yml`).
+3. The first run downloads the actions cache and the pinned
+   nightly toolchain (~3–5 minutes); subsequent runs land in
+   ~90–120s end-to-end.
+4. The `qemu-smoke-log` artifact uploads on every run (success or
+   failure) and is downloadable from the workflow run page for 14
+   days — that artifact is the canonical diagnostic for any
+   `[selftest] OK` assertion failure.
+
+### Rotation
+
+Tokens are short-lived; the runner installation itself can be
+re-pointed at a fresh token without redoing the OS-level
+prerequisites:
+
+```bash
+# Re-run the same script with a fresh RUNNER_TOKEN — the script's
+# config step uses --replace, so the same RUNNER_NAME re-registers
+# cleanly (Step 1–3 are idempotent and short-circuit).
+export RUNNER_TOKEN='AAAA…'   # fresh token from the GitHub UI
+bash scripts/bootstrap-bare-metal-runner.sh
+```
+
+To fully decommission a host:
+
+```bash
+cd "$RUNNER_HOME"
+sudo ./svc.sh stop
+sudo ./svc.sh uninstall
+./config.sh remove --token "$REMOVAL_TOKEN"   # also from the GitHub UI
+```
+
+### Troubleshooting
+
+| Symptom                                                  | Likely cause / fix                                                                                       |
+|----------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| Workflow stays *queued* forever                          | No runner with the `bare-metal` label is online. Verify in `Settings → Actions → Runners`.               |
+| Boot times out at 90s                                    | KVM not available; `kvm-ok` reports failure. Confirm `/dev/kvm` exists and the runner user is in `kvm`. |
+| `error: component 'rust-src' not found`                  | The host has a stable channel pinned globally. Remove `~/.rustup/settings.toml` overrides.               |
+| `qemu-system-x86_64: command not found`                  | `qemu-system-x86` package missing. Re-run the bootstrap; the OS-prereq step is idempotent.               |
+| Sentinel grep fails but boot completes                   | Selftest module hit a panic before the `[selftest] OK` print. Inspect the uploaded `qemu-smoke-log`.     |
+
+These notes mirror the canonical command set carried in
+`.github/workflows/bare-metal-qemu.yml`. Any change to that
+workflow's command list must be reflected back into this section
+so the operator runbook stays in sync.
+
 ---
 
 © 2025–2026 Capomastro Holdings Ltd. (Canada). Patent(s) Pending —
