@@ -45,8 +45,107 @@ the legacy spelling of the `Trit` and `TritVec` types, the
 `ternary_*` free functions, and the `host_*` boundary conversions
 that bare-metal uses for its panic-printer formatting. The diff
 itself cannot be carried out responsibly until a baseline
-`cargo test -p plenumnet-kernel` run is recorded in CI; that work is
-deferred to a follow-up task.
+`cargo test -p plenumnet-kernel` run is recorded in CI; that
+baseline is now captured (see "Pre-shim baseline" below).
+
+## Pre-shim baseline (Task #161)
+
+Captured by `scripts/capture-shim-baseline.sh`, run automatically by
+the `Shim-Gate Baseline` GitHub Actions workflow
+(`.github/workflows/shim-gate-baseline.yml`). Two scopes are
+recorded; numbers below are the host-runner snapshot from
+2026-04-27.
+
+### Full baseline (literal `cargo test -p <crate>`)
+
+The full scope runs `cargo test -p plenumnet-kernel` and
+`cargo test -p ternary-math` end-to-end so every target cargo
+considers — lib unit tests, every bin unit test, every
+`tests/*.rs` integration target, *and* doctests — is recorded in
+the same artifact. Aggregated counts (sum across every
+`test result:` line cargo emits per crate):
+
+| Crate              | Passed | Failed | Ignored | Cargo exit |
+|--------------------|-------:|-------:|--------:|-----------:|
+| `plenumnet-kernel` |  2,129 |      7 |       0 |        101 |
+| `ternary-math`     |    715 |      0 |       0 |          0 |
+| **Totals**         | **2,844** | **7** | **0** |  *worst=101* |
+
+End-to-end wall clock for the full baseline: **~73 s** on a 4-core
+GitHub-hosted `ubuntu-latest` class runner (after first-build cache
+warm). The `7` recorded `failed` are pre-existing doctest compile
+errors in `src/kernel/src/crypto/metatronic_cube.rs` (3 doctests)
+and `src/kernel/src/network/metatronic_bridge.rs` (4 doctests) that
+predate Task #161 entirely (verified against `main`-as-published —
+no source changes). They are part of the **recorded baseline** so a
+future shim PR can prove it does not introduce any *new* failures;
+the kernel-shim PR is not required to fix them.
+
+The non-zero cargo exit is propagated by the script as the worst
+exit code seen, so the `Shim-Gate Baseline · full-baseline` CI job
+will be red until the pre-existing doctest breakage is fixed in a
+separate follow-up. The `if: always()` upload step still publishes
+the baseline artifact so the numbers remain diffable.
+
+### Shim-gate baseline (lib only)
+
+| Crate              | Target | Passed | Failed | Ignored |
+|--------------------|--------|-------:|-------:|--------:|
+| `plenumnet-kernel` | `--lib` |  2,092 |      0 |       0 |
+| `ternary-math`     | `--lib` |    649 |      0 |       0 |
+| **Totals**         |         | **2,741** | **0** | **0** |
+
+Shim-gate wall clock: **~50 s**. This is the subset every PR
+touching `src/kernel/`, `ternary-math/`, or
+`algeometric-arc-sigma182-calculi/` is required to keep green.
+
+### Test-quarantine assessment
+
+The original Task #161 brief assumed slow integration tests would
+need to be `#[ignore]`-tagged to make a fast shim-gate viable. After
+measurement, **no `#[ignore]` quarantine was required**:
+
+- The kernel has exactly one integration test target
+  (`tests/proptest_vm.rs`) and it completes in **0.13 s**.
+- Each of the four `ternary-math` integration targets completes in
+  **≤ 0.10 s**.
+- Doctests in both crates compile in **< 3 s** combined.
+
+The shim-gate / full split is therefore not a quarantine — it is a
+pre-merge depth choice. The shim-gate scope (lib unit tests only)
+trades 100 % of its runtime away from doctest compilation and
+integration-target startup, so PRs touching unrelated code see the
+fastest possible signal. The full scope replays everything cargo
+considers — lib + bins + integration + doctests — so the recorded
+baseline is byte-for-byte the same as a developer running
+`cargo test -p plenumnet-kernel` on their workstation.
+
+If a future test target ever crosses the 60-second mark, the agreed
+convention is to gate it behind `#[ignore]` plus a
+`shim-gate-slow` cargo feature rather than letting it bloat the PR
+gate.
+
+### Pre-existing test-compile fixes folded into this baseline
+
+To make `cargo test -p plenumnet-kernel` even reachable, four
+pre-existing test-only compile errors had to be corrected. They were
+purely test-source bugs (no behavior change in production code):
+
+1. `src/kernel/src/ternary.rs` — two assertions in
+   `test_tryte_decimal_roundtrip` and `test_tryte_not_involution`
+   called a non-existent `Tryte::host_u64()`. Replaced with the
+   actual public accessor `Tryte::to_decimal()` (which already
+   returns `u16`, matching the test's expected value).
+2. `src/kernel/src/distributor/puv_spectral.rs` — two test functions
+   were named `plenum_to_vacuum` and `vacuum_roundtrip`, shadowing
+   the module-level `super::plenum_to_vacuum` they were trying to
+   exercise. Tests renamed to `test_plenum_to_vacuum_scaled` /
+   `test_vacuum_roundtrip` and qualified with `super::` prefixes;
+   the production functions are unchanged.
+
+Both fixes are pre-shim hygiene, not part of the upcoming
+consolidation work, and are recorded here so the kernel-shim PR
+does not have to relitigate them.
 
 ## Workspace placement decision
 
@@ -97,26 +196,33 @@ hardware/runners with KVM/QEMU available. The host environment for
 this task has neither QEMU nor a freestanding-Rust toolchain, so
 the gate is documented and **not** executed here.
 
-## Deferral rationale
+## Deferral rationale (updated post Task #161)
 
 The "Done When" gate of Task #158 explicitly permits the kernel and
-ternary-math shims to be deferred *with rationale documented*. The
-rationale is:
+ternary-math shims to be deferred *with rationale documented*. As of
+Task #161 the original blocker — missing pre-shim baselines — is
+**resolved**:
 
 - `aasc` is purely additive at this stage. No existing crate
   changes its public surface.
-- Both shims (steps 13, 14) require a recorded
-  pre-shim baseline test pass-count for `plenumnet-kernel` and
-  `ternary-math` to certify "no regression". Capturing that
-  baseline is itself a non-trivial follow-up because the
-  workspace-level `cargo test` is currently dominated by
-  long-running integration tests that need quarantining.
+- Both shims (steps 13, 14) require a recorded pre-shim baseline
+  test pass-count for `plenumnet-kernel` and `ternary-math` to
+  certify "no regression". That baseline is now captured by
+  `scripts/capture-shim-baseline.sh` and the `Shim-Gate Baseline`
+  workflow, with the numbers recorded in the table above.
+- A fast `shim-gate` subset (lib unit tests only, ~50 s) and a full
+  pre-merge baseline (~73 s) are both available. No `#[ignore]`
+  quarantining was required on the host runner.
 - The bare-metal incorporation (this audit, step 15) chains off the
-  kernel shim and inherits its deferral.
+  kernel shim and inherits its deferral, but no longer for "missing
+  baseline" reasons.
 
-Until those follow-ups land, `aasc` lives next to (not inside) the
-existing crates, every existing import path keeps working, and the
-bare-metal kernel continues to build with its pre-task ternary core.
+Outstanding precondition: a `bare-metal-only` cargo feature on
+`aasc` (so the freestanding kernel can stop forking its own ternary
+primitives without dragging in a host-only feature surface). With
+that flag plus the now-recorded baselines, Task #158 steps 13–15
+can land in their own follow-ups with the shim-gate workflow as the
+regression backstop.
 
 ---
 

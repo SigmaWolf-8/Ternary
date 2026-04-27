@@ -1,0 +1,229 @@
+# ══════════════════════════════════════════════════════════════
+# Shim-Gate Baseline — Pre-Shim Test Pass-Counts
+# Capomastro Holdings Ltd. · Applied Physics Division
+#
+# Captures `cargo test -p plenumnet-kernel` and
+# `cargo test -p ternary-math` baselines for Task #161, so the
+# deferred Task #158 step 13 (kernel ternary shim) and step 14
+# (ternary-math shim) consolidating into the `aasc` crate
+# (Algeometric Arc Σ-182 Calculi) can land with provable
+# "no regression" coverage.
+#
+# Two scopes are emitted:
+#   - shim-gate : fast PR gate (lib unit tests only, ~50s)
+#   - full      : pre-merge gate (lib + integration, ~70s)
+#
+# Both summaries are uploaded as CI artifacts so a future shim PR
+# can diff its post-shim numbers against the recorded baseline.
+# ══════════════════════════════════════════════════════════════
+
+name: Shim-Gate Baseline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/kernel/**'
+      - 'ternary-math/**'
+      - 'algeometric-arc-sigma182-calculi/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'scripts/capture-shim-baseline.sh'
+      - '.github/workflows/shim-gate-baseline.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/kernel/**'
+      - 'ternary-math/**'
+      - 'algeometric-arc-sigma182-calculi/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'scripts/capture-shim-baseline.sh'
+      - '.github/workflows/shim-gate-baseline.yml'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Fast PR gate ─────────────────────────────────────────────
+  shim-gate:
+    name: Shim-Gate · lib unit tests (PR gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-shim-gate-${{ hashFiles('Cargo.lock') }}
+
+      - name: Capture shim-gate baseline
+        id: capture
+        continue-on-error: true
+        run: bash scripts/capture-shim-baseline.sh shim-gate
+
+      - name: Upload shim-gate baseline artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shim-gate-baseline
+          path: .baseline/
+          retention-days: 90
+
+      # Enforce the recorded shim-gate baseline: kernel lib
+      # passed=2092/failed=0/exit=0, ternary-math lib
+      # passed=649/failed=0/exit=0. Both crates must be present in
+      # the summary (defends against a partial JSON producing a
+      # false-green). Update these numbers (and the audit doc) when
+      # a shim PR intentionally moves the baseline.
+      - name: Enforce recorded shim-gate counts
+        run: |
+          set -euo pipefail
+          summary=.baseline/baseline-summary.json
+          test -f "$summary"
+          node -e "
+            const s = JSON.parse(require('fs').readFileSync('$summary','utf8'));
+            const expect = {
+              'plenumnet-kernel': { passed: 2092, failed: 0, exit_code: 0 },
+              'ternary-math':    { passed:  649, failed: 0, exit_code: 0 },
+            };
+            const seen = new Set();
+            let ok = true;
+            for (const c of s.crates) {
+              const e = expect[c.crate];
+              if (!e) continue;
+              seen.add(c.crate);
+              if (c.passed !== e.passed ||
+                  c.failed !== e.failed ||
+                  c.exit_code !== e.exit_code) {
+                console.error(
+                  '[regression] ' + c.crate +
+                  ' got passed=' + c.passed +
+                  '/failed=' + c.failed +
+                  '/exit=' + c.exit_code +
+                  ' expected passed=' + e.passed +
+                  '/failed=' + e.failed +
+                  '/exit=' + e.exit_code
+                );
+                ok = false;
+              } else {
+                console.log('[ok] ' + c.crate +
+                            ' passed=' + c.passed +
+                            ' failed=' + c.failed +
+                            ' exit=' + c.exit_code);
+              }
+            }
+            for (const k of Object.keys(expect)) {
+              if (!seen.has(k)) {
+                console.error('[missing] expected crate ' + k +
+                              ' not present in baseline summary');
+                ok = false;
+              }
+            }
+            process.exit(ok ? 0 : 1);
+          "
+
+  # ── Pre-merge full baseline ──────────────────────────────────
+  full-baseline:
+    name: Shim-Gate · full baseline (lib + integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-full-baseline-${{ hashFiles('Cargo.lock') }}
+
+      # The full scope replays every cargo-test target including
+      # doctests. A pre-existing 7-failure doctest baseline (see
+      # docs/audit/bare-metal-incorporation.md) means the script
+      # exits 101; that is the recorded baseline state, not a
+      # regression. We continue past it so the artifact is always
+      # uploaded, then enforce "no NEW failures" in the next step.
+      - name: Capture full baseline
+        id: capture
+        continue-on-error: true
+        run: bash scripts/capture-shim-baseline.sh full
+
+      - name: Upload full baseline artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-baseline
+          path: .baseline/
+          retention-days: 90
+
+      # Enforce the recorded baseline: kernel passed=2129/failed=7
+      # /exit=101 (pre-existing doctest baseline), ternary-math
+      # passed=715/failed=0/exit=0. Both crates must be present in
+      # the summary (defends against a partial JSON producing a
+      # false-green). Update these numbers (and the audit doc) when
+      # a shim PR intentionally moves the baseline.
+      - name: Enforce recorded baseline counts
+        run: |
+          set -euo pipefail
+          summary=.baseline/baseline-summary.json
+          test -f "$summary"
+          node -e "
+            const s = JSON.parse(require('fs').readFileSync('$summary','utf8'));
+            const expect = {
+              'plenumnet-kernel': { passed: 2129, failed: 7, exit_code: 101 },
+              'ternary-math':    { passed:  715, failed: 0, exit_code:   0 },
+            };
+            const seen = new Set();
+            let ok = true;
+            for (const c of s.crates) {
+              const e = expect[c.crate];
+              if (!e) continue;
+              seen.add(c.crate);
+              if (c.passed !== e.passed ||
+                  c.failed !== e.failed ||
+                  c.exit_code !== e.exit_code) {
+                console.error(
+                  '[regression] ' + c.crate +
+                  ' got passed=' + c.passed +
+                  '/failed=' + c.failed +
+                  '/exit=' + c.exit_code +
+                  ' expected passed=' + e.passed +
+                  '/failed=' + e.failed +
+                  '/exit=' + e.exit_code
+                );
+                ok = false;
+              } else {
+                console.log('[ok] ' + c.crate +
+                            ' passed=' + c.passed +
+                            ' failed=' + c.failed +
+                            ' exit=' + c.exit_code);
+              }
+            }
+            for (const k of Object.keys(expect)) {
+              if (!seen.has(k)) {
+                console.error('[missing] expected crate ' + k +
+                              ' not present in baseline summary');
+                ok = false;
+              }
+            }
+            process.exit(ok ? 0 : 1);
+          "

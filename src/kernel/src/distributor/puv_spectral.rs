@@ -324,13 +324,13 @@ mod tests {
     #[test] fn radians_uvb() { assert_eq!(PuvBand::UvB.custom_radians(), Some(22)); }
     #[test] fn radians_uva() { assert_eq!(PuvBand::UvA.custom_radians(), Some(28)); }
 
-    #[test] fn plenum_to_vacuum() {
-        let scaled = plenum_to_vacuum_scaled(91);
+    #[test] fn test_plenum_to_vacuum_scaled() {
+        let scaled = super::plenum_to_vacuum_scaled(91);
         assert_eq!(scaled, 91 * 100_193);
     }
-    #[test] fn vacuum_roundtrip() {
-        let vac = plenum_to_vacuum(182);
-        let back = vacuum_to_plenum(vac as u32);
+    #[test] fn test_vacuum_roundtrip() {
+        let vac = super::plenum_to_vacuum(182);
+        let back = super::vacuum_to_plenum(vac as u32);
         assert_eq!(back, 182);
     }
 

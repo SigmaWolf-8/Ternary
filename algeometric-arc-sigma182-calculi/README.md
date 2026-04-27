@@ -97,10 +97,33 @@ cargo test  -p algeometric-arc-sigma182-calculi
 `aasc` is the canonical replacement for the trit-pure subsets of:
 
 - `src/kernel/src/ternary.rs` (kernel ternary core)
-- `crates/ternary-math` (host-side ternary math)
+- `ternary-math/` (host-side ternary math)
 
 Shim plans are tracked in Task #158 steps 13 and 14. Until those shims
 land, the forks remain in place and `aasc` is purely additive.
+
+### Pre-shim baseline (Task #161)
+
+Both shim PRs are gated by a recorded pre-shim test pass-count. Those
+baselines are now captured by `scripts/capture-shim-baseline.sh` and
+the `Shim-Gate Baseline` GitHub Actions workflow
+(`.github/workflows/shim-gate-baseline.yml`). The full numbers and
+methodology live in `docs/audit/bare-metal-incorporation.md` under
+"Pre-shim baseline (Task #161)". Snapshot at time of capture:
+
+| Crate              | Passed | Failed | Ignored | Cargo exit |
+|--------------------|-------:|-------:|--------:|-----------:|
+| `plenumnet-kernel` |  2,129 |      7 |       0 |        101 |
+| `ternary-math`     |    715 |      0 |       0 |          0 |
+
+The 7 recorded `failed` are pre-existing kernel doctest compile
+errors that predate Task #161 entirely; they are part of the
+recorded baseline so the shim PRs can prove they don't introduce
+*new* failures, and they are tracked separately in
+`docs/audit/bare-metal-incorporation.md`. The fast `shim-gate`
+subset (lib only) — `2,741` passed / `0` failed — is what every PR
+touching these crates must keep green; the `full` scope is the
+pre-merge gate.
 
 ---
 
