@@ -185,40 +185,43 @@ pub const T_GHOST_POSITIONS: [u32; 3] = [6, 18, 27];
 // ── Compile-time derivation verification ────────────────────
 
 const _: () = {
-    // Repunit values: Rₙ = (3ⁿ − 1)/2
-    assert!(T_REPUNIT_1.to_u32_const() == 1);
-    assert!(T_REPUNIT_2.to_u32_const() == 4);
-    assert!(T_REPUNIT_3.to_u32_const() == 13);
-    assert!(T_REPUNIT_4.to_u32_const() == 40);
-    assert!(T_REPUNIT_5.to_u32_const() == 121);
-    assert!(T_REPUNIT_6.to_u32_const() == 364);
+    // Repunit ladder: Rₙ = (3ⁿ − 1)/2 — every trit is 1.
+    // Cross-checked ternary-native via const_eq against the explicit
+    // n-ones pattern from TritInt::from_trits.
+    assert!(T_REPUNIT_1.const_eq(TritInt::from_trits(&[1])));
+    assert!(T_REPUNIT_2.const_eq(TritInt::from_trits(&[1, 1])));
+    assert!(T_REPUNIT_3.const_eq(TritInt::from_trits(&[1, 1, 1])));
+    assert!(T_REPUNIT_4.const_eq(TritInt::from_trits(&[1, 1, 1, 1])));
+    assert!(T_REPUNIT_5.const_eq(TritInt::from_trits(&[1, 1, 1, 1, 1])));
+    assert!(T_REPUNIT_6.const_eq(TritInt::from_trits(&[1, 1, 1, 1, 1, 1])));
 
-    // Circle quadratic: x₁ + x₂ = R₄, x₁ × x₂ = R₆
-    assert!(T_ROOT_X1.const_add(T_ROOT_X2).to_u32_const() == T_REPUNIT_4.to_u32_const());
-    assert!(T_ROOT_X1.const_mul(T_ROOT_X2).to_u32_const() == T_REPUNIT_6.to_u32_const());
+    // Circle quadratic Vieta identities: x₁ + x₂ = R₄, x₁ × x₂ = R₆.
+    assert!(T_ROOT_X1.const_add(T_ROOT_X2).const_eq(T_REPUNIT_4));
+    assert!(T_ROOT_X1.const_mul(T_ROOT_X2).const_eq(T_REPUNIT_6));
 
-    // Discriminant: Δ = R₄² − 4·R₆ = 1600 − 1456 = 144
-    assert!(T_DISCRIMINANT.to_u32_const() == 144);
-    assert!(T_DISCRIMINANT_SQRT.const_mul(T_DISCRIMINANT_SQRT).to_u32_const() == 144);
+    // Discriminant Δ = R₄² − 4·R₆ = 144 = 12100₃.
+    assert!(T_DISCRIMINANT.const_eq(TritInt::from_trits(&[0, 0, 1, 2, 1])));
+    assert!(T_DISCRIMINANT_SQRT.const_mul(T_DISCRIMINANT_SQRT)
+                .const_eq(T_DISCRIMINANT));
 
-    // Δ₂ = 3⁶ = 729
-    assert!(T_DISCRIMINANT_2.to_u32_const() == 729);
-    assert!(T_DISCRIMINANT_2_SQRT.const_mul(T_DISCRIMINANT_2_SQRT).to_u32_const() == 729);
+    // Δ₂ = 3⁶ = 729 = 1000000₃ — the seventh power-of-three slot.
+    assert!(T_DISCRIMINANT_2.const_eq(TritInt::from_trits(&[0, 0, 0, 0, 0, 0, 1])));
+    assert!(T_DISCRIMINANT_2_SQRT.const_mul(T_DISCRIMINANT_2_SQRT)
+                .const_eq(T_DISCRIMINANT_2));
 
-    // Arc semi: 182 = 2 × 7 × 13 = R₆/2
-    assert!(T_ARC_ROOT_SEMI.to_u32_const() == 182);
+    // Arc semi = 182 = 20202₃ = R₆ / 2 = 2 × 7 × 13.
+    assert!(T_ARC_ROOT_SEMI.const_eq(TritInt::from_trits(&[2, 0, 2, 0, 2])));
 
-    // UV spectral: λ_EUV × 2 = λ_UVC = arc_semi
-    assert!(T_LAMBDA_EUV.const_mul(TritInt::from_trits(&[2])).to_u32_const()
-            == T_LAMBDA_UVC.to_u32_const());
+    // UV spectral: 2 × λ_EUV = λ_UVC.
+    assert!(T_LAMBDA_EUV.const_mul(TritInt::from_trits(&[2]))
+                .const_eq(T_LAMBDA_UVC));
 
-    // Polygon identities
-    assert!(T_POLYGON_15.to_u32_const() == T_POLYGON_3.const_mul(T_POLYGON_5).to_u32_const());
-    assert!(T_POLYGON_14.to_u32_const() == T_ROOT_X1.to_u32_const()); // 14-gon = π
+    // Polygon identities.
+    assert!(T_POLYGON_15.const_eq(T_POLYGON_3.const_mul(T_POLYGON_5)));
+    assert!(T_POLYGON_14.const_eq(T_ROOT_X1));   // 14-gon = π
 
-    // Magic constant: 3 × center
-    assert!(T_MAGIC_CONSTANT.to_u32_const()
-            == T_CENTER.const_mul(TritInt::from_trits(&[0, 1])).to_u32_const());
+    // Magic constant = 3 × center.
+    assert!(T_MAGIC_CONSTANT.const_eq(T_CENTER.const_mul(TritInt::from_trits(&[0, 1]))));
 
     // ── Milesian register identities (Spec v3.3.33 §1) ───────
     //
@@ -256,7 +259,7 @@ const _: () = {
 // trit.rs, torus.rs, tribonacci.rs) that still import u32 constants.
 // New code MUST cross through T_ constants at point of use:
 //
-//   const R3: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+//   const R3: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
 //
 // NOT:
 //
@@ -272,20 +275,20 @@ const _: () = {
 // ══════════════════════════════════════════════════════════════
 
 /// The ternary radix — 3.
-pub const TERNARY_BASE: u32 = T_REPUNIT_1.const_add(TritInt::from_trits(&[2])).to_u32_const();
+pub const TERNARY_BASE: u32 = T_REPUNIT_1.const_add(TritInt::from_trits(&[2])).host_u32();
 
 /// R₁ — boundary crossing from T_REPUNIT_1.
-pub const REPUNIT_1: u32 = T_REPUNIT_1.to_u32_const();
+pub const REPUNIT_1: u32 = T_REPUNIT_1.host_u32();
 /// R₂ — boundary crossing from T_REPUNIT_2.
-pub const REPUNIT_2: u32 = T_REPUNIT_2.to_u32_const();
+pub const REPUNIT_2: u32 = T_REPUNIT_2.host_u32();
 /// R₃ — boundary crossing from T_REPUNIT_3. The radian.
-pub const REPUNIT_3: u32 = T_REPUNIT_3.to_u32_const();
+pub const REPUNIT_3: u32 = T_REPUNIT_3.host_u32();
 /// R₄ — boundary crossing from T_REPUNIT_4. Sum of circle quadratic roots.
-pub const REPUNIT_4: u32 = T_REPUNIT_4.to_u32_const();
+pub const REPUNIT_4: u32 = T_REPUNIT_4.host_u32();
 /// R₅ — boundary crossing from T_REPUNIT_5.
-pub const REPUNIT_5: u32 = T_REPUNIT_5.to_u32_const();
+pub const REPUNIT_5: u32 = T_REPUNIT_5.host_u32();
 /// R₆ — boundary crossing from T_REPUNIT_6. The full circle.
-pub const REPUNIT_6: u32 = T_REPUNIT_6.to_u32_const();
+pub const REPUNIT_6: u32 = T_REPUNIT_6.host_u32();
 
 /// Master repunit generating function: Rₙ = (3ⁿ − 1) / (3 − 1).
 pub const fn repunit(n: u32) -> u32 {
@@ -304,16 +307,16 @@ pub const QUAD_SUM: u32 = REPUNIT_4;
 pub const QUAD_PRODUCT: u32 = REPUNIT_6;
 
 /// Discriminant Δ = R₄² − 4·R₆ — derived from T_DISCRIMINANT.
-pub const DISCRIMINANT: u32 = T_DISCRIMINANT.to_u32_const();
+pub const DISCRIMINANT: u32 = T_DISCRIMINANT.host_u32();
 
 /// √Δ — derived from T_DISCRIMINANT_SQRT.
-pub const DISCRIMINANT_SQRT: u32 = T_DISCRIMINANT_SQRT.to_u32_const();
+pub const DISCRIMINANT_SQRT: u32 = T_DISCRIMINANT_SQRT.host_u32();
 
 /// Smaller root x₁ = π — derived from T_ROOT_X1.
-pub const ROOT_X1: u32 = T_ROOT_X1.to_u32_const();
+pub const ROOT_X1: u32 = T_ROOT_X1.host_u32();
 
 /// Larger root x₂ = R₆/π — derived from T_ROOT_X2.
-pub const ROOT_X2: u32 = T_ROOT_X2.to_u32_const();
+pub const ROOT_X2: u32 = T_ROOT_X2.host_u32();
 
 // ══════════════════════════════════════════════════════════════
 // §3  UNIFIED EQUATION — BOUNDARY CROSSINGS
@@ -333,19 +336,19 @@ pub const UNIFIED_CONSTANT: u32 = REPUNIT_6 * UNIFIED_FACTOR;
 pub const UNIFIED_DISC: u32 = UNIFIED_LINEAR * UNIFIED_LINEAR - 4 * UNIFIED_CONSTANT;
 
 /// √Δ_arc — derived from T_ARC_ROOT_COMP − T_ARC_ROOT_SEMI.
-pub const UNIFIED_DISC_SQRT: u32 = T_ARC_ROOT_COMP.to_u32_const() - T_ARC_ROOT_SEMI.to_u32_const();
+pub const UNIFIED_DISC_SQRT: u32 = T_ARC_ROOT_COMP.host_u32() - T_ARC_ROOT_SEMI.host_u32();
 
 /// Semicircle root — derived from T_ARC_ROOT_SEMI.
-pub const ARC_ROOT_SEMI: u32 = T_ARC_ROOT_SEMI.to_u32_const();
+pub const ARC_ROOT_SEMI: u32 = T_ARC_ROOT_SEMI.host_u32();
 
 /// Complementary root — derived from T_ARC_ROOT_COMP.
-pub const ARC_ROOT_COMP: u32 = T_ARC_ROOT_COMP.to_u32_const();
+pub const ARC_ROOT_COMP: u32 = T_ARC_ROOT_COMP.host_u32();
 
 /// Green arc effective — derived from T_GREEN_ARC_EFF.
-pub const GREEN_ARC_EFF: u32 = T_GREEN_ARC_EFF.to_u32_const();
+pub const GREEN_ARC_EFF: u32 = T_GREEN_ARC_EFF.host_u32();
 
 /// Center c = (arc + R₄)/2 — derived from T_CENTER.
-pub const CENTER: u32 = T_CENTER.to_u32_const();
+pub const CENTER: u32 = T_CENTER.host_u32();
 
 /// Radius numerator = CENTER.
 pub const RADIUS_NUM: u32 = CENTER;
@@ -354,16 +357,16 @@ pub const RADIUS_NUM: u32 = CENTER;
 pub const RADIUS_DEN: u32 = 2;
 
 /// Δ₂ — derived from T_DISCRIMINANT_2.
-pub const DISCRIMINANT_2: u32 = T_DISCRIMINANT_2.to_u32_const();
+pub const DISCRIMINANT_2: u32 = T_DISCRIMINANT_2.host_u32();
 
 /// √Δ₂ — derived from T_DISCRIMINANT_2_SQRT.
-pub const DISCRIMINANT_2_SQRT: u32 = T_DISCRIMINANT_2_SQRT.to_u32_const();
+pub const DISCRIMINANT_2_SQRT: u32 = T_DISCRIMINANT_2_SQRT.host_u32();
 
 /// Magic constant — derived from T_MAGIC_CONSTANT.
-pub const MAGIC_CONSTANT: u32 = T_MAGIC_CONSTANT.to_u32_const();
+pub const MAGIC_CONSTANT: u32 = T_MAGIC_CONSTANT.host_u32();
 
 /// Circumference — derived from T_CIRCUMFERENCE.
-pub const CIRCUMFERENCE: u32 = T_CIRCUMFERENCE.to_u32_const();
+pub const CIRCUMFERENCE: u32 = T_CIRCUMFERENCE.host_u32();
 
 // ══════════════════════════════════════════════════════════════
 // §4  SQUARED CIRCLE (TM-2026-017 §3)
@@ -389,17 +392,17 @@ pub const SQUARED_SIDE_SQ_RADIAN: u32 = ARC_ROOT_SEMI;
 pub const STD_CIRCLE_DEG: u32 = 360;
 
 /// Angular conversion factor numerator: κ = R₆/360 = 91/90. Same as λ_EUV.
-pub const ANGULAR_CONV_NUM: u32 = T_LAMBDA_EUV.to_u32_const();
+pub const ANGULAR_CONV_NUM: u32 = T_LAMBDA_EUV.host_u32();
 
 /// Angular conversion factor denominator.
-pub const ANGULAR_CONV_DEN: u32 = STD_CIRCLE_DEG / T_REPUNIT_2.to_u32_const();
+pub const ANGULAR_CONV_DEN: u32 = STD_CIRCLE_DEG / T_REPUNIT_2.host_u32();
 
 // ══════════════════════════════════════════════════════════════
 // §6  UV SPECTRAL WAVELENGTHS (TM-2026-017 §16, §2.5)
 // ══════════════════════════════════════════════════════════════
 
 /// Quarter-turn = 7 × 13 = 7 radians — derived from T_LAMBDA_EUV.
-pub const LAMBDA_EUV: u32 = T_LAMBDA_EUV.to_u32_const();
+pub const LAMBDA_EUV: u32 = T_LAMBDA_EUV.host_u32();
 
 /// Half-turn = 14 × 13 = π radians — same as ARC_ROOT_SEMI.
 pub const LAMBDA_UVC: u32 = ARC_ROOT_SEMI;
@@ -414,14 +417,14 @@ pub const LAMBDA_UVA: u32 = REPUNIT_6;
 pub const LAMBDA_FAR_UVC: u32 = 2 * CENTER;
 
 /// XeCl excimer = 4 × 7 × 11.
-pub const LAMBDA_EXCIMER: u32 = T_REPUNIT_2.to_u32_const()
-    * T_POLYGON_7.to_u32_const()
-    * T_POLYGON_11.to_u32_const();
+pub const LAMBDA_EXCIMER: u32 = T_REPUNIT_2.host_u32()
+    * T_POLYGON_7.host_u32()
+    * T_POLYGON_11.host_u32();
 
 /// Narrowband UVB = e₂ = pq + pr + qr = 7×11 + 7×13 + 11×13.
-pub const LAMBDA_NB_UVB: u32 = T_POLYGON_7.to_u32_const() * T_POLYGON_11.to_u32_const()
-    + T_POLYGON_7.to_u32_const() * REPUNIT_3
-    + T_POLYGON_11.to_u32_const() * REPUNIT_3;
+pub const LAMBDA_NB_UVB: u32 = T_POLYGON_7.host_u32() * T_POLYGON_11.host_u32()
+    + T_POLYGON_7.host_u32() * REPUNIT_3
+    + T_POLYGON_11.host_u32() * REPUNIT_3;
 
 /// EUV|UVC boundary = (λ_EUV + λ_UVC) / 2. Truncated half-integer.
 pub const BOUNDARY_EUV_UVC: u32 = (LAMBDA_EUV + LAMBDA_UVC) / 2;
@@ -470,20 +473,20 @@ pub const VACUUM_BIAS_DEN: u32 = 100_000;
 // ══════════════════════════════════════════════════════════════
 
 /// Pentadecagon — derived from T_POLYGON_15.
-pub const PENTADECAGON: u32 = T_POLYGON_15.to_u32_const();
+pub const PENTADECAGON: u32 = T_POLYGON_15.host_u32();
 
 // Polygon generator aliases for table readability.
 // Source of truth: §0 T_POLYGON_* TritInt constants.
-const P3: u32 = T_POLYGON_3.to_u32_const();
-const P4: u32 = T_POLYGON_4.to_u32_const();
-const P5: u32 = T_POLYGON_5.to_u32_const();
-const P7: u32 = T_POLYGON_7.to_u32_const();
-const P8: u32 = T_POLYGON_8.to_u32_const();
-const P9: u32 = T_POLYGON_9.to_u32_const();
-const P11: u32 = T_POLYGON_11.to_u32_const();
-const P13: u32 = T_POLYGON_13.to_u32_const();
-const P14: u32 = T_POLYGON_14.to_u32_const();
-const P15: u32 = T_POLYGON_15.to_u32_const();
+const P3: u32 = T_POLYGON_3.host_u32();
+const P4: u32 = T_POLYGON_4.host_u32();
+const P5: u32 = T_POLYGON_5.host_u32();
+const P7: u32 = T_POLYGON_7.host_u32();
+const P8: u32 = T_POLYGON_8.host_u32();
+const P9: u32 = T_POLYGON_9.host_u32();
+const P11: u32 = T_POLYGON_11.host_u32();
+const P13: u32 = T_POLYGON_13.host_u32();
+const P14: u32 = T_POLYGON_14.host_u32();
+const P15: u32 = T_POLYGON_15.host_u32();
 
 /// Excluded pairs — gcd > 1 prevents coexistence.
 pub const EXCLUDED_PAIRS: [(u32, u32); 3] = [(P7, P14), (P3, P9), (P4, P8)];

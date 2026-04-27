@@ -195,7 +195,7 @@ impl AttestationVerifier {
         }
 
         // 2. Schema version check
-        let version = report.schema_version.to_u64().unwrap_or(0) as u16;
+        let version = report.schema_version.host_u64() as u16;
         if !self.known_versions.contains(&version) {
             return VerifyResult::UnknownVersion(version);
         }
@@ -209,7 +209,7 @@ impl AttestationVerifier {
         }
 
         // 4. HPTP freshness window (≤240s from current time)
-        let report_ts = report.timestamp.to_u128().unwrap_or(0);
+        let report_ts = report.timestamp.host_u128();
         if current_time_fs > report_ts && (current_time_fs - report_ts) > FRESHNESS_WINDOW_FS {
             return VerifyResult::StaleTimestamp;
         }
@@ -292,12 +292,12 @@ mod tests {
         let key = AttestationSigningKey::derive(secret, addr);
         let report = AttestationReport {
             node_addr: addr.clone(),
-            sequence: TritInt::from_u64(seq),
-            timestamp: TritInt::from_u128(ts),
-            schema_version: TritInt::from_u64(SCHEMA_VERSION as u64),
+            sequence: TritInt::from_host_u64(seq),
+            timestamp: TritInt::from_host_u128(ts),
+            schema_version: TritInt::from_host_u64(SCHEMA_VERSION as u64),
             boot_measurements: BootMeasurements {
                 firmware_hash: vec![0xAB; 48],
-                anti_rollback_counter: TritInt::from_u64(1),
+                anti_rollback_counter: TritInt::from_host_u64(1),
             },
             kernel_hash: vec![0xCD; 48],
             puf_health: PufHealth::Healthy,

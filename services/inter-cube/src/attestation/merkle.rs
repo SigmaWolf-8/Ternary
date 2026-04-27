@@ -168,10 +168,10 @@ mod tests {
     #[test]
     fn single_leaf_root() {
         let mut tree = RollingMerkleTree::new();
-        tree.add_leaf(&TritInt::from_u64(42));
+        tree.add_leaf(&TritInt::from_host_u64(42));
         let root = tree.root();
         // Single leaf: root = hash_leaf(42_repr_c)
-        let expected = hash_leaf(&TritInt::from_u64(42).to_repr_c());
+        let expected = hash_leaf(&TritInt::from_host_u64(42).to_repr_c());
         assert_eq!(root, expected);
     }
 
@@ -188,7 +188,7 @@ mod tests {
     fn seventeen_leaves_proof_of_inclusion() {
         let mut tree = RollingMerkleTree::new();
         for i in 0..17u64 {
-            tree.add_leaf(&TritInt::from_u64(i));
+            tree.add_leaf(&TritInt::from_host_u64(i));
         }
         assert_eq!(tree.leaf_count(), 17);
 
@@ -205,8 +205,8 @@ mod tests {
     #[test]
     fn reset_clears_tree() {
         let mut tree = RollingMerkleTree::new();
-        tree.add_leaf(&TritInt::from_u64(1));
-        tree.add_leaf(&TritInt::from_u64(2));
+        tree.add_leaf(&TritInt::from_host_u64(1));
+        tree.add_leaf(&TritInt::from_host_u64(2));
         assert_eq!(tree.leaf_count(), 2);
 
         tree.reset();
@@ -219,8 +219,8 @@ mod tests {
         let mut tree1 = RollingMerkleTree::new();
         let mut tree2 = RollingMerkleTree::new();
         for i in 0..5u64 {
-            tree1.add_leaf(&TritInt::from_u64(i));
-            tree2.add_leaf(&TritInt::from_u64(i));
+            tree1.add_leaf(&TritInt::from_host_u64(i));
+            tree2.add_leaf(&TritInt::from_host_u64(i));
         }
         assert_eq!(tree1.root(), tree2.root());
     }

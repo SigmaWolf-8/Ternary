@@ -111,7 +111,7 @@ pub fn coprime_walk(a: &TritInt, b: &TritInt) -> Vec<(TritInt, TritInt)> {
         step = TritInt::add(&step, &one);
     }
 
-    let n_count = n.to_decimal() as usize; // host control flow
+    let n_count = n.host_u64() as usize; // host control flow
     let mut result = Vec::with_capacity(n_count);
     let mut pos = TritInt::zero();
     for _ in 0..n_count {
@@ -186,7 +186,7 @@ pub fn multidim_walk(moduli: &[TritInt], generators: &[TritInt]) -> Vec<Vec<Trit
 
     let mut cycle_len: u64 = 1;
     for m in moduli {
-        cycle_len *= m.to_decimal(); // host control flow
+        cycle_len *= m.host_u64(); // host control flow
     }
 
     let k = moduli.len();
@@ -298,20 +298,20 @@ mod tests {
     #[test]
     fn test_totient_known_values() {
         // φ(R₆) = 144
-        assert_eq!(euler_totient(&TritInt::repunit(6)).to_decimal(), 144);
+        assert_eq!(euler_totient(&TritInt::repunit(6)).host_u64(), 144);
         // φ(11×13) = 120 — derived from coprime generators
         let v11 = TritInt::from_trits(&[2, 0, 1]);  // 11 = 102₃
         let v13 = TritInt::repunit(3);                // 13 = R₃
         let v143 = TritInt::mul(&v11, &v13);          // 143 = 11 × 13
-        assert_eq!(euler_totient(&v143).to_decimal(), 120);
+        assert_eq!(euler_totient(&v143).host_u64(), 120);
         // φ(7) = 6 — prime → p−1
         let v7 = TritInt::from_trits(&[1, 2]);       // 7 = 21₃
-        assert_eq!(euler_totient(&v7).to_decimal(), 6);
+        assert_eq!(euler_totient(&v7).host_u64(), 6);
         // φ(1) = 1
-        assert_eq!(euler_totient(&TritInt::one()).to_decimal(), 1);
+        assert_eq!(euler_totient(&TritInt::one()).host_u64(), 1);
         // φ(360360) — max sextuple LCM, derived from generators
         let sext_max = sextuple_max_lcm();
-        assert_eq!(euler_totient(&sext_max).to_decimal(), 69_120);
+        assert_eq!(euler_totient(&sext_max).host_u64(), 69_120);
     }
 
     /// Build the maximum sextuple LCM (360,360) from its polygon generators.
@@ -341,7 +341,7 @@ mod tests {
         assert_eq!(walk.len(), 143); // 11 × 13
         let mut set = std::collections::HashSet::new();
         for pair in &walk {
-            set.insert((pair.0.to_decimal(), pair.1.to_decimal()));
+            set.insert((pair.0.host_u64(), pair.1.host_u64()));
         }
         assert_eq!(set.len(), 143); // all pairs distinct
     }
@@ -368,7 +368,7 @@ mod tests {
         let v364 = TritInt::repunit(6);
         let thirty = TritInt::from_trits(&[0, 1, 0, 1]); // 30 = 1010₃
         let opts = coprime_options(&v364, &TritInt::one(), &thirty);
-        let vals: Vec<u64> = opts.iter().map(|t| t.to_decimal()).collect();
+        let vals: Vec<u64> = opts.iter().map(|t| t.host_u64()).collect();
         assert!(vals.contains(&11));  // 11 generates Z₃₆₄
         assert!(!vals.contains(&13)); // gcd(13, 364) = 13
         assert!(!vals.contains(&14)); // gcd(14, 364) = 14
@@ -389,7 +389,7 @@ mod tests {
         assert_eq!(walk.len(), 35); // 5 × 7
         let mut set = std::collections::HashSet::new();
         for pos in &walk {
-            set.insert((pos[0].to_decimal(), pos[1].to_decimal()));
+            set.insert((pos[0].host_u64(), pos[1].host_u64()));
         }
         assert_eq!(set.len(), 35); // all positions distinct
     }
@@ -448,7 +448,7 @@ mod tests {
         let combos = coprime_combinations(&polygon_set);
         // Must contain {5,7,8,9,11,13} with product 360,360
         let max_product: u64 = combos.iter().map(|c| {
-            c.iter().map(|t| t.to_decimal()).product::<u64>()
+            c.iter().map(|t| t.host_u64()).product::<u64>()
         }).max().unwrap();
         assert_eq!(max_product, 360_360);
         // All combos must be sextuples (size 6) for this input

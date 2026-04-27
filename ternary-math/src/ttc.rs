@@ -79,7 +79,7 @@ pub const PHI: f64 = 1.618_033_988_749_895;
 pub const PHASE_DRIFT_RATE: f64 = 3.956;
 pub const LOG2_3: f64 = 1.584_962_500_7;
 /// 26 tunnels = 2 × R₃. Inter-Cube geometric neighbors.
-pub const TUNNEL_COUNT: usize = 2 * crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+pub const TUNNEL_COUNT: usize = 2 * crate::constants::T_REPUNIT_3.host_u32() as usize;
 /// Pure ternary power constants — all window/chunk sizes are 3^k.
 /// No binary multipliers. Every structural boundary is a power of the ternary radix.
 pub const T3_8: usize = 3_usize.pow(8);    // L1 window
@@ -106,11 +106,11 @@ pub const DELTA_HOLOGRAPHIC: f64 = 0.80;
 pub const ENTROPY_GATE: f64 = 7.99;
 pub const MODE_PRUNE_ENTROPY: f64 = 7.99;
 /// Max match length = Δ₂ = 3⁶ = 729. From constants::DISCRIMINANT_2.
-pub const MAX_MATCH_LEN: usize = crate::constants::T_DISCRIMINANT_2.to_u32_const() as usize;
+pub const MAX_MATCH_LEN: usize = crate::constants::T_DISCRIMINANT_2.host_u32() as usize;
 /// Max run length = 3⁵ = R₅ = 243. From constants::REPUNIT_5.
 pub const MAX_RUN_LEN: usize = 3_usize.pow(5);
 /// R₃ = radian = hash window size. Single boundary crossing for all hash functions.
-const HASH_W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+const HASH_W: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
 
 const CRC32_TABLE: [u32; 256] = {
     let mut table = [0u32; 256];
@@ -1072,7 +1072,7 @@ pub struct GurftResult { pub tau: f64, pub delta: f64, pub entropy: f64, pub per
 impl Default for GurftResult { fn default() -> Self { Self { tau: 0.0, delta: 0.0, entropy: 0.0, periodicity: 0.0, salvi_resonance: false } } }
 
 fn compute_torsion_region(data: &[u8]) -> f64 {
-    const R3: u32 = crate::constants::T_REPUNIT_3.to_u32_const();
+    const R3: u32 = crate::constants::T_REPUNIT_3.host_u32();
     let n = data.len(); if n == 0 { return 0.0; }
     let mut total = 0.0f64;
     for k in 1..=R3 { let mut rs = 0.0f64; let mut is_v = 0.0f64;
@@ -1084,7 +1084,7 @@ fn compute_torsion_region(data: &[u8]) -> f64 {
     total / R3 as f64
 }
 fn compute_delta_region(data: &[u8]) -> f64 {
-    const R3: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+    const R3: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
     let n = data.len().min(512); if n < R3 + 1 { return 0.0; }
     let mut cross = 0.0f64; let mut sq = 0.0f64;
     for i in 0..(n-R3) { cross += data[i] as f64 * data[i+R3] as f64; sq += data[i] as f64 * data[i] as f64; }
@@ -1594,8 +1594,8 @@ impl Lz77Engine {
     /// R₃-byte hash (one radian). Multipliers: alternating powers of
     /// coprime generators 11 and R₃ from constants.rs polygon set.
     #[inline] fn hash13(&self, data: &[u8], i: usize) -> usize {
-        const G11: usize = crate::constants::T_POLYGON_11.to_u32_const() as usize;
-        const G13: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+        const G11: usize = crate::constants::T_POLYGON_11.host_u32() as usize;
+        const G13: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
         if i + HASH_W > data.len() { return 0; }
         let mut h = 0usize;
         h = h.wrapping_add((data[i]    as usize).wrapping_mul(G11));
@@ -1956,7 +1956,7 @@ fn dispatch_independent_parallel(cs: &[&[u8]], cfg: &LevelConfig, mode: Compress
 
 #[cfg(feature = "parallel")]
 fn dispatch_dependent_pipelined(cs: &[&[u8]], cfg: &LevelConfig, mode: CompressionMode, tc: &TritCostTables, dx: DomainTransform) -> Vec<ChunkResult> {
-    let cc = cs.len(); let bs = crate::constants::T_REPUNIT_3.to_u32_const() as usize; let tb = (cc+bs-1)/bs;
+    let cc = cs.len(); let bs = crate::constants::T_REPUNIT_3.host_u32() as usize; let tb = (cc+bs-1)/bs;
     let mut results: Vec<ChunkResult> = Vec::with_capacity(cc); let mut history: Vec<u8> = Vec::new();
     let fbe = bs.min(cc);
     let mut acache: Vec<Phase1Result> = (0..fbe).into_par_iter().map(|idx| phase1_analyze(cs[idx], idx, cfg, mode)).collect();

@@ -20,13 +20,13 @@ pub const fn repunit(n: u32) -> u64 {
 }
 
 // Named constants — derived from constants.rs source of truth.
-pub const REPUNIT_R3: u64 = crate::constants::T_REPUNIT_3.to_u32_const() as u64;
-pub const REPUNIT_R4: u64 = crate::constants::T_REPUNIT_4.to_u32_const() as u64;
-pub const REPUNIT_R5: u64 = crate::constants::T_REPUNIT_5.to_u32_const() as u64;
-pub const REPUNIT_R6: u64 = crate::constants::T_REPUNIT_6.to_u32_const() as u64;
-pub const REPUNIT_R7: u64 = crate::trit_int::TritInt::repunit(7).to_u32_const() as u64;
-pub const REPUNIT_R8: u64 = crate::trit_int::TritInt::repunit(8).to_u32_const() as u64;
-pub const REPUNIT_R9: u64 = crate::trit_int::TritInt::repunit(9).to_u32_const() as u64;
+pub const REPUNIT_R3: u64 = crate::constants::T_REPUNIT_3.host_u32() as u64;
+pub const REPUNIT_R4: u64 = crate::constants::T_REPUNIT_4.host_u32() as u64;
+pub const REPUNIT_R5: u64 = crate::constants::T_REPUNIT_5.host_u32() as u64;
+pub const REPUNIT_R6: u64 = crate::constants::T_REPUNIT_6.host_u32() as u64;
+pub const REPUNIT_R7: u64 = crate::trit_int::TritInt::repunit(7).host_u32() as u64;
+pub const REPUNIT_R8: u64 = crate::trit_int::TritInt::repunit(8).host_u32() as u64;
+pub const REPUNIT_R9: u64 = crate::trit_int::TritInt::repunit(9).host_u32() as u64;
 
 /// Full ternary circle in circle-days.
 pub const FULL_CIRCLE_DAYS: u64 = REPUNIT_R6; // 364

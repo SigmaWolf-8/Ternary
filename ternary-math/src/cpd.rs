@@ -11,12 +11,12 @@
 // Framework coprime strides — derived from polygon generators and pair LCMs.
 // Source of truth: constants.rs §0 TritInt constants → §1+ boundary crossings.
 const COPRIME_STRIDES: [u16; 13] = [
-    crate::constants::T_POLYGON_7.to_u32_const() as u16,   // 7
-    crate::constants::T_POLYGON_11.to_u32_const() as u16,  // 11
+    crate::constants::T_POLYGON_7.host_u32() as u16,   // 7
+    crate::constants::T_POLYGON_11.host_u32() as u16,  // 11
     crate::constants::REPUNIT_3 as u16,                      // 13 = R₃
     crate::constants::ROOT_X1 as u16,                        // 14 = x₁
-    crate::constants::T_POLYGON_15.to_u32_const() as u16,  // 15
-    crate::constants::T_Z28_ORDER.to_u32_const() as u16,   // 28 = Z₂₈
+    crate::constants::T_POLYGON_15.host_u32() as u16,  // 15
+    crate::constants::T_Z28_ORDER.host_u32() as u16,   // 28 = Z₂₈
     // Coprime pair LCMs — from constants.rs COPRIME_PAIR_LCMS
     crate::constants::COPRIME_PAIR_LCMS[0] as u16,          // 77  = 7×11
     crate::constants::COPRIME_PAIR_LCMS[1] as u16,          // 91  = 7×13

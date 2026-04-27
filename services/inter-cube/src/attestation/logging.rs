@@ -345,7 +345,7 @@ impl AttestationLogger {
     fn emit(&self, classification: [ClassTrit; 27], message: String,
             raw_data: Option<String>, correlation: Option<String>,
             timestamp_fs: u128) {
-        let hptp = TritInt::from_u128(timestamp_fs);
+        let hptp = TritInt::from_host_u128(timestamp_fs);
         let received_at = hptp.clone(); // same node — no ingestion latency
 
         // TIS-27 identity hash (covers 24 immutable trits + timestamp + content)

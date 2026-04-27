@@ -14,7 +14,7 @@
 //! avoiding a circular dependency between the two crates.
 
 /// Number of dimensions in the ternary hypercube = R₃.
-pub const DIMENSIONS: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+pub const DIMENSIONS: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
 
 /// A 13-trit Rep C address (values 1, 2, 3).
 ///

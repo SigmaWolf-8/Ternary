@@ -439,11 +439,11 @@ impl Ags {
             // Build histogram: count occurrences of each residue value.
             // Bucket indexing is a host operation (Rust array indices are usize).
             // The residue VALUES are ternary; the COUNTS are host integers.
-            let bucket_count = generator.to_decimal() as usize;
+            let bucket_count = generator.host_u64() as usize;
             let mut buckets: Vec<u64> = vec![0; bucket_count];
 
             for residue in &residues {
-                let bucket = residue.to_decimal() as usize;
+                let bucket = residue.host_u64() as usize;
                 buckets[bucket] += 1;
             }
 
@@ -493,7 +493,7 @@ impl Ags {
 // WITHOUT contaminating the mathematical core.
 //
 // Architecture:
-//   TritInt (ternary core) ──→ .to_u64() ──→ u64 (binary consumer)
+//   TritInt (ternary core) ──→ .host_u64() ──→ u64 (binary consumer)
 //   u64 (binary input)    ──→ TritInt::from_decimal() ──→ TritInt
 //
 // The conversion is EXPLICIT at the API boundary. Inside the
@@ -507,7 +507,7 @@ impl Ags {
 //   pub const REPUNIT_6: TritInt = TritInt::repunit(6); // 111111₃
 //
 //   // At the binary boundary:
-//   pub fn repunit_6_u32() -> u32 { REPUNIT_6.to_decimal() as u32 }
+//   pub fn repunit_6_u32() -> u32 { REPUNIT_6.host_u64() as u32 }
 //
 // The compile-time assertion verifies the bridge:
 //   const _: () = assert!(TritInt::repunit(6).to_decimal_const() == 364);
@@ -515,17 +515,17 @@ impl Ags {
 impl Ags {
     /// Binary bridge: capacity as u64 for consumers that need it.
     pub fn capacity_u64(&self) -> u64 {
-        self.capacity.to_decimal()
+        self.capacity.host_u64()
     }
 
     /// Binary bridge: generator values as u32 for UI display.
     pub fn generators_u32(&self) -> Vec<u32> {
-        self.generators.iter().map(|g| g.to_decimal() as u32).collect()
+        self.generators.iter().map(|g| g.host_u64() as u32).collect()
     }
 
     /// Binary bridge: walk position as u64 for database storage.
     pub fn walk_position_u64(&self, address: &TritInt) -> u64 {
-        self.crt_reconstruct(&self.crt_project(address)).to_decimal()
+        self.crt_reconstruct(&self.crt_project(address)).host_u64()
     }
 }
 
@@ -644,9 +644,9 @@ mod tests {
         let capacity = derive_ags_capacity(&seed);
         // 11 × 13 = 143 = 12022₃
         // Verify via binary bridge (the ONLY place binary appears in tests)
-        assert_eq!(capacity.to_decimal(), 143);
+        assert_eq!(capacity.host_u64(), 143);
         // Verify it matches BEZIER_C650_ANGLE from constants.rs
-        assert_eq!(capacity.to_decimal(), 143); // = BEZIER_C650_ANGLE
+        assert_eq!(capacity.host_u64(), 143); // = BEZIER_C650_ANGLE
     }
 
     #[test]
@@ -675,7 +675,7 @@ mod tests {
         ];
         for sext in &sextuples {
             for s in &seed {
-                let s_val = s.to_decimal();
+                let s_val = s.host_u64();
                 assert!(sext.contains(&s_val),
                     "Seed {} missing from sextuple {:?}", s_val, sext);
             }
@@ -703,19 +703,19 @@ mod tests {
         // Shrink at population < capacity × 1/4
         // Grow at population ≥ capacity × 3/4
         // Verify these derive from the duty cycle
-        assert_eq!(DUTY_N.to_decimal(), 1);
-        assert_eq!(DUTY_D.to_decimal(), 4);
-        assert_eq!(DUTY_D.sub(&DUTY_N).to_decimal(), 3); // complement = 3
+        assert_eq!(DUTY_N.host_u64(), 1);
+        assert_eq!(DUTY_D.host_u64(), 4);
+        assert_eq!(DUTY_D.sub(&DUTY_N).host_u64(), 3); // complement = 3
     }
 
     #[test]
     fn grow_through_full_landscape() {
         let mut ags = Ags::new();
-        let mut growth_steps = vec![ags.capacity().to_decimal()];
+        let mut growth_steps = vec![ags.capacity().host_u64()];
 
         while ags.can_grow() {
             ags.grow();
-            growth_steps.push(ags.capacity().to_decimal());
+            growth_steps.push(ags.capacity().host_u64());
         }
 
         // Greedy smallest-first reaches {3,4,5,7,11,13} = 60,060
@@ -734,7 +734,7 @@ mod tests {
         let trits = DELTA_2.to_trits();
         // Should be [0,0,0,0,0,0,1] LSB-first
         assert_eq!(trits, vec![0, 0, 0, 0, 0, 0, 1]);
-        assert_eq!(DELTA_2.to_decimal(), 729);
+        assert_eq!(DELTA_2.host_u64(), 729);
     }
 
     #[test]
@@ -744,6 +744,6 @@ mod tests {
         let two = TritInt::from_trits(&[2]);
         let max = TritInt::add(&r3, &two);
         assert_eq!(max, POLYGON_MAX);
-        assert_eq!(max.to_decimal(), 15);
+        assert_eq!(max.host_u64(), 15);
     }
 }

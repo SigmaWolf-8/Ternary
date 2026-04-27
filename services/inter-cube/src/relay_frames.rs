@@ -36,16 +36,16 @@ use ternary_math::trit_int::TritInt;
 /// Caller MUST check via `is_frame_type_corrupt()` before dispatch.
 pub fn wire_type_to_rep_c(wire_type: &str) -> TritInt {
     match wire_type {
-        "tombstone" => TritInt::from_u64(1),
-        "topic_reset" => TritInt::from_u64(2),
-        "topic_revoked" => TritInt::from_u64(3),
+        "tombstone" => TritInt::from_host_u64(1),
+        "topic_reset" => TritInt::from_host_u64(2),
+        "topic_revoked" => TritInt::from_host_u64(3),
         _ => TritInt::zero(), // Zero = provably corrupt in Rep C
     }
 }
 
 /// Inverse: Rep C TritInt → wire-format string.
 pub fn rep_c_to_wire_type(rep_c: &TritInt) -> Option<&'static str> {
-    match rep_c.to_decimal() {
+    match rep_c.host_u64() {
         1 => Some("tombstone"),
         2 => Some("topic_reset"),
         3 => Some("topic_revoked"),
@@ -63,7 +63,7 @@ pub fn rep_c_to_wire_type(rep_c: &TritInt) -> Option<&'static str> {
 /// Returns true if the value is CORRUPT (contains zero).
 pub fn is_frame_type_corrupt(rep_c: &TritInt) -> bool {
     // Gate crossing: TritInt → u8 for kernel-level forgery check
-    let raw = rep_c.to_decimal() as u8;
+    let raw = rep_c.host_u64() as u8;
     gf3_algebra::has_forgery(&[raw])
 }
 
@@ -264,27 +264,27 @@ mod tests {
 
     #[test]
     fn test_wire_to_rep_c() {
-        assert_eq!(wire_type_to_rep_c("tombstone").to_decimal(), 1);
-        assert_eq!(wire_type_to_rep_c("topic_reset").to_decimal(), 2);
-        assert_eq!(wire_type_to_rep_c("topic_revoked").to_decimal(), 3);
-        assert_eq!(wire_type_to_rep_c("unknown").to_decimal(), 0);
+        assert_eq!(wire_type_to_rep_c("tombstone").host_u64(), 1);
+        assert_eq!(wire_type_to_rep_c("topic_reset").host_u64(), 2);
+        assert_eq!(wire_type_to_rep_c("topic_revoked").host_u64(), 3);
+        assert_eq!(wire_type_to_rep_c("unknown").host_u64(), 0);
     }
 
     #[test]
     fn test_rep_c_to_wire() {
-        assert_eq!(rep_c_to_wire_type(&TritInt::from_u64(1)), Some("tombstone"));
-        assert_eq!(rep_c_to_wire_type(&TritInt::from_u64(2)), Some("topic_reset"));
-        assert_eq!(rep_c_to_wire_type(&TritInt::from_u64(3)), Some("topic_revoked"));
+        assert_eq!(rep_c_to_wire_type(&TritInt::from_host_u64(1)), Some("tombstone"));
+        assert_eq!(rep_c_to_wire_type(&TritInt::from_host_u64(2)), Some("topic_reset"));
+        assert_eq!(rep_c_to_wire_type(&TritInt::from_host_u64(3)), Some("topic_revoked"));
         assert_eq!(rep_c_to_wire_type(&TritInt::zero()), None);
-        assert_eq!(rep_c_to_wire_type(&TritInt::from_u64(4)), None);
+        assert_eq!(rep_c_to_wire_type(&TritInt::from_host_u64(4)), None);
     }
 
     #[test]
     fn test_zero_is_corrupt() {
         assert!(is_frame_type_corrupt(&TritInt::zero()), "Zero must be corrupt in Rep C");
-        assert!(!is_frame_type_corrupt(&TritInt::from_u64(1)));
-        assert!(!is_frame_type_corrupt(&TritInt::from_u64(2)));
-        assert!(!is_frame_type_corrupt(&TritInt::from_u64(3)));
+        assert!(!is_frame_type_corrupt(&TritInt::from_host_u64(1)));
+        assert!(!is_frame_type_corrupt(&TritInt::from_host_u64(2)));
+        assert!(!is_frame_type_corrupt(&TritInt::from_host_u64(3)));
     }
 
     #[test]

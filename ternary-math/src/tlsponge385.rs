@@ -21,7 +21,7 @@
 // Rounds: 9 full (TLSponge-385), 4 fast (TIS-27)
 
 /// Sponge state = Δ₂ = 3⁶ = 729 trits.
-const STATE_SIZE: usize = crate::constants::T_DISCRIMINANT_2.to_u32_const() as usize;
+const STATE_SIZE: usize = crate::constants::T_DISCRIMINANT_2.host_u32() as usize;
 /// Rate = 3⁵ = 243 trits.
 const RATE: usize = 3_usize.pow(5);
 /// Bulk rate = 2 × 3⁵.
@@ -29,14 +29,14 @@ const RATE_BULK: usize = 2 * RATE;
 /// Full rounds = 3².
 const ROUNDS: usize = 3_usize.pow(2);
 /// TIS-27 fast rounds = R₂.
-const ROUNDS_TIS: usize = crate::constants::T_REPUNIT_2.to_u32_const() as usize;
+const ROUNDS_TIS: usize = crate::constants::T_REPUNIT_2.host_u32() as usize;
 /// Lanes = 3³ = √Δ₂.
-const LANES: usize = crate::constants::T_DISCRIMINANT_2_SQRT.to_u32_const() as usize;
+const LANES: usize = crate::constants::T_DISCRIMINANT_2_SQRT.host_u32() as usize;
 /// Chi blocks = 3⁵ = RATE.
 const CHI_BLOCKS: usize = RATE;
 
 /// Max batch = 2 × R₃ = tunnel count.
-pub const MAX_BATCH: usize = 2 * crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+pub const MAX_BATCH: usize = 2 * crate::constants::T_REPUNIT_3.host_u32() as usize;
 pub const SPONGE_VERSION: u8 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

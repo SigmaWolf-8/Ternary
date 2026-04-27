@@ -187,12 +187,12 @@ mod tests {
     fn test_report(addr: &CubeAddr) -> AttestationReport {
         AttestationReport {
             node_addr: addr.clone(),
-            sequence: TritInt::from_u64(1),
-            timestamp: TritInt::from_u128(1_000_000_000_000_000),
-            schema_version: TritInt::from_u64(SCHEMA_VERSION as u64),
+            sequence: TritInt::from_host_u64(1),
+            timestamp: TritInt::from_host_u128(1_000_000_000_000_000),
+            schema_version: TritInt::from_host_u64(SCHEMA_VERSION as u64),
             boot_measurements: BootMeasurements {
                 firmware_hash: vec![0xAB; 48],
-                anti_rollback_counter: TritInt::from_u64(1),
+                anti_rollback_counter: TritInt::from_host_u64(1),
             },
             kernel_hash: vec![0xCD; 48],
             puf_health: PufHealth::Healthy,

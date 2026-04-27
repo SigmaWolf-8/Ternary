@@ -190,20 +190,20 @@ pub fn sponge_derive_key_tis(context: &[u8], material: &[u8], key_len: usize) ->
 
 // §1 Repunit family — boundary crossing: TritInt → u32 at FFI
 #[wasm_bindgen] pub fn ternary_base() -> u32 { 3 } // radix of the number system
-#[wasm_bindgen] pub fn repunit_1() -> u32 { constants::T_REPUNIT_1.to_u32_const() }
-#[wasm_bindgen] pub fn repunit_2() -> u32 { constants::T_REPUNIT_2.to_u32_const() }
-#[wasm_bindgen] pub fn repunit_3() -> u32 { constants::T_REPUNIT_3.to_u32_const() }
-#[wasm_bindgen] pub fn repunit_4() -> u32 { constants::T_REPUNIT_4.to_u32_const() }
-#[wasm_bindgen] pub fn repunit_5() -> u32 { constants::T_REPUNIT_5.to_u32_const() }
-#[wasm_bindgen] pub fn repunit_6() -> u32 { constants::T_REPUNIT_6.to_u32_const() }
+#[wasm_bindgen] pub fn repunit_1() -> u32 { constants::T_REPUNIT_1.host_u32() }
+#[wasm_bindgen] pub fn repunit_2() -> u32 { constants::T_REPUNIT_2.host_u32() }
+#[wasm_bindgen] pub fn repunit_3() -> u32 { constants::T_REPUNIT_3.host_u32() }
+#[wasm_bindgen] pub fn repunit_4() -> u32 { constants::T_REPUNIT_4.host_u32() }
+#[wasm_bindgen] pub fn repunit_5() -> u32 { constants::T_REPUNIT_5.host_u32() }
+#[wasm_bindgen] pub fn repunit_6() -> u32 { constants::T_REPUNIT_6.host_u32() }
 
 // §2 Circle quadratic — boundary crossing: TritInt → u32 at FFI
-#[wasm_bindgen] pub fn quad_sum() -> u32 { constants::T_REPUNIT_4.to_u32_const() }
-#[wasm_bindgen] pub fn quad_product() -> u32 { constants::T_REPUNIT_6.to_u32_const() }
-#[wasm_bindgen] pub fn discriminant() -> u32 { constants::T_DISCRIMINANT.to_u32_const() }
-#[wasm_bindgen] pub fn discriminant_sqrt() -> u32 { constants::T_DISCRIMINANT_SQRT.to_u32_const() }
-#[wasm_bindgen] pub fn root_x1() -> u32 { constants::T_ROOT_X1.to_u32_const() }
-#[wasm_bindgen] pub fn root_x2() -> u32 { constants::T_ROOT_X2.to_u32_const() }
+#[wasm_bindgen] pub fn quad_sum() -> u32 { constants::T_REPUNIT_4.host_u32() }
+#[wasm_bindgen] pub fn quad_product() -> u32 { constants::T_REPUNIT_6.host_u32() }
+#[wasm_bindgen] pub fn discriminant() -> u32 { constants::T_DISCRIMINANT.host_u32() }
+#[wasm_bindgen] pub fn discriminant_sqrt() -> u32 { constants::T_DISCRIMINANT_SQRT.host_u32() }
+#[wasm_bindgen] pub fn root_x1() -> u32 { constants::T_ROOT_X1.host_u32() }
+#[wasm_bindgen] pub fn root_x2() -> u32 { constants::T_ROOT_X2.host_u32() }
 
 // §3 Unified equation — derived from T_ at this FFI boundary
 #[wasm_bindgen] pub fn unified_linear() -> u32 { constants::UNIFIED_LINEAR }
@@ -211,25 +211,25 @@ pub fn sponge_derive_key_tis(context: &[u8], material: &[u8], key_len: usize) ->
 #[wasm_bindgen] pub fn unified_factor() -> u32 { constants::UNIFIED_FACTOR }
 #[wasm_bindgen] pub fn unified_disc() -> u32 { constants::UNIFIED_DISC }
 #[wasm_bindgen] pub fn unified_disc_sqrt() -> u32 { constants::UNIFIED_DISC_SQRT }
-#[wasm_bindgen] pub fn arc_root_semi() -> u32 { constants::T_ARC_ROOT_SEMI.to_u32_const() }
-#[wasm_bindgen] pub fn arc_root_comp() -> u32 { constants::T_ARC_ROOT_COMP.to_u32_const() }
-#[wasm_bindgen] pub fn green_arc_eff() -> u32 { constants::T_GREEN_ARC_EFF.to_u32_const() }
-#[wasm_bindgen] pub fn center() -> u32 { constants::T_CENTER.to_u32_const() }
-#[wasm_bindgen] pub fn discriminant_2() -> u32 { constants::T_DISCRIMINANT_2.to_u32_const() }
-#[wasm_bindgen] pub fn discriminant_2_sqrt() -> u32 { constants::T_DISCRIMINANT_2_SQRT.to_u32_const() }
-#[wasm_bindgen] pub fn magic_constant() -> u32 { constants::T_MAGIC_CONSTANT.to_u32_const() }
-#[wasm_bindgen] pub fn circumference() -> u32 { constants::T_CIRCUMFERENCE.to_u32_const() }
+#[wasm_bindgen] pub fn arc_root_semi() -> u32 { constants::T_ARC_ROOT_SEMI.host_u32() }
+#[wasm_bindgen] pub fn arc_root_comp() -> u32 { constants::T_ARC_ROOT_COMP.host_u32() }
+#[wasm_bindgen] pub fn green_arc_eff() -> u32 { constants::T_GREEN_ARC_EFF.host_u32() }
+#[wasm_bindgen] pub fn center() -> u32 { constants::T_CENTER.host_u32() }
+#[wasm_bindgen] pub fn discriminant_2() -> u32 { constants::T_DISCRIMINANT_2.host_u32() }
+#[wasm_bindgen] pub fn discriminant_2_sqrt() -> u32 { constants::T_DISCRIMINANT_2_SQRT.host_u32() }
+#[wasm_bindgen] pub fn magic_constant() -> u32 { constants::T_MAGIC_CONSTANT.host_u32() }
+#[wasm_bindgen] pub fn circumference() -> u32 { constants::T_CIRCUMFERENCE.host_u32() }
 
 // §5 Angular conversion
 #[wasm_bindgen] pub fn std_circle_deg() -> u32 { constants::STD_CIRCLE_DEG }
-#[wasm_bindgen] pub fn angular_conv_num() -> u32 { constants::T_LAMBDA_EUV.to_u32_const() }
-#[wasm_bindgen] pub fn angular_conv_den() -> u32 { constants::STD_CIRCLE_DEG / constants::T_REPUNIT_2.to_u32_const() }
+#[wasm_bindgen] pub fn angular_conv_num() -> u32 { constants::T_LAMBDA_EUV.host_u32() }
+#[wasm_bindgen] pub fn angular_conv_den() -> u32 { constants::STD_CIRCLE_DEG / constants::T_REPUNIT_2.host_u32() }
 
 // §6 UV spectral wavelengths — boundary crossing at FFI
-#[wasm_bindgen] pub fn lambda_euv() -> u32 { constants::T_LAMBDA_EUV.to_u32_const() }
-#[wasm_bindgen] pub fn lambda_uvc() -> u32 { constants::T_ARC_ROOT_SEMI.to_u32_const() }
-#[wasm_bindgen] pub fn lambda_uvb() -> u32 { constants::T_GREEN_ARC_EFF.to_u32_const() }
-#[wasm_bindgen] pub fn lambda_uva() -> u32 { constants::T_REPUNIT_6.to_u32_const() }
+#[wasm_bindgen] pub fn lambda_euv() -> u32 { constants::T_LAMBDA_EUV.host_u32() }
+#[wasm_bindgen] pub fn lambda_uvc() -> u32 { constants::T_ARC_ROOT_SEMI.host_u32() }
+#[wasm_bindgen] pub fn lambda_uvb() -> u32 { constants::T_GREEN_ARC_EFF.host_u32() }
+#[wasm_bindgen] pub fn lambda_uva() -> u32 { constants::T_REPUNIT_6.host_u32() }
 #[wasm_bindgen] pub fn lambda_far_uvc() -> u32 { constants::LAMBDA_FAR_UVC }
 #[wasm_bindgen] pub fn lambda_excimer() -> u32 { constants::LAMBDA_EXCIMER }
 #[wasm_bindgen] pub fn lambda_nb_uvb() -> u32 { constants::LAMBDA_NB_UVB }
@@ -400,14 +400,14 @@ use crate::trit::Trit;
 
 #[wasm_bindgen]
 pub fn trit_int_from_u64(val: u64) -> Vec<u8> {
-    TritInt::from_u64(val).to_repr_c()
+    TritInt::from_host_u64(val).to_repr_c()
 }
 
 #[wasm_bindgen]
 pub fn trit_int_to_decimal(repr_c: &[u8]) -> Result<u64, JsValue> {
     let t = TritInt::try_from_repr_c(repr_c)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    t.to_u64().map_err(|e| JsValue::from_str(&e.to_string()))
+    Ok(t.host_u64())
 }
 
 #[wasm_bindgen]
@@ -419,7 +419,7 @@ pub fn trit_int_display(repr_c: &[u8]) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub fn trit_int_to_repr_c(val: u64) -> Vec<u8> {
-    TritInt::from_u64(val).to_repr_c()
+    TritInt::from_host_u64(val).to_repr_c()
 }
 
 #[wasm_bindgen]
@@ -431,13 +431,13 @@ pub fn trit_int_from_repr_c(repr_c: &[u8]) -> Result<Vec<u8>, JsValue> {
 
 #[wasm_bindgen]
 pub fn trit_new_scalar(val: u64) -> String {
-    let t = Trit::from_u64(val);
+    let t = Trit::from_host_u64(val);
     trit_to_json(&t)
 }
 
 #[wasm_bindgen]
 pub fn trit_new_golden(a: u64, b: u64) -> String {
-    let t = Trit::golden(TritInt::from_u64(a), TritInt::from_u64(b));
+    let t = Trit::golden(TritInt::from_host_u64(a), TritInt::from_host_u64(b));
     trit_to_json(&t)
 }
 

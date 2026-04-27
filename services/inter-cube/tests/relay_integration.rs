@@ -233,9 +233,9 @@ mod relay_integration {
 
     #[test]
     fn test_rep_c_mapping() {
-        assert_eq!(wire_type_to_rep_c("tombstone").to_decimal(), 1);
-        assert_eq!(wire_type_to_rep_c("topic_reset").to_decimal(), 2);
-        assert_eq!(wire_type_to_rep_c("topic_revoked").to_decimal(), 3);
+        assert_eq!(wire_type_to_rep_c("tombstone").host_u64(), 1);
+        assert_eq!(wire_type_to_rep_c("topic_reset").host_u64(), 2);
+        assert_eq!(wire_type_to_rep_c("topic_revoked").host_u64(), 3);
     }
 
     #[test]
@@ -493,11 +493,11 @@ mod relay_integration {
 
     #[test]
     fn test_coprime_options_direct() {
-        let axis = TritInt::from_u64(12);
-        let min = TritInt::from_u64(1);
-        let max = TritInt::from_u64(12);
+        let axis = TritInt::from_host_u64(12);
+        let min = TritInt::from_host_u64(1);
+        let max = TritInt::from_host_u64(12);
         let opts = coprime::coprime_options(&axis, &min, &max);
-        let vals: Vec<u64> = opts.iter().map(|t| t.to_decimal()).collect();
+        let vals: Vec<u64> = opts.iter().map(|t| t.host_u64()).collect();
         assert!(vals.contains(&1));
         assert!(vals.contains(&5));
         assert!(vals.contains(&7));

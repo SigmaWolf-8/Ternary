@@ -520,6 +520,173 @@ impl std::fmt::Display for MilesianGlyphString {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Circle-and-Square Encoder — Spec v3.3.33 §3.1, §4.1–4.6
+//
+// One entry point: `encode_bytes_to_trits_and_glyphs`.
+// Pipeline (ternary-native, stateless, no decoder):
+//   §3.1   bytes → integer N            (bijective base-256)
+//   §4.2   find D                        (smallest D s.t. B·R_D ≥ N, B = 3^k)
+//   §4.3   offset X = N − R_D            (square to the repunit's circle)
+//   §4.4   X → k·D Rep-C trits           (standard base-3 of X, +1 lift)
+//   §4.6   Rep-C → Rep-R via φ_R         (universal output rep)
+//   §4.5   N → universal Milesian glyphs (parallel base-27 path, k-independent)
+// All arithmetic on N flows through `TritInt` (one trit per slot).
+// Host integers appear only at:
+//   - the byte-input boundary (Byte::value, an unavoidable byte width),
+//   - position indices into T_MILESIAN_REGISTER (which are not values).
+// ══════════════════════════════════════════════════════════════
+
+use crate::trit_int::TritInt;
+use crate::constants::T_MILESIAN_REGISTER;
+
+/// §3.1 — Bytes → integer N (bijective base-256).
+/// `N = Σ (b_j + 1) · 256^(L−1−j)`. Returns `TritInt::zero()` for empty input.
+fn bytes_to_n(bytes: &ByteString) -> TritInt {
+    if bytes.is_empty() { return TritInt::zero(); }
+    // base-256 in Rep-B trits = 5 trits "100021" reversed?  Build via TritInt.
+    // 256 in base 3 = 100111 (LSB first: [1,1,1,0,0,1]).  Verify: 1+3+9+0+0+243=256. ✓
+    let base_256 = TritInt::from_trit_slice(&[1, 1, 1, 0, 0, 1]);
+    let mut n = TritInt::zero();
+    for byte in bytes.bytes() {
+        // bijective base-256 digit = byte_value + 1, in {1, …, 256}
+        let digit_value = (byte.value() as u64) + 1;
+        let digit = TritInt::from_host_u64(digit_value);
+        n = n.mul(&base_256).add(&digit);
+    }
+    n
+}
+
+/// §4.4 / §4.5 helper — `R_D` evaluated in base `B = 3^k`,
+/// expressed directly as a Rep-B trit array.
+/// `R_D(base B) = Σ_{i=0}^{D−1} B^i = Σ_{i=0}^{D−1} 3^{k·i}` →
+/// trits at positions 0, k, 2k, …, k(D−1) set to 1, all others 0.
+fn repunit_in_base_b(d: usize, k: usize) -> TritInt {
+    if d == 0 { return TritInt::zero(); }
+    let total = k * (d - 1) + 1;
+    let mut trits = vec![0u8; total];
+    for i in 0..d {
+        trits[i * k] = 1;
+    }
+    TritInt::from_trit_slice(&trits)
+}
+
+/// §4.4 helper — `B · R_D` (the largest D-digit bijective base-B number).
+/// In trits: positions k, 2k, …, k·D set to 1.  Used as the §4.2 upper bound.
+fn b_times_repunit(d: usize, k: usize) -> TritInt {
+    let total = k * d + 1;
+    let mut trits = vec![0u8; total];
+    for i in 1..=d {
+        trits[i * k] = 1;
+    }
+    TritInt::from_trit_slice(&trits)
+}
+
+/// §4.2 — Find smallest D ≥ 1 such that `B · R_D ≥ N`, with `B = 3^k`.
+fn find_d_for_block_size(n: &TritInt, k: usize) -> usize {
+    let mut d: usize = 1;
+    loop {
+        let bound = b_times_repunit(d, k);
+        if &bound >= n { return d; }
+        d += 1;
+    }
+}
+
+/// Pad a TritInt's Rep-B trit view to exactly `total_trits` slots
+/// (LSB first). Higher-order zeros are appended as needed.
+/// Panics if the value already exceeds `total_trits` trits.
+fn padded_rep_b_trits(value: &TritInt, total_trits: usize) -> Vec<u8> {
+    let raw = value.to_trits();  // Rep-B, LSB first, no trailing zeros
+    assert!(raw.len() <= total_trits,
+        "padded_rep_b_trits: value width {} exceeds {} trits",
+        raw.len(), total_trits);
+    let mut out = vec![0u8; total_trits];
+    out[..raw.len()].copy_from_slice(&raw);
+    out
+}
+
+/// §4.4 + §4.6 — Build the Rep-R trit string from offset `x` of width `k·D`.
+/// The trit string is `x` in standard base-3 (left-padded to k·D), Rep-C lifted
+/// (+1), then projected via φ_R.  Output order is most-significant-first.
+fn build_trit_string(x: &TritInt, d: usize, k: usize, rep: Representation) -> TritString {
+    let total = k * d;
+    if total == 0 { return TritString::empty(k); }
+    let lsb_first = padded_rep_b_trits(x, total);
+    let mut trits = Vec::with_capacity(total);
+    // Walk MSB-first; each Rep-B q is +1 lifted to Rep-C.
+    for i in (0..total).rev() {
+        let q = lsb_first[i];          // {0, 1, 2}
+        let c = q + 1;                  // {1, 2, 3}
+        let _ = rep;                    // Rep stored in TritString header; projection on demand.
+        trits.push(Trit::from_rep_c(c).expect("Rep-C trit out of range"));
+    }
+    TritString::from_trits(trits, k)
+}
+
+/// §4.5 — Build the universal Milesian glyph string from `N` via base-27.
+/// Independent of `k`.  Empty when `N = 0`.
+fn build_milesian_glyph_string(n: &TritInt) -> MilesianGlyphString {
+    if n.is_zero() { return MilesianGlyphString::empty(); }
+    // Base 27 = 3^3, so reuse the base-B helpers with k = 3.
+    const BASE_27_K: usize = 3;
+    let m = find_d_for_block_size(n, BASE_27_K);
+    let r_m = repunit_in_base_b(m, BASE_27_K);
+    let x_prime = n.sub(&r_m);
+
+    let total_trits = BASE_27_K * m;
+    let lsb_first = padded_rep_b_trits(&x_prime, total_trits);
+
+    let mut glyphs = Vec::with_capacity(m);
+    // Each base-27 digit = block of 3 Rep-B trits, MSB block first.
+    // Block i (i = 0 most significant) occupies trit positions
+    // [3·(M−1−i), 3·(M−1−i)+2] in LSB-first order.
+    for i in 0..m {
+        let block_lsb = 3 * (m - 1 - i);
+        let q0 = lsb_first[block_lsb] as u32;        // 3^0 place
+        let q1 = lsb_first[block_lsb + 1] as u32;    // 3^1 place
+        let q2 = lsb_first[block_lsb + 2] as u32;    // 3^2 place
+        let standard_value = q0 + 3 * q1 + 9 * q2;   // ∈ {0,…,26}
+        let position = standard_value + 1;            // ∈ {1,…,27}
+        let (_, glyph_char) = T_MILESIAN_REGISTER[(position - 1) as usize];
+        glyphs.push(MilesianGlyph::from_position(position)
+            .unwrap_or_else(|| panic!(
+                "milesian register lookup failed at position {} (glyph {})",
+                position, glyph_char)));
+    }
+    MilesianGlyphString::from_glyphs(glyphs)
+}
+
+/// §4 — Full encoder.  Both outputs returned together per spec.
+/// `representation` selects the trit alphabet (A/B/C/D); the glyph string
+/// is universal and independent of `representation` and `k`.
+pub fn encode_bytes_to_trits_and_glyphs(
+    bytes: &ByteString,
+    representation: Representation,
+    k: usize,
+) -> (TritString, MilesianGlyphString) {
+    assert!(k >= 1, "encode: block size k must be ≥ 1");
+
+    // §3.1
+    let n = bytes_to_n(bytes);
+
+    // §4.5 — universal glyph path, computed in parallel from N.
+    let glyphs = build_milesian_glyph_string(&n);
+
+    // §4.1 — empty input short-circuit for the trit stream.
+    if n.is_zero() {
+        return (TritString::empty(k), glyphs);
+    }
+
+    // §4.2, §4.3
+    let d = find_d_for_block_size(&n, k);
+    let r_d = repunit_in_base_b(d, k);
+    let x = n.sub(&r_d);
+
+    // §4.4 + §4.6
+    let trits = build_trit_string(&x, d, k, representation);
+    (trits, glyphs)
+}
+
+// ══════════════════════════════════════════════════════════════
 // TESTS
 // ══════════════════════════════════════════════════════════════
 

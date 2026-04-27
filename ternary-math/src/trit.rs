@@ -34,7 +34,12 @@
 //! - `[Trit; 3]` — one vertex coordinate
 //! - Triangles, meshes, manifolds — built on Trit
 
-use crate::trit_int::{TritInt, Overflow};
+use crate::trit_int::TritInt;
+
+/// Error returned when a Trit is asked to cross into a host scalar
+/// but is not a scalar (has non-zero φ or ω components).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NotScalar;
 use crate::repx::{AlgebraicTrit, gf3_add, gf3_sub, gf3_mul, gf3_square};
 use crate::constants;
 use zeroize::Zeroize;
@@ -105,9 +110,10 @@ impl Trit {
         Self::scalar(TritInt::repunit(n))
     }
 
-    /// Scalar from u64 (BOUNDARY CROSSING: binary → ternary).
-    pub const fn from_u64(val: u64) -> Self {
-        Self::scalar(TritInt::from_u64(val))
+    /// Scalar from a host u64. Explicit binary → ternary boundary crossing.
+    /// Runtime path — `from_host_u64` walks digits.
+    pub fn from_host_u64(val: u64) -> Self {
+        Self::scalar(TritInt::from_host_u64(val))
     }
 
     // ── Const accessors (take self by value for const fn compatibility) ──
@@ -138,7 +144,10 @@ impl Trit {
 /// Archimedean solid circumradius squared: R² = 14 + 5φ.
 /// Integer part (14) IS π_Salvi. φ-coefficient (5) IS the pentagon generator.
 /// Norm: N(14, 5) = 14² + 14×5 − 5² = 196 + 70 − 25 = 241 (prime, irreducible).
-pub const R_SQUARED_T: Trit = Trit::golden(TritInt::from_u64(14), TritInt::from_u64(5));
+pub const R_SQUARED_T: Trit = Trit::golden(
+    TritInt::from_trits(&[2, 1, 1]),  // 14 = 112₃ — π_Salvi
+    TritInt::from_trits(&[2, 1]),     // 5 = 12₃ — pentagon generator
+);
 
 /// Full circle: R₆ = 364 = 111111₃ (scalar).
 pub const FULL_CIRCLE_T: Trit = Trit::repunit(6);
@@ -146,8 +155,8 @@ pub const FULL_CIRCLE_T: Trit = Trit::repunit(6);
 /// Pi: π = 14 = 112₃ (scalar).
 pub const PI_T: Trit = Trit::scalar(TritInt::from_trits(&[2, 1, 1]));
 
-/// Half-turn: 182 = π × R₃ (scalar).
-pub const HALF_TURN_T: Trit = Trit::scalar(TritInt::from_u64(182));
+/// Half-turn: 182 = π × R₃ (scalar). 182 = 20202₃.
+pub const HALF_TURN_T: Trit = Trit::scalar(TritInt::from_trits(&[2, 0, 2, 0, 2]));
 
 /// φ² = 1 + φ = (1, 1) — the defining relation as a Trit constant.
 pub const PHI_SQUARED_T: Trit = Trit::golden(TritInt::one(), TritInt::one());
@@ -160,8 +169,8 @@ pub const REPUNIT_6_T: Trit = Trit::repunit(6);
 /// π = 14 = 112₃.
 pub const ROOT_X1_T: Trit = Trit::scalar(TritInt::from_trits(&[2, 1, 1]));
 
-/// Half-turn = 182 = 20022₃.
-pub const ARC_ROOT_SEMI_T: Trit = Trit::scalar(TritInt::from_u64(182));
+/// Half-turn = 182 = 20202₃.
+pub const ARC_ROOT_SEMI_T: Trit = Trit::scalar(TritInt::from_trits(&[2, 0, 2, 0, 2]));
 
 /// Δ₂ = 729 = 1000000₃. Sponge state width, escalation multiplier.
 pub const DISCRIMINANT_2_T: Trit = Trit::scalar(TritInt::from_trits(&[0, 0, 0, 0, 0, 0, 1]));
@@ -173,7 +182,7 @@ pub const ICOSA_CIRCUMRADIUS_SQ_T: Trit = Trit::golden(
 );
 
 /// Duty cycle numerator = 1. HModal dispatch ratio.
-pub const DUTY_NUM_T: Trit = Trit::scalar(TritInt::from_u64(1));
+pub const DUTY_NUM_T: Trit = Trit::scalar(TritInt::one());
 
 /// Duty cycle denominator = 4 = 11₃.
 pub const DUTY_DEN_T: Trit = Trit::scalar(TritInt::from_trits(&[1, 1]));
@@ -322,10 +331,10 @@ impl Trit {
         assert!(self.v[1].is_zero(), "mul_eisenstein: self has non-zero φ-component");
         assert!(other.v[1].is_zero(), "mul_eisenstein: other has non-zero φ-component");
 
-        let a1 = self.v[0].to_decimal() as u8;
-        let c1 = self.v[2].to_decimal() as u8;
-        let a2 = other.v[0].to_decimal() as u8;
-        let c2 = other.v[2].to_decimal() as u8;
+        let a1 = self.v[0].host_u64() as u8;
+        let c1 = self.v[2].host_u64() as u8;
+        let a2 = other.v[0].host_u64() as u8;
+        let c2 = other.v[2].host_u64() as u8;
 
         assert!(a1 <= 2, "mul_eisenstein: self v[0] exceeds GF(3) scale (> 2)");
         assert!(c1 <= 2, "mul_eisenstein: self v[2] exceeds GF(3) scale (> 2)");
@@ -339,8 +348,8 @@ impl Trit {
         let result_c = gf3_sub(gf3_add(gf3_mul(a1, c2), gf3_mul(a2, c1)), gf3_mul(c1, c2));
 
         Trit::eisenstein(
-            TritInt::from_u64(result_a as u64),
-            TritInt::from_u64(result_c as u64),
+            TritInt::from_host_u64(result_a as u64),
+            TritInt::from_host_u64(result_c as u64),
         )
     }
 
@@ -354,8 +363,8 @@ impl Trit {
     pub fn norm_eisenstein(&self) -> Trit {
         assert!(self.v[1].is_zero(), "norm_eisenstein: non-zero φ-component");
 
-        let a = self.v[0].to_decimal() as u8;
-        let c = self.v[2].to_decimal() as u8;
+        let a = self.v[0].host_u64() as u8;
+        let c = self.v[2].host_u64() as u8;
 
         assert!(a <= 2, "norm_eisenstein: v[0] exceeds GF(3) scale (> 2)");
         assert!(c <= 2, "norm_eisenstein: v[2] exceeds GF(3) scale (> 2)");
@@ -367,7 +376,7 @@ impl Trit {
         let sum = gf3_add(a_sq, c_sq);
         let result = gf3_sub(sum, ac);
 
-        Trit::scalar(TritInt::from_u64(result as u64))
+        Trit::scalar(TritInt::from_host_u64(result as u64))
     }
 }
 
@@ -405,9 +414,9 @@ impl Trit {
     /// Returns None for all other values (non-unit, multi-digit,
     /// golden components, etc.)
     pub fn to_algebraic_trit(&self) -> Option<AlgebraicTrit> {
-        let a = self.v[0].to_decimal();
-        let b = self.v[1].to_decimal();
-        let c = self.v[2].to_decimal();
+        let a = self.v[0].host_u64();
+        let b = self.v[1].host_u64();
+        let c = self.v[2].host_u64();
 
         match (a, b, c) {
             (0, 0, 0) => Some(AlgebraicTrit::Zero),
@@ -469,19 +478,20 @@ impl Trit {
     pub fn to_f64(&self) -> f64 {
         const PHI: f64 = 1.618_033_988_749_895;
         const OMEGA_REAL: f64 = -0.5;
-        let a = self.v[0].to_decimal() as f64;
-        let b = self.v[1].to_decimal() as f64;
-        let c = self.v[2].to_decimal() as f64;
+        let a = self.v[0].host_u64() as f64;
+        let b = self.v[1].host_u64() as f64;
+        let c = self.v[2].host_u64() as f64;
         a + b * PHI + c * OMEGA_REAL
     }
 
-    /// Convert a scalar Trit to u64. Returns Err if the Trit is not scalar
-    /// (has non-zero φ or ω components).
-    pub fn to_u64(&self) -> Result<u64, Overflow> {
+    /// Cross a scalar Trit into host u64. Returns Err if the Trit
+    /// is not scalar (has non-zero φ or ω components).
+    /// Explicit binary boundary crossing.
+    pub fn host_u64(&self) -> Result<u64, NotScalar> {
         if !self.is_scalar() {
-            return Err(Overflow(0)); // 0 signals non-scalar, not a bit-width
+            return Err(NotScalar);
         }
-        self.v[0].to_u64()
+        Ok(self.v[0].host_u64())
     }
 }
 
@@ -674,42 +684,42 @@ impl<'de> serde::Deserialize<'de> for Trit {
 
 const _: () = {
     // R² = 14 + 5φ — integer part is π
-    assert!(R_SQUARED_T.v0().to_u32_const() == 14);
-    assert!(R_SQUARED_T.v1().to_u32_const() == 5);
-    assert!(R_SQUARED_T.v2().to_u32_const() == 0);
+    assert!(R_SQUARED_T.v0().host_u32() == 14);
+    assert!(R_SQUARED_T.v1().host_u32() == 5);
+    assert!(R_SQUARED_T.v2().host_u32() == 0);
 
     // Full circle = 364 (scalar)
-    assert!(FULL_CIRCLE_T.v0().to_u32_const() == 364);
-    assert!(FULL_CIRCLE_T.v1().to_u32_const() == 0);
+    assert!(FULL_CIRCLE_T.v0().host_u32() == 364);
+    assert!(FULL_CIRCLE_T.v1().host_u32() == 0);
 
     // Pi = 14
-    assert!(PI_T.v0().to_u32_const() == 14);
+    assert!(PI_T.v0().host_u32() == 14);
 
     // Half-turn = 182
-    assert!(HALF_TURN_T.v0().to_u32_const() == 182);
+    assert!(HALF_TURN_T.v0().host_u32() == 182);
 
     // φ² = 1 + φ
-    assert!(PHI_SQUARED_T.v0().to_u32_const() == 1);
-    assert!(PHI_SQUARED_T.v1().to_u32_const() == 1);
+    assert!(PHI_SQUARED_T.v0().host_u32() == 1);
+    assert!(PHI_SQUARED_T.v1().host_u32() == 1);
 
     // Phase 4: _T companions verified against u32 values in constants.rs
-    assert!(REPUNIT_6_T.v0().to_u32_const() == constants::REPUNIT_6);
-    assert!(ROOT_X1_T.v0().to_u32_const() == constants::ROOT_X1);
-    assert!(ARC_ROOT_SEMI_T.v0().to_u32_const() == constants::ARC_ROOT_SEMI);
-    assert!(DISCRIMINANT_2_T.v0().to_u32_const() == constants::DISCRIMINANT_2);
-    assert!(DUTY_NUM_T.v0().to_u32_const() == constants::DUTY_NUM);
-    assert!(DUTY_DEN_T.v0().to_u32_const() == constants::DUTY_DEN);
+    assert!(REPUNIT_6_T.v0().host_u32() == constants::REPUNIT_6);
+    assert!(ROOT_X1_T.v0().host_u32() == constants::ROOT_X1);
+    assert!(ARC_ROOT_SEMI_T.v0().host_u32() == constants::ARC_ROOT_SEMI);
+    assert!(DISCRIMINANT_2_T.v0().host_u32() == constants::DISCRIMINANT_2);
+    assert!(DUTY_NUM_T.v0().host_u32() == constants::DUTY_NUM);
+    assert!(DUTY_DEN_T.v0().host_u32() == constants::DUTY_DEN);
 
     // Verify all _T companions are scalar (v[1] = v[2] = 0)
-    assert!(REPUNIT_6_T.v1().to_u32_const() == 0);
-    assert!(REPUNIT_6_T.v2().to_u32_const() == 0);
-    assert!(ROOT_X1_T.v1().to_u32_const() == 0);
-    assert!(DISCRIMINANT_2_T.v1().to_u32_const() == 0);
+    assert!(REPUNIT_6_T.v1().host_u32() == 0);
+    assert!(REPUNIT_6_T.v2().host_u32() == 0);
+    assert!(ROOT_X1_T.v1().host_u32() == 0);
+    assert!(DISCRIMINANT_2_T.v1().host_u32() == 0);
 
     // ICOSA_CIRCUMRADIUS_SQ_T is golden (not scalar)
-    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v0().to_u32_const() == 2);
-    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v1().to_u32_const() == 1);
-    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v2().to_u32_const() == 0);
+    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v0().host_u32() == 2);
+    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v1().host_u32() == 1);
+    assert!(ICOSA_CIRCUMRADIUS_SQ_T.v2().host_u32() == 0);
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -724,12 +734,12 @@ mod tests {
 
     /// Create a golden Trit from decimal values for concise tests.
     fn g(a: u64, b: u64) -> Trit {
-        Trit::golden(TritInt::from_u64(a), TritInt::from_u64(b))
+        Trit::golden(TritInt::from_host_u64(a), TritInt::from_host_u64(b))
     }
 
     /// Create a scalar Trit from a decimal value.
     fn s(val: u64) -> Trit {
-        Trit::from_u64(val)
+        Trit::from_host_u64(val)
     }
 
     /// φ as a Trit value: 0 + 1·φ.
@@ -744,7 +754,7 @@ mod tests {
         let z = Trit::zero();
         assert!(z.is_zero());
         assert!(z.is_scalar());
-        assert_eq!(z.v[0].to_decimal(), 0);
+        assert_eq!(z.v[0].host_u64(), 0);
     }
 
     #[test]
@@ -752,14 +762,14 @@ mod tests {
         let o = Trit::one();
         assert!(!o.is_zero());
         assert!(o.is_scalar());
-        assert_eq!(o.v[0].to_decimal(), 1);
+        assert_eq!(o.v[0].host_u64(), 1);
     }
 
     #[test]
     fn scalar_constructor() {
-        let t = Trit::scalar(TritInt::from_u64(364));
+        let t = Trit::scalar(TritInt::from_host_u64(364));
         assert!(t.is_scalar());
-        assert_eq!(t.v[0].to_decimal(), 364);
+        assert_eq!(t.v[0].host_u64(), 364);
         assert!(t.v[1].is_zero());
         assert!(t.v[2].is_zero());
     }
@@ -769,50 +779,50 @@ mod tests {
         let t = g(14, 5);
         assert!(t.is_golden());
         assert!(!t.is_scalar());
-        assert_eq!(t.v[0].to_decimal(), 14);
-        assert_eq!(t.v[1].to_decimal(), 5);
+        assert_eq!(t.v[0].host_u64(), 14);
+        assert_eq!(t.v[1].host_u64(), 5);
         assert!(t.v[2].is_zero());
     }
 
     #[test]
     fn eisenstein_constructor() {
-        let t = Trit::eisenstein(TritInt::from_u64(3), TritInt::from_u64(2));
+        let t = Trit::eisenstein(TritInt::from_host_u64(3), TritInt::from_host_u64(2));
         assert!(t.is_eisenstein());
-        assert_eq!(t.v[0].to_decimal(), 3);
+        assert_eq!(t.v[0].host_u64(), 3);
         assert!(t.v[1].is_zero());
-        assert_eq!(t.v[2].to_decimal(), 2);
+        assert_eq!(t.v[2].host_u64(), 2);
     }
 
     #[test]
     fn new_full_constructor() {
-        let t = Trit::new(TritInt::from_u64(1), TritInt::from_u64(2), TritInt::from_u64(3));
+        let t = Trit::new(TritInt::from_host_u64(1), TritInt::from_host_u64(2), TritInt::from_host_u64(3));
         assert!(!t.is_scalar());
         assert!(!t.is_golden());
         assert!(!t.is_eisenstein());
-        assert_eq!(t.v[0].to_decimal(), 1);
-        assert_eq!(t.v[1].to_decimal(), 2);
-        assert_eq!(t.v[2].to_decimal(), 3);
+        assert_eq!(t.v[0].host_u64(), 1);
+        assert_eq!(t.v[1].host_u64(), 2);
+        assert_eq!(t.v[2].host_u64(), 3);
     }
 
     #[test]
     fn from_trits_makes_scalar() {
         let t = Trit::from_trits(&[2, 1, 1]); // 14
         assert!(t.is_scalar());
-        assert_eq!(t.v[0].to_decimal(), 14);
+        assert_eq!(t.v[0].host_u64(), 14);
     }
 
     #[test]
     fn repunit_makes_scalar() {
         let t = Trit::repunit(6);
         assert!(t.is_scalar());
-        assert_eq!(t.v[0].to_decimal(), 364);
+        assert_eq!(t.v[0].host_u64(), 364);
     }
 
     #[test]
     fn from_u64_makes_scalar() {
-        let t = Trit::from_u64(182);
+        let t = Trit::from_host_u64(182);
         assert!(t.is_scalar());
-        assert_eq!(t.v[0].to_decimal(), 182);
+        assert_eq!(t.v[0].host_u64(), 182);
     }
 
     // ── Component-wise add / sub ────────────────────────────
@@ -820,7 +830,7 @@ mod tests {
     #[test]
     fn add_scalars() {
         let result = Trit::add(&s(13), &s(1));
-        assert_eq!(result.v[0].to_decimal(), 14);
+        assert_eq!(result.v[0].host_u64(), 14);
         assert!(result.is_scalar());
     }
 
@@ -829,15 +839,15 @@ mod tests {
         let a = g(14, 5);
         let b = g(3, 2);
         let result = Trit::add(&a, &b);
-        assert_eq!(result.v[0].to_decimal(), 17);
-        assert_eq!(result.v[1].to_decimal(), 7);
+        assert_eq!(result.v[0].host_u64(), 17);
+        assert_eq!(result.v[1].host_u64(), 7);
         assert!(result.v[2].is_zero());
     }
 
     #[test]
     fn sub_scalars() {
         let result = Trit::sub(&s(182), &s(14));
-        assert_eq!(result.v[0].to_decimal(), 168);
+        assert_eq!(result.v[0].host_u64(), 168);
     }
 
     #[test]
@@ -853,10 +863,10 @@ mod tests {
     #[test]
     fn scale_golden_by_integer() {
         let t = g(2, 3);
-        let scalar = TritInt::from_u64(5);
+        let scalar = TritInt::from_host_u64(5);
         let result = t.scale(&scalar);
-        assert_eq!(result.v[0].to_decimal(), 10);
-        assert_eq!(result.v[1].to_decimal(), 15);
+        assert_eq!(result.v[0].host_u64(), 10);
+        assert_eq!(result.v[1].host_u64(), 15);
         assert!(result.v[2].is_zero());
     }
 
@@ -873,8 +883,8 @@ mod tests {
     fn phi_squared_is_phi_plus_one() {
         // φ × φ = (0 + 1φ) × (0 + 1φ) = (0·0 + 1·1) + (0·1 + 0·1 + 1·1)φ = 1 + φ
         let result = phi().mul_golden(&phi());
-        assert_eq!(result.v[0].to_decimal(), 1);
-        assert_eq!(result.v[1].to_decimal(), 1);
+        assert_eq!(result.v[0].host_u64(), 1);
+        assert_eq!(result.v[1].host_u64(), 1);
         assert!(result.v[2].is_zero(), "v[2] must stay zero through mul_golden");
     }
 
@@ -883,8 +893,8 @@ mod tests {
         // φ³ = φ · φ² = φ · (1 + φ) = φ + φ² = φ + 1 + φ = 1 + 2φ
         let phi_sq = phi().mul_golden(&phi());
         let result = phi().mul_golden(&phi_sq);
-        assert_eq!(result.v[0].to_decimal(), 1);
-        assert_eq!(result.v[1].to_decimal(), 2);
+        assert_eq!(result.v[0].host_u64(), 1);
+        assert_eq!(result.v[1].host_u64(), 2);
         assert!(result.v[2].is_zero(), "v[2] must stay zero through mul_golden");
     }
 
@@ -902,8 +912,8 @@ mod tests {
 
         let mut power = Trit::one();
         for (n, (exp_a, exp_b)) in expected.iter().enumerate() {
-            assert_eq!(power.v[0].to_decimal(), *exp_a, "φ^{}: integer part wrong", n);
-            assert_eq!(power.v[1].to_decimal(), *exp_b, "φ^{}: φ-coefficient wrong", n);
+            assert_eq!(power.v[0].host_u64(), *exp_a, "φ^{}: integer part wrong", n);
+            assert_eq!(power.v[1].host_u64(), *exp_b, "φ^{}: φ-coefficient wrong", n);
             assert!(power.v[2].is_zero(), "φ^{}: v[2] must stay zero", n);
             power = power.mul_golden(&phi());
         }
@@ -923,8 +933,8 @@ mod tests {
         // 3 × (14 + 5φ) = 42 + 15φ
         let three = s(3);
         let result = three.mul_golden(&g(14, 5));
-        assert_eq!(result.v[0].to_decimal(), 42);
-        assert_eq!(result.v[1].to_decimal(), 15);
+        assert_eq!(result.v[0].host_u64(), 42);
+        assert_eq!(result.v[1].host_u64(), 15);
         assert!(result.v[2].is_zero(), "v[2] must stay zero through mul_golden");
     }
 
@@ -954,7 +964,7 @@ mod tests {
     #[test]
     fn mul_scalar_basic() {
         let result = s(14).mul_scalar(&s(13));
-        assert_eq!(result.v[0].to_decimal(), 182);
+        assert_eq!(result.v[0].host_u64(), 182);
         assert!(result.is_scalar());
     }
 
@@ -965,7 +975,7 @@ mod tests {
         // N(14 + 5φ) = 14² + 14×5 − 5² = 196 + 70 − 25 = 241
         let norm = g(14, 5).norm_golden();
         assert!(norm.is_scalar());
-        assert_eq!(norm.v[0].to_decimal(), 241);
+        assert_eq!(norm.v[0].host_u64(), 241);
     }
 
     #[test]
@@ -978,14 +988,14 @@ mod tests {
     fn norm_golden_of_one() {
         // N(1 + 0φ) = 1 + 0 − 0 = 1
         let norm = Trit::one().norm_golden();
-        assert_eq!(norm.v[0].to_decimal(), 1);
+        assert_eq!(norm.v[0].host_u64(), 1);
     }
 
     #[test]
     fn norm_golden_of_integer() {
         // N(7 + 0φ) = 49 + 0 − 0 = 49
         let norm = s(7).norm_golden();
-        assert_eq!(norm.v[0].to_decimal(), 49);
+        assert_eq!(norm.v[0].host_u64(), 49);
     }
 
     #[test]
@@ -1001,27 +1011,27 @@ mod tests {
     #[test]
     fn accessor_integer_part() {
         let t = g(14, 5);
-        assert_eq!(t.integer_part().to_decimal(), 14);
+        assert_eq!(t.integer_part().host_u64(), 14);
     }
 
     #[test]
     fn accessor_golden_part() {
         let t = g(14, 5);
-        assert_eq!(t.golden_part().to_decimal(), 5);
+        assert_eq!(t.golden_part().host_u64(), 5);
     }
 
     #[test]
     fn accessor_eisenstein_part() {
-        let t = Trit::eisenstein(TritInt::from_u64(3), TritInt::from_u64(7));
-        assert_eq!(t.eisenstein_part().to_decimal(), 7);
+        let t = Trit::eisenstein(TritInt::from_host_u64(3), TritInt::from_host_u64(7));
+        assert_eq!(t.eisenstein_part().host_u64(), 7);
     }
 
     #[test]
     fn accessor_vector_indexing() {
-        let t = Trit::new(TritInt::from_u64(1), TritInt::from_u64(2), TritInt::from_u64(3));
-        assert_eq!(t.vector(0).to_decimal(), 1);
-        assert_eq!(t.vector(1).to_decimal(), 2);
-        assert_eq!(t.vector(2).to_decimal(), 3);
+        let t = Trit::new(TritInt::from_host_u64(1), TritInt::from_host_u64(2), TritInt::from_host_u64(3));
+        assert_eq!(t.vector(0).host_u64(), 1);
+        assert_eq!(t.vector(1).host_u64(), 2);
+        assert_eq!(t.vector(2).host_u64(), 3);
     }
 
     // ── Boundary crossings ──────────────────────────────────
@@ -1043,12 +1053,12 @@ mod tests {
 
     #[test]
     fn to_u64_scalar() {
-        assert_eq!(s(364).to_u64().unwrap(), 364);
+        assert_eq!(s(364).host_u64().unwrap(), 364);
     }
 
     #[test]
     fn to_u64_non_scalar_errors() {
-        assert!(g(14, 5).to_u64().is_err());
+        assert!(g(14, 5).host_u64().is_err());
     }
 
     // ── Display ─────────────────────────────────────────────
@@ -1077,7 +1087,7 @@ mod tests {
 
     #[test]
     fn display_eisenstein() {
-        let t = Trit::eisenstein(TritInt::from_u64(7), TritInt::from_u64(2));
+        let t = Trit::eisenstein(TritInt::from_host_u64(7), TritInt::from_host_u64(2));
         assert_eq!(format!("{}", t), "21₃ + 2₃ω");
     }
 
@@ -1086,13 +1096,13 @@ mod tests {
     #[test]
     fn operator_add() {
         let c = s(13) + s(1);
-        assert_eq!(c.v[0].to_decimal(), 14);
+        assert_eq!(c.v[0].host_u64(), 14);
     }
 
     #[test]
     fn operator_sub() {
         let c = s(182) - s(40);
-        assert_eq!(c.v[0].to_decimal(), 142);
+        assert_eq!(c.v[0].host_u64(), 142);
     }
 
     #[test]
@@ -1100,14 +1110,14 @@ mod tests {
         let a = s(13);
         let b = s(1);
         let c = &a + &b;
-        assert_eq!(c.v[0].to_decimal(), 14);
+        assert_eq!(c.v[0].host_u64(), 14);
     }
 
     #[test]
     fn operator_add_assign() {
         let mut a = s(13);
         a += s(1);
-        assert_eq!(a.v[0].to_decimal(), 14);
+        assert_eq!(a.v[0].host_u64(), 14);
     }
 
     // ── Equality and hashing ────────────────────────────────
@@ -1153,7 +1163,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "non-zero ω-component")]
     fn norm_golden_with_omega_panics() {
-        let with_omega = Trit::eisenstein(TritInt::from_u64(3), TritInt::from_u64(2));
+        let with_omega = Trit::eisenstein(TritInt::from_host_u64(3), TritInt::from_host_u64(2));
         with_omega.norm_golden();
     }
 
@@ -1161,7 +1171,7 @@ mod tests {
 
     /// Create an Eisenstein Trit from GF(3) values for concise tests.
     fn e(a: u64, c: u64) -> Trit {
-        Trit::eisenstein(TritInt::from_u64(a), TritInt::from_u64(c))
+        Trit::eisenstein(TritInt::from_host_u64(a), TritInt::from_host_u64(c))
     }
 
     /// ω as a Trit value: 0 + 0φ + 1ω.
@@ -1179,8 +1189,8 @@ mod tests {
         //                   = (−1) + (−1)ω
         //                   ≡ 2 + 2ω (mod 3)
         let result = omega().mul_eisenstein(&omega());
-        assert_eq!(result.v[0].to_decimal(), 2, "ω²: integer part should be 2");
-        assert_eq!(result.v[2].to_decimal(), 2, "ω²: ω-coefficient should be 2");
+        assert_eq!(result.v[0].host_u64(), 2, "ω²: integer part should be 2");
+        assert_eq!(result.v[2].host_u64(), 2, "ω²: ω-coefficient should be 2");
         assert!(result.v[1].is_zero(), "v[1] must stay zero through mul_eisenstein");
     }
 
@@ -1191,8 +1201,8 @@ mod tests {
         // = (−2) + (0)ω ≡ 1 + 0ω (mod 3)
         let w2 = omega().mul_eisenstein(&omega());
         let w3 = omega().mul_eisenstein(&w2);
-        assert_eq!(w3.v[0].to_decimal(), 1, "ω³ should be 1");
-        assert_eq!(w3.v[2].to_decimal(), 0, "ω³ should have no ω-component");
+        assert_eq!(w3.v[0].host_u64(), 1, "ω³ should be 1");
+        assert_eq!(w3.v[2].host_u64(), 0, "ω³ should have no ω-component");
         assert!(w3.v[1].is_zero(), "v[1] must stay zero through mul_eisenstein");
     }
 
@@ -1252,9 +1262,9 @@ mod tests {
                             gf3_mul(c1 as u8, c2 as u8),
                         );
 
-                        assert_eq!(result.v[0].to_decimal(), exp_a as u64,
+                        assert_eq!(result.v[0].host_u64(), exp_a as u64,
                             "({},{}ω)×({},{}ω): integer part", a1, c1, a2, c2);
-                        assert_eq!(result.v[2].to_decimal(), exp_c as u64,
+                        assert_eq!(result.v[2].host_u64(), exp_c as u64,
                             "({},{}ω)×({},{}ω): ω-coefficient", a1, c1, a2, c2);
                         assert!(result.v[1].is_zero(),
                             "v[1] must stay zero: ({},{}ω)×({},{}ω)", a1, c1, a2, c2);
@@ -1267,19 +1277,19 @@ mod tests {
     #[test]
     fn norm_eisenstein_values() {
         // N(0 + 0ω) = 0
-        assert_eq!(Trit::zero().norm_eisenstein().v[0].to_decimal(), 0);
+        assert_eq!(Trit::zero().norm_eisenstein().v[0].host_u64(), 0);
 
         // N(1 + 0ω) = 1² − 1·0 + 0² = 1
-        assert_eq!(Trit::one().norm_eisenstein().v[0].to_decimal(), 1);
+        assert_eq!(Trit::one().norm_eisenstein().v[0].host_u64(), 1);
 
         // N(0 + 1ω) = 0 − 0 + 1 = 1
-        assert_eq!(omega().norm_eisenstein().v[0].to_decimal(), 1);
+        assert_eq!(omega().norm_eisenstein().v[0].host_u64(), 1);
 
         // N(1 + 1ω) = 1 − 1 + 1 = 1
-        assert_eq!(e(1, 1).norm_eisenstein().v[0].to_decimal(), 1);
+        assert_eq!(e(1, 1).norm_eisenstein().v[0].host_u64(), 1);
 
         // N(2 + 1ω) = 4 − 2 + 1 = 3 ≡ 0 (mod 3)
-        assert_eq!(e(2, 1).norm_eisenstein().v[0].to_decimal(), 0);
+        assert_eq!(e(2, 1).norm_eisenstein().v[0].host_u64(), 0);
     }
 
     #[test]
@@ -1292,9 +1302,9 @@ mod tests {
             (e(0, 2), e(2, 2)),
         ];
         for (a, b) in &test_triples {
-            let n_ab = a.mul_eisenstein(b).norm_eisenstein().v[0].to_decimal() as u8;
-            let n_a = a.norm_eisenstein().v[0].to_decimal() as u8;
-            let n_b = b.norm_eisenstein().v[0].to_decimal() as u8;
+            let n_ab = a.mul_eisenstein(b).norm_eisenstein().v[0].host_u64() as u8;
+            let n_a = a.norm_eisenstein().v[0].host_u64() as u8;
+            let n_b = b.norm_eisenstein().v[0].host_u64() as u8;
             let n_a_times_n_b = gf3_mul(n_a, n_b);
             assert_eq!(n_ab, n_a_times_n_b,
                 "N(a·b) = {} but N(a)·N(b) = {} for {:?}×{:?}", n_ab, n_a_times_n_b, a, b);
@@ -1312,8 +1322,8 @@ mod tests {
         assert_eq!(one, Trit::one());
 
         let omega_t: Trit = AlgebraicTrit::Omega.into();
-        assert_eq!(omega_t.v[0].to_decimal(), 0);
-        assert_eq!(omega_t.v[2].to_decimal(), 1);
+        assert_eq!(omega_t.v[0].host_u64(), 0);
+        assert_eq!(omega_t.v[2].host_u64(), 1);
     }
 
     #[test]
@@ -1352,7 +1362,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "exceeds GF(3) scale")]
     fn mul_eisenstein_non_gf3_scale_panics() {
-        let big = Trit::eisenstein(TritInt::from_u64(14), TritInt::zero());
+        let big = Trit::eisenstein(TritInt::from_host_u64(14), TritInt::zero());
         big.mul_eisenstein(&Trit::one());
     }
 
@@ -1365,14 +1375,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "exceeds GF(3) scale")]
     fn norm_eisenstein_non_gf3_scale_panics() {
-        Trit::eisenstein(TritInt::from_u64(5), TritInt::zero()).norm_eisenstein();
+        Trit::eisenstein(TritInt::from_host_u64(5), TritInt::zero()).norm_eisenstein();
     }
 
     // ── Phase 5: Zeroize test ───────────────────────────────
 
     #[test]
     fn zeroize_clears_trit() {
-        let mut t = Trit::golden(TritInt::from_u64(14), TritInt::from_u64(5));
+        let mut t = Trit::golden(TritInt::from_host_u64(14), TritInt::from_host_u64(5));
         assert!(!t.is_zero());
         t.zeroize();
         assert!(t.is_zero());
@@ -1394,7 +1404,7 @@ mod tests {
 
         #[test]
         fn serde_roundtrip_scalar_364() {
-            let t = Trit::from_u64(364);
+            let t = Trit::from_host_u64(364);
             let json = serde_json::to_string(&t).unwrap();
             let back: Trit = serde_json::from_str(&json).unwrap();
             assert_eq!(back, t);
@@ -1402,18 +1412,18 @@ mod tests {
 
         #[test]
         fn serde_roundtrip_golden_r_squared() {
-            let t = Trit::golden(TritInt::from_u64(14), TritInt::from_u64(5));
+            let t = Trit::golden(TritInt::from_host_u64(14), TritInt::from_host_u64(5));
             let json = serde_json::to_string(&t).unwrap();
             let back: Trit = serde_json::from_str(&json).unwrap();
             assert_eq!(back, t);
             // Verify v[0] matches 14's Rep C
-            let expected_v0 = TritInt::from_u64(14).to_repr_c();
+            let expected_v0 = TritInt::from_host_u64(14).to_repr_c();
             assert!(json.contains(&format!("[{},{},{}]", expected_v0[0], expected_v0[1], expected_v0[2])));
         }
 
         #[test]
         fn serde_roundtrip_eisenstein() {
-            let t = Trit::eisenstein(TritInt::from_u64(2), TritInt::from_u64(1));
+            let t = Trit::eisenstein(TritInt::from_host_u64(2), TritInt::from_host_u64(1));
             let json = serde_json::to_string(&t).unwrap();
             let back: Trit = serde_json::from_str(&json).unwrap();
             assert_eq!(back, t);
@@ -1421,7 +1431,7 @@ mod tests {
 
         #[test]
         fn serde_roundtrip_full() {
-            let t = Trit::new(TritInt::from_u64(7), TritInt::from_u64(3), TritInt::from_u64(2));
+            let t = Trit::new(TritInt::from_host_u64(7), TritInt::from_host_u64(3), TritInt::from_host_u64(2));
             let json = serde_json::to_string(&t).unwrap();
             let back: Trit = serde_json::from_str(&json).unwrap();
             assert_eq!(back, t);

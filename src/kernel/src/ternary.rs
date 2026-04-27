@@ -722,7 +722,7 @@ mod tests {
     fn test_tryte_decimal_roundtrip() {
         for val in [0u16, 1, 100, 364, 365, 500, 728] {
             let tryte = Tryte::from_decimal(val).unwrap();
-            assert_eq!(tryte.to_decimal(), val, "Roundtrip failed for decimal {}", val);
+            assert_eq!(tryte.host_u64(), val, "Roundtrip failed for decimal {}", val);
         }
     }
 
@@ -738,7 +738,7 @@ mod tests {
     fn test_tryte_not_involution() {
         for val in [0u16, 100, 365, 728] {
             let tryte = Tryte::from_decimal(val).unwrap();
-            assert_eq!(tryte.not().not().to_decimal(), val);
+            assert_eq!(tryte.not().not().host_u64(), val);
         }
     }
 

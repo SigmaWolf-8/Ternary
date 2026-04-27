@@ -436,9 +436,9 @@ pub fn deserialize(payload: &[u8]) -> TtcResult<Vec<Token>> {
 /// Window = R₃ bytes (one radian). Multipliers: alternating powers of
 /// coprime generators 11 and R₃ from constants.rs polygon set.
 pub fn hash13(data: &[u8], pos: usize) -> u32 {
-    const W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
-    const G11: u64 = crate::constants::T_POLYGON_11.to_u32_const() as u64;
-    const G13: u64 = crate::constants::T_REPUNIT_3.to_u32_const() as u64;
+    const W: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
+    const G11: u64 = crate::constants::T_POLYGON_11.host_u32() as u64;
+    const G13: u64 = crate::constants::T_REPUNIT_3.host_u32() as u64;
     if pos + W > data.len() { return 0; }
     let mut h = 0u64;
     const MULTS: [u64; 13] = [
@@ -461,7 +461,7 @@ pub fn hash13(data: &[u8], pos: usize) -> u32 {
 pub fn find_long_match(
     data: &[u8], pos: usize, long_table: &[u32], table_mask: u32, max_dist: usize,
 ) -> Option<(usize, usize)> {
-    const W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+    const W: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
     if pos + W > data.len() { return None; }
     let h = hash13(data, pos);
     let idx = (h & table_mask) as usize;
@@ -480,7 +480,7 @@ pub fn find_long_match(
 
 /// Update the R₃-byte long-distance hash table.
 pub fn update_long_table(data: &[u8], pos: usize, long_table: &mut [u32], table_mask: u32) {
-    const W: usize = crate::constants::T_REPUNIT_3.to_u32_const() as usize;
+    const W: usize = crate::constants::T_REPUNIT_3.host_u32() as usize;
     if pos + W > data.len() { return; }
     let h = hash13(data, pos);
     let idx = (h & table_mask) as usize;

@@ -131,6 +131,12 @@ impl TritVec {
         result
     }
 
+    /// Host-u64 boundary alias on `TritVec`.  Mirrors the
+    /// `TritInt::host_u64` boundary naming so call sites can rely on a
+    /// single accessor name across the two ternary carriers.
+    #[inline]
+    pub fn host_u64(&self) -> u64 { self.to_decimal() }
+
     /// Number of trits (significant digits) in this representation.
     pub fn trit_length(&self) -> usize {
         for i in (0..self.trits.len()).rev() {
@@ -200,11 +206,11 @@ impl TritVec {
 
     /// Emit digits in **Representation C** (Bijective: `{1, 2, 3}`).
     pub fn to_repr_c(&self) -> Vec<u8> {
-        if self.to_decimal() == 0 {
+        if self.host_u64() == 0 {
             return vec![];
         }
 
-        let mut n = self.to_decimal();
+        let mut n = self.host_u64();
         let mut digits: Vec<u8> = Vec::new();
 
         while n > 0 {
@@ -434,7 +440,7 @@ impl TribonacciBase3 {
 
         if idx < 3 {
             let value = self.window[idx].clone();
-            let decimal = value.to_decimal();
+            let decimal = value.host_u64();
             let is_power = value.is_power_of_3();
             let exponent = value.ternary_exponent();
             let diversity = value.trit_diversity();
@@ -457,7 +463,7 @@ impl TribonacciBase3 {
 
         let result = TritVec::add3_with_carry_tracking(a, b, c);
 
-        let decimal = result.sum.to_decimal();
+        let decimal = result.sum.host_u64();
         let is_power = result.sum.is_power_of_3();
         let exponent = result.sum.ternary_exponent();
         let diversity = result.sum.trit_diversity();
@@ -548,10 +554,10 @@ mod tests {
 
     #[test]
     fn test_tritvec_from_decimal() {
-        assert_eq!(TritVec::from_decimal(0).to_decimal(), 0);
-        assert_eq!(TritVec::from_decimal(1).to_decimal(), 1);
-        assert_eq!(TritVec::from_decimal(4).to_decimal(), 4);
-        assert_eq!(TritVec::from_decimal(81).to_decimal(), 81);
+        assert_eq!(TritVec::from_decimal(0).host_u64(), 0);
+        assert_eq!(TritVec::from_decimal(1).host_u64(), 1);
+        assert_eq!(TritVec::from_decimal(4).host_u64(), 4);
+        assert_eq!(TritVec::from_decimal(81).host_u64(), 81);
     }
 
     #[test]
@@ -590,7 +596,7 @@ mod tests {
         let a = TritVec::from_decimal(4);
         let b = TritVec::from_decimal(7);
         let sum = TritVec::add(&a, &b);
-        assert_eq!(sum.to_decimal(), 11);
+        assert_eq!(sum.host_u64(), 11);
     }
 
     #[test]
@@ -598,7 +604,7 @@ mod tests {
         let a = TritVec::from_decimal(2);
         let b = TritVec::from_decimal(1);
         let result = TritVec::add_with_carry_tracking(&a, &b);
-        assert_eq!(result.sum.to_decimal(), 3);
+        assert_eq!(result.sum.host_u64(), 3);
         assert!(result.carry_count > 0);
     }
 
@@ -614,7 +620,7 @@ mod tests {
         for (i, term) in terms.iter().enumerate() {
             assert_eq!(term.decimal, expected_decimal[i],
                 "T({}) = {} (expected {})", i, term.decimal, expected_decimal[i]);
-            assert_eq!(term.value.to_decimal(), expected_decimal[i]);
+            assert_eq!(term.value.host_u64(), expected_decimal[i]);
         }
     }
 
@@ -672,7 +678,7 @@ mod tests {
             let v = TritVec::from_decimal(n);
             let balanced = v.to_repr_a();
             let roundtrip = TritVec::from_repr_a(&balanced);
-            assert_eq!(roundtrip.to_decimal(), n,
+            assert_eq!(roundtrip.host_u64(), n,
                 "Repr A roundtrip failed for {}", n);
         }
     }
@@ -683,7 +689,7 @@ mod tests {
             let v = TritVec::from_decimal(n);
             let bijective = v.to_repr_c();
             let roundtrip = TritVec::from_repr_c(&bijective);
-            assert_eq!(roundtrip.to_decimal(), n,
+            assert_eq!(roundtrip.host_u64(), n,
                 "Repr C roundtrip failed for {}", n);
         }
     }

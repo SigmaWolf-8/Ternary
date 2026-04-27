@@ -425,14 +425,14 @@ impl TopicManager {
             return;
         }
 
-        let axis = TritInt::from_u64(count as u64);
-        let min = TritInt::from_u64(2);
-        let max = TritInt::from_u64((count as u64).saturating_sub(1).max(2));
+        let axis = TritInt::from_host_u64(count as u64);
+        let min = TritInt::from_host_u64(2);
+        let max = TritInt::from_host_u64((count as u64).saturating_sub(1).max(2));
         let options = coprime::coprime_options(&axis, &min, &max);
 
         // Use smallest coprime as step
         self.coprime_step = options.iter()
-            .map(|t| t.to_decimal())
+            .map(|t| t.host_u64())
             .min()
             .unwrap_or(1);
     }

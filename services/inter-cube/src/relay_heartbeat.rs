@@ -90,11 +90,11 @@ impl HeartbeatScheduler {
             return;
         }
 
-        let axis = TritInt::from_u64(connection_count as u64);
-        let min = TritInt::from_u64(1);
-        let max = TritInt::from_u64(connection_count as u64);
+        let axis = TritInt::from_host_u64(connection_count as u64);
+        let min = TritInt::from_host_u64(1);
+        let max = TritInt::from_host_u64(connection_count as u64);
         let options = coprime::coprime_options(&axis, &min, &max);
-        self.coprime_positions = options.iter().map(|t| t.to_decimal()).collect();
+        self.coprime_positions = options.iter().map(|t| t.host_u64()).collect();
 
         // If no coprimes found (shouldn't happen for count > 1), fallback
         if self.coprime_positions.is_empty() {

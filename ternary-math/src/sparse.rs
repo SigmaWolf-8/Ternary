@@ -191,19 +191,19 @@ mod tests {
 
     #[test]
     fn test_sparse_insert_get() {
-        let m = vec![TritInt::from_u64(10), TritInt::from_u64(10)];
+        let m = vec![TritInt::from_host_u64(10), TritInt::from_host_u64(10)];
         let mut map: SparseMap<u64> = SparseMap::new(m);
         map.insert(&[TritInt::zero(), TritInt::zero()], 42);
-        map.insert(&[TritInt::from_u64(3), TritInt::from_u64(7)], 99);
+        map.insert(&[TritInt::from_host_u64(3), TritInt::from_host_u64(7)], 99);
         assert_eq!(map.get(&[TritInt::zero(), TritInt::zero()]), Some(&42));
-        assert_eq!(map.get(&[TritInt::from_u64(3), TritInt::from_u64(7)]), Some(&99));
+        assert_eq!(map.get(&[TritInt::from_host_u64(3), TritInt::from_host_u64(7)]), Some(&99));
         assert_eq!(map.get(&[TritInt::one(), TritInt::zero()]), None);
         assert_eq!(map.len(), 2);
     }
 
     #[test]
     fn test_sparse_remove() {
-        let m = vec![TritInt::from_u64(10), TritInt::from_u64(10)];
+        let m = vec![TritInt::from_host_u64(10), TritInt::from_host_u64(10)];
         let mut map: SparseMap<u64> = SparseMap::new(m);
         map.insert(&[TritInt::zero(), TritInt::zero()], 42);
         assert_eq!(map.remove(&[TritInt::zero(), TritInt::zero()]), Some(42));
@@ -212,23 +212,23 @@ mod tests {
 
     #[test]
     fn test_sparse_overwrite() {
-        let m = vec![TritInt::from_u64(10)];
+        let m = vec![TritInt::from_host_u64(10)];
         let mut map: SparseMap<u64> = SparseMap::new(m);
-        map.insert(&[TritInt::from_u64(5)], 10);
-        let old = map.insert(&[TritInt::from_u64(5)], 20);
+        map.insert(&[TritInt::from_host_u64(5)], 10);
+        let old = map.insert(&[TritInt::from_host_u64(5)], 20);
         assert_eq!(old, Some(10));
-        assert_eq!(map.get(&[TritInt::from_u64(5)]), Some(&20));
+        assert_eq!(map.get(&[TritInt::from_host_u64(5)]), Some(&20));
     }
 
     #[test]
     fn test_zstack_layers() {
         let mut stack: ZStack<u8> = ZStack::new();
         let mut layer0 = SparseMap::new(
-            vec![TritInt::from_u64(10), TritInt::from_u64(10)]);
+            vec![TritInt::from_host_u64(10), TritInt::from_host_u64(10)]);
         layer0.insert(&[TritInt::zero(), TritInt::zero()], 1);
         stack.push_layer(layer0);
         let mut layer1 = SparseMap::new(
-            vec![TritInt::from_u64(10), TritInt::from_u64(10), TritInt::from_u64(10)]);
+            vec![TritInt::from_host_u64(10), TritInt::from_host_u64(10), TritInt::from_host_u64(10)]);
         layer1.insert(&[TritInt::zero(), TritInt::zero(), TritInt::zero()], 2);
         stack.push_layer(layer1);
         assert_eq!(stack.depth(), 2);
@@ -242,10 +242,10 @@ mod tests {
 
     #[test]
     fn test_sparse_iter() {
-        let m = vec![TritInt::from_u64(10), TritInt::from_u64(10)];
+        let m = vec![TritInt::from_host_u64(10), TritInt::from_host_u64(10)];
         let mut map: SparseMap<u64> = SparseMap::new(m);
-        map.insert(&[TritInt::one(), TritInt::from_u64(2)], 10);
-        map.insert(&[TritInt::from_u64(3), TritInt::from_u64(4)], 20);
+        map.insert(&[TritInt::one(), TritInt::from_host_u64(2)], 10);
+        map.insert(&[TritInt::from_host_u64(3), TritInt::from_host_u64(4)], 20);
         let collected: Vec<_> = map.iter().collect();
         assert_eq!(collected.len(), 2);
     }
@@ -254,9 +254,9 @@ mod tests {
     #[should_panic(expected = "coordinate dimension")]
     fn test_sparse_dimension_mismatch() {
         let mut map: SparseMap<u64> = SparseMap::new(
-            vec![TritInt::from_u64(10), TritInt::from_u64(10)]);
+            vec![TritInt::from_host_u64(10), TritInt::from_host_u64(10)]);
         map.insert(
-            &[TritInt::one(), TritInt::from_u64(2), TritInt::from_u64(3)],
+            &[TritInt::one(), TritInt::from_host_u64(2), TritInt::from_host_u64(3)],
             42);
     }
 
@@ -264,7 +264,7 @@ mod tests {
     #[should_panic(expected = "exceeds modulus")]
     fn test_sparse_coord_out_of_bounds() {
         let mut map: SparseMap<u64> = SparseMap::new(
-            vec![TritInt::from_u64(5), TritInt::from_u64(5)]);
-        map.insert(&[TritInt::from_u64(7), TritInt::from_u64(2)], 42);
+            vec![TritInt::from_host_u64(5), TritInt::from_host_u64(5)]);
+        map.insert(&[TritInt::from_host_u64(7), TritInt::from_host_u64(2)], 42);
     }
 }

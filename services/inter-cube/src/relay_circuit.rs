@@ -213,11 +213,11 @@ impl RelayCircuitBreaker {
     ///
     /// `common_period` is the LCM or typical period to avoid (default 60).
     pub fn compute_probe_schedule(&mut self, common_period: u64) {
-        let axis = TritInt::from_u64(common_period);
-        let min = TritInt::from_u64(2);
-        let max = TritInt::from_u64(common_period.saturating_sub(1).max(2));
+        let axis = TritInt::from_host_u64(common_period);
+        let min = TritInt::from_host_u64(2);
+        let max = TritInt::from_host_u64(common_period.saturating_sub(1).max(2));
         let options = coprime::coprime_options(&axis, &min, &max);
-        self.probe_schedule = options.iter().map(|t| t.to_decimal()).collect();
+        self.probe_schedule = options.iter().map(|t| t.host_u64()).collect();
         self.probe_index = 0;
     }
 

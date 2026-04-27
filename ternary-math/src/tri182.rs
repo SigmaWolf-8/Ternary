@@ -157,8 +157,8 @@ mod tests {
     #[test]
     fn phi_squared_is_phi_plus_one() {
         let phi_sq = tri182_mul(&tri182_phi(), &tri182_phi());
-        assert_eq!(phi_sq.v[0].to_decimal(), 1);
-        assert_eq!(phi_sq.v[1].to_decimal(), 1);
+        assert_eq!(phi_sq.v[0].host_u64(), 1);
+        assert_eq!(phi_sq.v[1].host_u64(), 1);
         assert_eq!(phi_sq, PHI_SQUARED);
         assert!(phi_sq.v[2].is_zero());
     }
@@ -167,8 +167,8 @@ mod tests {
     fn phi_cubed() {
         let phi = tri182_phi();
         let result = tri182_mul(&phi, &tri182_mul(&phi, &phi));
-        assert_eq!(result.v[0].to_decimal(), 1);
-        assert_eq!(result.v[1].to_decimal(), 2);
+        assert_eq!(result.v[0].host_u64(), 1);
+        assert_eq!(result.v[1].host_u64(), 2);
         assert!(result.v[2].is_zero());
     }
 
@@ -180,8 +180,8 @@ mod tests {
             (1, 0), (0, 1), (1, 1), (1, 2), (2, 3), (3, 5),
         ];
         for (n, (ea, eb)) in expected.iter().enumerate() {
-            assert_eq!(power.v[0].to_decimal(), *ea, "φ^{}: a", n);
-            assert_eq!(power.v[1].to_decimal(), *eb, "φ^{}: b", n);
+            assert_eq!(power.v[0].host_u64(), *ea, "φ^{}: a", n);
+            assert_eq!(power.v[1].host_u64(), *eb, "φ^{}: b", n);
             assert!(power.v[2].is_zero(), "φ^{}: v[2]", n);
             power = tri182_mul(&power, &phi);
         }
@@ -196,13 +196,13 @@ mod tests {
 
     #[test]
     fn r_squared_integer_part_is_pi() {
-        assert_eq!(R_SQUARED.v[0].to_decimal(), 14);
+        assert_eq!(R_SQUARED.v[0].host_u64(), 14);
     }
 
     #[test]
     fn r_squared_norm_is_241() {
         let norm = tri182_norm(&R_SQUARED);
-        assert_eq!(norm.integer_part().to_decimal(), 241);
+        assert_eq!(norm.integer_part().host_u64(), 241);
         assert!(241 % 2 != 0 && 241 % 3 != 0 && 241 % 5 != 0
             && 241 % 7 != 0 && 241 % 11 != 0 && 241 % 13 != 0);
     }
@@ -218,15 +218,15 @@ mod tests {
     fn integer_embedding() {
         let val = tri182_int(TritInt::repunit(6));
         assert!(val.is_scalar());
-        assert_eq!(val.v[0].to_decimal(), 364);
+        assert_eq!(val.v[0].host_u64(), 364);
     }
 
     #[test]
     fn multiply_by_integer() {
-        let three = tri182_int(TritInt::from_u64(3));
+        let three = tri182_int(TritInt::from_host_u64(3));
         let product = tri182_mul(&three, &R_SQUARED);
-        assert_eq!(product.v[0].to_decimal(), 42);
-        assert_eq!(product.v[1].to_decimal(), 15);
+        assert_eq!(product.v[0].host_u64(), 42);
+        assert_eq!(product.v[1].host_u64(), 15);
         assert!(product.v[2].is_zero());
     }
 
@@ -254,7 +254,7 @@ mod tests {
     fn project_all_ones() {
         let trits = [1u8; 5];
         let r = project_to_zphi(&trits);
-        assert_eq!(r.v[0].to_decimal(), 12); // sum fib(0..4) = 1+1+2+3+5
-        assert_eq!(r.v[1].to_decimal(), 19); // sum fib(1..5) = 1+2+3+5+8
+        assert_eq!(r.v[0].host_u64(), 12); // sum fib(0..4) = 1+1+2+3+5
+        assert_eq!(r.v[1].host_u64(), 19); // sum fib(1..5) = 1+2+3+5+8
     }
 }
