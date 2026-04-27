@@ -13,7 +13,7 @@
 
 extern crate alloc;
 
-use plenumnet_kernel::ternary::{Trit, Tryte, Representation, convert_representation, information_density};
+use plenumnet_kernel::ternary::{Trit, Tryte, KernelTritExt, Representation, convert_representation, information_density};
 use plenumnet_kernel::compat::gateway::{
     binary_to_balanced_ternary, balanced_ternary_to_binary,
     binary_bytes_to_ternary, ternary_to_binary_bytes,
@@ -37,20 +37,20 @@ mod proptest_ternary {
     proptest! {
         #[test]
         fn gf3_add_commutative(a in arb_trit(), b in arb_trit()) {
-            prop_assert_eq!(a.add(&b).to_a(), b.add(&a).to_a());
+            prop_assert_eq!(a.add(b).to_a(), b.add(a).to_a());
         }
 
         #[test]
         fn gf3_add_associative(a in arb_trit(), b in arb_trit(), c in arb_trit()) {
-            let lhs = a.add(&b).add(&c);
-            let rhs = a.add(&b.add(&c));
+            let lhs = a.add(b).add(c);
+            let rhs = a.add(b.add(c));
             prop_assert_eq!(lhs.to_a(), rhs.to_a());
         }
 
         #[test]
         fn gf3_add_identity(a in arb_trit()) {
             let zero = Trit::from_a(0).unwrap();
-            prop_assert_eq!(a.add(&zero).to_a(), a.to_a());
+            prop_assert_eq!(a.add(zero).to_a(), a.to_a());
         }
 
         #[test]
@@ -79,8 +79,8 @@ mod proptest_ternary {
 
         #[test]
         fn gf3_distributive(a in arb_trit(), b in arb_trit(), c in arb_trit()) {
-            let lhs = a.multiply(&b.add(&c));
-            let rhs = a.multiply(&b).add(&a.multiply(&c));
+            let lhs = a.multiply(&b.add(c));
+            let rhs = a.multiply(&b).add(a.multiply(&c));
             prop_assert_eq!(lhs.to_a(), rhs.to_a());
         }
 
@@ -148,7 +148,7 @@ mod proptest_ternary {
 
         #[test]
         fn add_result_range(a in arb_trit(), b in arb_trit()) {
-            let r = a.add(&b).to_a();
+            let r = a.add(b).to_a();
             prop_assert!(r >= -1 && r <= 1);
         }
 

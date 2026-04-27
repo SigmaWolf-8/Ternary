@@ -17,7 +17,7 @@ use super::{VmError, VmResult};
 use super::instruction::*;
 use super::gc::GcHeap;
 use super::cache::ConstantTimeTernary;
-use crate::ternary::{Trit, Representation, convert_representation, scalar_to_trit, pack_trits, unpack_trits, packed_map, packed_zip, packed_shift_left, packed_shift_right, packed_rotate_left, packed_reduce, packed_convert};
+use crate::ternary::{Trit, KernelTritExt, Representation, convert_representation, scalar_to_trit, pack_trits, unpack_trits, packed_map, packed_zip, packed_shift_left, packed_shift_right, packed_rotate_left, packed_reduce, packed_convert};
 use crate::timing::{FemtosecondTimestamp, HptpProvider, SimulatedHptp};
 use alloc::boxed::Box;
 
@@ -405,11 +405,11 @@ impl TernaryVm {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
                 let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
-                    packed_zip(a, b, |x, y| x.sub(y))
+                    packed_zip(a, b, |x, y| x.sub(*y))
                 } else {
                     let ta = scalar_to_trit(a);
                     let tb = scalar_to_trit(b);
-                    ta.sub(&tb).to_a() as i64
+                    ta.sub(tb).to_a() as i64
                 };
                 self.set_register(inst.dst, result)?;
                 self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
@@ -631,7 +631,7 @@ impl TernaryVm {
                 for i in 0..degree {
                     for j in 0..degree {
                         let k = (i + j) % degree;
-                        result_trits[k] = result_trits[k].add(&ta[i].multiply(&tb[j]));
+                        result_trits[k] = result_trits[k].add(ta[i].multiply(&tb[j]));
                     }
                 }
                 let result = pack_trits(&result_trits);
@@ -661,8 +661,8 @@ impl TernaryVm {
                 }
                 for i in 0..n {
                     for j in (i + 1)..n {
-                        let sum = trits[i].add(&trits[j]);
-                        let diff = trits[i].sub(&trits[j]);
+                        let sum = trits[i].add(trits[j]);
+                        let diff = trits[i].sub(trits[j]);
                         trits[i] = sum;
                         trits[j] = diff;
                     }
@@ -737,7 +737,7 @@ impl TernaryVm {
             Opcode::TPolyAdd => {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
-                let result = packed_zip(a, b, |x, y| x.add(y));
+                let result = packed_zip(a, b, |x, y| x.add(*y));
                 self.set_register(inst.dst, result)?;
                 self.set_ternary_mode(inst.dst, true)?;
                 self.update_flags(result, false);
@@ -863,7 +863,7 @@ impl TernaryVm {
             Opcode::TAddV => {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
-                let result = packed_zip(a, b, |x, y| x.add(y));
+                let result = packed_zip(a, b, |x, y| x.add(*y));
                 self.set_register(inst.dst, result)?;
                 self.set_ternary_mode(inst.dst, true)?;
                 self.update_flags(result, false);

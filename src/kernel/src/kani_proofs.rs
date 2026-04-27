@@ -13,7 +13,7 @@
 
 #[cfg(kani)]
 mod ternary_proofs {
-    use crate::ternary::{Trit, pack_trits, unpack_trits, Representation, convert_representation};
+    use crate::ternary::{Trit, KernelTritExt, pack_trits, unpack_trits, Representation, convert_representation};
 
     /// PROOF: Trit::from_a rejects all invalid inputs
     #[kani::proof]
@@ -103,7 +103,7 @@ mod ternary_proofs {
         kani::assume(b >= -1 && b <= 1);
         let ta = Trit::from_a(a).unwrap();
         let tb = Trit::from_a(b).unwrap();
-        let result = ta.add(&tb).to_a();
+        let result = ta.add(tb).to_a();
         assert!(result >= -1 && result <= 1, "GF(3) add must produce valid trit");
     }
 
@@ -114,7 +114,7 @@ mod ternary_proofs {
         kani::assume(a >= -1 && a <= 1);
         let ta = Trit::from_a(a).unwrap();
         let zero = Trit::from_a(0).unwrap();
-        assert_eq!(ta.add(&zero).to_a(), a, "Zero must be additive identity");
+        assert_eq!(ta.add(zero).to_a(), a, "Zero must be additive identity");
     }
 
     /// PROOF: GF(3) addition is commutative — a + b == b + a
@@ -126,7 +126,7 @@ mod ternary_proofs {
         kani::assume(b >= -1 && b <= 1);
         let ta = Trit::from_a(a).unwrap();
         let tb = Trit::from_a(b).unwrap();
-        assert_eq!(ta.add(&tb).to_a(), tb.add(&ta).to_a());
+        assert_eq!(ta.add(tb).to_a(), tb.add(ta).to_a());
     }
 
     /// PROOF: GF(3) multiplication is closed

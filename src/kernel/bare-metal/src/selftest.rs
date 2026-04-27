@@ -9,7 +9,7 @@
 
 use crate::serial;
 
-use plenumnet_kernel::ternary::{Trit, pack_trits, unpack_trits, Representation, convert_representation};
+use plenumnet_kernel::ternary::{Trit, KernelTritExt, pack_trits, unpack_trits, Representation, convert_representation};
 use plenumnet_kernel::arch::boot::{BootSequence, BootStage, x86_64_boot_config};
 use plenumnet_kernel::arch::{ArchId, MemoryRegionType};
 use plenumnet_kernel::timing::{FemtosecondTimestamp, FS_PER_NS, FS_PER_MS, FS_PER_SECOND};
@@ -100,11 +100,11 @@ pub fn run_all() -> TestResults {
     r.record("OR(N, Z) == Z", n.or(&z).to_a() == 0);
 
     r.record("add(P, P) in GF(3)", {
-        let result = p.add(&p);
+        let result = p.add(p);
         result.to_a() == -1
     });
     r.record("add(P, N) in GF(3)", {
-        let result = p.add(&n);
+        let result = p.add(n);
         result.to_a() == 0
     });
 

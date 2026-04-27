@@ -29,7 +29,7 @@
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
-use plenumnet_kernel::ternary::{Trit, Representation, convert_representation, pack_trits, unpack_trits};
+use plenumnet_kernel::ternary::{Trit, KernelTritExt, Representation, convert_representation, pack_trits, unpack_trits};
 use plenumnet_kernel::crypto::sponge::TernarySponge;
 use plenumnet_kernel::crypto::tl_kem::{self, TlKemVariant};
 use plenumnet_kernel::crypto::tl_dsa::{self, TlDsaVariant};
@@ -225,7 +225,7 @@ fn main() {
 
     let gf3_add = bench_n("GF(3) trit add × 10k", scalar_ops, || {
         let mut acc = ta;
-        for _ in 0..scalar_ops { acc = acc.add(&tb); }
+        for _ in 0..scalar_ops { acc = acc.add(tb); }
         black_box(acc);
     });
 

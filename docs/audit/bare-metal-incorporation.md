@@ -197,6 +197,71 @@ are the apples-to-apples post-shim numbers; the full-scope numbers
 (2129 / 715) live in `.baseline/` artifacts from the
 `shim-gate-baseline.yml` workflow.
 
+## Trit struct collapse onto canonical `aasc::Trit` (Task #170)
+
+The kernel-local `Trit { value: i8 }` struct that lived in
+`src/kernel/src/ternary.rs` has been retired. The shim now resolves
+`Trit` and `Representation` to the canonical `aasc::trit::{Trit,
+Representation}` re-exports (the same enum that already backed the
+`AascTrit` / `AascRepresentation` aliases since Task #162). Kernel-only
+behaviours that the canonical enum does not carry — `xor`, `rotate`,
+`rotate_inverse`, `and`, `or`, `cmp_trit`, `multiply` (an alias of
+`mul`), `lukasiewicz_and`, `gf3_inverse_unchecked` (panicking variant),
+and `reduce_with_trit` — are exposed through a new
+`KernelTritExt` extension trait `impl`d on `aasc::Trit` so existing
+call-sites keep working unchanged. The `Tryte`, `pack_trits`,
+`unpack_trits`, and `packed_*` helpers were rewritten on top of
+`Trit::ZERO` / `Trit::ONE` / `Trit::NEG_ONE` and `value_a()` so the
+i8 literal `0/1/-1` constructors no longer appear anywhere in the
+kernel.
+
+Consumer files that previously called `.add(&t)` / `.sub(&t)` on a
+kernel `Trit` were updated to the by-value form
+`.add(t)` / `.sub(t)` because the canonical inherent methods take
+`(self, Self)` and shadow the trait `Add`/`Sub` impls. The two
+`vm_tests.rs` sites that called `.gf3_inverse()` for the panicking
+contract were renamed to `.gf3_inverse_unchecked()` so the canonical
+`Option`-returning `aasc::Trit::gf3_inverse` is not silently swapped
+in. Files touched in Phase 2 (import + by-value rewrite, no
+behavioural changes):
+
+- `src/kernel/src/vm/engine.rs`
+- `src/kernel/src/vm/vm_tests.rs`
+- `src/kernel/src/kani_proofs.rs`
+- `src/kernel/bare-metal/src/selftest.rs`
+- `src/kernel/tests/proptest_vm.rs`
+- `src/kernel/wasm/src/lib.rs`
+- `src/kernel/benches/ternary_ops.rs`
+- `src/kernel/benches/salvi_benchmarks.rs`
+- `src/kernel/benchmarks/salvi_benchmarks.rs`
+- `src/kernel/fuzz/fuzz_targets/fuzz_trit_ops.rs`
+
+Three `packed_zip(a, b, |x, y| x.add(y))` closure sites in
+`vm/engine.rs` and one in `vm/vm_tests.rs` were updated to
+`|x, y| x.add(*y)` to dereference the `&Trit` callback parameter into
+the by-value canonical `add`. The `Tryte::add(&Tryte)` call in
+`tests/proptest_vm.rs:199` was preserved with its `&` borrow because
+`Tryte` keeps the existing kernel-local `add(&self, other: &Tryte)`
+signature (Tryte composition is unaffected by Task #170).
+
+Re-confirmed on `main` after Task #170:
+
+| Command                                                | Result                       |
+|--------------------------------------------------------|------------------------------|
+| `cargo build -p plenumnet-kernel --lib`                | ok (37 warnings, 0 errors)   |
+| `cargo test  -p plenumnet-kernel --lib`                | 2092 passed / 0 failed       |
+| `cargo test  -p plenumnet-kernel --tests`              | 37 passed / 0 failed         |
+| `cargo check -p plenumnet-kernel --lib --no-default-features --features no_std` | ok (44 warnings, 0 errors) |
+| `cargo check -p plenumnet-kernel --benches`            | ok                           |
+| `bash scripts/capture-shim-baseline.sh shim-gate`      | both crates rc=0, 2092/649   |
+
+The bare-metal QEMU smoke gate
+(`.github/workflows/bare-metal-qemu.yml`) and the wasm crate
+(`plenumnet-wasm`, separate manifest) are runner-side targets and
+are not exercised on the workspace host; both consume the same
+`KernelTritExt`-bearing `ternary` shim and were updated for source
+compatibility under Phase 2.
+
 ---
 
 © 2025–2026 Capomastro Holdings Ltd. (Canada). Patent(s) Pending —

@@ -28,7 +28,7 @@ mod property_tests {
             for &b in &TRIT_VALUES {
                 let ta = Trit::from_a(a).unwrap();
                 let tb = Trit::from_a(b).unwrap();
-                assert_eq!(ta.add(&tb).to_a(), tb.add(&ta).to_a(),
+                assert_eq!(ta.add(tb).to_a(), tb.add(ta).to_a(),
                     "Add commutativity failed for a={}, b={}", a, b);
             }
         }
@@ -54,8 +54,8 @@ mod property_tests {
                     let ta = Trit::from_a(a).unwrap();
                     let tb = Trit::from_a(b).unwrap();
                     let tc = Trit::from_a(c).unwrap();
-                    let lhs = ta.add(&tb).add(&tc);
-                    let rhs = ta.add(&tb.add(&tc));
+                    let lhs = ta.add(tb).add(tc);
+                    let rhs = ta.add(tb.add(tc));
                     assert_eq!(lhs.to_a(), rhs.to_a(),
                         "Add associativity failed for a={}, b={}, c={}", a, b, c);
                 }
@@ -85,7 +85,7 @@ mod property_tests {
         let zero = Trit::from_a(0).unwrap();
         for &a in &TRIT_VALUES {
             let ta = Trit::from_a(a).unwrap();
-            assert_eq!(ta.add(&zero).to_a(), a, "0 is not additive identity for a={}", a);
+            assert_eq!(ta.add(zero).to_a(), a, "0 is not additive identity for a={}", a);
         }
     }
 
@@ -103,7 +103,7 @@ mod property_tests {
         for &a in &TRIT_VALUES {
             let ta = Trit::from_a(a).unwrap();
             let neg_a = ta.not();
-            assert_eq!(ta.add(&neg_a).to_a(), 0,
+            assert_eq!(ta.add(neg_a).to_a(), 0,
                 "a + (-a) != 0 for a={}", a);
         }
     }
@@ -112,7 +112,7 @@ mod property_tests {
     fn test_gf3_multiplicative_inverse() {
         for &a in &[1i8, -1] {
             let ta = Trit::from_a(a).unwrap();
-            let inv = ta.gf3_inverse();
+            let inv = ta.gf3_inverse_unchecked();
             assert_eq!(ta.multiply(&inv).to_a(), 1,
                 "a * inv(a) != 1 for a={}", a);
         }
@@ -126,8 +126,8 @@ mod property_tests {
                     let ta = Trit::from_a(a).unwrap();
                     let tb = Trit::from_a(b).unwrap();
                     let tc = Trit::from_a(c).unwrap();
-                    let lhs = ta.multiply(&tb.add(&tc));
-                    let rhs = ta.multiply(&tb).add(&ta.multiply(&tc));
+                    let lhs = ta.multiply(&tb.add(tc));
+                    let rhs = ta.multiply(&tb).add(ta.multiply(&tc));
                     assert_eq!(lhs.to_a(), rhs.to_a(),
                         "Distributivity failed for a={}, b={}, c={}", a, b, c);
                 }
@@ -212,7 +212,7 @@ mod property_tests {
                 let ta = Trit::from_a(a).unwrap();
                 let tb = Trit::from_a(b).unwrap();
 
-                let add_result = ta.add(&tb).to_a();
+                let add_result = ta.add(tb).to_a();
                 assert!(add_result >= -1 && add_result <= 1, "add({},{}) out of range", a, b);
 
                 let mul_result = ta.multiply(&tb).to_a();
@@ -227,7 +227,7 @@ mod property_tests {
                 let or_result = ta.or(&tb).to_a();
                 assert!(or_result >= -1 && or_result <= 1, "or({},{}) out of range", a, b);
 
-                let sub_result = ta.sub(&tb).to_a();
+                let sub_result = ta.sub(tb).to_a();
                 assert!(sub_result >= -1 && sub_result <= 1, "sub({},{}) out of range", a, b);
 
                 let cmp_result = ta.cmp_trit(&tb).to_a();
@@ -251,7 +251,7 @@ mod property_tests {
             assert!(roti >= -1 && roti <= 1, "rotate_inverse({}) out of range", a);
 
             if a != 0 {
-                let inv = ta.gf3_inverse().to_a();
+                let inv = ta.gf3_inverse_unchecked().to_a();
                 assert!(inv >= -1 && inv <= 1, "gf3_inverse({}) out of range", a);
             }
         }
@@ -264,7 +264,7 @@ mod property_tests {
                 let pa = pack_trits(&[Trit::from_a(a).unwrap()]);
                 let pb = pack_trits(&[Trit::from_a(b).unwrap()]);
 
-                let add = packed_zip(pa, pb, |x, y| x.add(y));
+                let add = packed_zip(pa, pb, |x, y| x.add(*y));
                 assert!(is_valid_packed(add), "packed add invalid for a={}, b={}", a, b);
 
                 let mul = packed_zip(pa, pb, |x, y| x.multiply(y));

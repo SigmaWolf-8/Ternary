@@ -41,7 +41,7 @@ use criterion::{
 };
 
 use plenumnet_kernel::ternary::{
-    Trit, Representation, convert_representation, pack_trits, unpack_trits,
+    Trit, KernelTritExt, Representation, convert_representation, pack_trits, unpack_trits,
 };
 use plenumnet_kernel::crypto::sponge::TernarySponge;
 use plenumnet_kernel::crypto::tl_kem::{self, TlKemVariant};
@@ -226,7 +226,7 @@ fn bench_gf3_vs_gf2_scalar(c: &mut Criterion) {
         b.iter(|| {
             let mut acc = ta;
             for _ in 0..ops {
-                acc = acc.add(&tb);
+                acc = acc.add(tb);
             }
             black_box(acc)
         });

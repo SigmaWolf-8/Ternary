@@ -12,7 +12,7 @@
 // See LICENSE in the repository root for full terms.
 
 use criterion::{criterion_group, criterion_main, Criterion, black_box, BenchmarkId, BatchSize};
-use plenumnet_kernel::ternary::{Trit, Tryte, TernaryWord, information_density, Representation, convert_representation};
+use plenumnet_kernel::ternary::{Trit, Tryte, TernaryWord, KernelTritExt, information_density, Representation, convert_representation};
 use plenumnet_kernel::compat::gateway::{
     binary_to_balanced_ternary, balanced_ternary_to_binary,
     binary_bytes_to_ternary, ternary_to_binary_bytes,
@@ -31,7 +31,7 @@ fn bench_trit_operations(c: &mut Criterion) {
     let b = Trit::from_a(-1).unwrap();
 
     group.bench_function("add", |bench| {
-        bench.iter(|| black_box(a.add(&black_box(b))))
+        bench.iter(|| black_box(a.add(black_box(b))))
     });
 
     group.bench_function("multiply", |bench| {
@@ -72,7 +72,7 @@ fn bench_tryte_operations(c: &mut Criterion) {
     let tb = Tryte::from_decimal(42).unwrap();
 
     group.bench_function("add", |bench| {
-        bench.iter(|| black_box(ta.add(&black_box(tb))))
+        bench.iter(|| black_box(ta.add(black_box(tb))))
     });
 
     group.bench_function("not", |bench| {

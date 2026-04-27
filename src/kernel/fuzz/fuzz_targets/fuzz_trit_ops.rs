@@ -13,7 +13,7 @@
 
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use plenumnet_kernel::ternary::{Trit, Representation, convert_representation};
+use plenumnet_kernel::ternary::{Trit, KernelTritExt, Representation, convert_representation};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() < 2 {
@@ -26,10 +26,10 @@ fuzz_target!(|data: &[u8]| {
     let a = Trit::from_a(a_raw).unwrap();
     let b = Trit::from_a(b_raw).unwrap();
 
-    let sum = a.add(&b);
+    let sum = a.add(b);
     assert!(sum.to_a() >= -1 && sum.to_a() <= 1, "GF(3) add produced out-of-range trit");
 
-    let sum2 = b.add(&a);
+    let sum2 = b.add(a);
     assert_eq!(sum.to_a(), sum2.to_a(), "GF(3) add not commutative");
 
     let product = a.multiply(&b);
@@ -52,7 +52,7 @@ fuzz_target!(|data: &[u8]| {
     assert_eq!(inv_cancel.to_a(), a.to_a(), "rotate_inverse doesn't cancel rotate");
 
     let zero = Trit::from_a(0).unwrap();
-    assert_eq!(a.add(&zero).to_a(), a.to_a(), "0 is not additive identity");
+    assert_eq!(a.add(zero).to_a(), a.to_a(), "0 is not additive identity");
 
     let one = Trit::from_a(1).unwrap();
     assert_eq!(a.multiply(&one).to_a(), a.to_a(), "1 is not multiplicative identity");
@@ -65,16 +65,16 @@ fuzz_target!(|data: &[u8]| {
         let c_raw = (data[2] % 3) as i8 - 1;
         let c = Trit::from_a(c_raw).unwrap();
 
-        let assoc1 = a.add(&b).add(&c);
-        let assoc2 = a.add(&b.add(&c));
+        let assoc1 = a.add(b).add(c);
+        let assoc2 = a.add(b.add(c));
         assert_eq!(assoc1.to_a(), assoc2.to_a(), "GF(3) add not associative");
 
         let mul_assoc1 = a.multiply(&b).multiply(&c);
         let mul_assoc2 = a.multiply(&b.multiply(&c));
         assert_eq!(mul_assoc1.to_a(), mul_assoc2.to_a(), "GF(3) mul not associative");
 
-        let distrib1 = a.multiply(&b.add(&c));
-        let distrib2 = a.multiply(&b).add(&a.multiply(&c));
+        let distrib1 = a.multiply(&b.add(c));
+        let distrib2 = a.multiply(&b).add(a.multiply(&c));
         assert_eq!(distrib1.to_a(), distrib2.to_a(), "GF(3) distributive law violated");
     }
 

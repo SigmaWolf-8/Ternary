@@ -12,32 +12,25 @@
 //
 // See LICENSE in the repository root for full terms.
 
-//! Ternary Computing Module — **`aasc` compatibility shim**
+//! Ternary Computing Module — direct re-export of `aasc::Trit`.
 //!
-//! This module is a backward-compatibility shim over the canonical
-//! pure-ternary engine [`algeometric_arc_sigma182_calculi`] (re-exported
-//! at the bottom of this file as [`AascTrit`] and [`TritVec`]).
-//! It preserves every symbol downstream consumers — including the
-//! bare-metal target at `src/kernel/bare-metal/` — already import:
-//! `Trit`, `Tryte`, `TernaryWord`, `Representation`,
-//! `convert_representation`, `pack_trits`, `unpack_trits`,
-//! `packed_map`, `packed_zip`, `is_valid_packed`,
-//! `packed_shift_left`, `packed_shift_right`, `packed_rotate_left`,
-//! `packed_reduce`, `packed_convert`, `pack_single_trit`,
-//! `scalar_to_trit`, `information_density`, `DensityComparison`.
+//! Task #170 retired the kernel-local `Trit { value: i8 }` struct.
+//! The canonical pure-ternary engine
+//! [`algeometric_arc_sigma182_calculi`] supplies every `Trit`,
+//! `TritVec`, and `Representation` type the kernel uses. The legacy
+//! `AascTrit` / `AascRepresentation` aliases are kept as transitional
+//! handles for downstream code that imported them through Task #162.
 //!
-//! The local `Trit`/`Tryte` types remain a thin Rep-A `i8` wrapper so
-//! kernel internal call sites that depend on the `Trit { value: i8 }`
-//! field shape (vm/engine.rs, vm/cache.rs, kani_proofs.rs and the rest
-//! of `src/kernel/src/`) keep compiling unchanged. The arithmetic is
-//! GF(3)-equivalent to `aasc::Trit` by construction (Task #158 I-47:
-//! shim parity, zero divergence). Migration of those call sites onto
-//! `aasc::Trit` directly is follow-up work.
+//! Kernel-only ternary operations that are **not** part of the canonical
+//! engine — `xor`, `rotate`, `rotate_inverse`, `and`, `or`, `cmp_trit`,
+//! `lukasiewicz_and`, `multiply` (kernel alias for `mul`),
+//! `gf3_inverse_unchecked` (panicking variant), and `reduce_with_trit` —
+//! live on the [`KernelTritExt`] extension trait below.
 //!
 //! # Representations
-//! - **A (Computational)**: {-1, 0, +1} - For arithmetic operations
-//! - **B (Network)**: {0, 1, 2} - For network transmission
-//! - **C (Human)**: {1, 2, 3} - For human-readable display
+//! - **A (Computational)**: {-1, 0, +1} — for arithmetic operations.
+//! - **B (Network)**:       {0, 1, 2}  — for network transmission.
+//! - **C (Human)**:         {1, 2, 3}  — for human-readable display.
 //!
 //! # Bijections
 //! - A→B: f(a) = a + 1
@@ -46,187 +39,170 @@
 //!
 //! # Migration anchor
 //!
-//! New code should prefer the canonical engine types re-exported below
-//! (`AascTrit`, `TritVec`). The legacy `Trit`/`Tryte` symbols are kept
-//! solely for the freestanding kernel + bare-metal symbol surface.
+//! New code should reach `aasc` directly via the re-exports below.
+//! The kernel `Trit` symbol *is* `aasc::Trit` — there is no separate
+//! kernel scalar type any longer.
 
-// ── aasc canonical engine re-exports ────────────────────────────────
-//
-// The single source of mathematical truth. Forward-migration anchor for
-// the kernel and the bare-metal target. The local `Trit`/`Representation`
-// types defined below remain available under their existing names to
-// preserve the freestanding kernel API surface (Task #158 I-47).
-pub use aasc::trit::Trit as AascTrit;
+// ── aasc canonical engine — single source of mathematical truth ─────
+pub use aasc::trit::Trit;
+pub use aasc::trit::Representation;
 pub use aasc::tritvec::TritVec;
+
+// Transitional aliases — kept so existing imports of `AascTrit` /
+// `AascRepresentation` (introduced by Task #162) continue to compile.
+pub use aasc::trit::Trit as AascTrit;
 pub use aasc::trit::Representation as AascRepresentation;
 
-/// A single trit (ternary digit)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Trit {
-    /// Internal representation uses Representation A: {-1, 0, +1}
-    value: i8,
+// ════════════════════════════════════════════════════════════════════
+// KernelTritExt — kernel-only operations on the canonical Trit
+// ════════════════════════════════════════════════════════════════════
+
+/// Extension trait providing the kernel-side ternary operations that
+/// are not part of the canonical `aasc` surface.
+///
+/// `aasc` exposes the pure GF(3) field operations (`add`, `sub`, `mul`,
+/// `not`, `gf3_inverse → Option`). Kernel call sites historically also
+/// reach for the gate-style ops (`xor`, `and`, `or`, `cmp_trit`),
+/// rotation gates (`rotate`, `rotate_inverse`), the Łukasiewicz logic
+/// gate (`lukasiewicz_and`), the panicking inverse
+/// (`gf3_inverse_unchecked`, the kernel's pre-aasc semantic), the
+/// reduction helper (`reduce_with_trit`), and the `multiply` alias for
+/// `mul`. They are kept here so existing call sites compile unchanged
+/// when they bring this trait into scope.
+pub trait KernelTritExt {
+    /// Tritwise XOR (Kleene-style min on Rep-A).
+    fn xor(&self, other: &Trit) -> Trit;
+    /// Forward rotation: −1 → 0 → +1 → −1.
+    fn rotate(&self) -> Trit;
+    /// Inverse rotation: +1 → 0 → −1 → +1.
+    fn rotate_inverse(&self) -> Trit;
+    /// Kleene AND (Rep-A min).
+    fn and(&self, other: &Trit) -> Trit;
+    /// Kleene OR (Rep-A max).
+    fn or(&self, other: &Trit) -> Trit;
+    /// Three-way comparison: −1 / 0 / +1 by Rep-A signum.
+    fn cmp_trit(&self, other: &Trit) -> Trit;
+    /// GF(3) multiplication — kernel alias for `aasc::Trit::mul`.
+    fn multiply(&self, other: &Trit) -> Trit;
+    /// Łukasiewicz AND: clamp(a + b − 1, −1, +1).
+    fn lukasiewicz_and(&self, other: &Trit) -> Trit;
+    /// Panicking GF(3) inverse — preserves the kernel's pre-aasc
+    /// semantic (panic on Rep-A 0 instead of returning `None`).
+    fn gf3_inverse_unchecked(&self) -> Trit;
+    /// Reduce via gate id: 0=add, 1=mul, 2=min, 3=max.
+    fn reduce_with_trit(acc: &Trit, elem: &Trit, gate: u8) -> Trit;
 }
 
-impl Trit {
-    #[inline(always)]
-    pub const fn from_a(value: i8) -> Option<Self> {
-        match value {
-            -1 | 0 | 1 => Some(Self { value }),
-            _ => None,
+#[inline(always)]
+fn trit_from_a_or_zero(value: i8) -> Trit {
+    match Trit::from_a(value) {
+        Some(t) => t,
+        None => Trit::ZERO,
+    }
+}
+
+impl KernelTritExt for Trit {
+    #[inline]
+    fn xor(&self, other: &Trit) -> Trit {
+        let av = self.value_a();
+        let bv = other.value_a();
+        let m = if av < bv { av } else { bv };
+        trit_from_a_or_zero(m)
+    }
+
+    #[inline]
+    fn rotate(&self) -> Trit {
+        match self.value_a() {
+            -1 => Trit::ZERO,
+            0 => Trit::ONE,
+            1 => Trit::NEG_ONE,
+            _ => Trit::ZERO,
         }
     }
 
-    #[inline(always)]
-    pub const fn from_b(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self { value: -1 }),
-            1 => Some(Self { value: 0 }),
-            2 => Some(Self { value: 1 }),
-            _ => None,
+    #[inline]
+    fn rotate_inverse(&self) -> Trit {
+        match self.value_a() {
+            1 => Trit::ZERO,
+            0 => Trit::NEG_ONE,
+            -1 => Trit::ONE,
+            _ => Trit::ZERO,
         }
     }
 
-    #[inline(always)]
-    pub const fn from_c(value: u8) -> Option<Self> {
-        match value {
-            1 => Some(Self { value: -1 }),
-            2 => Some(Self { value: 0 }),
-            3 => Some(Self { value: 1 }),
-            _ => None,
-        }
+    #[inline]
+    fn and(&self, other: &Trit) -> Trit {
+        let av = self.value_a();
+        let bv = other.value_a();
+        let m = if av < bv { av } else { bv };
+        trit_from_a_or_zero(m)
     }
 
-    #[inline(always)]
-    pub const fn to_a(&self) -> i8 {
-        self.value
+    #[inline]
+    fn or(&self, other: &Trit) -> Trit {
+        let av = self.value_a();
+        let bv = other.value_a();
+        let m = if av > bv { av } else { bv };
+        trit_from_a_or_zero(m)
     }
 
-    #[inline(always)]
-    pub const fn to_b(&self) -> u8 {
-        (self.value + 1) as u8
+    #[inline]
+    fn cmp_trit(&self, other: &Trit) -> Trit {
+        let diff = self.value_a() - other.value_a();
+        let c = if diff < 0 { -1 } else if diff > 0 { 1 } else { 0 };
+        trit_from_a_or_zero(c)
     }
 
-    #[inline(always)]
-    pub const fn to_c(&self) -> u8 {
-        (self.value + 2) as u8
+    #[inline]
+    fn multiply(&self, other: &Trit) -> Trit {
+        self.mul(*other)
     }
 
-    #[inline(always)]
-    pub const fn not(&self) -> Self {
-        Self { value: -self.value }
+    #[inline]
+    fn lukasiewicz_and(&self, other: &Trit) -> Trit {
+        let sum = self.value_a() + other.value_a() - 1;
+        let v = if sum < -1 { -1 } else { sum };
+        trit_from_a_or_zero(v)
     }
 
-    /// GF(3) addition. Delegates to the canonical `aasc::Trit::add` so
-    /// the kernel and the canonical engine share one mathematical truth
-    /// (Task #158 I-47, shim parity). Inputs/outputs use the kernel's
-    /// Rep-A `i8` storage; the bridge to/from aasc is a constructor +
-    /// accessor pair on the canonical Trit enum.
-    #[inline(always)]
-    pub fn add(&self, other: &Trit) -> Self {
-        let a = AascTrit::from_a(self.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
-        let b = AascTrit::from_a(other.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
-        Self { value: a.add(b).value_a() }
-    }
-
-    /// GF(3) multiplication. Delegates to the canonical `aasc::Trit::mul`.
-    /// See the doc on `add` for the bridge contract.
-    #[inline(always)]
-    pub fn multiply(&self, other: &Trit) -> Self {
-        let a = AascTrit::from_a(self.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
-        let b = AascTrit::from_a(other.value).expect("kernel Trit invariant: value ∈ {-1,0,1}");
-        Self { value: a.mul(b).value_a() }
-    }
-
-    #[inline(always)]
-    pub const fn xor(&self, other: &Trit) -> Self {
-        let min = if self.value < other.value { self.value } else { other.value };
-        Self { value: min }
-    }
-
-    #[inline(always)]
-    pub const fn rotate(&self) -> Self {
-        let rotated = match self.value {
-            -1 => 0,
-            0 => 1,
-            1 => -1,
-            _ => 0,
-        };
-        Self { value: rotated }
-    }
-
-    #[inline(always)]
-    pub const fn rotate_inverse(&self) -> Self {
-        let rotated = match self.value {
-            1 => 0,
-            0 => -1,
-            -1 => 1,
-            _ => 0,
-        };
-        Self { value: rotated }
-    }
-
-    #[inline(always)]
-    pub fn sub(&self, other: &Trit) -> Self {
-        self.add(&other.not())
-    }
-
-    #[inline(always)]
-    pub const fn and(&self, other: &Trit) -> Self {
-        let min = if self.value < other.value { self.value } else { other.value };
-        Self { value: min }
-    }
-
-    #[inline(always)]
-    pub const fn or(&self, other: &Trit) -> Self {
-        let max = if self.value > other.value { self.value } else { other.value };
-        Self { value: max }
-    }
-
-    #[inline(always)]
-    pub const fn cmp_trit(&self, other: &Trit) -> Self {
-        let diff = self.value - other.value;
-        let clamped = if diff < 0 { -1 } else if diff > 0 { 1 } else { 0 };
-        Self { value: clamped }
-    }
-
-    #[inline(always)]
-    pub fn gf3_inverse(&self) -> Self {
-        match self.value {
+    #[inline]
+    fn gf3_inverse_unchecked(&self) -> Trit {
+        match self.value_a() {
             0 => panic!("Zero has no multiplicative inverse in GF(3)"),
             _ => *self,
         }
     }
 
-    #[inline(always)]
-    pub const fn lukasiewicz_and(&self, other: &Trit) -> Self {
-        let sum = self.value + other.value - 1;
-        let val = if sum < -1 { -1 } else { sum };
-        Self { value: val }
-    }
-
-    /// Reduce via specified gate across a trit word's positions.
-    /// Gate 0 = add, 1 = mul, 2 = min, 3 = max
-    pub fn reduce_with(acc: &Trit, elem: &Trit, gate: u8) -> Trit {
+    #[inline]
+    fn reduce_with_trit(acc: &Trit, elem: &Trit, gate: u8) -> Trit {
         match gate {
-            0 => acc.add(elem),
-            1 => acc.multiply(elem),
-            2 => Trit { value: core::cmp::min(acc.value, elem.value) },
-            3 => Trit { value: core::cmp::max(acc.value, elem.value) },
-            _ => acc.add(elem),
+            0 => acc.add(*elem),
+            1 => acc.mul(*elem),
+            2 => {
+                let m = core::cmp::min(acc.value_a(), elem.value_a());
+                trit_from_a_or_zero(m)
+            }
+            3 => {
+                let m = core::cmp::max(acc.value_a(), elem.value_a());
+                trit_from_a_or_zero(m)
+            }
+            _ => acc.add(*elem),
         }
     }
 }
 
-/// Packed trit word: 27 trits stored in an i64 using 2-bit encoding per trit.
-///
-/// Encoding per trit (2 bits):
-///   00 = 0
-///   01 = +1
-///   10 = -1
-///   11 = unused/invalid
-///
-/// Bits [0..53] hold 27 trits (54 bits total). Bits [54..63] are reserved/zero.
-/// This enables SIMD-style parallel trit operations via bitwise manipulation.
+// ════════════════════════════════════════════════════════════════════
+// Packed 27-trit word (2-bit per trit, fits in i64)
+// ════════════════════════════════════════════════════════════════════
+//
+// Encoding per trit (2 bits):
+//   00 = 0
+//   01 = +1
+//   10 = -1
+//   11 = unused/invalid
+//
+// Bits [0..53] hold 27 trits (54 bits total). Bits [54..63] reserved/zero.
+// This enables SIMD-style parallel trit operations via bitwise manipulation.
 
 const TRITS_PER_WORD: usize = 27;
 const BITS_PER_TRIT: usize = 2;
@@ -237,7 +213,7 @@ pub fn pack_trits(trits: &[Trit]) -> i64 {
     let mut packed: u64 = 0;
     let count = if trits.len() > TRITS_PER_WORD { TRITS_PER_WORD } else { trits.len() };
     for i in 0..count {
-        let bits: u64 = match trits[i].to_a() {
+        let bits: u64 = match trits[i].value_a() {
             0 => 0b00,
             1 => 0b01,
             -1 => 0b10,
@@ -251,14 +227,14 @@ pub fn pack_trits(trits: &[Trit]) -> i64 {
 /// Unpack an i64 into exactly 27 Trit values.
 pub fn unpack_trits(packed: i64) -> [Trit; TRITS_PER_WORD] {
     let bits = packed as u64;
-    let mut trits = [Trit { value: 0 }; TRITS_PER_WORD];
+    let mut trits = [Trit::ZERO; TRITS_PER_WORD];
     for i in 0..TRITS_PER_WORD {
         let pair = (bits >> (i * BITS_PER_TRIT)) & 0b11;
         trits[i] = match pair {
-            0b00 => Trit { value: 0 },
-            0b01 => Trit { value: 1 },
-            0b10 => Trit { value: -1 },
-            _ => Trit { value: 0 },
+            0b00 => Trit::ZERO,
+            0b01 => Trit::ONE,
+            0b10 => Trit::NEG_ONE,
+            _ => Trit::ZERO,
         };
     }
     trits
@@ -270,7 +246,7 @@ where
     F: Fn(&Trit) -> Trit,
 {
     let trits = unpack_trits(packed);
-    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    let mut result = [Trit::ZERO; TRITS_PER_WORD];
     for i in 0..TRITS_PER_WORD {
         result[i] = f(&trits[i]);
     }
@@ -284,7 +260,7 @@ where
 {
     let ta = unpack_trits(a);
     let tb = unpack_trits(b);
-    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    let mut result = [Trit::ZERO; TRITS_PER_WORD];
     for i in 0..TRITS_PER_WORD {
         result[i] = f(&ta[i], &tb[i]);
     }
@@ -314,7 +290,7 @@ pub fn packed_shift_left(packed: i64, n: usize) -> i64 {
         trits[i] = trits[i - n];
     }
     for i in 0..n {
-        trits[i] = Trit { value: 0 };
+        trits[i] = Trit::ZERO;
     }
     pack_trits(&trits)
 }
@@ -329,7 +305,7 @@ pub fn packed_shift_right(packed: i64, n: usize) -> i64 {
         trits[i] = trits[i + n];
     }
     for i in (TRITS_PER_WORD - n)..TRITS_PER_WORD {
-        trits[i] = Trit { value: 0 };
+        trits[i] = Trit::ZERO;
     }
     pack_trits(&trits)
 }
@@ -341,7 +317,7 @@ pub fn packed_rotate_left(packed: i64, n: usize) -> i64 {
         return packed;
     }
     let trits = unpack_trits(packed);
-    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    let mut result = [Trit::ZERO; TRITS_PER_WORD];
     for i in 0..TRITS_PER_WORD {
         result[(i + n) % TRITS_PER_WORD] = trits[i];
     }
@@ -354,7 +330,7 @@ pub fn packed_reduce(packed: i64, gate: u8) -> Trit {
     let trits = unpack_trits(packed);
     let mut acc = trits[0];
     for i in 1..TRITS_PER_WORD {
-        acc = Trit::reduce_with(&acc, &trits[i], gate);
+        acc = <Trit as KernelTritExt>::reduce_with_trit(&acc, &trits[i], gate);
     }
     acc
 }
@@ -362,17 +338,17 @@ pub fn packed_reduce(packed: i64, gate: u8) -> Trit {
 /// Convert each trit in a packed word between representations.
 pub fn packed_convert(packed: i64, from: Representation, to: Representation) -> i64 {
     let trits = unpack_trits(packed);
-    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    let mut result = [Trit::ZERO; TRITS_PER_WORD];
     for i in 0..TRITS_PER_WORD {
-        let converted = convert_representation(trits[i].to_a(), from, to);
-        result[i] = Trit { value: converted.clamp(-1, 1) };
+        let converted = convert_representation(trits[i].value_a(), from, to);
+        result[i] = trit_from_a_or_zero(converted.clamp(-1, 1));
     }
     pack_trits(&result)
 }
 
 /// Pack a single trit value (for scalar-mode backward compatibility).
 pub fn pack_single_trit(trit: &Trit) -> i64 {
-    match trit.to_a() {
+    match trit.value_a() {
         0 => 0,
         1 => 1,
         -1 => -1,
@@ -390,8 +366,12 @@ pub fn scalar_to_trit(val: i64) -> Trit {
         2 => -1,
         _ => 0,
     };
-    Trit { value: trit_val }
+    trit_from_a_or_zero(trit_val)
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Tryte — 6 trits = 729 values (≈ 9.5 bits)
+// ════════════════════════════════════════════════════════════════════
 
 /// A tryte (6 trits = 729 values, equivalent to ~9.5 bits)
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -411,7 +391,7 @@ impl Tryte {
             return None;
         }
 
-        let mut trits = [Trit { value: 0 }; 6];
+        let mut trits = [Trit::ZERO; 6];
         for i in 0..6 {
             let remainder = (value % 3) as i8;
             let trit_value = match remainder {
@@ -420,7 +400,7 @@ impl Tryte {
                 2 => 1,
                 _ => 0,
             };
-            trits[i] = Trit { value: trit_value };
+            trits[i] = trit_from_a_or_zero(trit_value);
             value /= 3;
         }
         Some(Self { trits })
@@ -431,7 +411,7 @@ impl Tryte {
         let mut result = 0u16;
         let mut multiplier = 1u16;
         for trit in &self.trits {
-            let digit = (trit.value + 1) as u16;
+            let digit = (trit.value_a() + 1) as u16;
             result += digit * multiplier;
             multiplier *= 3;
         }
@@ -462,11 +442,11 @@ impl Tryte {
         Self { trits: result }
     }
 
-    /// Tryte-wise ADD
+    /// Tryte-wise ADD (componentwise GF(3))
     pub fn add(&self, other: &Tryte) -> Self {
-        let mut result = [Trit { value: 0 }; 6];
+        let mut result = [Trit::ZERO; 6];
         for i in 0..6 {
-            result[i] = self.trits[i].add(&other.trits[i]);
+            result[i] = self.trits[i].add(other.trits[i]);
         }
         Self { trits: result }
     }
@@ -488,7 +468,15 @@ impl TernaryWord {
     }
 }
 
-/// Convert between representations
+// ════════════════════════════════════════════════════════════════════
+// Representation conversion helper (i8 surface, kernel-only)
+// ════════════════════════════════════════════════════════════════════
+
+/// Convert a Rep-A/B/C value between representations on the i8 surface.
+///
+/// `aasc::Trit::convert` is identity at the type layer (the enum *is*
+/// canonical); this helper preserves the kernel's pre-aasc i8 surface
+/// for the freestanding kernel and bare-metal selftest call sites.
 pub fn convert_representation(value: i8, from: Representation, to: Representation) -> i8 {
     // First convert to A
     let a_value = match from {
@@ -503,17 +491,6 @@ pub fn convert_representation(value: i8, from: Representation, to: Representatio
         Representation::B => a_value + 1,
         Representation::C => a_value + 2,
     }
-}
-
-/// Representation enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Representation {
-    /// Computational: {-1, 0, +1}
-    A,
-    /// Network: {0, 1, 2}
-    B,
-    /// Human: {1, 2, 3}
-    C,
 }
 
 /// Calculate information density for ternary vs binary
@@ -661,7 +638,7 @@ mod tests {
             for &b in &vals {
                 let ta = Trit::from_a(a).unwrap();
                 let tb = Trit::from_a(b).unwrap();
-                let result = ta.add(&tb);
+                let result = ta.add(tb);
                 let expected = (a + b).rem_euclid(3);
                 let expected_norm = if expected == 2 { -1 } else { expected as i8 };
                 assert_eq!(result.to_a(), expected_norm, "GF(3) add: {} + {} = {}", a, b, expected_norm);
@@ -689,7 +666,7 @@ mod tests {
         let zero = Trit::from_a(0).unwrap();
         for a_val in [-1i8, 0, 1] {
             let trit = Trit::from_a(a_val).unwrap();
-            assert_eq!(trit.add(&zero).to_a(), a_val);
+            assert_eq!(trit.add(zero).to_a(), a_val);
         }
     }
 
@@ -874,7 +851,7 @@ mod tests {
             for &b in &vals {
                 let ta = Trit::from_a(a).unwrap();
                 let tb = Trit::from_a(b).unwrap();
-                let result = ta.sub(&tb);
+                let result = ta.sub(tb);
                 let neg_b = (-b).rem_euclid(3);
                 let expected = ((a as i16 + neg_b as i16) % 3) as i8;
                 let expected_norm = if expected == 2 { -1 } else { expected };
@@ -927,7 +904,7 @@ mod tests {
 
     #[test]
     fn test_pack_full_27_trits() {
-        let mut trits = [Trit { value: 0 }; 27];
+        let mut trits = [Trit::ZERO; 27];
         for i in 0..27 {
             trits[i] = Trit::from_a([-1, 0, 1][i % 3]).unwrap();
         }
@@ -959,7 +936,7 @@ mod tests {
         let b = [Trit::from_a(1).unwrap(), Trit::from_a(1).unwrap()];
         let pa = pack_trits(&a);
         let pb = pack_trits(&b);
-        let result = packed_zip(pa, pb, |x, y| x.add(y));
+        let result = packed_zip(pa, pb, |x, y| x.add(*y));
         let trits = unpack_trits(result);
         assert_eq!(trits[0].to_a(), -1); // 1+1 = 2 mod 3 = -1
         assert_eq!(trits[1].to_a(), 0);  // -1+1 = 0
@@ -997,7 +974,7 @@ mod tests {
 
     #[test]
     fn test_packed_rotate_left() {
-        let mut trits = [Trit { value: 0 }; 27];
+        let mut trits = [Trit::ZERO; 27];
         trits[0] = Trit::from_a(1).unwrap();
         trits[26] = Trit::from_a(-1).unwrap();
         let packed = pack_trits(&trits);

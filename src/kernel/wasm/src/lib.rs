@@ -13,7 +13,7 @@
 
 use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
-use plenumnet_kernel::ternary::{Trit, Tryte, TernaryWord, Representation, convert_representation, information_density};
+use plenumnet_kernel::ternary::{Trit, Tryte, TernaryWord, KernelTritExt, Representation, convert_representation, information_density};
 use plenumnet_kernel::compat::gateway::{
     binary_to_balanced_ternary, balanced_ternary_to_binary,
     binary_bytes_to_ternary, ternary_to_binary_bytes,
@@ -92,7 +92,7 @@ pub fn trit_add(a: i8, b: i8) -> JsValue {
         Some(t) => t,
         None => return JsValue::from_str(&format!("Invalid trit value for b: {}", b)),
     };
-    let result = ta.add(&tb);
+    let result = ta.add(tb);
     let r = GF3ArithResult {
         operation: "GF(3) Addition".into(),
         input_a: a,
@@ -235,7 +235,7 @@ pub fn gf3_addition_table() -> JsValue {
         for b in [-1i8, 0, 1] {
             let ta = Trit::from_a(a).unwrap();
             let tb = Trit::from_a(b).unwrap();
-            let result = ta.add(&tb);
+            let result = ta.add(tb);
             table.push(vec![a, b, result.to_a()]);
         }
     }
