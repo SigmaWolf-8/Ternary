@@ -1,0 +1,415 @@
+### Version 1.3.33 — The Circle‑and‑Square Bijection  
+**Fully parametric, parallel, stateless byte‑trit converter**  
+*Founded on the Greek‑Atomic Invariant Framework — zero waste, four representations*
+
+*All formulas in LaTeX. No em‑dashes, no en‑dashes, no hard‑coded block sizes.*
+
+---
+
+## 0. Prologue: The Squared Circle and the 27‑Symbol Foundation
+
+This converter is the exact computational instantiation of the **Greek‑Atomic Invariant Tracker (GAIT)**. Both systems rest on a single principle: **bijective base‑\(b\) numeration** and the **repunit offset** that turns a seamless circle of all‑ones into a perfectly squared block of standard base‑\(b\) digits.
+
+In GAIT’s ancient Milesian numeral system, 27 symbols (3 × 9 = 3³) formed a **zero‑delta** bijective base‑27 positional set — every symbol’s numeral equalled its position. Three ghost letters were later removed, compressing the 27‑symbol ring into a 24‑letter alphabet. The deltas (gaps) that emerged are exactly the offsets our converter uses to map an integer into a block of trits.
+
+The converter’s parameter \(k\) (trits per block) chooses the working base \(B = 3^{k}\).  
+ \(k = 1\) gives minimal, ghost‑free trit strings.  
+ \(k = 3\) reproduces the **27‑symbol Milesian base**.  
+The repunit of length \(D\) in base‑\(B\),
+
+\[
+R_D = \frac{B^{D}-1}{B-1},
+\]
+
+serves as the perfect **circle** against which any integer \(N\) is measured.  
+Subtracting this circle yields the offset \(X = N - R_D\) — the **square** of ordinary base‑\(B\) digits. Adding 1 to those digits restores the bijective form, just as GAIT’s ghost‑letter removal shifted surviving letters by +1 or more in delta.
+
+The GAIT register makes use of the base‑3 repunit ladder
+
+\[
+R_2 = 4,\; R_3 = 13,\; R_4 = 40,\; R_5 = 121,\; R_6 = 364,\; \dots
+\]
+
+which is exactly the same arithmetic that the converter uses to decide digit counts and to extract digits in parallel.  
+The constant \((b-1)^3 = 8\) appears both in GAIT’s lunisolar drift  
+
+\[
+q - \frac{1}{(b-1)^3}
+\]
+
+and in the converter’s “ceiling” \(b-1 = 2\). The same base‑3 radix, the same offset, the same square‑and‑circle logic govern every step.
+
+Thus this document is a **single specification** — the parametric bijection with GAIT as its canonical 27‑symbol instance and \(k\) left free to range over all positive integers.
+
+---
+
+## 1. Required Inputs, Variables, and Constants
+
+**User‑supplied inputs:**
+
+* `bytes` : a finite sequence of bytes, each an integer in \(\{0,\dots,255\}\).  
+  Length \(L_{\text{bytes}} \ge 0\) (empty string allowed).
+* `representation` \(R \in \{A, B, C, D\}\) — chooses the trit alphabet.
+* `k` : a positive integer (\(k \ge 1\)) — **trits per block**.  
+  Sets the working base \(B = 3^{k}\). Output trit string length is always a multiple of \(k\).  
+  \(k=1\) gives minimal length; \(k=3\) reproduces the 27‑symbol Milesian base; \(k=5\) is the classic “ternary byte”.
+
+**Core mathematical constants:**
+
+\[
+b_{\text{trit}} = 3 \qquad (\text{ternary base})
+\]
+\[
+\text{ceiling} = b_{\text{trit}}-1 = 2 \quad (\text{largest Rep‑B trit})
+\]
+\[
+\text{Rep‑B} \to \text{Rep‑C lift} = +1
+\]
+
+**Foundational repunits (base‑3)** — for any integer length \(L \ge 1\),
+
+\[
+\boxed{ R_L = \frac{3^{L} - 1}{3 - 1} = \frac{3^{L} - 1}{2}. }
+\]
+
+The first few values are
+
+\[
+R_1 = 1,\; R_2 = 4,\; R_3 = 13,\; R_4 = 40,\; R_5 = 121,\; R_6 = 364,\; \dots
+\]
+
+These numbers, especially the later ones, are used throughout the offset method and in the GAIT register, but the formula itself generates \(R_L\) for **any** \(L\) without bound. The converter relies on this general definition; no finite list is required.
+
+**Derived parameter** (depends solely on \(k\)):
+
+\[
+B = 3^{k} \quad (\text{working base, a power of 3})
+\]
+
+**Internal variables** computed uniquely from the input:
+
+* \(N \in \mathbb{N}_0\) — integer interpretation of the byte string (bijective base‑256).
+* \(D\) — number of digits in the bijective base‑\(B\) representation of \(N\) (0 when \(N=0\)).
+* \(X\) — offset value: \(X = N - R_D\), where \(R_D = \frac{B^{D}-1}{B-1}\).
+* \(d_i\) — the \(i\)-th bijective digit in base‑\(B\) (most significant first).
+* \(t_i^{[C]}\) — trit in Rep‑C (digits \(1,2,3\)).
+* \(\tau_i^{[R]}\) — final output trit in the chosen representation \(R\).
+
+**Trit representations** — all pairwise bijective (12 maps).  
+Canonical Rep‑C is \(\{1,2,3\}\); the other three are affine shifts:
+
+\[
+\begin{aligned}
+\text{Rep‑A (balanced)} &: \tau_A = \tau_C - 2 \;\in\; \{-1,0,+1\},\\
+\text{Rep‑B (standard)}  &: \tau_B = \tau_C - 1 \;\in\; \{0,1,2\},\\
+\text{Rep‑C (bijective)} &: \tau_C \;\in\; \{1,2,3\},\\
+\text{Rep‑D (custom)}    &: \tau_D = f(\tau_C) \quad \text{any fixed bijection}.
+\end{aligned}
+\]
+
+**Note on computation:** All formulas use only addition, multiplication, integer division, modulo, and non‑negative integer exponentiation. No floating‑point operations are required.
+
+---
+
+## 2. Foundation: Bijective Base‑\(b\) Numeration and Repunits
+
+Let \(b \ge 2\) be an integer (the base).  
+**Bijective base‑\(b\)** uses digits from \(\Sigma_b = \{1,\,2,\,\dots,\,b\}\); the empty string \(\varepsilon\) represents \(0\).
+
+### 2.1 Semantics and repunits
+
+Every non‑empty digit string \(d_{L-1}\,d_{L-2}\,\dots\,d_0\) (most significant first) evaluates to  
+
+\[
+\boxed{\; \langle d_{L-1}\dots d_0\rangle \;=\; \sum_{j=0}^{L-1} d_j\,b^{\,j} \;}
+\]
+
+where the exponent \(j\) increases from right to left.
+
+A string of \(L\) ones is the **repunit** of length \(L\):
+
+\[
+R_{L} \;=\; \underbrace{11\dots1}_{L\text{ digits}} \;=\; \sum_{j=0}^{L-1} 1\cdot b^{\,j} \;=\; \frac{b^{\,L}-1}{b-1}.
+\]
+
+The largest \(L\)-digit number (all digits equal to \(b\)) is \(b\cdot R_{L}\).
+
+### 2.2 Length determination and bijection
+
+For any positive integer \(N\), its unique bijective base‑\(b\) representation has length \(L\) given by the smallest positive integer satisfying  
+
+\[
+b\cdot\frac{b^{\,L}-1}{b-1} \;\ge\; N .
+\]
+
+Equivalently,  
+
+\[
+\frac{b^{\,L}-1}{b-1} \;<\; N \;\le\; b\cdot\frac{b^{\,L}-1}{b-1},
+\]
+
+with the left inequality void when \(L=1\). This condition guarantees a **bijection** between \(\mathbb{N}_0\) and all finite strings over \(\Sigma_b\).
+
+### 2.3 The offset method (parallel extraction)
+
+Once \(L\) is known, define the **offset** (the square to the repunit’s circle):
+
+\[
+X \;=\; N - R_{L} \;=\; N - \frac{b^{\,L}-1}{b-1}.
+\]
+
+Because \(0 \le X \le b^{\,L}-1\), \(X\) can be written in **standard base‑\(b\)** (digits \(0,\dots,b-1\)) with exactly \(L\) digits (leading zeros as needed):
+
+\[
+X = (a_{L-1}\,a_{L-2}\,\dots\,a_0)_b,\qquad a_j \in \{0,\dots,b-1\}.
+\]
+
+Adding 1 to each standard digit yields the bijective digits:
+
+\[
+d_j = a_j + 1 \qquad (j = 0,\dots,L-1).
+\]
+
+Thus the digit at position \(i\) (most significant first, \(i=0\) for the highest power \(b^{L-1}\)) is  
+
+\[
+\boxed{ \; d_i \;=\; \Biggl\lfloor \frac{X}{b^{\,L-1-i}} \Biggr\rfloor \bmod b \;+\; 1 \; } .
+\]
+
+Every digit is computed independently of any other — **fully parallel, stateless**.
+
+### 2.4 Decoding
+
+Given a bijective string \(d_{L-1}\dots d_0\),
+
+\[
+N = \sum_{j=0}^{L-1} d_j \, b^{\,L-1-j}.
+\]
+
+The offset is recovered as \(X = N - R_{L} = \sum_{j}(d_j-1) b^{\,L-1-j}\).
+
+---
+
+## 3. Bijective Base‑256: Bytes ↔ Integer  
+
+A byte (0…255) is lifted to a digit \(b_j+1 \in \{1,\dots,256\}\), forming a bijective base‑256 string.
+
+### 3.1 Bytes → integer  
+
+\[
+\boxed{ N \;=\; \sum_{j=0}^{L_{\text{bytes}}-1} (b_j+1) \; 256^{\,L_{\text{bytes}}-1-j} } \qquad (L_{\text{bytes}}=0 \Rightarrow N=0).
+\]
+
+This is a bijection from all finite byte strings onto \(\mathbb{N}_0\).
+
+### 3.2 Integer → bytes (repunit‑based inverse)
+
+For \(N=0\), output the empty byte list.
+
+For \(N>0\):
+
+1. **Find the number of bytes \(L_{\text{bytes}}\)** as the smallest positive integer such that  
+
+   \[
+   256 \cdot \frac{256^{\,L_{\text{bytes}}}-1}{255} \;\ge\; N .
+   \]
+
+2. **Compute the offset**  
+
+   \[
+   X = N - \frac{256^{\,L_{\text{bytes}}}-1}{255} \qquad (0 \le X \le 256^{\,L_{\text{bytes}}}-1).
+   \]
+
+3. **Extract the standard base‑256 digits of \(X\)** (padded to length \(L_{\text{bytes}}\)):  
+
+   \[
+   a_i = \Biggl\lfloor \frac{X}{256^{\,L_{\text{bytes}}-1-i}} \Biggr\rfloor \bmod 256 ,\qquad i = 0,\dots,L_{\text{bytes}}-1.
+   \]
+
+4. **The original bytes** are exactly these standard digits:  
+
+   \[
+   b_i = a_i .
+   \]
+
+This mirrors the repunit‑offset method of Section 2.3 and guarantees correct bijection.
+
+---
+
+## 4. Encoder: Bytes → Trits (Fully Parallel, Parametric)  
+
+**Input:** byte string \(\mathbf{B}\), representation \(R\), block size \(k \ge 1\).  
+**Output:** trit sequence in rep‑\(R\), length always a multiple of \(k\).
+
+---
+
+### 4.1 From bytes to integer \(N\)
+
+Compute \(N\) as in Section 3.1. If \(N=0\), output the empty trit string and stop.
+
+### 4.2 Determine the number of base‑\(B\) digits \(D\)
+
+With \(B = 3^{k}\), find the smallest positive integer \(D\) satisfying  
+
+\[
+\frac{B\,(B^{\,D}-1)}{B-1} \;\ge\; N .
+\]
+
+(This is the repunit bound of Section 2.2.)
+
+### 4.3 Offset and digit extraction
+
+\[
+X = N - \frac{B^{\,D}-1}{B-1} \qquad (0 \le X \le B^{\,D}-1).
+\]
+
+The bijective base‑\(B\) digits (most significant first) are
+
+\[
+\boxed{ d_i \;=\; \Biggl\lfloor \frac{X}{B^{\,D-1-i}} \Biggr\rfloor \bmod B \;+\; 1 } \qquad (i = 0,\dots,D-1).
+\]
+
+Every digit is computed independently — no sequential dependencies.
+
+### 4.4 Expansion to trits (block of \(k\) trits per base‑\(B\) digit)
+
+Each base‑\(B\) digit \(d \in \{1,\dots,B\}\) is expanded into exactly \(k\) trits in **Rep‑C**.  
+Let \(d-1\) be expressed in standard base‑3 with exactly \(k\) digits (pad on the left with zeros):
+
+\[
+d-1 = (q_{k-1}\,q_{k-2}\,\dots\,q_0)_3, \qquad q_j \in \{0,1,2\}.
+\]
+
+Then the \(k\) trits for this digit (most significant first of the block, i.e. \(t_0\) corresponding to the \(3^{k-1}\) place) are  
+
+\[
+t_{j}^{[C]} = q_{k-1-j} + 1 \qquad (j = 0,\dots,k-1).
+\]
+
+Concatenate the trit blocks of all digits in the same order as \(d_0,\dots,d_{D-1}\) to obtain the complete Rep‑C trit string. Its total length is \(k \cdot D\), always a multiple of \(k\).
+
+**Note on \(k\):**  
+- \(k=1\): \(B=3\); each base‑3 digit is a single trit. Output length is minimal.  
+- \(k=3\): \(B=27\) — the GAIT base. Each base‑27 digit maps to a block of 3 trits, exactly mirroring the 27‑symbol Milesian numeral system (using the ancient 27‑symbol order: digit 1 = α, 2 = β, …, 9 = θ, 10 = ι, …, 27 = ϡ).  
+- \(k=5\): \(B=243\), the classic ternary byte.  
+- Any other positive \(k\) works identically.
+
+### 4.5 Representation mapping
+
+Apply the chosen affine shift \(\phi_R\) to each Rep‑C trit:
+
+\[
+\tau^{[R]}_j = \phi_R(t_j^{[C]}).
+\]
+
+---
+
+## 5. Decoder: Trits → Bytes (Stateless Inverse)  
+
+**Input:** trit sequence in representation \(R\), block size \(k\) (must match encoder).  
+**Output:** original byte string.
+
+1. **Shift back to Rep‑C** using \(\phi_R^{-1}\).
+
+2. **Recover integer \(N\)**:
+   - The Rep‑C trit string length is a multiple of \(k\); let \(D\) be that length divided by \(k\).
+   - Group the trits into \(D\) blocks of \(k\) trits each, most significant block first. For a block \((u_{k-1},\dots,u_0)\) where \(u_{k-1}\) is the most significant trit of the block, reconstruct the base‑\(B\) digit:
+
+     \[
+     d = \sum_{j=0}^{k-1} (u_{k-1-j} - 1)\cdot 3^{\,j} \;+\; 1 .
+     \]
+
+   - With the digits \(d_0,\dots,d_{D-1}\) (most significant first), the integer is
+
+     \[
+     N = \sum_{i=0}^{D-1} d_i \; B^{\,D-1-i}.
+     \]
+
+3. **Convert \(N\) to bytes** using the bijective base‑256 inverse from Section 3.2.  
+   If \(N=0\), output empty byte list; otherwise compute \(L_{\text{bytes}}\) and bytes as described.
+
+Round‑tripping is exact because every step is a bijection.
+
+---
+
+## 6. Worked Examples
+
+All examples use the repunit‑based formulas and round‑trip correctly.
+
+### Example 1: empty input  
+- bytes: `[]` → \(N=0\) → empty trit string for any \(k\). ✓
+
+### Example 2: byte `0x00` (\(N=1\)), \(k=1\)  
+- \(B = 3\). \(D=1\) because \(\frac{3(3^1-1)}{2}=3 \ge 1\).  
+- \(X = 1 - 1 = 0\). Digit \(d_0 = 1\). Rep‑C: `[1]`. Length \(1\).  
+- Decode: \(N=1\) → bytes: \(L_{\text{bytes}}=1\) (since \(256\cdot(256^1-1)/255=256 \ge 1\)), \(X=1-1=0\), \(a_0=0\) → `[0x00]`. ✓
+
+### Example 3: same \(N=1\), \(k=5\)  
+- \(B = 3^5 = 243\). \(D=1\). \(d_0=1\). Expand \(1-1=0 = 00000_3\) → trits `[1,1,1,1,1]`. Length \(5\).  
+- Decode: block → \(d=1\) → \(N=1\) → `0x00`. ✓
+
+### Example 4: \(N=4\) (byte `0x03`), \(k=1\)  
+- \(B=3\). \(D=2\) because \(\frac{3(3^2-1)}{2}=12 \ge 4\).  
+- \(X = 4 - \frac{3^2-1}{2} = 4-4=0\). Digits `[1,1]`. Rep‑C `[1,1]`. Length \(2\).  
+- Decode: \(N=1\cdot3+1=4\) → bytes: \(L_{\text{bytes}}=1\), \(X=4-1=3\), \(a_0=3\) → `0x03`. ✓
+
+### Example 5: \(N=4\), \(k=5\)  
+- \(B=243\). \(D=1\), \(X=4-1=3\). Digit \(d_0=4\).  
+- Expand \(4-1=3=00010_3\) → trits `[1,1,1,2,1]`. Length \(5\).  
+- Decode: block → \(d=4\) → \(N=4\) → `0x03`. ✓
+
+### Example 6: \(N=257\) (bytes `0x00 0x00`), \(k=1\)  
+- \(B=3\). \(D=5\) because \(\frac{3(3^5-1)}{2}=363 \ge 257\) (\(D=4\) gives max 120).  
+- \(X = 257 - \frac{3^5-1}{2} = 257 - 121 = 136\). Standard base‑3 digits of 136: \((1,2,0,0,1)_3\) → Rep‑C `[2,3,1,1,2]`. Length \(5\).  
+- Decode: \(N = 2\cdot3^4+3\cdot3^3+1\cdot3^2+1\cdot3+2 = 257\). Bytes: \(L_{\text{bytes}}=2\) because \(256\cdot(256^2-1)/255 = 65792 \ge 257\), \(X = 257-257=0\), digits \(a_0=0, a_1=0\) → `[0x00,0x00]`. ✓
+
+### Example 7: \(N=257\), \(k=5\)  
+- \(B=243\). \(D=2\), \(X = 257 - \frac{243^2-1}{242} = 257 - 244 = 13\). Digits: \(d_0=1\), \(d_1=14\).  
+- Expand 1 → `[1,1,1,1,1]`; expand 14 → `[1,1,2,2,2]`.  
+- Concatenated: `[1,1,1,1,1, 1,1,2,2,2]`. Length \(10\).  
+- Decode: blocks → digits \(1,14\) → \(N = 1\cdot243 + 14 = 257\) → `[0x00,0x00]`. ✓
+
+### Example 8: \(N=257\), \(k=2\) (base‑9 blocks)  
+- \(B = 9\). \(D=3\) because \(\frac{9(9^3-1)}{8}=819 \ge 257\) (\(D=2\) gives max 90).  
+- \(X = 257 - \frac{9^3-1}{8} = 257 - 91 = 166\).  
+- Standard base‑9 digits of 166 padded to 3 digits: \((2,0,4)_9\).  
+- Bijective digits: \(3,1,5\).  
+- Expand each digit to 2 trits:  
+  \(3-1=2 = (0,2)_3\) → trits `1,3`;  
+  \(1-1=0 = (0,0)_3` → trits `1,1`;  
+  \(5-1=4 = (1,1)_3` → trits `2,2`.  
+  Concatenation: `[1,3, 1,1, 2,2]` (length 6).  
+- Decode: blocks → digits \(3,1,5\) → \(N = 3\cdot9^2 + 1\cdot9 + 5 = 257\) → `[0x00,0x00]`. ✓
+
+### Example 9: \(N=257\), \(k=3\) (base‑27 — the Milesian GAIT register)  
+- \(B = 27\). Find smallest \(D\) with \(\frac{27(27^{D}-1)}{26} \ge 257\).  
+   \(D=1\): \(\frac{27(27-1)}{26}=27\cdot1=27 < 257\).  
+   \(D=2\): \(\frac{27(729-1)}{26}=27\cdot28=756 \ge 257\). So \(D=2\).  
+- \(X = 257 - \frac{27^{2}-1}{26} = 257 - \frac{729-1}{26} = 257 - 28 = 229\).  
+- Extract standard base‑27 digits of 229 padded to 2 digits:  
+   \(229 \div 27 = 8\) remainder \(13\). So digits \((8,13)_{27}\).  
+- Bijective digits: \(8+1=9\), \(13+1=14\). So \(d = [9,14]\).  
+- Expand each digit to 3 trits (\(k=3\)):  
+   \(9-1=8 = (0,2,2)_3\) → trits `1,3,3`.  
+   \(14-1=13 = (1,1,1)_3\) → trits `2,2,2`.  
+   Concatenation: `[1,3,3, 2,2,2]` (length 6).  
+- **GAIT mapping:** In the ancient 27‑symbol Milesian order, digit 9 is **θ (theta)**, digit 14 is **ν (nu)**. Thus the encoder has written the integer 257 as the sequence θ–ν in the Milesian register.  
+- Decode: blocks → base‑27 digits 9 and 14 → \(N = 9\cdot27 + 14 = 243 + 14 = 257\). ✓
+
+---
+
+## 7. Properties  
+
+- **Completely parametric**: The single integer \(k\) (\(k \ge 1\)) sets the working base \(B = 3^{k}\). All formulas are expressed generically without hard‑coded constants. The repunit \(R_D\) is defined for **any** \(D\) via the general formula; no finite list is required.  
+- **The circle and the square**: The offset \(X = N - R_D\) separates the seamless circle of all‑ones into a rectangular standard‑base expansion. The \(+1\) shift turns that square back into a bijective ring — exactly the mathematical operation that the GAIT deltas perform when ghost letters are removed.  
+- **Zero waste**: The mapping is a bijection between all finite byte strings and all finite trit strings whose length is a multiple of \(k\). The trit stream itself is the complete wrapper; no out‑of‑band length signalling.  
+- **Fully parallel, stateless**: Every output trit is computed independently from \(N\) and its position, using only floor, mod, and exponentiation. No loops, no mutable state, no sequential dependencies.  
+- **Repunit‑anchored**: The fundamental general repunit \(R_L = (3^L - 1)/2\) governs all length determinations and offsets. The specific values \(R_2=4, R_3=13, R_4=40, R_5=121, R_6=364\) appear frequently in the GAIT framework, but the parametric algorithm uses the exact repunit for whatever \(D\) arises from \(N\).  
+- **Four representations, twelve pairwise bijections**: Affine shifts allow instant conversion between any of the four trit alphabets without altering the data.  
+- **GAIT instantiation**: For \(k=3\), the converter operates in base‑27, directly instantiating the Greek‑atomic invariant register. The resulting trit blocks map one‑to‑one to the ancient Milesian symbols, making this the computational engine that generates and verifies the framework’s structural constants.  
+- **No caps, no bounds**: Works for any input length (including empty); output length adapts automatically to \(N\) and the chosen \(k\).
+
+---
+
+**End of Version 1.3.33**  
+*Precisely measured by the squared circle.*
