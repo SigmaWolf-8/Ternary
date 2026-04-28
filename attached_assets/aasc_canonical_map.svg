@@ -236,47 +236,41 @@
     <text x="3700" y="2832" class="axiomnote" text-anchor="middle">Forge exemplar (7, 11, 13) — worked example only</text>
 
     <!-- Invariant Register banner -->
-    <rect x="3185" y="2854" width="1030" height="36" rx="6" fill="#B8860B"/>
-    <text x="3700" y="2880" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">INVARIANT REGISTER  ·  Spec v3.3.33</text>
+    <rect x="3120" y="2854" width="1160" height="36" rx="6" fill="#B8860B"/>
+    <text x="3700" y="2880" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">INVARIANT REGISTER  ·  tests/invariants.rs  ·  17 landed IDs</text>
 
     <!-- TIER 1 -->
-    <text x="3700" y="2920" class="invsect" text-anchor="middle">TIER 1 · Compile-time const identity blocks</text>
+    <text x="3700" y="2920" class="invsect" text-anchor="middle">TIER 1+2 · const identity blocks  ·  named runtime tests</text>
     <g font-family="Menlo, Consolas, monospace" font-size="26" font-weight="700" fill="#0F0C0A">
-      <text x="3220" y="2960">I-1</text>
-      <text x="3360" y="2960">I-2</text>
-      <text x="3500" y="2960">I-3</text>
-      <text x="3640" y="2960">I-4</text>
-      <text x="3780" y="2960">I-5</text>
-      <text x="3920" y="2960">I-6</text>
-      <text x="4060" y="2960">I-7</text>
-      <text x="3220" y="2994">I-8</text>
-      <text x="3355" y="2994">I-9</text>
-      <text x="3490" y="2994">I-10</text>
-      <text x="3635" y="2994">I-11</text>
-      <text x="3780" y="2994">I-12</text>
-      <text x="3925" y="2994">I-13</text>
-      <text x="4070" y="2994">I-14</text>
-      <text x="3210" y="3028">I-15</text>
-      <text x="3355" y="3028">I-16</text>
-      <text x="3500" y="3028">I-17</text>
-      <text x="3645" y="3028">I-18</text>
-      <text x="3790" y="3028">I-19</text>
-      <text x="3935" y="3028">I-22</text>
-      <text x="4080" y="3028">I-23</text>
-      <text x="3210" y="3062">I-24</text>
-      <text x="3355" y="3062">I-29</text>
-      <text x="3500" y="3062">I-31</text>
-      <text x="3645" y="3062">I-44</text>
-      <text x="3790" y="3062">I-46</text>
+      <text x="3230" y="2960">I-1</text>
+      <text x="3370" y="2960">I-2</text>
+      <text x="3510" y="2960">I-5</text>
+      <text x="3650" y="2960">I-6</text>
+      <text x="3790" y="2960">I-7</text>
+      <text x="3930" y="2960">I-8</text>
+      <text x="4070" y="2960">I-9</text>
+      <text x="3215" y="2994">I-11</text>
+      <text x="3360" y="2994">I-12</text>
+      <text x="3505" y="2994">I-14</text>
+      <text x="3650" y="2994">I-22</text>
+      <text x="3795" y="2994">I-24</text>
+      <text x="3940" y="2994">I-31</text>
+      <text x="4085" y="2994">I-37</text>
+      <text x="3290" y="3028">I-44</text>
+      <text x="3435" y="3028">I-45</text>
+      <text x="3580" y="3028">I-46</text>
+      <text x="3725" y="3028">+</text>
+      <text x="3760" y="3028" font-style="italic">dual-zero contract pin</text>
     </g>
 
-    <!-- TIER 2 -->
-    <text x="3700" y="3110" class="invsect" text-anchor="middle">TIER 2 · Test-time numerical (Spec v3.3.33 fixture)</text>
-    <text x="3700" y="3142" class="invnote" text-anchor="middle">Tri-ladder · circle quadratic Δ = 144 · disc identity 1,000,144 · θ-chord · Σ-182 axis · grand circle 756</text>
+    <!-- TIER 2 fixture -->
+    <text x="3700" y="3082" class="invsect" text-anchor="middle">TIER 2 fixture · Circle-and-Square Bijection (Spec v3.3.33)</text>
+    <text x="3700" y="3114" class="invnote" text-anchor="middle">tests/spec_v3_3_33_conformance.rs  —  §4 worked examples · §4.5 glyph-string round-trip</text>
+    <text x="3700" y="3142" class="invnote" text-anchor="middle">also tested at runtime: tri-ladder · circle quadratic Δ=144 · disc identity 1,000,144 · grand circle 756</text>
 
     <!-- TIER 3 -->
-    <text x="3700" y="3186" class="invsect" text-anchor="middle">TIER 3 · Boundary (static grep guards)</text>
-    <text x="3700" y="3218" class="invnote" text-anchor="middle">I-3 no opaque-byte leak  ·  no_std-clean  ·  bridge feature-gated only</text>
+    <text x="3700" y="3186" class="invsect" text-anchor="middle">TIER 3 · Boundary (static grep guards · CI)</text>
+    <text x="3700" y="3218" class="invnote" text-anchor="middle">no opaque-byte leak  ·  no_std-clean  ·  bridge feature-gated only  ·  numerals only in 2.0.0.1__constants.rs</text>
 
     <!-- separator -->
     <line x1="3245" y1="3248" x2="4155" y2="3248" stroke="#B8860B" stroke-width="2"/>
