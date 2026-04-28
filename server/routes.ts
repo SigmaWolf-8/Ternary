@@ -79,6 +79,19 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.get("/download/maps/:filename", (req, res) => {
+    const allowed = new Set(["aasc_canonical_map.png", "aasc_canonical_map.svg"]);
+    const filename = req.params.filename;
+    if (!allowed.has(filename)) {
+      res.status(404).send("Not found");
+      return;
+    }
+    const filePath = path.resolve(process.cwd(), "client", "public", "maps", filename);
+    res.download(filePath, filename, (err) => {
+      if (err && !res.headersSent) res.status(500).send("Download failed");
+    });
+  });
+
   app.get("/api/benchmark-report", async (_req, res) => {
     try {
       const { readdir } = await import("fs/promises");
