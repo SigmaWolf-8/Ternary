@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 7020" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 8580" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <defs>
     <radialGradient id="nucGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%"   stop-color="#fff8c2"/>
@@ -752,7 +752,7 @@
       <rect x="24" y="278" width="7192" height="56" class="row-norm"/>
       <text x="40"   y="318" class="bullet"><tspan font-weight="800">Σ-182 Bridge</tspan></text>
       <text x="1700" y="318" class="bullet">182 as half-circle  ( ① )</text>
-      <text x="3500" y="318" class="bullet">182 nm O₂ wall as crystal gap  ( G )</text>
+      <text x="3500" y="318" class="bullet">182 nm O₂ Schumann-Runge dissociation wall  ( G )</text>
       <text x="5320" y="318" class="modlist-c" fill="#B8860B">arc182.rs · crystal_2d_3d.rs · wave_stratum.rs</text>
 
       <rect x="24" y="334" width="7192" height="56" class="row-alt"/>
@@ -867,9 +867,126 @@
       </g>
     </g>
 
+<!-- ═══════════════ MODULE CATALOG EXTENSION ═══════════════ -->
+  <g transform="translate(80, 6720)">
+    <rect x="0" y="0" width="7240" height="460" rx="12" fill="#fef6ed" stroke="#c0392b" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#c0392b">Module Catalog Extension  ·  new addresses landed from Inertissimum Iώτα Nona Codex (§§0-25)</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#c0392b" stroke-width="3"/>
+
+    <text x="40"   y="124" class="h3" fill="#c0392b">L=1 Nucleus  ·  units · axes · cone-points</text>
+    <text x="40"   y="156" class="modlist-c" fill="#0F0C0A">1.5.1__units.rs  ·  1.5.2__si_bridge.rs  ·  1.5.3__em_units.rs  ·  1.6.1__axes.rs (17 mass · π+X quadruple)  ·  1.7.1__cone_point_taxonomy.rs (+1 · +36 · +8)</text>
+
+    <text x="40"   y="196" class="h3" fill="#c0392b">L=4 Calculi  ·  bijective converter</text>
+    <text x="40"   y="228" class="modlist-c" fill="#0F0C0A">4.7.1__bijective_converter.rs  (§25 v3.3.33 byte ⇄ trit ⇄ Milesian glyph, parametric k, four reps A/B/C/D, parallel stateless)</text>
+
+    <text x="40"   y="268" class="h3" fill="#c0392b">L=5 Geometric  ·  curved sectors ③ ④</text>
+    <text x="40"   y="300" class="modlist-c" fill="#0F0C0A">5.3.2__earth_circumference.rs  (§4.1 C⊕)  ·  5.3.3__gabriels_horn.rs  (§2 V=14, S=∞)  ·  5.4.4__tropical_year.rs  (§5.2 τ = 1 096 822 / 3 003)</text>
+
+    <text x="40"   y="340" class="h3" fill="#c0392b">Physics quadrants — second ring of derivations</text>
+    <text x="40"   y="372" class="modlist-c" fill="#0F0C0A">NE  6.5.1__eta_branch.rs  ·  6.6.1__nu_branch.rs  ·  6.7.1__combined_branch.rs    ·    SE  7.5.1__pqr_asymmetry.rs  ·  7.6.1__theta_chord.rs (1885 base + 1892/1893 lifts)</text>
+    <text x="40"   y="404" class="modlist-c" fill="#0F0C0A">SW  8.5.1__mass_quadratic.rs (roots {1836, 153})  ·  8.6.1__proton_mass.rs (153·12 013 = 1 837 989)    ·    NW  9.5.1__lunisolar_drift.rs (87/8)  ·  9.6.1__fine_structure.rs  ·  9.7.1__fibonacci_register.rs (F₁₄ = 377)  ·  9.8.1__discriminant_identity.rs (1 000 144 = 2⁴·17·3677)</text>
+
+    <text x="40"   y="436" class="small" fill="#7a3019">Total file count after extension: 39 prior + 21 new = <tspan font-weight="800">60 canonical modules</tspan>  ·  every file has exactly one address  ·  no duplicates</text>
+  </g>
+
+  <!-- ═══════════════ U/M CONVERSION MAPPING ═══════════════ -->
+  <g transform="translate(80, 7220)">
+    <rect x="0" y="0" width="7240" height="500" rx="12" fill="#eef6fa" stroke="#2D7DD2" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#2D7DD2">U/M Conversion Mapping  ·  Salvi Framework units ⇄ SI  ·  every bridge is a closed-form rational</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#2D7DD2" stroke-width="3"/>
+
+    <text x="40"   y="120" class="h3" fill="#2D7DD2">Quantity</text>
+    <text x="1100" y="120" class="h3" fill="#2D7DD2">Salvi unit</text>
+    <text x="2900" y="120" class="h3" fill="#2D7DD2">Internal identity</text>
+    <text x="4900" y="120" class="h3" fill="#2D7DD2">SI bridge  (exact)</text>
+    <line x1="24" y1="134" x2="7216" y2="134" stroke="#2D7DD2" stroke-width="2"/>
+
+    <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A">
+      <text x="40" y="166" font-weight="700">Length</text>
+      <text x="1100" y="166">SFK″  (SFK inch)</text>
+      <text x="2900" y="166">𝒞• = 28 SFK″ ;   𝒞∘ = 364 SFK″ ;   Grand = 756 SFK″</text>
+      <text x="4900" y="166">1 SFK″ = 0.0254 m  exactly  (via 1 SFK foot = R₃ = 13 in)</text>
+
+      <text x="40" y="200" font-weight="700">Length (wave)</text>
+      <text x="1100" y="200">Ss  (Salvi span)</text>
+      <text x="2900" y="200">1 Ss ≡ 1 SFK″</text>
+      <text x="4900" y="200">1 Ss = 0.0254 m  exactly</text>
+
+      <text x="40" y="234" font-weight="700">Time</text>
+      <text x="1100" y="234">SS  (Salvi second)</text>
+      <text x="2900" y="234">1 SS = 9 spectral ticks = b² ticks</text>
+      <text x="4900" y="234">1 SS = (1 096 822 × 86 400) / (3 003 × 31 962 112) s   ≈ 0.9873 s</text>
+
+      <text x="40" y="268" font-weight="700">Time (sub)</text>
+      <text x="1100" y="268">st  (spectral tick)</text>
+      <text x="2900" y="268">1 st = 1/9 SS</text>
+      <text x="4900" y="268">≈ 0.1097 s</text>
+
+      <text x="40" y="302" font-weight="700">Time (wave)</text>
+      <text x="1100" y="302">St  (Salvi tick)</text>
+      <text x="2900" y="302">1 St = 13 st = 13/9 SS</text>
+      <text x="4900" y="302">≈ 1.426 s</text>
+
+      <text x="40" y="336" font-weight="700">Time (day)</text>
+      <text x="1100" y="336">SD  (Salvi day)</text>
+      <text x="2900" y="336">1 SD = 28 h = 28·56·56 SS = 87 808 SS = 790 272 ticks</text>
+      <text x="4900" y="336">τ = 1 096 822 / 3 003 SD ≈ 365.242 09  SI days   (CODATA: 0.27 ppm)</text>
+
+      <text x="40" y="370" font-weight="700">Angle</text>
+      <text x="1100" y="370">framework °  (degree)</text>
+      <text x="2900" y="370">1° = 1/364 turn ;   full = 364°  ;   1 hour = 1 radian = 13°</text>
+      <text x="4900" y="370">1° (Salvi) = (360/364)° (SI)  ;  conversion is rational</text>
+
+      <text x="40" y="404" font-weight="700">Angle (wave)</text>
+      <text x="1100" y="404">η-rad  ·  ν-rad</text>
+      <text x="2900" y="404">1 η-rad = 28° ;  13 η-rad/circle    |   1 ν-rad = 13° ;  28 ν-rad/circle</text>
+      <text x="4900" y="404">π_Nu = 364/(2·28) = 13/2  (exact rational)</text>
+
+      <text x="40" y="438" font-weight="700">Frequency</text>
+      <text x="1100" y="438">Hz_S</text>
+      <text x="2900" y="438">1 Hz_S = 1 cycle/St ;  c_S = 364 Ss/St</text>
+      <text x="4900" y="438">c = √14 SFK″/st ;  c_SI = 299 792 458 m/s  (defined)</text>
+
+      <text x="40" y="472" font-weight="700">EM</text>
+      <text x="1100" y="472">Aₛ  ·  PIU</text>
+      <text x="2900" y="472">Aₛ ≡ A (SI ampere) ;  μ₀ = 4π×10⁻⁷ N/A² ;  Z₀ = 377 Ω = bulk wave imp.</text>
+      <text x="4900" y="472">PIU ≡ Ω ;  Z_φ = 1/α ≈ 137.036  (phase impedance, §24.3)</text>
+    </g>
+  </g>
+
+  <!-- ═══════════════ CONSTANTS CATALOG ═══════════════ -->
+  <g transform="translate(80, 7760)">
+    <rect x="0" y="0" width="7240" height="600" rx="12" fill="#fff8e8" stroke="#B8860B" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#B8860B">Constants Catalog  ·  every numeral declared once in 1.1.1__constants.rs  ·  derived from sole axioms π = 14, b = 3</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
+
+    <text x="40"   y="118" class="h3" fill="#B8860B">Tier A — sole axioms</text>
+    <text x="40"   y="148" class="modlist-c" fill="#0F0C0A">π_geom = 14   ·   b = 3   ·   from base-3 uniqueness</text>
+
+    <text x="40"   y="186" class="h3" fill="#B8860B">Tier B — derived integers (compile-time const blocks)</text>
+    <text x="40"   y="214" class="modlist-c" fill="#0F0C0A">b² = 9 · b³ = 27 · 2π = 28 · π+b = 17 · π+R₂ = 18 · π+r = 27 · π+q = 25 · π·b² = 126 · π·b³ = 378 · 2π·r = 364 · 4π·r² = 2 366 · π³ = 2 744 · pqr = 1 001 · pqr−1 = 1 000 · Λ_EUV = pr = 91 · 2pr = 182 · 2q² = 242 · (p−r)² = 36 · 4(p−r)² = Δ_circle = 144</text>
+
+    <text x="40"   y="252" class="h3" fill="#B8860B">Tier B — repunit ladder (base 3)</text>
+    <text x="40"   y="280" class="modlist-c" fill="#0F0C0A">R₁ = 1 · R₂ = 4 · R₃ = 13 · R₄ = 40 · R₅ = 121 · R₆ = 364 · R_L = (3^L − 1)/2  for any L ≥ 1   ·   alt-base bridge: R₂^(12) = 13 = r = R₃ · R₄^(12) = 1 885 = 5·13·29</text>
+
+    <text x="40"   y="318" class="h3" fill="#B8860B">Tier B — torus / worldline measures</text>
+    <text x="40"   y="346" class="modlist-c" fill="#0F0C0A">𝒞• = 28 · 𝒞∘ = 364 · Grand = 756 · ℓ²_Vesica = 2 197/7 · S_torus = 10 192 · V_torus = 861 224 · W = 11 195 912 = 2³·p²·r⁴ · p·V = 6 028 568 = r³·π³ · p·W = 78 371 384 = r⁴·π³</text>
+
+    <text x="40"   y="384" class="h3" fill="#B8860B">Tier B — calendar / time</text>
+    <text x="40"   y="412" class="modlist-c" fill="#0F0C0A">SD = 87 808 SS = 790 272 ticks · τ = 1 096 822 / 3 003 ≈ 365.242 09 days · lunisolar drift = q − 1/(b−1)³ = 87/8 = 10.875 d/yr · 1 hour = 13°</text>
+
+    <text x="40"   y="450" class="h3" fill="#B8860B">Tier C — worked-example derived constants  (Forge triple p=7, q=11, r=13)</text>
+    <text x="40"   y="478" class="modlist-c" fill="#0F0C0A">137 = R₂² + q²   ·   1/α = 137 + 36/1 000 − 36/40 080 040 ≈ 137.035 999 101 8  (CODATA-2018 +0.13 ppb)   ·   discriminant identity:  (pqr−1)² + 4(p−r)² = 1 000 144 = 2⁴·17·3 677</text>
+    <text x="40"   y="506" class="modlist-c" fill="#0F0C0A">m_p,F = b²·(π+b)·(R₂·b·pqr + 1) = 153·12 013 = 1 837 989   ·   m_p/m_e = 1 836 + 153/1 001  (CODATA 0.0946 ppm)   ·   mass quadratic roots {1 836, 153}   ·   Tri(17) = 153</text>
+    <text x="40"   y="534" class="modlist-c" fill="#0F0C0A">Σ-182 bridge  Δ₁(σ) = 200 − 18 = 182 = 2pr = R₆/2   ·   333 Plenum magic = b²·37 = Λ_EUV + 2q²  (91 + 242)   ·   (bq)² = 1 089 = 756 + 333 = 1 035 + 54 = 1 080 + 9 = 1 050 + 39</text>
+    <text x="40"   y="562" class="modlist-c" fill="#0F0C0A">κ_∞ = 721/720   ·   κ_H = (721·1 838 990)/(720·1 837 989)   ·   λ_∞ = Λ_EUV·κ_∞ ≈ 91.126 nm   ·   λ_H ≈ 91.176 nm   ·   F₁₄ = 377 = r·(R₂² + r) = 13·29 = τ + r  ·  Theta Chord 1 892 = 1 885 + p ; 1 893 = 1 885 + (b−1)³</text>
+
+    <text x="40"   y="592" class="small" fill="#7a5a06">Enforcement: every Tier B numeral lives only in 1.1.1__constants.rs (CI grep guard)  ·  Tier C lives in tests/invariants.rs  ·  bridge feature isolates the byte ⇄ trit boundary</text>
+  </g>
+
 <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
-  <rect class="verdict-bg" x="0" y="6960" width="7400" height="180"/>
-  <text x="3700" y="7048" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
-  <text x="3700" y="7102" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
+  <rect class="verdict-bg" x="0" y="8400" width="7400" height="180"/>
+  <text x="3700" y="8488" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
+  <text x="3700" y="8542" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
 
 </svg>
