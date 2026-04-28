@@ -32,6 +32,11 @@ interface Sample {
   savingsObserved: number | null;
   theoreticalSavings: number;
   cumulativeEnergyUj: number;
+  cumulativeOps?: number;
+  cumulativeOpsHigh?: number;
+  cumulativeOpsLow?: number;
+  timeHighMs?: number;
+  timeLowMs?: number;
 }
 
 const MAX_SAMPLES = 300;
@@ -292,13 +297,21 @@ export default function HModalDemo() {
             testid="readout-savings"
           />
           <ReadoutCard
-            label="Cumulative Energy"
+            label={isHardware ? "Cumulative Energy" : "Cumulative GF(3) Ops"}
             value={
-              latest && latest.cumulativeEnergyUj > 0
+              latest && isHardware && latest.cumulativeEnergyUj > 0
                 ? `${(latest.cumulativeEnergyUj / 1e6).toFixed(3)} J`
-                : "—"
+                : latest && (latest.cumulativeOps ?? 0) > 0
+                  ? `${((latest.cumulativeOps ?? 0) / 1e9).toFixed(3)} G`
+                  : "—"
             }
-            sub={isHardware ? "from RAPL" : "n/a in proxy mode"}
+            sub={
+              latest && !isHardware && (latest.cumulativeOpsHigh ?? 0) > 0
+                ? `high: ${((latest.cumulativeOpsHigh ?? 0) / 1e9).toFixed(2)} G · low: ${((latest.cumulativeOpsLow ?? 0) / 1e9).toFixed(2)} G`
+                : isHardware
+                  ? "from RAPL package counter"
+                  : "real CPU work since start"
+            }
             testid="readout-energy"
           />
         </div>
