@@ -286,46 +286,58 @@
   </g>
 
   <!-- ═════════════ ATOM ring modules (1D — Trit) ═════════════ -->
+  <!-- North strip (above nucleus, inside atom ring r=540..760)              -->
+  <!-- South strip (below nucleus, three small boxes side-by-side)           -->
   <g>
-    <rect class="modbox-red" x="3450" y="3530" width="500" height="100" rx="8"/>
-    <text x="3700" y="3568" class="modgreek" text-anchor="middle">τ · the Trit (Rep-C canonical)</text>
-    <text x="3700" y="3600" class="modfile" text-anchor="middle">trit.rs · {−, +} only · 0 forbidden by default</text>
-    <text x="3700" y="3624" class="quadaddr" text-anchor="middle">1.0.0.1__trit.rs</text>
+    <rect class="modbox-red" x="3360" y="2380" width="680" height="130" rx="8"/>
+    <text x="3700" y="2422" class="modgreek" text-anchor="middle">τ · the Trit (Rep-C canonical)</text>
+    <text x="3700" y="2456" class="modfile" text-anchor="middle">trit.rs · {−, +} only · 0 forbidden by default</text>
+    <text x="3700" y="2492" class="quadaddr" text-anchor="middle">1.0.0.1__trit.rs</text>
 
-    <rect class="modbox-grey" x="4000" y="3120" width="380" height="84" rx="8"/>
-    <text x="4190" y="3158" class="modgreek" text-anchor="middle">⃗τ · TritVec</text>
-    <text x="4190" y="3186" class="modfile" text-anchor="middle">tritvec.rs · MSB-first slice</text>
+    <rect class="modbox-grey" x="3260" y="3690" width="280" height="100" rx="8"/>
+    <text x="3400" y="3728" class="modgreek" text-anchor="middle">⃗τ · TritVec</text>
+    <text x="3400" y="3758" class="modfile" text-anchor="middle">tritvec.rs · MSB-first</text>
+    <text x="3400" y="3782" class="quadaddr" text-anchor="middle">1.0.0.2__tritvec.rs</text>
 
-    <rect class="modbox-grey" x="3500" y="3680" width="400" height="84" rx="8"/>
-    <text x="3700" y="3718" class="modgreek" text-anchor="middle">⊕ ⊗ Arithmetic</text>
-    <text x="3700" y="3746" class="modfile" text-anchor="middle">arithmetic.rs · pure trit ops</text>
+    <rect class="modbox-grey" x="3560" y="3690" width="280" height="100" rx="8"/>
+    <text x="3700" y="3728" class="modgreek" text-anchor="middle">⊕ ⊗ Arithmetic</text>
+    <text x="3700" y="3758" class="modfile" text-anchor="middle">arithmetic.rs · pure trit</text>
+    <text x="3700" y="3782" class="quadaddr" text-anchor="middle">1.0.0.3__arithmetic.rs</text>
 
-    <rect class="modbox-yellow" x="3020" y="3120" width="380" height="84" rx="8"/>
-    <text x="3210" y="3158" class="modgreek" text-anchor="middle">R_L^(b) · Repunit</text>
-    <text x="3210" y="3186" class="modfile" text-anchor="middle">repx.rs · canonical base-b</text>
+    <rect class="modbox-yellow" x="3860" y="3690" width="280" height="100" rx="8"/>
+    <text x="4000" y="3728" class="modgreek" text-anchor="middle">R_L^(b) · Repunit</text>
+    <text x="4000" y="3758" class="modfile" text-anchor="middle">repx.rs · base-b bijective</text>
+    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">5.0.0.1__repx.rs</text>
   </g>
 
   <!-- ═════════════ ALGEBRAIC ring modules (2D) ═════════════ -->
+  <!-- North strip (above atom ring, inside algebraic ring r=760..1020)      -->
+  <!-- South strip (below atom ring, three boxes)                            -->
   <g>
-    <rect class="modbox-grey" x="3050" y="2580" width="320" height="84" rx="8"/>
-    <text x="3210" y="2618" class="modgreek" text-anchor="middle">GF(3)</text>
-    <text x="3210" y="2646" class="modfile" text-anchor="middle">gf3.rs · field over {0,1,2}</text>
+    <rect class="modbox-grey" x="3220" y="2210" width="380" height="100" rx="8"/>
+    <text x="3410" y="2248" class="modgreek" text-anchor="middle">GF(3)</text>
+    <text x="3410" y="2278" class="modfile" text-anchor="middle">gf3.rs · field {0, 1, 2}</text>
+    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">3.0.0.1__gf3.rs</text>
 
-    <rect class="modbox-grey" x="4030" y="2580" width="320" height="84" rx="8"/>
-    <text x="4190" y="2618" class="modgreek" text-anchor="middle">ℤ[φ]</text>
-    <text x="4190" y="2646" class="modfile" text-anchor="middle">zphi.rs · R² = π + 5φ</text>
+    <rect class="modbox-grey" x="3800" y="2210" width="380" height="100" rx="8"/>
+    <text x="3990" y="2248" class="modgreek" text-anchor="middle">ℤ[φ]</text>
+    <text x="3990" y="2278" class="modfile" text-anchor="middle">zphi.rs · R² = π + 5φ</text>
+    <text x="3990" y="2302" class="quadaddr" text-anchor="middle">3.0.0.2__zphi.rs</text>
 
-    <rect class="modbox-grey" x="4030" y="3580" width="320" height="84" rx="8"/>
-    <text x="4190" y="3618" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
-    <text x="4190" y="3646" class="modfile" text-anchor="middle">borromean.rs · ternary linkage</text>
+    <rect class="modbox-grey" x="3140" y="3870" width="320" height="100" rx="8"/>
+    <text x="3300" y="3908" class="modgreek" text-anchor="middle">∇ · Walk + CRT</text>
+    <text x="3300" y="3938" class="modfile" text-anchor="middle">walk.rs · coprime walks</text>
+    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.0.0.5__walk.rs</text>
 
-    <rect class="modbox-blue" x="3450" y="3800" width="500" height="84" rx="8"/>
-    <text x="3700" y="3838" class="modgreek" text-anchor="middle">⟨p,q⟩ · Coprime + Bezout</text>
-    <text x="3700" y="3866" class="modfile" text-anchor="middle">coprime.rs · S10-1 identity</text>
+    <rect class="modbox-blue" x="3490" y="3870" width="420" height="100" rx="8"/>
+    <text x="3700" y="3908" class="modgreek" text-anchor="middle">⟨p, q⟩ · Coprime + Bezout</text>
+    <text x="3700" y="3938" class="modfile" text-anchor="middle">coprime.rs · S10-1 identity</text>
+    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.0.0.4__coprime.rs</text>
 
-    <rect class="modbox-grey" x="3050" y="3580" width="320" height="84" rx="8"/>
-    <text x="3210" y="3618" class="modgreek" text-anchor="middle">∇ · Walk + CRT</text>
-    <text x="3210" y="3646" class="modfile" text-anchor="middle">walk.rs · coprime walks</text>
+    <rect class="modbox-grey" x="3940" y="3870" width="320" height="100" rx="8"/>
+    <text x="4100" y="3908" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
+    <text x="4100" y="3938" class="modfile" text-anchor="middle">borromean.rs · ternary link</text>
+    <text x="4100" y="3962" class="quadaddr" text-anchor="middle">3.0.0.3__borromean.rs</text>
   </g>
 
   <!-- ═════════════ CALCULI cross labels ═════════════ -->
