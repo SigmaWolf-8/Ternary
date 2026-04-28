@@ -272,11 +272,11 @@ export default function HModalDemo() {
   const isHardware = status?.raplAvailable === true;
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6 md:p-10" data-testid="page-hmodal-demo">
+    <div className="min-h-screen bg-background text-foreground p-6 md:p-10" data-testid="page-hmodal">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-primary" data-testid="text-title">
-            HModal Power Demo
+            HModal Power Console
           </h1>
           <p className="text-muted-foreground mt-2">
             Trit-native square-wave workload. α = 91/36, β = 91/3, duty 1:4, theoretical savings 143/192 ≈ 74.48%.
@@ -379,7 +379,7 @@ export default function HModalDemo() {
             onClick={issueEac}
             disabled={eacIssuing || !latest}
             data-testid="button-issue-eac"
-            title={!latest ? "Start the demo first so a sample exists." : "Snapshot the current sample and sign an EAC."}
+            title={!latest ? "Start the console first so a sample exists." : "Snapshot the current sample and sign an EAC."}
           >
             <ShieldCheck className="w-4 h-4 mr-2" />
             {eacIssuing ? "Issuing…" : "Issue EAC now"}
@@ -567,7 +567,7 @@ export default function HModalDemo() {
                 testid: "bar-hmodal-nocache",
               },
               {
-                label: "HModal + Δ-cache (this demo)",
+                label: "HModal + Δ-cache (this console)",
                 watts: latest?.wattsHmodalCached ?? 1.0,
                 color: "bg-green-500",
                 testid: "bar-hmodal-cached",

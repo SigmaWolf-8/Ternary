@@ -130,6 +130,7 @@ function AppRouter() {
             <Route path="/ternarydb" component={TernaryDB} />
             <Route path="/api-demo" component={APIDemo} />
             <Route path="/hptp" component={HPTPDemo} />
+            <Route path="/hmodal" component={HModalDemo} />
             <Route path="/hmodal-demo" component={HModalDemo} />
             <Route path="/compression" component={CompressionPage} />
             <Route path="/vm-demo" component={VMDemo} />
