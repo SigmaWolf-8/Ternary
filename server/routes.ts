@@ -129,7 +129,7 @@ export async function registerRoutes(
 <body>
 <div class="wrap">
   <h1>aasc Canonical Map</h1>
-  <div class="sub">algeometric-arc-sigma182-calculi · 9-layer ring · 58 canonical modules · cache-busted v=${v}</div>
+  <div class="sub">algeometric-arc-sigma182-calculi · 9-layer ring · 52 canonical modules · cache-busted v=${v}</div>
 
   <div class="card">
     <h2>PNG (raster, ~5.4 MB)</h2>
