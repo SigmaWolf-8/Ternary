@@ -36,11 +36,17 @@ interface Sample {
 
 const MAX_SAMPLES = 300;
 
+type WsState = "idle" | "connecting" | "live" | "closed" | "error";
+
 export default function HModalDemo() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [running, setRunning] = useState(false);
   const [samples, setSamples] = useState<Sample[]>([]);
   const [latest, setLatest] = useState<Sample | null>(null);
+  const [wsState, setWsState] = useState<WsState>("idle");
+  const [wsUrl, setWsUrl] = useState<string>("");
+  const [lastRaw, setLastRaw] = useState<string>("");
+  const [frameCount, setFrameCount] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -55,11 +61,28 @@ export default function HModalDemo() {
     if (wsRef.current) return;
     setSamples([]);
     setLatest(null);
+    setLastRaw("");
+    setFrameCount(0);
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${window.location.host}/ws/hmodal`);
+    const url = `${proto}//${window.location.host}/ws/hmodal`;
+    setWsUrl(url);
+    setWsState("connecting");
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url);
+    } catch (err: any) {
+      setWsState("error");
+      setLastRaw(`construct error: ${err?.message ?? err}`);
+      setRunning(false);
+      return;
+    }
+    ws.onopen = () => setWsState("live");
     ws.onmessage = (e) => {
+      const raw = typeof e.data === "string" ? e.data : "(binary)";
+      setLastRaw(raw.length > 220 ? raw.substring(0, 217) + "..." : raw);
+      setFrameCount((c) => c + 1);
       try {
-        const msg = JSON.parse(e.data);
+        const msg = JSON.parse(raw);
         if (msg.type !== "sample") return;
         const s: Sample = msg;
         setLatest(s);
@@ -70,14 +93,15 @@ export default function HModalDemo() {
         });
       } catch {}
     };
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      setWsState("closed");
+      setLastRaw((p) => `closed code=${ev.code} reason=${ev.reason || "(none)"}\n${p}`);
       wsRef.current = null;
       setRunning(false);
     };
     ws.onerror = () => {
-      try { ws.close(); } catch {}
-      wsRef.current = null;
-      setRunning(false);
+      setWsState("error");
+      setLastRaw((p) => `WebSocket error\n${p}`);
     };
     wsRef.current = ws;
     setRunning(true);
@@ -87,9 +111,15 @@ export default function HModalDemo() {
     try { wsRef.current?.close(); } catch {}
     wsRef.current = null;
     setRunning(false);
+    setWsState("idle");
   }, []);
 
-  useEffect(() => () => { try { wsRef.current?.close(); } catch {} }, []);
+  // Auto-start on mount so the user sees life immediately.
+  useEffect(() => {
+    start();
+    return () => { try { wsRef.current?.close(); } catch {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Strip chart
   useEffect(() => {
@@ -187,6 +217,31 @@ export default function HModalDemo() {
           </Card>
         )}
 
+        <Card className="bg-black/40 border-blue-500/30" data-testid="card-ws-debug">
+          <CardContent className="pt-4 pb-4 font-mono text-xs">
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <Badge
+                variant={wsState === "live" ? "default" : "secondary"}
+                className={
+                  wsState === "live" ? "bg-green-600" :
+                  wsState === "connecting" ? "bg-yellow-600" :
+                  wsState === "error" ? "bg-red-600" : "bg-gray-600"
+                }
+                data-testid="badge-ws-state"
+              >
+                WS: {wsState.toUpperCase()}
+              </Badge>
+              <span className="text-muted-foreground">frames received: <span className="text-primary" data-testid="text-frame-count">{frameCount}</span></span>
+              <span className="text-muted-foreground">samples buffered: <span className="text-primary">{samples.length}</span></span>
+              <span className="text-muted-foreground truncate">url: <span className="text-blue-400">{wsUrl || "(none)"}</span></span>
+            </div>
+            <div className="text-muted-foreground">last frame:</div>
+            <div className="text-foreground/80 break-all whitespace-pre-wrap mt-1" data-testid="text-last-raw">
+              {lastRaw || "(no frame yet)"}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex flex-wrap gap-3">
           <Button
             size="lg"
@@ -195,7 +250,7 @@ export default function HModalDemo() {
             data-testid="button-start-stop"
           >
             {running ? <Square className="w-5 h-5 mr-2" /> : <Play className="w-5 h-5 mr-2" />}
-            {running ? "Stop" : "Start Live Measurement"}
+            {running ? "Stop" : "Start / Restart"}
           </Button>
           <Button asChild variant="outline" data-testid="button-download-md">
             <a href="/download/maps/hmodal_power_trit_native.md" download>
