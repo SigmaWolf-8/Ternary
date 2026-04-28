@@ -133,7 +133,7 @@ export async function registerRoutes(
 
   <div class="card">
     <h2>PNG (raster, ~5.4 MB)</h2>
-    <div class="meta">aasc_canonical_map.png · viewBox 7400 × 11280 · density 80 dpi</div>
+    <div class="meta">aasc_canonical_map.png · viewBox 7400 × 11960 · density 80 dpi</div>
     <a class="btn" href="/download/maps/aasc_canonical_map.png?v=${v}" download>Download PNG</a>
     <a class="btn secondary" href="/download/maps/aasc_canonical_map.png?v=${v}" target="_blank">Open in new tab</a>
   </div>
