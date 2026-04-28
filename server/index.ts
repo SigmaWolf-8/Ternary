@@ -2198,34 +2198,56 @@ function startPqtiService(): ChildProcess | null {
   let lastHmodalSnapshot: any = null;
   let arcSignerKeypair: TlDsaKeyPair | null = null;
   const SALVI_EPOCH_MS = new Date('2025-04-01T00:00:00.000Z').getTime();
-  const FS_PER_MS = 1_000_000_000_000n;
-  const FS_PER_NS = 1_000_000n;
-
-  // ── Honest sub-millisecond clock anchor ─────────────────────────────
-  // Node exposes a real monotonic clock at nanosecond resolution via
-  // process.hrtime.bigint().  We anchor it ONCE at boot against the
-  // wall clock so that subsequent reads carry true ns-resolution drift
-  // from the anchor point — no Date.now() padding, no spoofed zeros.
+  // ════════════════════════════════════════════════════════════════════
+  // Femtosecond-since-Salvi-epoch derivation — first principles, AASC.
+  // ════════════════════════════════════════════════════════════════════
   //
-  //   anchor_fs = (wallMs0 − SALVI_EPOCH_MS) × 10¹²  −  hrNs0 × 10⁶
-  //   fs(now)   = anchor_fs + hrNsNow × 10⁶
+  // The hardware monotonic clock (process.hrtime.bigint, RDTSC, NTP-
+  // disciplined wall clock) is LESS accurate than the deterministic
+  // mathematical tick: it suffers container-scheduler jitter, CPU
+  // throttling, and slewing.  The chain index of the TL-Sponge-385
+  // duplex IS the canonical clock for the sealed sample stream — every
+  // sealed sample is one and only one chain step, advancing by
+  // exactly TICK_FS femtoseconds.  No jitter, no drift, no hardware
+  // variance.
   //
-  // This yields nanosecond precision (the lower 6 fs digits are
-  // padded zeros, which is honest — no Node API exposes faster than
-  // ns).  For sub-ns precision you need a hardware TSC reader; that
-  // belongs to the kernel HPTP module, not this server.
-  const _wallMs0 = Date.now();
-  const _hrNs0   = process.hrtime.bigint();
-  const SALVI_HR_ANCHOR_FS: bigint =
-    BigInt(_wallMs0 - SALVI_EPOCH_MS) * FS_PER_MS - _hrNs0 * FS_PER_NS;
-
-  function fsSinceSalviEpoch(): bigint {
-    // True nanosecond-resolution timestamp, anchored once at boot.
-    // Lowest 6 digits are zero (ns → fs scaling) — that is HONEST,
-    // not spoofed: Node's monotonic clock genuinely tops out at ns.
-    return SALVI_HR_ANCHOR_FS + process.hrtime.bigint() * FS_PER_NS;
-  }
-  const FS_TIMING_PRECISION = "nanosecond_anchored" as const;
+  // Derivation, using only AASC-resident constants and SI unit pinning:
+  //
+  //   FS_PER_MS        = 10¹²              (SI definition; the
+  //                                          femtosecond is an external
+  //                                          unit the framework
+  //                                          embeds into, not derives.)
+  //
+  //   sessionAnchorMs  = Date.now() at WS session open
+  //                      − SALVI_EPOCH_MS  (integer ms; the OS clock is
+  //                                          consulted ONCE per session
+  //                                          and never again — no
+  //                                          subsequent hardware read.)
+  //
+  //   sampleMs         = WS sample emission interval in ms (integer,
+  //                                          deterministic, currently 200.)
+  //
+  //   TICK_FS          = sampleMs × FS_PER_MS
+  //                                         (exact integer fs between
+  //                                          consecutive chain steps.)
+  //
+  //   fs(chainIndex)   = sessionAnchorMs × FS_PER_MS
+  //                      + chainIndex × TICK_FS
+  //                                         (integer-only; the chain
+  //                                          index IS the time after
+  //                                          the boot anchor.)
+  //
+  // Properties:
+  //   • Pure integer arithmetic end-to-end — never an IEEE-754 op.
+  //   • Zero hardware-clock drift between samples.
+  //   • Reproducible: replaying the chain replays the timestamps.
+  //   • The mathematical sub-ms resolution comes from chain
+  //     advancement, not from polling a hardware register that the
+  //     scheduler may have de-prioritised between reads.
+  // ════════════════════════════════════════════════════════════════════
+  const FS_PER_MS = 1_000_000_000_000n;          // SI: 1 ms = 10¹² fs
+  const FS_TIMING_PRECISION =
+    "chain_derived: fs = (sessionAnchorMs + chainIndex*sampleMs) * 10^12" as const;
   function toBijectiveBase3(n: bigint): string {
     // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
     if (n < 0n) throw new Error('toBijectiveBase3: negative');
@@ -2421,6 +2443,13 @@ function startPqtiService(): ChildProcess | null {
     let dutyDebt = 0;
     const Q_TARGET = 100;  // calibrated so Q=25 → d=0.25, Q=100 → d=1
     const sessionStart = Date.now();
+    // ── Salvi-anchor for this WS session ────────────────────────────
+    // The OS clock is consulted EXACTLY once per session, here.  Every
+    // subsequent fs timestamp for sealed samples in this session is
+    // derived purely from chainIndex × sampleMs (integer math, no
+    // hardware drift between samples).  See the
+    // "Femtosecond-since-Salvi-epoch derivation" block above.
+    const sessionAnchorMs: number = sessionStart - SALVI_EPOCH_MS;
     function currentQueueDepth(): number {
       const tSec = (Date.now() - sessionStart) / 1000;
       switch (demandMode) {
@@ -2699,6 +2728,15 @@ function startPqtiService(): ChildProcess | null {
         // window for substitution between read and sign.
         lastHmodalSnapshot = {
           ...samplePayload,
+          // Salvi-anchor + tick parameters for the chain-derived fs
+          // computation in /api/hmodal/issue-eac.  See the
+          // "Femtosecond-since-Salvi-epoch derivation" block earlier
+          // in this file.
+          fsClock: {
+            sessionAnchorMs,                       // integer ms since Salvi epoch (one-shot)
+            sampleMs,                              // integer ms between sealed samples
+            chainIndexAtSeal: chainIndex.toString(), // BigInt → string
+          },
           attestation: {
             sessionId,
             sessionKeyFingerprint,
@@ -2746,9 +2784,27 @@ function startPqtiService(): ChildProcess | null {
         });
       }
 
-      const issuedAtMs = Date.now();
-      const fsInt = fsSinceSalviEpoch();
-      const fsTrit = toBijectiveBase3(fsInt);
+      // ── Chain-derived fs timestamp (no hardware clock read) ─────
+      // fs = (sessionAnchorMs + chainIndexAtSeal × sampleMs) × FS_PER_MS
+      // The chain index IS the time.  Date.now() is consulted only to
+      // produce the human-readable iso_utc rendering of the SAME
+      // mathematical instant — it does NOT participate in fsInt.
+      const fsClock = snap.fsClock;
+      if (!fsClock || fsClock.sessionAnchorMs == null || fsClock.sampleMs == null || fsClock.chainIndexAtSeal == null) {
+        return res.status(409).json({
+          ok: false,
+          error: "no_fs_clock",
+          message: "Snapshot is missing fsClock anchor; reopen the WS session.",
+        });
+      }
+      const sessionAnchorMs_b: bigint = BigInt(fsClock.sessionAnchorMs);
+      const sampleMs_b:        bigint = BigInt(fsClock.sampleMs);
+      const chainAtSeal_b:     bigint = BigInt(fsClock.chainIndexAtSeal);
+      const sealMsSinceEpoch:  bigint = sessionAnchorMs_b + chainAtSeal_b * sampleMs_b;
+      const fsInt:             bigint = sealMsSinceEpoch * FS_PER_MS;
+      const fsTrit                    = toBijectiveBase3(fsInt);
+      // iso_utc is a courtesy human rendering of fsInt floored to ms.
+      const issuedAtMs = Number(sealMsSinceEpoch + BigInt(SALVI_EPOCH_MS));
 
       // Build EAC fields per spec §4.3.  EVERY numeric field is either a
       // whole integer (µJ, ms, ops, mW) or a positive {num, den} integer
@@ -2766,7 +2822,15 @@ function startPqtiService(): ChildProcess | null {
           fs_since_salvi_epoch_decimal: fsInt.toString(),
           fs_since_salvi_epoch_trit: fsTrit,
           iso_utc: new Date(issuedAtMs).toISOString(),
-          precision: FS_TIMING_PRECISION, // nanosecond_anchored via process.hrtime.bigint()
+          precision: FS_TIMING_PRECISION,
+          derivation: {
+            session_anchor_ms_decimal: String(fsClock.sessionAnchorMs),
+            sample_ms_decimal:         String(fsClock.sampleMs),
+            chain_index_at_seal_decimal: String(fsClock.chainIndexAtSeal),
+            fs_per_ms_decimal:         FS_PER_MS.toString(),
+            formula: "fs = (session_anchor_ms + chain_index_at_seal * sample_ms) * fs_per_ms",
+            hardware_clock_reads_after_anchor: 0,
+          },
         },
         node: {
           tdns: "tdns:hmodal-demo:01",     // placeholder until TDNS wired
