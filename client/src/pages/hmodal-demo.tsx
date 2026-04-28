@@ -51,7 +51,17 @@ interface Sample {
   effectiveComputeFrac?: number;
   logicalOpsPerSecAvg?: number;
   realCpuOpsPerSecAvg?: number;
+  demandMode?: "idle" | "steady" | "burst" | "auto";
+  queueDepth?: number;
+  cacheFillRatio?: number;
+  dutyTarget?: number;
+  keyTouchCount?: number;
+  signatureCount?: number;
+  keyExposureRatio?: number;
+  keyIsolationFactor?: number;
 }
+
+type DemandMode = "idle" | "steady" | "burst" | "auto";
 
 const MAX_SAMPLES = 300;
 
@@ -66,8 +76,17 @@ export default function HModalDemo() {
   const [wsUrl, setWsUrl] = useState<string>("");
   const [lastRaw, setLastRaw] = useState<string>("");
   const [frameCount, setFrameCount] = useState(0);
+  const [demandMode, setDemandMode] = useState<DemandMode>("auto");
   const wsRef = useRef<WebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const sendMode = useCallback((mode: DemandMode) => {
+    setDemandMode(mode);
+    const ws = wsRef.current;
+    if (ws && ws.readyState === ws.OPEN) {
+      try { ws.send(JSON.stringify({ type: "setMode", mode })); } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/hmodal/status")
@@ -261,6 +280,32 @@ export default function HModalDemo() {
           </CardContent>
         </Card>
 
+        <Card data-testid="card-mode-selector" className="border-primary/30">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-muted-foreground font-mono">DEMAND MODE:</span>
+              {(["idle", "steady", "burst", "auto"] as DemandMode[]).map((m) => (
+                <Button
+                  key={m}
+                  size="sm"
+                  variant={demandMode === m ? "default" : "outline"}
+                  onClick={() => sendMode(m)}
+                  data-testid={`button-mode-${m}`}
+                  className={demandMode === m ? "bg-primary" : ""}
+                >
+                  {m === "idle" && "Idle (background)"}
+                  {m === "steady" && "Steady (production)"}
+                  {m === "burst" && "Burst (full-out)"}
+                  {m === "auto" && "Auto (sine sweep)"}
+                </Button>
+              ))}
+              <span className="text-xs text-muted-foreground ml-auto font-mono">
+                d_target = clamp(Q/Q* / √F, 1/144, 1)
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex flex-wrap gap-3">
           <Button
             size="lg"
@@ -413,6 +458,109 @@ export default function HModalDemo() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card data-testid="card-controller">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="w-4 h-4" /> Deterministic Controller
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Closed-form law: d = clamp((Q/Q*)/√F, 1/144, 1). Same inputs always
+                produce the same duty cycle. No ML, no randomness.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-2 font-mono text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Mode</span>
+                <Badge variant="default" className="bg-primary" data-testid="text-ctrl-mode">
+                  {(latest?.demandMode ?? demandMode).toUpperCase()}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Queue depth (Q)</span>
+                <span data-testid="text-ctrl-q">{(latest?.queueDepth ?? 0).toFixed(1)} / 100</span>
+              </div>
+              <div className="h-2 bg-muted rounded overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 transition-all"
+                  style={{ width: `${Math.min(100, (latest?.queueDepth ?? 0))}%` }}
+                />
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cache fill (F)</span>
+                <span data-testid="text-ctrl-f">{((latest?.cacheFillRatio ?? 0) * 100).toFixed(1)}%</span>
+              </div>
+              <div className="h-2 bg-muted rounded overflow-hidden">
+                <div
+                  className="h-full bg-green-500 transition-all"
+                  style={{ width: `${(latest?.cacheFillRatio ?? 0) * 100}%` }}
+                />
+              </div>
+              <div className="flex justify-between pt-2 border-t border-border">
+                <span className="text-muted-foreground">Duty target (d)</span>
+                <span className="text-primary font-bold" data-testid="text-ctrl-d">
+                  {((latest?.dutyTarget ?? 0) * 100).toFixed(2)}%
+                </span>
+              </div>
+              <div className="h-3 bg-muted rounded overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all"
+                  style={{ width: `${(latest?.dutyTarget ?? 0) * 100}%` }}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground pt-1">
+                Floor: 1/Δ = 0.69% (energy-save).  Ceiling: 100% (full-out).
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-key-isolation" className="border-green-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" /> Key Isolation (TL-DSA)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Each batch = one logical signature.  Private key only fetched on
+                cache miss; hits never touch CPU registers, L-caches, or the bus.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-2 font-mono text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Signatures served</span>
+                <span data-testid="text-sigs">
+                  {(latest?.signatureCount ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Key actually touched</span>
+                <span className="text-yellow-500" data-testid="text-key-touches">
+                  {(latest?.keyTouchCount ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-border">
+                <span className="text-muted-foreground">Exposure ratio</span>
+                <span className="text-green-500 font-bold" data-testid="text-exposure">
+                  {((latest?.keyExposureRatio ?? 0) * 100).toFixed(4)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Isolation factor</span>
+                <span className="text-green-500 font-bold text-lg" data-testid="text-isolation">
+                  {(latest?.keyIsolationFactor ?? 0).toFixed(0)}×
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground pt-2 border-t border-border space-y-1">
+                <div>• Power-analysis surface: <strong>÷ {(latest?.keyIsolationFactor ?? 0).toFixed(0)}</strong></div>
+                <div>• Timing-attack surface: <strong>÷ {(latest?.keyIsolationFactor ?? 0).toFixed(0)}</strong></div>
+                <div>• Cold-boot residency: <strong>÷ {(latest?.keyIsolationFactor ?? 0).toFixed(0)}</strong></div>
+                <div className="text-green-500/80 pt-1">
+                  Theoretical asymptote: ∞ (steady-state hit rate → 100%)
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card data-testid="card-chart">
           <CardHeader className="pb-2">
