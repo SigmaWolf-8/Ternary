@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 8580" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 8720" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <defs>
     <radialGradient id="nucGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%"   stop-color="#fff8c2"/>
@@ -788,7 +788,7 @@
 
     <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
     <g transform="translate(80, 5860)">
-      <rect x="0" y="0" width="7240" height="820" rx="12" class="panel-i"/>
+      <rect x="0" y="0" width="7240" height="960" rx="12" class="panel-i"/>
       <text x="24" y="64" class="h2" fill="#2a8050">Canonical File Address Scheme  ·  plain decimal counting  ·  zero is never used as a digit</text>
       <line x1="24" y1="84" x2="7216" y2="84" stroke="#2a8050" stroke-width="3"/>
 
@@ -810,13 +810,12 @@
 
       <!-- G column · zero-skipped counting sequence -->
       <text x="2620" y="244" class="h3" fill="#2a8050">G · Group  (count up, skip any number with a 0)</text>
-      <text x="2620" y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1, 2, 3, 4, 5, 6, 7, 8, 9,</text>
-      <text x="2620" y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  11, 12, 13, 14, 15, 16, 17, 18, 19,</text>
-      <text x="2620" y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  21, 22, 23, ...   (10, 20, 30 are skipped)</text>
-      <text x="2620" y="378" class="addrnote" font-style="italic">Most layers have ≤ 9 groups so G stays a single digit.</text>
-      <text x="2620" y="412" class="addrnote" font-style="italic">Geometric (L=5) has 15 sectors — curved half uses numbers, discrete half uses letters:</text>
-      <text x="2620" y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 1 .. 7   →   curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
-      <text x="2620" y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = A .. H   →   discrete sectors  A B C D E F G H   (eight wedges, exactly as drawn on the disc)</text>
+      <text x="2620" y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1, 2, 3, 4, 5, 6, 7, 8, 9,  11, 12, ...  (10/20/30 skipped)</text>
+      <text x="2620" y="308" class="addrnote">For L=5 Geometric the group axis splits in two:</text>
+      <text x="2620" y="340" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 1 .. 7   →  curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
+      <text x="2620" y="372" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = A .. H   →  discrete sectors  A B C D E F G H</text>
+      <text x="2620" y="412" class="addrnote" font-weight="700" fill="#2a8050">Every other layer (1,2,3,4,6,7,8,9) uses plain numeric G.</text>
+      <text x="2620" y="444" class="addrnote">See the full Per-Layer Group Atlas below — every occupied (L.G) prefix in the codex.</text>
 
       <!-- O column -->
       <text x="5240" y="244" class="h3" fill="#2a8050">O · Ordinal</text>
@@ -830,45 +829,51 @@
       <text x="5240" y="468" class="addrnote">are stored adjacent on disk and load</text>
       <text x="5240" y="496" class="addrnote">together — related functions cluster.</text>
 
-      <!-- Examples block -->
+      <!-- Per-Layer Group Atlas -->
       <line x1="24" y1="544" x2="7216" y2="544" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
-      <text x="24" y="582" class="h3" fill="#2a8050">Examples  ·  one entry per layer  ·  read each address as plain decimal</text>
+      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 45 occupied groups · 52 modules</text>
 
-      <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#2a8050" font-weight="700">
-        <text x="24"   y="618">1.1.1__constants.rs</text>
-        <text x="1820" y="618">→  L=1  Nucleus  ·  Group 1 (axioms)  ·  item 1</text>
-        <text x="24"   y="648">1.4.1__milesian.rs</text>
-        <text x="1820" y="648">→  L=1  Nucleus  ·  Group 4 (notation cluster) holds milesian + greek_atomic + upiid</text>
-        <text x="24"   y="678">2.1.1__trit.rs</text>
-        <text x="1820" y="678">→  L=2  Atom  ·  Group 1 (the Trit)</text>
-        <text x="24"   y="708">3.1.1__gf3.rs</text>
-        <text x="1820" y="708">→  L=3  Algebraic  ·  Group 1 (field GF(3))</text>
-        <text x="24"   y="738">3.4.1__coprime.rs</text>
-        <text x="1820" y="738">→  L=3  Algebraic  ·  Group 4 (Coprime + Bezout, Walk lives next door at 3.5.1)</text>
-        <text x="24"   y="768">4.5.1__calculus.rs</text>
-        <text x="1820" y="768">→  L=4  Calculi  ·  Group 5 (unified Δ ∮ ◯ Σ harness)</text>
-        <text x="24"   y="798">4.6.1__repx.rs</text>
-        <text x="1820" y="798">→  L=4  Calculi  ·  Group 6 (bijective base-b register)</text>
+      <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A" font-weight="700">
+        <!-- LEFT column: L=1..4 -->
+        <text x="24"   y="616" fill="#2a8050">L=1 Nucleus  (5 groups)</text>
+        <text x="24"   y="640">  1.1 axioms (constants)  ·  1.4 notation (milesian + greek_atomic + upiid)</text>
+        <text x="24"   y="662">  1.5 units (single canonical home)  ·  1.6 axes  ·  1.7 cone-point taxonomy</text>
 
-        <text x="3900" y="618">5.1.1__circle.rs</text>
-        <text x="5550" y="618">→  L=5  Geo · Group 1 = curved sector ①</text>
-        <text x="3900" y="648">5.A.1__frame_square.rs</text>
-        <text x="5550" y="648">→  L=5  Geo · Group 8 = discrete sector A</text>
-        <text x="3900" y="678">5.C.1__polyhedra.rs</text>
-        <text x="5550" y="678">→  L=5  Geo · Group 11 = discrete sector C   (10 skipped — has a zero)</text>
-        <text x="3900" y="708">6.1.1__wave_stratum.rs</text>
-        <text x="5550" y="708">→  L=6  Physics NE  ·  Wave / Field</text>
-        <text x="3900" y="738">7.1.1__wieferich_grh_beal.rs</text>
-        <text x="5550" y="738">→  L=7  Physics SE  ·  Number-Theoretic</text>
-        <text x="3900" y="768">8.1.1__crystal_2d_3d.rs</text>
-        <text x="5550" y="768">→  L=8  Physics SW  ·  Crystal / Lattice</text>
-        <text x="3900" y="798">9.1.1__hydrogen_spectral.rs</text>
-        <text x="5550" y="798">→  L=9  Physics NW  ·  Spectral / Atomic</text>
+        <text x="24"   y="694" fill="#2a8050">L=2 Atom  (1 group)</text>
+        <text x="24"   y="718">  2.1 Trit cluster (trit + tritvec + arithmetic)</text>
+
+        <text x="24"   y="750" fill="#2a8050">L=3 Algebraic  (6 groups)</text>
+        <text x="24"   y="774">  3.1 GF(3)  ·  3.2 ℤ[φ] (zphi)  ·  3.3 Borromean  ·  3.4 Coprime + Bezout  ·  3.5 Walk  ·  3.6 CRT</text>
+
+        <text x="24"   y="806" fill="#2a8050">L=4 Calculi  (3 groups)</text>
+        <text x="24"   y="830">  4.5 unified Δ∮◯Σ harness  ·  4.6 repx (bijective base-b)  ·  4.7 bijective_converter (§25 v3.3.33)</text>
+
+        <text x="24"   y="862" fill="#2a8050">L=5 Geometric  (15 groups · curved 7 + discrete 8)</text>
+        <text x="24"   y="886">  5.1 circle/c  ·  5.2 conics  ·  5.3 grand cycles  ·  5.4 quadratic xforms  ·  5.5 star polygons  ·  5.6 repunit/θ  ·  5.7 disdyakis</text>
+        <text x="24"   y="908">  5.A frame square  ·  5.B magic squares  ·  5.C polyhedra  ·  5.D color  ·  5.E figurate  ·  5.F star polytopes  ·  5.G crystal  ·  5.H cone-point</text>
+
+        <!-- RIGHT column: L=6..9 -->
+        <text x="3760" y="616" fill="#2a8050">L=6 Physics NE  Wave / Field  (5 groups)</text>
+        <text x="3760" y="640">  6.1 wave_stratum  ·  6.2 conservation_laws</text>
+        <text x="3760" y="662">  6.5 η-branch  ·  6.6 ν-branch  ·  6.7 combined branch</text>
+
+        <text x="3760" y="694" fill="#2a8050">L=7 Physics SE  Number-Theoretic  (2 groups)</text>
+        <text x="3760" y="718">  7.1 wieferich_grh_beal  ·  7.5 pqr_asymmetry</text>
+
+        <text x="3760" y="750" fill="#2a8050">L=8 Physics SW  Crystal / Lattice  (3 groups)</text>
+        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state (9-fold register)  ·  8.5 mass_quadratic</text>
+
+        <text x="3760" y="806" fill="#2a8050">L=9 Physics NW  Spectral / Atomic  (5 groups)</text>
+        <text x="3760" y="830">  9.1 hydrogen_spectral  ·  9.2 uv_hydrogen_spectral  ·  9.4 phase_impedance</text>
+        <text x="3760" y="852">  9.5 fine_structure (1/α)  ·  9.8 discriminant_identity (1 000 144)</text>
+
+        <text x="3760" y="892" fill="#7a3019" font-style="italic">Read any address as plain decimal: L · G · O — three positive integers, zero never appears.</text>
+        <text x="3760" y="916" fill="#7a3019" font-style="italic">Empty G slots in physics layers are reserved future bands; the addressing is sparse, not faked.</text>
       </g>
     </g>
 
 <!-- ═══════════════ MODULE CATALOG EXTENSION ═══════════════ -->
-  <g transform="translate(80, 6720)">
+  <g transform="translate(80, 6860)">
     <rect x="0" y="0" width="7240" height="460" rx="12" fill="#fef6ed" stroke="#c0392b" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#c0392b">Module Catalog Extension  ·  new addresses landed from Inertissimum Iώτα Nona Codex (§§0-25)</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#c0392b" stroke-width="3"/>
@@ -890,7 +895,7 @@
   </g>
 
   <!-- ═══════════════ U/M CONVERSION MAPPING ═══════════════ -->
-  <g transform="translate(80, 7220)">
+  <g transform="translate(80, 7360)">
     <rect x="0" y="0" width="7240" height="500" rx="12" fill="#eef6fa" stroke="#2D7DD2" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#2D7DD2">U/M Conversion Mapping  ·  Salvi Framework units ⇄ SI  ·  every bridge is a closed-form rational  ·  single home: 1.5.1__units.rs</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#2D7DD2" stroke-width="3"/>
@@ -955,7 +960,7 @@
   </g>
 
   <!-- ═══════════════ CONSTANTS CATALOG ═══════════════ -->
-  <g transform="translate(80, 7760)">
+  <g transform="translate(80, 7900)">
     <rect x="0" y="0" width="7240" height="600" rx="12" fill="#fff8e8" stroke="#B8860B" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#B8860B">Constants Catalog  ·  every numeral declared once in 1.1.1__constants.rs  ·  derived from sole axioms π = 14, b = 3</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
@@ -985,7 +990,7 @@
   </g>
 
 <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
-  <rect class="verdict-bg" x="0" y="8400" width="7400" height="180"/>
+  <rect class="verdict-bg" x="0" y="8540" width="7400" height="180"/>
   <text x="3700" y="8488" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
   <text x="3700" y="8542" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
 
