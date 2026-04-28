@@ -660,3 +660,9 @@ id = "deq9maGOAjrQTxsh6sDiu"
 uri = "file://attached_assets/aasc_atomic_nucleus_map.png"
 type = "image"
 title = "AASC · Concentric Map (6750×7425 PNG — zoomable)"
+
+[[outputs]]
+id = "OTv4udn3T9J6dIkU7Y5s3"
+uri = "file://attached_assets/aasc_canonical_map.png"
+type = "image"
+title = "AASC · Canonical Map — As It Should and Canon Will Be"
