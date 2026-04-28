@@ -302,7 +302,7 @@
 
     <!-- Notation modules -->
     <text x="3700" y="3380" class="nucsub" text-anchor="middle">Notation Modules  (Layer 1)</text>
-    <text x="3700" y="3408" class="invnote" text-anchor="middle">1.1.1__constants.rs  ·  1.11.1__milesian.rs  ·  1.11.2__greek_atomic.rs  ·  1.11.3__upiid.rs</text>
+    <text x="3700" y="3408" class="invnote" text-anchor="middle">1.1.1__constants.rs  ·  1.4.1__milesian.rs  ·  1.4.2__greek_atomic.rs  ·  1.4.3__upiid.rs</text>
 
     <!-- footer -->
     <text x="3700" y="3450" class="nucfooter" text-anchor="middle">Salvi Standard of Scrutiny · UPIID V1.1 · π and b are the SOLE fixed axioms — every other constant derives</text>
@@ -330,7 +330,7 @@
     <rect class="modbox-yellow" x="3860" y="3690" width="280" height="100" rx="8"/>
     <text x="4000" y="3728" class="modgreek" text-anchor="middle">R_L^(b) · Repunit</text>
     <text x="4000" y="3758" class="modfile" text-anchor="middle">repx.rs · base-b bijective</text>
-    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">11.13.1__repx.rs</text>
+    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">4.6.1__repx.rs</text>
   </g>
 
   <!-- ═════════════ ALGEBRAIC ring modules (2D) ═════════════ -->
@@ -350,12 +350,12 @@
     <rect class="modbox-grey" x="3140" y="3870" width="320" height="100" rx="8"/>
     <text x="3300" y="3908" class="modgreek" text-anchor="middle">∇ · Walk + CRT</text>
     <text x="3300" y="3938" class="modfile" text-anchor="middle">walk.rs · coprime walks</text>
-    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.12.1__walk.rs</text>
+    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.5.1__walk.rs</text>
 
     <rect class="modbox-blue" x="3490" y="3870" width="420" height="100" rx="8"/>
     <text x="3700" y="3908" class="modgreek" text-anchor="middle">⟨p, q⟩ · Coprime + Bezout</text>
     <text x="3700" y="3938" class="modfile" text-anchor="middle">coprime.rs · S10-1 identity</text>
-    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.11.1__coprime.rs</text>
+    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.4.1__coprime.rs</text>
 
     <rect class="modbox-grey" x="3940" y="3870" width="320" height="100" rx="8"/>
     <text x="4100" y="3908" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
@@ -368,7 +368,7 @@
       <!-- L=4 ring banner — top of calculi ring, inside band r=1020..1320 -->
       <rect x="3220" y="1815" width="960" height="44" rx="8" fill="#B8860B" fill-opacity="0.92"/>
       <text x="3700" y="1846" class="calcbanner" text-anchor="middle" fill="#FAF8F6">L = 4   ·   CALCULI   ·   Δ ∮ ◯ Σ</text>
-      <text x="3700" y="1888" class="quadaddr" text-anchor="middle">all four sub-calculi unified in  11.12.1__calculus.rs</text>
+      <text x="3700" y="1888" class="quadaddr" text-anchor="middle">all four sub-calculi unified in  4.5.1__calculus.rs</text>
 
       <!-- Δ Difference — north position, properly inside calculi ring (r≈1170) -->
       <text x="3700" y="1944" class="calcsub" text-anchor="middle">Δ · Difference</text>
@@ -400,9 +400,9 @@
     <text x="2110" y="1540" class="quadtitle" fill="#5b3aa8">NW</text>
     <text x="2110" y="1580" class="quadsub" fill="#5b3aa8">Spectral / Atomic</text>
     <text x="2110" y="1640" class="quadmod">hydrogen_spectral · 1/α</text>
-    <text x="2110" y="1672" class="quadaddr">23.1.1__hydrogen_spectral.rs</text>
+    <text x="2110" y="1672" class="quadaddr">9.1.1__hydrogen_spectral.rs</text>
     <text x="2110" y="1716" class="quadmod">uv_hydrogen_spectral</text>
-    <text x="2110" y="1748" class="quadaddr">23.2.1__uv_hydrogen_spectral.rs</text>
+    <text x="2110" y="1748" class="quadaddr">9.2.1__uv_hydrogen_spectral.rs</text>
     <text x="2110" y="1792" class="quadmod">spectral_offset · κ bridge</text>
     <text x="2110" y="1828" class="quadmod">phase_impedance · cone-point α</text>
   </g>
@@ -410,9 +410,9 @@
     <text x="5290" y="1540" class="quadtitle" fill="#1f5fa8" text-anchor="end">NE</text>
     <text x="5290" y="1580" class="quadsub" fill="#1f5fa8" text-anchor="end">Wave / Field</text>
     <text x="5290" y="1640" class="quadmod" text-anchor="end">wave_stratum · §13 synthesis</text>
-    <text x="5290" y="1672" class="quadaddr" text-anchor="end">13.1.1__wave_stratum.rs</text>
+    <text x="5290" y="1672" class="quadaddr" text-anchor="end">6.1.1__wave_stratum.rs</text>
     <text x="5290" y="1716" class="quadmod" text-anchor="end">conservation_laws</text>
-    <text x="5290" y="1748" class="quadaddr" text-anchor="end">13.2.1__conservation_laws.rs</text>
+    <text x="5290" y="1748" class="quadaddr" text-anchor="end">6.2.1__conservation_laws.rs</text>
     <text x="5290" y="1792" class="quadmod" text-anchor="end">speed_of_light · c=√14, c_S=28</text>
     <text x="5290" y="1828" class="quadmod" text-anchor="end">saturnian_metatron</text>
   </g>
@@ -420,19 +420,19 @@
     <text x="2110" y="4360" class="quadtitle" fill="#4d6a1a">SW</text>
     <text x="2110" y="4400" class="quadsub" fill="#4d6a1a">Crystal / Lattice</text>
     <text x="2110" y="4460" class="quadmod">crystal_2d_3d  ↔ G</text>
-    <text x="2110" y="4496" class="quadaddr">22.1.1__crystal_2d_3d.rs</text>
+    <text x="2110" y="4496" class="quadaddr">8.1.1__crystal_2d_3d.rs</text>
     <text x="2110" y="4544" class="quadmod">arc182 · Schumann–Runge ↔ G</text>
     <text x="2110" y="4588" class="quadmod">nona_state · 9-fold register</text>
-    <text x="2110" y="4624" class="quadaddr">22.3.1__nona_state.rs</text>
+    <text x="2110" y="4624" class="quadaddr">8.3.1__nona_state.rs</text>
   </g>
   <g>
     <text x="5290" y="4360" class="quadtitle" fill="#a02040" text-anchor="end">SE</text>
     <text x="5290" y="4400" class="quadsub" fill="#a02040" text-anchor="end">Number-Theoretic</text>
     <text x="5290" y="4460" class="quadmod" text-anchor="end">wieferich_grh_beal</text>
-    <text x="5290" y="4496" class="quadaddr" text-anchor="end">21.1.1__wieferich_grh_beal.rs</text>
+    <text x="5290" y="4496" class="quadaddr" text-anchor="end">7.1.1__wieferich_grh_beal.rs</text>
     <text x="5290" y="4544" class="quadmod" text-anchor="end">fibonacci_register · 377</text>
     <text x="5290" y="4588" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
-    <text x="5290" y="4624" class="quadaddr" text-anchor="end">21.3.1__tribonacci.rs</text>
+    <text x="5290" y="4624" class="quadaddr" text-anchor="end">7.3.1__tribonacci.rs</text>
   </g>
 
   <!-- ═════════════════════════════════════════════════════════════════════ -->
@@ -460,7 +460,7 @@
     <text x="1240" y="272" class="modlist-c">vesica.rs</text>
     <text x="1240" y="306" class="modlist-c">speed_of_light.rs</text>
     <text x="1240" y="340" class="modlist-c">tri_ladder.rs</text>
-    <text x="20"  y="458" class="addr">12.1.1..6  ←  geometric · curved · sector ① · ord 1..6</text>
+    <text x="20"  y="458" class="addr">5.1.1..6  ←  geometric · curved · sector ① · ord 1..6</text>
     <text x="20"  y="490" class="small">↔ G (Wave-harmonic dual grids · Σ-182 O₂ wall)  ·  E (Tri ladder figurates)</text>
   </g>
 
@@ -481,7 +481,7 @@
     <text x="1240" y="204" class="modlist-c">arc182.rs</text>
     <text x="1240" y="238" class="modlist-c">solids_of_revolution.rs</text>
     <text x="1240" y="272" class="modlist-c">gabriels_horn.rs</text>
-    <text x="20"  y="458" class="addr">12.2.1..4  ←  geometric · curved · sector ② · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.2.1..4  ←  geometric · curved · sector ② · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ E  (Phase-Impedance integer companions 137 / 377)</text>
   </g>
 
@@ -500,7 +500,7 @@
     <text x="1240" y="204" class="modlist-c">frame_square.rs</text>
     <text x="1240" y="238" class="modlist-c">pi_quadruple.rs</text>
     <text x="1240" y="272" class="modlist-c">arc182.rs</text>
-    <text x="20"  y="458" class="addr">12.3.1..4  ←  geometric · curved · sector ③ · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.3.1..4  ←  geometric · curved · sector ③ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ A , B  ((bq)² Frame Square 1089 · Plenum 333 magic)</text>
   </g>
 
@@ -518,7 +518,7 @@
     <text x="1240" y="170" class="modlist-c">vesica.rs</text>
     <text x="1240" y="204" class="modlist-c">discriminant.rs</text>
     <text x="1240" y="238" class="modlist-c">volumetric_ceiling.rs</text>
-    <text x="20"  y="458" class="addr">12.11.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
+    <text x="20"  y="458" class="addr">5.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
     <text x="20"  y="490" class="small italic">orphan #3 — disc-identity 1,000,144 also belongs to ① and ②</text>
   </g>
 
@@ -537,7 +537,7 @@
     <text x="1240" y="204" class="modlist-c">theta_chord.rs</text>
     <text x="1240" y="238" class="modlist-c">torus_knot.rs</text>
     <text x="1240" y="272" class="modlist-c">star_polygon.rs</text>
-    <text x="20"  y="458" class="addr">12.12.1..4  ←  geometric · curved · sector ⑤ · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.5.1..4  ←  geometric · curved · sector ⑤ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ F  (Torus Knot Crown lifts to 3D star polytope)</text>
   </g>
 
@@ -557,7 +557,7 @@
     <text x="1240" y="204" class="modlist-c">repunit_circles.rs</text>
     <text x="1240" y="238" class="modlist-c">theta_chord.rs</text>
     <text x="1240" y="272" class="modlist-c">fibonacci.rs</text>
-    <text x="20"  y="458" class="addr">12.13.1..4  ←  geometric · curved · sector ⑥ · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.6.1..4  ←  geometric · curved · sector ⑥ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ H  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
@@ -573,7 +573,7 @@
     <text x="1240" y="170" class="modlist-c">disdyakis_bridge.rs</text>
     <text x="1240" y="204" class="modlist-c">zphi.rs</text>
     <text x="1240" y="238" class="modlist-c">saturnian_metatron.rs</text>
-    <text x="20"  y="458" class="addr">12.21.1..3  ←  geometric · curved · sector ⑦ · ord 1..3</text>
+    <text x="20"  y="458" class="addr">5.7.1..3  ←  geometric · curved · sector ⑦ · ord 1..3</text>
     <text x="20"  y="490" class="small">↔ C  (Milesian glyph polyhedral symmetry)</text>
   </g>
 
@@ -599,7 +599,7 @@
     <text x="1240" y="238" class="modlist-d">tick_clock.rs</text>
     <text x="1240" y="272" class="modlist-d">milesian.rs</text>
     <text x="1240" y="306" class="modlist-d">constants.rs</text>
-    <text x="20"  y="394" class="addr">12.22.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
+    <text x="20"  y="394" class="addr">5.8.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
     <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)  ·  bridge-feature only</text>
   </g>
 
@@ -613,7 +613,7 @@
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">plenum_square.rs  (333 magic + 4 σ permutations)</text>
-    <text x="20"  y="394" class="addr">12.23.1  ←  geometric · discrete · sector B · ord 1</text>
+    <text x="20"  y="394" class="addr">5.9.1  ←  geometric · discrete · sector B · ord 1</text>
     <text x="20"  y="426" class="small">↔ ③  (1089 + 333 anchored to Grand Circle 756)</text>
   </g>
 
@@ -632,7 +632,7 @@
     <text x="1240" y="170" class="modlist-d">polyhedra.rs</text>
     <text x="1240" y="204" class="modlist-d">milesian.rs</text>
     <text x="1240" y="238" class="modlist-d">greek_atomic.rs</text>
-    <text x="20"  y="394" class="addr">12.31.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.11.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑦  (Disdyakis · ghost letters as missing phases)</text>
   </g>
 
@@ -647,7 +647,7 @@
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">plenum_color.rs</text>
     <text x="1240" y="204" class="modlist-d">plenum_square.rs</text>
-    <text x="20"  y="394" class="addr">12.32.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.12.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ A  (1089 partitions = lattice + colour symmetry)</text>
   </g>
 
@@ -668,7 +668,7 @@
     <text x="1240" y="204" class="modlist-d">axis_lock.rs</text>
     <text x="1240" y="238" class="modlist-d">lunisolar.rs</text>
     <text x="1240" y="272" class="modlist-d">proton_mass.rs</text>
-    <text x="20"  y="394" class="addr">12.33.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
+    <text x="20"  y="394" class="addr">5.13.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
     <text x="20"  y="426" class="small">↔ ① (Tri arcs)  ·  ② (Phase-Impedance 137 · 377)</text>
   </g>
 
@@ -684,7 +684,7 @@
     <text x="1240" y="170" class="modlist-d">torus_knot.rs</text>
     <text x="1240" y="204" class="modlist-d">kepler_poinsot.rs</text>
     <text x="1240" y="238" class="modlist-d">star_polytope.rs</text>
-    <text x="20"  y="394" class="addr">12.111.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.14.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑤  (planar star polygons that lift to 3D antiprisms)</text>
   </g>
 
@@ -702,7 +702,7 @@
     <text x="1240" y="170" class="modlist-d">crystal_2d_3d.rs</text>
     <text x="1240" y="204" class="modlist-d">arc182.rs</text>
     <text x="1240" y="238" class="modlist-d">wave_stratum.rs</text>
-    <text x="20"  y="394" class="addr">12.112.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.15.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ① (Σ-182 antipode · wave-harmonic continuous spectrum)</text>
   </g>
 
@@ -717,7 +717,7 @@
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">cone_point.rs</text>
     <text x="1240" y="204" class="modlist-d">frame_square.rs</text>
-    <text x="20"  y="394" class="addr">12.113.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.16.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ ⑥  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
@@ -785,82 +785,81 @@
     <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
     <g transform="translate(80, 5860)">
       <rect x="0" y="0" width="7240" height="820" rx="12" class="panel-i"/>
-      <text x="24" y="64" class="h2" fill="#2a8050">Canonical File Address Scheme  ·  every level is a TritInt  ·  no zeros anywhere</text>
+      <text x="24" y="64" class="h2" fill="#2a8050">Canonical File Address Scheme  ·  plain decimal counting  ·  zero is never used as a digit</text>
       <line x1="24" y1="84" x2="7216" y2="84" stroke="#2a8050" stroke-width="3"/>
 
-      <text x="24" y="134" class="addrhead">Format:   &lt;L&gt; . &lt;S&gt; . &lt;O&gt; __ &lt;name&gt;.rs           ·  every component is a bijective base-3 TritInt  (digits ∈ {1,2,3} · no zero ever appears)</text>
-      <text x="24" y="172" class="addrnote">L = Layer TritInt   ·   S = Sub-grouping TritInt within layer   ·   O = Ordinal TritInt within sub-group   ·   filename slug after  __</text>
-      <text x="24" y="200" class="addrnote" font-weight="700" fill="#2a8050">Adjacent sub-group TritInts cluster related modules together — every function lives next to its kin.</text>
+      <text x="24" y="134" class="addrhead">Format:    &lt;L&gt; . &lt;G&gt; . &lt;O&gt; __ &lt;name&gt;.rs           ·  three positions, every one is a positive integer, zero never appears anywhere</text>
+      <text x="24" y="172" class="addrnote">L = Layer number (1..9)   ·   G = Group within layer (counts up, skips any number containing a 0)   ·   O = Ordinal within group (same skip-zero counting)</text>
+      <text x="24" y="200" class="addrnote" font-weight="700" fill="#2a8050">Files sharing the same  L.G  prefix are siblings — adjacent on disk, loaded together, related by purpose.</text>
 
-      <!-- L column · 9 layers · all encoded in bijective base-3, no zero -->
-      <text x="24"   y="244" class="h3" fill="#2a8050">L · Layer TritInt   (9 layers · no zero)</text>
-      <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1  →  L=1  Nucleus       ·  axioms · constants · invariant register</text>
-      <text x="24"   y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  2  →  L=2  Atom            ·  Trit · TritVec · Arithmetic</text>
-      <text x="24"   y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  3  →  L=3  Algebraic      ·  GF(3) · ℤ[φ] · Borromean · Coprime · Walk</text>
-      <text x="24"   y="360" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">11  →  L=4  Calculi          ·  Δ ∮ ◯ Σ · repx · milesian · walk-CRT</text>
-      <text x="24"   y="388" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">12  →  L=5  Geometric    ·  ring of figures (Curved ◖ + Discrete ◗)</text>
-      <text x="24"   y="416" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">13  →  L=6  Physics NE   ·  Wave / Field</text>
-      <text x="24"   y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">21  →  L=7  Physics SE    ·  Number-Theoretic</text>
-      <text x="24"   y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">22  →  L=8  Physics SW   ·  Crystal / Lattice</text>
-      <text x="24"   y="500" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">23  →  L=9  Physics NW   ·  Spectral / Atomic</text>
+      <!-- L column · 9 layers, single digit, just count them -->
+      <text x="24"   y="244" class="h3" fill="#2a8050">L · Layer number  (just count 1..9)</text>
+      <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 1   →   Nucleus       ·  axioms · constants · invariant register</text>
+      <text x="24"   y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 2   →   Atom           ·  Trit · TritVec · Arithmetic</text>
+      <text x="24"   y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 3   →   Algebraic      ·  GF(3) · ℤ[φ] · Borromean · Coprime · Walk</text>
+      <text x="24"   y="360" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 4   →   Calculi          ·  Δ · ∮ · ◯ · Σ · unified · repx</text>
+      <text x="24"   y="388" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 5   →   Geometric    ·  ring of figures (curved + discrete sectors share one G axis)</text>
+      <text x="24"   y="416" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 6   →   Physics NE   ·  Wave / Field</text>
+      <text x="24"   y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 7   →   Physics SE    ·  Number-Theoretic</text>
+      <text x="24"   y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 8   →   Physics SW   ·  Crystal / Lattice</text>
+      <text x="24"   y="500" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 9   →   Physics NW   ·  Spectral / Atomic</text>
 
-      <!-- S column · sub-grouping TritInt cluster table -->
-      <text x="2620" y="244" class="h3" fill="#2a8050">S · Sub-grouping TritInt   (cluster key)</text>
-      <text x="2620" y="276" class="addrnote" font-family="Menlo, Consolas, monospace">  1, 2, 3   →  primary sub-modules of the layer</text>
-      <text x="2620" y="304" class="addrnote" font-family="Menlo, Consolas, monospace">11, 12, 13   →  secondary sub-modules (composite operators)</text>
-      <text x="2620" y="332" class="addrnote" font-family="Menlo, Consolas, monospace">21, 22, 23   →  tertiary sub-modules</text>
-      <text x="2620" y="360" class="addrnote" font-family="Menlo, Consolas, monospace">31, 32, 33   →  quaternary sub-modules</text>
-      <text x="2620" y="388" class="addrnote" font-family="Menlo, Consolas, monospace">111+         →  fifth tier and beyond (bijective base-3 grows)</text>
-      <text x="2620" y="424" class="addrnote" font-style="italic">Geometric sectors (L=12) are enumerated this same way:</text>
-      <text x="2620" y="452" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1..21  →  curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
-      <text x="2620" y="480" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">22..113  →  discrete sectors  A B C D E F G H</text>
-      <text x="2620" y="508" class="addrnote">no separate H column — the curved/discrete split is encoded inside S</text>
+      <!-- G column · zero-skipped counting sequence -->
+      <text x="2620" y="244" class="h3" fill="#2a8050">G · Group  (count up, skip any number with a 0)</text>
+      <text x="2620" y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1, 2, 3, 4, 5, 6, 7, 8, 9,</text>
+      <text x="2620" y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  11, 12, 13, 14, 15, 16, 17, 18, 19,</text>
+      <text x="2620" y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  21, 22, 23, ...   (10, 20, 30 are skipped)</text>
+      <text x="2620" y="378" class="addrnote" font-style="italic">Most layers have ≤ 9 groups so G stays a single digit.</text>
+      <text x="2620" y="412" class="addrnote" font-style="italic">Geometric (L=5) has 15 sectors — one shared G axis covers both halves:</text>
+      <text x="2620" y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 1 .. 7    →   curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
+      <text x="2620" y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 8, 9      →   discrete sectors  A , B</text>
+      <text x="2620" y="500" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 11 .. 16  →   discrete sectors  C , D , E , F , G , H</text>
 
       <!-- O column -->
-      <text x="5240" y="244" class="h3" fill="#2a8050">O · Ordinal TritInt</text>
-      <text x="5240" y="276" class="addrnote" font-family="Menlo, Consolas, monospace">1, 2, 3, 11, 12, 13, 21, 22, 23, ...</text>
-      <text x="5240" y="304" class="addrnote">module position within its sub-group</text>
+      <text x="5240" y="244" class="h3" fill="#2a8050">O · Ordinal</text>
+      <text x="5240" y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1, 2, 3, ..., 9, 11, 12, ...</text>
+      <text x="5240" y="304" class="addrnote">module position within its group</text>
       <text x="5240" y="332" class="addrnote">order is canonical (declared</text>
       <text x="5240" y="360" class="addrnote">in 1.1.1__constants.rs)</text>
-      <text x="5240" y="404" class="addrnote" font-weight="700" fill="#2a8050">Locality theorem:</text>
-      <text x="5240" y="432" class="addrnote">files sharing the same  &lt;L&gt;.&lt;S&gt;  prefix</text>
-      <text x="5240" y="460" class="addrnote">are stored adjacent on disk and load</text>
-      <text x="5240" y="488" class="addrnote">together at compile time — keeping</text>
-      <text x="5240" y="516" class="addrnote">all related functions in one cluster.</text>
+
+      <text x="5240" y="412" class="addrnote" font-weight="700" fill="#2a8050">Locality rule:</text>
+      <text x="5240" y="440" class="addrnote">files sharing the same  L.G  prefix</text>
+      <text x="5240" y="468" class="addrnote">are stored adjacent on disk and load</text>
+      <text x="5240" y="496" class="addrnote">together — related functions cluster.</text>
 
       <!-- Examples block -->
       <line x1="24" y1="544" x2="7216" y2="544" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
-      <text x="24" y="582" class="h3" fill="#2a8050">Examples  ·  one entry per layer  ·  zero-free addresses</text>
+      <text x="24" y="582" class="h3" fill="#2a8050">Examples  ·  one entry per layer  ·  read each address as plain decimal</text>
 
       <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#2a8050" font-weight="700">
         <text x="24"   y="618">1.1.1__constants.rs</text>
-        <text x="1820" y="618">→  L=1  Nucleus  ·  axioms / constants / invariants</text>
-        <text x="24"   y="648">1.11.1__milesian.rs</text>
-        <text x="1820" y="648">→  L=1  Nucleus  ·  27 Milesian glyphs (notation cluster S=11)</text>
+        <text x="1820" y="618">→  L=1  Nucleus  ·  Group 1 (axioms)  ·  item 1</text>
+        <text x="24"   y="648">1.4.1__milesian.rs</text>
+        <text x="1820" y="648">→  L=1  Nucleus  ·  Group 4 (notation cluster) holds milesian + greek_atomic + upiid</text>
         <text x="24"   y="678">2.1.1__trit.rs</text>
-        <text x="1820" y="678">→  L=2  Atom  ·  the Trit (Rep-C)</text>
+        <text x="1820" y="678">→  L=2  Atom  ·  Group 1 (the Trit)</text>
         <text x="24"   y="708">3.1.1__gf3.rs</text>
-        <text x="1820" y="708">→  L=3  Algebraic  ·  field over {0,1,2}</text>
-        <text x="24"   y="738">3.11.1__coprime.rs</text>
-        <text x="1820" y="738">→  L=3  Algebraic  ·  Coprime + Bezout (composite cluster S=11)</text>
-        <text x="24"   y="768">11.12.1__calculus.rs</text>
-        <text x="1820" y="768">→  L=4  Calculi  ·  Δ ∮ ◯ Σ unified harness</text>
-        <text x="24"   y="798">11.13.1__repx.rs</text>
-        <text x="1820" y="798">→  L=4  Calculi  ·  bijective base-b register</text>
+        <text x="1820" y="708">→  L=3  Algebraic  ·  Group 1 (field GF(3))</text>
+        <text x="24"   y="738">3.4.1__coprime.rs</text>
+        <text x="1820" y="738">→  L=3  Algebraic  ·  Group 4 (Coprime + Bezout, Walk lives next door at 3.5.1)</text>
+        <text x="24"   y="768">4.5.1__calculus.rs</text>
+        <text x="1820" y="768">→  L=4  Calculi  ·  Group 5 (unified Δ ∮ ◯ Σ harness)</text>
+        <text x="24"   y="798">4.6.1__repx.rs</text>
+        <text x="1820" y="798">→  L=4  Calculi  ·  Group 6 (bijective base-b register)</text>
 
-        <text x="3900" y="618">12.1.1__circle.rs</text>
-        <text x="5550" y="618">→  L=5  Geo · Curved sector ①</text>
-        <text x="3900" y="648">12.22.1__frame_square.rs</text>
-        <text x="5550" y="648">→  L=5  Geo · Discrete sector A</text>
-        <text x="3900" y="678">13.1.1__wave_stratum.rs</text>
-        <text x="5550" y="678">→  L=6  Physics NE  ·  Wave / Field</text>
-        <text x="3900" y="708">21.1.1__wieferich_grh_beal.rs</text>
-        <text x="5550" y="708">→  L=7  Physics SE  ·  Number-Theoretic</text>
-        <text x="3900" y="738">21.3.1__tribonacci.rs</text>
-        <text x="5550" y="738">→  L=7  Physics SE  ·  Tribonacci recurrence</text>
-        <text x="3900" y="768">22.1.1__crystal_2d_3d.rs</text>
+        <text x="3900" y="618">5.1.1__circle.rs</text>
+        <text x="5550" y="618">→  L=5  Geo · Group 1 = curved sector ①</text>
+        <text x="3900" y="648">5.8.1__frame_square.rs</text>
+        <text x="5550" y="648">→  L=5  Geo · Group 8 = discrete sector A</text>
+        <text x="3900" y="678">5.11.1__polyhedra.rs</text>
+        <text x="5550" y="678">→  L=5  Geo · Group 11 = discrete sector C   (10 skipped — has a zero)</text>
+        <text x="3900" y="708">6.1.1__wave_stratum.rs</text>
+        <text x="5550" y="708">→  L=6  Physics NE  ·  Wave / Field</text>
+        <text x="3900" y="738">7.1.1__wieferich_grh_beal.rs</text>
+        <text x="5550" y="738">→  L=7  Physics SE  ·  Number-Theoretic</text>
+        <text x="3900" y="768">8.1.1__crystal_2d_3d.rs</text>
         <text x="5550" y="768">→  L=8  Physics SW  ·  Crystal / Lattice</text>
-        <text x="3900" y="798">23.1.1__hydrogen_spectral.rs</text>
+        <text x="3900" y="798">9.1.1__hydrogen_spectral.rs</text>
         <text x="5550" y="798">→  L=9  Physics NW  ·  Spectral / Atomic</text>
       </g>
     </g>
@@ -869,9 +868,9 @@
   <g transform="translate(80, 6720)">
     <rect x="0" y="0" width="7240" height="200" rx="12" fill="#ffd9d4" stroke="#c0392b" stroke-width="4"/>
     <text x="24" y="60" class="h2" fill="#c0392b">Orphan Register  ·  cross-classified items requiring an explicit canonical home</text>
-    <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (23.1.1)</text>
-    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 11.12.1__calculus.rs;  calendar (13×28=364) anchors in panel A   (12.22.2)</text>
-    <text x="24" y="178" class="bullet"><tspan font-weight="800">#3</tspan>  identity 1,000,144 = (pqr−1)² + 4(p−r)²  →  jointly belongs to ② , ④ , ①   (12.11.2 referencing 12.1.1, 12.2.1)</text>
+    <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (9.1.1)</text>
+    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 4.5.1__calculus.rs;  calendar (13×28=364) anchors in panel A   (5.8.2)</text>
+    <text x="24" y="178" class="bullet"><tspan font-weight="800">#3</tspan>  identity 1,000,144 = (pqr−1)² + 4(p−r)²  →  jointly belongs to ② , ④ , ①   (5.4.2 referencing 5.1.1, 5.2.1)</text>
   </g>
 
   <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
