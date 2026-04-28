@@ -831,7 +831,7 @@
 
       <!-- Per-Layer Group Atlas -->
       <line x1="24" y1="544" x2="7216" y2="544" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
-      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 45 occupied groups · 52 modules</text>
+      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 48 occupied groups · 57 modules</text>
 
       <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A" font-weight="700">
         <!-- LEFT column: L=1..4 -->
@@ -860,8 +860,8 @@
         <text x="3760" y="694" fill="#2a8050">L=7 Physics SE  Number-Theoretic  (2 groups)</text>
         <text x="3760" y="718">  7.1 wieferich_grh_beal  ·  7.5 pqr_asymmetry</text>
 
-        <text x="3760" y="750" fill="#2a8050">L=8 Physics SW  Crystal / Lattice  (3 groups)</text>
-        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state (9-fold register)  ·  8.5 mass_quadratic</text>
+        <text x="3760" y="750" fill="#2a8050">L=8 Physics SW  Crystal · Lattice · Storage · Index  (6 groups)</text>
+        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state  ·  8.5 mass_quadratic  ·  8.7 SQL engine cluster (parser+table+index)  ·  8.8 milesian_kv  ·  8.9 query_router</text>
 
         <text x="3760" y="806" fill="#2a8050">L=9 Physics NW  Spectral / Atomic  (5 groups)</text>
         <text x="3760" y="830">  9.1 hydrogen_spectral  ·  9.2 uv_hydrogen_spectral  ·  9.4 phase_impedance</text>
@@ -953,7 +953,30 @@
     <text x="40"   y="372" class="modlist-c" fill="#0F0C0A">NE  6.5.1__eta_branch.rs  ·  6.6.1__nu_branch.rs  ·  6.7.1__combined_branch.rs    ·    SE  7.5.1__pqr_asymmetry.rs</text>
     <text x="40"   y="404" class="modlist-c" fill="#0F0C0A">SW  8.5.1__mass_quadratic.rs (roots {1836, 153})    ·    NW  9.5.1__fine_structure.rs  ·  9.8.1__discriminant_identity.rs (1 000 144 = 2⁴·17·3677)</text>
 
-    <text x="40"   y="436" class="small" fill="#7a3019">Total file count after extension: 39 prior + 13 new = <tspan font-weight="800">52 canonical modules</tspan>  ·  every file has exactly one address  ·  no duplicates  ·  ALL unit conversions consolidated into 1.5.1__units.rs</text>
+    <text x="40"   y="436" class="small" fill="#7a3019">Total file count after extension: 39 prior + 13 new + 5 SQL/Storage = <tspan font-weight="800">57 canonical modules</tspan>  ·  every file has exactly one address  ·  no duplicates  ·  ALL unit conversions consolidated into 1.5.1__units.rs</text>
+  </g>
+
+  <!-- ═══════════════ SQL / STORAGE LAYER ═══════════════ -->
+  <g transform="translate(80, 8120)">
+    <rect x="0" y="0" width="7240" height="520" rx="12" fill="#e8f4f6" stroke="#1a6e7e" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#1a6e7e">SQL / Storage Layer  ·  embedded relational query in pure ternary  ·  L=8 quadrant promoted to Crystal · Lattice · Storage · Index</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#1a6e7e" stroke-width="3"/>
+
+    <text x="24" y="124" class="addrnote" fill="#0F0C0A" font-style="italic">Every row is a TritVec  ·  every WHERE clause compiles to GF(3) arithmetic  ·  every JOIN uses CRT for cross-bucket merge  ·  no byte-level rows ever  ·  storage format = wire format = crypto format.</text>
+
+    <text x="40"   y="170" class="h3" fill="#1a6e7e">L=8 · Group 7 — SQL engine cluster  (parser · planner · ternary execution)</text>
+    <text x="40"   y="202" class="modlist-c" fill="#0F0C0A">8.7.1.UX8.5__sql_engine.rs  (SQL parser/planner · sqlparser-rs front-end · custom ternary planner emitting GF(3) ops)</text>
+    <text x="40"   y="232" class="modlist-c" fill="#0F0C0A">8.7.2.UX8.3__trit_table.rs  (column-oriented tables · each column is a TritVec · base-3 packed · O(1) random access via repx)</text>
+    <text x="40"   y="262" class="modlist-c" fill="#0F0C0A">8.7.3.UX8.7__plenum_index.rs  (index built on (7,11,13) coprime walk · O(1) row lookup via CRT bridge over 540-node z=0 distributor)</text>
+
+    <text x="40"   y="304" class="h3" fill="#1a6e7e">L=8 · Group 8 — Milesian key-value store  (27-bucket b³ register)</text>
+    <text x="40"   y="336" class="modlist-c" fill="#0F0C0A">8.8.1.UX8.5__milesian_kv.rs  (key-value store keyed by Milesian glyphs · 27 top-level buckets per b³ register · k-parametric collision-free hashing)</text>
+
+    <text x="40"   y="378" class="h3" fill="#1a6e7e">L=8 · Group 9 — Query router  (cross-cube distribution)</text>
+    <text x="40"   y="410" class="modlist-c" fill="#0F0C0A">8.9.1.UX9.5__query_router.rs  (distributes SELECT/INSERT/UPDATE across Inter-Cube nodes · topology-derived routing · ≤7 hops for 540 nodes)</text>
+
+    <text x="40"   y="456" class="small" fill="#0d4651">Latency bound: query depth ≤ coprime walk depth (≤ 7 hops for 540 nodes)  ·  Schema constraint: every column type is one of {Trit, TritVec&lt;N&gt;, Milesian27}  ·  Cross-cuts: 4.6.1__repx.rs (base-b decode), 3.6.1__crt.rs (JOIN merge), 3.5.1__walk.rs (index walk).</text>
+    <text x="40"   y="490" class="small" fill="#0d4651">Bridge feature only:  feature = "sql"  exposes a thin byte ⇄ TritVec adapter so external SQL clients can issue queries; the engine itself stays no_std + alloc clean.</text>
   </g>
 
   <!-- ═══════════════ U/M CONVERSION MAPPING ═══════════════ -->
