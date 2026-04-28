@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1980" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <radialGradient id="nucleusGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#fff8c2"/>
+      <stop offset="60%"  stop-color="#ffd966"/>
+      <stop offset="100%" stop-color="#d4a017"/>
+    </radialGradient>
+    <radialGradient id="atomGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="40%" stop-color="#faf8f6" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#e8e4de" stop-opacity="0.8"/>
+    </radialGradient>
+    <style>
+      .title    { font-size: 30px; font-weight: 800; fill: #0F0C0A; }
+      .subtitle { font-size: 14px; fill: #4a525b; }
+      .ringlbl  { font-size: 16px; font-weight: 800; fill: #0F0C0A; letter-spacing: 2px; }
+      .ringhint { font-size: 11px; fill: #6a727b; font-style: italic; }
+      .nuc      { font-size: 26px; font-weight: 800; fill: #0F0C0A; }
+      .nucsub   { font-size: 12px; font-weight: 700; fill: #0F0C0A; }
+      .nucnote  { font-size: 10px; fill: #4a525b; }
+      .mod      { font-size: 12px; font-weight: 700; fill: #0F0C0A; }
+      .modsm    { font-size: 9px;  fill: #4a525b; }
+      .half     { font-size: 22px; font-weight: 800; letter-spacing: 4px; }
+      .halfhint { font-size: 11px; fill: #6a727b; font-style: italic; }
+      .legend   { font-size: 13px; fill: #0F0C0A; }
+      .legendH  { font-size: 14px; font-weight: 700; fill: #0F0C0A; }
+      .stamp    { font-size: 10px; fill: #6a727b; }
+
+      .ring-atom      { fill: #f3eee5; stroke: #d4cfc8; }
+      .ring-alg       { fill: #ebe4d6; stroke: #c8c0b3; }
+      .ring-cal       { fill: #e0d6c2; stroke: #bcb19b; }
+      .ring-geo-circ  { fill: #d6e8ff; stroke: #2D7DD2; stroke-opacity: 0.4; }
+      .ring-geo-sq    { fill: #ffe6d6; stroke: #c0392b; stroke-opacity: 0.4; }
+      .ring-bnd       { fill: #f5f5f5; stroke: #999; stroke-dasharray: 6 4; }
+
+      .modbox-grey   { fill: #ffffff; stroke: #999;    stroke-width: 1.2; }
+      .modbox-yellow { fill: #fff4cc; stroke: #d4a017; stroke-width: 1.6; }
+      .modbox-blue   { fill: #d9ecff; stroke: #2D7DD2; stroke-width: 1.6; }
+      .modbox-red    { fill: #ffd9d4; stroke: #c0392b; stroke-width: 2.0; }
+
+      .nucbubble { fill: #fff8c2; stroke: #B8860B; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <!-- ═══ Header ═══ -->
+  <rect x="0" y="0" width="1800" height="100" fill="#0F0C0A"/>
+  <text x="40" y="46" class="title" fill="#FAF8F6">AASC · Concentric Map · Atomic Nucleus at the Centre</text>
+  <text x="40" y="76" class="subtitle" fill="#a8b4c0">Spec v3.3.33 · Lab v7.1 verified · 32 existing modules · 5+1 layered architecture · Geometric ring divided into Circle (left) and Square (right) halves</text>
+
+  <!-- ═══ Diagram canvas centre = (900, 1000), main radius up to 800 ═══ -->
+
+  <!-- BOUNDARY ring (outermost dashed) -->
+  <circle cx="900" cy="1000" r="800" class="ring-bnd"/>
+
+  <!-- GEOMETRIC ring background — split halves -->
+  <!-- Left half (Circle side) -->
+  <path d="M 900 200 A 800 800 0 0 0 900 1800 L 900 1000 Z" class="ring-geo-circ" stroke="none"/>
+  <!-- Right half (Square side) -->
+  <path d="M 900 200 A 800 800 0 0 1 900 1800 L 900 1000 Z" class="ring-geo-sq" stroke="none"/>
+
+  <!-- CALCULI ring (mid) -->
+  <circle cx="900" cy="1000" r="540" fill="#e0d6c2" stroke="#bcb19b" stroke-width="1.5"/>
+
+  <!-- ALGEBRAIC ring -->
+  <circle cx="900" cy="1000" r="410" fill="#ebe4d6" stroke="#c8c0b3" stroke-width="1.5"/>
+
+  <!-- ATOM ring -->
+  <circle cx="900" cy="1000" r="290" fill="#f3eee5" stroke="#d4cfc8" stroke-width="1.5"/>
+
+  <!-- NUCLEUS (centre) -->
+  <circle cx="900" cy="1000" r="180" fill="url(#nucleusGrad)" stroke="#B8860B" stroke-width="3"/>
+
+  <!-- Vertical split line — divides Circle / Square halves -->
+  <line x1="900" y1="540" x2="900" y2="1800" stroke="#0F0C0A" stroke-width="1.2" stroke-dasharray="8 5" stroke-opacity="0.35"/>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--                    NUCLEUS CONTENT (centre)                        -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g>
+    <!-- Centre title -->
+    <text x="900" y="918" class="nuc" text-anchor="middle">ATOMIC</text>
+    <text x="900" y="950" class="nuc" text-anchor="middle">NUCLEUS</text>
+    <text x="900" y="970" class="nucnote" text-anchor="middle">(formerly "Notation")</text>
+
+    <!-- Core: constants.rs -->
+    <rect x="820" y="985" width="160" height="32" rx="4" fill="#0F0C0A"/>
+    <text x="900" y="1006" class="nuc" text-anchor="middle" fill="#FAF8F6" font-size="14">constants.rs · 476 → ~520</text>
+
+    <!-- Three satellite bubbles inside the nucleus -->
+    <g>
+      <ellipse cx="828" cy="1058" rx="68" ry="24" class="nucbubble"/>
+      <text x="828" y="1054" class="nucsub" text-anchor="middle">Greek Atomic</text>
+      <text x="828" y="1068" class="nucnote" text-anchor="middle">.agents/skills/greek-atomic-invariant</text>
+    </g>
+    <g>
+      <ellipse cx="972" cy="1058" rx="64" ry="24" class="nucbubble"/>
+      <text x="972" y="1054" class="nucsub" text-anchor="middle">Periodic Table</text>
+      <text x="972" y="1068" class="nucnote" text-anchor="middle">Z-mapping · noble gases · ghosts</text>
+    </g>
+    <g>
+      <ellipse cx="900" cy="1108" rx="64" ry="22" class="nucbubble"/>
+      <text x="900" y="1104" class="nucsub" text-anchor="middle">UPIID V1.1</text>
+      <text x="900" y="1118" class="nucnote" text-anchor="middle">Salvi Std of Scrutiny</text>
+    </g>
+
+    <text x="900" y="858" class="nucnote" text-anchor="middle">all numerals declared exactly once · identity block proves I-8..I-46 at compile time</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--                         RING LABELS (top-left arc)                 -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(900, 200)">
+    <text x="0" y="-10"  class="ringlbl" text-anchor="middle">— BOUNDARY  (feature-gated) —</text>
+    <text x="0" y="6"    class="ringhint" text-anchor="middle">bridge: bytes ↔ TritVec, off by default</text>
+  </g>
+
+  <!-- Geometric label split -->
+  <text x="380" y="240" class="half" fill="#2D7DD2" text-anchor="middle">◖  CIRCLE</text>
+  <text x="380" y="260" class="halfhint" text-anchor="middle">round · spectral · continuous</text>
+  <text x="1420" y="240" class="half" fill="#c0392b" text-anchor="middle">SQUARE  ◗</text>
+  <text x="1420" y="260" class="halfhint" text-anchor="middle">discrete · lattice · grid</text>
+
+  <text x="900" y="490" class="ringlbl" text-anchor="middle">— GEOMETRIC —</text>
+  <text x="900" y="558" class="ringlbl" text-anchor="middle">— CALCULI —</text>
+  <text x="900" y="582" class="ringhint" text-anchor="middle">moved inward, just outside Algebraic</text>
+  <text x="900" y="630" class="ringlbl" text-anchor="middle">— ALGEBRAIC —</text>
+  <text x="900" y="730" class="ringlbl" text-anchor="middle">— ATOM —</text>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--                ATOM RING — 3 modules at 240° span                  -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g>
+    <!-- trit at top -->
+    <rect class="modbox-grey" x="858" y="780" width="84" height="34" rx="4"/>
+    <text x="900" y="797" class="mod" text-anchor="middle">trit</text>
+    <text x="900" y="809" class="modsm" text-anchor="middle">Trit · Rep-A/B/C/D</text>
+
+    <!-- tritvec right -->
+    <rect class="modbox-grey" x="1090" y="912" width="100" height="34" rx="4"/>
+    <text x="1140" y="929" class="mod" text-anchor="middle">tritvec</text>
+    <text x="1140" y="941" class="modsm" text-anchor="middle">MSB-first slice</text>
+
+    <!-- arithmetic left -->
+    <rect class="modbox-grey" x="610" y="912" width="100" height="34" rx="4"/>
+    <text x="660" y="929" class="mod" text-anchor="middle">arithmetic</text>
+    <text x="660" y="941" class="modsm" text-anchor="middle">add·sub·mul·divmod</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--               ALGEBRAIC RING — 4 modules                           -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g>
+    <!-- gf3 top-left -->
+    <rect class="modbox-grey" x="616" y="700" width="100" height="34" rx="4"/>
+    <text x="666" y="717" class="mod" text-anchor="middle">gf3</text>
+    <text x="666" y="729" class="modsm" text-anchor="middle">GF(3) axioms</text>
+
+    <!-- zphi top-right -->
+    <rect class="modbox-grey" x="1084" y="700" width="100" height="34" rx="4"/>
+    <text x="1134" y="717" class="mod" text-anchor="middle">zphi</text>
+    <text x="1134" y="729" class="modsm" text-anchor="middle">ℤ[φ] · R²=π+5φ</text>
+
+    <!-- borromean bottom-right -->
+    <rect class="modbox-grey" x="1084" y="1265" width="120" height="34" rx="4"/>
+    <text x="1144" y="1282" class="mod" text-anchor="middle">borromean</text>
+    <text x="1144" y="1294" class="modsm" text-anchor="middle">XOR invariant</text>
+
+    <!-- coprime bottom-left (BLUE — identity only) -->
+    <rect class="modbox-blue" x="596" y="1265" width="120" height="34" rx="4"/>
+    <text x="656" y="1282" class="mod" text-anchor="middle">coprime</text>
+    <text x="656" y="1294" class="modsm" text-anchor="middle">+ S10-1 identity</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--               CALCULI RING — 4 modules                             -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g>
+    <!-- repx top-left -->
+    <rect class="modbox-grey" x="500" y="586" width="120" height="34" rx="4"/>
+    <text x="560" y="603" class="mod" text-anchor="middle">repx</text>
+    <text x="560" y="615" class="modsm" text-anchor="middle">bijective base-b</text>
+
+    <!-- milesian top-right -->
+    <rect class="modbox-grey" x="1180" y="586" width="120" height="34" rx="4"/>
+    <text x="1240" y="603" class="mod" text-anchor="middle">milesian</text>
+    <text x="1240" y="615" class="modsm" text-anchor="middle">divmod(b³) glyphs</text>
+
+    <!-- walk bottom-left -->
+    <rect class="modbox-grey" x="500" y="1380" width="120" height="34" rx="4"/>
+    <text x="560" y="1397" class="mod" text-anchor="middle">walk</text>
+    <text x="560" y="1409" class="modsm" text-anchor="middle">coprime walks · CRT</text>
+
+    <!-- calculus bottom-right (RED — orphan #2 calendar) -->
+    <rect class="modbox-red" x="1180" y="1380" width="160" height="44" rx="4"/>
+    <text x="1260" y="1397" class="mod" text-anchor="middle">calculus  ⚠</text>
+    <text x="1260" y="1409" class="modsm" text-anchor="middle">+ ORPHAN #2 (calendar)</text>
+    <text x="1260" y="1419" class="modsm" text-anchor="middle">τ · 87808 · 87/8 · 1 St=13st</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--      GEOMETRIC RING — LEFT HALF = CIRCLE  (12 modules)             -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g>
+    <!-- circle (yellow) -->
+    <rect class="modbox-yellow" x="200" y="540" width="160" height="40" rx="4"/>
+    <text x="280" y="558" class="mod" text-anchor="middle">circle</text>
+    <text x="280" y="572" class="modsm" text-anchor="middle">+13 ids · vesica · disc-id · π+X</text>
+
+    <!-- generating_system -->
+    <rect class="modbox-grey" x="100" y="630" width="180" height="40" rx="4"/>
+    <text x="190" y="648" class="mod" text-anchor="middle">generating_system</text>
+    <text x="190" y="662" class="modsm" text-anchor="middle">arc² − 832·arc + 118300 = 0</text>
+
+    <!-- dual_circle (yellow) -->
+    <rect class="modbox-yellow" x="40" y="720" width="180" height="40" rx="4"/>
+    <text x="130" y="738" class="mod" text-anchor="middle">dual_circle</text>
+    <text x="130" y="752" class="modsm" text-anchor="middle">+14 ids · (bq)² frame · 756</text>
+
+    <!-- coprime_polygon_pair (yellow) -->
+    <rect class="modbox-yellow" x="20" y="810" width="200" height="40" rx="4"/>
+    <text x="120" y="828" class="mod" text-anchor="middle">coprime_polygon_pair</text>
+    <text x="120" y="842" class="modsm" text-anchor="middle">+4 ids · torus knot (143,91,77)</text>
+
+    <!-- repunit_circles (yellow) -->
+    <rect class="modbox-yellow" x="20" y="900" width="180" height="40" rx="4"/>
+    <text x="110" y="918" class="mod" text-anchor="middle">repunit_circles</text>
+    <text x="110" y="932" class="modsm" text-anchor="middle">+6 ids · R_4^(12)=1885 · θ chord</text>
+
+    <!-- arc182 (yellow) -->
+    <rect class="modbox-yellow" x="20" y="990" width="180" height="40" rx="4"/>
+    <text x="110" y="1008" class="mod" text-anchor="middle">arc182</text>
+    <text x="110" y="1022" class="modsm" text-anchor="middle">+3 ids · 5+1 forms · 242 partner</text>
+
+    <!-- uv_spectral (yellow) -->
+    <rect class="modbox-yellow" x="40" y="1080" width="180" height="40" rx="4"/>
+    <text x="130" y="1098" class="mod" text-anchor="middle">uv_spectral</text>
+    <text x="130" y="1112" class="modsm" text-anchor="middle">+1 id · ozone gap 104=(b−1)³·r</text>
+
+    <!-- hydrogen_spectral (RED — orphan #1) -->
+    <rect class="modbox-red" x="20" y="1170" width="220" height="50" rx="4"/>
+    <text x="130" y="1188" class="mod" text-anchor="middle">hydrogen_spectral  ⚠</text>
+    <text x="130" y="1202" class="modsm" text-anchor="middle">+8 ids · κ_∞=721/720 · m_p,F</text>
+    <text x="130" y="1214" class="modsm" text-anchor="middle">+ ORPHAN #1 (1/α closed form)</text>
+
+    <!-- speed_of_light (yellow) -->
+    <rect class="modbox-yellow" x="40" y="1240" width="180" height="40" rx="4"/>
+    <text x="130" y="1258" class="mod" text-anchor="middle">speed_of_light</text>
+    <text x="130" y="1272" class="modsm" text-anchor="middle">+2 ids · Horn · (c_S/c)²=56</text>
+
+    <!-- wave_stratum (yellow) -->
+    <rect class="modbox-yellow" x="100" y="1330" width="180" height="40" rx="4"/>
+    <text x="190" y="1348" class="mod" text-anchor="middle">wave_stratum</text>
+    <text x="190" y="1362" class="modsm" text-anchor="middle">+2 ids · F_14=377</text>
+
+    <!-- saturnian_metatron (grey) -->
+    <rect class="modbox-grey" x="200" y="1420" width="200" height="34" rx="4"/>
+    <text x="300" y="1437" class="mod" text-anchor="middle">saturnian_metatron</text>
+    <text x="300" y="1449" class="modsm" text-anchor="middle">Saturnian shells</text>
+
+    <!-- disdyakis_bridge (grey) -->
+    <rect class="modbox-grey" x="320" y="450" width="180" height="34" rx="4"/>
+    <text x="410" y="467" class="mod" text-anchor="middle">disdyakis_bridge</text>
+    <text x="410" y="479" class="modsm" text-anchor="middle">R²=π+5φ</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--      GEOMETRIC RING — RIGHT HALF = SQUARE  (11 modules)            -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g>
+    <!-- plenum_color_harmonics (grey — already complete in Notation) -->
+    <rect class="modbox-grey" x="1300" y="450" width="220" height="34" rx="4"/>
+    <text x="1410" y="467" class="mod" text-anchor="middle">plenum_color_harmonics</text>
+    <text x="1410" y="479" class="modsm" text-anchor="middle">RED · BLUE · COPRIME · GREEN</text>
+
+    <!-- plenum_square -->
+    <rect class="modbox-grey" x="1440" y="540" width="180" height="40" rx="4"/>
+    <text x="1530" y="558" class="mod" text-anchor="middle">plenum_square</text>
+    <text x="1530" y="572" class="modsm" text-anchor="middle">3×3 magic + 4 σ perms</text>
+
+    <!-- gait (yellow) -->
+    <rect class="modbox-yellow" x="1520" y="630" width="180" height="40" rx="4"/>
+    <text x="1610" y="648" class="mod" text-anchor="middle">gait</text>
+    <text x="1610" y="662" class="modsm" text-anchor="middle">+2 ids · σ Δ=200−18 · μ Δ=28</text>
+
+    <!-- triangular_numbers (yellow) -->
+    <rect class="modbox-yellow" x="1580" y="720" width="200" height="40" rx="4"/>
+    <text x="1680" y="738" class="mod" text-anchor="middle">triangular_numbers</text>
+    <text x="1680" y="752" class="modsm" text-anchor="middle">+6 ids · Tri(17)=153 · ladder</text>
+
+    <!-- tribonacci -->
+    <rect class="modbox-grey" x="1600" y="810" width="180" height="40" rx="4"/>
+    <text x="1690" y="828" class="mod" text-anchor="middle">tribonacci</text>
+    <text x="1690" y="842" class="modsm" text-anchor="middle">base-b ladder</text>
+
+    <!-- crystal_2d_3d -->
+    <rect class="modbox-grey" x="1600" y="900" width="180" height="40" rx="4"/>
+    <text x="1690" y="918" class="mod" text-anchor="middle">crystal_2d_3d</text>
+    <text x="1690" y="932" class="modsm" text-anchor="middle">vertex-on-sphere · antiprism</text>
+
+    <!-- conservation_laws -->
+    <rect class="modbox-grey" x="1600" y="990" width="180" height="40" rx="4"/>
+    <text x="1690" y="1008" class="mod" text-anchor="middle">conservation_laws</text>
+    <text x="1690" y="1022" class="modsm" text-anchor="middle">CL-1..CL-6 enum</text>
+
+    <!-- nona_state -->
+    <rect class="modbox-grey" x="1580" y="1080" width="180" height="40" rx="4"/>
+    <text x="1670" y="1098" class="mod" text-anchor="middle">nona_state</text>
+    <text x="1670" y="1112" class="modsm" text-anchor="middle">transfer equation</text>
+
+    <!-- wieferich_register -->
+    <rect class="modbox-grey" x="1560" y="1170" width="200" height="40" rx="4"/>
+    <text x="1660" y="1188" class="mod" text-anchor="middle">wieferich_register</text>
+    <text x="1660" y="1202" class="modsm" text-anchor="middle">first base-3 = p_h</text>
+
+    <!-- grh_register -->
+    <rect class="modbox-grey" x="1580" y="1260" width="180" height="40" rx="4"/>
+    <text x="1670" y="1278" class="mod" text-anchor="middle">grh_register</text>
+    <text x="1670" y="1292" class="modsm" text-anchor="middle">Optimus Paraprime 47–52</text>
+
+    <!-- beal_register -->
+    <rect class="modbox-grey" x="1520" y="1350" width="180" height="40" rx="4"/>
+    <text x="1610" y="1368" class="mod" text-anchor="middle">beal_register</text>
+    <text x="1610" y="1382" class="modsm" text-anchor="middle">Five Norm Towers · deg-2 ceil</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--                 BOUNDARY — outermost (single module)               -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g>
+    <rect class="modbox-grey" x="1450" y="180" width="200" height="40" rx="4" stroke-dasharray="6 4"/>
+    <text x="1550" y="198" class="mod" text-anchor="middle">bridge  [feature-gated]</text>
+    <text x="1550" y="212" class="modsm" text-anchor="middle">bytes ↔ TritVec · I-3 enforced</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!--                 LEGEND + SUMMARY (bottom)                          -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 1830)">
+    <rect x="0" y="0" width="1720" height="120" fill="#faf8f6" stroke="#d4cfc8" rx="6"/>
+    <text x="20" y="26" class="legendH">Status legend</text>
+
+    <rect x="20"  y="40" width="22" height="16" class="modbox-grey"/>
+    <text x="50"  y="53" class="legend">unaffected by compendium</text>
+    <rect x="280" y="40" width="22" height="16" class="modbox-yellow"/>
+    <text x="310" y="53" class="legend">add numerals + identity</text>
+    <rect x="540" y="40" width="22" height="16" class="modbox-blue"/>
+    <text x="570" y="53" class="legend">add identity only</text>
+    <rect x="780" y="40" width="22" height="16" class="modbox-red"/>
+    <text x="810" y="53" class="legend">orphan — decision needed</text>
+
+    <text x="20"  y="86" class="legendH">Naming change</text>
+    <text x="20"  y="106" class="legend">"Notation"  →  <tspan font-weight="800" fill="#B8860B">"ATOMIC NUCLEUS"</tspan>  · holds constants.rs at the centre, with the Greek-Atomic skill, Periodic-Table mapping (Z · noble gases · ghost letters), and the UPIID V1.1 governance skill orbiting it as named satellites.</text>
+
+    <text x="1100" y="86" class="legendH">Three orphan decisions</text>
+    <text x="1100" y="106" class="legend">⚠ #1  hydrogen_spectral  (1/α closed form)   ·   ⚠ #2  calculus  (calendar)   ·   ⚠ #3  circle  vs  arc182  (1,000,144 disc-id)</text>
+  </g>
+
+  <text x="40" y="1972" class="stamp">aasc · concentric layout · Atomic Nucleus rename · 2026-04-28</text>
+</svg>
