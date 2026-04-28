@@ -319,12 +319,12 @@
 
     <rect class="modbox-grey" x="3260" y="3690" width="280" height="100" rx="8"/>
     <text x="3400" y="3728" class="modgreek" text-anchor="middle">⃗τ · TritVec</text>
-    <text x="3400" y="3758" class="modfile" text-anchor="middle">2.1.2.UX1.5__tritvec.rs · MSB-first</text>
+    <text x="3400" y="3758" class="modfile" text-anchor="middle">2.2.1.UX1.5__tritvec.rs · MSB-first</text>
     <text x="3400" y="3782" class="quadaddr" text-anchor="middle">2.2.1.UX1.5__tritvec.rs</text>
 
     <rect class="modbox-grey" x="3560" y="3690" width="280" height="100" rx="8"/>
     <text x="3700" y="3728" class="modgreek" text-anchor="middle">⊕ ⊗ Arithmetic</text>
-    <text x="3700" y="3758" class="modfile" text-anchor="middle">2.1.3.UX4.1__arithmetic.rs · pure trit</text>
+    <text x="3700" y="3758" class="modfile" text-anchor="middle">2.3.1.UX4.1__arithmetic.rs · pure trit</text>
     <text x="3700" y="3782" class="quadaddr" text-anchor="middle">2.3.1.UX4.1__arithmetic.rs</text>
 
     <rect class="modbox-yellow" x="3860" y="3690" width="280" height="100" rx="8"/>
@@ -370,7 +370,7 @@
       <rect class="modbox-grey" x="3800" y="2330" width="380" height="100" rx="8"/>
       <text x="3990" y="2368" class="modgreek" text-anchor="middle">α x + β y · Bezout</text>
       <text x="3990" y="2398" class="modfile" text-anchor="middle">3.4.2.UX4.1__bezout.rs · gcd coefficients</text>
-      <text x="3990" y="2422" class="quadaddr" text-anchor="middle">3.7.1.UX4.1__bezout.rs</text>
+      <text x="3990" y="2422" class="quadaddr" text-anchor="middle">3.4.2.UX4.1__bezout.rs</text>
   </g>
 
   <!-- ═════════════ CALCULI ring (L=4) — operators properly inside ring ═════════════ -->
@@ -606,9 +606,9 @@
     <text x="20"  y="292" class="bullet">• Milesian Δ_1(μ) = 28 — fundamental spacing</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.A.1__frame_square.rs</text>
-    <text x="1240" y="204" class="modlist-d">5.A.2__calendar.rs</text>
-    <text x="1240" y="238" class="modlist-d">5.A.3__tick_clock.rs</text>
+    <text x="1240" y="170" class="modlist-d">5.A.1.UX5.2__frame_square.rs</text>
+    <text x="1240" y="204" class="modlist-d">5.A.2.UX6.6__calendar.rs</text>
+    <text x="1240" y="238" class="modlist-d">5.A.3.UX6.6__tick_clock.rs</text>
     <text x="20"  y="394" class="addr">5.A.1..3  ←  geometric · discrete · sector A · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)</text>
   </g>
@@ -619,10 +619,10 @@
     <text x="60" y="74" class="badgetxt" text-anchor="middle">B</text>
     <text x="118" y="60" class="h2">Magic Squares &amp; Permutohedra</text>
     <text x="20"  y="200" class="bullet">• Plenum magic constant 333  (explicit magic square)</text>
-    <text x="20"  y="244" class="bullet">• 4 σ permutations  (from 5.B.1__plenum_square.rs)</text>
+    <text x="20"  y="244" class="bullet">• 4 σ permutations  (from 5.B.1.UX5.2__plenum_square.rs)</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.B.1__plenum_square.rs  (333 magic + 4 σ permutations)</text>
+    <text x="1240" y="170" class="modlist-d">5.B.1.UX5.2__plenum_square.rs  (333 magic + 4 σ permutations)</text>
     <text x="20"  y="394" class="addr">5.B.1  ←  geometric · discrete · sector B · ord 1</text>
     <text x="20"  y="426" class="small">↔ ③  (1089 + 333 anchored to Grand Circle 756)</text>
   </g>
@@ -639,7 +639,7 @@
     <text x="20"  y="304" class="bullet">• Elemental decomposition maps elements to vertices</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.C.1__polyhedra.rs</text>
+    <text x="1240" y="170" class="modlist-d">5.C.1.UX5.2__polyhedra.rs</text>
     <text x="20"  y="394" class="addr">5.C.1  ←  geometric · discrete · sector C · ord 1</text>
     <text x="20"  y="426" class="small">↔ ⑦  (Disdyakis · ghost letters as missing phases)</text>
   </g>
@@ -653,7 +653,7 @@
     <text x="20"  y="244" class="bullet">• 1089 partition color-coding as symmetry operations</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.D.1__plenum_color.rs</text>
+    <text x="1240" y="170" class="modlist-d">5.D.1.UX5.4__plenum_color.rs</text>
     <text x="20"  y="394" class="addr">5.D.1  ←  geometric · discrete · sector D · ord 1</text>
     <text x="20"  y="426" class="small">↔ A  (1089 partitions = lattice + colour symmetry)</text>
   </g>
@@ -671,10 +671,10 @@
     <text x="20"  y="318" class="bullet">• Lunisolar drift  (10.875 days / yr)</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.E.1__tri_ladder.rs</text>
-    <text x="1240" y="204" class="modlist-d">5.E.2__axis_lock.rs</text>
-    <text x="1240" y="238" class="modlist-d">5.E.3__lunisolar.rs</text>
-    <text x="1240" y="272" class="modlist-d">5.E.4__proton_mass.rs</text>
+    <text x="1240" y="170" class="modlist-d">5.E.1.UX5.2__tri_ladder.rs</text>
+    <text x="1240" y="204" class="modlist-d">5.E.2.UX5.2__axis_lock.rs</text>
+    <text x="1240" y="238" class="modlist-d">5.E.3.UX6.6__lunisolar.rs</text>
+    <text x="1240" y="272" class="modlist-d">5.E.4.UX4.1__proton_mass.rs</text>
     <text x="20"  y="394" class="addr">5.E.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
     <text x="20"  y="426" class="small">↔ ① (Tri arcs)  ·  ② (Phase-Impedance 137 · 377)</text>
   </g>
@@ -688,9 +688,9 @@
     <text x="20"  y="244" class="bullet">• Kepler–Poinsot solids,  uniform star forms</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.F.1__torus_knot.rs</text>
-    <text x="1240" y="204" class="modlist-d">5.F.2__kepler_poinsot.rs</text>
-    <text x="1240" y="238" class="modlist-d">5.F.3__star_polytope.rs</text>
+    <text x="1240" y="170" class="modlist-d">5.F.1.UX5.2__torus_knot.rs</text>
+    <text x="1240" y="204" class="modlist-d">5.F.2.UX5.2__kepler_poinsot.rs</text>
+    <text x="1240" y="238" class="modlist-d">5.F.3.UX5.2__star_polytope.rs</text>
     <text x="20"  y="394" class="addr">5.F.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑤  (planar star polygons that lift to 3D antiprisms)</text>
   </g>
@@ -706,7 +706,7 @@
     <text x="20"  y="276" class="bullet">• Wave dual grids as Bravais basis</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.G.1__bravais_view.rs</text>
+    <text x="1240" y="170" class="modlist-d">5.G.1.UX5.2__bravais_view.rs</text>
     <text x="20"  y="394" class="addr">5.G.1  ←  geometric · discrete · sector G · ord 1</text>
     <text x="20"  y="426" class="small">↔ ① (Σ-182 antipode · wave-harmonic continuous spectrum)</text>
   </g>
@@ -720,7 +720,7 @@
     <text x="20"  y="244" class="bullet">• Frame square lifts as convex-hull increments</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">5.H.1__cone_point.rs</text>
+    <text x="1240" y="170" class="modlist-d">5.H.1.UX5.2__cone_point.rs</text>
     <text x="20"  y="394" class="addr">5.H.1  ←  geometric · discrete · sector H · ord 1</text>
     <text x="20"  y="426" class="small">↔ ⑥  (Theta Chord year differences as cone-point lifts)</text>
   </g>
@@ -741,13 +741,13 @@
       <text x="40"   y="206" class="bullet"><tspan font-weight="800">Torus Manifold</tspan></text>
       <text x="1700" y="206" class="bullet">Poloidal disc  (curved)</text>
       <text x="3500" y="206" class="bullet">Square corners  (discrete quadrants)</text>
-      <text x="5320" y="206" class="modlist-c" fill="#B8860B">5.F.1__torus_knot.rs · 5.A.1__frame_square.rs</text>
+      <text x="5320" y="206" class="modlist-c" fill="#B8860B">5.F.1.UX5.2__torus_knot.rs · 5.A.1.UX5.2__frame_square.rs</text>
 
       <rect x="24" y="222" width="7192" height="56" class="row-alt"/>
       <text x="40"   y="262" class="bullet"><tspan font-weight="800">(bq)² Frame Square</tspan></text>
       <text x="1700" y="262" class="bullet">756 in Grand Circle  ( ③ )</text>
       <text x="3500" y="262" class="bullet">1089 lattice  ( A )</text>
-      <text x="5320" y="262" class="modlist-c" fill="#B8860B">5.A.1__frame_square.rs · 5.3.1.UX5.1__grand_circle.rs</text>
+      <text x="5320" y="262" class="modlist-c" fill="#B8860B">5.A.1.UX5.2__frame_square.rs · 5.3.1.UX5.1__grand_circle.rs</text>
 
       <rect x="24" y="278" width="7192" height="56" class="row-norm"/>
       <text x="40"   y="318" class="bullet"><tspan font-weight="800">Σ-182 Bridge</tspan></text>
@@ -759,7 +759,7 @@
       <text x="40"   y="374" class="bullet"><tspan font-weight="800">Triangular Ladder</tspan></text>
       <text x="1700" y="374" class="bullet">Tri(7)=28, Tri(13)=91 as arcs  ( ① )</text>
       <text x="3500" y="374" class="bullet">Tri(17)=153, Tri(45)=1035 as figurate  ( E )</text>
-      <text x="5320" y="374" class="modlist-c" fill="#B8860B">5.E.1__tri_ladder.rs · 5.E.4__proton_mass.rs · 5.E.2__axis_lock.rs</text>
+      <text x="5320" y="374" class="modlist-c" fill="#B8860B">5.E.1.UX5.2__tri_ladder.rs · 5.E.4.UX4.1__proton_mass.rs · 5.E.2.UX5.2__axis_lock.rs</text>
 
       <rect x="24" y="390" width="7192" height="56" class="row-norm"/>
       <text x="40"   y="430" class="bullet"><tspan font-weight="800">Phase-Impedance</tspan></text>
@@ -771,7 +771,7 @@
       <text x="40"   y="486" class="bullet"><tspan font-weight="800">Milesian Glyphs</tspan></text>
       <text x="1700" y="486" class="bullet">Ghost letters as missing phases  ( ⑦ )</text>
       <text x="3500" y="486" class="bullet">27-fold polyhedral symmetry  ( C )</text>
-      <text x="5320" y="486" class="modlist-c" fill="#B8860B">1.4.1.UX1.1__milesian.rs · 1.4.2.UX1.1__greek_atomic.rs · 5.C.1__polyhedra.rs</text>
+      <text x="5320" y="486" class="modlist-c" fill="#B8860B">1.4.1.UX1.1__milesian.rs · 1.4.2.UX1.1__greek_atomic.rs · 5.C.1.UX5.2__polyhedra.rs</text>
 
       <rect x="24" y="502" width="7192" height="56" class="row-norm"/>
       <text x="40"   y="542" class="bullet"><tspan font-weight="800">Wave-Harmonic</tspan></text>
@@ -783,7 +783,7 @@
       <text x="40"   y="600" class="bullet"><tspan font-weight="800">Theta Chord</tspan></text>
       <text x="1700" y="600" class="bullet">Repunit rosettes  ( ⑥ )</text>
       <text x="3500" y="600" class="bullet">Year differences as cone-point lifts  ( H )</text>
-      <text x="5320" y="600" class="modlist-c" fill="#B8860B">5.6.2.UX5.1__theta_chord.rs · 4.6.1.UX1.5__repx.rs · 5.H.1__cone_point.rs</text>
+      <text x="5320" y="600" class="modlist-c" fill="#B8860B">5.6.2.UX5.1__theta_chord.rs · 4.6.1.UX1.5__repx.rs · 5.H.1.UX5.2__cone_point.rs</text>
     </g>
 
     <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
@@ -800,8 +800,8 @@
       <text x="24"   y="244" class="h3" fill="#2a8050">L · Layer number  (just count 1..9)</text>
       <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 1   →   Nucleus       ·  axioms · constants · invariant register</text>
       <text x="24"   y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 2   →   Atom           ·  Trit · TritVec · Arithmetic</text>
-      <text x="24"   y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 3   →   Algebraic      ·  GF(3) · ℤ[φ] · Borromean · Coprime · Walk</text>
-      <text x="24"   y="360" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 4   →   Calculi          ·  Δ · ∮ · ◯ · Σ · unified · repx</text>
+      <text x="24"   y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 3   →   Algebraic      ·  GF(3) · ℤ[φ] · Borromean · Coprime + Bezout · Walk · CRT</text>
+      <text x="24"   y="360" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 4   →   Calculi          ·  Δ · ∮ · ◯ · Σ · unified · repx · bijective_converter · SQL planner/executor</text>
       <text x="24"   y="388" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 5   →   Geometric    ·  ring of figures (curved + discrete sectors share one G axis)</text>
       <text x="24"   y="416" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 6   →   Physics NE   ·  Wave / Field</text>
       <text x="24"   y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 7   →   Physics SE    ·  Number-Theoretic</text>
@@ -831,7 +831,7 @@
 
       <!-- Per-Layer Group Atlas -->
       <line x1="24" y1="544" x2="7216" y2="544" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
-      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 50 occupied groups · 68 modules</text>
+      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 64 occupied groups · 67 modules</text>
 
       <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A" font-weight="700">
         <!-- LEFT column: L=1..4 -->
@@ -840,7 +840,7 @@
         <text x="24"   y="662">  1.5 units (single canonical home)  ·  1.6 axes  ·  1.7 cone-point taxonomy  ·  1.8 SQL frontend (ast + types)</text>
 
         <text x="24"   y="694" fill="#2a8050">L=2 Atom  (1 group)</text>
-        <text x="24"   y="718">  2.1 Trit cluster (trit + tritvec + arithmetic)</text>
+        <text x="24"   y="718">  2.1 trit  ·  2.2 tritvec  ·  2.3 arithmetic</text>
 
         <text x="24"   y="750" fill="#2a8050">L=3 Algebraic  (6 groups)</text>
         <text x="24"   y="774">  3.1 GF(3)  ·  3.2 ℤ[φ] (zphi)  ·  3.3 Borromean  ·  3.4 Coprime + Bezout  ·  3.5 Walk  ·  3.6 CRT</text>
@@ -861,7 +861,7 @@
         <text x="3760" y="718">  7.1 wieferich_grh_beal  ·  7.5 pqr_asymmetry</text>
 
         <text x="3760" y="750" fill="#2a8050">L=8 Physics SW  Crystal · Lattice · Storage · Index  (6 groups)</text>
-        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state  ·  8.5 mass_quadratic  ·  8.7 SQL engine (parser+table+index)  ·  8.8 milesian_kv  ·  8.9 Array3 daemon (router+scheduler+ipc+capability+service)</text>
+        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state  ·  8.5 mass_quadratic  ·  8.7 SQL engine (parser+table+index)  ·  8.8 milesian_kv  ·  8.9 Array3 daemon (router · scheduler · ipc · capability · service · triad_coordinator · work_steal_queue)</text>
 
         <text x="3760" y="806" fill="#2a8050">L=9 Physics NW  Spectral / Atomic  (5 groups)</text>
         <text x="3760" y="830">  9.1 hydrogen_spectral  ·  9.2 uv_hydrogen_spectral  ·  9.4 phase_impedance</text>
