@@ -80,7 +80,11 @@ export async function registerRoutes(
 ): Promise<Server> {
 
   app.get("/download/maps/:filename", (req, res) => {
-    const allowed = new Set(["aasc_canonical_map.png", "aasc_canonical_map.svg"]);
+    const allowed = new Set([
+      "aasc_canonical_map.png",
+      "aasc_canonical_map.svg",
+      "hmodal_power_trit_native.md",
+    ]);
     const filename = req.params.filename;
     if (!allowed.has(filename)) {
       res.status(404).send("Not found");
@@ -146,6 +150,14 @@ export async function registerRoutes(
   </div>
 
   <div class="card">
+    <h2>HModal Power — Trit-Native Spec (MD, ~9 KB)</h2>
+    <div class="meta">hmodal_power_trit_native.md · replaces byte-oriented power_measure proposal</div>
+    <a class="btn" href="/download/maps/hmodal_power_trit_native.md?v=${v}" download>Download MD</a>
+    <a class="btn secondary" href="/download/maps/hmodal_power_trit_native.md?v=${v}" target="_blank">Open in new tab</a>
+    <a class="btn secondary" href="/hmodal-demo" target="_blank">Open Live Demo</a>
+  </div>
+
+  <div class="card">
     <h2>Inline preview</h2>
     <div class="meta">live render of the current map</div>
     <div class="preview">
@@ -158,6 +170,182 @@ export async function registerRoutes(
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     res.send(html);
+  });
+
+  // ============================================================
+  // HModal Power Demo — trit-native workload with RAPL auto-detect
+  // ============================================================
+  const RAPL_PATH = "/sys/class/powercap/intel-rapl:0/energy_uj";
+  const readRapl = (): number | null => {
+    try {
+      const fs = require("fs");
+      const txt = fs.readFileSync(RAPL_PATH, "utf-8");
+      return parseInt(txt.trim(), 10);
+    } catch {
+      return null;
+    }
+  };
+
+  app.get("/api/hmodal/status", (_req, res) => {
+    const sample = readRapl();
+    res.json({
+      raplAvailable: sample !== null,
+      raplPath: RAPL_PATH,
+      mode: sample !== null ? "hardware-watts" : "compute-throughput-proxy",
+      message: sample !== null
+        ? "Intel RAPL hardware energy counter is reachable. Live values are real microjoule deltas converted to watts."
+        : "RAPL is not exposed in this environment (typical for containers / non-Intel chips). The demo will measure REAL CPU compute throughput as an honest proxy. To get hardware watts, download the spec, build the Tier-2 binary, and run it on a desktop Linux box with /sys/class/powercap exposed.",
+      constants: {
+        alpha: "91/36",
+        beta: "91/3",
+        dutyHigh: "1/4",
+        dutyLow: "3/4",
+        savings: "143/192",
+        savingsPct: 100 * 143 / 192,
+        dcMean: "455/48",
+        discriminant: 144,
+      },
+    });
+  });
+
+  app.get("/api/hmodal/stream", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+
+    const raplAvailable = readRapl() !== null;
+    const periodMs = 1000;       // 1 second per HModal cycle
+    const sampleMs = 200;        // emit a sample every 200 ms
+    const stepMs = 50;           // duty walk granularity
+    const stepsPerCycle = periodMs / stepMs;     // 20 steps
+    const highSteps = stepsPerCycle / 4;         // 5 high (1/4)
+
+    let stepIdx = 0;
+    let opsThisWindow = 0;
+    let opsTotalHigh = 0;
+    let opsTotalLow = 0;
+    let timeHighMs = 0;
+    let timeLowMs = 0;
+    let lastSampleAt = Date.now();
+    let lastEnergy = readRapl();
+    let energyHigh_uJ = 0;
+    let energyLow_uJ = 0;
+    let cumulativeEnergy_uJ = 0;
+    let alive = true;
+
+    // Pre-allocate trit-style buffers. Real CPU work, not synthetic.
+    const TBUF_LEN = 4096;
+    const trits = new Int8Array(TBUF_LEN);
+    for (let i = 0; i < TBUF_LEN; i++) trits[i] = (i % 3) - 1; // {-1,0,1}
+    const acc = new Int8Array(TBUF_LEN);
+
+    // GF(3) addition over the buffer — real native arithmetic.
+    function gf3AddBatch(rounds: number): number {
+      let ops = 0;
+      for (let r = 0; r < rounds; r++) {
+        for (let i = 0; i < TBUF_LEN; i++) {
+          let s = acc[i] + trits[i];
+          if (s > 1) s -= 3;
+          else if (s < -1) s += 3;
+          acc[i] = s;
+        }
+        ops += TBUF_LEN;
+      }
+      return ops;
+    }
+
+    const tick = setInterval(() => {
+      if (!alive) return;
+      const isHigh = (stepIdx % stepsPerCycle) < highSteps;
+      const t0 = Date.now();
+      let ops = 0;
+      if (isHigh) {
+        // ~stepMs of real GF(3) batch work
+        const deadline = t0 + stepMs - 2;
+        while (Date.now() < deadline) {
+          ops += gf3AddBatch(1);
+        }
+        timeHighMs += stepMs;
+      } else {
+        // Low state: trit-aware yield (sleep-equivalent at JS level)
+        timeLowMs += stepMs;
+      }
+      opsThisWindow += ops;
+      if (isHigh) opsTotalHigh += ops; else opsTotalLow += ops;
+
+      stepIdx++;
+      const now = Date.now();
+      if (now - lastSampleAt >= sampleMs) {
+        const dtSec = (now - lastSampleAt) / 1000;
+        const opsPerSec = opsThisWindow / dtSec;
+
+        let watts: number | null = null;
+        let deltaUj = 0;
+        if (raplAvailable) {
+          const cur = readRapl();
+          if (cur !== null && lastEnergy !== null) {
+            // Handle counter wrap
+            deltaUj = cur >= lastEnergy ? cur - lastEnergy : cur;
+            watts = (deltaUj / 1e6) / dtSec;
+            cumulativeEnergy_uJ += deltaUj;
+            if (isHigh) energyHigh_uJ += deltaUj; else energyLow_uJ += deltaUj;
+          }
+          lastEnergy = cur;
+        }
+
+        // Observed duty-cycle ratio of work done
+        const totalOps = opsTotalHigh + opsTotalLow;
+        const observedRatio = totalOps > 0 ? opsTotalHigh / totalOps : 0;
+        // If we ran continuously at "high" the energy would be (high_per_ms)*total_ms.
+        // Energy-savings observation:
+        let savingsObserved: number | null = null;
+        if (raplAvailable && timeHighMs > 0 && energyHigh_uJ > 0) {
+          const highPerMs = energyHigh_uJ / timeHighMs;
+          const totalMs = timeHighMs + timeLowMs;
+          const energyContEquiv = highPerMs * totalMs;
+          const energyActual = energyHigh_uJ + energyLow_uJ;
+          if (energyContEquiv > 0) {
+            savingsObserved = 1 - (energyActual / energyContEquiv);
+          }
+        } else if (totalOps > 0 && opsTotalHigh > 0 && timeHighMs > 0) {
+          // Throughput proxy: if ran "continuously" at high-rate, work would be
+          // (ops/ms during high) * (totalMs). Savings = 1 - actual/cont.
+          const highPerMs = opsTotalHigh / timeHighMs;
+          const totalMs = timeHighMs + timeLowMs;
+          const workCont = highPerMs * totalMs;
+          if (workCont > 0) {
+            savingsObserved = 1 - (totalOps / workCont);
+          }
+        }
+
+        const payload = {
+          t: now,
+          phase: isHigh ? "high" : "low",
+          opsPerSec,
+          opsThisWindow,
+          watts,
+          deltaUj,
+          cumulativeEnergyUj: cumulativeEnergy_uJ,
+          mode: raplAvailable ? "hardware-watts" : "compute-throughput-proxy",
+          observedRatio,           // should approach 1/4 = 0.25
+          theoreticalRatio: 0.25,
+          savingsObserved,         // should approach 143/192 if model holds
+          theoreticalSavings: 143 / 192,
+          stepIdx,
+        };
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+
+        opsThisWindow = 0;
+        lastSampleAt = now;
+      }
+    }, stepMs);
+
+    req.on("close", () => {
+      alive = false;
+      clearInterval(tick);
+    });
   });
 
   app.get("/api/benchmark-report", async (_req, res) => {

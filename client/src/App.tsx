@@ -75,6 +75,7 @@ const Docs = lazyRetry(() => import("@/pages/docs"));
 const CalendarPage = lazyRetry(() => import("@/pages/calendar"));
 const CompliancePage = lazyRetry(() => import("@/pages/compliance"));
 const HPTPDemo = lazyRetry(() => import("@/pages/hptp-demo"));
+const HModalDemo = lazyRetry(() => import("@/pages/hmodal-demo"));
 const ThirteenMoonPage = lazyRetry(() => import("@/pages/thirteen-moon"));
 const CompressionPage = lazyRetry(() => import("@/pages/compression"));
 const Tribonacci28DS = lazyRetry(() => import("@/pages/tribonacci-28ds"));
@@ -129,6 +130,7 @@ function AppRouter() {
             <Route path="/ternarydb" component={TernaryDB} />
             <Route path="/api-demo" component={APIDemo} />
             <Route path="/hptp" component={HPTPDemo} />
+            <Route path="/hmodal-demo" component={HModalDemo} />
             <Route path="/compression" component={CompressionPage} />
             <Route path="/vm-demo" component={VMDemo} />
             <Route path="/quantum-sim" component={QuantumSim} />
