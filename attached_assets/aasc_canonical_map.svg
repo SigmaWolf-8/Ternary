@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 10400" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 11160" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <defs>
     <radialGradient id="nucGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%"   stop-color="#fff8c2"/>
@@ -831,7 +831,7 @@
 
       <!-- Per-Layer Group Atlas -->
       <line x1="24" y1="544" x2="7216" y2="544" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
-      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 48 occupied groups · 57 modules</text>
+      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 48 occupied groups · 62 modules</text>
 
       <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A" font-weight="700">
         <!-- LEFT column: L=1..4 -->
@@ -861,7 +861,7 @@
         <text x="3760" y="718">  7.1 wieferich_grh_beal  ·  7.5 pqr_asymmetry</text>
 
         <text x="3760" y="750" fill="#2a8050">L=8 Physics SW  Crystal · Lattice · Storage · Index  (6 groups)</text>
-        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state  ·  8.5 mass_quadratic  ·  8.7 SQL engine cluster (parser+table+index)  ·  8.8 milesian_kv  ·  8.9 query_router</text>
+        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state  ·  8.5 mass_quadratic  ·  8.7 SQL engine (parser+table+index)  ·  8.8 milesian_kv  ·  8.9 Array3 daemon (router+scheduler+ipc+capability+service)</text>
 
         <text x="3760" y="806" fill="#2a8050">L=9 Physics NW  Spectral / Atomic  (5 groups)</text>
         <text x="3760" y="830">  9.1 hydrogen_spectral  ·  9.2 uv_hydrogen_spectral  ·  9.4 phase_impedance</text>
@@ -943,8 +943,8 @@
     <text x="40"   y="124" class="h3" fill="#c0392b">L=1 Nucleus  ·  units · axes · cone-points</text>
     <text x="40"   y="156" class="modlist-c" fill="#0F0C0A">1.5.1.UX7.8__units.rs  (single canonical home for ALL unit conversions: length · time · angle · frequency · EM)  ·  1.6.1.UX1.1__axes.rs (17 mass · π+X quadruple)  ·  1.7.1.UX1.1__cone_point_taxonomy.rs (+1 · +36 · +8)</text>
 
-    <text x="40"   y="196" class="h3" fill="#c0392b">L=4 Calculi  ·  bijective converter</text>
-    <text x="40"   y="228" class="modlist-c" fill="#0F0C0A">4.7.1.UX7.5.3__bijective_converter.rs  (§25 v3.3.33 byte ⇄ trit ⇄ Milesian glyph, parametric k, four reps A/B/C/D, parallel stateless)</text>
+    <text x="40"   y="196" class="h3" fill="#c0392b">L=4 Calculi  ·  bijective converter + opaque-byte bridge</text>
+    <text x="40"   y="228" class="modlist-c" fill="#0F0C0A">4.7.1.UX7.5.3__bijective_converter.rs  (§25 v3.3.33 byte ⇄ trit ⇄ Milesian glyph, parametric k, four reps A/B/C/D, parallel stateless)  ·  4.7.2.UX7.5__bridge.rs  (feature = "bridge" · the ONLY byte boundary in the crate)</text>
 
     <text x="40"   y="268" class="h3" fill="#c0392b">L=5 Geometric  ·  curved sectors ③ ④</text>
     <text x="40"   y="300" class="modlist-c" fill="#0F0C0A">5.3.3.UX5.1__earth_circumference.rs  (§4.1 C⊕)  ·  5.4.4.UX6.6__tropical_year.rs  (§5.2 τ = 1 096 822 / 3 003)</text>
@@ -953,34 +953,41 @@
     <text x="40"   y="372" class="modlist-c" fill="#0F0C0A">NE  6.5.1.UX4.1__eta_branch.rs  ·  6.6.1.UX4.1__nu_branch.rs  ·  6.7.1.UX4.1__combined_branch.rs    ·    SE  7.5.1.UX4.1__pqr_asymmetry.rs</text>
     <text x="40"   y="404" class="modlist-c" fill="#0F0C0A">SW  8.5.1.UX4.1__mass_quadratic.rs (roots {1836, 153})    ·    NW  9.5.1.UX4.1__fine_structure.rs  ·  9.8.1.UX4.1__discriminant_identity.rs (1 000 144 = 2⁴·17·3677)</text>
 
-    <text x="40"   y="436" class="small" fill="#7a3019">Total file count after extension: 39 prior + 13 new + 5 SQL/Storage = <tspan font-weight="800">57 canonical modules</tspan>  ·  every file has exactly one address  ·  no duplicates  ·  ALL unit conversions consolidated into 1.5.1.UX7.8__units.rs</text>
+    <text x="40"   y="436" class="small" fill="#7a3019">Total file count after extension: 39 prior + 13 new + 5 SQL/Storage + 4 Array3 daemon + 1 bridge = <tspan font-weight="800">62 canonical modules</tspan>  ·  every file has exactly one address  ·  no duplicates  ·  ALL unit conversions consolidated into 1.5.1.UX7.8__units.rs</text>
   </g>
 
-  <!-- ═══════════════ SQL / STORAGE LAYER ═══════════════ -->
+  <!-- ═══════════════ SQL / STORAGE / DAEMON LAYER ═══════════════ -->
   <g transform="translate(80, 8120)">
-    <rect x="0" y="0" width="7240" height="520" rx="12" fill="#e8f4f6" stroke="#1a6e7e" stroke-width="2"/>
-    <text x="24" y="64" class="h2" fill="#1a6e7e">SQL / Storage Layer  ·  embedded relational query in pure ternary  ·  L=8 quadrant promoted to Crystal · Lattice · Storage · Index</text>
+    <rect x="0" y="0" width="7240" height="700" rx="12" fill="#e8f4f6" stroke="#1a6e7e" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#1a6e7e">SQL / Storage / Array3 Daemon Layer  ·  embedded relational query + engine daemon in pure ternary  ·  L=8 quadrant: Crystal · Lattice · Storage · Index · Engine</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#1a6e7e" stroke-width="3"/>
 
-    <text x="24" y="124" class="addrnote" fill="#0F0C0A" font-style="italic">Every row is a TritVec  ·  every WHERE clause compiles to GF(3) arithmetic  ·  every JOIN uses CRT for cross-bucket merge  ·  no byte-level rows ever  ·  storage format = wire format = crypto format.</text>
+    <text x="24" y="124" class="addrnote" fill="#0F0C0A" font-style="italic">Every row is a TritVec  ·  every WHERE compiles to GF(3)  ·  every JOIN uses CRT  ·  no byte-level rows ever  ·  storage format = wire format = crypto format  ·  daemon binary built from same crate via feature = "daemon".</text>
 
     <text x="40"   y="170" class="h3" fill="#1a6e7e">L=8 · Group 7 — SQL engine cluster  (parser · planner · ternary execution)</text>
-    <text x="40"   y="202" class="modlist-c" fill="#0F0C0A">8.7.1.UX8.5__sql_engine.rs  (SQL parser/planner · sqlparser-rs front-end · custom ternary planner emitting GF(3) ops)</text>
-    <text x="40"   y="232" class="modlist-c" fill="#0F0C0A">8.7.2.UX8.3__trit_table.rs  (column-oriented tables · each column is a TritVec · base-3 packed · O(1) random access via repx)</text>
-    <text x="40"   y="262" class="modlist-c" fill="#0F0C0A">8.7.3.UX8.7__plenum_index.rs  (index built on (7,11,13) coprime walk · O(1) row lookup via CRT bridge over 540-node z=0 distributor)</text>
+    <text x="40"   y="202" class="modlist-c" fill="#0F0C0A">8.7.1.UX8.5__sql_engine.rs  (SQL parser/planner · sqlparser-rs front-end · ternary planner emitting GF(3) ops)</text>
+    <text x="40"   y="232" class="modlist-c" fill="#0F0C0A">8.7.2.UX8.3__trit_table.rs  (column-oriented tables · each column is a TritVec · base-3 packed · O(1) access via repx)</text>
+    <text x="40"   y="262" class="modlist-c" fill="#0F0C0A">8.7.3.UX8.7__plenum_index.rs  (index built on (7,11,13) coprime walk · O(1) lookup via CRT bridge over 540 z=0 nodes)</text>
 
     <text x="40"   y="304" class="h3" fill="#1a6e7e">L=8 · Group 8 — Milesian key-value store  (27-bucket b³ register)</text>
-    <text x="40"   y="336" class="modlist-c" fill="#0F0C0A">8.8.1.UX8.5__milesian_kv.rs  (key-value store keyed by Milesian glyphs · 27 top-level buckets per b³ register · k-parametric collision-free hashing)</text>
+    <text x="40"   y="336" class="modlist-c" fill="#0F0C0A">8.8.1.UX8.5__milesian_kv.rs  (key-value store keyed by Milesian glyphs · 27 top-level buckets · k-parametric collision-free hashing)</text>
 
-    <text x="40"   y="378" class="h3" fill="#1a6e7e">L=8 · Group 9 — Query router  (cross-cube distribution)</text>
-    <text x="40"   y="410" class="modlist-c" fill="#0F0C0A">8.9.1.UX9.5__query_router.rs  (distributes SELECT/INSERT/UPDATE across Inter-Cube nodes · topology-derived routing · ≤7 hops for 540 nodes)</text>
+    <text x="40"   y="378" class="h3" fill="#1a6e7e">L=8 · Group 9 — Array3 daemon engine  (router · scheduler · IPC · capability · service)</text>
+    <text x="40"   y="410" class="modlist-c" fill="#0F0C0A">8.9.1.UX9.5__query_router.rs  (distributes SELECT/INSERT/UPDATE across Inter-Cube nodes · ≤7 hops for 540 nodes)</text>
+    <text x="40"   y="440" class="modlist-c" fill="#0F0C0A">8.9.2.UX4.1__scheduler.rs    (rayon pool over GF(3) ops · in-process trit-native dispatch · zero-copy TritVec batches)</text>
+    <text x="40"   y="470" class="modlist-c" fill="#0F0C0A">8.9.3.UX9.5__ipc.rs          (unix-sock / Windows named-pipe listener · trit-framed wire protocol · job-id correlation)</text>
+    <text x="40"   y="500" class="modlist-c" fill="#0F0C0A">8.9.4.UX3.3__capability.rs   (TL-DSA-87 gated bearer tokens · Borromean cap-tree · per-token rate limit)</text>
+    <text x="40"   y="530" class="modlist-c" fill="#0F0C0A">8.9.5.UX9.5__service.rs      (systemd unit on Linux · Windows Service entry on Win · health-check endpoint · graceful shutdown)</text>
 
-    <text x="40"   y="456" class="small" fill="#0d4651">Latency bound: query depth ≤ coprime walk depth (≤ 7 hops for 540 nodes)  ·  Schema constraint: every column type is one of {Trit, TritVec&lt;N&gt;, Milesian27}  ·  Cross-cuts: 4.6.1.UX1.5__repx.rs (base-b decode), 3.6.1.UX4.1__crt.rs (JOIN merge), 3.5.1.UX9.9__walk.rs (index walk).</text>
-    <text x="40"   y="490" class="small" fill="#0d4651">Bridge feature only:  feature = "sql"  exposes a thin byte ⇄ TritVec adapter so external SQL clients can issue queries; the engine itself stays no_std + alloc clean.</text>
+    <text x="40"   y="572" class="h3" fill="#1a6e7e">Companion bridge file  (lives in L=4 calculi)</text>
+    <text x="40"   y="600" class="modlist-c" fill="#0F0C0A">4.7.2.UX7.5__bridge.rs        (byte ⇄ TritVec adapter behind feature = "bridge" · only opaque-byte boundary in the entire crate)</text>
+
+    <text x="40"   y="640" class="small" fill="#0d4651">Latency bound: query depth ≤ coprime walk depth (≤ 7 hops · 540 nodes)  ·  Schema constraint: column type ∈ {Trit, TritVec&lt;N&gt;, Milesian27}  ·  Cross-cuts: 4.6.1.UX1.5__repx.rs (base-b decode), 3.6.1.UX4.1__crt.rs (JOIN merge), 3.5.1.UX9.9__walk.rs (index walk).</text>
+    <text x="40"   y="672" class="small" fill="#0d4651">Daemon binary:  cargo build --release --features daemon  →  array3d.exe + libaasc.dll  ·  bundled in MSI by the Installer Framework  ·  hot-swap via Ops Relay (TL-DSA signed chunked transfer).</text>
   </g>
 
   <!-- ═══════════════ U/M CONVERSION MAPPING ═══════════════ -->
-  <g transform="translate(80, 8680)">
+  <g transform="translate(80, 8860)">
     <rect x="0" y="0" width="7240" height="500" rx="12" fill="#eef6fa" stroke="#2D7DD2" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#2D7DD2">U/M Conversion Mapping  ·  Salvi Framework units ⇄ SI  ·  every bridge is a closed-form rational  ·  single home: 1.5.1.UX7.8__units.rs</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#2D7DD2" stroke-width="3"/>
@@ -1045,7 +1052,7 @@
   </g>
 
   <!-- ═══════════════ CONSTANTS CATALOG ═══════════════ -->
-  <g transform="translate(80, 9220)">
+  <g transform="translate(80, 9400)">
     <rect x="0" y="0" width="7240" height="600" rx="12" fill="#fff8e8" stroke="#B8860B" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#B8860B">Constants Catalog  ·  every numeral declared once in 1.1.1.UX1.1__constants.rs  ·  derived from sole axioms π = 14, b = 3</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
@@ -1075,27 +1082,54 @@
   </g>
 
 
-  <!-- ═══════════════ ENFORCEMENT PANEL ═══════════════ -->
-  <g transform="translate(80, 9860)">
-    <rect x="0" y="0" width="7240" height="320" rx="12" fill="#fff0f0" stroke="#922" stroke-width="2"/>
-    <text x="24" y="64" class="h2" fill="#922">Enforcement  ·  how the L.G.O.UX naming convention stays canonical going forward</text>
+  <!-- ═══════════════ CRATE LAYOUT + ENFORCEMENT + DISTRIBUTION ═══════════════ -->
+  <g transform="translate(80, 10040)">
+    <rect x="0" y="0" width="7240" height="900" rx="12" fill="#fff0f0" stroke="#922" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#922">Crate Layout  ·  Enforcement  ·  Distribution  —  one crate, flat layer dirs, local-disk repo, no GitHub required</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#922" stroke-width="3"/>
 
-    <text x="40"  y="118" class="h3" fill="#922">1. Guard script  (single source of truth)</text>
-    <text x="40"  y="146" class="modlist-c" fill="#0F0C0A">scripts/check_ux_tags.sh    walks every *.rs file under src/aasc/ and asserts the basename matches  ^[1-9]\.[1-9]\.[1-9]\.UX[1-9](\.[1-9])+__[a-z][a-z0-9_]*\.rs$    ·    exits 1 on any violation</text>
+    <!-- LEFT COLUMN — crate tree -->
+    <text x="40"  y="118" class="h3" fill="#922">1. Single crate · flat layer folders · folder code = file's leading L digit</text>
+    <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A">
+      <text x="40"  y="146">algeometric-arc-sigma182-calculi/      (one crate, one Cargo.toml, one canonical map)</text>
+      <text x="40"  y="170">├── Cargo.toml            features = { default = [], bridge = [], daemon = ["std","tokio","rayon"] }</text>
+      <text x="40"  y="194">├── scripts/check_ux_tags.sh         enforces L.G.O.UX file rule + folder-code rule</text>
+      <text x="40"  y="218">├── docs/aasc_canonical_map.{svg,png}  ← THIS DOCUMENT (ships with every release)</text>
+      <text x="40"  y="242">├── src/lib.rs               pub mod L1__nucleus; pub mod L2__atom; ... pub mod L9__physics_nw;</text>
+      <text x="40"  y="266">└── src/                     flat — no group subfolders, queryable via SQL on Tier-4 GUI</text>
+      <text x="40"  y="290">    ├── L1__nucleus/         1.x.x.UXp.s__*.rs    (constants, milesian, greek_atomic, upiid, units, axes, cone_point)</text>
+      <text x="40"  y="314">    ├── L2__atom/            2.x.x.UXp.s__*.rs    (trit, tritvec, arithmetic)</text>
+      <text x="40"  y="338">    ├── L3__algebraic/       3.x.x.UXp.s__*.rs    (gf3, zphi, borromean, coprime, walk, crt, bezout)</text>
+      <text x="40"  y="362">    ├── L4__calculi/         4.x.x.UXp.s__*.rs    (delta, circular, iteration, series, calculus, repx, bijective_converter, bridge)</text>
+      <text x="40"  y="386">    ├── L5__geometric/       5.x.x.UXp.s__*.rs    (~22 modules)</text>
+      <text x="40"  y="410">    ├── L6__physics_ne/      6.x.x.UXp.s__*.rs    (wave / EM)</text>
+      <text x="40"  y="434">    ├── L7__physics_se/      7.x.x.UXp.s__*.rs    (number theory)</text>
+      <text x="40"  y="458">    ├── L8__physics_sw/      8.x.x.UXp.s__*.rs    (crystal · lattice · SQL · KV · Array3 daemon  at 8.7 / 8.8 / 8.9)</text>
+      <text x="40"  y="482">    └── L9__physics_nw/      9.x.x.UXp.s__*.rs    (spectral)</text>
+    </g>
 
-    <text x="40"  y="184" class="h3" fill="#922">2. Where the guard runs</text>
-    <text x="40"  y="212" class="modlist-c" fill="#0F0C0A">a) Pre-commit hook (.git/hooks/pre-commit invokes the guard ; commit blocked on failure)    b) CI step in .github/workflows/aasc-ci.yml (PR fails if violation)    c) cargo build.rs prints  cargo:warning=  for any non-conforming file the moment build starts</text>
+    <!-- ENFORCEMENT -->
+    <text x="40"  y="524" class="h3" fill="#922">2. Three-layer guard  (commit · build · CI)  —  scripts/check_ux_tags.sh asserts BOTH rules</text>
+    <text x="40"  y="552" class="modlist-c" fill="#0F0C0A">RULE A (file basename):    ^[1-9]\.[1-9]\.[1-9]\.UX[1-9](\.[1-9])+__[a-z][a-z0-9_]*\.rs$    ·    RULE B (folder ⇄ file):    parent_dir = L{X}__*  ⇒  basename MUST start with X.</text>
+    <text x="40"  y="580" class="modlist-c" fill="#0F0C0A">a) .git/hooks/pre-commit   blocks commit on violation       b) build.rs   emits cargo:warning= at the start of every cargo build       c) GitHub Actions OR local CI (act/woodpecker) runs the guard on push</text>
 
-    <text x="40"  y="250" class="h3" fill="#922">3. Map regeneration</text>
-    <text x="40"  y="278" class="modlist-c" fill="#0F0C0A">Any new module ⇒ author MUST (i) pick UX{p}.{s} from the Primary/Sub-Tag tables above, (ii) rename the file accordingly, (iii) re-run scripts/render_canonical_map.sh which patches this SVG and re-renders the PNG. Drift between the file tree and this map is itself a CI-blocking error.</text>
+    <!-- DISTRIBUTION -->
+    <text x="40"  y="618" class="h3" fill="#922">3. Distribution  —  three pull paths, all keyed off your local disk, NONE require GitHub</text>
+    <text x="40"  y="646" class="modlist-c" fill="#0F0C0A">Path 1 — Bake-into-MSI (offline):  cargo build --release --features daemon  →  array3d.exe + libaasc.dll  →  Installer Framework manifest bundles them  →  end-user installs MSI  →  Array3 registered as Windows service.</text>
+    <text x="40"  y="676" class="modlist-c" fill="#0F0C0A">Path 2 — Pull-over-Relay (live signed update):  your dev box acts as origin via existing WebSocket relay (same channel that already does GGUF chunked transfer)  →  end-user daemon polls, fetches, verifies TL-DSA-87 signature, hot-swaps.</text>
+    <text x="40"  y="706" class="modlist-c" fill="#0F0C0A">Path 3 — Local cargo registry (Tier-3 dev consumers):  run kellnr or static-file registry on your box  →  domain crates declare  aasc = { registry = "plenumnet", version = "..." }  →  no GitHub anywhere in dependency chain.</text>
 
-    <text x="40"  y="306" class="small" fill="#5a1818">Net effect: the address scheme is mechanically enforced at three independent layers (commit, build, CI) — no module can land on main without a UX tag, and no UX tag can drift from this canonical map.</text>
+    <!-- TIER STACK -->
+    <text x="40"  y="744" class="h3" fill="#922">4. Tier stack  —  this crate is Tier 1; daemon binary is the same crate built with --features daemon</text>
+    <text x="40"  y="772" class="modlist-c" fill="#0F0C0A">Tier 1 = aasc engine (this crate, this map)  ←  Tier 2 = Tier-3 domain crates (tdns, tl-dsa, tl-kem, sponge-385, tis-27, plenumdb, ttc, ninjaexec, ops-relay, watchdog) link aasc with daemon feature  ←  Tier 3 = JS/React GUI apps talk over HTTP/WS to the Tier-2 binaries.</text>
+
+    <text x="40"  y="816" class="small" fill="#5a1818">Net effect: address scheme is mechanically enforced at three layers (commit, build, CI); folder names carry the L code so every path is greppable; daemon ships from same source tree under feature flag; distribution to end-user machines runs entirely off your disk through the Installer + Relay you already have. No GitHub anywhere.</text>
+    <text x="40"  y="852" class="small" fill="#5a1818">SQL queries on Tier-4 GUI replace any need for group-level subfolders:  SELECT * FROM modules WHERE layer = 8 AND group = 9  →  surfaces every Array3 daemon file in the UI without filesystem nesting.</text>
   </g>
 
 <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
-  <rect class="verdict-bg" x="0" y="10220" width="7400" height="180"/>
-  <text x="3700" y="10328" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
-  <text x="3700" y="10382" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
+  <rect class="verdict-bg" x="0" y="10980" width="7400" height="180"/>
+  <text x="3700" y="11088" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
+  <text x="3700" y="11142" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
 
 </svg>
