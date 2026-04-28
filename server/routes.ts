@@ -95,6 +95,71 @@ export async function registerRoutes(
     });
   });
 
+  app.get("/download/maps", (_req, res) => {
+    const v = Date.now();
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>aasc Canonical Map · Downloads</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+         background: #0F0C0A; color: #FAF8F6; margin: 0; padding: 48px 24px; }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 8px; color: #4A9EF5; }
+  .sub { color: #a8b4c0; margin-bottom: 32px; font-size: 15px; }
+  .card { background: #1a1612; border: 1px solid #2D7DD2; border-radius: 12px;
+          padding: 24px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 20px; color: #FAF8F6; }
+  .card .meta { color: #78828C; font-size: 13px; margin-bottom: 16px; font-family: Menlo, Consolas, monospace; }
+  .btn { display: inline-block; padding: 12px 24px; margin-right: 12px;
+         background: #2D7DD2; color: #FAF8F6; text-decoration: none;
+         border-radius: 8px; font-weight: 600; font-size: 15px; }
+  .btn:hover { background: #4A9EF5; }
+  .btn.secondary { background: transparent; border: 1px solid #2D7DD2; color: #4A9EF5; }
+  .btn.secondary:hover { background: #2D7DD2; color: #FAF8F6; }
+  .preview { margin-top: 32px; }
+  .preview img { width: 100%; height: auto; border: 1px solid #3D444B; border-radius: 8px; }
+  code { background: #2a221d; padding: 2px 6px; border-radius: 4px;
+         font-family: Menlo, Consolas, monospace; font-size: 13px; color: #4A9EF5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>aasc Canonical Map</h1>
+  <div class="sub">algeometric-arc-sigma182-calculi · 9-layer ring · 58 canonical modules · cache-busted v=${v}</div>
+
+  <div class="card">
+    <h2>PNG (raster, ~5.4 MB)</h2>
+    <div class="meta">aasc_canonical_map.png · viewBox 7400 × 8580 · density 80 dpi</div>
+    <a class="btn" href="/download/maps/aasc_canonical_map.png?v=${v}" download>Download PNG</a>
+    <a class="btn secondary" href="/download/maps/aasc_canonical_map.png?v=${v}" target="_blank">Open in new tab</a>
+  </div>
+
+  <div class="card">
+    <h2>SVG (vector, ~75 KB)</h2>
+    <div class="meta">aasc_canonical_map.svg · scalable, editable, includes all panels</div>
+    <a class="btn" href="/download/maps/aasc_canonical_map.svg?v=${v}" download>Download SVG</a>
+    <a class="btn secondary" href="/download/maps/aasc_canonical_map.svg?v=${v}" target="_blank">Open in new tab</a>
+  </div>
+
+  <div class="card">
+    <h2>Inline preview</h2>
+    <div class="meta">live render of the current map</div>
+    <div class="preview">
+      <img src="/download/maps/aasc_canonical_map.png?v=${v}" alt="aasc canonical map preview"/>
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.send(html);
+  });
+
   app.get("/api/benchmark-report", async (_req, res) => {
     try {
       const { readdir } = await import("fs/promises");
