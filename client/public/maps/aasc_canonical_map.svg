@@ -226,63 +226,80 @@
   <text x="4020" y="1545" class="half" fill="#c0392b" text-anchor="middle">DISCRETE ◗</text>
   <text x="4020" y="1590" class="halfhint" fill="#c0392b" text-anchor="middle">A–H  Lattice</text>
 
-  <!-- ═════════════ NUCLEUS — AXIOMS + INVARIANT REGISTER ═════════════ -->
+  <!-- ═════════════ NUCLEUS — Layer 1 — CONSTANTS FILE 3-TIER + INVARIANT REGISTER ═════════════ -->
   <g>
-    <text x="3700" y="2700" class="nuctitle" text-anchor="middle">ATOMIC NUCLEUS</text>
+    <text x="3700" y="2655" class="nuctitle" text-anchor="middle" font-size="46">ATOMIC NUCLEUS  ·  L = 1</text>
+    <text x="3700" y="2687" class="invnote" text-anchor="middle" font-style="italic">1.0.0.1__constants.rs  ·  the single source of every numeral in the crate</text>
 
-    <text x="3550" y="2772" class="axiom" text-anchor="middle">π = 14</text>
-    <text x="3850" y="2772" class="axiom" text-anchor="middle">b = 3</text>
-    <text x="3700" y="2806" class="axiomnote" text-anchor="middle">sole fixed axioms · derived from base-3 uniqueness</text>
-    <text x="3700" y="2832" class="axiomnote" text-anchor="middle">Forge exemplar (7, 11, 13) — worked example only</text>
+    <!-- ───────── CONSTANTS FILE · 3-TIER STRUCTURE ───────── -->
+    <rect x="3110" y="2702" width="1180" height="36" rx="6" fill="#B8860B"/>
+    <text x="3700" y="2728" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">CONSTANTS FILE  ·  3 TIERS  ·  every numeral lives here exactly once</text>
 
-    <!-- Invariant Register banner -->
-    <rect x="3120" y="2854" width="1160" height="36" rx="6" fill="#B8860B"/>
-    <text x="3700" y="2880" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">INVARIANT REGISTER  ·  tests/invariants.rs  ·  17 landed IDs</text>
+    <!-- TIER A · sole axioms -->
+    <text x="3700" y="2766" class="invsect" text-anchor="middle">TIER A  ·  SOLE AXIOMS  (frozen · no derivation)</text>
+    <text x="3550" y="2806" class="axiom" text-anchor="middle" font-size="40">π = 14</text>
+    <text x="3850" y="2806" class="axiom" text-anchor="middle" font-size="40">b = 3</text>
+    <text x="3700" y="2832" class="axiomnote" text-anchor="middle">derived from base-3 uniqueness  ·  every other constant in the crate descends from these two</text>
 
-    <!-- TIER 1 -->
-    <text x="3700" y="2920" class="invsect" text-anchor="middle">TIER 1+2 · const identity blocks  ·  named runtime tests</text>
-    <g font-family="Menlo, Consolas, monospace" font-size="26" font-weight="700" fill="#0F0C0A">
-      <text x="3230" y="2960">I-1</text>
-      <text x="3370" y="2960">I-2</text>
-      <text x="3510" y="2960">I-5</text>
-      <text x="3650" y="2960">I-6</text>
-      <text x="3790" y="2960">I-7</text>
-      <text x="3930" y="2960">I-8</text>
-      <text x="4070" y="2960">I-9</text>
-      <text x="3215" y="2994">I-11</text>
-      <text x="3360" y="2994">I-12</text>
-      <text x="3505" y="2994">I-14</text>
-      <text x="3650" y="2994">I-22</text>
-      <text x="3795" y="2994">I-24</text>
-      <text x="3940" y="2994">I-31</text>
-      <text x="4085" y="2994">I-37</text>
-      <text x="3290" y="3028">I-44</text>
-      <text x="3435" y="3028">I-45</text>
-      <text x="3580" y="3028">I-46</text>
-      <text x="3725" y="3028">+</text>
-      <text x="3760" y="3028" font-style="italic">dual-zero contract pin</text>
-    </g>
+    <!-- TIER B · derived constants -->
+    <text x="3700" y="2870" class="invsect" text-anchor="middle">TIER B  ·  DERIVED CONSTANTS  (const · computed at compile time from Tier A)</text>
+    <text x="3700" y="2900" class="invnote" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-weight="700">b² = 9   ·   b³ = 27   ·   π+b = 17   ·   b·π = 42   ·   2π = 28   ·   π·b² = 126   ·   π·b³ = 378</text>
 
-    <!-- TIER 2 fixture -->
-    <text x="3700" y="3082" class="invsect" text-anchor="middle">TIER 2 fixture · Circle-and-Square Bijection (Spec v3.3.33)</text>
-    <text x="3700" y="3114" class="invnote" text-anchor="middle">tests/spec_v3_3_33_conformance.rs  —  §4 worked examples · §4.5 glyph-string round-trip</text>
-    <text x="3700" y="3142" class="invnote" text-anchor="middle">also tested at runtime: tri-ladder · circle quadratic Δ=144 · disc identity 1,000,144 · grand circle 756</text>
-
-    <!-- TIER 3 -->
-    <text x="3700" y="3186" class="invsect" text-anchor="middle">TIER 3 · Boundary (static grep guards · CI)</text>
-    <text x="3700" y="3218" class="invnote" text-anchor="middle">no opaque-byte leak  ·  no_std-clean  ·  bridge feature-gated only  ·  numerals only in 0.0.0.1__constants.rs</text>
+    <!-- TIER C · worked-example constants -->
+    <text x="3700" y="2932" class="invsect" text-anchor="middle">TIER C  ·  WORKED-EXAMPLE CONSTANTS  (const · illustrative · not axiomatic)</text>
+    <text x="3700" y="2962" class="invnote" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-weight="700">Forge triple (p,q,r) = (7,11,13)  ·  Σ-182 = 2·p·r  ·  Grand Circle = 756  ·  Disc identity = 1,000,144</text>
 
     <!-- separator -->
-    <line x1="3245" y1="3248" x2="4155" y2="3248" stroke="#B8860B" stroke-width="2"/>
+    <line x1="3120" y1="2986" x2="4280" y2="2986" stroke="#B8860B" stroke-width="2"/>
+
+    <!-- ───────── INVARIANT REGISTER ───────── -->
+    <rect x="3110" y="2998" width="1180" height="36" rx="6" fill="#B8860B"/>
+    <text x="3700" y="3024" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">INVARIANT REGISTER  ·  tests/invariants.rs  ·  17 LANDED IDs</text>
+
+    <g font-family="Menlo, Consolas, monospace" font-size="24" font-weight="700" fill="#0F0C0A">
+      <text x="3225" y="3066">I-1</text>
+      <text x="3355" y="3066">I-2</text>
+      <text x="3485" y="3066">I-5</text>
+      <text x="3615" y="3066">I-6</text>
+      <text x="3745" y="3066">I-7</text>
+      <text x="3875" y="3066">I-8</text>
+      <text x="4005" y="3066">I-9</text>
+      <text x="4135" y="3066">I-11</text>
+      <text x="3225" y="3094">I-12</text>
+      <text x="3355" y="3094">I-14</text>
+      <text x="3485" y="3094">I-22</text>
+      <text x="3615" y="3094">I-24</text>
+      <text x="3745" y="3094">I-31</text>
+      <text x="3875" y="3094">I-37</text>
+      <text x="4005" y="3094">I-44</text>
+      <text x="4135" y="3094">I-45</text>
+      <text x="3225" y="3122">I-46</text>
+      <text x="3355" y="3122" font-style="italic">+ dual-zero contract pin</text>
+    </g>
+
+    <!-- enforcement tiers -->
+    <text x="3700" y="3158" class="invsect" text-anchor="middle">ENFORCEMENT TIERS  ·  how each invariant is checked</text>
+    <text x="3700" y="3186" class="invnote" text-anchor="middle">I · compile-time const blocks  in 1.0.0.1__constants.rs</text>
+    <text x="3700" y="3210" class="invnote" text-anchor="middle">II · runtime named tests  in tests/invariants.rs   (also: tri-ladder · circle quadratic Δ=144 · grand circle 756)</text>
+    <text x="3700" y="3234" class="invnote" text-anchor="middle">III · CI/static grep guards  ·  no_std-clean  ·  bridge feature-gated only  ·  numerals only in 1.0.0.1</text>
+
+    <!-- separator -->
+    <line x1="3120" y1="3252" x2="4280" y2="3252" stroke="#B8860B" stroke-width="2"/>
+
+    <!-- ───────── BRIDGE ROUND-TRIP FIXTURE ───────── -->
+    <text x="3700" y="3282" class="invsect" text-anchor="middle">BRIDGE ROUND-TRIP FIXTURE  ·  tests/bridge_conformance.rs</text>
+    <text x="3700" y="3308" class="invnote" text-anchor="middle">proves the byte ⇄ TritVec ⇄ Milesian glyph round-trip is identity (lossless · idempotent)</text>
+    <text x="3700" y="3332" class="invnote" text-anchor="middle">this is the ONLY place the `bridge` feature crosses the trit / byte boundary in the entire crate</text>
+
+    <!-- separator -->
+    <line x1="3120" y1="3350" x2="4280" y2="3350" stroke="#B8860B" stroke-width="2"/>
 
     <!-- Notation modules -->
-    <text x="3700" y="3286" class="nucsub" text-anchor="middle">Notation Modules</text>
-    <text x="3700" y="3318" class="invnote" text-anchor="middle">constants.rs · milesian.rs · greek_atomic.rs · upiid.rs</text>
-    <text x="3700" y="3346" class="invnote" text-anchor="middle">numerals appear ONCE — central Notation table only</text>
+    <text x="3700" y="3380" class="nucsub" text-anchor="middle">Notation Modules  (Layer 1)</text>
+    <text x="3700" y="3408" class="invnote" text-anchor="middle">1.0.0.1__constants.rs  ·  1.0.0.2__milesian.rs  ·  1.0.0.3__greek_atomic.rs  ·  1.0.0.4__upiid.rs</text>
 
     <!-- footer -->
-    <text x="3700" y="3402" class="nucfooter" text-anchor="middle">Salvi Standard of Scrutiny  ·  UPIID V1.1</text>
-    <text x="3700" y="3436" class="nucfooter" text-anchor="middle">π and b are the SOLE fixed axioms — every other constant derives</text>
+    <text x="3700" y="3450" class="nucfooter" text-anchor="middle">Salvi Standard of Scrutiny · UPIID V1.1 · π and b are the SOLE fixed axioms — every other constant derives</text>
   </g>
 
   <!-- ═════════════ ATOM ring modules (1D — Trit) ═════════════ -->
@@ -292,22 +309,22 @@
     <rect class="modbox-red" x="3360" y="2380" width="680" height="130" rx="8"/>
     <text x="3700" y="2422" class="modgreek" text-anchor="middle">τ · the Trit (Rep-C canonical)</text>
     <text x="3700" y="2456" class="modfile" text-anchor="middle">trit.rs · {−, +} only · 0 forbidden by default</text>
-    <text x="3700" y="2492" class="quadaddr" text-anchor="middle">1.0.0.1__trit.rs</text>
+    <text x="3700" y="2492" class="quadaddr" text-anchor="middle">2.0.0.1__trit.rs</text>
 
     <rect class="modbox-grey" x="3260" y="3690" width="280" height="100" rx="8"/>
     <text x="3400" y="3728" class="modgreek" text-anchor="middle">⃗τ · TritVec</text>
     <text x="3400" y="3758" class="modfile" text-anchor="middle">tritvec.rs · MSB-first</text>
-    <text x="3400" y="3782" class="quadaddr" text-anchor="middle">1.0.0.2__tritvec.rs</text>
+    <text x="3400" y="3782" class="quadaddr" text-anchor="middle">2.0.0.2__tritvec.rs</text>
 
     <rect class="modbox-grey" x="3560" y="3690" width="280" height="100" rx="8"/>
     <text x="3700" y="3728" class="modgreek" text-anchor="middle">⊕ ⊗ Arithmetic</text>
     <text x="3700" y="3758" class="modfile" text-anchor="middle">arithmetic.rs · pure trit</text>
-    <text x="3700" y="3782" class="quadaddr" text-anchor="middle">1.0.0.3__arithmetic.rs</text>
+    <text x="3700" y="3782" class="quadaddr" text-anchor="middle">2.0.0.3__arithmetic.rs</text>
 
     <rect class="modbox-yellow" x="3860" y="3690" width="280" height="100" rx="8"/>
     <text x="4000" y="3728" class="modgreek" text-anchor="middle">R_L^(b) · Repunit</text>
     <text x="4000" y="3758" class="modfile" text-anchor="middle">repx.rs · base-b bijective</text>
-    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">3.0.0.1__repx.rs</text>
+    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">4.0.0.1__repx.rs</text>
   </g>
 
   <!-- ═════════════ ALGEBRAIC ring modules (2D) ═════════════ -->
@@ -317,27 +334,27 @@
     <rect class="modbox-grey" x="3220" y="2210" width="380" height="100" rx="8"/>
     <text x="3410" y="2248" class="modgreek" text-anchor="middle">GF(3)</text>
     <text x="3410" y="2278" class="modfile" text-anchor="middle">gf3.rs · field {0, 1, 2}</text>
-    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">2.0.0.1__gf3.rs</text>
+    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">3.0.0.1__gf3.rs</text>
 
     <rect class="modbox-grey" x="3800" y="2210" width="380" height="100" rx="8"/>
     <text x="3990" y="2248" class="modgreek" text-anchor="middle">ℤ[φ]</text>
     <text x="3990" y="2278" class="modfile" text-anchor="middle">zphi.rs · R² = π + 5φ</text>
-    <text x="3990" y="2302" class="quadaddr" text-anchor="middle">2.0.0.2__zphi.rs</text>
+    <text x="3990" y="2302" class="quadaddr" text-anchor="middle">3.0.0.2__zphi.rs</text>
 
     <rect class="modbox-grey" x="3140" y="3870" width="320" height="100" rx="8"/>
     <text x="3300" y="3908" class="modgreek" text-anchor="middle">∇ · Walk + CRT</text>
     <text x="3300" y="3938" class="modfile" text-anchor="middle">walk.rs · coprime walks</text>
-    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">2.0.0.5__walk.rs</text>
+    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.0.0.5__walk.rs</text>
 
     <rect class="modbox-blue" x="3490" y="3870" width="420" height="100" rx="8"/>
     <text x="3700" y="3908" class="modgreek" text-anchor="middle">⟨p, q⟩ · Coprime + Bezout</text>
     <text x="3700" y="3938" class="modfile" text-anchor="middle">coprime.rs · S10-1 identity</text>
-    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">2.0.0.4__coprime.rs</text>
+    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.0.0.4__coprime.rs</text>
 
     <rect class="modbox-grey" x="3940" y="3870" width="320" height="100" rx="8"/>
     <text x="4100" y="3908" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
     <text x="4100" y="3938" class="modfile" text-anchor="middle">borromean.rs · ternary link</text>
-    <text x="4100" y="3962" class="quadaddr" text-anchor="middle">2.0.0.3__borromean.rs</text>
+    <text x="4100" y="3962" class="quadaddr" text-anchor="middle">3.0.0.3__borromean.rs</text>
   </g>
 
   <!-- ═════════════ CALCULI cross labels ═════════════ -->
@@ -350,7 +367,7 @@
     <text x="3700" y="4066" class="calcname" text-anchor="middle">fixed-point · ladder maps</text>
     <text x="2650" y="3090" class="calcsub" text-anchor="middle">Σ · Series</text>
     <text x="2650" y="3126" class="calcname" text-anchor="middle">Σ-182 partial sums</text>
-    <text x="3700" y="4108" class="quadaddr" text-anchor="middle">→ all four sub-calculi unified in 3.0.0.4__calculus.rs</text>
+    <text x="3700" y="4108" class="quadaddr" text-anchor="middle">→ all four sub-calculi unified in 4.0.0.4__calculus.rs</text>
   </g>
 
   <!-- ═════════════ PHYSICS QUADRANTS (corners) ═════════════ -->
@@ -358,9 +375,9 @@
     <text x="2110" y="1540" class="quadtitle" fill="#5b3aa8">NW</text>
     <text x="2110" y="1580" class="quadsub" fill="#5b3aa8">Spectral / Atomic</text>
     <text x="2110" y="1640" class="quadmod">hydrogen_spectral · 1/α</text>
-    <text x="2110" y="1672" class="quadaddr">5.0.0.1__hydrogen_spectral.rs</text>
+    <text x="2110" y="1672" class="quadaddr">9.0.0.1__hydrogen_spectral.rs</text>
     <text x="2110" y="1716" class="quadmod">uv_hydrogen_spectral</text>
-    <text x="2110" y="1748" class="quadaddr">5.0.0.2__uv_hydrogen_spectral.rs</text>
+    <text x="2110" y="1748" class="quadaddr">9.0.0.2__uv_hydrogen_spectral.rs</text>
     <text x="2110" y="1792" class="quadmod">spectral_offset · κ bridge</text>
     <text x="2110" y="1828" class="quadmod">phase_impedance · cone-point α</text>
   </g>
@@ -378,19 +395,19 @@
     <text x="2110" y="4360" class="quadtitle" fill="#4d6a1a">SW</text>
     <text x="2110" y="4400" class="quadsub" fill="#4d6a1a">Crystal / Lattice</text>
     <text x="2110" y="4460" class="quadmod">crystal_2d_3d  ↔ G</text>
-    <text x="2110" y="4496" class="quadaddr">7.0.0.1__crystal_2d_3d.rs</text>
+    <text x="2110" y="4496" class="quadaddr">8.0.0.1__crystal_2d_3d.rs</text>
     <text x="2110" y="4544" class="quadmod">arc182 · Schumann–Runge ↔ G</text>
     <text x="2110" y="4588" class="quadmod">nona_state · 9-fold register</text>
-    <text x="2110" y="4624" class="quadaddr">7.0.0.3__nona_state.rs</text>
+    <text x="2110" y="4624" class="quadaddr">8.0.0.3__nona_state.rs</text>
   </g>
   <g>
     <text x="5290" y="4360" class="quadtitle" fill="#a02040" text-anchor="end">SE</text>
     <text x="5290" y="4400" class="quadsub" fill="#a02040" text-anchor="end">Number-Theoretic</text>
     <text x="5290" y="4460" class="quadmod" text-anchor="end">wieferich_grh_beal</text>
-    <text x="5290" y="4496" class="quadaddr" text-anchor="end">8.0.0.1__wieferich_grh_beal.rs</text>
+    <text x="5290" y="4496" class="quadaddr" text-anchor="end">7.0.0.1__wieferich_grh_beal.rs</text>
     <text x="5290" y="4544" class="quadmod" text-anchor="end">fibonacci_register · 377</text>
     <text x="5290" y="4588" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
-    <text x="5290" y="4624" class="quadaddr" text-anchor="end">8.0.0.3__tribonacci.rs</text>
+    <text x="5290" y="4624" class="quadaddr" text-anchor="end">7.0.0.3__tribonacci.rs</text>
   </g>
 
   <!-- ═════════════════════════════════════════════════════════════════════ -->
@@ -411,7 +428,7 @@
     <text x="20"  y="338" class="bullet">• Triangular ladder arcs:</text>
     <text x="20"  y="370" class="bullet"><tspan x="40">Tri(7)=28, Tri(13)=91, Tri(17)=153</tspan></text>
     <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  circle.rs · arc182.rs · wave_stratum.rs · vesica.rs · speed_of_light.rs · tri_ladder.rs</text>
-    <text x="20"  y="458" class="addr">4.C.1.1..6  ←  geometric · curved · sector ① · ord 1..6</text>
+    <text x="20"  y="458" class="addr">5.C.1.1..6  ←  geometric · curved · sector ① · ord 1..6</text>
     <text x="20"  y="490" class="small">↔ G (Wave-harmonic dual grids · Σ-182 O₂ wall)  ·  E (Tri ladder figurates)</text>
   </g>
 
@@ -427,7 +444,7 @@
     <text x="20"  y="316" class="bullet"><tspan x="40">spheroid, paraboloid, hyperboloid)</tspan></text>
     <text x="20"  y="350" class="bullet"><tspan x="40">— Archimedes’ generating method</tspan></text>
     <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  discriminant.rs · arc182.rs · solids_of_revolution.rs · gabriels_horn.rs</text>
-    <text x="20"  y="458" class="addr">4.C.2.1..4  ←  geometric · curved · sector ② · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.C.2.1..4  ←  geometric · curved · sector ② · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ E  (Phase-Impedance integer companions 137 / 377)</text>
   </g>
 
@@ -441,7 +458,7 @@
     <text x="20"  y="262" class="bullet">• π + X quadruple  (17, 18, 27, 25)</text>
     <text x="20"  y="308" class="bullet">• Σ-182 bridge as cycle midpoint</text>
     <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  grand_circle.rs · frame_square.rs · pi_quadruple.rs · arc182.rs</text>
-    <text x="20"  y="458" class="addr">4.C.3.1..4  ←  geometric · curved · sector ③ · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.C.3.1..4  ←  geometric · curved · sector ③ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ A , B  ((bq)² Frame Square 1089 · Plenum 333 magic)</text>
   </g>
 
@@ -455,7 +472,7 @@
     <text x="20"  y="252" class="bullet"><tspan x="40">((pqr − 1)² + 4(p − r)² = 1,000,144)</tspan></text>
     <text x="20"  y="298" class="bullet">• Volumetric ceiling identity  (V = ℓ² · π_geom³)</text>
     <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  vesica.rs · discriminant.rs · volumetric_ceiling.rs</text>
-    <text x="20"  y="458" class="addr">4.C.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
+    <text x="20"  y="458" class="addr">5.C.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
     <text x="20"  y="490" class="small italic">orphan #3 — disc-identity 1,000,144 also belongs to ① and ②</text>
   </g>
 
@@ -469,7 +486,7 @@
     <text x="20"  y="246" class="bullet">• Theta chord’s repunit base 12 yields star patterns</text>
     <text x="20"  y="292" class="bullet">• Torus knot windings  (143, 91, 77)  define a star knot</text>
     <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  coprime_polygon_pair.rs · theta_chord.rs · torus_knot.rs · star_polygon.rs</text>
-    <text x="20"  y="458" class="addr">4.C.5.1..4  ←  geometric · curved · sector ⑤ · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.C.5.1..4  ←  geometric · curved · sector ⑤ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ F  (Torus Knot Crown lifts to 3D star polytope)</text>
   </g>
 
@@ -484,7 +501,7 @@
     <text x="20"  y="270" class="bullet">• Repunit factors  R_4^(12) = 5 · 13 · 29</text>
     <text x="20"  y="314" class="bullet">• Fibonacci 377 in rosette forms</text>
     <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  repx.rs · repunit_circles.rs · theta_chord.rs · fibonacci.rs</text>
-    <text x="20"  y="458" class="addr">4.C.6.1..4  ←  geometric · curved · sector ⑥ · ord 1..4</text>
+    <text x="20"  y="458" class="addr">5.C.6.1..4  ←  geometric · curved · sector ⑥ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ H  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
@@ -496,7 +513,7 @@
     <text x="20"  y="220" class="bullet">• Disdyakis bridge:   R² = π + 5φ</text>
     <text x="20"  y="262" class="bullet"><tspan x="40">— connects golden ring to circle geometry</tspan></text>
     <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  disdyakis_bridge.rs · zphi.rs · saturnian_metatron.rs</text>
-    <text x="20"  y="458" class="addr">4.C.7.1..3  ←  geometric · curved · sector ⑦ · ord 1..3</text>
+    <text x="20"  y="458" class="addr">5.C.7.1..3  ←  geometric · curved · sector ⑦ · ord 1..3</text>
     <text x="20"  y="490" class="small">↔ C  (Milesian glyph polyhedral symmetry)</text>
   </g>
 
@@ -516,7 +533,7 @@
     <text x="20"  y="256" class="bullet">• Circle-and-Square bijection (byte ↔ trit ↔ glyph)</text>
     <text x="20"  y="292" class="bullet">• Milesian Δ_1(μ) = 28 — fundamental spacing</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  frame_square.rs · calendar.rs · tick_clock.rs · milesian.rs · constants.rs</text>
-    <text x="20"  y="394" class="addr">4.D.A.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
+    <text x="20"  y="394" class="addr">5.D.A.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
     <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)  ·  bridge-feature only</text>
   </g>
 
@@ -528,7 +545,7 @@
     <text x="20"  y="200" class="bullet">• Plenum magic constant 333  (explicit magic square)</text>
     <text x="20"  y="244" class="bullet">• 4 σ permutations  (from plenum_square.rs)</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  plenum_square.rs  (333 magic + 4 σ permutations)</text>
-    <text x="20"  y="394" class="addr">4.D.B.1  ←  geometric · discrete · sector B · ord 1</text>
+    <text x="20"  y="394" class="addr">5.D.B.1  ←  geometric · discrete · sector B · ord 1</text>
     <text x="20"  y="426" class="small">↔ ③  (1089 + 333 anchored to Grand Circle 756)</text>
   </g>
 
@@ -543,7 +560,7 @@
     <text x="20"  y="262" class="bullet"><tspan x="40">(ghosts = missing vertices)</tspan></text>
     <text x="20"  y="304" class="bullet">• Elemental decomposition maps elements to vertices</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  polyhedra.rs · milesian.rs · greek_atomic.rs</text>
-    <text x="20"  y="394" class="addr">4.D.C.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.D.C.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑦  (Disdyakis · ghost letters as missing phases)</text>
   </g>
 
@@ -555,7 +572,7 @@
     <text x="20"  y="200" class="bullet">• Plenum color harmonics  (RED / BLUE / CO / GREEN)</text>
     <text x="20"  y="244" class="bullet">• 1089 partition color-coding as symmetry operations</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  plenum_color.rs · plenum_square.rs</text>
-    <text x="20"  y="394" class="addr">4.D.D.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.D.D.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ A  (1089 partitions = lattice + colour symmetry)</text>
   </g>
 
@@ -571,7 +588,7 @@
     <text x="20"  y="284" class="bullet">• Axis 17 lock  (17 = π + b)</text>
     <text x="20"  y="318" class="bullet">• Lunisolar drift  (10.875 days / yr)</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  tri_ladder.rs · axis_lock.rs · lunisolar.rs · proton_mass.rs</text>
-    <text x="20"  y="394" class="addr">4.D.E.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
+    <text x="20"  y="394" class="addr">5.D.E.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
     <text x="20"  y="426" class="small">↔ ① (Tri arcs)  ·  ② (Phase-Impedance 137 · 377)</text>
   </g>
 
@@ -583,7 +600,7 @@
     <text x="20"  y="200" class="bullet">• Torus knot  (143, 91, 77)  as self-defining star polytope</text>
     <text x="20"  y="244" class="bullet">• Kepler–Poinsot solids,  uniform star forms</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  torus_knot.rs · kepler_poinsot.rs · star_polytope.rs</text>
-    <text x="20"  y="394" class="addr">4.D.F.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.D.F.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑤  (planar star polygons that lift to 3D antiprisms)</text>
   </g>
 
@@ -597,7 +614,7 @@
     <text x="20"  y="234" class="bullet">• Crystal 2D / 3D physics modules</text>
     <text x="20"  y="276" class="bullet">• Wave dual grids as Bravais basis</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  crystal_2d_3d.rs · arc182.rs · wave_stratum.rs</text>
-    <text x="20"  y="394" class="addr">4.D.G.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.D.G.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ① (Σ-182 antipode · wave-harmonic continuous spectrum)</text>
   </g>
 
@@ -609,7 +626,7 @@
     <text x="20"  y="200" class="bullet">• Cone-point lifts  (+1, +8, +36)  classify convex vs star</text>
     <text x="20"  y="244" class="bullet">• Frame square lifts as convex-hull increments</text>
     <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  cone_point.rs · frame_square.rs</text>
-    <text x="20"  y="394" class="addr">4.D.H.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.D.H.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ ⑥  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
@@ -671,32 +688,33 @@
     <text x="24" y="64" class="h2" fill="#2a8050">Canonical File Address Scheme  ·  every aasc/.rs file maps to one node on this map</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#2a8050" stroke-width="3"/>
 
-    <text x="24" y="134" class="addrhead">Format:   &lt;L&gt; . &lt;H&gt; . &lt;S&gt; . &lt;O&gt; __ &lt;name&gt;.rs           ·  9 Layers total  =  5 concentric rings  +  4 corner physics quadrants</text>
-    <text x="24" y="172" class="addrnote">L = Layer (0..8)  ·  H = Half (only when L=4)  ·  S = Sector (only when L=4)  ·  O = Ordinal-within-layer/sector  ·  filename slug after  __</text>
+    <text x="24" y="134" class="addrhead">Format:   &lt;L&gt; . &lt;H&gt; . &lt;S&gt; . &lt;O&gt; __ &lt;name&gt;.rs           ·  9 Layers total  =  5 concentric rings (1..5)  +  4 corner physics quadrants (6..9, clockwise from NE)</text>
+    <text x="24" y="172" class="addrnote">L = Layer (1..9)  ·  H = Half (only when L=5)  ·  S = Sector (only when L=5)  ·  O = Ordinal-within-layer/sector  ·  filename slug after  __</text>
 
-    <!-- L column · 9 layers -->
-    <text x="24"   y="222" class="h3" fill="#2a8050">L · Layer  (9 total)</text>
-    <text x="24"   y="254" class="addrnote">0 = Nucleus      0D · axioms · π=14 · b=3 · invariant register · numeral table</text>
-    <text x="24"   y="282" class="addrnote">1 = Atom          1D · Trit · TritVec · Arithmetic</text>
-    <text x="24"   y="310" class="addrnote">2 = Algebraic    2D · GF(3) · ℤ[φ] · Borromean · Coprime · Walk</text>
-    <text x="24"   y="338" class="addrnote">3 = Calculi        operators · Δ ∮ ◯ Σ · repx · milesian-divmod · walk-CRT</text>
-    <text x="24"   y="366" class="addrnote">4 = Geometric  3D · the ring of figures (Curved ◖  +  Discrete ◗)</text>
-    <text x="24"   y="394" class="addrnote">5 = Physics NW   corner · Spectral / Atomic</text>
-    <text x="24"   y="422" class="addrnote">6 = Physics NE   corner · Wave / Field</text>
-    <text x="24"   y="450" class="addrnote">7 = Physics SW   corner · Crystal / Lattice</text>
-    <text x="24"   y="478" class="addrnote">8 = Physics SE   corner · Number-Theoretic</text>
+    <!-- L column · 9 layers · numbered 1..9 · physics quadrants run clockwise from NE -->
+    <text x="24"   y="222" class="h3" fill="#2a8050">L · Layer  (1 .. 9)</text>
+    <text x="24"   y="254" class="addrnote">1 = Nucleus       0D · axioms · π=14 · b=3 · constants file · invariant register</text>
+    <text x="24"   y="282" class="addrnote">2 = Atom           1D · Trit · TritVec · Arithmetic</text>
+    <text x="24"   y="310" class="addrnote">3 = Algebraic     2D · GF(3) · ℤ[φ] · Borromean · Coprime · Walk</text>
+    <text x="24"   y="338" class="addrnote">4 = Calculi         operators · Δ ∮ ◯ Σ · repx · milesian-divmod · walk-CRT</text>
+    <text x="24"   y="366" class="addrnote">5 = Geometric   3D · the ring of figures (Curved ◖  +  Discrete ◗)</text>
+    <text x="24"   y="400" class="addrnote" font-weight="700">Physics quadrants  ·  clockwise from NE  ·  L = 6 → 7 → 8 → 9</text>
+    <text x="24"   y="428" class="addrnote">6 = Physics NE   corner · Wave / Field</text>
+    <text x="24"   y="456" class="addrnote">7 = Physics SE   corner · Number-Theoretic</text>
+    <text x="24"   y="484" class="addrnote">8 = Physics SW   corner · Crystal / Lattice</text>
+    <text x="24"   y="512" class="addrnote">9 = Physics NW   corner · Spectral / Atomic</text>
 
-    <!-- H column · only meaningful when L=4 -->
-    <text x="2620" y="222" class="h3" fill="#2a8050">H · Half  (only when L=4)</text>
-    <text x="2620" y="254" class="addrnote">0 = N/A   (used for L = 0,1,2,3,5,6,7,8)</text>
+    <!-- H column · only meaningful when L=5 -->
+    <text x="2620" y="222" class="h3" fill="#2a8050">H · Half  (only when L=5)</text>
+    <text x="2620" y="254" class="addrnote">0 = N/A   (used for L = 1,2,3,4,6,7,8,9)</text>
     <text x="2620" y="282" class="addrnote">C = Curved      ◖ continuous half</text>
     <text x="2620" y="310" class="addrnote">         sectors ① ② ③ ④ ⑤ ⑥ ⑦</text>
     <text x="2620" y="338" class="addrnote">D = Discrete    ◗ lattice half</text>
     <text x="2620" y="366" class="addrnote">         sectors A B C D E F G H</text>
 
-    <!-- S column · only meaningful when L=4 -->
-    <text x="4640" y="222" class="h3" fill="#2a8050">S · Sector  (only when L=4)</text>
-    <text x="4640" y="254" class="addrnote">0       — N/A   (used for L ≠ 4)</text>
+    <!-- S column · only meaningful when L=5 -->
+    <text x="4640" y="222" class="h3" fill="#2a8050">S · Sector  (only when L=5)</text>
+    <text x="4640" y="254" class="addrnote">0       — N/A   (used for L ≠ 5)</text>
     <text x="4640" y="282" class="addrnote">1..7   — when H=C  (Curved sectors ① .. ⑦)</text>
     <text x="4640" y="310" class="addrnote">A..H  — when H=D  (Discrete sectors A .. H)</text>
 
@@ -705,42 +723,42 @@
     <text x="6080" y="254" class="addrnote">1..N — module position</text>
     <text x="6080" y="282" class="addrnote">within its layer / sector</text>
     <text x="6080" y="310" class="addrnote">order is canonical (declared</text>
-    <text x="6080" y="338" class="addrnote">in 0.0.0.1__constants.rs)</text>
+    <text x="6080" y="338" class="addrnote">in 1.0.0.1__constants.rs)</text>
 
     <!-- Examples block -->
     <line x1="24" y1="510" x2="7216" y2="510" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
-    <text x="24" y="552" class="h3" fill="#2a8050">Examples  ·  one entry per layer (0 .. 8)  +  representative geometric sectors</text>
+    <text x="24" y="552" class="h3" fill="#2a8050">Examples  ·  one entry per layer (1 .. 9)  +  representative geometric sectors</text>
 
     <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#2a8050" font-weight="700">
-      <text x="24"   y="594">0.0.0.1__constants.rs</text>
-      <text x="1820" y="594">→  L=0  Nucleus  ·  central numeral table</text>
-      <text x="24"   y="626">0.0.0.2__milesian.rs</text>
-      <text x="1820" y="626">→  L=0  Nucleus  ·  27 Milesian glyphs</text>
-      <text x="24"   y="658">1.0.0.1__trit.rs</text>
-      <text x="1820" y="658">→  L=1  Atom  ·  the Trit (Rep-C)</text>
-      <text x="24"   y="690">2.0.0.1__gf3.rs</text>
-      <text x="1820" y="690">→  L=2  Algebraic  ·  field over {0, 1, 2}</text>
-      <text x="24"   y="722">2.0.0.4__coprime.rs</text>
-      <text x="1820" y="722">→  L=2  Algebraic  ·  Coprime + Bezout</text>
-      <text x="24"   y="754">3.0.0.4__calculus.rs</text>
-      <text x="1820" y="754">→  L=3  Calculi  ·  Δ ∮ ◯ Σ unified harness</text>
-      <text x="24"   y="786">3.0.0.1__repx.rs</text>
-      <text x="1820" y="786">→  L=3  Calculi  ·  bijective base-b register</text>
+      <text x="24"   y="594">1.0.0.1__constants.rs</text>
+      <text x="1820" y="594">→  L=1  Nucleus  ·  3-tier constants file (axioms · derived · examples)</text>
+      <text x="24"   y="626">1.0.0.2__milesian.rs</text>
+      <text x="1820" y="626">→  L=1  Nucleus  ·  27 Milesian glyphs</text>
+      <text x="24"   y="658">2.0.0.1__trit.rs</text>
+      <text x="1820" y="658">→  L=2  Atom  ·  the Trit (Rep-C)</text>
+      <text x="24"   y="690">3.0.0.1__gf3.rs</text>
+      <text x="1820" y="690">→  L=3  Algebraic  ·  field over {0, 1, 2}</text>
+      <text x="24"   y="722">3.0.0.4__coprime.rs</text>
+      <text x="1820" y="722">→  L=3  Algebraic  ·  Coprime + Bezout</text>
+      <text x="24"   y="754">4.0.0.4__calculus.rs</text>
+      <text x="1820" y="754">→  L=4  Calculi  ·  Δ ∮ ◯ Σ unified harness</text>
+      <text x="24"   y="786">4.0.0.1__repx.rs</text>
+      <text x="1820" y="786">→  L=4  Calculi  ·  bijective base-b register</text>
 
-      <text x="3900" y="594">4.C.1.1__circle.rs</text>
-      <text x="5550" y="594">→  L=4  Geo · Curved · ① · ord 1</text>
-      <text x="3900" y="626">4.C.5.3__torus_knot.rs</text>
-      <text x="5550" y="626">→  L=4  Geo · Curved · ⑤ · ord 3</text>
-      <text x="3900" y="658">4.D.A.1__frame_square.rs</text>
-      <text x="5550" y="658">→  L=4  Geo · Discrete · A · ord 1</text>
-      <text x="3900" y="690">4.D.C.1__polyhedra.rs</text>
-      <text x="5550" y="690">→  L=4  Geo · Discrete · C · ord 1</text>
-      <text x="3900" y="722">5.0.0.1__hydrogen_spectral.rs</text>
-      <text x="5550" y="722">→  L=5  Physics NW  ·  Spectral / Atomic</text>
-      <text x="3900" y="754">6.0.0.1__wave_stratum.rs</text>
-      <text x="5550" y="754">→  L=6  Physics NE  ·  Wave / Field</text>
-      <text x="3900" y="786">7.0.0.1__crystal_2d_3d.rs</text>
-      <text x="5550" y="786">→  L=7  Physics SW  ·  Crystal / Lattice</text>
+      <text x="3900" y="594">5.C.1.1__circle.rs</text>
+      <text x="5550" y="594">→  L=5  Geo · Curved · ① · ord 1</text>
+      <text x="3900" y="626">5.D.A.1__frame_square.rs</text>
+      <text x="5550" y="626">→  L=5  Geo · Discrete · A · ord 1</text>
+      <text x="3900" y="658">6.0.0.1__wave_stratum.rs</text>
+      <text x="5550" y="658">→  L=6  Physics NE  ·  Wave / Field</text>
+      <text x="3900" y="690">7.0.0.1__wieferich_grh_beal.rs</text>
+      <text x="5550" y="690">→  L=7  Physics SE  ·  Number-Theoretic</text>
+      <text x="3900" y="722">7.0.0.3__tribonacci.rs</text>
+      <text x="5550" y="722">→  L=7  Physics SE  ·  Tribonacci recurrence</text>
+      <text x="3900" y="754">8.0.0.1__crystal_2d_3d.rs</text>
+      <text x="5550" y="754">→  L=8  Physics SW  ·  Crystal / Lattice</text>
+      <text x="3900" y="786">9.0.0.1__hydrogen_spectral.rs</text>
+      <text x="5550" y="786">→  L=9  Physics NW  ·  Spectral / Atomic</text>
     </g>
   </g>
 
@@ -748,9 +766,9 @@
   <g transform="translate(80, 6720)">
     <rect x="0" y="0" width="7240" height="200" rx="12" fill="#ffd9d4" stroke="#c0392b" stroke-width="4"/>
     <text x="24" y="60" class="h2" fill="#c0392b">Orphan Register  ·  cross-classified items requiring an explicit canonical home</text>
-    <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (5.0.0.1)</text>
-    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 3.0.0.4__calculus.rs;  calendar (13×28=364) anchors in panel A   (4.D.A.2)</text>
-    <text x="24" y="178" class="bullet"><tspan font-weight="800">#3</tspan>  identity 1,000,144 = (pqr−1)² + 4(p−r)²  →  jointly belongs to ② , ④ , ①   (4.C.4.2 referencing 4.C.1.1, 4.C.2.1)</text>
+    <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (9.0.0.1)</text>
+    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 4.0.0.4__calculus.rs;  calendar (13×28=364) anchors in panel A   (5.D.A.2)</text>
+    <text x="24" y="178" class="bullet"><tspan font-weight="800">#3</tspan>  identity 1,000,144 = (pqr−1)² + 4(p−r)²  →  jointly belongs to ② , ④ , ①   (5.C.4.2 referencing 5.C.1.1, 5.C.2.1)</text>
   </g>
 
   <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
