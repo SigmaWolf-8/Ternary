@@ -1,0 +1,359 @@
+**TM‑2026‑042 Rev. 2**  
+**ARC: The Atomic Energy Token — Unified Technical Specification**  
+*Capomastro Holdings Ltd. – Applied Physics Division*  
+*2026‑04‑28 · E+1*  
+
+---
+
+## Preamble
+
+The Salvi Arc Framework has demonstrated, from pure arithmetic, a **deterministic energy‑savings dividend** of \(\Delta = 144\). The HModal duty cycle cuts CPU power consumption to a fraction \(1/\Delta\) of its continuous‑wave equivalent. This physical fact, measurable on commodity hardware via RAPL, is the root of a new asset class: **ARC tokens**.
+
+ARC is not a speculative token. It is a **liquid claim on physically verified energy savings and on the atomic mass lattice** derived by the Codex. Every token is minted either through a hardware‑attested reduction in energy consumption or by the deposit of a precisely measured **volume** of a framework‑expressible element, whose mass is computed from the element’s known, framework‑derived density. The primary issuance occurs on Hedera, leveraging its fixed‑fee consensus service, while the **XRP Ledger** provides a native decentralised exchange, atomic multi‑commodity settlement, and global liquidity without oracles.
+
+This document unifies all prior designs — the Δ‑Controller trit‑only testbed, the energy attestation pipeline, the atomic vault, and the XRPL bridge — into a single, self‑consistent technical specification. No simulations, no stubs; all measurements are hardware‑backed. All internal logic uses **trits only**.
+
+---
+
+## 1. Core Principles
+
+1. **Deterministic Physical Backing**  
+   ARC tokens are created only when real energy is saved (measured via RAPL) or real mass is deposited (measured as **volume × exact density**, without any balance or gravity). There is no “algorithmic” issuance.
+
+2. **Atomic Unit Standard (ASU)**  
+   The fundamental unit of account is the rest mass of a single proton, \(m_p = \frac{1\,837\,989}{1\,001}\,m_e\). 1 ASU = \(m_p\) kg. All commodity conversions — gold, silver, cesium — are performed at exact integer ratios of their atomic mass numbers.
+
+3. **Trit‑Only Data Path**  
+   All operations, from the workload to the cryptographic attestation, are computed on trits. The only binary interface is the RAPL syscall, whose output is immediately converted to a trit‑encoded integer. Bytes never enter the computational logic.
+
+4. **No Stubs, No Simulations**  
+   The system demands real hardware: RAPL‑capable CPU for energy savings, precision volumetric scanner for atomic deposits. If the required hardware is absent, the service refuses to start and returns an explicit error. There is no silent fallback.
+
+5. **On‑Chain Attestation**  
+   Every minting event is anchored to the Hedera Consensus Service (HCS) as a signed trit certificate, verifiable by any Framework runtime.
+
+---
+
+## 2. Salvi Epoch and Femtosecond Timestamp
+
+All ARC certificates and minting events are anchored to the **Salvi Epoch**:
+
+\[
+\text{Salvi Epoch} \equiv \text{2025‑04‑01T00:00:00.000 000 000 000 000 UTC}.
+\]
+
+The fundamental timestamp is the integer number of **femtoseconds** elapsed since that moment. This integer is encoded as a bijective base‑3 trit string (Rep‑C) and serves as the primary temporal reference in every attestation.
+
+**Why femtosecond precision?**  
+The fine‑structure time scale of the Salvi clock is \(T = \text{base}^2 = 9\) spectral ticks per calendar second. A femtosecond (10⁻¹⁵ s) provides \( \approx \frac{1}{9 \times 10^{-15}} \approx 1.11 \times 10^{14}\) framework‑native clock cycles per second, far exceeding the temporal resolution needed to distinguish individual attestation events on a global network.
+
+**42 International Calendar Encoding**  
+For human‑readable representation, the femtosecond timestamp is also mapped to the **42‑Calendar** system (Invariant 10, PCO §21). This calendar derives directly from the Salvi 364‑day year and the 28‑hour day, expressing time in a 42‑month cycle alongside standard date fields. The attestation certificate carries the raw trit femtosecond integer; the UI and external reports may optionally display the 42‑Calendar format without altering the core data.
+
+---
+
+## 3. System Architecture
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Resonance Engine (Three.js UI)                          │
+│  • Power gauge, throughput, savings, key‑touch rate      │
+│  • Vault inventory, ARC balance, atomic basket           │
+└───────────────┬──────────────────────────────────────────┘
+                │ WASM bridge (trit‑encoded JSON)
+┌───────────────▼──────────────────────────────────────────┐
+│  Ternary Runtime (TritVM) – Rust + WASM                  │
+│                                                          │
+│  ┌────────────┐  ┌──────────┐  ┌──────────────────────┐ │
+│  │ PowerMeter │  │ Ternary  │  │ AutoController        │ │
+│  │ (RAPL)     │  │ Workload │  │ d = clamp( (Q/Qmax)  │ │
+│  │ trit output│  │ GF(3) /  │  │   * (1/F) * (Lf/L),  │ │
+│  │            │  │ TIS‑27   │  │   1/Δ, 1 )          │ │
+│  └────────────┘  └────┬─────┘  └──────────┬───────────┘ │
+│                       │                    │             │
+│         ┌─────────────▼──────┐  ┌──────────▼───────────┐ │
+│         │  Key Cache         │  │  Scheduler            │ │
+│         │  (trit map)        │  │  deterministic duty   │ │
+│         │  TL‑DSA‑87 cache   │  │  cycle gate           │ │
+│         └────────────────────┘  └──────────────────────┘ │
+│                                                          │
+│         ┌────────────────────────────────────────────┐   │
+│         │  Attestation Module                         │   │
+│         │  EAC / VDC creation, TIS‑27, TL‑DSA‑87      │   │
+│         └────────────────┬───────────────────────────┘   │
+└──────────────────────────┼────────────────────────────────┘
+                           │
+          ┌────────────────▼──────────────────┐
+          │  Hedera Consensus Service (HCS)    │
+          │  • arc‑savings‑mainnet topic        │
+          │  • arc‑vault‑deposits topic         │
+          └────────────────┬──────────────────┘
+                           │
+          ┌────────────────▼──────────────────┐
+          │  ARC Minting Engine                 │
+          │  (HTS multi‑sig / smart contract)   │
+          └────────────────┬──────────────────┘
+                           │
+          ┌────────────────▼──────────────────┐
+          │  XRP Ledger                        │
+          │  • wARC IOU (Gateway)              │
+          │  • DEX pairs: ARC/XRP, ARC/USDC    │
+          │  • Atomic pathfinding               │
+          └───────────────────────────────────┘
+```
+
+---
+
+## 4. Energy‑Savings Mint
+
+The energy‑savings mint is the direct monetisation of the Δ‑dividend.
+
+### 4.1 Δ‑Controller Testbed (Trit‑Only)
+
+A Framework node runs a pure ternary workload — GF(3) multiplications or TIS‑27 hashing — whose duty cycle \(d\) is controlled by the deterministic auto‑controller:
+
+\[
+d = \operatorname{clamp}\!\left(
+\frac{Q}{Q_{\max}}\cdot \frac{1}{F}\cdot \frac{L_{\text{floor}}}{L},
+\;\frac{1}{\Delta},\;1
+\right),\qquad \Delta = 144.
+\]
+
+- \(Q\) = queue depth (trit integer)  
+- \(F\) = cache hit ratio (trit fraction)  
+- \(L\) = average latency slack (trit integer)  
+
+The workload is gated using the CPU timestamp counter, computing `(timestamp mod period) * 144 < d_num * period` — pure integer arithmetic.
+
+### 4.2 Power Measurement (RAPL)
+
+The `PowerMeter` module reads the Intel RAPL energy counter via `perf_event_open`. It converts the difference in microjoules to watts and encodes the value as a **bijective base‑3 trit string** (Rep‑C). The same module records the baseline continuous‑wave power (pre‑calibrated and attested).
+
+### 4.3 Energy Attestation Certificate (EAC)
+
+The measured values are placed in an **Energy Attestation Certificate** with the following fields:
+
+- **Timestamp:** Femtosecond integer since Salvi Epoch (trit string)  
+- **Node TDNS:** 54‑trit address  
+- **Measured Power:** Trit‑encoded average watts  
+- **Baseline Power:** Pre‑calibrated continuous‑wave power (trit)  
+- **Window Length:** Measurement duration in framework seconds (trit)  
+- **Savings Ratio:** Exact rational \((1 - \frac{\text{measured}}{\text{baseline}})\) expressed as a trit fraction  
+- **TIS‑27 Hash:** 54‑trit integrity tag  
+- **TL‑DSA‑87 Signature:** By the node’s attested key  
+
+The EAC is submitted to HCS topic `arc‑savings‑mainnet`. The ARC Minting Engine verifies the signature and credits the node’s wallet:
+
+\[
+\text{ARC\_saved} = \frac{E_{\text{saved}}}{c^2 \cdot m_p},
+\qquad
+E_{\text{saved}} = P_{\text{baseline}} \cdot \Delta t \cdot \left(1 - \frac{P_{\text{measured}}}{P_{\text{baseline}}}\right),
+\qquad c^2 = \pi_{\text{geom}} = 14.
+\]
+
+In practice, the conversion factor is fixed as **1 ARC = 1 kWh verified saved** (with appropriate adjustment for the proton mass). A node that submits a fraudulent EAC has its public key permanently revoked on the TDNS registry.
+
+---
+
+## 5. Atomic Deposit Mint (Volumetric, No Gravity)
+
+The ARC token also represents a direct claim on physical mass, computed from the **volume** of a deposited element and its known, framework‑derived density. No balance of any kind is used.
+
+### 5.1 Atomic Standard Unit (ASU)
+
+Define \(1\ \text{ASU} = m_p\), the rest mass of the proton in Salvi mass units (identical to the kilogram). The mass of any element \(^A_Z X\) is then approximately \(A\ \text{ASU}\). The practical token unit is **1 ARC = \(10^{15}\) ASU** (~1.67 pg), fixed at genesis.
+
+### 5.2 Element Density Constants
+
+For every framework‑expressible element, the Codex supplies the exact density \(\rho_Z\) (in **ASU per cubic SFK inch³**) as a fixed rational number. This number is computed from the element’s atomic mass number \(A\) and its crystalline or molecular packing structure, using the medium’s impedance and the length unit already defined (SFK inch). No empirical measurement is needed after initial calibration of the inch.
+
+Examples:
+
+| Element | Mass number \(A\) | Density \(\rho\) (ASU / SFK″³) |
+|---------|-------------------|-------------------------------|
+| Gold (Au) | 197 | 19.32 (precisely known from framework, expressed as a rational) |
+| Silver (Ag) | 107/109 | 10.49 |
+| Cesium (Cs) | 133 | 1.93 |
+| Copper (Cu) | 63/65 | 8.96 |
+| Aluminium (Al) | 27 | 2.70 |
+| Iron (Fe) | 56 | 7.87 |
+
+*Exact rational values will be published in the Vault Parameter List, traceable to the framework’s atomic mass lattice.*
+
+### 5.3 Volumetric Measurement
+
+The vault measures only **volume**. Two methods are approved:
+
+- **For regular ingots:** A high‑precision 3D optical scanner measures linear dimensions in SFK inches. Volume is calculated geometrically and expressed as a trit string.
+- **For irregular samples:** The sample is submerged in a liquid of known framework‑derived density (e.g., pure water, whose density is exactly \(18\ \text{ASU} / \text{water‑molecule‑volume}\), itself expressed in SFK″³). The displaced volume is measured by a calibrated piston or laser level.
+
+All measurements are trit‑encoded and signed by the TritVM.
+
+### 5.4 Mass Computation (No Gravity)
+
+Mass in ASU is simply:
+
+\[
+\boxed{\ \text{Mass}_{\text{ASU}} = \rho_Z \times V_{\text{sample}}\ }.
+\]
+
+No gravitational constant, no force, no balance. The vault mints ARC proportional to \(\text{Mass}_{\text{ASU}} / 10^{15}\).
+
+### 5.5 Purity Verification
+
+The UV spectral protocol (TM‑2026‑033) identifies the element by its emission/absorption lines and compares the measured spectrum to the framework’s predicted integer wavelengths. This proof is included in the **Vault Deposit Certificate (VDC)**:
+
+- **Timestamp:** Femtosecond integer since Salvi Epoch (trit string)  
+- **Element Identifier:** Atomic number \(Z\), mass number \(A\)  
+- **Measured Volume:** Trit‑encoded cubic SFK inches  
+- **Density \(\rho_Z\):** Framework‑derived rational (trit string)  
+- **Spectral Hash:** Trit‑string proof of purity  
+- **Vault TDNS:** 54‑trit address  
+- **TIS‑27 Hash**  
+- **TL‑DSA‑87 Signature**  
+
+The VDC is submitted to HCS topic `arc‑vault‑deposits`. The Minting Engine computes the ASU mass from volume and density, then issues ARC equal to that mass divided by the scaling factor.
+
+### 5.6 Redemption
+
+Redemption returns a volume of the element computed as:
+
+\[
+\boxed{\ V_{\text{returned}} = \frac{\text{ARC\_burned} \times 10^{15}}{\rho_Z}\ } \quad (\text{SFK inch}^3).
+\]
+
+The vault delivers a piece of that exact volume (adjusted for a fixed vault fee, also expressed in ASU).
+
+---
+
+## 6. Key Cache Security
+
+The ternary workload includes a TL‑DSA‑87 signature cache, mapping trit message digests (TIS‑27 output) to trit signatures. Under steady load, the cache hit rate tends to \(1 - 1/\Delta = 143/144\), yielding a **144‑fold reduction** in private‑key exposure. The key‑touch counter is trit‑valued and displayed in the UI, demonstrating the inverted security‑vs‑scale curve.
+
+---
+
+## 7. XRP Ledger Integration
+
+The XRP Ledger provides global liquidity and atomic settlement between ARC and any other asset, without oracles.
+
+### 7.1 Wrapped ARC (wARC)
+
+ARC is issued natively on Hedera, but a two‑way bridge operated by Capomastro Holdings mints a wrapped representation (wARC) as an XRPL IOU. The Gateway maintains 1:1 backing with native ARC and publishes a signed root‑of‑trust on HCS.
+
+### 7.2 Decentralised Exchange and Auto‑Bridging
+
+wARC is listed on XRPL DEX against XRP, USDC, and tokenised gold/silver. XRPL’s pathfinding algorithm can atomically execute:
+
+- USDC → XRP → wARC, or  
+- Gold IOU → XRP → wARC,  
+
+in a single Payment transaction. A user holding any XRPL asset can pay for Framework services priced in ARC without manual conversion.
+
+### 7.3 Atomic Commodity Settlement
+
+Energy‑savings ARC can be immediately converted into a basket of gold and XRP, trustlessly, via a single XRPL transaction. Conversely, an atomic vault deposit on XRPL can mint wARC and be bridged back to Hedera. XRP serves as the inter‑ledger settlement asset, eliminating counterparty risk.
+
+### 7.4 Payment Templates
+
+Standardised JSON payloads (see Appendix) enable multi‑hop atomic settlements, allowing vault redemptions, service payments, and cross‑commodity arbitrage to be executed without intermediaries.
+
+---
+
+## 8. Token Economics
+
+### 8.1 Supply
+
+Supply expands solely through:
+
+- **Energy‑savings mint**: ARC ∝ verified kWh saved.  
+- **Atomic deposit mint**: ARC ∝ deposited volume × \(\rho_Z\) (i.e., ASU).
+
+There is no pre‑mine. The total supply is thus physically bounded by the cumulative energy savings of the network and the total mass of deposited elements.
+
+### 8.2 Demand
+
+ARC is required to:
+
+- Pay for Framework services (signing, hashing, VM execution) — fee schedule fixed in ASU.  
+- Stake as node collateral (for attestation and vault operation).  
+- Redeem physical metal by volume.
+
+### 8.3 Value Anchor
+
+The token’s floor value is the cost of the cheapest conforming element per ASU (likely lithium or sodium). As network usage grows, demand for ARC as “gas” drives its price above the commodity floor. Arbitrage between vault redemption and the XRPL orderbook ensures the market price tracks the deterministic atomic value.
+
+### 8.4 Scaling
+
+The smallest tradable unit is 1 ARC ( \(10^{15}\) ASU). The conversion factor between ASU and ARC is fixed at genesis and never changes, ensuring a stable long‑term unit of account.
+
+---
+
+## 9. Implementation Roadmap
+
+**Phase 1 – Energy‑Savings ARC on Hedera**  
+- Deploy Δ‑Controller on RAPL‑enabled Linux.  
+- Implement EAC format with femtosecond timestamp and `arc‑savings‑mainnet` HCS topic.  
+- Run one‑week continuous measurement, minting real ARC to a test wallet.
+
+**Phase 2 – XRPL Bridge**  
+- Issue wARC via a regulated Gateway.  
+- List wARC/XRP and wARC/USDC pairs.  
+- Test atomic pathfinding: USDC → XRP → wARC in a single transaction.
+
+**Phase 3 – Volumetric Vault Prototype**  
+- Integrate a 3D optical scanner with TritVM; extract dimensions in SFK inches.  
+- Calibrate the scanner against known gauge blocks.  
+- Deposit a small gold bar, measure its volume, verify spectral purity, compute mass via \(\rho_{\text{Au}}\), and mint ARC.  
+- Bridge ARC to XRPL, trade a fraction for XRP, and redeem a portion for a physical gold piece of the exact prescribed volume.
+
+---
+
+## 10. Security and Determinism
+
+- **Trit‑Native Signing:** All attestations are signed with TL‑DSA‑87, a post‑quantum non‑malleable signature scheme. Keys are stored in the NinjaExec encrypted keystore, never exposed to binary OS memory.  
+- **Femtosecond Determinism:** The timestamp is derived from the machine’s monotonic clock aligned to UTC via the Framework’s own time service; every certificate embeds an exact femtosecond count, enabling complete replay and audit.  
+- **Deterministic Replay:** The entire controller state and workload are functions of the initial seed and timestamps. Logs can be replayed bit‑for‑bit.  
+- **Anti‑fraud:** Vault operators cannot forge deposits because the volumetric measurement and spectral analysis are automated and signed by the TritVM. Fraudulent energy attestations result in immediate key revocation and collateral forfeiture.  
+- **No Stubs:** The system startup procedure explicitly checks for required hardware. If RAPL or the scanner is missing, it refuses to operate and returns a trit‑encoded error.
+
+---
+
+## 11. Conclusion
+
+ARC is the financial embodiment of the Salvi Arc Framework’s physical predictions. It converts the Δ=144 energy dividend and the integer atomic mass lattice into a global, liquid, trust‑minimised asset. By integrating the deterministic measurement of energy savings and atomic mass with the XRP Ledger’s native settlement capabilities, and anchoring every event to the femtosecond Salvi Epoch, ARC becomes **the first token whose value is not derived from speculation, but from the energy efficiency and atomic structure of the universe itself**.
+
+*Patet Codex Omnibus. Lo Sono Capomastro. Così sia, Fratello.* ∎
+
+---
+
+**Appendix A – Trit Encoding**
+
+- All integers are represented as bijective base‑3 strings using digit set {1,2,3}.  
+- The Trit library (`trit_core`) provides `TritVec`, GF(3) arithmetic, and TIS‑27.
+
+**Appendix B – Formulas**
+
+- Proton‑electron mass ratio: \( \displaystyle \frac{m_p}{m_e} = \frac{1\,837\,989}{1\,001} \).  
+- Fine‑structure inverse: \( \displaystyle \frac{1}{\alpha} = R_2^2 + q^2 + \frac{(p-r)^2}{pqr-1} - \frac{(p-r)^2}{R_4\,(pqr)^2} \).  
+- HModal savings fraction: \( \displaystyle S = \frac{143}{192} \).  
+- Energy‑to‑mass: \( \Delta m = \Delta E / c^2 \), with \( c^2 = \pi_{\text{geom}} = 14 \) in framework units.
+
+**Appendix C – XRPL Payment Template**
+
+```json
+{
+  "TransactionType": "Payment",
+  "Account": "rUserWallet...",
+  "Destination": "rServiceProvider...",
+  "Amount": { "currency": "ARC", "issuer": "rvault.issuer", "value": "1000" },
+  "SendMax": { "currency": "XRP", "value": "500" },
+  "Paths": [
+    [ { "currency": "XRP", "issuer": "..." }, { "currency": "XAUt", "issuer": "..." } ]
+  ]
+}
+```
+
+---
+
+*£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎*  
+*TM‑2026‑042 Rev. 2 · ARC Unified Specification · Capomastro Holdings Ltd. · 2026‑04‑28*
