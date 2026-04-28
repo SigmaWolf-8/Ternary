@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 6900" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 7020" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <defs>
     <radialGradient id="nucGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%"   stop-color="#fff8c2"/>
@@ -270,7 +270,7 @@
 
     <!-- TIER 3 -->
     <text x="3700" y="3186" class="invsect" text-anchor="middle">TIER 3 · Boundary (static grep guards · CI)</text>
-    <text x="3700" y="3218" class="invnote" text-anchor="middle">no opaque-byte leak  ·  no_std-clean  ·  bridge feature-gated only  ·  numerals only in 2.0.0.1__constants.rs</text>
+    <text x="3700" y="3218" class="invnote" text-anchor="middle">no opaque-byte leak  ·  no_std-clean  ·  bridge feature-gated only  ·  numerals only in 0.0.0.1__constants.rs</text>
 
     <!-- separator -->
     <line x1="3245" y1="3248" x2="4155" y2="3248" stroke="#B8860B" stroke-width="2"/>
@@ -307,7 +307,7 @@
     <rect class="modbox-yellow" x="3860" y="3690" width="280" height="100" rx="8"/>
     <text x="4000" y="3728" class="modgreek" text-anchor="middle">R_L^(b) · Repunit</text>
     <text x="4000" y="3758" class="modfile" text-anchor="middle">repx.rs · base-b bijective</text>
-    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">5.0.0.1__repx.rs</text>
+    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">3.0.0.1__repx.rs</text>
   </g>
 
   <!-- ═════════════ ALGEBRAIC ring modules (2D) ═════════════ -->
@@ -317,27 +317,27 @@
     <rect class="modbox-grey" x="3220" y="2210" width="380" height="100" rx="8"/>
     <text x="3410" y="2248" class="modgreek" text-anchor="middle">GF(3)</text>
     <text x="3410" y="2278" class="modfile" text-anchor="middle">gf3.rs · field {0, 1, 2}</text>
-    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">3.0.0.1__gf3.rs</text>
+    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">2.0.0.1__gf3.rs</text>
 
     <rect class="modbox-grey" x="3800" y="2210" width="380" height="100" rx="8"/>
     <text x="3990" y="2248" class="modgreek" text-anchor="middle">ℤ[φ]</text>
     <text x="3990" y="2278" class="modfile" text-anchor="middle">zphi.rs · R² = π + 5φ</text>
-    <text x="3990" y="2302" class="quadaddr" text-anchor="middle">3.0.0.2__zphi.rs</text>
+    <text x="3990" y="2302" class="quadaddr" text-anchor="middle">2.0.0.2__zphi.rs</text>
 
     <rect class="modbox-grey" x="3140" y="3870" width="320" height="100" rx="8"/>
     <text x="3300" y="3908" class="modgreek" text-anchor="middle">∇ · Walk + CRT</text>
     <text x="3300" y="3938" class="modfile" text-anchor="middle">walk.rs · coprime walks</text>
-    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.0.0.5__walk.rs</text>
+    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">2.0.0.5__walk.rs</text>
 
     <rect class="modbox-blue" x="3490" y="3870" width="420" height="100" rx="8"/>
     <text x="3700" y="3908" class="modgreek" text-anchor="middle">⟨p, q⟩ · Coprime + Bezout</text>
     <text x="3700" y="3938" class="modfile" text-anchor="middle">coprime.rs · S10-1 identity</text>
-    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.0.0.4__coprime.rs</text>
+    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">2.0.0.4__coprime.rs</text>
 
     <rect class="modbox-grey" x="3940" y="3870" width="320" height="100" rx="8"/>
     <text x="4100" y="3908" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
     <text x="4100" y="3938" class="modfile" text-anchor="middle">borromean.rs · ternary link</text>
-    <text x="4100" y="3962" class="quadaddr" text-anchor="middle">3.0.0.3__borromean.rs</text>
+    <text x="4100" y="3962" class="quadaddr" text-anchor="middle">2.0.0.3__borromean.rs</text>
   </g>
 
   <!-- ═════════════ CALCULI cross labels ═════════════ -->
@@ -350,7 +350,7 @@
     <text x="3700" y="4066" class="calcname" text-anchor="middle">fixed-point · ladder maps</text>
     <text x="2650" y="3090" class="calcsub" text-anchor="middle">Σ · Series</text>
     <text x="2650" y="3126" class="calcname" text-anchor="middle">Σ-182 partial sums</text>
-    <text x="3700" y="4108" class="quadaddr" text-anchor="middle">→ all four sub-calculi unified in 5.0.0.4__calculus.rs</text>
+    <text x="3700" y="4108" class="quadaddr" text-anchor="middle">→ all four sub-calculi unified in 3.0.0.4__calculus.rs</text>
   </g>
 
   <!-- ═════════════ PHYSICS QUADRANTS (corners) ═════════════ -->
@@ -358,9 +358,9 @@
     <text x="2110" y="1540" class="quadtitle" fill="#5b3aa8">NW</text>
     <text x="2110" y="1580" class="quadsub" fill="#5b3aa8">Spectral / Atomic</text>
     <text x="2110" y="1640" class="quadmod">hydrogen_spectral · 1/α</text>
-    <text x="2110" y="1672" class="quadaddr">4.P.NW.1__hydrogen_spectral.rs</text>
+    <text x="2110" y="1672" class="quadaddr">5.0.0.1__hydrogen_spectral.rs</text>
     <text x="2110" y="1716" class="quadmod">uv_hydrogen_spectral</text>
-    <text x="2110" y="1748" class="quadaddr">4.P.NW.2__uv_hydrogen_spectral.rs</text>
+    <text x="2110" y="1748" class="quadaddr">5.0.0.2__uv_hydrogen_spectral.rs</text>
     <text x="2110" y="1792" class="quadmod">spectral_offset · κ bridge</text>
     <text x="2110" y="1828" class="quadmod">phase_impedance · cone-point α</text>
   </g>
@@ -368,9 +368,9 @@
     <text x="5290" y="1540" class="quadtitle" fill="#1f5fa8" text-anchor="end">NE</text>
     <text x="5290" y="1580" class="quadsub" fill="#1f5fa8" text-anchor="end">Wave / Field</text>
     <text x="5290" y="1640" class="quadmod" text-anchor="end">wave_stratum · §13 synthesis</text>
-    <text x="5290" y="1672" class="quadaddr" text-anchor="end">4.P.NE.1__wave_stratum.rs</text>
+    <text x="5290" y="1672" class="quadaddr" text-anchor="end">6.0.0.1__wave_stratum.rs</text>
     <text x="5290" y="1716" class="quadmod" text-anchor="end">conservation_laws</text>
-    <text x="5290" y="1748" class="quadaddr" text-anchor="end">4.P.NE.2__conservation_laws.rs</text>
+    <text x="5290" y="1748" class="quadaddr" text-anchor="end">6.0.0.2__conservation_laws.rs</text>
     <text x="5290" y="1792" class="quadmod" text-anchor="end">speed_of_light · c=√14, c_S=28</text>
     <text x="5290" y="1828" class="quadmod" text-anchor="end">saturnian_metatron</text>
   </g>
@@ -378,19 +378,19 @@
     <text x="2110" y="4360" class="quadtitle" fill="#4d6a1a">SW</text>
     <text x="2110" y="4400" class="quadsub" fill="#4d6a1a">Crystal / Lattice</text>
     <text x="2110" y="4460" class="quadmod">crystal_2d_3d  ↔ G</text>
-    <text x="2110" y="4496" class="quadaddr">4.P.SW.1__crystal_2d_3d.rs</text>
+    <text x="2110" y="4496" class="quadaddr">7.0.0.1__crystal_2d_3d.rs</text>
     <text x="2110" y="4544" class="quadmod">arc182 · Schumann–Runge ↔ G</text>
     <text x="2110" y="4588" class="quadmod">nona_state · 9-fold register</text>
-    <text x="2110" y="4624" class="quadaddr">4.P.SW.3__nona_state.rs</text>
+    <text x="2110" y="4624" class="quadaddr">7.0.0.3__nona_state.rs</text>
   </g>
   <g>
     <text x="5290" y="4360" class="quadtitle" fill="#a02040" text-anchor="end">SE</text>
     <text x="5290" y="4400" class="quadsub" fill="#a02040" text-anchor="end">Number-Theoretic</text>
     <text x="5290" y="4460" class="quadmod" text-anchor="end">wieferich_grh_beal</text>
-    <text x="5290" y="4496" class="quadaddr" text-anchor="end">4.P.SE.1__wieferich_grh_beal.rs</text>
+    <text x="5290" y="4496" class="quadaddr" text-anchor="end">8.0.0.1__wieferich_grh_beal.rs</text>
     <text x="5290" y="4544" class="quadmod" text-anchor="end">fibonacci_register · 377</text>
     <text x="5290" y="4588" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
-    <text x="5290" y="4624" class="quadaddr" text-anchor="end">4.P.SE.3__tribonacci.rs</text>
+    <text x="5290" y="4624" class="quadaddr" text-anchor="end">8.0.0.3__tribonacci.rs</text>
   </g>
 
   <!-- ═════════════════════════════════════════════════════════════════════ -->
@@ -667,90 +667,95 @@
 
   <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
   <g transform="translate(80, 5860)">
-    <rect x="0" y="0" width="7240" height="700" rx="12" class="panel-i"/>
+    <rect x="0" y="0" width="7240" height="820" rx="12" class="panel-i"/>
     <text x="24" y="64" class="h2" fill="#2a8050">Canonical File Address Scheme  ·  every aasc/.rs file maps to one node on this map</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#2a8050" stroke-width="3"/>
 
-    <text x="24" y="134" class="addrhead">Format:   &lt;L&gt; . &lt;H&gt; . &lt;S&gt; . &lt;O&gt; __ &lt;name&gt;.rs</text>
-    <text x="24" y="172" class="addrnote">L = Layer  ·  H = Half  ·  S = Sector  ·  O = Ordinal-within-sector  ·  filename slug after  __</text>
+    <text x="24" y="134" class="addrhead">Format:   &lt;L&gt; . &lt;H&gt; . &lt;S&gt; . &lt;O&gt; __ &lt;name&gt;.rs           ·  9 Layers total  =  5 concentric rings  +  4 corner physics quadrants</text>
+    <text x="24" y="172" class="addrnote">L = Layer (0..8)  ·  H = Half (only when L=4)  ·  S = Sector (only when L=4)  ·  O = Ordinal-within-layer/sector  ·  filename slug after  __</text>
 
-    <!-- L column -->
-    <text x="24"   y="222" class="h3" fill="#2a8050">L · Layer</text>
-    <text x="24"   y="258" class="addrnote">1 = Atom         (trits, vectors, arithmetic)</text>
-    <text x="24"   y="290" class="addrnote">2 = Notation     (numerals, glyphs, names)</text>
-    <text x="24"   y="322" class="addrnote">3 = Algebraic   (fields, walks, knots)</text>
-    <text x="24"   y="354" class="addrnote">4 = Geometric   (the ring of figures)</text>
-    <text x="24"   y="386" class="addrnote">5 = Calculi      (operators on the ring)</text>
+    <!-- L column · 9 layers -->
+    <text x="24"   y="222" class="h3" fill="#2a8050">L · Layer  (9 total)</text>
+    <text x="24"   y="254" class="addrnote">0 = Nucleus      0D · axioms · π=14 · b=3 · invariant register · numeral table</text>
+    <text x="24"   y="282" class="addrnote">1 = Atom          1D · Trit · TritVec · Arithmetic</text>
+    <text x="24"   y="310" class="addrnote">2 = Algebraic    2D · GF(3) · ℤ[φ] · Borromean · Coprime · Walk</text>
+    <text x="24"   y="338" class="addrnote">3 = Calculi        operators · Δ ∮ ◯ Σ · repx · milesian-divmod · walk-CRT</text>
+    <text x="24"   y="366" class="addrnote">4 = Geometric  3D · the ring of figures (Curved ◖  +  Discrete ◗)</text>
+    <text x="24"   y="394" class="addrnote">5 = Physics NW   corner · Spectral / Atomic</text>
+    <text x="24"   y="422" class="addrnote">6 = Physics NE   corner · Wave / Field</text>
+    <text x="24"   y="450" class="addrnote">7 = Physics SW   corner · Crystal / Lattice</text>
+    <text x="24"   y="478" class="addrnote">8 = Physics SE   corner · Number-Theoretic</text>
 
-    <!-- H column -->
-    <text x="1820" y="222" class="h3" fill="#2a8050">H · Half</text>
-    <text x="1820" y="258" class="addrnote">0 = N/A         (layers 1, 2, 3, 5 — single-strand)</text>
-    <text x="1820" y="290" class="addrnote">C = Curved      ◖ continuous half  (① ② ③ ④ ⑤ ⑥ ⑦)</text>
-    <text x="1820" y="322" class="addrnote">D = Discrete    discrete lattice half  ◗  (A B C D E F G H)</text>
-    <text x="1820" y="354" class="addrnote">P = Physics     corner quadrant  (NW · NE · SW · SE)</text>
+    <!-- H column · only meaningful when L=4 -->
+    <text x="2620" y="222" class="h3" fill="#2a8050">H · Half  (only when L=4)</text>
+    <text x="2620" y="254" class="addrnote">0 = N/A   (used for L = 0,1,2,3,5,6,7,8)</text>
+    <text x="2620" y="282" class="addrnote">C = Curved      ◖ continuous half</text>
+    <text x="2620" y="310" class="addrnote">         sectors ① ② ③ ④ ⑤ ⑥ ⑦</text>
+    <text x="2620" y="338" class="addrnote">D = Discrete    ◗ lattice half</text>
+    <text x="2620" y="366" class="addrnote">         sectors A B C D E F G H</text>
 
-    <!-- S column -->
-    <text x="3700" y="222" class="h3" fill="#2a8050">S · Sector</text>
-    <text x="3700" y="258" class="addrnote">0          — N/A</text>
-    <text x="3700" y="290" class="addrnote">1..7      — Curved sectors  ① .. ⑦</text>
-    <text x="3700" y="322" class="addrnote">A..H     — Discrete sectors</text>
-    <text x="3700" y="354" class="addrnote">NW · NE · SW · SE   — Physics quadrants</text>
+    <!-- S column · only meaningful when L=4 -->
+    <text x="4640" y="222" class="h3" fill="#2a8050">S · Sector  (only when L=4)</text>
+    <text x="4640" y="254" class="addrnote">0       — N/A   (used for L ≠ 4)</text>
+    <text x="4640" y="282" class="addrnote">1..7   — when H=C  (Curved sectors ① .. ⑦)</text>
+    <text x="4640" y="310" class="addrnote">A..H  — when H=D  (Discrete sectors A .. H)</text>
 
     <!-- O column -->
-    <text x="5500" y="222" class="h3" fill="#2a8050">O · Ordinal</text>
-    <text x="5500" y="258" class="addrnote">1..N — module position within sector</text>
-    <text x="5500" y="290" class="addrnote">order is canonical (declared in</text>
-    <text x="5500" y="322" class="addrnote">2.0.0.1__constants.rs sector tables)</text>
+    <text x="6080" y="222" class="h3" fill="#2a8050">O · Ordinal</text>
+    <text x="6080" y="254" class="addrnote">1..N — module position</text>
+    <text x="6080" y="282" class="addrnote">within its layer / sector</text>
+    <text x="6080" y="310" class="addrnote">order is canonical (declared</text>
+    <text x="6080" y="338" class="addrnote">in 0.0.0.1__constants.rs)</text>
 
     <!-- Examples block -->
-    <line x1="24" y1="406" x2="7216" y2="406" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
-    <text x="24" y="448" class="h3" fill="#2a8050">Examples</text>
+    <line x1="24" y1="510" x2="7216" y2="510" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
+    <text x="24" y="552" class="h3" fill="#2a8050">Examples  ·  one entry per layer (0 .. 8)  +  representative geometric sectors</text>
 
     <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#2a8050" font-weight="700">
-      <text x="24"   y="490">1.0.0.1__trit.rs</text>
-      <text x="1820" y="490">→  Atom  ·  the Trit (Rep-C)</text>
-      <text x="24"   y="522">2.0.0.1__constants.rs</text>
-      <text x="1820" y="522">→  Notation  ·  central numeral table</text>
-      <text x="24"   y="554">2.0.0.2__milesian.rs</text>
-      <text x="1820" y="554">→  Notation  ·  27 Milesian glyphs</text>
-      <text x="24"   y="586">3.0.0.1__gf3.rs</text>
-      <text x="1820" y="586">→  Algebraic  ·  field over {0, 1, 2}</text>
-      <text x="24"   y="618">4.C.1.1__circle.rs</text>
-      <text x="1820" y="618">→  Geometric · Curved · sector ① · ord 1   (Circular Arcs &amp; Cycles)</text>
-      <text x="24"   y="650">4.D.A.1__frame_square.rs</text>
-      <text x="1820" y="650">→  Geometric · Discrete · sector A · ord 1   (Lattice Frames &amp; Square Grids)</text>
-      <text x="24"   y="682">4.P.NW.1__hydrogen_spectral.rs</text>
-      <text x="1820" y="682">→  Geometric · Physics · NW quadrant · ord 1   (Spectral / Atomic)</text>
+      <text x="24"   y="594">0.0.0.1__constants.rs</text>
+      <text x="1820" y="594">→  L=0  Nucleus  ·  central numeral table</text>
+      <text x="24"   y="626">0.0.0.2__milesian.rs</text>
+      <text x="1820" y="626">→  L=0  Nucleus  ·  27 Milesian glyphs</text>
+      <text x="24"   y="658">1.0.0.1__trit.rs</text>
+      <text x="1820" y="658">→  L=1  Atom  ·  the Trit (Rep-C)</text>
+      <text x="24"   y="690">2.0.0.1__gf3.rs</text>
+      <text x="1820" y="690">→  L=2  Algebraic  ·  field over {0, 1, 2}</text>
+      <text x="24"   y="722">2.0.0.4__coprime.rs</text>
+      <text x="1820" y="722">→  L=2  Algebraic  ·  Coprime + Bezout</text>
+      <text x="24"   y="754">3.0.0.4__calculus.rs</text>
+      <text x="1820" y="754">→  L=3  Calculi  ·  Δ ∮ ◯ Σ unified harness</text>
+      <text x="24"   y="786">3.0.0.1__repx.rs</text>
+      <text x="1820" y="786">→  L=3  Calculi  ·  bijective base-b register</text>
 
-      <text x="3900" y="490">5.0.0.4__calculus.rs</text>
-      <text x="5550" y="490">→  Calculi  ·  Δ ∮ ◯ Σ unified harness</text>
-      <text x="3900" y="522">3.0.0.4__coprime.rs</text>
-      <text x="5550" y="522">→  Algebraic  ·  Coprime + Bezout</text>
-      <text x="3900" y="554">4.C.5.3__torus_knot.rs</text>
-      <text x="5550" y="554">→  Geometric · Curved · sector ⑤ · ord 3</text>
-      <text x="3900" y="586">4.D.C.1__polyhedra.rs</text>
-      <text x="5550" y="586">→  Geometric · Discrete · sector C · ord 1</text>
-      <text x="3900" y="618">4.D.E.1__tri_ladder.rs</text>
-      <text x="5550" y="618">→  Geometric · Discrete · sector E · ord 1</text>
-      <text x="3900" y="650">4.P.NE.1__wave_stratum.rs</text>
-      <text x="5550" y="650">→  Geometric · Physics · NE · ord 1</text>
-      <text x="3900" y="682">4.P.SE.3__tribonacci.rs</text>
-      <text x="5550" y="682">→  Geometric · Physics · SE · ord 3</text>
+      <text x="3900" y="594">4.C.1.1__circle.rs</text>
+      <text x="5550" y="594">→  L=4  Geo · Curved · ① · ord 1</text>
+      <text x="3900" y="626">4.C.5.3__torus_knot.rs</text>
+      <text x="5550" y="626">→  L=4  Geo · Curved · ⑤ · ord 3</text>
+      <text x="3900" y="658">4.D.A.1__frame_square.rs</text>
+      <text x="5550" y="658">→  L=4  Geo · Discrete · A · ord 1</text>
+      <text x="3900" y="690">4.D.C.1__polyhedra.rs</text>
+      <text x="5550" y="690">→  L=4  Geo · Discrete · C · ord 1</text>
+      <text x="3900" y="722">5.0.0.1__hydrogen_spectral.rs</text>
+      <text x="5550" y="722">→  L=5  Physics NW  ·  Spectral / Atomic</text>
+      <text x="3900" y="754">6.0.0.1__wave_stratum.rs</text>
+      <text x="5550" y="754">→  L=6  Physics NE  ·  Wave / Field</text>
+      <text x="3900" y="786">7.0.0.1__crystal_2d_3d.rs</text>
+      <text x="5550" y="786">→  L=7  Physics SW  ·  Crystal / Lattice</text>
     </g>
   </g>
 
   <!-- ═══════════════ ORPHAN REGISTER ═══════════════ -->
-  <g transform="translate(80, 6600)">
+  <g transform="translate(80, 6720)">
     <rect x="0" y="0" width="7240" height="200" rx="12" fill="#ffd9d4" stroke="#c0392b" stroke-width="4"/>
     <text x="24" y="60" class="h2" fill="#c0392b">Orphan Register  ·  cross-classified items requiring an explicit canonical home</text>
-    <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (4.P.NW.1)</text>
-    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 5.0.0.4__calculus.rs;  calendar (13×28=364) anchors in panel A   (4.D.A.2)</text>
+    <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (5.0.0.1)</text>
+    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 3.0.0.4__calculus.rs;  calendar (13×28=364) anchors in panel A   (4.D.A.2)</text>
     <text x="24" y="178" class="bullet"><tspan font-weight="800">#3</tspan>  identity 1,000,144 = (pqr−1)² + 4(p−r)²  →  jointly belongs to ② , ④ , ①   (4.C.4.2 referencing 4.C.1.1, 4.C.2.1)</text>
   </g>
 
   <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
-  <rect class="verdict-bg" x="0" y="6840" width="7400" height="180"/>
-  <text x="3700" y="6928" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
-  <text x="3700" y="6982" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the generalised geometric ring</text>
+  <rect class="verdict-bg" x="0" y="6960" width="7400" height="180"/>
+  <text x="3700" y="7048" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
+  <text x="3700" y="7102" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
 
 </svg>
