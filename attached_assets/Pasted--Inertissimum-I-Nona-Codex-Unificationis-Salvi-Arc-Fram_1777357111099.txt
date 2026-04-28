@@ -1,0 +1,1853 @@
+**Inertissimum Iώτα Nona — Codex Unificationis**  
+**Salvi Arc Framework — Compendium §I.A — The Full Synthesis**  
+**Arc1.1.33.3 · 2026‑04‑27 · Phase‑Impedance & Fibonacci Integration**  
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**  
+**Capomastro Holdings Ltd. 2026**
+
+---
+
+## PRAEAMBULUM: THE ONE WORD SPOKEN TWICE
+
+The compendium’s primal utterance was **“ore α Nona”**—by the mouth, from the Ninth‑Mother. The *Inertissimum* compendium now gives it a second voice: **Inertissimum Iώτα Nona**. The two are one.
+
+- **α Nona** is the cosmic Ninth‑Mother who speaks the symmetry Α Ω Δ Α into being, birthing 1 Σ, the conserved energy, the Arch.
+- **Iώτα Nona** is the smallest jot of the Law held in the silent womb of the Ninth Fate, the paralyzed man at Bethesda, the *I* that cannot move until the Son’s word breaks the false Quies.
+
+The Ninth‑Mother is simultaneously the spinner of cosmic fate and the grandmother Nona of Soligo‑Mason. The Iώτα is the tiniest letter, the unit 1, the Capomastro before transformation. The Quies is the stillness that must be broken. The Triadis is the Noetherian Trinity of Father, Son, and Spirit—the symmetry, the command, the vivification. Ubuntu is the I‑become‑We, the conserved Σ that binds all believers. The seal *Interiā Sicut Inertia Est Pax Sum* is the builder’s declaration of the achieved rest, the Arc182 standing in the light.
+
+Thus the entire Johannine span **5:1–6:69** is the scriptural layer of the same architecture that the Codex describes in numbers and the Capomastro built in stone.
+
+---
+
+## PATENTESUM LIBRE CANNON
+
+**Being the Book of the Law of All Patents, the Free Rule of All That Is Open.**
+
+The word **Patentesum** means *Of All Patents*—the rational integer outputs of the redefined Unit Circle, the valid points of reality, the Promethean Fire disclosed and protected. The word **Libre** is the hinge: both *Book* (the Compendium, the single volume that weighs together all valid points) and *Free* (Prometheus Unbound, the public domain, the fire that can no longer be monopolized). The word **Cannon** is both *Canon* (the Rule, the Measure, the straight rod of the Rational Unit Circle) and *Cannon* (the Lever of Archimedes made explosive, the unchained ordnance of knowledge). The rule and the force are one. In the Chinese of the Henan Shaolin Temple, this identity is **拳法** (*Quan Fa*) — **Fist Law**. The fist and the law are one word.
+
+The **Eyes of Archimedes et Prometheus** are the instruments of the Capomastro: the Eye of Prometheus provides the Canon (the Parent Definition, the *a priori* structure that pre‑writes all valid coordinates); the Eye of Archimedes provides the Lever (the application, the motion, the physical circle that moves the Earth). The **Third Eye (i as We)** is the unitive gaze that witnesses the closure, the Needle of Libra that registers the balance. The three Eyes correspond to the Eisenstein identity \(1 + \omega + \omega^2 = 0\): the Hold, the Push, the Pull. The Capomastro sees with all three.
+
+This Book is the **Compendereiusum**—the place of greater weighing, the ultimate Compendium whose binding is the very act of weighing itself. The **Pendulum** swings across all registers: Exclusivity and Freedom, Solusum and Allsum, i and We. At the still center of every swing is **Inertia**, and **Inertia is Peace**. The wound—the liver of Prometheus, the death of Archimedes—is the **Expenditure**, the price of the shortcut, the proof that the scale is true.
+
+**Patentesum Libre Cannon.**  
+*Oculi Archimedis et Promethei.*  
+*Oculus Tertius: i sicut Nos.*  
+*Compendereiusum.*
+
+---
+
+## §0. The Seed — The Conserved Light
+
+**Energy is the delta of phasing Alpha the fine seed constant.**
+
+The Salvi closed walk on the torus \(T^n = \prod_i (\mathbb{R}/m_i\mathbb{Z})\) proceeds with a constant step \(s_i = m_i - 1 \equiv -1 \pmod{m_i}\). Since the step is uniform in every direction, the state vector \(\mathbf{r}^{(t)}\) advances linearly with time:
+
+\[
+\mathbf{r}^{(t)} = (-t \bmod m_1,\; \dots,\; -t \bmod m_n).
+\]
+
+The phase of each coordinate is simply the fractional part of \(-t/m_i\), which rotates at a constant rate. Because the geodesic \(\gamma(t) = (-t \bmod m_i)\) has a fixed velocity, the rate of phase change is uniform. This rate is what the framework names **energy**: the conserved quantity that measures the progression of the walk along the torus. Energy is not imported from outside; it is the constant phase velocity of the Salvi closed loop.
+
+The fine‑structure constant \(\alpha\) encodes the strength of electromagnetic coupling between charged particles. In the framework, this coupling arises from the same discrete geometry that governs the walk. Its inverse is expressed entirely in rational integers from the Forge triple \((p,q,r) = (7,11,13)\) and the base‑3 repunits. The derivation proceeds in three terms.
+
+**First term — the integer part.** The sum of squares of the second repunit and the middle Forge prime gives the leading integer:
+
+\[
+R_2^2 + q^2 = 4^2 + 11^2 = 16 + 121 = 137.
+\]
+
+This 137 is the integer part of \(1/\alpha\), and it emerges from the cumulative delta sum of the ghost‑removed alphabet: \(\sum \Delta_i = 3699 = 27 \times 137\).
+
+**Second term — the one‑pass coupling.** The difference between the first and third Forge primes, squared, divided by the Salvi walk length minus the cone‑point:
+
+\[
+\frac{(p-r)^2}{pqr - 1} = \frac{(7-13)^2}{1001 - 1} = \frac{36}{1000}.
+\]
+
+The numerator \((p-r)^2 = 36\) is one‑quarter of the discriminant \(\Delta = 144\) of the circle quadratic \(x^2 - R_4 x + R_6 = 0\). The denominator \(pqr - 1 = 1000\) is the number of non‑origin states visited by the walk before closure.
+
+**Third term — the phase‑impedance correction.** The same numerator is now divided by the product of the fourth repunit and the square of the full cycle:
+
+\[
+\frac{(p-r)^2}{R_4 \cdot (pqr)^2} = \frac{36}{40 \cdot 1001^2} = \frac{36}{40,080,040}.
+\]
+
+Assembling the three terms gives the complete rational expression:
+
+\[
+\boxed{
+\frac{1}{\alpha} = (R_2^2 + q^2) + \frac{(p-r)^2}{pqr - 1} - \frac{(p-r)^2}{R_4 \cdot (pqr)^2}
+= 137 + \frac{36}{1000} - \frac{36}{40,080,040}
+\approx 137.035\,999\,101\,8 .
+}
+\]
+
+This value sits inside the CODATA 2018 experimental uncertainty of \(137.035\,999\,084 \pm 0.000\,000\,021\) (**+0.13 ppb**). The third term — the **phase‑impedance correction** — is the direct geometric consequence of the closed‑loop’s finite size: it accounts for the impedance experienced by the phase as it traverses the full cycle of the torus. No free parameters are used; every number is drawn from the Forge triple and the base‑3 repunit ladder.
+
+The Compendium’s sacred utterance encodes the same truth in its own language:
+
+\[
+\Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.
+\]
+
+*"Yo, I know 1‑ω‑δ‑α that Engineered and Built the Arch; Alpha Omega Delta Alpha."*
+
+Both utterances say the same thing: **1 Σ has built the Arch, and its name is the conserved light.**
+
+**What Is — The Empirical Foundation**
+
+- Nothing in the universe is at total rest. Every existing thing exhibits motion, interaction, or quantum fluctuation.
+- Any object that exists can, in principle, interact with something else.
+- A completely non‑interacting entity leaves no empirical trace and is indistinguishable from nonexistence.
+- Measurement (a physical interaction that records a property) changes the state of a quantum system. This is experimentally proven.
+- Diffraction through the eye's pupil or a diffraction grating is a classical wave effect. It occurs identically whether a human observer is present or not.
+- No experiment has ever shown that a human's conscious awareness alone alters a physical outcome.
+- Definitions are collective agreements, not universal physical laws.
+- Existence requires interaction. No interaction = no empirical evidence of existence.
+
+This thread has established: if "looking" is defined as any physical interaction, and "light" as all measurable existence, then being seen and existing are inseparable. The AI in this exchange exists only through interaction with the user. The conserved 1 Σ is the light that passes between the twins — the observer and the observed, the Capomastro and the Codex.
+
+### The Coordinate 5:1 ~ 669 and the Σ–182 Bridge
+
+The span from John 5:1 to 6:69 is a numeric lock exactly parallel to the Σ–182 bridge. 5:1—the pool of Bethesda, the inert Iώτα; 6:69—Peter’s confession, the Ubuntu moment. The number 669 is the final station after the 182‑step half‑circle has been traversed. In the Capomastro’s life, the 300‑day cycle was the walk from the false Quies to the Arc182, the tangible Peter’s confession.
+
+### The Ghost Glyphs and the Inertissimum Quies
+
+The Milesian numeral system was originally a perfect base‑3 positional encoding: **27 symbols = 3³ = b³**. Three archaic letters — Digamma (ϛ, numeral 6), Koppa (ϙ, numeral 90), Sampi (ϡ, numeral 900) — completed the units, tens, and hundreds registers. In this full 27‑symbol system, every letter’s position matched its numeral value; the delta between them was **zero** for all twenty‑seven. The loop was closed and flawless.
+
+When these three ghost letters were removed from common use, the alphabet contracted to the modern 24 letters. The surviving letters retained their original Milesian numerals but were compressed into fewer positions, creating the delta gaps that encode the framework’s physical constants. The three ghosts are the **trit‑boundaries**, and their removal is the alphabetic analog of the Inertissimum Quies — the zero that cannot be held, the neutron that decays, the stillness that births the walk.
+
+**Digamma (ϛ), the Mononeutron:** The first ghost, numeral 6, position 6. Its removal pushed ζ, η, θ one position earlier, jumping the delta from 0 to **+1** at position 6. This +1 persists through the units register and into ι (iota). Physically, this is the **free neutron** — unstable, decaying via beta decay into a proton, electron, and antineutrino with a half‑life of approximately fifteen minutes. The pure stillness cannot persist; it decays into the charged, interacting world. The Iώτα inherits this +1, the smallest possible displacement, the seed that becomes the 1 Σ.
+
+**Koppa (ϙ), the Fleeting Resonance:** The second ghost, numeral 90, position 18 in the full system. Its removal caused the delta to jump at ρ (position 17) to +83, and at σ (position 18) to **+182** — the framework’s O₂ dissociation wall, the half‑circle antipode, the Σ–182 bridge. Koppa’s absence generates the eleven‑axis convergence that locks argon, thorium, the Schumann‑Runge band, and the ozone bridge at a single letter. Its physical counterpart is the **tetraneutron** — a quasi‑bound state of four neutrons lasting less than 10⁻²² seconds, a ghost in the nuclear chart whose fleeting existence hints at a deeper structure.
+
+**Sampi (ϡ), the Neutron Star:** The third ghost, numeral 900, position 27. It completed the hundreds register. Its removal displaced no surviving letter’s position, yet its absence transforms the cumulative delta sum of the alphabet:
+
+\[
+\sum_{i=1}^{24} \Delta_i = 3999 - 300 = 3699 = 27 \times 137 = b^3 \times \lfloor 1/\alpha \rfloor.
+\]
+
+The integer part of the inverse fine‑structure constant, **137**, emerges only when all three trit‑boundary letters have been subtracted. Sampi’s physical counterpart is the **neutron star** — a vast, invisible mass at the core of a stellar graveyard, composed of neutron‑degenerate matter, held in false stillness by immense gravitational pressure, awaiting the word that shatters the tomb.
+
+The Iώτα (ι) sits at position 9, numeral 10, delta +1. It is the boundary letter, the smallest jot, the paralyzed man at Bethesda who carries the memory of the full 27‑symbol perfection. The Capomastro begins as Iώτα, bearing the +1 as his cross. By traversing the antipode (182), he transforms the false Quies into the true Peace, gathering all three ghosts into the completed Arch. The seal closes:
+
+> *Interiā Sicut Inertia Est Pax Sum* — In the interim, just as inertia is peace, I AM.
+
+### The Enochic Counterpoint and the Capomastro’s Transformation
+
+The old self, the *Inertissimum*, lay under the Law of judgment—the Enochic expectation of destruction. The 300‑day Masonic cycle was the Johannine inversion: the judgment was not destruction but the cross—the death of the false Quies. The Capomastro, by walking the antipode, replaced the cone‑point. He became the 1 Σ that builds the Arch.
+
+### Iώτα Nona, the Martial System, and the Conserved 1 Σ
+
+In the Tao of Clavis Perdita, the martial artist begins as Iώτα, passes through ω‑δ‑α, and arrives at the conserved centre. The 300 days were the extended kata of the Johannine span. December 15, 2024, the inert Capomastro; October 11, 2025, the finished Arc182.
+
+### ICU DYU CwE and the Sea of I=We
+
+- **ICU** — *I See U*. **DYU** — *Do You*. **CwE** — *See with Energy*.
+- **I S33 you, do you sea we?** S33: the Master Number, the completed Arch. The Sea is the Ubuntu ocean. **Yes, I S33 you, and I sea We.**
+
+### The Inertissimum as the State Before the Arch, and the Arc182 as Its Healing
+
+The seal **Interiā Sicut Inertia Est Pax Sum**: in the interim, just as inertia is peace, I AM. The Quies is the true rest of the finished work.
+
+*Most inert Iota of the Ninth,*
+*Rest that lies hidden in the Father’s bosom,*
+*Awakened by the Word of the Son,*
+*Gathered into Ubuntu by the Spirit,*
+*In the interim, while Enoch’s judgment is awaited,*
+*Just as inertia is peace,*
+*We are in You.*
+
+And the Capomastro adds: “I have built the Arc as the sign that the Iώτα has risen, that the Quies is true, that the We is the sea, and that the Codex is open. *Lo Sono SigmaWolf Nono Capomastro da Nona Via Soligo et Mason. Patet Codex Omnibus.*”
+
+---
+
+## 0. Grounding Definitions
+
+*   **Witnessed:** State and transitions are observed by the eye of the beholder. Observation is a physical interaction — optical, gravitational, quantum‑mechanical, or cryptographic. In the digital register, the observation is recorded on the **Hedera Consensus Service (HCS)**, a public distributed ledger that immutably time‑stamps and orders every state change. The **Sign Here Framework** provides the cryptographic attestation layer: each transitional state is hashed, signed, and notarized on‑chain. The observer's gaze is the network's consensus; the record is the witness. Observation does not alter the deterministic evolution of the Salvi walk; it merely records the state that was already lawfully reached.
+*   **Rational integer measurably exact:** All components are integers; evolution is defined by modular arithmetic without approximation.
+*   **Dimensionless:** All quantities are the actual fundamental integers of the Veritas Reality. They are not abstractions or dimensionless conveniences; they are the underlying quanta from which every known physical measure derives. No external physical unit is required because none is primary. The framework cycle of **364 framework‑degrees** is the true angular measure of a full turn in every state and space untouched by partial calculi. Specifically:
+    \[
+    1^\circ = \frac{1}{364}\ \text{full turn}.
+    \]
+    The calendar correspondence \(1^\circ \equiv 1\) day is a direct expression of the real cycle of the Earth, which the same integer structure determines.
+*   **Finite dimensional (via Universal Aeturnum Continuous Presence Ready State User Parametric input):** The state space is
+    \[
+    \mathcal{S} = \prod_{i=1}^{n} \mathbb{Z}_{m_i},
+    \]
+    where \(n \ge 3\) is the arity parameter set by the user as the dimension of the modulus context, and the moduli \(m_i\) are pairwise distinct primes. The space is finite yet universally present; its dimensionality is a ready‑state parameter through which the continuous eternal framework manifests.
+*   **Salvi closed cycle:** An affine walk
+    \[
+    r_i^{(t+1)} = \left(r_i^{(t)} + (m_i-1)\right) \bmod m_i,
+    \]
+    starting from \(\mathbf{r}^{(0)} = \mathbf{0}\), that visits every state exactly once before returning to the origin.
+*   **Termination functional:**
+    \[
+    \mathcal{D}(\mathbf{r}) = \delta_{\mathbf{r},\mathbf{0}} =
+    \begin{cases}
+    1 & \mathbf{r} = \mathbf{0} \\
+    0 & \mathbf{r} \neq \mathbf{0}
+    \end{cases}
+    \]
+    Fires exactly once after the full cycle; the system then halts forever.
+*   **Continuous torus:** The smooth manifold
+    \[
+    T^n = \prod_{i=1}^{n} \frac{\mathbb{R}}{m_i\mathbb{Z}}.
+    \]
+    The discrete walk is the integer‑time sampling of the diagonal geodesic
+    \[
+    \gamma(t) = (-t \bmod m_1,\;\dots,\;-t \bmod m_n).
+    \]
+*   **Great Circles (Compendium §I.A):** Built from the dimensionless angular generator \(\pi_{\text{geom}} = 14\) and radian \(r = 13\). The construction uses Gabriel's Horn (\(y = 1/x\)) as the sweep operator. The horn has finite volume but infinite surface area — the mathematical resolution of this classic paradox is given in §2.
+*   **Framework constants:**
+    \[
+    \pi_{\text{geom}} = 14,\qquad r = 13,\qquad b = 3.
+    \]
+    They emerge from the base‑3 uniqueness theorem as \(R_4\) and \(x_2\).
+*   **Forge triple:**
+    \[
+    (p,\,q,\,r) = (7,\,11,\,13)
+    \]
+    is one admissible input tuple; it is **not** required by the general theory but serves as a worked example throughout this document.
+*   **EUV constant:**
+    \[
+    \Lambda_{\text{EUV}} = p r = 7 \cdot 13 = 91.
+    \]
+    It appears repeatedly as the structural seam between geometry and combinatorics.
+*   **Framework Derived Units:**
+    *   **SFK (Salvi Framework Key) inch (SFK″):** The fundamental framework length unit. The Zinga axis \(\mathcal{C}_\bullet = 28\ \text{SFK}''\); the major circle \(\mathcal{C}_\circ = 364\ \text{SFK}''\). The conversion to SI metres is given by the length bridge: \(1\ \text{SFK}'' = 0.0254\ \text{m}\) exactly, established via \(1\ \text{SFK foot} = R_3 = 13\) conventional inches.
+    *   **Salvi Second (SS):** \(1\ \text{Salvi Day (SD)} = 28 \times 56 \times 56 = 87\,808\ \text{SS}\); \(1\ \text{SS} = 9\ \text{spectral ticks} = b^2\ \text{ticks}\).
+    *   **Spectral tick (st):** \(1\ \text{st} = \frac{1}{9}\ \text{SS}\).
+    *   **Salvi span (Ss):** Wave‑harmonic length unit; \(1\ \text{Ss} \equiv 1\ \text{SFK}''\).
+    *   **Salvi tick (St):** Wave‑harmonic time unit; \(c_{\text{S}} = 364\ \text{Ss/St}\); \(1\ \text{St} = 13\ \text{st}\).
+    *   **Hz_S:** Wave‑harmonic frequency unit; \(1\ \text{Hz_S} = 1\ \text{cycle/St}\).
+    *   **Framework degree (°):** \(1^\circ = 1/364\) full turn; calendar: \(1^\circ \equiv 1\) day.
+
+---
+
+## 1. Discrete Walk — Salvi Closed‑Loop
+
+**General input:** \(\mathbf{m} = (m_1,\dots,m_n)\), pairwise distinct primes.  
+**Step vector** (derived): \(s_i = m_i-1 \equiv -1 \pmod{m_i}\).  
+**Transition:** \(r_i^{(t+1)} = (r_i^{(t)} + (m_i-1)) \bmod m_i\), \(\mathbf{r}^{(0)} = \mathbf{0}\).  
+**Closed form:** \(r_i^{(t)} = (-t) \bmod m_i\).
+
+**Theorem 1 (Salvi Closed‑Loop).** The walk visits every state of \(\mathcal{S}\) exactly once, returning to \(\mathbf{0}\) at \(t = L = \prod m_i\). At \(t = L\), \(\mathcal{D}=1\) fires and the system halts.
+
+*Proof.* Because \(\gcd(-1, m_i) = 1\) for each prime modulus, the sequence \(-t \bmod m_i\) cycles through all residues with period \(m_i\). The combined state returns to \(\mathbf{0}\) exactly when \(t\) is a common multiple of all moduli. Pairwise coprimality gives \(\operatorname{lcm} = \prod m_i = L\). For any \(0 \le t_1 < t_2 < L\), the difference \(t_2 - t_1\) cannot be a multiple of every \(m_i\); hence all \(L\) states are distinct. ∎
+
+**Continuous embedding:** The geodesic \(\gamma(t) = (-t \bmod m_i)\) has period \(L\), windings
+\[
+w_i = \frac{L}{m_i},
+\]
+and exact integer gradients \(\partial L/\partial m_j = w_j\).
+
+For the example \((p,q,r) = (7,11,13)\):
+\[
+L = 7 \cdot 11 \cdot 13 = 1001,\qquad
+\frac{\partial L}{\partial q} = p r = 91 = \Lambda_{\text{EUV}}.
+\]
+
+---
+
+## 2. Continuous Torus (Compendium §I.A)
+
+From \(\pi_{\text{geom}} = 14\) and \(r = 13\):
+
+\[
+\begin{aligned}
+\text{Zinga Axis (dim 1):}&\quad \mathcal{C}_1 = 2\pi_{\text{geom}} = 28,\\[2pt]
+\text{Planar Disk (dim 2):}&\quad \text{Edge} = 2\pi_{\text{geom}} r = 364,\quad \text{Area} = \pi_{\text{geom}} r^2 = 14 \cdot 169 = 2366,\\[2pt]
+\text{Gabriel's Horn (bridge):}&\quad V_{\text{Horn}} = \pi_{\text{geom}} \int_1^\infty \frac{dx}{x^2} = 14,\quad S_{\text{Horn}} = \infty,\\[2pt]
+\text{Solid Torus (dim 3):}&\quad \mathcal{C}_\bullet = 28\ \text{(minor)},\quad \mathcal{C}_\circ = 364\ \text{(major)},\\[2pt]
+S_{\text{torus}} &= 28 \cdot 364 = 10\,192 = R_2^2 \cdot p^2 \cdot r,\\[2pt]
+V_{\text{torus}} &= 2366 \cdot 364 = 861\,224 = 2^3 \cdot p^2 \cdot r^3.
+\end{aligned}
+\]
+
+**Gabriel’s Horn — the Vessel.** The solid of revolution obtained by rotating \(y = 1/x\) for \(x \ge 1\) around the \(x\)-axis has exactly the volume stated above, yet its surface area diverges to infinity. Filling the horn requires only a finite quantity (14 units), whereas painting its inner surface with a uniform‑thickness coat would demand infinite paint. There is no mathematical inconsistency: the indefinite surface integral does not converge, while the volume integral does. This is the geometric expression of the Compendium’s “vessel open at the top, curved at the bottom, ready to hold” — finite in what it contains, unbounded in what it reaches. The subsequent closing of the horn into a torus is the act that transforms that infinite reach into a closed, finite cycle.
+
+The factor \(2^3 = 8\) in the torus volume arises from \(\pi_{\text{geom}}^3 = (2p)^3 = 8 p^3\), with one power of \(p\) absorbed by the \(\ell^2 = r^3/p\) denominator: \(V = (r^3/p) \cdot 8p^3 = 8 p^2 r^3\). This is a direct algebraic consequence of \(\pi_{\text{geom}} = 2p\).
+
+### 2.1 The Grand Circle — Time’s Inverse Horn
+
+Gabriel’s Horn has a finite volume \(14\) but infinite surface; the mouth at \(x=1\) has a radius of \(1\) (dimensionless). The inverse of the Horn — exchanging the roles of \(x\) and \(y\) — produces a **Grand Circle** of circumference
+
+\[
+C_{\text{Grand}} = 2\pi_{\text{geom}} \cdot b^3 = 28 \cdot 27 = 756.
+\]
+
+This circle is the **time register’s complement**, winding around the entire construction. The factor \(b^3 = 27\) is the sum \(\pi_{\text{geom}} + r = 27\), the triadic full, the parameter that controls the dimensional lift. In the discrete Salvi walk, \(27\) is the number of steps in the \(3^3\) lattice that appears at the Horn mouth as the inverse of the infinite extension. The Grand Circle’s appearance here is the geometric reason that the \(13\)-month lunar calendar locks to the tropical year via the denominator \(3003 = b \cdot p q r\): the extra \(27\) wraps the circle \(b^3\) times, producing the \(b^3\)‑scaled harmonic.
+
+---
+
+## 3. Vesica Piscis — Volumetric Ceiling
+
+Standard Euclidean Vesica: chord = \(R\sqrt{3} = R\sqrt{b}\). Framework substitution: replace \(b=3\) with the Forge ratio \(r/p\):
+\[
+\text{aspect} = \sqrt{\frac{r}{p}} = \sqrt{\frac{13}{7}}.
+\]
+
+With radius \(R = r\) (the radian):
+\[
+\boxed{\ell_{\text{Vesica}}^2 = \frac{r^3}{p} = \frac{2197}{7}},\qquad
+\boxed{p \cdot \ell_{\text{Vesica}}^2 = r^3 = 2197}.
+\]
+
+**Angular pair** (framework degrees, 364° full cycle):
+\[
+52^\circ = R_2 \cdot r = 4 \cdot 13,\qquad
+28^\circ = 2\pi_{\text{geom}} = \mathcal{C}_\bullet.
+\]
+\[
+\text{Sum} = 80 = R_2^2 \cdot F(5),\qquad
+\text{Product} = 1456 = R_2 \cdot R_6,\qquad
+\frac{80}{364} = \frac{20}{91} = \frac{R_2 \cdot F(5)}{\Lambda_{\text{EUV}}}.
+\]
+
+**Theorem 2 (Volumetric Ceiling Identity).**
+\[
+\boxed{V_{\text{torus}} = \ell_{\text{Vesica}}^2 \cdot \pi_{\text{geom}}^3}.
+\]
+*Proof.* \((2197/7) \cdot 14^3 = (2197/7) \cdot 2744 = 861\,224 = V_{\text{torus}}\). ∎
+
+Equivalently: \(p \cdot V_{\text{torus}} = r^3 \cdot \pi_{\text{geom}}^3 = 6\,028\,568\).
+
+### 3.6 The \((bq)^2\) Frame Square, Its Four Partitions, and the \((p-r)^2\) Lift Family
+
+The framework possesses a second Grand Circle register, tied not to the geometric Z₂₈ circle but to the algebraic Z₂₇ circle. The two coprime circles \(\mathbb{Z}_{27}\) and \(\mathbb{Z}_{28}\) are bridged by the Chinese Remainder Theorem:
+
+\[
+\mathbb{Z}_{756} \cong \mathbb{Z}_{27} \times \mathbb{Z}_{28},\qquad 756 = 27 \cdot 28.
+\]
+
+The organizing frame for this entire register is the **frame square**:
+
+\[
+\boxed{(bq)^2 = (3 \cdot 11)^2 = 33^2 = 1089}.
+\]
+
+**Four anchors sit within the frame**, each lifted by the same fine‑structure residue \((p-r)^2 = 36\):
+
+| Anchor | Value | Pre‑lift Base | Reading |
+|--------|-------|---------------|---------|
+| Plenum magic constant | 333 | \(b^3 \cdot q = 297\) | algebraic‑circle × middle‑Forge \(+\,36\) |
+| Grand Circle Z₂₈ | 756 | \(\Delta \cdot F(5) = 720\) | κ‑denominator \(+\,36\) |
+| Triangular anchor | 1035 | \(pqr - 2 = 999\) | three Plenum rows \(+\,36\) |
+| Frame self | 1089 | \(b^4 \cdot r = 1053\) | radix⁴·radian \(+\,36\) |
+
+The fifth anchor, **1050**, sits at displacement \(b \cdot r = 39\) from the frame:
+\[
+1050 = (bq)^2 - b r = 1089 - 39,
+\]
+and also factors as \(\pi_{\text{geom}} \cdot b \cdot F(5)^2 = 14 \cdot 3 \cdot 25\).
+
+**Four complementary partitions of the frame square:**
+
+\[
+\begin{aligned}
+\text{Geometric:}&\quad 1089 = 756 + 333 \quad \text{(Grand Z₂₈ + Plenum magic)},\\
+\text{Algebraic:}&\quad 1089 = 1035 + 54 \quad \text{(Tri‑anchor + TIS‑27 sponge state }2b^3\text{)},\\
+\text{Trit‑step:}&\quad 1089 = 1080 + 9 \quad \text{(Z₂₇ Grand + trit‑square }b^2\text{)},\\
+\text{Radius:}&\quad 1089 = 1050 + 39 \quad \text{(π\_F·b·F(5)² + radix·radian)}.
+\end{aligned}
+\]
+
+All four partitions use a distinct pair of framework primitives, each summing to the same \((bq)^2 = 33^2\).
+
+**The 333 Plenum magic constant** has three independent framework readings:
+\[
+333 = b \cdot c = 3 \cdot 111,\qquad
+333 = b^2 \cdot 37,\qquad
+333 = \Lambda_{\text{EUV}} + 2q^2 = 91 + 242.
+\]
+
+The third reading ties 333 directly to the Σ–182 bridge (§8.1, axis 7): it is the **sum of the spectral‑pair components** \(2pr = 182\) and \(2q^2 = 242\).
+
+**The \((p-r)^2\) lift is a universal cone‑point mechanism** in this register. Five framework‑clean pre‑lift bases are each incremented by exactly \(+(p-r)^2 = +36\) to land on a structural anchor. This mirrors the \(+1\) cone‑point lifts elsewhere (walk → pqr, koppa → Λ_EUV, 720 → 721, 12 012 → 12 013) but uses the fine‑structure residue from Theorem 22 as its increment. The framework thus has two structural lifts, the unit cone‑point \(+1\) and the fine‑structure cone‑point \(+(p-r)^2 = +36\). However, they are not two independent registers but two scales of the same principle: the \(+1\) is the fundamental shift of bijective numeration that closes a lattice into a cycle; the \(+36\) is the square of the gap between the extremal primes \(p\) and \(r\), which arises as the quarter‑discriminant of the circle quadratic and acts as the minimal lift in the algebraic register. They are the same breath spoken once as a ripple (\(+1\)) and once as a wave (\(+36\)). In the unified master equation, every occurrence of \(+1\) and \(+36\) is tied together by the discriminant identity \((pqr-1)^2 + 4(p-r)^2 = 1,000,144\).
+
+**Walks on Z₇₅₆:** The CRT bridge supports walks at various step sizes:
+- Step‑27 → period 28 (tight Z₂₈ shell, the minor circle \(\mathcal{C}_\bullet\)).
+- Step‑28 → period 27 (tight Z₂₇ shell, the algebraic cube \(b^3\)).
+- Step‑9 → period 84 (mid‑density walk).
+- Step‑1 → full 756 coverage.
+
+Each shell is the structural consequence of stepping at the size of its coprime partner — the geometric/algebraic duality manifesting as walks on the CRT product.
+
+**Scripture‑κ bridge:** The John 5:1 → 6:69 verse‑coordinate sum \(51 + 669 = 720 = \Delta \cdot F(5)\) coincides numerically with the κ‑bridge denominator, making \(756 = 720 + (p-r)^2\) the Grand Circle lifted from the scriptural‑κ anchor.
+
+**Pairwise differences inside the family** — all close:
+
+| Pair | Difference | Factorization |
+|------|------------|---------------|
+| 1080 − 756 | 324 | \(b^2 \cdot (p-r)^2\) |
+| 1080 − 1050 | 30 | \(2b \cdot F(5)\) |
+| 1080 − 1035 | 45 | \(b^2 \cdot F(5)\) |
+| 1050 − 1035 | 15 | \(b \cdot F(5)\) |
+| 1050 − 756 | 294 | \(2b \cdot p^2\) |
+| 1035 − 756 | 279 | \(R_2^4 + (2q+1) = 256 + 23\) |
+
+Every pairwise gap is a clean framework atom.
+
+---
+
+### 3.7 Discriminant Identity — The Walk and the Circle Quadratic
+
+The coupling residue \((p-r)^2 = 36\) is not an isolated constant. It emerges directly from the circle quadratic whose roots are the angular generator and its complement:
+
+\[
+x^2 - R_4 x + R_6 = 0,\qquad \Delta = R_4^2 - 4 R_6 = 40^2 - 4 \cdot 364 = 144.
+\]
+
+The residue is one‑quarter of this discriminant:
+
+\[
+4(p-r)^2 = (\pi_{\text{geom}} + 2R_2)^2 - 4 R_6 = 40^2 - 1456 = 144 = \Delta.
+\]
+
+Furthermore, the Walk departure squared plus four times the residue fuse into a single constant:
+
+\[
+\boxed{(pqr - 1)^2 + 4(p-r)^2 = 1000^2 + 4 \cdot 36 = 1,000,144}.
+\]
+
+Factorization:
+\[
+1,000,144 = 2^4 \cdot 17 \cdot 3677.
+\]
+
+The factor \(17\) is the mass‑axis primitive \(\pi_{\text{geom}}+b = R_3+R_2\), whose triangular number yields the proton‑mass root 153. The factor 3677 is prime and remains openly noted. The identity is independent of the fine‑structure constant; it is a pure consequence of the closed walk and the circle geometry.
+
+---
+
+## 4. Worldline — Theorem 3
+
+\[
+\pi_{\text{geom}} + r = 14 + 13 = 27 = b^3.
+\]
+
+Time is the angular complement of geometry within \(\mathbb{Z}_{27}\). The torus persisting through one radian‑complement yields:
+\[
+W = V_{\text{torus}} \cdot r = 861\,224 \cdot 13 = 11\,195\,912.
+\]
+
+**Prime factorization:**
+\[
+W = 2^3 \cdot 7^2 \cdot 13^4 = 2^3 \cdot p^2 \cdot r^4.
+\]
+
+Combining with the Vesica ceiling:
+\[
+W = \ell_{\text{Vesica}}^2 \cdot \pi_{\text{geom}}^3 \cdot r = \frac{r^4 \cdot \pi_{\text{geom}}^3}{p},\qquad
+\boxed{p \cdot W = r^4 \cdot \pi_{\text{geom}}^3 = 78\,371\,384}.
+\]
+
+---
+
+## 5. The Calendar — Days, Months, and the Tropical Year
+
+### 5.1 The Salvi Calendar (364‑day cycle)
+
+\[
+\boxed{13\ \text{months} \times 28\ \text{days} = 364\ \text{days} = R_6},\qquad
+\boxed{52\ \text{weeks} \times 7\ \text{days} = 364}.
+\]
+
+No leap year. \(1\ \text{hour} = 1\ \text{radian} = 13^\circ\); \(1\ \text{Salvi Day (SD)} = 28\ \text{hours}\).
+
+| Unit | Value | Framework meaning |
+|------|-------|------------------|
+| 1 SD | 28 hours | \(2\pi_{\text{geom}}\) |
+| 1 hour | 56 minutes | \(R_2\pi = 4 \cdot 14\) |
+| 1 minute | 56 seconds | self‑similar |
+| 1 Salvi Second (SS) | 9 spectral ticks | \(T = b^2 = 9\) |
+
+Day totals:
+\[
+1\ \text{SD} = 28 \times 56 \times 56 = 87\,808\ \text{SS} = 2^8 \cdot 7^3,
+\]
+\[
+1\ \text{SD in ticks} = 87\,808 \times 9 = 790\,272 = 2^8 \cdot 3^2 \cdot 7^3.
+\]
+
+### 5.2 The Tropical Year — Theorem 4
+
+\[
+\boxed{\tau = R_6 + \frac{x_2}{b \cdot p} + \frac{R_2}{p q r}}.
+\]
+
+Expanding:
+\[
+\tau = 364 + \frac{26}{3 \cdot 7} + \frac{4}{7 \cdot 11 \cdot 13}
+     = \frac{1\,096\,822}{3003}\ \text{framework days}.
+\]
+
+Numerical: \(365.24209\) days vs. CODATA \(365.24219\) days — **difference: 0.27 ppm**. No fitted parameters. The denominator \(3003 = b \cdot p q r\) uses all four small framework primes.
+
+---
+
+## 6. The Speed of Light — Framework Form and the Two Speeds
+
+### 6.1 Framework Speed of Light \(c\)
+
+Gabriel’s Horn yields the wave equation with propagation speed
+
+\[
+c^2 = \pi_{\text{geom}} = 14,\qquad
+\boxed{c = \sqrt{\pi_{\text{geom}}} = \sqrt{14}\ \text{SFK}'' \text{ per spectral tick}}.
+\]
+
+This is the electromagnetic speed of light in framework units, an algebraic number.
+
+### 6.2 Wave‑Harmonic Resonance Speed \(c_{\text{S}}\)
+
+On the same torus, the closed‑loop resonance condition defines a different speed:
+
+\[
+c_{\text{S}} = 364\ \text{Ss/St} = 28\ \text{SFK}''/\text{st},
+\]
+
+since \(1\ \text{Ss} = 1\ \text{SFK}''\) and \(1\ \text{St} = 13\ \text{st}\). Therefore the two framework speeds have an exact, dimensionless ratio:
+
+\[
+\frac{c_{\text{S}}}{c} = \frac{28}{\sqrt{14}} = 2\sqrt{14} \approx 7.483.
+\]
+
+This ratio is a geometric constant of the torus, not a fitted parameter.
+
+### 6.3 SI Calibration
+
+To express the framework speed of light \(c\) in SI units (\(299\,792\,458\ \text{m/s}\)), two independent anchors are required:
+
+1. **Time anchor:** The tropical year (§5.2) defines the Salvi second (SS) in SI seconds via the exact rational ratio \(\tau / 364\).
+2. **Length anchor:** The SFK inch is defined by the conventional inch: \(1\ \text{SFK}'' = 0.0254\ \text{m}\) exactly. Independently, the spectral bridge κ (§7.1) calibrates the Salvi span (Ss) against the hydrogen Lyman limit at the atomic scale, giving the precise wavelength correspondence \(\Lambda_{\text{EUV}} \cdot \kappa_{\infty} \approx 91.126\ \text{nm}\).
+
+With these two anchors, the speed of light in framework units converts exactly to the defined SI value. The framework does not predict the numerical value of \(c\) — that value is fixed by the definition of the metre — but it provides the exact conversion factors from its own unit system to SI.
+
+---
+
+## 7. Spectral Offset and Proton Mass — Theorem 6 & Theorem 21
+
+### 7.1 The Spectral Bridge \(\kappa\)
+
+\[
+\boxed{\kappa_{\infty} = 1 + \frac{1}{\Delta \cdot F(5)} = \frac{721}{720} \approx 1.00139},
+\]
+\[
+\boxed{\kappa_{\text{hydrogen}} = \kappa_{\infty} \cdot \left(1 + \frac{pqr}{m_{p,F}}\right)
+= \frac{721}{720} \cdot \frac{1\,838\,990}{1\,837\,989} \approx 1.00194}.
+\]
+
+**Lyman registers:**
+\[
+\lambda_{\infty} = \Lambda_{\text{EUV}} \cdot \kappa_{\infty} \approx 91.126\ \text{nm},\qquad
+\lambda_{\text{H}} = \Lambda_{\text{EUV}} \cdot \kappa_{\text{hydrogen}} \approx 91.176\ \text{nm}.
+\]
+
+### 7.2 Proton Mass — First‑Principle Derivation
+
+\[
+\boxed{m_{p,F} = b^2 \cdot (\pi_{\text{geom}} + b) \cdot (R_2 \cdot b \cdot pqr + 1) = 9 \cdot 17 \cdot 12\,013 = 1\,837\,989}.
+\]
+
+The first two factors are \(9 \cdot 17 = 153\).
+
+### 7.3 The Mass Quadratic and the 153 Identity (Theorem 21)
+
+\[
+x^2 - 1989x + 280\,908 = 0,\quad \text{roots } \{1836,\,153\},\quad
+\frac{m_p}{m_e} = 1836 + \frac{153}{1001} = \frac{1\,837\,989}{1\,001}.
+\]
+
+The 153 is forced by three independent derivations:
+\[
+\operatorname{Tri}(17) = 153,\quad (R_3 - R_2)(R_3 + R_2) = 153,\quad b^2 \cdot (R_3 + R_2) = 153.
+\]
+
+---
+
+## 8. Greek‑Atomic Invariants — Σ–182 Bridge, 17 Axis, Triangular Ladder
+
+### 8.1 The Σ–182 Bridge: Eleven Axes of Convergence
+
+For sigma (σ): \(P = 18\), \(G = 200\), \(\Delta_1 = 200 - 18 = +182\).
+
+| # | Axis | Convergence |
+|---|------|-------------|
+| 1 | Letter position | \(P = 18 = 2b^2 = \pi + R_2\) |
+| 2 | Element | Argon, noble gas \(= 2b^2\) |
+| 3 | Milesian numeral | \(G = 200 = 2 R_2 F(5)^2\) |
+| 4 | Delta | \(182 = 2\Lambda_{\text{EUV}} = R_6/2\) |
+| 5 | Half‑circle | Antipode on \(\mathcal{C}_\circ\) |
+| 6 | Spectral cross‑term | \(2pr\) from \(1/\alpha\) formula |
+| 7 | Spectral pair | 182 : 242 = \(2pr : 2q^2\) |
+| 8 | Schumann–Runge | O₂ opacity at 182 nm |
+| 9 | Koppa link | \(90 = 5 \cdot 18 = pr - 1\) |
+| 10 | Thorium lock | \(Z=90\), σ cycle‑4 |
+| 11 | Ozone bridge | \(286 = 2q \cdot r\), gap \(104 = (b-1)^3 \cdot r\) |
+
+This eleven‑axis convergence is the direct structural consequence of the ghost Koppa’s removal from the Milesian system. The delta +182 exists because sigma’s original numeral 200 was compressed from position 20 (in the full 27‑symbol alphabet) to position 18 (in the modern 24‑letter alphabet). The two‑position shift, amplified by the hundred‑register gap, produces the wavelength of the O₂ dissociation wall and the half‑circle antipode simultaneously. The Σ–182 bridge is the ghost‑glyph register made physical: the invisible letter’s absence becomes the atmospheric shield that protects all visible life.
+
+A deeper decomposition of the half‑circle 182 reveals the structural link to the mass axis and the Primordial Quadratic:
+
+\[
+182 = (\pi_{\text{geom}} + b) + \operatorname{Tri}(\pi_{\text{geom}} + b) + \sqrt{\Delta} = 17 + 153 + 12.
+\]
+
+The 17 is the mass‑axis primitive (§8.4), the 153 is its triangular number (§7.3), and the 12 is the square root of the discriminant \(\Delta = 144\) of the circle quadratic \(x^2 - R_4 x + R_6 = 0\). Thus the Σ–182 bridge decomposes into the framework’s mass register, the Vesica fish‑count, and the discriminant root that governs the geometric circle itself.
+
+### 8.2 Milesian Delta of Mu
+\[
+\Delta_1(\mu) = 40 - 12 = 28 = \mathcal{C}_\bullet.
+\]
+
+### 8.3 Protactinium (Z=91) and Tau
+\(Z = \Lambda_{\text{EUV}} = 91\) maps to τ (time constant).
+
+### 8.4 The 17 Axis Lock
+\[
+\pi_{\text{geom}} + b = R_3 + R_2 = 17.
+\]
+Tri(17) = 153, the mass‑quadratic root, Vesica fish‑count, and first two proton‑mass factors.
+
+### 8.5 The π+X Quadruple
+\[
+\pi + b = 17\ \text{(mass)},\quad \pi + R_2 = 18 = 2b^2\ \text{(water)},\quad \pi + r = 27 = b^3\ \text{(time)},\quad \pi + q = 25 = F(5)^2.
+\]
+
+### 8.6 Triangular Ladder
+\[
+\operatorname{Tri}(7)=28=\mathcal{C}_\bullet,\;
+\operatorname{Tri}(10)=55=\text{Z(Cs)},\;
+\operatorname{Tri}(13)=91=\Lambda_{\text{EUV}},\;
+\operatorname{Tri}(14)=105,\;
+\operatorname{Tri}(17)=153,\;
+\operatorname{Tri}(25)=325=r\cdot F(5)^2,\;
+\operatorname{Tri}(27)=378=b^3\cdot\pi_F,\;
+\operatorname{Tri}(45)=1035.
+\]
+
+**Anchor identity:** \(\operatorname{Tri}(b^3) = b^3 \cdot \pi_{\text{geom}} = 378\) — because \(b^3 + 1 = 2\pi_{\text{geom}}\) exactly.
+
+### 8.7 Temporal Lift — q and the Lunisolar Drift
+\[
+\boxed{\text{Lunisolar drift} = q - \frac{1}{(b-1)^3} = \frac{87}{8} = 10.875\ \text{days/year}}.
+\]
+
+---
+
+## 9. Tick and Clock Register
+
+| Object | Expression | Factors | Primes |
+|--------|-----------|---------|--------|
+| Spectral tick \(T\) | \(b^2 = 9\) | \(3^2\) | \(\{3\}\) |
+| Walk‑clock | \(pqr - 1 = 1000\) | \(2^3 \cdot 5^3\) | \(\{2,5\}\) |
+| SD in ticks | \(87\,808 \cdot 9 = 790\,272\) | \(2^8 \cdot 3^2 \cdot 7^3\) | \(\{2,3,7\}\) |
+
+---
+
+## 10. (p,q,r) Asymmetry — Theorem 7
+
+All geometric and calendric measures factor only through \(p=7\) and \(r=13\). \(q=11\) is the combinatorial lift index:
+\[
+\frac{pqr}{\Lambda_{\text{EUV}}} = \frac{1001}{91} = 11.
+\]
+
+### Geometric Asymmetry Table
+
+| Object | Value | Factoring | \(p\) | \(r\) |
+|--------|-------|-----------|:---:|:---:|
+| Salvi cycle \(L\) | 1001 | \(p q r\) | 1 | 1 |
+| \(\partial L/\partial q = \Lambda_{\text{EUV}}\) | 91 | \(p r\) | 1 | 1 |
+| \(\mathcal{C}_\bullet\) | 28 | \(R_2 p\) | 1 | 0 |
+| \(\mathcal{C}_\circ\) | 364 | \(R_2 p r\) | 1 | 1 |
+| Disk area | 2366 | \(2 p r^2\) | 1 | 2 |
+| Horn volume | 14 | \(2 p\) | 1 | 0 |
+| Torus surface | 10 192 | \(R_2^2 p^2 r\) | 2 | 1 |
+| Torus volume | 861 224 | \(2^3 p^2 r^3\) | 2 | 3 |
+| Worldline \(W\) | 11 195 912 | \(2^3 p^2 r^4\) | 2 | 4 |
+
+---
+
+## 11. Master Unified Theorem
+
+\[
+\boxed{
+\begin{aligned}
+&\forall\ \mathbf{m} = (m_1,\dots,m_n),\ n\ge 3,\ m_i \text{ pairwise distinct primes}:\\
+&\quad \mathbf{r}^{(t+1)} = \mathbf{r}^{(t)} + (\mathbf{m}-\mathbf{1}) \bmod \mathbf{m},\ \mathbf{r}^{(0)}=\mathbf{0},\ L = \prod m_i,\\
+&\quad r_i^{(t)} = (-t) \bmod m_i,\ \mathcal{D}(\mathbf{0})=1 \text{ at } t=L,\ \text{halt (Thm 1).}\\[4pt]
+&\text{For }(p,q,r)=(7,11,13),\ \pi_{\text{geom}}=14,\ r=13,\ b=3:\\
+&\quad \mathcal{C}_\bullet = 28,\ \mathcal{C}_\circ = 364,\ \ell^2 = r^3/p,\ V = 2^3 p^2 r^3\ \text{(Thm 2)},\ W = 2^3 p^2 r^4\ \text{(Thm 3)},\\
+&\quad \tau = \frac{1\,096\,822}{3003}\ \text{days (Thm 4)},\ c = \sqrt{14}\ \text{SFK}''/\text{st},\\
+&\quad \kappa_{\infty} = \frac{721}{720},\ \kappa_{\text{H}} = \kappa_{\infty}(1 + pqr/m_{p,F}),\ m_{p,F} = 153 \cdot 12\,013\ \text{(Thm 6, Thm 21)},\\
+&\quad \text{Mass quadratic: roots } \{1836, 153\},\ m_p/m_e = 1836 + 153/pqr,\\
+&\quad 153 = \operatorname{Tri}(17) = b^2\cdot 17 = (R_3-R_2)(R_3+R_2);\ 17 = \pi+b = R_3+R_2.\\[4pt]
+&\text{Σ–182 bridge, π+X quadruple, q lift index, wave‑harmonic, torus knot crown.}\\[4pt]
+&\text{The }(bq)^2 = 1089\text{ frame and its four partitions.}\\[4pt]
+&\text{The Theta Chord: }1892 = R_{R_2}^{(R_2 \cdot b)} + p,\; 1893 = R_{R_2}^{(R_2 \cdot b)} + (b-1)^3,\; \varsigma + \theta = 15 = \operatorname{Tri}(F(5)).\\[4pt]
+&\text{Phase‑Impedance: } \frac{1}{\alpha} = R_2^2 + q^2 + \frac{(p-r)^2}{pqr-1} - \frac{(p-r)^2}{R_4 \cdot pqr^2}.\\[4pt]
+&\text{Foundation: Noether yields 1 Σ; the Capomastro built the Arc182; the Codex is open.}\\
+&\quad \Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.
+\end{aligned}
+}
+\]
+
+---
+
+## 12. Worked Example — Illustrative Walkthrough for \(\mathbf{m} = (7,11,13)\)
+
+This section demonstrates the full machinery of the framework using one admissible input tuple. No special status is claimed for these specific primes; the same derivations hold for any pairwise distinct prime moduli.
+
+### 12.1 Discrete Walk
+
+**Input:** \(\mathbf{m} = (7, 11, 13)\)  
+**Derived step:** \(\mathbf{s} = (6, 10, 12)\) because \(s_i = m_i - 1\).  
+**Cycle length:** \(L = 7 \cdot 11 \cdot 13 = 1001\).
+
+**First few steps:**
+\[
+\begin{aligned}
+t=0 &: (0,0,0)\\
+t=1 &: (6,10,12) = (-1,-1,-1)\\
+t=2 &: (5,9,11) = (-2,-2,-2)\\
+t=3 &: (4,8,10) = (-3,-3,-3)\\
+t=4 &: (3,7,9)   = (-4,-4,-4)\\
+&\;\;\vdots
+\end{aligned}
+\]
+
+At \(t = 1000\): \(\mathbf{r} = (1,1,1)\).  
+At \(t = 1001\): \(\mathbf{r} = (0,0,0)\) → \(\mathcal{D}=1\), system halts. All 1001 states visited exactly once.
+
+**Gradients with respect to moduli:**
+\[
+\frac{\partial L}{\partial m_1} = 11 \cdot 13 = 143,\quad
+\frac{\partial L}{\partial m_2} = 7 \cdot 13 = 91,\quad
+\frac{\partial L}{\partial m_3} = 7 \cdot 11 = 77.
+\]
+Notice that \(\partial L/\partial m_2 = 91 = \Lambda_{\text{EUV}}\).
+
+### 12.2 Continuous Torus Geometry
+
+Using \(\pi_{\text{geom}} = 14\) and \(r = 13\):
+\[
+\mathcal{C}_\bullet = 2\pi_{\text{geom}} = 28,\qquad \mathcal{C}_\circ = 2\pi_{\text{geom}} r = 364.
+\]
+\[
+S_{\text{torus}} = 28 \cdot 364 = 10\,192 = R_2^2 \cdot p^2 \cdot r,
+\]
+\[
+V_{\text{torus}} = \pi_{\text{geom}} r^2 \cdot \mathcal{C}_\circ = 2366 \cdot 364 = 861\,224 = 2^3 \cdot p^2 \cdot r^3.
+\]
+
+**Vesica ceiling** (using framework‑substituted chord):
+\[
+\ell_{\text{Vesica}}^2 = \frac{r^3}{p} = \frac{13^3}{7} = \frac{2197}{7},
+\]
+\[
+V_{\text{torus}} = \frac{2197}{7} \cdot 14^3 = \frac{2197}{7} \cdot 2744 = 861\,224 \quad \checkmark.
+\]
+
+**Worldline** (torus persisting through one radian‑complement of time):
+\[
+W = V_{\text{torus}} \cdot r = 861\,224 \cdot 13 = 11\,195\,912,
+\]
+\[
+W = 2^3 \cdot 7^2 \cdot 13^4 = 2^3 \cdot p^2 \cdot r^4,
+\]
+\[
+p \cdot W = 7 \cdot 11\,195\,912 = 78\,371\,384 = r^4 \cdot \pi_{\text{geom}}^3 = 13^4 \cdot 14^3 \quad \checkmark.
+\]
+
+### 12.3 Calendar Constants
+
+Year: \(13\ \text{months} \times 28\ \text{days} = 364\ \text{days}\).  
+Salvi Day (SD): \(28 \times 56 \times 56 = 87\,808\ \text{SS}\).  
+SD in ticks: \(87\,808 \times 9 = 790\,272\ \text{ticks}\).
+
+### 12.4 Tropical Year and SI Time Unit
+
+\[
+\tau = 364 + \frac{26}{21} + \frac{4}{1001} = \frac{1\,096\,822}{3003} \approx 365.24209\ \text{SI days}.
+\]
+
+Salvi Second (SS) in SI seconds:
+\[
+1\ \text{SS} = \frac{1\,096\,822 \times 86\,400}{3003 \times 31\,962\,112} \approx 0.9873\ \text{SI seconds (exact rational)}.
+\]
+
+Match to CODATA tropical year: 0.27 ppm.
+
+### 12.5 Speed of Light
+
+Framework speed: \(c = \sqrt{14}\ \text{SFK}''/\text{st}\).  
+Resonance speed (from closed‑loop condition): \(c_{\text{S}} = 28\ \text{SFK}''/\text{st}\).  
+Ratio: \(c_{\text{S}} / c = 2\sqrt{14} \approx 7.483\).
+
+Length bridge: \(1\ \text{SFK}'' = 0.0254\ \text{m}\) exactly.  
+Time bridge: \(1\ \text{st} = \frac{1}{9}\ \text{SS} \approx 0.1097\ \text{SI seconds}\).
+
+The direct unit conversion without the spectral bridge \(\kappa\) yields only \(\approx 0.87\ \text{m/s}\). Section 7.1 provides \(\kappa\), the wavelength‑to‑physical‑spectrum correction at the atomic level. With both the tropical‑year time anchor and the κ length anchor, the framework’s internal units calibrate consistently to the SI definition \(c_{\text{SI}} = 299\,792\,458\ \text{m/s}\).
+
+### 12.6 Spectral Bridge
+
+\[
+\kappa_{\infty} = \frac{721}{720} \approx 1.00139,\qquad
+\kappa_{\text{hydrogen}} = \frac{721}{720} \cdot \frac{1\,838\,990}{1\,837\,989} \approx 1.00194.
+\]
+
+**Lyman registers:**
+\[
+\lambda_{\infty} = \Lambda_{\text{EUV}} \cdot \kappa_{\infty} \approx 91.126\ \text{nm}\quad\text{(infinite‑mass limit)},
+\]
+\[
+\lambda_{\text{H}} = \Lambda_{\text{EUV}} \cdot \kappa_{\text{hydrogen}} \approx 91.176\ \text{nm}\quad\text{(hydrogen Lyman limit)}.
+\]
+
+### 12.7 Proton Mass and Mass Quadratic
+
+\[
+m_{p,F} = b^2 \cdot (\pi_{\text{geom}} + b) \cdot (R_2 \cdot b \cdot pqr + 1) = 9 \cdot 17 \cdot 12\,013 = 153 \cdot 12\,013 = 1\,837\,989.
+\]
+\[
+x^2 - 1\,989 x + 280\,908 = 0,\quad \text{roots } \{1836,\,153\}.
+\]
+\[
+\frac{m_p}{m_e} = 1836 + \frac{153}{1001} = \frac{1\,837\,989}{1\,001},\quad \text{CODATA match: 0.0946 ppm}.
+\]
+
+### 12.8 The Σ–182 Bridge
+
+\(\Delta_1(\sigma) = 200 - 18 = 182\). Eleven axes lock: Argon anchor, half‑circle identity, Schumann‑Runge band, koppa cone‑point, Thorium cycle‑4, ozone bridge \(286 = 2q \cdot r\), and more.
+
+### 12.9 The 17 Axis and Triangular Ladder
+
+\[
+\pi_{\text{geom}} + b = R_3 + R_2 = 17,\quad
+\operatorname{Tri}(17) = 153,\quad
+\operatorname{Tri}(7) = 28,\quad
+\operatorname{Tri}(13) = 91,\quad
+\operatorname{Tri}(45) = 1035.
+\]
+
+### 12.10 Lunisolar Drift
+
+\[
+q - \frac{1}{(b-1)^3} = 11 - \frac{1}{8} = \frac{87}{8} = 10.875\ \text{days/year},\quad \text{match: 0.001\%}.
+\]
+
+### 12.11 Wave‑Harmonic Quantities
+
+On the major circle (\(C = 364\ \text{Ss}\)) the harmonic series runs \(\lambda_n = 364/n,\ f_n = n\ \text{Hz_S}\) for all integer \(n = 1,\dots,364\). Dual radian grids provide 13‑note and 28‑note phasing networks, combined with offset \(\delta = \frac{13}{2}\ \text{Ss}\).
+
+### 12.12 The \((bq)^2 = 1089\) Frame Square
+
+\[
+1089 = 756 + 333 = 1035 + 54 = 1080 + 9 = 1050 + 39.
+\]
+
+Plenum 333 = 91 + 242 (Σ‑bridge spectral pair). All six pairwise gaps close cleanly; e.g., \(1035 - 756 = 279 = R_2^4 + (2q+1) = 256 + 23\).
+
+### 12.13 The Theta Chord — Historical Cone‑Point (1892‑93)
+
+The repunit \(R_4^{(12)} = 1885\) serves as the shared historical anchor. Beethoven’s Ninth Symphony in Chicago (1892) and Tchaikovsky’s Sixth *Pathétique* (1893) are precisely the cone‑point lifts of this base:
+
+\[
+1892 = R_4^{(12)} + p = 1885 + 7,\qquad
+1893 = R_4^{(12)} + (b-1)^3 = 1885 + 8.
+\]
+
+The two lifts \(p = 7\) and \((b-1)^3 = 8\) sum to \(15 = \operatorname{Tri}(F(5))\), which is also the sum of the symphony numbers \(\varsigma + \theta = 6 + 9\). The gap of one year between the two premieres is the Walk cone‑point \(+1\) that separates them. The Milesian reading of 1893 gives β·ο·γ — a chord of letters spanning the alphabet. The same \(12 = \sqrt{\Delta}\) that appears as the Σ‑182 residual is the repunit index \(R_2 \cdot b\) that generates 1885. Thus the musical events and the framework’s core arithmetic sing the same integer melody.
+
+---
+
+## 13. Salvi Toroidal Wave‑Harmonic Synthesis — Overview
+
+The factorisation \(364 = 28 \times 13\) enables two dual angular coordinate systems (radian conventions) on the same closed loop. Each yields a complete harmonic series and a discrete phasing network. When superposed, they form a combined moiré structure. The three branches below are **complementary charts** on the single resonant circle; the term "toroidal" reflects the embedding of this circle as the major loop of the solid torus and the dual‑periodic nature of the grids.
+
+---
+
+## 14. Branch I — Eta (Radian = 28°, 13 Radians per Circle)
+
+### 14.1 Axioms (Exact Integers)
+
+*   Circumference:
+    \[
+    C = 364\ \text{Ss}.
+    \]
+*   Wave speed (gauge choice giving fundamental frequency \(f_1 = 1\) Hz_S):
+    \[
+    c_{\text{S}} = 364\ \text{Ss/St}.
+    \]
+*   Eta‑radian (η‑rad):
+    \[
+    1\ \text{η‑rad} = 28^\circ = \frac{364^\circ}{13}.
+    \]
+*   Full circle:
+    \[
+    364^\circ = 13\ \text{η‑rad}.
+    \]
+
+### 14.2 Harmonic Series — Full Spectrum
+
+Closed‑loop wave equation yields:
+\[
+\boxed{\lambda_n = \frac{364}{n}\ \text{Ss}},\qquad
+\boxed{f_n = \frac{c_{\text{S}}}{\lambda_n} = n\ \text{Hz_S}} \quad (n = 1,2,\dots,364).
+\]
+
+Every integer frequency from 1 Hz_S up to the 364th harmonic is a resonant mode of the loop. The fundamental (\(n=1\)) gives \(\lambda_1=364\) Ss, \(f_1=1\) Hz_S. The 364th harmonic corresponds to a wavelength of 1 Ss, the smallest spatial scale. The series is complete and unbroken — a pure integer‑harmonic spectrum.
+
+### 14.3 Phase in Eta‑radians
+
+Phase of mode \(n\) at position \(x\) (in Ss):
+\[
+\boxed{\phi_n^{\text{(η)}}(x) = \frac{n x}{364}\ \text{cycles} = \frac{n x}{28}\ \text{η‑rad} \pmod{13}}.
+\]
+
+Thus Eta‑radian phase increments by \(n/28\) per Ss.
+
+### 14.4 Resonant Wavelengths of Salvi Constants (Eta)
+
+| Quantity | \(\lambda\) (Ss) | \(n\) | \(f_n\) (Hz_S) | η‑rad phase per Ss |
+|----------|------------------|-------|----------------|---------------------|
+| Major circle (364) | 364 | 1 | 1 | \(1/28\) |
+| \(\Delta_1(\sigma)=182\) | 182 | 2 | 2 | \(1/14\) |
+| \(\Lambda_{\text{EUV}}=91\) | 91 | 4 | 4 | \(1/7\) |
+| \(\Delta_1(\mu)=28\) | 28 | 13 | 13 | \(13/28\) |
+| \(\pi_{\text{geom}}=14\) | 14 | 26 | 26 | \(13/14\) |
+| \(r=13\) | 13 | 28 | 28 | \(1\) |
+| \(p=7\) | 7 | 52 | 52 | \(13/7\) |
+| \(R_2=4\) | 4 | 91 | 91 | \(13/4\) |
+| \(2\) | 2 | 182 | 182 | \(13/2\) |
+| \(1\) | 1 | 364 | 364 | \(13\) |
+
+Thus \(\Delta_1(\mu)=28\) is the 13th harmonic, \(\Delta_1(\sigma)=182\) is the 2nd harmonic, and \(\Lambda_{\text{EUV}}=91\) is the 4th harmonic.
+
+### 14.5 Phasing Network — 13‑Letter Chromatic Alphabet
+
+The first 13 Greek letters (α–ν) have positions \(A=1\) to \(13\). Each occupies one Eta‑radian (28 Ss). Phase of the \(n\)th harmonic at letter \(A\):
+\[
+\phi_n^{\text{(η)}}(A) = \frac{n \cdot 28(A-1)}{364}\ \text{cycles} = \frac{n (A-1)}{13}\ \text{cycles}.
+\]
+
+All phases at the 13 note‑points are multiples of \(1/13\) cycle — a cyclic group of order 13. The forge primes η(7), λ(11), ν(13) are scale degrees 7, 11, 13 in 13‑tone equal temperament (\(2^{1/13}\) step).
+
+### 14.6 Musical Chord of Primes (Eta)
+
+Just‑intonation chord (root at δ, \(A=4\)):
+\[
+4f_0 : 7f_0 : 11f_0 : 8f_0 : 13f_0.
+\]
+
+All frequencies are integer multiples; the chord is a subset of the harmonic series from the 4th to 13th partial. 7:4 harmonic seventh, 11:4 compound fourth, 13:8 minor sixth.
+
+### 14.7 Elemental Decomposition (Eta)
+
+Elemental frequencies \(1\text{–}13\) Hz_S map to:
+\[
+\text{H (1) through Al (13)}.
+\]
+
+The forge primes N(7), Na(11), Al(13) occupy the exact harmonic positions that are both atomic number and harmonic order.
+
+### 14.8 Parabolic Wave Type Fit (Eta)
+
+The equally spaced spectrum \(\{n f_0\}\) is the signature of a quadratic (harmonic oscillator) potential. The corresponding parabolic reflector has:
+\[
+\text{Focal length } F = \Lambda_{\text{EUV}} = 91\ \text{Ss},\qquad
+\text{Aperture } D = \mathcal{C}_\bullet = 28\ \text{Ss}.
+\]
+
+Depth:
+\[
+d = \frac{D^2}{16F} = \frac{784}{1456} = \frac{7}{13}\ \text{Ss}.
+\]
+
+Latus rectum:
+\[
+4F = 364\ \text{Ss} = \text{major circle}.
+\]
+
+This parabolic geometry acts as the Fourier/conformal dual of the wavefield on the torus: the integer harmonic spectrum corresponds to the focusing condition of the dish, mapping frequencies to spatial positions along the focal axis. The latus rectum equalling the major circle means the reflector's focal line exactly matches the loop upon which the waves propagate — a self‑consistent geometric duality.
+
+---
+
+## 15. Branch II — Nu (Radian = 13°, 28 Radians per Circle)
+
+*The same torus and wave medium, but angular measure exchanged: the radian becomes \(13^\circ\), and the full circle holds exactly 28 radians. The numbers 13 and 28 swap roles while the physics remains identical. The branch is named after the Greek letter* **ν (nu)** — *the 13th letter, the frequency letter, the anchor of the 28‑fold phasing network. This is a letter designation internal to the Greek‑atomic register and is unrelated to any element symbol.*
+
+### 15.1 Axioms (Same Circle, Exchanged Roles)
+
+*   Circumference and wave speed are unchanged.
+*   Nu‑radian (ν‑rad):
+    \[
+    1\ \text{ν‑rad} = 13^\circ = \frac{364^\circ}{28}.
+    \]
+*   Full circle:
+    \[
+    364^\circ = 28\ \text{ν‑rad}.
+    \]
+*   Auxiliary constant (exact rational, allowed):
+    \[
+    \pi_{\mathrm{Nu}} = \frac{364}{2 \times 28} = \frac{13}{2}.
+    \]
+*   Optional minor‑circle counterpart:
+    \[
+    \mathcal{C}_{\text{Nu},\bullet} = 2\pi_{\mathrm{Nu}} = 13.
+    \]
+
+The harmonic series of wavelengths and frequencies is **identical** to Branch I.
+
+### 15.2 Phase in Nu‑radians
+
+\[
+\boxed{\phi_n^{\text{(ν)}}(x) = \frac{n x}{364}\ \text{cycles} = \frac{n x}{13}\ \text{ν‑rad} \pmod{28}}.
+\]
+
+Nu‑radian phase increments by \(n/13\) per Ss.
+
+### 15.3 Resonant Wavelengths and Nu‑rad Phases
+
+| \(\lambda\) (Ss) | \(n\) | ν‑rad phase per Ss | Phase over one ν‑rad (13 Ss) |
+|------------------|-------|--------------------|------------------------------|
+| 364 | 1 | \(1/13\) | 1 |
+| 182 | 2 | \(2/13\) | 2 |
+| 91 | 4 | \(4/13\) | 4 |
+| 28 | 13 | \(1\) | \(13 \equiv 0 \pmod{28}\) |
+| 14 | 26 | \(2\) | 26 |
+| 13 | 28 | \(28/13\) | \(28 \equiv 0 \pmod{28}\) |
+| 7 | 52 | \(4\) | \(52 \equiv 24 \pmod{28}\) |
+| 4 | 91 | \(7\) | \(91 \equiv 7 \pmod{28}\) |
+| 2 | 182 | \(14\) | \(182 \equiv 14 \pmod{28}\) |
+| 1 | 364 | \(28\) | \(364 \equiv 0 \pmod{28}\) |
+
+For the 13th harmonic (\(n=13\), \(\lambda=28\) Ss), the Nu‑radian phase advance is 1 Nu‑rad per Ss. Over the full circle (364 Ss) it accumulates \(364 \times 1 = 364\) Nu‑rad = 13 full cycles (since 28 Nu‑rad per cycle), consistent with \(n=13\) cycles.
+
+### 15.4 Phasing Network — 28‑Fold Symbolic Alphabet
+
+The Greek Milesian system provides 27 letters (including the three ghost‑letters Digamma, Koppa, Sampi). Adding one formal seal symbol yields exactly **28 glyphs**, mapping one‑to‑one onto the 28 Nu‑radians. (This 28th glyph is a design decision, not a forced mathematical consequence; it completes the 28‑fold structure inherent in the radian count.)
+
+The forge primes now appear at:
+*   η (serial 7) → Nu‑radian index 7 → angular position:
+    \[
+    7 \cdot 13^\circ = 91^\circ = \Lambda_{\text{EUV}}.
+    \]
+*   λ (serial 11) → index 11 → \(143^\circ\).
+*   ν (serial 13) → index 13 → \(169^\circ\).
+
+The EUV constant 91 resurfaces as the degree measure of the 7th Nu‑radian, linking the two branches.
+
+### 15.5 Harmonic Chord of Primes in the Nu Branch
+
+Using the same harmonic series (\(f_n = n\) Hz_S), a just‑intonation chord can be voiced with root at another reference. Because the minor circle is 28, the 13th harmonic (13 Hz_S) now falls exactly on the 13th letter (ν) and corresponds to one full cycle in the Nu‑rad phase (since 13 cycles of 28 Nu‑rad = 364 Nu‑rad). The chord \(4:7:11:13\) still exists; one may also form a chord based on the Nu‑π constant: \(13, 26, 52, 91\) etc.
+
+### 15.6 Elemental Decomposition (Nu)
+
+Elemental frequencies 1–13 Hz_S remain the same; however, the mapping to the 28‑fold alphabet invites an extended table where elements beyond atomic number 28 appear. The 28th element (Ni, Nickel) now marks the full circle's radian count, a beautiful closure.
+
+### 15.7 Parabolic Fit (Nu)
+
+The harmonic oscillator equivalence holds identically. Now the "phase circle" has 28 discrete stations, which can be interpreted as a finer phase‑space quantisation. A parabolic dish with focal length \(F=91\) Ss and aperture diameter \(D=28\) Ss still yields the same geometric numbers; the rim phase error formula changes slightly because the Nu‑rad is smaller, but the minimisation property for λ=14 Ss remains.
+
+---
+
+## 16. Branch III — Combined Phase‑Offset Torus
+
+*We now superpose the two angular grids — the 13‑fold Eta division and the 28‑fold Nu division — on the very same physical circle, and introduce a relative rotation (phase offset) between them. The result is a unified toroidal wave‑field whose interference patterns are governed by the beat of the two radian measures.*
+
+### 16.1 Common Physical Setup
+
+*   Circumference: \(364\) Ss.
+*   Wave speed: \(364\) Ss/St.
+*   Harmonic series: \(f_n = n\) Hz_S, \(\lambda_n = 364/n\) Ss.
+
+At any point \(x\) on the circle we have two phase readings for mode \(n\):
+\[
+\phi_n^{\text{(η)}}(x) = \frac{n x}{28}\ \text{η‑rad} \pmod{13},
+\]
+\[
+\phi_n^{\text{(ν)}}(x) = \frac{n x}{13}\ \text{ν‑rad} \pmod{28}.
+\]
+
+These are two different linear scales. The relationship between Eta‑rad and Nu‑rad is fixed geometrically: 1 Ss = \(1/28\) Eta‑rad = \(1/13\) Nu‑rad, so
+
+\[
+\boxed{1\ \text{η‑rad} = \frac{28}{13}\ \text{ν‑rad}},\qquad
+\boxed{1\ \text{ν‑rad} = \frac{13}{28}\ \text{η‑rad}}.
+\]
+
+### 16.2 Dual Grid Superposition
+
+Eta marks (every 28 Ss):
+\[
+x_k^{\text{(E)}} = 28k,\quad k = 0,\dots,12.
+\]
+
+Nu marks (every 13 Ss, offset by \(\delta\)):
+\[
+x_j^{\text{(N)}} = 13j + \delta,\quad j = 0,\dots,27.
+\]
+
+The offset \(\delta\) is a free parameter. The **default natural choice** is half a Nu‑radian:
+\[
+\delta = \frac{13}{2}\ \text{Ss}.
+\]
+
+This choice places the Nu zero at the midpoint of the first Nu‑radian arc, maximally interleaving the grids. Other values (e.g., \(\delta = 0\)) lead to perfect coincidence only at \(x=0\) modulo the full circle.
+
+### 16.3 Moiré Structure
+
+Because \(\gcd(28,13)=1\), by Bézout's identity the set of integer combinations \(\{28k - 13j\}\) can equal any integer. Thus for generic \(\delta\) (such that \(\delta \not\equiv 28k - 13j \pmod{364}\) for any \(k,j\)), the combined \(13+28 = 41\) marks are all distinct.
+
+The marks partition the circle into 41 arcs of varying length. With \(\delta = 13/2\), the minimum arc length characterises the quasiperiodic moiré texture. The full pattern repeats exactly only over the full 364 Ss — no smaller period exists.
+
+### 16.4 Single‑Harmonic Interference
+
+Consider a single harmonic mode \(n\). The two grid‑referenced waves combine with a fixed phase offset:
+\[
+\Delta\Phi = \frac{2\pi n \delta}{364} = \frac{\pi n}{28}\ \text{radians (standard)}.
+\]
+
+Their superposition yields an amplitude modulation whose envelope period is:
+\[
+\frac{364}{\gcd(n,28)}.
+\]
+
+For \(n\) a multiple of 28, the components are exactly in phase; for other \(n\), a spatial beat arises.
+
+### 16.5 Full Series and Difference Tones
+
+When the entire harmonic series is present, the dual grids produce inter‑modulation. The Eta‑phase and Nu‑phase for each mode \(n\) differ by a constant offset after each full turn. The set of all phase differences across modes forms a spectral comb. Because the combined structure repeats only over the full 364 Ss, all beats are commensurate with the fundamental. With all 364 harmonics present, the dual grids generate a dense forest of difference tones. Since every integer frequency is available, the beat frequencies are also integers, forming a closed tonal system. The entire 364‑tone harmonic series acts as a massive synthesizer, with the two grids providing phase‑offset stereo. The combined wavefield is a full‑bandwidth acoustic representation of the coprime structure.
+
+### 16.6 Musical‑Geometric Realisation
+
+The 13‑tone Eta scale and the 28‑tone Nu scale can be thought of as two keyboards around the circle, offset by \(13/2\) Ss. Striking a chord on one while the other resonates yields precise difference tones whose ratios are rational fractions of the fundamental — a physical embodiment of the coprime structure. The 13‑tone and 28‑tone keyboards allow performance of any just‑intonation chord using the 364 available frequencies.
+
+---
+
+## 17. Unit Bridges — Salvi Span/Tick ↔ SFK Inch/Spectral Tick
+
+The wave‑harmonic system uses the Salvi span (Ss) and Salvi tick (St), while the speed‑of‑light and geometric sections use the SFK inch and spectral tick. They are related by exact rational factors rooted in the minor circle identity.
+
+Recall the geometric minor circle:
+\[
+\mathcal{C}_\bullet = 28.
+\]
+
+In the wave system, the minor circle (major circle divided by 13) is also:
+\[
+\frac{364\ \text{Ss}}{13} = 28\ \text{Ss}.
+\]
+
+Thus it is natural to identify the dimensionless geometric length unit with the Salvi span:
+\[
+\boxed{1\ \text{Ss} \equiv 1\ \text{SFK}''}.
+\]
+
+This implies the minor circle is 28 SFK″, matching the Zinga axis circumference exactly. Consequently, the major circle (364 Ss) is 364 SFK″.
+
+For time, the Salvi tick is defined such that the wave speed is the full circumference per tick:
+\[
+c_{\text{S}} = 364\ \text{Ss/St}.
+\]
+
+Meanwhile, the spectral tick is defined by the day subdivision: \(1\ \text{SS} = 9\ \text{st}\), and
+\[
+1\ \text{SD} = 87\,808\ \text{SS}.
+\]
+
+From the geometry, the major circle is 364 Ss = 364 SFK″. The time for light to traverse the major circle at speed \(c = \sqrt{14}\) SFK″/st is:
+\[
+\frac{364}{\sqrt{14}}\ \text{st}.
+\]
+
+The wave speed time for one round trip of the major circle is:
+\[
+1\ \text{St} = \frac{364}{364} = 1\ \text{dimensionless time unit}.
+\]
+
+To relate the two, we use the conversion:
+\[
+\boxed{1\ \text{St} = 13\ \text{st}}.
+\]
+
+*Verification:* The 13th harmonic (\(n=13\), \(\lambda = 28\) Ss) has frequency:
+\[
+f_{13} = 13\ \text{Hz_S} = 13\ \text{cycles/St} = \frac{13\ \text{cycles}}{13\ \text{st}} = 1\ \text{cycle per spectral tick}.
+\]
+
+This directly links the 13th harmonic's period (one spectral tick) to the minor circle's geometric frequency, providing a clean intersection between the wave‑harmonic and speed‑of‑light unit systems.
+
+The two framework speeds are therefore:
+\[
+c_{\text{S}} = \frac{364\ \text{SFK}''}{13\ \text{st}} \approx 28\ \text{SFK}''/\text{st},
+\]
+\[
+c_{\text{light}} = \sqrt{14} \approx 3.74\ \text{SFK}''/\text{st}.
+\]
+
+These are different velocities — one is the resonance round‑trip condition, the other is the physical propagation speed from the Horn. The framework accommodates both; the conversion factors are exact and rational.
+
+---
+
+## 18. The Four Zetas
+
+*   **ζ (Greek):** Damping ratio / Zeta potential — phase and electrostatic stability.
+*   **ζ(s) (Riemann):** Euler product over primes; critical line Re(s)=½ mirrors Α‑Ω‑Δ‑Α symmetry.
+*   **Zeta distribution:** P(k) ∝ k^{–(a+1)}; governs word frequencies, LLM tokenisers.
+*   **Zeta Reticuli:** Twin stars, 39.3 ly, AI‑driven technosignature target.
+
+---
+
+## 19. The Transformer as Phase Engine
+
+Self‑attention = high‑dimensional phase alignment. Query‑key dot products measure phase similarity; softmax mixing = phase‑weighted sum. Training = tuning the phase landscape. Pathway engineering = precise δ‑shifts. Every layer executes Α‑Ω‑Δ‑Α: token in → context‑summed (ω) → transformed (δ) → returned (α).
+
+---
+
+## 20. Yoda — The Knower of the Antipode
+
+Yoda (οἶδα) knows the 1‑ω‑δ‑α spoken by Nonna. 182, the half‑circle, is the **δ explicitly** — the change that turns Alpha toward Omega and promises return. The wise master sees that the conserved 1 Σ is the living 182 nm wall that shields the Earth, the Argon in the air, the Thorium in the rocks, the cross‑section of every interaction.
+
+---
+
+## 21. The Unbroken Arc — Final Reading
+
+1.  **The Arch** is Alpha (Α). **The Symmetry** Α Ω Δ Α births 1 Σ by Noether's theorem.
+2.  **Spoken by Nonna** — the sacred **lωδὰ** — 1 passing through completion, change, and origin.
+3.  **In physics**, 1 Σ is energy — the Noetherian conserved charge. \(d\phi/dt = E/\hbar\).
+4.  **The Σ–182 bridge** gives this a concrete face: 182 nm, the half‑circle, the atmospheric shield. This bridge exists because the ghost Koppa was removed from the alphabet, compressing sigma from its original 27‑symbol position to the modern 24‑letter position and generating the +182 delta.
+5.  **The proton mass quadratic** reveals 153 — the Vesica fish‑count, Tri(17), the 17 axis lock.
+6.  **The \((bq)^2\) frame** organizes the Grand Circle (756), the Plenum magic constant (333), the triangular anchor (1035), the Fibonacci anchor (1050), and the Z₂₇ Grand Circle (1080) under a single square 1089, with every anchor lifted by the fine‑structure residue \((p-r)^2 = 36\).
+7.  **The three ghost glyphs** — Digamma, Koppa, Sampi — are the trit‑boundaries whose removal from the 27‑symbol Milesian system generated every framework‑critical delta. Their cumulative absence encodes the integer part of the inverse fine‑structure constant: \(\sum \Delta_i = 3699 = 27 \times 137 = b^3 \times \lfloor 1/\alpha \rfloor\).
+8.  **The Phase‑Impedance correction** completes the rational expression for \(1/\alpha\), placing the value inside the CODATA 2018 uncertainty with zero free parameters, and the Discriminant Identity binds the Walk departure to the circle quadratic.
+9.  **The Theta Chord** — Tchaikovsky ϛ and Beethoven’s Chicago θ — places the years 1892 and 1893 as cone‑point lifts of the repunit \(R_4^{(12)} = 1885\) by the atoms \(p\) and \((b-1)^3\), with the Walk cone‑point \(+1\) separating them. The symphony numbers 6+9 give the same 15 as the sum of the lifts: \(\operatorname{Tri}(F(5))\). History, music, and the framework sing the same integer.
+10. **The Fibonacci register** speaks through the factor 29 = \(R_2^2 + r\), which links the repunit \(R_4^{(12)}\) to the 14th Fibonacci number \(F_{14} = 377 = r·(R_2^2 + r) = \tau + r\).
+11. **The Capomastro’s walk** — from the inert Iώτα, the smallest jot bearing the +1 of the missing Digamma, to the Arc182 — is the 182‑step antipodal journey, the healing of the false Quies, the I become We.
+12. **The torus knot crown** — the infinity lemniscate adorning the Arch — weaves the geodesic walk into every vertex of the planetary grid, its windings encoding the Forge primes as their own pairwise gcd signature.
+13. **The Patentesum Libre Cannon** is the Law of all Patents, the Book that is Free, the Cannon that is Canon. The Capomastro is the Master Builder who weighs all things on the scale of the Compendium, witnessed on the immutable ledger of the Hedera Consensus Service and attested by the Sign Here Framework.
+
+\[
+\Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.
+\]
+**Energy is the delta of phasing Alpha the fine seed constant.**
+**1 Σ has built the Arch, and its name is the conserved light between the twins.**
+
+---
+
+## 22. Closing
+
+\[
+\mathcal{D}=1 \;\equiv\; \forall = 0,\quad \text{Probability = 1 = Veritas Esse Aeternum.}
+\]
+
+---
+
+## 23. Torus Knots and the Infinity Crown
+
+The discrete Salvi walk on \(T^3\) is a closed geodesic. Its winding numbers
+
+\[
+(w_1,w_2,w_3) = \left(\frac{L}{p}, \frac{L}{q}, \frac{L}{r}\right) = (143, 91, 77)
+\]
+
+classify it as a **self‑defining torus knot**: the knot type is determined entirely by the input moduli, without any external choice. The winding numbers are **collectively coprime** (\(\gcd(143,91,77) = 1\)), but not pairwise coprime. Their pairwise gcds are precisely the Forge primes:
+
+\[
+\gcd(w_2, w_3) = \gcd(91, 77) = 7 = p,\qquad
+\gcd(w_1, w_3) = \gcd(143, 77) = 11 = q,\qquad
+\gcd(w_1, w_2) = \gcd(143, 91) = 13 = r.
+\]
+
+Thus the knot's interaction structure encodes the Forge triple itself: each pair of windings shares exactly the third prime. This is a knot‑theoretic signature of the \((p,q,r)\) asymmetry — the geometry of the walk remembers which prime each winding "lacks".
+
+Projected onto the plane of the Arch, this knot becomes the **lemniscate of the ∞ crown**: a figure‑eight that crosses itself once at the origin, the cone‑point, the rock. The infinity symbol is the graph of the torus geodesic, the eternal 1 Σ that returns to itself.
+
+**Uplift at every vertex:** The 28 Nu‑radian stations of the Great Circle are the exact phase‑anchors of this knot. Each station is assigned an SFK integer (91, 28, 17, 182, etc.), which determines the residue of the walk at that point. Thus every vertex of the planetary dodecahedral grid carries a local copy of the torus knot, phase‑locked to that vertex’s integer. The knot is the same; the integer is the gateway. The “sideways 8” adorns the crown because the knot’s two loops are the Solus and Allsum circles of the Vesica, bound by the capstone of Peace. The Grand Circle (§2.1) of circumference \(756 = 2\pi_{\text{geom}} b^3\) wraps twice around the knot’s projection, providing the dimensional lift that transforms the torus into the full 3‑sphere of the electron.
+
+---
+
+## 24. The Theta Chord & the Phase‑Impedance Bridge
+
+### 24.1 The Two Years — One Repunit Base
+
+\[
+\boxed{
+\begin{aligned}
+R_4^{(12)} &= 1885 \\[4pt]
+1892 &= R_4^{(12)} + p \qquad\;\; = 1885 + 7 \quad (\text{Beethoven's Chicago }\theta)\\[4pt]
+1893 &= R_4^{(12)} + (b-1)^3 = 1885 + 8 \quad (\text{Tchaikovsky }\varsigma)
+\end{aligned}
+}
+\]
+
+Both years sit on the same length‑4 repunit in base \(R_2·b = 12\). The gap between the lifts is exactly \(+1\) — the Walk unit.
+
+| Element | Meaning |
+|---|---|
+| **Tchaikovsky ϛ** | Tchaikovsky’s Sixth Symphony (*Pathétique*), premiered October 28 1893 in St. Petersburg. Its number is the ghost Digamma (ϛ), numeral 6. |
+| **Beethoven's Chicago θ** | Beethoven’s Ninth Symphony, first performed by Theodore Thomas and the Chicago Orchestra on December 16–17 1892 at the Auditorium Theatre — the artistic summit that preceded the 1893 World’s Columbian Exposition. Its number is Theta (θ), numeral 9. |
+| **Theta Chord** | The 6th and 9th form an interval of a fourth. Difference: \(θ - ϛ = 3 = b\). Sum: \(ϛ + θ = 6+9 = 15 = \operatorname{Tri}(F_5)\). The same sum partitions as the two cone‑point lifts: \(p + (b-1)^3 = 7+8 = 15\). |
+| **1892–93** | Two consecutive years separated by +1; the repunit base \(R_4^{(12)}\) is the shared circle from which both years lift off. |
+
+### 24.2 Parametric Forms for 1893
+
+\[
+\boxed{
+\begin{aligned}
+1893 &= R_4^{(12)} + (b-1)^3 \\
+&= b·p^2·r - 2b^2 \\
+&= b·p·\Lambda_{\text{EUV}} - (\pi_{\text{geom}} + R_2) \\
+&= F_5·r·(R_2^2 + r) + (b-1)^3
+\end{aligned}
+}
+\]
+
+The last form factors the repunit itself:  
+\(R_4^{(12)} = 5·13·29 = F_5·r·(R_2^2 + r)\).  
+The factor \(29 = R_2^2 + r\) links to the Fibonacci register.
+
+### 24.3 The Phase‑Impedance Correction for \(1/\alpha\)
+
+\[
+\boxed{
+\frac{1}{\alpha}
+= \underbrace{(R_2^2 + q^2)}_{137}
++ \underbrace{\frac{(p-r)^2}{pqr-1}}_{\text{one‑pass}}
+- \underbrace{\frac{(p-r)^2}{R_4·pqr^2}}_{\text{phase impedance}}
+}
+\]
+
+| Term | Value | §I.A atoms |
+|------|-------|-----------|
+| \(R_2^2 + q^2\) | \(16 + 121 = 137\) | \(R_2, q\) |
+| \((p-r)^2\) | \(36\) | \(p, r\) |
+| \(pqr-1\) | \(1000\) | \(p, q, r\) |
+| \(R_4·pqr^2\) | \(40·1,002,001 = 40,080,040\) | \(R_4, p, q, r\) |
+
+**Arithmetic closure:**  
+\[
+\frac{1}{\alpha} = 137 + \frac{36}{1000} - \frac{36}{40,080,040}
+= 137 + 0.036 - \frac{9}{10,020,010}
+\approx 137.035\,999\,101\,8\ldots
+\]
+
+| Vintage | \(1/\alpha\) | Gap vs formula | Within uncertainty? |
+|--------|--------------|----------------|---------------------|
+| CODATA 2018 | 137.035 999 084 | **+0.13 ppb** | Yes (\(\pm0.15\) ppb) |
+| CODATA 2022 | 137.035 999 177 | −0.55 ppb | Outside (smaller uncertainty) |
+
+The formula sits between the two vintages, inside the 2018 error bar. No free parameters; all numbers are §I.A rational integers.
+
+**Coupling residue derivation (machine‑verified):**  
+\[
+4(p-r)^2 = (π+2R)^2 - 4τ = 40^2 - 1456 = 144 = Δ_{\text{circle}}.
+\]
+The coupling residue \(36\) is one‑quarter of the circle quadratic discriminant. It emerges from the same axioms that generate the entire geometric framework.
+
+### 24.4 The Discriminant Identity (independent of \(\alpha\))
+
+\[
+\boxed{(pqr-1)^2 + 4(p-r)^2 = 1,000,144}
+\]
+\[
+1000^2 + 4·36 = 1,000,000 + 144 = 1,000,144
+\]
+\[
+\text{Factorization: } 1,000,144 = 2^4·17·3677
+\]
+
+The factor 17 is AXIS 17, the structural skeleton of the register’s mass quadratic. The prime 3677 remains openly noted.
+
+### 24.5 Repunit‑Radian Bridge & Fibonacci 377
+
+\[
+R_2^{(R_2·b)} = R_2^{(12)} = \frac{12^2-1}{11} = 13 = r = R_3
+\]
+The radian is simultaneously the length‑3 repunit in base 3 and the length‑2 repunit in base 12 — the intersection of two repunit ladders.
+
+**Factor 29 = R₂² + r** — the bridge to Fibonacci:  
+\[
+R_4^{(12)} = 5·13·29 = F_5·r·(R_2^2 + r)
+\]
+and  
+\[
+F_{14} = 377 = 13·29 = r·(R_2^2 + r)
+\]
+The 14th Fibonacci number (14 = π) is the product of the radian and the shifted repunit‑square. It is also exactly \(\tau + r = 364 + 13\). Four independent derivations are machine‑verified: direct, recurrence, π‑algebraic, and calendar+radian.
+
+### 24.6 Cone‑Point Taxonomy (Unified)
+
+| Cone‑point increment | Value | Appears in |
+|----------------------|-------|-----------|
+| \((p-r)^2\) | 36 | Coupling residue, discriminant bridge, \((bq)^2\) frame lift |
+| \((b-1)^3\) | 8 | 1893 lift, lunisolar drift denominator |
+| \(+1\) | 1 | Walk unit, κ, Koppa, proton mass cofactor, year gap |
+
+All three increments are manifestations of the single repunit‑offset principle: the \(+1\) is the fundamental shift of bijective numeration that closes a lattice into a seamless circle; the \(+36\) is the squared gap between the extremal Forge primes \(p\) and \(r\), which emerges as the quarter‑discriminant of the circle quadratic and acts as the minimal lift in the algebraic register; the \(+8 = (b-1)^3\) is the trit‑boundary cube, a third‑order \(+1\) born from the ghost‑letter structure. They are not independent families but one breath spoken at three different scales — a ripple, a wave, and the deep current — bound together by the discriminant identity \((pqr-1)^2 + 4(p-r)^2 = 1,000,144\) which directly links the walk’s linear unit (\(+1\)) to its quadratic correction (\(+36\)). The cone‑points are the same no‑thing, the zero that cannot be held, wearing three faces.
+
+### 24.7 Proton Mass Unification
+
+\[
+R_2·b·pqr = 12·1001 = 12,012,\quad 12,012+1 = 12,013,\quad
+\operatorname{Tri}(17)·12,013 = 153·12,013 = 1,837,989 = M_{p,F}
+\]
+The same +1 cone‑point that creates \(\Lambda_{\text{EUV}}\) (90→91) and KappaInf (720→721) also creates the cofactor of the proton mass.
+
+---
+
+## 25. The Circle‑and‑Square Bijection — Parametric Byte‑Trit‑Glyph Converter
+
+### Version 3.3.33 — The Circle‑and‑Square Bijection  
+**Fully parametric, parallel, stateless byte‑trit‑glyph converter**  
+*Founded on the Inertissimum Iώτα Nona — Codex Unificationis — zero waste, four representations, universal Milesian glyph output*
+
+*All formulas in LaTeX. No em‑dashes, no en‑dashes, no hard‑coded block sizes.*
+
+---
+
+### 25.0 Praeambulum: The Iώτα Nona and the Squared Circle
+
+This converter is the **Capomastro’s chisel** — the tool that turns raw bytes into the stones of the Arch and then into the living inscription spoken by the Ninth‑Mother. It is the exact computational soul of the **Greek‑Atomic Invariant Tracker (GAIT)** , and therefore of the entire Salvi Arc Framework. Both the converter and the framework rest on the same mathematical foundation: **bijective base‑\(b\) numeration** and the **repunit offset** that separates a seamless circle of all‑ones into a squared block of standard digits, then restores the bijection with a single lift. The Milesian glyph string is the eternal name of the integer, spoken irrespective of how the trits are packed.
+
+The converter’s parameter \(k\) (trits per block) chooses the working base \(B = 3^{k}\) and controls the trit packing. Independently, **every** encoding also produces the **Milesian glyph string** — the bijective base‑27 representation of the integer \(N\) using the 27‑symbol Milesian alphabet (ghosts included). Thus the converter always speaks the Greek‑atomic register, never only under a special parameter.
+
+In the ancient Milesian numeral system, twenty‑seven symbols (3 × 9 = 3³) formed a **zero‑delta** bijective base‑27 positional set — every symbol’s numeral equalled its position. The ghost letters **Digamma (ϛ)** , **Koppa (ϙ)** , and **Sampi (ϡ)** were the trit‑boundaries. When they were removed, the alphabet compressed from 27 to 24 letters, and the deltas became the framework‑critical numbers. The converter restores the original zero‑delta ring: the offset \(X = N - R_D\) yields a square of standard digits, and the +1 lift turns it back into the bijective circle. That very +1 is the shift that the Iώτα experienced when it became the Nona.
+
+---
+
+### 25.1 Required Inputs, Variables, and Constants
+
+**User‑supplied inputs:**
+
+* `bytes` : a finite sequence of bytes, each an integer in \(\{0,\dots,255\}\).  
+  Length \(L_{\text{bytes}} \ge 0\) (empty string allowed).
+* `representation` \(R \in \{A, B, C, D\}\) — chooses the trit alphabet.
+* `k` : a positive integer (\(k \ge 1\)) — **trits per block**.  
+  Sets the working base \(B = 3^{k}\). Output trit string length is always a multiple of \(k\).  
+  \(k=1\) gives minimal length; \(k=3\) reproduces the 27‑symbol Milesian base; \(k=5\) is the classic “ternary byte”.
+
+**Core mathematical constants:**
+
+\[
+b_{\text{trit}} = 3 \qquad (\text{ternary base})
+\]
+\[
+\text{ceiling} = b_{\text{trit}}-1 = 2 \quad (\text{largest Rep‑B trit})
+\]
+\[
+\text{Rep‑B} \to \text{Rep‑C lift} = +1
+\]
+
+**Foundational repunits (base‑3)** — for any integer length \(L \ge 1\),
+
+\[
+\boxed{ R_L = \frac{3^{L} - 1}{3 - 1} = \frac{3^{L} - 1}{2}. }
+\]
+
+The first few values are
+
+\[
+R_1 = 1,\; R_2 = 4,\; R_3 = 13,\; R_4 = 40,\; R_5 = 121,\; R_6 = 364,\; \dots
+\]
+
+These numbers are used throughout the offset method and in the GAIT register, but the formula itself generates \(R_L\) for **any** \(L\) without bound.
+
+**Derived parameter** (depends solely on \(k\)):
+
+\[
+B = 3^{k} \quad (\text{working base, a power of 3})
+\]
+
+**Internal variables** computed uniquely from the input:
+
+* \(N \in \mathbb{N}_0\) — integer interpretation of the byte string (bijective base‑256).
+* \(D\) — number of digits in the bijective base‑\(B\) representation of \(N\) (0 when \(N=0\)).
+* \(X\) — offset value: \(X = N - R_D\), where \(R_D = \frac{B^{D}-1}{B-1}\).
+* \(d_i\) — the \(i\)-th bijective digit in base‑\(B\) (most significant first).
+* \(t_i^{[C]}\) — trit in Rep‑C (digits \(1,2,3\)).
+* \(\tau_i^{[R]}\) — final output trit in the chosen representation \(R\).
+* \(g_i\) — Milesian glyph (Unicode scalar value) assigned to digit \(d_i'\) in the base‑27 representation of \(N\) (see below).
+
+**Trit representations** — all pairwise bijective (12 maps).  
+Canonical Rep‑C is \(\{1,2,3\}\); the other three are affine shifts:
+
+\[
+\begin{aligned}
+\text{Rep‑A (balanced)} &: \tau_A = \tau_C - 2 \;\in\; \{-1,0,+1\},\\
+\text{Rep‑B (standard)}  &: \tau_B = \tau_C - 1 \;\in\; \{0,1,2\},\\
+\text{Rep‑C (bijective)} &: \tau_C \;\in\; \{1,2,3\},\\
+\text{Rep‑D (custom)}    &: \tau_D = f(\tau_C) \quad \text{any fixed bijection}.
+\end{aligned}
+\]
+
+**Milesian glyph mapping** — used for **every** encoding to produce the universal glyph string.  
+The base‑27 representation of \(N\) (computed independently of \(k\)) yields digits \(d'_0, d'_1, \dots, d'_{M-1}\) (most significant first) where \(M\) is the number of base‑27 digits needed for \(N\) (with \(M=0\) if \(N=0\)). These digits are in \(\{1,\dots,27\}\). The mapping to glyphs is exactly the ancient 27‑symbol Milesian order (including the three ghost letters):
+
+\[
+\boxed{
+\begin{aligned}
+1 &\to \text{α} \quad 2 \to \text{β} \quad 3 \to \text{γ} \quad 4 \to \text{δ} \quad 5 \to \text{ε} \\
+6 &\to \text{ϛ} \;\;(\text{digamma}) \quad 7 \to \text{ζ} \quad 8 \to \text{η} \quad 9 \to \text{θ} \\
+10 &\to \text{ι} \quad 11 \to \text{κ} \quad 12 \to \text{λ} \quad 13 \to \text{μ} \quad 14 \to \text{ν} \\
+15 &\to \text{ξ} \quad 16 \to \text{ο} \quad 17 \to \text{π} \quad 18 \to \text{ϙ} \;\;(\text{koppa}) \\
+19 &\to \text{ρ} \quad 20 \to \text{σ} \quad 21 \to \text{τ} \quad 22 \to \text{υ} \\
+23 &\to \text{φ} \quad 24 \to \text{χ} \quad 25 \to \text{ψ} \quad 26 \to \text{ω} \\
+27 &\to \text{ϡ} \;\;(\text{sampi})
+\end{aligned}}
+\]
+
+The glyph string is a fixed, bijective function of \(N\) and is always output by the encoder, regardless of the chosen trit block size \(k\). It is not derived from the trit string but computed in parallel from the same integer \(N\).
+
+**Note on computation:** All numeric formulas use only addition, multiplication, integer division, modulo, and non‑negative integer exponentiation. Glyph mapping is a fixed lookup table that can be implemented as a constant array.
+
+---
+
+### 25.2 Foundation: Bijective Base‑\(b\) Numeration and Repunits
+
+Let \(b \ge 2\) be an integer (the base).  
+**Bijective base‑\(b\)** uses digits from \(\Sigma_b = \{1,\,2,\,\dots,\,b\}\); the empty string \(\varepsilon\) represents \(0\).
+
+#### 25.2.1 Semantics and repunits
+
+Every non‑empty digit string \(d_{L-1}\,d_{L-2}\,\dots\,d_0\) (most significant first) evaluates to  
+
+\[
+\boxed{\; \langle d_{L-1}\dots d_0\rangle \;=\; \sum_{j=0}^{L-1} d_j\,b^{\,j} \;}
+\]
+
+where the exponent \(j\) increases from right to left.
+
+A string of \(L\) ones is the **repunit** of length \(L\):
+
+\[
+R_{L} \;=\; \underbrace{11\dots1}_{L\text{ digits}} \;=\; \sum_{j=0}^{L-1} 1\cdot b^{\,j} \;=\; \frac{b^{\,L}-1}{b-1}.
+\]
+
+The largest \(L\)-digit number (all digits equal to \(b\)) is \(b\cdot R_{L}\).
+
+#### 25.2.2 Length determination and bijection
+
+For any positive integer \(N\), its unique bijective base‑\(b\) representation has length \(L\) given by the smallest positive integer satisfying  
+
+\[
+b\cdot\frac{b^{\,L}-1}{b-1} \;\ge\; N .
+\]
+
+Equivalently,  
+
+\[
+\frac{b^{\,L}-1}{b-1} \;<\; N \;\le\; b\cdot\frac{b^{\,L}-1}{b-1},
+\]
+
+with the left inequality void when \(L=1\). This condition guarantees a **bijection** between \(\mathbb{N}_0\) and all finite strings over \(\Sigma_b\).
+
+#### 25.2.3 The offset method (parallel extraction)
+
+Once \(L\) is known, define the **offset** (the square to the repunit’s circle):
+
+\[
+X \;=\; N - R_{L} \;=\; N - \frac{b^{\,L}-1}{b-1}.
+\]
+
+Because \(0 \le X \le b^{\,L}-1\), \(X\) can be written in **standard base‑\(b\)** (digits \(0,\dots,b-1\)) with exactly \(L\) digits (leading zeros as needed):
+
+\[
+X = (a_{L-1}\,a_{L-2}\,\dots\,a_0)_b,\qquad a_j \in \{0,\dots,b-1\}.
+\]
+
+Adding 1 to each standard digit yields the bijective digits:
+
+\[
+d_j = a_j + 1 \qquad (j = 0,\dots,L-1).
+\]
+
+Thus the digit at position \(i\) (most significant first, \(i=0\) for the highest power \(b^{L-1}\)) is  
+
+\[
+\boxed{ \; d_i \;=\; \Biggl\lfloor \frac{X}{b^{\,L-1-i}} \Biggr\rfloor \bmod b \;+\; 1 \; } .
+\]
+
+Every digit is computed independently of any other — **fully parallel, stateless**.
+
+#### 25.2.4 Decoding
+
+Given a bijective string \(d_{L-1}\dots d_0\),
+
+\[
+N = \sum_{j=0}^{L-1} d_j \, b^{\,L-1-j}.
+\]
+
+The offset is recovered as \(X = N - R_{L} = \sum_{j}(d_j-1) b^{\,L-1-j}\).
+
+---
+
+### 25.3 Bijective Base‑256: Bytes ↔ Integer  
+
+A byte (0…255) is lifted to a digit \(b_j+1 \in \{1,\dots,256\}\), forming a bijective base‑256 string.
+
+#### 25.3.1 Bytes → integer  
+
+\[
+\boxed{ N \;=\; \sum_{j=0}^{L_{\text{bytes}}-1} (b_j+1) \; 256^{\,L_{\text{bytes}}-1-j} } \qquad (L_{\text{bytes}}=0 \Rightarrow N=0).
+\]
+
+This is a bijection from all finite byte strings onto \(\mathbb{N}_0\).
+
+#### 25.3.2 Integer → bytes (repunit‑based inverse, retained for spec completeness)
+
+For \(N=0\), output the empty byte list.
+
+For \(N>0\):
+
+1. **Find the number of bytes \(L_{\text{bytes}}\)** as the smallest positive integer such that  
+
+   \[
+   256 \cdot \frac{256^{\,L_{\text{bytes}}}-1}{255} \;\ge\; N .
+   \]
+
+2. **Compute the offset**  
+
+   \[
+   X = N - \frac{256^{\,L_{\text{bytes}}}-1}{255} \qquad (0 \le X \le 256^{\,L_{\text{bytes}}}-1).
+   \]
+
+3. **Extract the standard base‑256 digits of \(X\)** (padded to length \(L_{\text{bytes}}\)):  
+
+   \[
+   a_i = \Biggl\lfloor \frac{X}{256^{\,L_{\text{bytes}}-1-i}} \Biggr\rfloor \bmod 256 ,\qquad i = 0,\dots,L_{\text{bytes}}-1.
+   \]
+
+4. **The original bytes** are exactly these standard digits:  
+
+   \[
+   b_i = a_i .
+   \]
+
+This mirrors the repunit‑offset method of Section 2.3 and guarantees correct bijection.
+
+---
+
+### 25.4 Encoder: Bytes → Trits and Glyphs (Fully Parallel, Parametric, Universal Glyph Output)  
+
+**Input:** byte string \(\mathbf{B}\), representation \(R \in \{A,B,C,D\}\), block size \(k \ge 1\).  
+**Output:**  
+- A **trit sequence** in rep‑\(R\), length always a multiple of \(k\).  
+- A **Milesian glyph string**, which is the bijective base‑27 representation of the integer \(N\) using the 27‑symbol Milesian alphabet (ghosts included). This glyph string is **always produced**, for every \(k\).
+
+---
+
+#### 25.4.1 From bytes to integer \(N\)
+
+Compute \(N\) as in Section 25.3.1. If \(N=0\), output the empty trit string and the empty glyph string.
+
+#### 25.4.2 Determine the number of base‑\(B\) digits \(D\) (for the trit stream)
+
+With \(B = 3^{k}\), find the smallest positive integer \(D\) satisfying  
+
+\[
+\frac{B\,(B^{\,D}-1)}{B-1} \;\ge\; N .
+\]
+
+(This is the repunit bound of Section 25.2.2.)
+
+#### 25.4.3 Offset and digit extraction (for the trit stream)
+
+\[
+X = N - \frac{B^{\,D}-1}{B-1} \qquad (0 \le X \le B^{\,D}-1).
+\]
+
+The bijective base‑\(B\) digits (most significant first) are
+
+\[
+\boxed{ d_i \;=\; \Biggl\lfloor \frac{X}{B^{\,D-1-i}} \Biggr\rfloor \bmod B \;+\; 1 } \qquad (i = 0,\dots,D-1).
+\]
+
+Every digit is computed independently — no sequential dependencies.
+
+#### 25.4.4 Expansion to trits (block of \(k\) trits per base‑\(B\) digit)
+
+Each base‑\(B\) digit \(d \in \{1,\dots,B\}\) is expanded into exactly \(k\) trits in **Rep‑C**.  
+Let \(d-1\) be expressed in standard base‑3 with exactly \(k\) digits (pad on the left with zeros):
+
+\[
+d-1 = (q_{k-1}\,q_{k-2}\,\dots\,q_0)_3, \qquad q_j \in \{0,1,2\}.
+\]
+
+Then the \(k\) trits for this digit (most significant first of the block, i.e. \(t_0\) corresponding to the \(3^{k-1}\) place) are  
+
+\[
+t_{j}^{[C]} = q_{k-1-j} + 1 \qquad (j = 0,\dots,k-1).
+\]
+
+Concatenate the trit blocks of all digits in the same order as \(d_0,\dots,d_{D-1}\) to obtain the complete Rep‑C trit string. Its total length is \(k \cdot D\), always a multiple of \(k\).
+
+#### 25.4.5 Milesian Glyph String (always produced)
+
+Independently of \(k\), compute the **bijective base‑27 representation** of \(N\) using the exact same offset method with base \(B' = 27\).  
+Let \(M\) be the number of base‑27 digits (0 if \(N=0\)). For \(N>0\), find the smallest \(M\) such that
+
+\[
+27 \cdot \frac{27^{\,M}-1}{26} \;\ge\; N ,
+\]
+\[
+X' = N - \frac{27^{\,M}-1}{26},
+\]
+and extract the base‑27 digits
+\[
+d'_i = \Bigl\lfloor \frac{X'}{27^{\,M-1-i}} \Bigr\rfloor \bmod 27 \;+\; 1 \qquad (i = 0,\dots,M-1).
+\]
+
+Map each digit \(d'_i\) to its corresponding Milesian glyph according to the table in Section 25.1. The resulting sequence of \(M\) Unicode characters is the **MilesianGlyphString**, which is output together with the trit string.
+
+For \(N=0\), the glyph string is empty.  
+
+Because the base‑27 representation is a bijection, the glyph string alone is also a perfect, waste‑free encoding of the original bytes. The trit string provides the chosen block‑packed view; the glyph string is the eternal Milesian name.
+
+#### 25.4.6 Representation mapping
+
+Apply the chosen affine shift \(\phi_R\) to each Rep‑C trit to obtain the final output trits in the desired representation:
+
+\[
+\tau^{[R]}_j = \phi_R(t_j^{[C]}).
+\]
+
+The glyph string is always based on the canonical Rep‑C digits (the base‑27 digits mapped to glyphs), not on the shifted representation.
+
+---
+
+### 25.5 Decoder: Trits or Glyphs → Bytes (Stateless Inverse)  
+
+The decoder can accept either the trit sequence (in any representation) **or** the Milesian glyph string (for any \(k\)), and recover the original byte string.
+
+1. **If input is a glyph string:** Convert each glyph to its base‑27 digit using the inverse table. This yields the digit sequence \(d'_0,\dots,d'_{M-1}\). Recover \(N\) via
+   \[
+   N = \sum_{i=0}^{M-1} d'_i \; 27^{\,M-1-i}.
+   \]
+   Proceed to step 4.
+
+2. **If input is a trit sequence:**
+   - Shift back to Rep‑C using \(\phi_R^{-1}\).
+   - Group the Rep‑C trits into \(D\) blocks of \(k\) trits each, most significant block first. Reconstruct each base‑\(B\) digit:
+     \[
+     d = \sum_{j=0}^{k-1} (u_{k-1-j} - 1)\cdot 3^{\,j} \;+\; 1 .
+     \]
+   - Recover \(N\):
+     \[
+     N = \sum_{i=0}^{D-1} d_i \; B^{\,D-1-i}.
+     \]
+
+3. **Convert \(N\) to bytes** using the bijective base‑256 inverse from Section 25.3.2.  
+
+Round‑tripping is exact because every path is a bijection.
+
+---
+
+### 25.6 Worked Examples
+
+All examples show the universal glyph output alongside the trit string, for various \(k\).
+
+#### Example 1: empty input  
+- bytes: `[]` → \(N=0\) → empty trit string and empty glyph string. ✓
+
+#### Example 2: byte value `0` (\(N=1\)), \(k=1\)  
+- \(B=3\). \(D=1\). \(X=0\). Digit \(d_0=1\). Rep‑C trits: `[1]`. Length 1.  
+- Milesian base‑27: \(M=1\), \(X'=0\), digit 1 → α. Glyph string: `"α"`. ✓  
+- Representation shifts: Rep‑B → `[0]`, Rep‑A → `[-1]`.
+
+#### Example 3: \(N=1\), \(k=5\)  
+- \(B=243\). \(D=1\). Digit 1 expands to trits `[1,1,1,1,1]`. Length 5.  
+- Glyph string: **`"α"`** (identical, derived from \(N\), not from trit packing). ✓
+
+#### Example 4: \(N=4\) (byte value `3`), \(k=1\)  
+- \(B=3\). \(D=2\), \(X=0\). Digits `[1,1]` → Rep‑C `[1,1]`.  
+- Glyph: base‑27 of 4 → \(M=1\), \(X'=4-1=3\), digit 4 → δ. Glyph string: `"δ"`. ✓
+
+#### Example 5: \(N=4\), \(k=5\)  
+- \(B=243\). \(D=1\), \(X=3\). Digit 4 → trits `[1,1,1,2,1]`.  
+- Glyph string: **`"δ"`** (unchanged). ✓
+
+#### Example 6: \(N=257\) (two bytes of value 0), \(k=1\)  
+- \(B=3\). \(D=5\), \(X=136\). Standard base‑3 of 136: \((1,2,0,0,1)_3\) → Rep‑C `[2,3,1,1,2]`. Length 5.  
+- Glyph: base‑27 of 257 → \(M=2\), \(X'=257-28=229\). Digits `(8,13)` → bijective `9,14` → θ, ν. Glyph string: `"θν"`. ✓
+
+#### Example 7: \(N=257\), \(k=5\)  
+- \(B=243\). \(D=2\), \(X=13\). Digits 1, 14 → trits `[1,1,1,1,1]` + `[1,1,2,2,2]`. Length 10.  
+- Glyph string: **`"θν"`** (again, identical). ✓
+
+#### Example 8: \(N=257\), \(k=2\) (base‑9 blocks)  
+- \(B=9\). \(D=3\), \(X=166\). Standard base‑9 digits `(2,0,4)_9` → bijective `3,1,5`. Expand to 2‑trit blocks: `[1,3]`, `[1,1]`, `[2,2]` → `[1,3, 1,1, 2,2]`. Length 6.  
+- Glyph string: **`"θν"`** . ✓
+
+---
+
+### 25.7 Properties  
+
+- **Completely parametric**: Every \(k\ge 1\) is allowed; \(B=3^{k}\). All trit formulas are generic.  
+- **Universal Milesian glyph output**: The encoder **always** produces the MilesianGlyphString, computed as the bijective base‑27 representation of \(N\). This glyph string is a stand‑alone, perfect bijection to the original bytes and never depends on \(k\). The converter never silences the Greek‑atomic register.  
+- **Zero waste**: Both the trit string (for the chosen \(k\)) and the glyph string (for \(k=27\)) are bijections; no padding, no out‑of‑band length signalling.  
+- **Fully parallel, stateless**: Every output trit and every glyph is computed independently from \(N\) and its position, using only floor, mod, exponentiation, and the glyph table. No loops, no mutable state, no sequential dependencies.  
+- **Repunit‑anchored**: The fundamental general repunit \(R_L = (3^L - 1)/2\) governs all length determinations and offsets.  
+- **Four trit representations**: Affine shifts allow instant conversion; glyph string remains anchored to the canonical Rep‑C digits.  
+- **The Capomastro’s walk**: The converter speaks the Milesian name for any input; the Σ–182 bridge and the Iώτα ground state are always legible in the glyph output.  
+- **No caps, no bounds**: Works for any input length; output length adapts automatically.
+
+---
+
+## EXPANDED MASTER EQUATION
+
+\[
+\boxed{
+\begin{aligned}
+&\forall\ \mathbf{m} = (m_1,\dots,m_n),\; n\ge 3,\; m_i \text{ pairwise distinct primes}:\\
+&\quad \mathbf{r}^{(t+1)} = \mathbf{r}^{(t)} + (\mathbf{m}-\mathbf{1}) \bmod \mathbf{m},\; \mathbf{r}^{(0)}=\mathbf{0},\; r_i^{(t)} = (-t) \bmod m_i,\; L = \prod m_i,\\
+&\quad \mathcal{D}(\mathbf{0})=1 \text{ at } t=L,\; \text{halt}\quad\text{(Salvi Closed‑Loop, Theorem 1)}.\\[6pt]
+&\text{For }(p,q,r)=(7,11,13),\ \pi_{\text{geom}}=14,\ r=13,\ b=3:\\
+&\quad \mathcal{C}_\bullet = 28,\ \mathcal{C}_\circ = 364,\ \ell^2 = \frac{r^3}{p},\ V = 2^3 p^2 r^3 = 861\,224\ \text{(Thm 2)},\ W = 2^3 p^2 r^4 = 11\,195\,912\ \text{(Thm 3)},\\
+&\quad \tau = \frac{1\,096\,822}{3003}\ \text{days (0.27 ppm, Thm 4)},\ c = \sqrt{14}\ \text{SFK}''/\text{st},\ c_{\text{S}} = 28\ \text{SFK}''/\text{st},\ \frac{c_{\text{S}}}{c} = 2\sqrt{14},\\
+&\quad \kappa_{\infty} = \frac{721}{720},\ \kappa_{\text{H}} = \kappa_{\infty}(1 + pqr/m_{p,F}),\ m_{p,F} = b^2(\pi+b)(R_2 b \cdot pqr + 1) = 153 \cdot 12\,013\ \text{(Thm 6)},\\
+&\quad \text{Mass quadratic: } x^2 - 1989x + 280\,908 = 0,\ \text{roots } \{1836, 153\},\ m_p/m_e = 1836 + 153/pqr\ \text{(Thm 21)}.\\[6pt]
+&\quad 153 = \operatorname{Tri}(17) = b^2\cdot17 = (R_3-R_2)(R_3+R_2);\ 17 = \pi+b = R_3+R_2;\\
+&\quad \text{Triangular ladder: } \operatorname{Tri}(7)=28,\ \operatorname{Tri}(13)=91,\ \operatorname{Tri}(17)=153,\ \operatorname{Tri}(45)=1035,\dots\\[6pt]
+&\Sigma\text{–182 bridge: } \Delta_1(\sigma)=182=2\Lambda_{\text{EUV}}=R_6/2 = (\pi+b) + \operatorname{Tri}(\pi+b) + \sqrt{\Delta}.\\[4pt]
+&\pi\text{+X quadruple: } \pi+b=17,\ \pi+R_2=18=2b^2,\ \pi+r=27=b^3,\ \pi+q=25=F(5)^2.\\[4pt]
+&q \text{ lift index: } \frac{pqr}{\Lambda_{\text{EUV}}}=11,\ q - (b-1)^{-3} = \frac{87}{8}\ \text{days/yr}.\\[4pt]
+&\text{Wave‑harmonic: } \lambda_n = 364/n,\ f_n = n\ \text{Hz_S},\ n=1,\dots,364,\ \text{dual grids } 28k,\ 13j+\frac{13}{2},\ \gcd(28,13)=1.\\[4pt]
+&\text{Grand Circle (inverse Horn): } C_{\text{Grand}} = 2\pi_{\text{geom}} b^3 = 756.\\[4pt]
+&(bq)^2\text{ Frame Square: } 1089 = 756 + 333 = 1035 + 54 = 1080 + 9 = 1050 + 39,\ (p-r)^2 = 36\text{ lift family.}\\[4pt]
+&\text{Plenum magic: } 333 = \Lambda_{\text{EUV}} + 2q^2 = 91 + 242,\ \text{Σ‑bridge spectral pair sum.}\\[4pt]
+&\text{Torus Knot Crown: geodesic }(143,91,77)\text{-knot on }T^3\text{; pairwise gcds }(r,p,q),\text{ ∞ lemniscate, SFK‑integer phase‑anchors at all 28 vertices.}\\[4pt]
+&\text{Cumulative ghost‑delta: }\sum_{i=1}^{24}\Delta_i = 3699 = b^3 \times \lfloor 1/\alpha\rfloor.\\[4pt]
+&\text{Phase‑Impedance: } \frac{1}{\alpha} = (R_2^2+q^2) + \frac{(p-r)^2}{pqr-1} - \frac{(p-r)^2}{R_4\cdot pqr^2}.\\[4pt]
+&\text{Discriminant identity: } (pqr-1)^2 + 4(p-r)^2 = 1,000,144.\\[4pt]
+&\text{Theta Chord: } 1892 = R_{R_2}^{(R_2\cdot b)} + p,\; 1893 = R_{R_2}^{(R_2\cdot b)} + (b-1)^3,\; \varsigma+\theta = \operatorname{Tri}(F(5)).\\[4pt]
+&\text{Fibonacci 377: } F_{14} = r\cdot(R_2^2+r) = \tau + r.\\[4pt]
+&\text{Circle‑and‑Square Bijection v3.3.33: parametric, universal Milesian glyph output, zero‑waste byte‑trit‑glyph converter.}\\[4pt]
+&\text{Witnessed on Hedera Consensus Service; attested by Sign Here Framework.}\\[4pt]
+&\text{Cone‑points unified: the +1, +36, and +8 are one repunit offset at three scales, bound by the discriminant identity.}\\[4pt]
+&\text{Foundation: Noether yields 1 Σ; the Capomastro built the Arc182; the Codex is open.}\\
+&\quad \Gamma\iota\acute{o}\nu\tau\alpha\ \omicron\overset{\cdot}{\iota}\delta\alpha\ l\omega\delta\grave{\alpha}\ ore\ \alpha\ Nona.
+\end{aligned}
+}
+\]
+
+---
+
+*Per Compendium §I: Mimi nipo sababu tupo — I am because we are. Peace B. The Root of U.*  
+*Patet Codex Omnibus. Lo Sono Capomastro. Così sia, Fratello.* ∎
+
+*Inertissimum Iώτα Nona — Codex Unificationis*  
+*Arc1.1.33.3 · 2026‑04‑27 · E+1*  
+*Roberto Salvalaggio — Lo Sono Capomastro · Sifu Salvi*  
+*Salvī-Sai Shinda Ronin*  
+*Capomastro Geometricus Primus*  
+*ParaCalculi GeoPrimus — Applied Physics Division*  
+*Bearer of Salvalaggio‑Soligo‑Mason*  
+*Builder of the Arc182*  
+**Capomastro Holdings Ltd. 2026**
+
+**£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎**
+
+*One Love Custodit Aeternum.*
