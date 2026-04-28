@@ -21,9 +21,9 @@
       .h2       { font-size: 48px; font-weight: 800; fill: #0F0C0A; }
       .h3       { font-size: 36px; font-weight: 800; fill: #0F0C0A; }
       .body     { font-size: 30px; fill: #0F0C0A; }
-      .bullet   { font-size: 28px; fill: #0F0C0A; }
-      .small    { font-size: 24px; fill: #4a525b; }
-      .smallb   { font-size: 24px; font-weight: 700; fill: #0F0C0A; }
+      .bullet   { font-size: 32px; fill: #0F0C0A; }
+      .small    { font-size: 26px; fill: #4a525b; }
+      .smallb   { font-size: 26px; font-weight: 700; fill: #0F0C0A; }
       .italic   { font-size: 24px; font-style: italic; fill: #6a727b; }
 
       .badgetxt  { font-size: 38px; font-weight: 800; fill: #FAF8F6; }
@@ -52,6 +52,12 @@
       .modbox-yellow { fill: #fff4cc; stroke: #d4a017; stroke-width: 3; }
       .modbox-red    { fill: #ffd9d4; stroke: #c0392b; stroke-width: 4; }
       .modbox-blue   { fill: #d9ecff; stroke: #2D7DD2; stroke-width: 3; }
+        .modlist-c { font-size: 26px; font-weight: 700; fill: #2D7DD2; font-family: Menlo, Consolas, monospace; }
+        .modlist-d { font-size: 26px; font-weight: 700; fill: #c0392b; font-family: Menlo, Consolas, monospace; }
+        .modhead-c { font-size: 28px; font-weight: 800; fill: #2D7DD2; }
+        .modhead-d { font-size: 28px; font-weight: 800; fill: #c0392b; }
+        .ringlabel { font-size: 30px; font-weight: 800; fill: #2a8050; font-family: Menlo, Consolas, monospace; letter-spacing: 1px; }
+        .calcbanner { font-size: 36px; font-weight: 800; fill: #B8860B; font-family: Menlo, Consolas, monospace; letter-spacing: 3px; }
 
       .nuctitle   { font-size: 56px; font-weight: 800; fill: #0F0C0A; letter-spacing: 4px; }
       .axiom      { font-size: 50px; font-weight: 800; fill: #0F0C0A; }
@@ -357,19 +363,38 @@
     <text x="4100" y="3962" class="quadaddr" text-anchor="middle">3.0.0.3__borromean.rs</text>
   </g>
 
-  <!-- ═════════════ CALCULI cross labels ═════════════ -->
-  <g>
-    <text x="3700" y="2150" class="calcsub" text-anchor="middle">Δ · Difference</text>
-    <text x="3700" y="2186" class="calcname" text-anchor="middle">divided differences · Δ_n recurrences</text>
-    <text x="4750" y="3090" class="calcsub" text-anchor="middle">∮ · Circular</text>
-    <text x="4750" y="3126" class="calcname" text-anchor="middle">closed-loop sums on R₆ = 364°</text>
-    <text x="3700" y="4030" class="calcsub" text-anchor="middle">◯ · Iteration</text>
-    <text x="3700" y="4066" class="calcname" text-anchor="middle">fixed-point · ladder maps</text>
-    <text x="2650" y="3090" class="calcsub" text-anchor="middle">Σ · Series</text>
-    <text x="2650" y="3126" class="calcname" text-anchor="middle">Σ-182 partial sums</text>
-    <text x="3700" y="4108" class="quadaddr" text-anchor="middle">→ all four sub-calculi unified in 4.0.0.4__calculus.rs</text>
-  </g>
+  <!-- ═════════════ CALCULI ring (L=4) — operators properly inside ring ═════════════ -->
+    <g>
+      <!-- L=4 ring banner — top of calculi ring, inside band r=1020..1320 -->
+      <rect x="3220" y="1815" width="960" height="44" rx="8" fill="#B8860B" fill-opacity="0.92"/>
+      <text x="3700" y="1846" class="calcbanner" text-anchor="middle" fill="#FAF8F6">L = 4   ·   CALCULI   ·   Δ ∮ ◯ Σ</text>
+      <text x="3700" y="1888" class="quadaddr" text-anchor="middle">all four sub-calculi unified in  4.0.0.4__calculus.rs</text>
 
+      <!-- Δ Difference — north position, properly inside calculi ring (r≈1170) -->
+      <text x="3700" y="1944" class="calcsub" text-anchor="middle">Δ · Difference</text>
+      <text x="3700" y="1980" class="calcname" text-anchor="middle">divided differences · Δ_n recurrences</text>
+
+      <!-- ∮ Circular — east position, properly inside calculi ring -->
+      <text x="4870" y="3090" class="calcsub" text-anchor="middle">∮ · Circular</text>
+      <text x="4870" y="3126" class="calcname" text-anchor="middle">closed-loop sums on R₆ = 364°</text>
+
+      <!-- ◯ Iteration — south position, properly inside calculi ring -->
+      <text x="3700" y="4256" class="calcsub" text-anchor="middle">◯ · Iteration</text>
+      <text x="3700" y="4292" class="calcname" text-anchor="middle">fixed-point · ladder maps</text>
+
+      <!-- Σ Series — west position, properly inside calculi ring -->
+      <text x="2530" y="3090" class="calcsub" text-anchor="middle">Σ · Series</text>
+      <text x="2530" y="3126" class="calcname" text-anchor="middle">Σ-182 partial sums</text>
+    </g>
+
+    <!-- ═════════════ Concentric ring identifiers L=2 / L=3 / L=4 ═════════════ -->
+    <!-- Placed at angle ≈ 30° below east axis where there are no module boxes -->
+    <g>
+      <text x="4263" y="3415" class="ringlabel" text-anchor="middle">L=2 ATOM</text>
+      <text x="4471" y="3548" class="ringlabel" text-anchor="middle">L=3 ALGEBRAIC</text>
+      <text x="4713" y="3692" class="ringlabel" text-anchor="middle">L=4 CALCULI</text>
+    </g>
+  
   <!-- ═════════════ PHYSICS QUADRANTS (corners) ═════════════ -->
   <g>
     <text x="2110" y="1540" class="quadtitle" fill="#5b3aa8">NW</text>
@@ -427,7 +452,14 @@
     <text x="20"  y="300" class="bullet">• Σ-182 Bridge as antipode &amp; half-circle</text>
     <text x="20"  y="338" class="bullet">• Triangular ladder arcs:</text>
     <text x="20"  y="370" class="bullet"><tspan x="40">Tri(7)=28, Tri(13)=91, Tri(17)=153</tspan></text>
-    <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  circle.rs · arc182.rs · wave_stratum.rs · vesica.rs · speed_of_light.rs · tri_ladder.rs</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">circle.rs</text>
+    <text x="1240" y="204" class="modlist-c">arc182.rs</text>
+    <text x="1240" y="238" class="modlist-c">wave_stratum.rs</text>
+    <text x="1240" y="272" class="modlist-c">vesica.rs</text>
+    <text x="1240" y="306" class="modlist-c">speed_of_light.rs</text>
+    <text x="1240" y="340" class="modlist-c">tri_ladder.rs</text>
     <text x="20"  y="458" class="addr">5.C.1.1..6  ←  geometric · curved · sector ① · ord 1..6</text>
     <text x="20"  y="490" class="small">↔ G (Wave-harmonic dual grids · Σ-182 O₂ wall)  ·  E (Tri ladder figurates)</text>
   </g>
@@ -443,7 +475,12 @@
     <text x="20"  y="282" class="bullet">• <tspan font-weight="800">Solids of revolution</tspan>  (cylinder, cone, sphere,</text>
     <text x="20"  y="316" class="bullet"><tspan x="40">spheroid, paraboloid, hyperboloid)</tspan></text>
     <text x="20"  y="350" class="bullet"><tspan x="40">— Archimedes’ generating method</tspan></text>
-    <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  discriminant.rs · arc182.rs · solids_of_revolution.rs · gabriels_horn.rs</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">discriminant.rs</text>
+    <text x="1240" y="204" class="modlist-c">arc182.rs</text>
+    <text x="1240" y="238" class="modlist-c">solids_of_revolution.rs</text>
+    <text x="1240" y="272" class="modlist-c">gabriels_horn.rs</text>
     <text x="20"  y="458" class="addr">5.C.2.1..4  ←  geometric · curved · sector ② · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ E  (Phase-Impedance integer companions 137 / 377)</text>
   </g>
@@ -457,7 +494,12 @@
     <text x="20"  y="216" class="bullet">• Frame square partitions containing 756</text>
     <text x="20"  y="262" class="bullet">• π + X quadruple  (17, 18, 27, 25)</text>
     <text x="20"  y="308" class="bullet">• Σ-182 bridge as cycle midpoint</text>
-    <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  grand_circle.rs · frame_square.rs · pi_quadruple.rs · arc182.rs</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">grand_circle.rs</text>
+    <text x="1240" y="204" class="modlist-c">frame_square.rs</text>
+    <text x="1240" y="238" class="modlist-c">pi_quadruple.rs</text>
+    <text x="1240" y="272" class="modlist-c">arc182.rs</text>
     <text x="20"  y="458" class="addr">5.C.3.1..4  ←  geometric · curved · sector ③ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ A , B  ((bq)² Frame Square 1089 · Plenum 333 magic)</text>
   </g>
@@ -471,7 +513,11 @@
     <text x="20"  y="216" class="bullet">• Discriminant identity</text>
     <text x="20"  y="252" class="bullet"><tspan x="40">((pqr − 1)² + 4(p − r)² = 1,000,144)</tspan></text>
     <text x="20"  y="298" class="bullet">• Volumetric ceiling identity  (V = ℓ² · π_geom³)</text>
-    <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  vesica.rs · discriminant.rs · volumetric_ceiling.rs</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">vesica.rs</text>
+    <text x="1240" y="204" class="modlist-c">discriminant.rs</text>
+    <text x="1240" y="238" class="modlist-c">volumetric_ceiling.rs</text>
     <text x="20"  y="458" class="addr">5.C.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
     <text x="20"  y="490" class="small italic">orphan #3 — disc-identity 1,000,144 also belongs to ① and ②</text>
   </g>
@@ -485,7 +531,12 @@
     <text x="20"  y="200" class="bullet"><tspan x="40">— star polygons from skipping vertices on circumcircle</tspan></text>
     <text x="20"  y="246" class="bullet">• Theta chord’s repunit base 12 yields star patterns</text>
     <text x="20"  y="292" class="bullet">• Torus knot windings  (143, 91, 77)  define a star knot</text>
-    <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  coprime_polygon_pair.rs · theta_chord.rs · torus_knot.rs · star_polygon.rs</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">coprime_polygon_pair.rs</text>
+    <text x="1240" y="204" class="modlist-c">theta_chord.rs</text>
+    <text x="1240" y="238" class="modlist-c">torus_knot.rs</text>
+    <text x="1240" y="272" class="modlist-c">star_polygon.rs</text>
     <text x="20"  y="458" class="addr">5.C.5.1..4  ←  geometric · curved · sector ⑤ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ F  (Torus Knot Crown lifts to 3D star polytope)</text>
   </g>
@@ -500,7 +551,12 @@
     <text x="20"  y="226" class="bullet"><tspan x="40">1893 = R_4^(12) + (b−1)³</tspan></text>
     <text x="20"  y="270" class="bullet">• Repunit factors  R_4^(12) = 5 · 13 · 29</text>
     <text x="20"  y="314" class="bullet">• Fibonacci 377 in rosette forms</text>
-    <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  repx.rs · repunit_circles.rs · theta_chord.rs · fibonacci.rs</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">repx.rs</text>
+    <text x="1240" y="204" class="modlist-c">repunit_circles.rs</text>
+    <text x="1240" y="238" class="modlist-c">theta_chord.rs</text>
+    <text x="1240" y="272" class="modlist-c">fibonacci.rs</text>
     <text x="20"  y="458" class="addr">5.C.6.1..4  ←  geometric · curved · sector ⑥ · ord 1..4</text>
     <text x="20"  y="490" class="small">↔ H  (Theta Chord year differences as cone-point lifts)</text>
   </g>
@@ -512,7 +568,11 @@
     <text x="118" y="60" class="h2">Metatronic Disdyakis Bridge</text>
     <text x="20"  y="220" class="bullet">• Disdyakis bridge:   R² = π + 5φ</text>
     <text x="20"  y="262" class="bullet"><tspan x="40">— connects golden ring to circle geometry</tspan></text>
-    <text x="20"  y="424" class="smallb" fill="#2D7DD2">Modules:  disdyakis_bridge.rs · zphi.rs · saturnian_metatron.rs</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">disdyakis_bridge.rs</text>
+    <text x="1240" y="204" class="modlist-c">zphi.rs</text>
+    <text x="1240" y="238" class="modlist-c">saturnian_metatron.rs</text>
     <text x="20"  y="458" class="addr">5.C.7.1..3  ←  geometric · curved · sector ⑦ · ord 1..3</text>
     <text x="20"  y="490" class="small">↔ C  (Milesian glyph polyhedral symmetry)</text>
   </g>
@@ -532,7 +592,13 @@
     <text x="20"  y="220" class="bullet">• Tick &amp; clock register</text>
     <text x="20"  y="256" class="bullet">• Circle-and-Square bijection (byte ↔ trit ↔ glyph)</text>
     <text x="20"  y="292" class="bullet">• Milesian Δ_1(μ) = 28 — fundamental spacing</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  frame_square.rs · calendar.rs · tick_clock.rs · milesian.rs · constants.rs</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">frame_square.rs</text>
+    <text x="1240" y="204" class="modlist-d">calendar.rs</text>
+    <text x="1240" y="238" class="modlist-d">tick_clock.rs</text>
+    <text x="1240" y="272" class="modlist-d">milesian.rs</text>
+    <text x="1240" y="306" class="modlist-d">constants.rs</text>
     <text x="20"  y="394" class="addr">5.D.A.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
     <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)  ·  bridge-feature only</text>
   </g>
@@ -544,7 +610,9 @@
     <text x="118" y="60" class="h2">Magic Squares &amp; Permutohedra</text>
     <text x="20"  y="200" class="bullet">• Plenum magic constant 333  (explicit magic square)</text>
     <text x="20"  y="244" class="bullet">• 4 σ permutations  (from plenum_square.rs)</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  plenum_square.rs  (333 magic + 4 σ permutations)</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">plenum_square.rs  (333 magic + 4 σ permutations)</text>
     <text x="20"  y="394" class="addr">5.D.B.1  ←  geometric · discrete · sector B · ord 1</text>
     <text x="20"  y="426" class="small">↔ ③  (1089 + 333 anchored to Grand Circle 756)</text>
   </g>
@@ -559,7 +627,11 @@
     <text x="20"  y="234" class="bullet">• Milesian 27-glyph set as completed polyhedron</text>
     <text x="20"  y="262" class="bullet"><tspan x="40">(ghosts = missing vertices)</tspan></text>
     <text x="20"  y="304" class="bullet">• Elemental decomposition maps elements to vertices</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  polyhedra.rs · milesian.rs · greek_atomic.rs</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">polyhedra.rs</text>
+    <text x="1240" y="204" class="modlist-d">milesian.rs</text>
+    <text x="1240" y="238" class="modlist-d">greek_atomic.rs</text>
     <text x="20"  y="394" class="addr">5.D.C.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑦  (Disdyakis · ghost letters as missing phases)</text>
   </g>
@@ -571,7 +643,10 @@
     <text x="118" y="60" class="h2">Color Symmetry &amp; Crystal Groups</text>
     <text x="20"  y="200" class="bullet">• Plenum color harmonics  (RED / BLUE / CO / GREEN)</text>
     <text x="20"  y="244" class="bullet">• 1089 partition color-coding as symmetry operations</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  plenum_color.rs · plenum_square.rs</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">plenum_color.rs</text>
+    <text x="1240" y="204" class="modlist-d">plenum_square.rs</text>
     <text x="20"  y="394" class="addr">5.D.D.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ A  (1089 partitions = lattice + colour symmetry)</text>
   </g>
@@ -587,7 +662,12 @@
     <text x="20"  y="250" class="bullet">• Proton mass:  153 = Tri(17)</text>
     <text x="20"  y="284" class="bullet">• Axis 17 lock  (17 = π + b)</text>
     <text x="20"  y="318" class="bullet">• Lunisolar drift  (10.875 days / yr)</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  tri_ladder.rs · axis_lock.rs · lunisolar.rs · proton_mass.rs</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">tri_ladder.rs</text>
+    <text x="1240" y="204" class="modlist-d">axis_lock.rs</text>
+    <text x="1240" y="238" class="modlist-d">lunisolar.rs</text>
+    <text x="1240" y="272" class="modlist-d">proton_mass.rs</text>
     <text x="20"  y="394" class="addr">5.D.E.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
     <text x="20"  y="426" class="small">↔ ① (Tri arcs)  ·  ② (Phase-Impedance 137 · 377)</text>
   </g>
@@ -599,7 +679,11 @@
     <text x="118" y="60" class="h2">Star Polytopes &amp; Antiprisms</text>
     <text x="20"  y="200" class="bullet">• Torus knot  (143, 91, 77)  as self-defining star polytope</text>
     <text x="20"  y="244" class="bullet">• Kepler–Poinsot solids,  uniform star forms</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  torus_knot.rs · kepler_poinsot.rs · star_polytope.rs</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">torus_knot.rs</text>
+    <text x="1240" y="204" class="modlist-d">kepler_poinsot.rs</text>
+    <text x="1240" y="238" class="modlist-d">star_polytope.rs</text>
     <text x="20"  y="394" class="addr">5.D.F.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑤  (planar star polygons that lift to 3D antiprisms)</text>
   </g>
@@ -613,7 +697,11 @@
     <text x="20"  y="190" class="bullet"><tspan x="40">— molecular lattice property</tspan></text>
     <text x="20"  y="234" class="bullet">• Crystal 2D / 3D physics modules</text>
     <text x="20"  y="276" class="bullet">• Wave dual grids as Bravais basis</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  crystal_2d_3d.rs · arc182.rs · wave_stratum.rs</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">crystal_2d_3d.rs</text>
+    <text x="1240" y="204" class="modlist-d">arc182.rs</text>
+    <text x="1240" y="238" class="modlist-d">wave_stratum.rs</text>
     <text x="20"  y="394" class="addr">5.D.G.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ① (Σ-182 antipode · wave-harmonic continuous spectrum)</text>
   </g>
@@ -625,64 +713,76 @@
     <text x="118" y="60" class="h2">Convex / Concave Polygon Taxonomy</text>
     <text x="20"  y="200" class="bullet">• Cone-point lifts  (+1, +8, +36)  classify convex vs star</text>
     <text x="20"  y="244" class="bullet">• Frame square lifts as convex-hull increments</text>
-    <text x="20"  y="358" class="smallb" fill="#c0392b">Modules:  cone_point.rs · frame_square.rs</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">cone_point.rs</text>
+    <text x="1240" y="204" class="modlist-d">frame_square.rs</text>
     <text x="20"  y="394" class="addr">5.D.H.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ ⑥  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
   <!-- ═══════════════ CROSS-CUTTING ITEMS ═══════════════ -->
-  <g transform="translate(80, 5180)">
-    <rect x="0" y="0" width="7240" height="640" rx="12" class="panel-x"/>
-    <text x="24" y="64" class="h2" fill="#B8860B">Cross-Cutting Items</text>
-    <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
+    <g transform="translate(80, 5180)">
+      <rect x="0" y="0" width="7240" height="640" rx="12" class="panel-x"/>
+      <text x="24" y="64" class="h2" fill="#B8860B">Cross-Cutting Items  ·  with explicit *.rs filename references</text>
+      <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
 
-    <text x="40"   y="138" class="h3">Item</text>
-    <text x="2400" y="138" class="h3">Curved Side</text>
-    <text x="4800" y="138" class="h3">Discrete Side</text>
-    <line x1="24" y1="156" x2="7216" y2="156" stroke="#B8860B" stroke-width="2"/>
+      <text x="40"   y="138" class="h3">Item</text>
+      <text x="1700" y="138" class="h3">Curved Side</text>
+      <text x="3500" y="138" class="h3">Discrete Side</text>
+      <text x="5320" y="138" class="h3" fill="#B8860B">Files (*.rs)</text>
+      <line x1="24" y1="156" x2="7216" y2="156" stroke="#B8860B" stroke-width="2"/>
 
-    <rect x="24" y="166" width="7192" height="56" class="row-norm"/>
-    <text x="40"   y="206" class="bullet"><tspan font-weight="800">Torus Manifold</tspan></text>
-    <text x="2400" y="206" class="bullet">Poloidal disc  (curved)</text>
-    <text x="4800" y="206" class="bullet">Square corners  (discrete quadrants)</text>
+      <rect x="24" y="166" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="206" class="bullet"><tspan font-weight="800">Torus Manifold</tspan></text>
+      <text x="1700" y="206" class="bullet">Poloidal disc  (curved)</text>
+      <text x="3500" y="206" class="bullet">Square corners  (discrete quadrants)</text>
+      <text x="5320" y="206" class="modlist-c" fill="#B8860B">torus_knot.rs · frame_square.rs</text>
 
-    <rect x="24" y="222" width="7192" height="56" class="row-alt"/>
-    <text x="40"   y="262" class="bullet"><tspan font-weight="800">(bq)² Frame Square</tspan></text>
-    <text x="2400" y="262" class="bullet">756 in Grand Circle  ( ③ )</text>
-    <text x="4800" y="262" class="bullet">1089 lattice  ( A )</text>
+      <rect x="24" y="222" width="7192" height="56" class="row-alt"/>
+      <text x="40"   y="262" class="bullet"><tspan font-weight="800">(bq)² Frame Square</tspan></text>
+      <text x="1700" y="262" class="bullet">756 in Grand Circle  ( ③ )</text>
+      <text x="3500" y="262" class="bullet">1089 lattice  ( A )</text>
+      <text x="5320" y="262" class="modlist-c" fill="#B8860B">frame_square.rs · grand_circle.rs</text>
 
-    <rect x="24" y="278" width="7192" height="56" class="row-norm"/>
-    <text x="40"   y="318" class="bullet"><tspan font-weight="800">Σ-182 Bridge</tspan></text>
-    <text x="2400" y="318" class="bullet">182 as half-circle  ( ① )</text>
-    <text x="4800" y="318" class="bullet">182 nm O₂ wall as crystal gap  ( G )</text>
+      <rect x="24" y="278" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="318" class="bullet"><tspan font-weight="800">Σ-182 Bridge</tspan></text>
+      <text x="1700" y="318" class="bullet">182 as half-circle  ( ① )</text>
+      <text x="3500" y="318" class="bullet">182 nm O₂ wall as crystal gap  ( G )</text>
+      <text x="5320" y="318" class="modlist-c" fill="#B8860B">arc182.rs · crystal_2d_3d.rs · wave_stratum.rs</text>
 
-    <rect x="24" y="334" width="7192" height="56" class="row-alt"/>
-    <text x="40"   y="374" class="bullet"><tspan font-weight="800">Triangular Ladder</tspan></text>
-    <text x="2400" y="374" class="bullet">Tri(7)=28, Tri(13)=91 as arcs  ( ① )</text>
-    <text x="4800" y="374" class="bullet">Tri(17)=153, Tri(45)=1035 as figurate  ( E )</text>
+      <rect x="24" y="334" width="7192" height="56" class="row-alt"/>
+      <text x="40"   y="374" class="bullet"><tspan font-weight="800">Triangular Ladder</tspan></text>
+      <text x="1700" y="374" class="bullet">Tri(7)=28, Tri(13)=91 as arcs  ( ① )</text>
+      <text x="3500" y="374" class="bullet">Tri(17)=153, Tri(45)=1035 as figurate  ( E )</text>
+      <text x="5320" y="374" class="modlist-c" fill="#B8860B">tri_ladder.rs · proton_mass.rs · axis_lock.rs</text>
 
-    <rect x="24" y="390" width="7192" height="56" class="row-norm"/>
-    <text x="40"   y="430" class="bullet"><tspan font-weight="800">Phase-Impedance</tspan></text>
-    <text x="2400" y="430" class="bullet">Circle quadratic terms  ( ② )</text>
-    <text x="4800" y="430" class="bullet">Integer coefficients  ( E )</text>
+      <rect x="24" y="390" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="430" class="bullet"><tspan font-weight="800">Phase-Impedance</tspan></text>
+      <text x="1700" y="430" class="bullet">Circle quadratic terms  ( ② )</text>
+      <text x="3500" y="430" class="bullet">Integer coefficients 137 / 377  ( E )</text>
+      <text x="5320" y="430" class="modlist-c" fill="#B8860B">phase_impedance.rs · discriminant.rs · fibonacci.rs</text>
 
-    <rect x="24" y="446" width="7192" height="56" class="row-alt"/>
-    <text x="40"   y="486" class="bullet"><tspan font-weight="800">Milesian Glyphs</tspan></text>
-    <text x="2400" y="486" class="bullet">Ghost letters as missing phases  ( ⑦ )</text>
-    <text x="4800" y="486" class="bullet">27-fold polyhedral symmetry  ( C )</text>
+      <rect x="24" y="446" width="7192" height="56" class="row-alt"/>
+      <text x="40"   y="486" class="bullet"><tspan font-weight="800">Milesian Glyphs</tspan></text>
+      <text x="1700" y="486" class="bullet">Ghost letters as missing phases  ( ⑦ )</text>
+      <text x="3500" y="486" class="bullet">27-fold polyhedral symmetry  ( C )</text>
+      <text x="5320" y="486" class="modlist-c" fill="#B8860B">milesian.rs · greek_atomic.rs · polyhedra.rs</text>
 
-    <rect x="24" y="502" width="7192" height="56" class="row-norm"/>
-    <text x="40"   y="542" class="bullet"><tspan font-weight="800">Wave-Harmonic</tspan></text>
-    <text x="2400" y="542" class="bullet">Continuous spectrum  ( ① )</text>
-    <text x="4800" y="542" class="bullet">Dual radian grids as discrete array  ( G )</text>
+      <rect x="24" y="502" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="542" class="bullet"><tspan font-weight="800">Wave-Harmonic</tspan></text>
+      <text x="1700" y="542" class="bullet">Continuous spectrum  ( ① )</text>
+      <text x="3500" y="542" class="bullet">Dual radian grids as discrete array  ( G )</text>
+      <text x="5320" y="542" class="modlist-c" fill="#B8860B">wave_stratum.rs · arc182.rs · crystal_2d_3d.rs</text>
 
-    <rect x="24" y="558" width="7192" height="70" class="row-alt"/>
-    <text x="40"   y="600" class="bullet"><tspan font-weight="800">Theta Chord</tspan></text>
-    <text x="2400" y="600" class="bullet">Repunit rosettes  ( ⑥ )</text>
-    <text x="4800" y="600" class="bullet">Year differences as cone-point lifts  ( H )</text>
-  </g>
+      <rect x="24" y="558" width="7192" height="70" class="row-alt"/>
+      <text x="40"   y="600" class="bullet"><tspan font-weight="800">Theta Chord</tspan></text>
+      <text x="1700" y="600" class="bullet">Repunit rosettes  ( ⑥ )</text>
+      <text x="3500" y="600" class="bullet">Year differences as cone-point lifts  ( H )</text>
+      <text x="5320" y="600" class="modlist-c" fill="#B8860B">theta_chord.rs · repx.rs · cone_point.rs</text>
+    </g>
 
-  <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
+    <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
   <g transform="translate(80, 5860)">
     <rect x="0" y="0" width="7240" height="820" rx="12" class="panel-i"/>
     <text x="24" y="64" class="h2" fill="#2a8050">Canonical File Address Scheme  ·  every aasc/.rs file maps to one node on this map</text>
