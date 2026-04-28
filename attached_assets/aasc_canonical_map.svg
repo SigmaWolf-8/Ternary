@@ -455,12 +455,8 @@
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">circle.rs</text>
-    <text x="1240" y="204" class="modlist-c">arc182.rs</text>
-    <text x="1240" y="238" class="modlist-c">wave_stratum.rs</text>
-    <text x="1240" y="272" class="modlist-c">vesica.rs</text>
-    <text x="1240" y="306" class="modlist-c">speed_of_light.rs</text>
-    <text x="1240" y="340" class="modlist-c">tri_ladder.rs</text>
-    <text x="20"  y="458" class="addr">5.1.1..6  ←  geometric · curved · sector ① · ord 1..6</text>
+    <text x="1240" y="204" class="modlist-c">speed_of_light.rs</text>
+    <text x="20"  y="458" class="addr">5.1.1..2  ←  geometric · curved · sector ① · ord 1..2</text>
     <text x="20"  y="490" class="small">↔ G (Wave-harmonic dual grids · Σ-182 O₂ wall)  ·  E (Tri ladder figurates)</text>
   </g>
 
@@ -478,10 +474,9 @@
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">discriminant.rs</text>
-    <text x="1240" y="204" class="modlist-c">arc182.rs</text>
-    <text x="1240" y="238" class="modlist-c">solids_of_revolution.rs</text>
-    <text x="1240" y="272" class="modlist-c">gabriels_horn.rs</text>
-    <text x="20"  y="458" class="addr">5.2.1..4  ←  geometric · curved · sector ② · ord 1..4</text>
+    <text x="1240" y="204" class="modlist-c">solids_of_revolution.rs</text>
+    <text x="1240" y="238" class="modlist-c">gabriels_horn.rs</text>
+    <text x="20"  y="458" class="addr">5.2.1..3  ←  geometric · curved · sector ② · ord 1..3</text>
     <text x="20"  y="490" class="small">↔ E  (Phase-Impedance integer companions 137 / 377)</text>
   </g>
 
@@ -497,10 +492,8 @@
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">grand_circle.rs</text>
-    <text x="1240" y="204" class="modlist-c">frame_square.rs</text>
-    <text x="1240" y="238" class="modlist-c">pi_quadruple.rs</text>
-    <text x="1240" y="272" class="modlist-c">arc182.rs</text>
-    <text x="20"  y="458" class="addr">5.3.1..4  ←  geometric · curved · sector ③ · ord 1..4</text>
+    <text x="1240" y="204" class="modlist-c">pi_quadruple.rs</text>
+    <text x="20"  y="458" class="addr">5.3.1..2  ←  geometric · curved · sector ③ · ord 1..2</text>
     <text x="20"  y="490" class="small">↔ A , B  ((bq)² Frame Square 1089 · Plenum 333 magic)</text>
   </g>
 
@@ -516,8 +509,8 @@
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">vesica.rs</text>
-    <text x="1240" y="204" class="modlist-c">discriminant.rs</text>
-    <text x="1240" y="238" class="modlist-c">volumetric_ceiling.rs</text>
+    <text x="1240" y="204" class="modlist-c">volumetric_ceiling.rs</text>
+    <text x="1240" y="238" class="modlist-c">arc182.rs</text>
     <text x="20"  y="458" class="addr">5.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
     <text x="20"  y="490" class="small italic">orphan #3 — disc-identity 1,000,144 also belongs to ① and ②</text>
   </g>
@@ -534,10 +527,8 @@
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">coprime_polygon_pair.rs</text>
-    <text x="1240" y="204" class="modlist-c">theta_chord.rs</text>
-    <text x="1240" y="238" class="modlist-c">torus_knot.rs</text>
-    <text x="1240" y="272" class="modlist-c">star_polygon.rs</text>
-    <text x="20"  y="458" class="addr">5.5.1..4  ←  geometric · curved · sector ⑤ · ord 1..4</text>
+    <text x="1240" y="204" class="modlist-c">star_polygon.rs</text>
+    <text x="20"  y="458" class="addr">5.5.1..2  ←  geometric · curved · sector ⑤ · ord 1..2</text>
     <text x="20"  y="490" class="small">↔ F  (Torus Knot Crown lifts to 3D star polytope)</text>
   </g>
 
@@ -553,11 +544,10 @@
     <text x="20"  y="314" class="bullet">• Fibonacci 377 in rosette forms</text>
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-c">repx.rs</text>
-    <text x="1240" y="204" class="modlist-c">repunit_circles.rs</text>
-    <text x="1240" y="238" class="modlist-c">theta_chord.rs</text>
-    <text x="1240" y="272" class="modlist-c">fibonacci.rs</text>
-    <text x="20"  y="458" class="addr">5.6.1..4  ←  geometric · curved · sector ⑥ · ord 1..4</text>
+    <text x="1240" y="170" class="modlist-c">repunit_circles.rs</text>
+    <text x="1240" y="204" class="modlist-c">theta_chord.rs</text>
+    <text x="1240" y="238" class="modlist-c">fibonacci.rs</text>
+    <text x="20"  y="458" class="addr">5.6.1..3  ←  geometric · curved · sector ⑥ · ord 1..3</text>
     <text x="20"  y="490" class="small">↔ H  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
@@ -571,9 +561,8 @@
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">disdyakis_bridge.rs</text>
-    <text x="1240" y="204" class="modlist-c">zphi.rs</text>
-    <text x="1240" y="238" class="modlist-c">saturnian_metatron.rs</text>
-    <text x="20"  y="458" class="addr">5.7.1..3  ←  geometric · curved · sector ⑦ · ord 1..3</text>
+    <text x="1240" y="204" class="modlist-c">saturnian_metatron.rs</text>
+    <text x="20"  y="458" class="addr">5.7.1..2  ←  geometric · curved · sector ⑦ · ord 1..2</text>
     <text x="20"  y="490" class="small">↔ C  (Milesian glyph polyhedral symmetry)</text>
   </g>
 
@@ -597,9 +586,7 @@
     <text x="1240" y="170" class="modlist-d">frame_square.rs</text>
     <text x="1240" y="204" class="modlist-d">calendar.rs</text>
     <text x="1240" y="238" class="modlist-d">tick_clock.rs</text>
-    <text x="1240" y="272" class="modlist-d">milesian.rs</text>
-    <text x="1240" y="306" class="modlist-d">constants.rs</text>
-    <text x="20"  y="394" class="addr">5.A.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
+    <text x="20"  y="394" class="addr">5.A.1..3  ←  geometric · discrete · sector A · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)  ·  bridge-feature only</text>
   </g>
 
@@ -630,9 +617,7 @@
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">polyhedra.rs</text>
-    <text x="1240" y="204" class="modlist-d">milesian.rs</text>
-    <text x="1240" y="238" class="modlist-d">greek_atomic.rs</text>
-    <text x="20"  y="394" class="addr">5.C.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.C.1  ←  geometric · discrete · sector C · ord 1</text>
     <text x="20"  y="426" class="small">↔ ⑦  (Disdyakis · ghost letters as missing phases)</text>
   </g>
 
@@ -646,8 +631,7 @@
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">plenum_color.rs</text>
-    <text x="1240" y="204" class="modlist-d">plenum_square.rs</text>
-    <text x="20"  y="394" class="addr">5.D.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.D.1  ←  geometric · discrete · sector D · ord 1</text>
     <text x="20"  y="426" class="small">↔ A  (1089 partitions = lattice + colour symmetry)</text>
   </g>
 
@@ -699,10 +683,8 @@
     <text x="20"  y="276" class="bullet">• Wave dual grids as Bravais basis</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-d">crystal_2d_3d.rs</text>
-    <text x="1240" y="204" class="modlist-d">arc182.rs</text>
-    <text x="1240" y="238" class="modlist-d">wave_stratum.rs</text>
-    <text x="20"  y="394" class="addr">5.G.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
+    <text x="1240" y="170" class="modlist-d">bravais_view.rs</text>
+    <text x="20"  y="394" class="addr">5.G.1  ←  geometric · discrete · sector G · ord 1</text>
     <text x="20"  y="426" class="small">↔ ① (Σ-182 antipode · wave-harmonic continuous spectrum)</text>
   </g>
 
@@ -716,8 +698,7 @@
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">cone_point.rs</text>
-    <text x="1240" y="204" class="modlist-d">frame_square.rs</text>
-    <text x="20"  y="394" class="addr">5.H.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.H.1  ←  geometric · discrete · sector H · ord 1</text>
     <text x="20"  y="426" class="small">↔ ⑥  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
