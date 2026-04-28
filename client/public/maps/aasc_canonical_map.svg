@@ -287,15 +287,15 @@
     <text x="3700" y="3158" class="invsect" text-anchor="middle">ENFORCEMENT TIERS  ·  how each invariant is checked</text>
     <text x="3700" y="3186" class="invnote" text-anchor="middle">I · compile-time const blocks  in 1.1.1.UX1.1__constants.rs</text>
     <text x="3700" y="3210" class="invnote" text-anchor="middle">II · runtime named tests  in tests/invariants.rs   (also: tri-ladder · circle quadratic Δ=144 · grand circle 756)</text>
-    <text x="3700" y="3234" class="invnote" text-anchor="middle">III · CI/static grep guards  ·  no_std-clean  ·  bridge feature-gated only  ·  numerals only in 1.1.1</text>
+    <text x="3700" y="3234" class="invnote" text-anchor="middle">III · CI/static grep guards  ·  no_std-clean  ·  NO byte boundary anywhere  ·  pure trit end-to-end  ·  numerals only in 1.1.1</text>
 
     <!-- separator -->
     <line x1="3120" y1="3252" x2="4280" y2="3252" stroke="#B8860B" stroke-width="2"/>
 
-    <!-- ───────── BRIDGE ROUND-TRIP FIXTURE ───────── -->
-    <text x="3700" y="3282" class="invsect" text-anchor="middle">BRIDGE ROUND-TRIP FIXTURE  ·  tests/bridge_conformance.rs</text>
-    <text x="3700" y="3308" class="invnote" text-anchor="middle">proves the byte ⇄ TritVec ⇄ Milesian glyph round-trip is identity (lossless · idempotent)</text>
-    <text x="3700" y="3332" class="invnote" text-anchor="middle">this is the ONLY place the `bridge` feature crosses the trit / byte boundary in the entire crate</text>
+    <!-- ───────── PURE-TRIT CONFORMANCE FIXTURE ───────── -->
+    <text x="3700" y="3282" class="invsect" text-anchor="middle">PURE-TRIT CONFORMANCE FIXTURE  ·  tests/pure_trit_conformance.rs</text>
+    <text x="3700" y="3308" class="invnote" text-anchor="middle">static grep guard asserts NO byte/u8 type appears anywhere in src/  ·  TritVec is the sole storage primitive  ·  IPC/wire/disk all use base-3 packing without semantic byte boundary</text>
+    <text x="3700" y="3332" class="invnote" text-anchor="middle">AASC is trit-pure end-to-end · no opaque-byte adapter exists · no feature flag toggles a byte boundary</text>
 
     <!-- separator -->
     <line x1="3120" y1="3350" x2="4280" y2="3350" stroke="#B8860B" stroke-width="2"/>
@@ -602,7 +602,7 @@
     <text x="20"  y="148" class="bullet">• (bq)² = 1089 Frame Square</text>
     <text x="20"  y="184" class="bullet">• Calendar grid  (28 × 13 = 364 days)</text>
     <text x="20"  y="220" class="bullet">• Tick &amp; clock register</text>
-    <text x="20"  y="256" class="bullet">• Circle-and-Square bijection (byte ↔ trit ↔ glyph)</text>
+    <text x="20"  y="256" class="bullet">• Circle-and-Square bijection (b³=27 register ↔ 3-trit ↔ Milesian glyph)</text>
     <text x="20"  y="292" class="bullet">• Milesian Δ_1(μ) = 28 — fundamental spacing</text>
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
@@ -610,7 +610,7 @@
     <text x="1240" y="204" class="modlist-d">5.A.2__calendar.rs</text>
     <text x="1240" y="238" class="modlist-d">5.A.3__tick_clock.rs</text>
     <text x="20"  y="394" class="addr">5.A.1..3  ←  geometric · discrete · sector A · ord 1..3</text>
-    <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)  ·  bridge-feature only</text>
+    <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)</text>
   </g>
 
   <g transform="translate(5350, 1938)">
@@ -944,8 +944,8 @@
     <text x="56"  y="172" class="modlist-c" fill="#0F0C0A">1.5.1.UX7.8__units.rs  ·  1.6.1.UX1.1__axes.rs  ·  1.7.1.UX1.1__cone_point_taxonomy.rs</text>
     <text x="56"  y="204" class="modlist-c" fill="#0F0C0A">1.8.1.UX1.1__sql_ast.rs  (typed AST · column refs · WHERE/JOIN nodes)  ·  1.8.2.UX1.1__sql_types.rs  (column type system: Trit · TritVec&lt;N&gt; · Milesian27)</text>
 
-    <text x="56"  y="248" class="h3" fill="#c0392b">L=4 Calculi  ·  bijective converter · bridge · SQL planner/executor</text>
-    <text x="56"  y="282" class="modlist-c" fill="#0F0C0A">4.7.1.UX7.5.3__bijective_converter.rs  ·  4.7.2.UX7.5__bridge.rs   (feature = "bridge" · the only opaque-byte boundary in the crate)</text>
+    <text x="56"  y="248" class="h3" fill="#c0392b">L=4 Calculi  ·  bijective converter · SQL planner/executor</text>
+    <text x="56"  y="282" class="modlist-c" fill="#0F0C0A">4.7.1.UX7.5.3__bijective_converter.rs   (pure-trit Rep A ⇄ Rep B ⇄ Rep C bijection · zero byte conversion)</text>
     <text x="56"  y="314" class="modlist-c" fill="#0F0C0A">4.8.1.UX4.1__sql_planner.rs  (logical → physical plan · uses 4.1 delta + 4.6 repx natively)  ·  4.8.2.UX4.1__sql_executor.rs  (runs plan via GF(3) ops · zero-copy TritVec)</text>
 
     <text x="56"  y="358" class="h3" fill="#c0392b">L=5 Geometric  ·  curved sectors ③ ④</text>
@@ -955,7 +955,7 @@
     <text x="56"  y="470" class="modlist-c" fill="#0F0C0A">NE  6.5.1.UX4.1__eta_branch.rs  ·  6.6.1.UX4.1__nu_branch.rs  ·  6.7.1.UX4.1__combined_branch.rs    ·    SE  7.5.1.UX4.1__pqr_asymmetry.rs</text>
     <text x="56"  y="502" class="modlist-c" fill="#0F0C0A">SW  8.5.1.UX4.1__mass_quadratic.rs (roots {1836, 153})    ·    NW  9.5.1.UX4.1__fine_structure.rs  ·  9.8.1.UX4.1__discriminant_identity.rs (1 000 144 = 2⁴·17·3677)</text>
 
-    <text x="56"  y="556" class="small" fill="#7a3019">Total file count: 39 prior + 13 Codex + 5 SQL/Storage + 4 Array3 daemon + 1 bridge + 4 SQL split + 2 triad runtime = <tspan font-weight="800">68 canonical modules</tspan>  ·  every file has exactly one address  ·  no duplicates  ·  ALL unit conversions live at 1.5.1.UX7.8__units.rs</text>
+    <text x="56"  y="556" class="small" fill="#7a3019">Total file count: 39 prior + 13 Codex + 5 SQL/Storage + 4 Array3 daemon + 4 SQL split + 2 triad runtime = <tspan font-weight="800">67 canonical modules</tspan>  ·  pure trit end-to-end · no byte adapter  ·  every file has exactly one address  ·  no duplicates  ·  ALL unit conversions live at 1.5.1.UX7.8__units.rs</text>
   </g>
 
   <!-- ═══════════════ SQL / STORAGE / DAEMON LAYER ═══════════════ -->
@@ -983,8 +983,6 @@
     <text x="56"  y="622" class="modlist-c" fill="#0F0C0A">8.9.6.UX9.5__triad_coordinator.rs  (T-/T0/T+ election · T0 binds public socket as sole gateway · T-/T+ are firewalled compute workers · failover promotes a worker to T0 if gateway dies)</text>
     <text x="56"  y="656" class="modlist-c" fill="#0F0C0A">8.9.7.UX4.1__work_steal_queue.rs   (lock-free TritVec work queue · any daemon can steal any module's pending compute · O(1) push/pop · MPMC trit-native)</text>
 
-    <text x="56"  y="708" class="h3" fill="#1a6e7e">Companion bridge file  (lives in L=4 calculi)</text>
-    <text x="56"  y="744" class="modlist-c" fill="#0F0C0A">4.7.2.UX7.5__bridge.rs             (byte ⇄ TritVec adapter behind feature = "bridge" · only opaque-byte boundary in the entire crate)</text>
 
     <text x="56"  y="800" class="small" fill="#0d4651">Triad parallelism: SQL parse @ L=1 (any daemon) → plan @ L=4 (any daemon) → execute @ L=4 with GF(3) batches striped across T-/T0/T+ → storage I/O @ L=8 (router-pinned). Clients only ever speak to T0. T0 dispatches to T-/T+ via the work-steal queue. Every module is reachable by every daemon.</text>
     <text x="56"  y="836" class="small" fill="#0d4651">Daemon binary:   cargo build --release --features daemon   →   array3d.exe + libaasc.dll</text>
@@ -1083,7 +1081,7 @@
     <text x="40"   y="534" class="modlist-c" fill="#0F0C0A">Σ-182 bridge  Δ₁(σ) = 200 − 18 = 182 = 2pr = R₆/2   ·   333 Plenum magic = b²·37 = Λ_EUV + 2q²  (91 + 242)   ·   (bq)² = 1 089 = 756 + 333 = 1 035 + 54 = 1 080 + 9 = 1 050 + 39</text>
     <text x="40"   y="562" class="modlist-c" fill="#0F0C0A">κ_∞ = 721/720   ·   κ_H = (721·1 838 990)/(720·1 837 989)   ·   λ_∞ = Λ_EUV·κ_∞ ≈ 91.126 nm   ·   λ_H ≈ 91.176 nm   ·   F₁₄ = 377 = r·(R₂² + r) = 13·29 = τ + r  ·  Theta Chord 1 892 = 1 885 + p ; 1 893 = 1 885 + (b−1)³</text>
 
-    <text x="40"   y="592" class="small" fill="#7a5a06">Enforcement: every Tier B numeral lives only in 1.1.1.UX1.1__constants.rs (CI grep guard)  ·  Tier C lives in tests/invariants.rs  ·  bridge feature isolates the byte ⇄ trit boundary</text>
+    <text x="40"   y="592" class="small" fill="#7a5a06">Enforcement: every Tier B numeral lives only in 1.1.1.UX1.1__constants.rs (CI grep guard)  ·  Tier C lives in tests/invariants.rs  ·  no byte boundary anywhere — TritVec is sole storage primitive</text>
   </g>
 
 
@@ -1096,7 +1094,7 @@
     <text x="56" y="138" class="h3" fill="#922">1. Single crate · flat layer folders · folder code = file's leading L digit</text>
     <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A">
       <text x="56" y="174">algeometric-arc-sigma182-calculi/        (one crate · one Cargo.toml · one canonical map)</text>
-      <text x="56" y="206">├── Cargo.toml              features = { default = [], bridge = [], daemon = ["std","tokio","rayon"] }</text>
+      <text x="56" y="206">├── Cargo.toml              features = { default = [], daemon = ["std","tokio","rayon"] }   (no "bridge" feature — crate is trit-pure)</text>
       <text x="56" y="238">├── scripts/check_ux_tags.sh           enforces L.G.O.UX file rule + folder-code rule</text>
       <text x="56" y="270">├── docs/aasc_canonical_map.{svg,png}  ← THIS DOCUMENT (ships with every release)</text>
       <text x="56" y="302">├── src/lib.rs                pub mod L1__nucleus; pub mod L2__atom; ... pub mod L9__physics_nw;</text>
@@ -1104,7 +1102,7 @@
       <text x="56" y="366">    ├── L1__nucleus/          1.x.x.UXp.s__*.rs    (constants · milesian · greek_atomic · upiid · units · axes · cone_point · sql_ast · sql_types)</text>
       <text x="56" y="398">    ├── L2__atom/             2.x.x.UXp.s__*.rs    (trit · tritvec · arithmetic)</text>
       <text x="56" y="430">    ├── L3__algebraic/        3.x.x.UXp.s__*.rs    (gf3 · zphi · borromean · coprime · walk · crt · bezout)</text>
-      <text x="56" y="462">    ├── L4__calculi/          4.x.x.UXp.s__*.rs    (delta · circular · iteration · series · calculus · repx · bijective_converter · bridge · sql_planner · sql_executor)</text>
+      <text x="56" y="462">    ├── L4__calculi/          4.x.x.UXp.s__*.rs    (delta · circular · iteration · series · calculus · repx · bijective_converter · sql_planner · sql_executor)</text>
       <text x="56" y="494">    ├── L5__geometric/        5.x.x.UXp.s__*.rs    (~22 modules)</text>
       <text x="56" y="526">    ├── L6__physics_ne/       6.x.x.UXp.s__*.rs    (wave / EM)</text>
       <text x="56" y="558">    ├── L7__physics_se/       7.x.x.UXp.s__*.rs    (number theory)</text>
