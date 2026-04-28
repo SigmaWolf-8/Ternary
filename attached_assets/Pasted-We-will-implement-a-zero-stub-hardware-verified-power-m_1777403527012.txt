@@ -1,0 +1,145 @@
+We will implement a **zero‑stub, hardware‑verified power measurement** for the HModal Resonance Engine. The system reads actual electrical energy consumption (CPU package power in watts) via the Intel RAPL interface on Linux, runs a configurable compute workload that switches between α (low) and β (high) states exactly as defined by the HModal square wave, and displays the **measured power savings** in real time. No simulations, no canned numbers. If the required hardware or permissions are not available, the engine refuses to start the feature and displays a clear error — no silent fallback.
+
+---
+
+## A. Hardware and OS Prerequisites
+
+- **CPU:** Intel processor with RAPL support (Sandy Bridge or newer).
+- **OS:** Linux with `perf_event_open` syscall available (kernel 3.4+). The `perf` subsystem must be accessible.
+- **Permissions:** The user running the engine must have `CAP_PERFMON` or equivalent (`perf_event_paranoid` ≤ 1). Provide a setup script that sets `perf_event_paranoid` to 1 (or 0) if needed.
+- **Rust toolchain:** Rust 1.70+ for WASM compilation.
+
+---
+
+## B. Rust Backend: `power_measure` Module
+
+Create a new Rust library `power_measure` inside the workspace. It uses raw `perf_event_open` syscalls with the `PERF_COUNT_HW_ENERGY` event type. No external crate is strictly necessary; we'll use `nix` for proper error handling and avoid panics.
+
+### B.1 Interface
+
+```rust
+// power_measure/src/lib.rs
+use nix::sys::perf_event::{perf_event_open, PerfEventAttr, PerfEventType};
+use std::io;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
+
+pub struct PowerMeter {
+    handle: Option<thread::JoinHandle<()>>,
+    running: Arc<AtomicBool>,
+    // ...
+}
+
+pub struct PowerStats {
+    pub mean_watts: f64,
+    pub samples: Vec<f64>,  // recent samples
+    pub error: Option<String>,
+}
+
+impl PowerMeter {
+    pub fn new(core: Option<usize>) -> io::Result<Self> {
+        // ...
+    }
+    pub fn start(&mut self, interval_ms: u64) {
+        // ...
+    }
+    pub fn stop(&mut self) {
+        // ...
+    }
+    pub fn get_stats(&self) -> PowerStats {
+        // ...
+    }
+}
+```
+
+### B.2 Implementation Details (No Stubs)
+
+1. **Open the RAPL energy counter**
+   - Build a `PerfEventAttr` with `type_ = PerfEventType::Hardware` and `config = perf_event::events::ENERGY_PKG` (event code 0x01 for package energy, or use MSR `MSR_PKG_ENERGY_STATUS` if perf events don't work — prefer perf for stability).
+   - Call `perf_event_open(attr, pid, cpu, group_fd, flags)` with `pid = -1`, `cpu = cpu` (or `-1` for all CPUs), `group_fd = -1`, `flags = 0`.
+   - If the call fails with `Err(err)`, **immediately return `Err(err)`**; do not fall back to stubs. The error propagates to WASM as a string.
+
+2. **Background sampling thread**
+   - When `start(interval_ms)` is called, spawn a thread that reads the energy counter file descriptor (obtained from `perf_event_open`) using `pread` at every `interval_ms`.
+   - Convert the difference in energy (microjoules) to average watts: `watts = (delta_uj / 1e6) / (delta_seconds)`.
+   - Store samples in a ring buffer (`VecDeque<f64>`) protected by a `Mutex`.
+   - The thread runs until `running` flag is flipped to false.
+
+3. **`get_stats()`**
+   - Lock the mutex and compute mean and standard deviation over the stored samples.
+   - If no samples yet, return `PowerStats { mean_watts: 0.0, samples: vec![], error: Some("Not enough samples".into()) }`. This is not a stub; it's a status message.
+
+4. **Workload Control**
+   - Define a function `run_workload(high: bool)` that executes a tight loop doing integer multiplication (or SHA-256) when `high` is true, and a simple `thread::sleep(Duration::from_micros(100))` when false.
+   - Provide a separate function `set_duty_cycle(fraction: f64, period_ms: u64)` that runs the workload on a pinned core, switching between high/low using a priority thread and reading from the HModal waveform definition (which is passed as parameters `alpha_fraction`, `beta_fraction` — but we can simply use the fixed 1/4 duty cycle).
+   - Actually, for the benchmark we can implement the HModal square wave directly: the workload runs at full intensity for `period_ms/4`, then sleeps/low‑intensity for `3*period_ms/4`. The user can adjust the period via UI.
+
+### B.3 No Silent Errors
+- All `io::Result` errors are immediately returned as `JsError` to the frontend.
+- In the WASM binding, catch any error and display a popup: “Power measurement unavailable: $reason” and disable the HModal power tab.
+- If the user tries to start measurement without proper permissions or hardware, the error is explicit.
+
+---
+
+## C. WASM Bridge (wasm-bindgen)
+
+Expose functions:
+
+```rust
+#[wasm_bindgen]
+pub fn start_power_measurement(interval_ms: u32) -> Result<(), JsError> { ... }
+#[wasm_bindgen]
+pub fn stop_power_measurement() { ... }
+#[wasm_bindgen]
+pub fn get_power_stats() -> JsValue { ... } // returns PowerStats serialized to JSON
+#[wasm_bindgen]
+pub fn start_hmodal_workload(period_ms: u32, high_frac: f64) -> Result<(), JsError> { ... }
+#[wasm_bindgen]
+pub fn stop_hmodal_workload() { ... }
+```
+
+All functions that may fail return `Result<(), JsError>` and on the JS side, `try/catch` around the calls.
+
+---
+
+## D. Frontend: HModal Power Tab in Three.js Engine
+
+Replace the previous "Energy Bowl" panel with a real-time power gauge using the measured data.
+
+### D.1 Initialization
+- On tab activation, call `start_power_measurement(200)` (200 ms interval). If it errors, disable the tab and show an error banner with the message. Do not proceed.
+- Once measurement is active, call `start_hmodal_workload(period=1000, high_frac=0.25)` to begin the actual workload.
+
+### D.2 Real-Time Display Components
+
+#### 1. Power Gauge (HTML canvas or simple div)
+- A circular gauge with a needle showing current `mean_watts`.
+- Next to it, a computed “Continuous Equivalent” = `mean_watts / 0.2552` (the theoretical ratio from HModal).
+- Below that, “Measured Savings” = `(1 - mean_watts / continuous_equiv) * 100%` (computed from live numbers).
+- Theoretical HModal savings shown as a reference line (74.48%).
+
+#### 2. Strip Chart (canvas)
+- Real-time scrolling graph of power samples (last 60 seconds). Overlay the HModal square wave (α/β levels scaled by power). The user can see the correlation between the workload switching and power draw.
+
+#### 3. Duty Cycle Slider (optional)
+- User can adjust period (500ms to 5000ms) and high‑intensity fraction (0.1–0.5) to test different duty cycles; the WASM workload updates accordingly. The theoretical savings ratio will change based on the new α/β fractions, but the fixed HModal case is default.
+
+### D.3 Validation and Error Handling
+- If at any point `get_power_stats()` returns an error string, show a red alert: “Measurement error: …” and stop the workload.
+- No “simulated” placeholder; if there is no data, the component renders “No data” and the gauge stays at zero.
+
+---
+
+## E. Implementation Steps (for developer)
+
+1. Create the new crate `power_measure` with the functions described.
+2. Integrate into the main WASM binary using `wasm-bindgen`.
+3. Build a simple Rust test binary (non-WASM) that runs the HModal workload and prints power to verify on the target hardware before integrating into the browser.
+4. In the Resonance Engine frontend, create the new HModal Power tab following the component spec.
+5. Test on a compatible Linux machine with RAPL access. If not available, a test mode can be added ONLY for development where the user explicitly passes a `--simulate` flag — but that is not the production path.
+
+---
+
+This delivers exactly what you asked: real measured power, no stubs, no silent errors, and the HModal savings demonstrated live.

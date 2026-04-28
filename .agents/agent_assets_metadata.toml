@@ -666,3 +666,9 @@ id = "OTv4udn3T9J6dIkU7Y5s3"
 uri = "file://attached_assets/aasc_canonical_map.png"
 type = "image"
 title = "AASC · Toroidal Map — Circle Inscribed in Square · 4 Physics Quadrants"
+
+[[outputs]]
+id = "FScyWyJ7S7ghLNU7NUt11"
+uri = "file://docs/hmodal_power_trit_native.md"
+type = "text"
+title = "HModal Power — Trit-Native Spec"
