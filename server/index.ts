@@ -2247,7 +2247,7 @@ function startPqtiService(): ChildProcess | null {
   // ════════════════════════════════════════════════════════════════════
   const FS_PER_MS = 1_000_000_000_000n;          // SI: 1 ms = 10¹² fs
   const FS_TIMING_PRECISION =
-    "chain_derived: fs = (sessionAnchorMs + chainIndex*sampleMs) * 10^12" as const;
+    "chain_derived_two_layer: coarse=(sessionAnchorMs + chainIndex*sampleMs)*10^12; phase=(chainTag mod sampleMs*10^12)" as const;
   function toBijectiveBase3(n: bigint): string {
     // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
     if (n < 0n) throw new Error('toBijectiveBase3: negative');
@@ -2784,26 +2784,48 @@ function startPqtiService(): ChildProcess | null {
         });
       }
 
-      // ── Chain-derived fs timestamp (no hardware clock read) ─────
-      // fs = (sessionAnchorMs + chainIndexAtSeal × sampleMs) × FS_PER_MS
-      // The chain index IS the time.  Date.now() is consulted only to
-      // produce the human-readable iso_utc rendering of the SAME
-      // mathematical instant — it does NOT participate in fsInt.
+      // ──────────────────────────────────────────────────────────────
+      // Chain-derived fs timestamp — TWO-LAYER, pure integer.
+      //
+      //   COARSE (ms-quantum): chainIndex × sampleMs gives the integer
+      //     ms count since session anchor.  Date.now() is consulted
+      //     ONCE per session (sessionAnchorMs) and never again.
+      //
+      //   FINE  (sub-ms fs phase, AASC-native):  the TL-Sponge-385
+      //     duplex IS the framework's canonical fs-scale clock.  Its
+      //     385-bit running tag (chainTag) advances per sponge round
+      //     at fs scale.  The fs sub-address within the sample window
+      //     is therefore  (chainTag mod TICK_FS), where
+      //     TICK_FS = sampleMs × FS_PER_MS.  This is:
+      //       • pure integer (BigInt mod BigInt)
+      //       • deterministic (replaying the chain replays the phase)
+      //       • monotonic across consecutive seals (Δfs ∈ (0, 2·TICK_FS))
+      //       • derived ONLY from sponge state — no hardware register
+      //
+      //   fs(seal) = (sessionAnchorMs + chainIndex·sampleMs)·FS_PER_MS
+      //              + (chainTag mod (sampleMs·FS_PER_MS))
+      // ──────────────────────────────────────────────────────────────
       const fsClock = snap.fsClock;
-      if (!fsClock || fsClock.sessionAnchorMs == null || fsClock.sampleMs == null || fsClock.chainIndexAtSeal == null) {
+      const chainTagHex: string | undefined = snap.attestation?.chainTagHex;
+      if (!fsClock || fsClock.sessionAnchorMs == null || fsClock.sampleMs == null || fsClock.chainIndexAtSeal == null || !chainTagHex) {
         return res.status(409).json({
           ok: false,
           error: "no_fs_clock",
-          message: "Snapshot is missing fsClock anchor; reopen the WS session.",
+          message: "Snapshot is missing fsClock anchor or chain tag; reopen the WS session.",
         });
       }
       const sessionAnchorMs_b: bigint = BigInt(fsClock.sessionAnchorMs);
       const sampleMs_b:        bigint = BigInt(fsClock.sampleMs);
       const chainAtSeal_b:     bigint = BigInt(fsClock.chainIndexAtSeal);
+      const TICK_FS:           bigint = sampleMs_b * FS_PER_MS; // fs per chain step
       const sealMsSinceEpoch:  bigint = sessionAnchorMs_b + chainAtSeal_b * sampleMs_b;
-      const fsInt:             bigint = sealMsSinceEpoch * FS_PER_MS;
+      const fsCoarse:          bigint = sealMsSinceEpoch * FS_PER_MS;
+      const chainTag_b:        bigint = BigInt('0x' + chainTagHex);
+      const fsPhase:           bigint = chainTag_b % TICK_FS;       // sub-ms AASC phase
+      const fsInt:             bigint = fsCoarse + fsPhase;
       const fsTrit                    = toBijectiveBase3(fsInt);
-      // iso_utc is a courtesy human rendering of fsInt floored to ms.
+      // iso_utc is a courtesy human rendering, floored to ms.  fsInt
+      // is the source of truth; iso_utc is informational only.
       const issuedAtMs = Number(sealMsSinceEpoch + BigInt(SALVI_EPOCH_MS));
 
       // Build EAC fields per spec §4.3.  EVERY numeric field is either a
@@ -2824,11 +2846,16 @@ function startPqtiService(): ChildProcess | null {
           iso_utc: new Date(issuedAtMs).toISOString(),
           precision: FS_TIMING_PRECISION,
           derivation: {
-            session_anchor_ms_decimal: String(fsClock.sessionAnchorMs),
-            sample_ms_decimal:         String(fsClock.sampleMs),
+            session_anchor_ms_decimal:   String(fsClock.sessionAnchorMs),
+            sample_ms_decimal:           String(fsClock.sampleMs),
             chain_index_at_seal_decimal: String(fsClock.chainIndexAtSeal),
-            fs_per_ms_decimal:         FS_PER_MS.toString(),
-            formula: "fs = (session_anchor_ms + chain_index_at_seal * sample_ms) * fs_per_ms",
+            fs_per_ms_decimal:           FS_PER_MS.toString(),
+            tick_fs_decimal:             TICK_FS.toString(),
+            fs_coarse_decimal:           fsCoarse.toString(),
+            fs_phase_decimal:            fsPhase.toString(),
+            fs_phase_source:             "TL-Sponge-385 chain tag mod TICK_FS (sub-ms AASC phase)",
+            formula:
+              "fs = (session_anchor_ms + chain_index_at_seal * sample_ms) * fs_per_ms + (chain_tag mod tick_fs)",
             hardware_clock_reads_after_anchor: 0,
           },
         },

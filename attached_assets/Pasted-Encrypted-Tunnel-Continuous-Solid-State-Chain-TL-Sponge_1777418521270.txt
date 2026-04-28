@@ -1,0 +1,132 @@
+Encrypted Tunnel — Continuous Solid-State Chain
+TL-Sponge-385
+cipher: TL-Sponge-385 duplex (Phase Encryption v3, pure GF(3))
+session id: d539e31e1118e6d7a94495292563acbf
+sealed samples: 5050 (last index = 5049)
+running chain tag: e1b07b79e91e1da5719e091c57114bc894c9cdac636146d15cdcaac70c3aed9105a4349bbe53c74b741293c01b83b7710c
+Energy Attestation Certificate
+signed
+signature variant: TL-DSA-87
+node pubkey hash: 8a3a73e31b5c603e444371f9…
+TIS-27 document hash: 3f924e86433d5d5531148f8a…
+fs since Salvi epoch: 33952750401000000000000
+Milesian glyph hash · TIS-27 → bijective base-27 over Greek register {α..ω + ϛ ϟ ϡ}
+εγχφκβηοκκθξατζεεηϡθφοοψϛγμ
+tunnel chain tag (TL-Sponge-385 duplex (Phase Encryption v3)): 929c0cb25cc79f418e31ceee85dfd3ab88622e77ca946d80…
+Chain tag · Milesian rendering
+βλϛφξκϡιδνϡθωξρϛκϟχμϡνφβφϟδιγφδρχϟχρβιμβγχβδληακπχυϟχμετθκπχεπσωθγωγσϛδτιηϡιναξπξζα
+{
+  "type": "EAC",
+  "version": 1,
+  "spec": "TM-2026-042 Rev.2 §4.3",
+  "numeric_policy": "all numeric fields are whole integers or positive {num, den} integer rationals; no IEEE-754 floats",
+  "timestamp": {
+    "fs_since_salvi_epoch_decimal": "33952750401000000000000",
+    "fs_since_salvi_epoch_trit": "31333321232221131312221131233322323223213222233",
+    "iso_utc": "2026-04-28T23:19:10.401Z",
+    "precision": "chain_derived: fs = (sessionAnchorMs + chainIndex*sampleMs) * 10^12",
+    "derivation": {
+      "session_anchor_ms_decimal": "33951890001",
+      "sample_ms_decimal": "200",
+      "chain_index_at_seal_decimal": "4302",
+      "fs_per_ms_decimal": "1000000000000",
+      "formula": "fs = (session_anchor_ms + chain_index_at_seal * sample_ms) * fs_per_ms",
+      "hardware_clock_reads_after_anchor": 0
+    }
+  },
+  "node": {
+    "tdns": "tdns:hmodal-demo:01",
+    "mode": "compute-throughput-proxy",
+    "demand_mode": "auto"
+  },
+  "measurement": {
+    "window_ms": 867650,
+    "measured_mW": 1020,
+    "baseline_mW": 5000,
+    "mW_saved": 3980,
+    "savings_ratio": {
+      "num": 3980,
+      "den": 5000
+    },
+    "savings_ratio_theoretical": {
+      "num": 143,
+      "den": 192
+    },
+    "cumulative_ops_decimal": "84484153344",
+    "cumulative_ops_trit": "21231231211211122221333",
+    "cumulative_energy_uJ_decimal": "0",
+    "cumulative_energy_uJ_trit": "",
+    "duty_target": {
+      "num": 565004,
+      "den": 1000000
+    },
+    "duty_floor_constant": {
+      "num": 1,
+      "den": 144,
+      "name": "Δ"
+    }
+  },
+  "key_isolation": {
+    "signature_count": 20626014,
+    "key_touch_count": 143236,
+    "exposure_ratio": {
+      "num": 143236,
+      "den": 20626014
+    },
+    "isolation_factor": {
+      "num": 20626014,
+      "den": 143236
+    }
+  },
+  "attestation_chain": {
+    "session_id": "d539e31e1118e6d7a94495292563acbf",
+    "session_key_fingerprint": "c7a17c05c7960a32c709762f",
+    "cipher": "TL-Sponge-385 duplex (Phase Encryption v3)",
+    "chain_seed_hex": "497783096faa5759726ea168a1974c62ecb1369bae6dde55e30fd60d2b6b337c15437c6048e66cb2dfa47cbe1909ee3a14",
+    "chain_index_decimal": "4302",
+    "chain_index_trit": "12212323",
+    "chain_tag_hex": "929c0cb25cc79f418e31ceee85dfd3ab88622e77ca946d80ed65248cee901bb13b2a208dbaeb6ea11aca226885313b7117",
+    "chain_tag_milesian": "βλϛφξκϡιδνϡθωξρϛκϟχμϡνφβφϟδιγφδρχϟχρβιμβγχβδληακπχυϟχμετθκπχεπσωθγωγσϛδτιηϡιναξπξζα",
+    "cipher_trits_hex": "f001bb68b25c65a68e72e078c635230d041961d6b19977a494d2b6d12c2b54ce969589967729afcc50119e37aa6a0ceb4df0516fc4dcee82a4e550a3c0c736b6ad46125609bcd2edeae5a5784a2917afa2167a957c451574f26d1cc723c3a825150f9bd736b426ae1654d303677e52db3421af9d67835c124e0946e7993c7e9a5515690772c9b1ece91bd551008f37b68fbfbc53b8963638cbb4b608d69e93e6714737c5ad6bcde2122ae606bfd45383ec7cbca28898e0bce47d96dad5608dd2d2ce7a1b8b3adeeebcbbe4bde07c34b2377c7ab55d42bb4b1f3954a79eb1984053d5447336556c89645570179fda2f52ab874eae4d99bd8e6eaaed5825672b9664497a8f9ef1c06a075d7b203ba061a0b117e5eedfecbdaa763480dd6b88a1921c59470f1ad0a9a3d9d6c7550716b8b48e36256e1a1716927121412953e0dc43e22e5b3ce12774703aeb59d521d7ac8f7c1b007a631d12c9459f308ddd9a4ee2782e9f18771f3d240f26543b9643680c4cec2eee3fd298c111d41b32d91a918f0196b31c6f0f97c960052e8cf18334edeeb5943ea1eb8a6036521346e8a95a5d6577b9b1c94032cbebd5cb213ce350935db957dea6e05be025662e6b3a9dd0064c1ec1c3542b0ea583172763a6e7972b2575e7df22d5632e9654cf4d0b430b51e04f65d5ef595e2669347295ca942d5432c91d03b227a866956a581353eaafd22559ae4bb969ca3e4d5c6d10432ee97ac191db11e1a0bbccc203af6858700f0961c506f24a7a4fd50a078e4eb67e067d67b5f00fd6a92754167c37ddbc26919d2668dd856e761af11954f03d4375904a5a2031991482475e40e6440caa37ab97b0dd38e743561beb97606cbe3e26d197570c9393d6c8ab26a586648608a3cf80cf4ee4e1736f56cda9b91290d08a4e494b7b5f52c9c61207341230d1af508aa77e6bd3086b6f9c675a223d6f3ec209d13d670f58da0ad328897c3c237f30743fef0f54c7a7d97d70bdf2d22dc21388dd312e96a4cf4bd63d48090c7094c649daca51935dad5a56346a2b71cddf4c71b09b4f5b1ad65dba5f2057993c666c3edd36850e6699d96b4fe91482984669905999e7144c7ff1bfb06f44d4ce018c3ddd6fbbb3000a42bb7cefe978703a09be24bbbcad503fa3120c72686c75cfc5ef185b9544c3f2e94c9483369953097ba95c9027062f4e557ee7724a552f81a7e8891c701337804e9a5e36bab242caa315cd011f847cf08cf00fd2caa6be5f1b5728022a9758a9a0ba3ba03bf1386a4680a25b9cbac4353c38e8b8d70e928b11877b2a18c82f8d28c651ebe3b5c36632e23edc98ba197f39212cb8cb00b62f154c09145fc1bf9deb638c05a90f259f0563189325ec551988801cd1b8372a59749b32447e898d4f352dd7228ea9955e08d4157f49b4e7b9187b0ff17aed43d4e3e08774bba4f10025476eee16f2e08ad4346924ec0a626d4cd484a817a539736ed7d40f60eeac435a8414bd8db8ef160a23491dd5aba89452c47c709eb57b3f94be96c55735ce5d198ca8f15a4e6c96b932351798dab5258ba49036d2ef95a12b9f295688cfe41c2e9476ccb2d2611f47b69a13277c67bee08241ea2908b6753af1c0311c7b54d8f2f1ee72ecb341cb6106623d04b3874a9c0e6a02327de33bbbba87e4cd4a0fefc1ad3f5b0b1777dcedde001cce09607fb0a1ad5909756a9c927b1ece03d6ac11e3bf1dc29adbaae3b6ef2be97d8e619610d982ebe56a",
+    "plain_trit_len": 6215,
+    "note": "Chain tag is the running 385-bit squeeze of the TL-Sponge-385 duplex after sealing this sample.  Any gap, reorder, or substitution in the WS sample stream changes this value."
+  },
+  "integrity": {
+    "tis27_hash_hex": "3f924e86433d5d5531148f8a2e6d1a8d",
+    "tis27_hash_milesian": "εγχφκβηοκκθξατζεεηϡθφοοψϛγμ",
+    "canonical_byte_length": 4785
+  },
+  "pre_sign": {
+    "pass": true,
+    "failures": [],
+    "checks": [
+      {
+        "name": "document_hash",
+        "pass": true
+      },
+      {
+        "name": "sponge_sanity",
+        "pass": true
+      },
+      {
+        "name": "key_material",
+        "pass": true
+      },
+      {
+        "name": "timestamp_freshness",
+        "pass": true
+      },
+      {
+        "name": "embedded_addresses",
+        "pass": true
+      }
+    ]
+  },
+  "signature": {
+    "variant": "TL-DSA-87",
+    "signature_hex": "00b11ea21b331cd6d6982b2f3d6682b74e1aadb3519d5bd67be9b05b92081a0f1e9d29b839068fa9f3ccbcc311672ae07f987a357beb2d5c3b26c038558aba62",
+    "public_key_hex": "0044d3114010600af5769153e42d5e7e71b06fcc07bf9a00d5079c5c17972c14408db50e317fa1cc27634416601635d3410f2552b988ff3f14f5e5c62d8fb1da",
+    "public_key_hash": "8a3a73e31b5c603e444371f9910804835e819dce9a27bf5d2ee889aa16587826",
+    "native_signer": true,
+    "signed_at_iso": "2026-04-28T23:19:20.014Z"
+  }
