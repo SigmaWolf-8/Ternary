@@ -361,6 +361,16 @@
     <text x="4100" y="3908" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
     <text x="4100" y="3938" class="modfile" text-anchor="middle">borromean.rs · ternary link</text>
     <text x="4100" y="3962" class="quadaddr" text-anchor="middle">3.3.1__borromean.rs</text>
+
+      <rect class="modbox-grey" x="3220" y="2330" width="380" height="100" rx="8"/>
+      <text x="3410" y="2368" class="modgreek" text-anchor="middle">≡ mod · CRT</text>
+      <text x="3410" y="2398" class="modfile" text-anchor="middle">crt.rs · Chinese Remainder</text>
+      <text x="3410" y="2422" class="quadaddr" text-anchor="middle">3.6.1__crt.rs</text>
+
+      <rect class="modbox-grey" x="3800" y="2330" width="380" height="100" rx="8"/>
+      <text x="3990" y="2368" class="modgreek" text-anchor="middle">α x + β y · Bezout</text>
+      <text x="3990" y="2398" class="modfile" text-anchor="middle">bezout.rs · gcd coefficients</text>
+      <text x="3990" y="2422" class="quadaddr" text-anchor="middle">3.7.1__bezout.rs</text>
   </g>
 
   <!-- ═════════════ CALCULI ring (L=4) — operators properly inside ring ═════════════ -->
@@ -373,18 +383,22 @@
       <!-- Δ Difference — north position, properly inside calculi ring (r≈1170) -->
       <text x="3700" y="1944" class="calcsub" text-anchor="middle">Δ · Difference</text>
       <text x="3700" y="1980" class="calcname" text-anchor="middle">divided differences · Δ_n recurrences</text>
+      <text x="3700" y="2008" class="quadaddr" text-anchor="middle">4.1.1__delta.rs</text>
 
       <!-- ∮ Circular — east position, properly inside calculi ring -->
       <text x="4870" y="3090" class="calcsub" text-anchor="middle">∮ · Circular</text>
       <text x="4870" y="3126" class="calcname" text-anchor="middle">closed-loop sums on R₆ = 364°</text>
+      <text x="4870" y="3154" class="quadaddr" text-anchor="middle">4.2.1__circular.rs</text>
 
       <!-- ◯ Iteration — south position, properly inside calculi ring -->
       <text x="3700" y="4256" class="calcsub" text-anchor="middle">◯ · Iteration</text>
       <text x="3700" y="4292" class="calcname" text-anchor="middle">fixed-point · ladder maps</text>
+      <text x="3700" y="4320" class="quadaddr" text-anchor="middle">4.3.1__iteration.rs</text>
 
       <!-- Σ Series — west position, properly inside calculi ring -->
       <text x="2530" y="3090" class="calcsub" text-anchor="middle">Σ · Series</text>
       <text x="2530" y="3126" class="calcname" text-anchor="middle">Σ-182 partial sums</text>
+      <text x="2530" y="3154" class="quadaddr" text-anchor="middle">4.4.1__series.rs</text>
     </g>
 
     <!-- ═════════════ Concentric ring identifiers L=2 / L=3 / L=4 ═════════════ -->
@@ -404,7 +418,9 @@
     <text x="2110" y="1716" class="quadmod">uv_hydrogen_spectral</text>
     <text x="2110" y="1748" class="quadaddr">9.2.1__uv_hydrogen_spectral.rs</text>
     <text x="2110" y="1792" class="quadmod">spectral_offset · κ bridge</text>
-    <text x="2110" y="1828" class="quadmod">phase_impedance · cone-point α</text>
+    <text x="2110" y="1824" class="quadaddr">9.3.1__spectral_offset.rs</text>
+    <text x="2110" y="1868" class="quadmod">phase_impedance · cone-point α</text>
+    <text x="2110" y="1900" class="quadaddr">9.4.1__phase_impedance.rs</text>
   </g>
   <g>
     <text x="5290" y="1540" class="quadtitle" fill="#1f5fa8" text-anchor="end">NE</text>
@@ -413,26 +429,34 @@
     <text x="5290" y="1672" class="quadaddr" text-anchor="end">6.1.1__wave_stratum.rs</text>
     <text x="5290" y="1716" class="quadmod" text-anchor="end">conservation_laws</text>
     <text x="5290" y="1748" class="quadaddr" text-anchor="end">6.2.1__conservation_laws.rs</text>
-    <text x="5290" y="1792" class="quadmod" text-anchor="end">speed_of_light · c=√14, c_S=28</text>
-    <text x="5290" y="1828" class="quadmod" text-anchor="end">saturnian_metatron</text>
+    <text x="5290" y="1792" class="quadmod" text-anchor="end">field_modes · TE / TM duality</text>
+    <text x="5290" y="1824" class="quadaddr" text-anchor="end">6.3.1__field_modes.rs</text>
+    <text x="5290" y="1868" class="quadmod" text-anchor="end">poynting_flux · energy current</text>
+    <text x="5290" y="1900" class="quadaddr" text-anchor="end">6.4.1__poynting_flux.rs</text>
   </g>
   <g>
     <text x="2110" y="4360" class="quadtitle" fill="#4d6a1a">SW</text>
     <text x="2110" y="4400" class="quadsub" fill="#4d6a1a">Crystal / Lattice</text>
-    <text x="2110" y="4460" class="quadmod">crystal_2d_3d  ↔ G</text>
+    <text x="2110" y="4460" class="quadmod">crystal_2d_3d</text>
     <text x="2110" y="4496" class="quadaddr">8.1.1__crystal_2d_3d.rs</text>
-    <text x="2110" y="4544" class="quadmod">arc182 · Schumann–Runge ↔ G</text>
-    <text x="2110" y="4588" class="quadmod">nona_state · 9-fold register</text>
-    <text x="2110" y="4624" class="quadaddr">8.3.1__nona_state.rs</text>
+    <text x="2110" y="4544" class="quadmod">lattice_modes · Bravais classes</text>
+    <text x="2110" y="4576" class="quadaddr">8.2.1__lattice_modes.rs</text>
+    <text x="2110" y="4620" class="quadmod">nona_state · 9-fold register</text>
+    <text x="2110" y="4652" class="quadaddr">8.3.1__nona_state.rs</text>
+    <text x="2110" y="4696" class="quadmod">schumann_runge · O₂ wall</text>
+    <text x="2110" y="4728" class="quadaddr">8.4.1__schumann_runge.rs</text>
   </g>
   <g>
     <text x="5290" y="4360" class="quadtitle" fill="#a02040" text-anchor="end">SE</text>
     <text x="5290" y="4400" class="quadsub" fill="#a02040" text-anchor="end">Number-Theoretic</text>
     <text x="5290" y="4460" class="quadmod" text-anchor="end">wieferich_grh_beal</text>
     <text x="5290" y="4496" class="quadaddr" text-anchor="end">7.1.1__wieferich_grh_beal.rs</text>
-    <text x="5290" y="4544" class="quadmod" text-anchor="end">fibonacci_register · 377</text>
-    <text x="5290" y="4588" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
-    <text x="5290" y="4624" class="quadaddr" text-anchor="end">7.3.1__tribonacci.rs</text>
+    <text x="5290" y="4544" class="quadmod" text-anchor="end">arithmetic_progressions · AP rings</text>
+    <text x="5290" y="4576" class="quadaddr" text-anchor="end">7.2.1__arithmetic_progressions.rs</text>
+    <text x="5290" y="4620" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
+    <text x="5290" y="4652" class="quadaddr" text-anchor="end">7.3.1__tribonacci.rs</text>
+    <text x="5290" y="4696" class="quadmod" text-anchor="end">primes_residues · ζ register</text>
+    <text x="5290" y="4728" class="quadaddr" text-anchor="end">7.4.1__primes_residues.rs</text>
   </g>
 
   <!-- ═════════════════════════════════════════════════════════════════════ -->
@@ -512,8 +536,7 @@
     <text x="1240" y="204" class="modlist-c">volumetric_ceiling.rs</text>
     <text x="1240" y="238" class="modlist-c">arc182.rs</text>
     <text x="20"  y="458" class="addr">5.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
-    <text x="20"  y="490" class="small italic">orphan #3 — disc-identity 1,000,144 also belongs to ① and ②</text>
-  </g>
+</g>
 
   <g transform="translate(80, 3576)">
     <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
@@ -844,16 +867,7 @@
       </g>
     </g>
 
-    <!-- ═══════════════ ORPHAN REGISTER ═══════════════ -->
-  <g transform="translate(80, 6720)">
-    <rect x="0" y="0" width="7240" height="200" rx="12" fill="#ffd9d4" stroke="#c0392b" stroke-width="4"/>
-    <text x="24" y="60" class="h2" fill="#c0392b">Orphan Register  ·  cross-classified items requiring an explicit canonical home</text>
-    <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (9.1.1)</text>
-    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 4.5.1__calculus.rs;  calendar (13×28=364) anchors in panel A   (5.A.2)</text>
-    <text x="24" y="178" class="bullet"><tspan font-weight="800">#3</tspan>  identity 1,000,144 = (pqr−1)² + 4(p−r)²  →  jointly belongs to ② , ④ , ①   (5.4.2 referencing 5.1.1, 5.2.1)</text>
-  </g>
-
-  <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
+<!-- ═══════════════ VERDICT STAMP ═══════════════ -->
   <rect class="verdict-bg" x="0" y="6960" width="7400" height="180"/>
   <text x="3700" y="7048" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
   <text x="3700" y="7102" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
