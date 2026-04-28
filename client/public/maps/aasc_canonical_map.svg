@@ -63,8 +63,8 @@
 
   <!-- ═══════════════ Header ═══════════════ -->
   <rect x="0" y="0" width="4500" height="240" fill="#0F0C0A"/>
-  <text x="100" y="120" class="title" fill="#FAF8F6">AASC · Toroidal Manifold · Circle–Sphere Archetype &amp; Generalized Geometry</text>
-  <text x="100" y="180" class="subtitle" fill="#a8b4c0">Pythagorean foundation · 2D projection of the toroidal model · Geometric Ring split Curved ①–⑦ vs. Discrete A–H · Physics in 4 corner quadrants</text>
+  <text x="100" y="120" class="title" fill="#FAF8F6">Complete Mapping: Compendium → Geometric Ring</text>
+  <text x="100" y="180" class="subtitle" fill="#a8b4c0">AASC · Toroidal Manifold · Circle–Sphere Archetype &amp; Generalized Geometry · Curved ①–⑦  ◖ ◗  Discrete A–H · Physics in 4 corner quadrants</text>
 
   <!-- ═══════════════ Top callout ═══════════════ -->
   <g transform="translate(80, 280)">
@@ -149,9 +149,9 @@
   </g>
 
   <!-- ═════════════ Half labels (top of disc) ═════════════ -->
-  <text x="1985" y="1340" class="half" fill="#2D7DD2" text-anchor="middle">◖ CURVED</text>
+  <text x="1985" y="1340" class="half" fill="#2D7DD2" text-anchor="middle">◖ Curved / Continuous Half</text>
   <text x="1985" y="1378" class="halfhint" fill="#2D7DD2" text-anchor="middle">from the Circle · continuous · rotational generation · ①–⑦</text>
-  <text x="2515" y="1340" class="half" fill="#c0392b" text-anchor="middle">DISCRETE ◗</text>
+  <text x="2515" y="1340" class="half" fill="#c0392b" text-anchor="middle">Discrete / Lattice Half ◗</text>
   <text x="2515" y="1378" class="halfhint" fill="#c0392b" text-anchor="middle">Circle broken into harmony · polygon · lattice · A–H</text>
 
   <!-- ═════════════ ATOM modules (4) — REP-C canonical ═════════════ -->
@@ -380,7 +380,7 @@
     <rect x="0" y="0" width="4340" height="430" rx="10" fill="#faf8f6" stroke="#d4cfc8" stroke-width="3"/>
 
     <!-- Curved categories -->
-    <text x="20" y="44" class="legendH" fill="#2D7DD2">◖ CURVED categories  (compendium → ring)</text>
+    <text x="20" y="44" class="legendH" fill="#2D7DD2">◖ Curved / Continuous Half — categories (compendium → ring)</text>
     <text x="20"   y="80" class="legend"><tspan fill="#2D7DD2" font-weight="800">①</tspan>  Circular Arcs &amp; Cycles</text>
     <text x="660"  y="80" class="legend"><tspan fill="#2D7DD2" font-weight="800">②</tspan>  Conic &amp; Quadratic Curves</text>
     <text x="1340" y="80" class="legend"><tspan fill="#2D7DD2" font-weight="800">③</tspan>  Circular Measures · Grand Cycles</text>
@@ -390,7 +390,7 @@
     <text x="660"  y="116" class="legend"><tspan fill="#2D7DD2" font-weight="800">⑦</tspan>  Metatronic Disdyakis Bridge</text>
 
     <!-- Discrete categories -->
-    <text x="20" y="170" class="legendH" fill="#c0392b">DISCRETE ◗ categories  (compendium → ring)</text>
+    <text x="20" y="170" class="legendH" fill="#c0392b">Discrete / Lattice Half ◗ — categories (compendium → ring)</text>
     <text x="20"   y="206" class="legend"><tspan fill="#c0392b" font-weight="800">A</tspan>  Lattice Frames · Square Grids</text>
     <text x="660"  y="206" class="legend"><tspan fill="#c0392b" font-weight="800">B</tspan>  Magic Squares · Permutohedra</text>
     <text x="1340" y="206" class="legend"><tspan fill="#c0392b" font-weight="800">C</tspan>  Regular &amp; Semi-Regular Polyhedra</text>
@@ -401,7 +401,7 @@
     <text x="1340" y="242" class="legend"><tspan fill="#c0392b" font-weight="800">H</tspan>  Convex / Concave Polygon Taxonomy</text>
 
     <!-- Cross-cutting -->
-    <text x="20" y="296" class="legendH" fill="#B8860B">Cross-cutting bridges  (↔ marked on modules)</text>
+    <text x="20" y="296" class="legendH" fill="#B8860B">Cross‑Cutting Items That Bridge Both Halves  (↔ marked on modules)</text>
     <text x="20" y="328" class="legend">Torus manifold itself  ·  (bq)² Frame ③↔A,B  ·  Σ-182 ①↔G  ·  Triangular Ladder ①↔E  ·  Phase-Impedance ②↔E</text>
     <text x="20" y="360" class="legend">Milesian Glyphs ⑦↔C  ·  Wave-Harmonic ①↔G  ·  θ Chord ⑥↔H</text>
 
@@ -417,5 +417,5 @@
     <text x="1980" y="402" class="legend"><tspan fill="#2D7DD2" font-weight="800">⓪</tspan> curved cat tag  ·  <tspan fill="#c0392b" font-weight="800">A</tspan> discrete cat tag  ·  ↔ cross-cutting</text>
   </g>
 
-  <text x="100" y="4924" class="stamp">aasc · canonical Pythagorean layout · Toroidal · Curved①–⑦ ◖  ◗ DiscreteA–H · Rep-C canonical · 2026-04-28</text>
+  <text x="100" y="4924" class="stamp" fill="#B8860B" font-weight="800">Verdict: No Formula Left Behind  ·  every constant, theorem, identity and module of the compendium has a logical place in the ring  ·  Curved ①–⑦ ◖  ◗ Discrete A–H  ·  Rep-C canonical  ·  2026-04-28</text>
 </svg>
