@@ -112,6 +112,7 @@ const developersColumns: NavColumn[] = [
       { title: "Compression Studio", subtitle: "Encode & decode", href: "/compression" },
       { title: "Ternary VM Terminal", subtitle: "Execute ternary opcodes", href: "/vm-demo" },
       { title: "Node Terminal", subtitle: "PTY shell + cluster shell", href: "/terminal" },
+      { title: "HModal Power Demo", subtitle: "TL-Sponge-385 tunnel + EAC", href: "/hmodal-demo" },
     ],
   },
   {
