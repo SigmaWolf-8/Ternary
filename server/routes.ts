@@ -87,6 +87,9 @@ export async function registerRoutes(
       return;
     }
     const filePath = path.resolve(process.cwd(), "client", "public", "maps", filename);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.download(filePath, filename, (err) => {
       if (err && !res.headersSent) res.status(500).send("Download failed");
     });
