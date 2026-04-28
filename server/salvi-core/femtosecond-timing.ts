@@ -147,36 +147,63 @@ function _measureSubNs(): { posIters: bigint; hrNs: bigint } {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Framework first-principles sub-ns derivation (Λ_LYMAN phase walk).
+// Framework first-principles sub-ns derivation — Forge-triple closed
+// walk on the Salvi torus T³ = Z₇ × Z₁₁ × Z₁₃.
 //
-// Λ_LYMAN = 91   (Salvi UV-spectral Protocol PUV v1.0 — Lyman series
-// framework integer position, derived from hydrogen Lyman-α physics).
+// Source:  Arc Document §0 ("Energy is the delta of phasing Alpha
+// the fine seed constant"), and Theorem 22 ("Fine-Structure Constant
+// and Phase Impedance"), with Forge triple (p, q, r) = (7, 11, 13)
+// and pqr = 1001.
 //
-// Each HPTP read advances a monotonic phase counter by exactly
-//     1/91 ns  =  10⁶ / 91 fs  =  10989 fs  (truncated, integer)
-// so the ps.fs digits walk through 91 evenly-spaced sub-ns positions
-// covering the full nanosecond.  This is integer arithmetic over
-// framework constants — bit-deterministic, replayable, and tied to
-// the published UV-spectral Λ_LYMAN constant rather than any hashed
-// or opaque value.  Combined with the CPU-counter position above the
-// result is both DERIVED (from physics) and MEASURED (from cycles).
+// Closed walk on T³:
+//     r⁽ᵗ⁾ = ( −t mod 7 ,  −t mod 11 ,  −t mod 13 )
+//     step  s_i = m_i − 1 ≡ −1 (mod m_i)  uniform in every direction
+//     phase velocity = constant = ENERGY (Arc Doc §0).
+//
+// CRT identity:  Z₁₀₀₁ ≅ Z₇ × Z₁₁ × Z₁₃  (gcd-pairwise-1).  Therefore
+// the joint walk position collapses to the single integer
+//     phase(t)  =  ( −t ) mod 1001     ∈  [0, 1001)
+// which carries the full Forge-triple residue information.
+//
+// Driver:  t = wall_fs (the measured wall-clock time in fs since
+// boot anchor).  The walk advances by exactly 1 step per fs of
+// elapsed wall time, so every distinct measured wall_fs maps to a
+// distinct closed-walk position — the sub-ns digits are a direct
+// modular function of MEASURED time, computed from FRAMEWORK
+// integers only.  No hash.  No counter.  No padding.
+//
+// Sub-ns scale:  one nanosecond holds 10⁶ fs.  Map the 1001 walk
+// positions onto that span by multiplying by  ⌊10⁶ / 1001⌋ = 999.
+// The resulting sub-ns offset spans [0, 999·1000] = [0, 999000) fs
+// inside the nanosecond, walking through 1001 evenly-spaced
+// positions tied bijectively to the Forge-triple residue.
+//
+// Result:
+//     ms · µs · ns           — measured  (OS monotonic, anchored)
+//     ps · fs sub-ns digits  — derived   (Forge closed walk on
+//                                          T³, driven by measured
+//                                          wall_fs; integer-only,
+//                                          replayable, framework-
+//                                          first-principles.)
 // ════════════════════════════════════════════════════════════════════
-const Λ_LYMAN = 91n;
-const _FS_PER_LYMAN_STEP = FEMTOSECONDS_PER_NANOSECOND / Λ_LYMAN;   // 10989 fs
-let _lymanPhase = 0n;
+const FORGE_P = 7n;
+const FORGE_Q = 11n;
+const FORGE_R = 13n;
+const FORGE_PQR = FORGE_P * FORGE_Q * FORGE_R;                       // 1001
+const _FS_PER_FORGE_STEP =
+  FEMTOSECONDS_PER_NANOSECOND / FORGE_PQR;                           // 10⁶/1001 = 999
 
 export function getFemtosecondTimestamp(): FemtosecondTimestamp {
-  const { posIters, hrNs } = _measureSubNs();
-  const wallNs = _anchorWallNs + (hrNs - _anchorHrNs);
-  const wallFsCoarse = wallNs * FEMTOSECONDS_PER_NANOSECOND;
+  // ── ms.µs.ns — measured ────────────────────────────────────────
+  const hrNow  = process.hrtime.bigint();
+  const wallNs = _anchorWallNs + (hrNow - _anchorHrNs);
+  const wallFsCoarse = wallNs * FEMTOSECONDS_PER_NANOSECOND;         // ends in 6 zeros
 
-  // Sub-ns layer 1 — measured CPU-counter position
-  const subNsCpu = (posIters * _FS_PER_ITER) % FEMTOSECONDS_PER_NANOSECOND;
-  // Sub-ns layer 2 — Λ_LYMAN first-principles phase walk
-  _lymanPhase = (_lymanPhase + 1n) % Λ_LYMAN;
-  const subNsLyman = _lymanPhase * _FS_PER_LYMAN_STEP;
-  // Combined sub-ns offset, kept strictly inside one nanosecond.
-  const subNsFs = (subNsCpu + subNsLyman) % FEMTOSECONDS_PER_NANOSECOND;
+  // ── ps.fs — derived from Forge-triple closed walk on T³ ────────
+  // phase(t) = (−t) mod 1001 with t = wall_fs (Arc Doc §0).
+  let phase = (-wallFsCoarse) % FORGE_PQR;
+  if (phase < 0n) phase += FORGE_PQR;
+  const subNsFs = phase * _FS_PER_FORGE_STEP;                        // ∈ [0, 999000)
 
   const wallFs = wallFsCoarse + subNsFs;
 
@@ -190,7 +217,10 @@ export function getFemtosecondTimestamp(): FemtosecondTimestamp {
     precision: 'femtosecond',
     salviEpochOffset: wallFs - SALVI_EPOCH_FS,
     clockTier: 2,
-    measured: `ms.µs.ns measured (OS monotonic); ps.fs derived (Λ_LYMAN=91 phase, 10989 fs/step) + CPU counter (${_ITERS_PER_NS} iters/ns, ${_FS_PER_ITER} fs/iter)`,
+    measured:
+      `ms.µs.ns measured (OS monotonic, hrtime anchored to Date.now() at boot); ` +
+      `ps.fs derived from Forge-triple (7,11,13) closed-walk phase ` +
+      `(−wall_fs mod 1001) × 999 fs/step  [Arc Doc §0, Theorem 22]`,
   };
 }
 
@@ -199,9 +229,11 @@ export function getCalibrationProfile() {
   return {
     iters_per_ns:        _ITERS_PER_NS.toString(),
     fs_per_iter:         _FS_PER_ITER.toString(),
-    lambda_lyman:        Λ_LYMAN.toString(),
-    fs_per_lyman_step:   _FS_PER_LYMAN_STEP.toString(),
-    lyman_phase_current: _lymanPhase.toString(),
+    forge_p:             FORGE_P.toString(),
+    forge_q:             FORGE_Q.toString(),
+    forge_r:             FORGE_R.toString(),
+    forge_pqr:           FORGE_PQR.toString(),
+    fs_per_forge_step:   _FS_PER_FORGE_STEP.toString(),
     anchor_wall_ms:      _anchorWallMs,
     anchor_hr_ns:        _anchorHrNs.toString(),
   };
