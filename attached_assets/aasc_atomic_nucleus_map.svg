@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1980" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4500 4950" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <defs>
     <radialGradient id="nucleusGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%"   stop-color="#fff8c2"/>
@@ -11,20 +11,20 @@
       <stop offset="100%" stop-color="#e8e4de" stop-opacity="0.8"/>
     </radialGradient>
     <style>
-      .title    { font-size: 75px; font-weight: 800; fill: #0F0C0A; }
-      .subtitle { font-size: 35px; fill: #4a525b; }
-      .ringlbl  { font-size: 40px; font-weight: 800; fill: #0F0C0A; letter-spacing: 2px; }
-      .ringhint { font-size: 28px; fill: #6a727b; font-style: italic; }
-      .nuc      { font-size: 65px; font-weight: 800; fill: #0F0C0A; }
-      .nucsub   { font-size: 30px; font-weight: 700; fill: #0F0C0A; }
-      .nucnote  { font-size: 25px; fill: #4a525b; }
-      .mod      { font-size: 30px; font-weight: 700; fill: #0F0C0A; }
-      .modsm    { font-size: 23px; fill: #4a525b; }
-      .half     { font-size: 55px; font-weight: 800; letter-spacing: 4px; }
-      .halfhint { font-size: 28px; fill: #6a727b; font-style: italic; }
-      .legend   { font-size: 33px; fill: #0F0C0A; }
-      .legendH  { font-size: 35px; font-weight: 700; fill: #0F0C0A; }
-      .stamp    { font-size: 25px; fill: #6a727b; }
+      .title    { font-size: 30px; font-weight: 800; fill: #0F0C0A; }
+      .subtitle { font-size: 14px; fill: #4a525b; }
+      .ringlbl  { font-size: 16px; font-weight: 800; fill: #0F0C0A; letter-spacing: 2px; }
+      .ringhint { font-size: 11px; fill: #6a727b; font-style: italic; }
+      .nuc      { font-size: 26px; font-weight: 800; fill: #0F0C0A; }
+      .nucsub   { font-size: 12px; font-weight: 700; fill: #0F0C0A; }
+      .nucnote  { font-size: 10px; fill: #4a525b; }
+      .mod      { font-size: 12px; font-weight: 700; fill: #0F0C0A; }
+      .modsm    { font-size: 9px;  fill: #4a525b; }
+      .half     { font-size: 22px; font-weight: 800; letter-spacing: 4px; }
+      .halfhint { font-size: 11px; fill: #6a727b; font-style: italic; }
+      .legend   { font-size: 13px; fill: #0F0C0A; }
+      .legendH  { font-size: 14px; font-weight: 700; fill: #0F0C0A; }
+      .stamp    { font-size: 10px; fill: #6a727b; }
 
       .ring-atom      { fill: #f3eee5; stroke: #d4cfc8; }
       .ring-alg       { fill: #ebe4d6; stroke: #c8c0b3; }
@@ -42,6 +42,7 @@
     </style>
   </defs>
 
+  <g transform="scale(2.5)">
   <!-- ═══ Header ═══ -->
   <rect x="0" y="0" width="1800" height="100" fill="#0F0C0A"/>
   <text x="40" y="46" class="title" fill="#FAF8F6">AASC · Concentric Map · Atomic Nucleus at the Centre</text>
@@ -84,7 +85,7 @@
 
     <!-- Core: constants.rs -->
     <rect x="820" y="985" width="160" height="32" rx="4" fill="#0F0C0A"/>
-    <text x="900" y="1006" class="nuc" text-anchor="middle" fill="#FAF8F6" font-size="35">constants.rs · 476 → ~520</text>
+    <text x="900" y="1006" class="nuc" text-anchor="middle" fill="#FAF8F6" font-size="14">constants.rs · 476 → ~520</text>
 
     <!-- Three satellite bubbles inside the nucleus -->
     <g>
@@ -356,4 +357,5 @@
   </g>
 
   <text x="40" y="1972" class="stamp">aasc · concentric layout · Atomic Nucleus rename · 2026-04-28</text>
+  </g>
 </svg>
