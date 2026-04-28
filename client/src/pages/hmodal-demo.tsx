@@ -44,6 +44,11 @@ interface Sample {
   cachedHighMs?: number;
   compressedSavings?: number;
   theoreticalCompressedSavings?: number;
+  wattsContinuous?: number;
+  wattsHmodalNoCache?: number;
+  wattsHmodalCached?: number;
+  wattsSavedVsContinuous?: number;
+  effectiveComputeFrac?: number;
 }
 
 const MAX_SAMPLES = 300;
@@ -291,9 +296,9 @@ export default function HModalDemo() {
             testid="readout-live"
           />
           <ReadoutCard
-            label="Observed Duty Ratio"
+            label="Time Duty (high / total)"
             value={latest ? (latest.observedRatio * 100).toFixed(2) + "%" : "—"}
-            sub="theoretical: 25.00%"
+            sub="theoretical: 25.00% (250 ms high / 1000 ms cycle)"
             testid="readout-duty"
           />
           <ReadoutCard
@@ -329,6 +334,81 @@ export default function HModalDemo() {
             testid="readout-compressed"
           />
         </div>
+
+        <Card data-testid="card-watts">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Zap className="w-4 h-4" /> Modeled Power Draw (per CPU core)
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Honest model: 1.0 W idle, 5.0 W full load (typical x86-64 server core).
+              Hardware RAPL counters are not exposed in this container — these are
+              <strong> projections from real measured compute time</strong>, not direct
+              wattmeter readings. Same model applied to all three scenarios for fair
+              comparison.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-2">
+            {[
+              {
+                label: "Continuous burn (no HModal)",
+                watts: latest?.wattsContinuous ?? 5.0,
+                color: "bg-red-500",
+                testid: "bar-continuous",
+              },
+              {
+                label: "HModal 1:4 duty (no cache)",
+                watts: latest?.wattsHmodalNoCache ?? 2.0,
+                color: "bg-yellow-500",
+                testid: "bar-hmodal-nocache",
+              },
+              {
+                label: "HModal + Δ-cache (this demo)",
+                watts: latest?.wattsHmodalCached ?? 1.0,
+                color: "bg-green-500",
+                testid: "bar-hmodal-cached",
+              },
+            ].map((row) => {
+              const pct = Math.max(2, (row.watts / 5.0) * 100);
+              return (
+                <div key={row.label}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-muted-foreground">{row.label}</span>
+                    <span className="font-mono font-semibold" data-testid={row.testid}>
+                      {row.watts.toFixed(3)} W
+                    </span>
+                  </div>
+                  <div className="h-3 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${row.color} transition-all duration-500`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            <div className="pt-2 border-t border-border flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              <div>
+                <span className="text-muted-foreground">Watts saved vs continuous:</span>{" "}
+                <span className="font-mono font-bold text-green-500" data-testid="text-watts-saved">
+                  {(latest?.wattsSavedVsContinuous ?? 4.0).toFixed(3)} W
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Per 1000 cores @ 24 h:</span>{" "}
+                <span className="font-mono font-bold text-green-500" data-testid="text-kwh-day">
+                  {(((latest?.wattsSavedVsContinuous ?? 4.0) * 1000 * 24) / 1000).toFixed(1)} kWh/day saved
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Per 1000 cores @ 1 yr:</span>{" "}
+                <span className="font-mono font-bold text-green-500" data-testid="text-mwh-year">
+                  {(((latest?.wattsSavedVsContinuous ?? 4.0) * 1000 * 24 * 365) / 1e6).toFixed(2)} MWh/yr saved
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card data-testid="card-chart">
           <CardHeader className="pb-2">

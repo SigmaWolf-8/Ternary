@@ -2357,7 +2357,25 @@ function startPqtiService(): ChildProcess | null {
         }
 
         const totalOps = opsTotalHigh + opsTotalLow;
-        const observedRatio = totalOps > 0 ? opsTotalHigh / totalOps : 0;
+        // Duty ratio = TIME at high / total wall time (converges to 0.25).
+        const observedRatio = (timeHighMs + timeLowMs) > 0
+          ? timeHighMs / (timeHighMs + timeLowMs)
+          : 0;
+        // Effective compute fraction = REAL CPU work time / total wall time.
+        // After cache warm-up this collapses toward ~1/Δ ≈ 0.0069.
+        const effectiveComputeFrac = (timeHighMs + timeLowMs) > 0
+          ? realHighWorkMs / (timeHighMs + timeLowMs)
+          : 0;
+        // Modeled per-core wattage (1.0 W idle, 5.0 W full load — typical
+        // x86-64 server core).  Honest model, NOT a hardware reading.
+        const W_FULL = 5.0;
+        const W_IDLE = 1.0;
+        const wattsContinuous = W_FULL;
+        const wattsHmodalNoCache = 0.25 * W_FULL + 0.75 * W_IDLE; // 2.0 W
+        const wattsHmodalCached =
+          effectiveComputeFrac * W_FULL +
+          (1 - effectiveComputeFrac) * W_IDLE;
+        const wattsSavedVsContinuous = wattsContinuous - wattsHmodalCached;
         let savingsObserved: number | null = null;
         if (raplAvailable && timeHighMs > 0 && energyHigh_uJ > 0) {
           const highPerMs = energyHigh_uJ / timeHighMs;
@@ -2392,6 +2410,12 @@ function startPqtiService(): ChildProcess | null {
               ? 1 - realHighWorkMs / (timeHighMs + timeLowMs)
               : 0,
             theoreticalCompressedSavings: 143 / 144,
+            // Modeled wattage (1.0 W idle, 5.0 W full load per core).
+            wattsContinuous,
+            wattsHmodalNoCache,
+            wattsHmodalCached,
+            wattsSavedVsContinuous,
+            effectiveComputeFrac,
             mode: raplAvailable ? "hardware-watts" : "compute-throughput-proxy",
             observedRatio, theoreticalRatio: 0.25,
             savingsObserved, theoreticalSavings: 143 / 192,
