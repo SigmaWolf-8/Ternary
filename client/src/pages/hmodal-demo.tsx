@@ -41,7 +41,7 @@ export default function HModalDemo() {
   const [running, setRunning] = useState(false);
   const [samples, setSamples] = useState<Sample[]>([]);
   const [latest, setLatest] = useState<Sample | null>(null);
-  const esRef = useRef<EventSource | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -52,13 +52,16 @@ export default function HModalDemo() {
   }, []);
 
   const start = useCallback(() => {
-    if (esRef.current) return;
+    if (wsRef.current) return;
     setSamples([]);
     setLatest(null);
-    const es = new EventSource("/api/hmodal/stream");
-    es.onmessage = (e) => {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${proto}//${window.location.host}/ws/hmodal`);
+    ws.onmessage = (e) => {
       try {
-        const s: Sample = JSON.parse(e.data);
+        const msg = JSON.parse(e.data);
+        if (msg.type !== "sample") return;
+        const s: Sample = msg;
         setLatest(s);
         setSamples((prev) => {
           const next = [...prev, s];
@@ -67,22 +70,26 @@ export default function HModalDemo() {
         });
       } catch {}
     };
-    es.onerror = () => {
-      es.close();
-      esRef.current = null;
+    ws.onclose = () => {
+      wsRef.current = null;
       setRunning(false);
     };
-    esRef.current = es;
+    ws.onerror = () => {
+      try { ws.close(); } catch {}
+      wsRef.current = null;
+      setRunning(false);
+    };
+    wsRef.current = ws;
     setRunning(true);
   }, []);
 
   const stop = useCallback(() => {
-    esRef.current?.close();
-    esRef.current = null;
+    try { wsRef.current?.close(); } catch {}
+    wsRef.current = null;
     setRunning(false);
   }, []);
 
-  useEffect(() => () => esRef.current?.close(), []);
+  useEffect(() => () => { try { wsRef.current?.close(); } catch {} }, []);
 
   // Strip chart
   useEffect(() => {

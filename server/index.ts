@@ -2187,6 +2187,7 @@ function startPqtiService(): ChildProcess | null {
 
   const wss = new WebSocketServer({ noServer: true });
   const terminalWss = new WebSocketServer({ noServer: true });
+  const hmodalWss = new WebSocketServer({ noServer: true });
 
   httpServer.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url || "", `http://${request.headers.host}`);
@@ -2208,9 +2209,145 @@ function startPqtiService(): ChildProcess | null {
       terminalWss.handleUpgrade(request, socket, head, (ws) => {
         terminalWss.emit("connection", ws, request);
       });
+    } else if (url.pathname === "/ws/hmodal") {
+      hmodalWss.handleUpgrade(request, socket, head, (ws) => {
+        hmodalWss.emit("connection", ws, request);
+      });
     } else if (url.pathname !== "/vite-hmr") {
       socket.destroy();
     }
+  });
+
+  // ============================================================
+  // HModal WebSocket — proxy-safe alternative to SSE
+  // Same trit-style GF(3) workload, same sample shape, just over WS.
+  // ============================================================
+  function readRaplUj(): number | null {
+    try {
+      const txt = require("fs").readFileSync(
+        "/sys/class/powercap/intel-rapl:0/energy_uj",
+        "utf-8",
+      );
+      return parseInt(txt.trim(), 10);
+    } catch {
+      return null;
+    }
+  }
+
+  hmodalWss.on("connection", (ws: WebSocket) => {
+    const raplAvailable = readRaplUj() !== null;
+    const periodMs = 1000;
+    const sampleMs = 200;
+    const stepMs = 50;
+    const stepsPerCycle = periodMs / stepMs;     // 20
+    const highSteps = stepsPerCycle / 4;         // 5  (1/4 duty)
+
+    let stepIdx = 0;
+    let opsThisWindow = 0;
+    let opsTotalHigh = 0;
+    let opsTotalLow = 0;
+    let timeHighMs = 0;
+    let timeLowMs = 0;
+    let lastSampleAt = Date.now();
+    let lastEnergy = readRaplUj();
+    let energyHigh_uJ = 0;
+    let energyLow_uJ = 0;
+    let cumulativeEnergy_uJ = 0;
+    let alive = true;
+
+    const TBUF_LEN = 4096;
+    const trits = new Int8Array(TBUF_LEN);
+    for (let i = 0; i < TBUF_LEN; i++) trits[i] = (i % 3) - 1;
+    const acc = new Int8Array(TBUF_LEN);
+
+    function gf3AddBatch(rounds: number): number {
+      let ops = 0;
+      for (let r = 0; r < rounds; r++) {
+        for (let i = 0; i < TBUF_LEN; i++) {
+          let s = acc[i] + trits[i];
+          if (s > 1) s -= 3;
+          else if (s < -1) s += 3;
+          acc[i] = s;
+        }
+        ops += TBUF_LEN;
+      }
+      return ops;
+    }
+
+    try {
+      ws.send(JSON.stringify({ type: "hello", raplAvailable, mode: raplAvailable ? "hardware-watts" : "compute-throughput-proxy" }));
+    } catch {}
+
+    const tick = setInterval(() => {
+      if (!alive || ws.readyState !== ws.OPEN) return;
+      const isHigh = (stepIdx % stepsPerCycle) < highSteps;
+      const t0 = Date.now();
+      let ops = 0;
+      if (isHigh) {
+        const deadline = t0 + stepMs - 2;
+        while (Date.now() < deadline) ops += gf3AddBatch(1);
+        timeHighMs += stepMs;
+      } else {
+        timeLowMs += stepMs;
+      }
+      opsThisWindow += ops;
+      if (isHigh) opsTotalHigh += ops; else opsTotalLow += ops;
+
+      stepIdx++;
+      const now = Date.now();
+      if (now - lastSampleAt >= sampleMs) {
+        const dtSec = (now - lastSampleAt) / 1000;
+        const opsPerSec = opsThisWindow / dtSec;
+
+        let watts: number | null = null;
+        let deltaUj = 0;
+        if (raplAvailable) {
+          const cur = readRaplUj();
+          if (cur !== null && lastEnergy !== null) {
+            deltaUj = cur >= lastEnergy ? cur - lastEnergy : cur;
+            watts = (deltaUj / 1e6) / dtSec;
+            cumulativeEnergy_uJ += deltaUj;
+            if (isHigh) energyHigh_uJ += deltaUj; else energyLow_uJ += deltaUj;
+          }
+          lastEnergy = cur;
+        }
+
+        const totalOps = opsTotalHigh + opsTotalLow;
+        const observedRatio = totalOps > 0 ? opsTotalHigh / totalOps : 0;
+        let savingsObserved: number | null = null;
+        if (raplAvailable && timeHighMs > 0 && energyHigh_uJ > 0) {
+          const highPerMs = energyHigh_uJ / timeHighMs;
+          const totalMs = timeHighMs + timeLowMs;
+          const energyContEquiv = highPerMs * totalMs;
+          const energyActual = energyHigh_uJ + energyLow_uJ;
+          if (energyContEquiv > 0) savingsObserved = 1 - (energyActual / energyContEquiv);
+        } else if (totalOps > 0 && opsTotalHigh > 0 && timeHighMs > 0) {
+          const highPerMs = opsTotalHigh / timeHighMs;
+          const totalMs = timeHighMs + timeLowMs;
+          const workCont = highPerMs * totalMs;
+          if (workCont > 0) savingsObserved = 1 - (totalOps / workCont);
+        }
+
+        try {
+          ws.send(JSON.stringify({
+            type: "sample",
+            t: now, phase: isHigh ? "high" : "low",
+            opsPerSec, opsThisWindow,
+            watts, deltaUj, cumulativeEnergyUj: cumulativeEnergy_uJ,
+            mode: raplAvailable ? "hardware-watts" : "compute-throughput-proxy",
+            observedRatio, theoreticalRatio: 0.25,
+            savingsObserved, theoreticalSavings: 143 / 192,
+            stepIdx,
+          }));
+        } catch {}
+
+        opsThisWindow = 0;
+        lastSampleAt = now;
+      }
+    }, stepMs);
+
+    ws.on("close", () => { alive = false; clearInterval(tick); });
+    ws.on("error", () => { alive = false; clearInterval(tick); });
   });
 
   const remoteTerminalSessions = new Map<string, WebSocket>();
