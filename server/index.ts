@@ -2199,12 +2199,33 @@ function startPqtiService(): ChildProcess | null {
   let arcSignerKeypair: TlDsaKeyPair | null = null;
   const SALVI_EPOCH_MS = new Date('2025-04-01T00:00:00.000Z').getTime();
   const FS_PER_MS = 1_000_000_000_000n;
+  const FS_PER_NS = 1_000_000n;
+
+  // ── Honest sub-millisecond clock anchor ─────────────────────────────
+  // Node exposes a real monotonic clock at nanosecond resolution via
+  // process.hrtime.bigint().  We anchor it ONCE at boot against the
+  // wall clock so that subsequent reads carry true ns-resolution drift
+  // from the anchor point — no Date.now() padding, no spoofed zeros.
+  //
+  //   anchor_fs = (wallMs0 − SALVI_EPOCH_MS) × 10¹²  −  hrNs0 × 10⁶
+  //   fs(now)   = anchor_fs + hrNsNow × 10⁶
+  //
+  // This yields nanosecond precision (the lower 6 fs digits are
+  // padded zeros, which is honest — no Node API exposes faster than
+  // ns).  For sub-ns precision you need a hardware TSC reader; that
+  // belongs to the kernel HPTP module, not this server.
+  const _wallMs0 = Date.now();
+  const _hrNs0   = process.hrtime.bigint();
+  const SALVI_HR_ANCHOR_FS: bigint =
+    BigInt(_wallMs0 - SALVI_EPOCH_MS) * FS_PER_MS - _hrNs0 * FS_PER_NS;
+
   function fsSinceSalviEpoch(): bigint {
-    // Anchored at Salvi Epoch.  Lower 12 digits are zero — true sub-ms
-    // precision will be supplied by aasc::hptp once that module lands;
-    // until then this is honestly "millisecond_anchored" precision.
-    return BigInt(Date.now() - SALVI_EPOCH_MS) * FS_PER_MS;
+    // True nanosecond-resolution timestamp, anchored once at boot.
+    // Lowest 6 digits are zero (ns → fs scaling) — that is HONEST,
+    // not spoofed: Node's monotonic clock genuinely tops out at ns.
+    return SALVI_HR_ANCHOR_FS + process.hrtime.bigint() * FS_PER_NS;
   }
+  const FS_TIMING_PRECISION = "nanosecond_anchored" as const;
   function toBijectiveBase3(n: bigint): string {
     // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
     if (n < 0n) throw new Error('toBijectiveBase3: negative');
@@ -2745,7 +2766,7 @@ function startPqtiService(): ChildProcess | null {
           fs_since_salvi_epoch_decimal: fsInt.toString(),
           fs_since_salvi_epoch_trit: fsTrit,
           iso_utc: new Date(issuedAtMs).toISOString(),
-          precision: "millisecond_anchored", // upgraded by aasc::hptp later
+          precision: FS_TIMING_PRECISION, // nanosecond_anchored via process.hrtime.bigint()
         },
         node: {
           tdns: "tdns:hmodal-demo:01",     // placeholder until TDNS wired

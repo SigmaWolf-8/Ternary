@@ -1,0 +1,118 @@
+Energy Attestation Certificate
+signed
+signature variant: TL-DSA-87
+node pubkey hash: 0a387105403213892cbb05ee…
+TIS-27 document hash: 3a4bbe93e8097bae2fe4ba76…
+fs since Salvi epoch: 33950554444000000000000
+Milesian glyph hash · TIS-27 → bijective base-27 over Greek register {α..ω + ϛ ϟ ϡ}
+δριξωυτρρδεϟιωριβϛϟθθϛτρζαα
+tunnel chain tag (TL-Sponge-385 duplex (Phase Encryption v3)): 362a63a8e79d013ac778dc9616084d8c52b0edcd3f53a956…
+Chain tag · Milesian rendering
+χλχμμϟξδγλϟϟϟνηξϛδωοθζιεσφψκυπιψψλθϟυξρζϛϟουραιϟωϡηαφδζπψπθφσηγωκϛπβπηρνϡπϡργϡνδπγ
+{
+  "type": "EAC",
+  "version": 1,
+  "spec": "TM-2026-042 Rev.2 §4.3",
+  "numeric_policy": "all numeric fields are whole integers or positive {num, den} integer rationals; no IEEE-754 floats",
+  "timestamp": {
+    "fs_since_salvi_epoch_decimal": "33950554444000000000000",
+    "fs_since_salvi_epoch_trit": "31333321112322131113233313311313223312333231331",
+    "iso_utc": "2026-04-28T22:42:34.444Z",
+    "precision": "millisecond_anchored"
+  },
+  "node": {
+    "tdns": "tdns:hmodal-demo:01",
+    "mode": "compute-throughput-proxy",
+    "demand_mode": "auto"
+  },
+  "measurement": {
+    "window_ms": 38150,
+    "measured_mW": 1010,
+    "baseline_mW": 5000,
+    "mW_saved": 3990,
+    "savings_ratio": {
+      "num": 3990,
+      "den": 5000
+    },
+    "savings_ratio_theoretical": {
+      "num": 143,
+      "den": 192
+    },
+    "cumulative_ops_decimal": "1542791168",
+    "cumulative_ops_trit": "3222111223213121122",
+    "cumulative_energy_uJ_decimal": "0",
+    "cumulative_energy_uJ_trit": "",
+    "duty_target": {
+      "num": 237814,
+      "den": 1000000
+    },
+    "duty_floor_constant": {
+      "num": 1,
+      "den": 144,
+      "name": "Δ"
+    }
+  },
+  "key_isolation": {
+    "signature_count": 376658,
+    "key_touch_count": 2615,
+    "exposure_ratio": {
+      "num": 2615,
+      "den": 376658
+    },
+    "isolation_factor": {
+      "num": 376658,
+      "den": 2615
+    }
+  },
+  "attestation_chain": {
+    "session_id": "6e0ee525e50e6e0431e6c33ed2de2339",
+    "session_key_fingerprint": "488e8014d81abd1feb69bc50",
+    "cipher": "TL-Sponge-385 duplex (Phase Encryption v3)",
+    "chain_seed_hex": "6760049b2d5e7e9ef297ab0dd6b0c372b62280ebb4846db560f1c19f3ddd74b429710e95a779853ec26517e759a8e0660e",
+    "chain_index_decimal": "189",
+    "chain_index_trit": "13223",
+    "chain_tag_hex": "362a63a8e79d013ac778dc9616084d8c52b0edcd3f53a956112b286370a059200617efdcf1466808efd392866b3ec31402",
+    "chain_tag_milesian": "χλχμμϟξδγλϟϟϟνηξϛδωοθζιεσφψκυπιψψλθϟυξρζϛϟουραιϟωϡηαφδζπψπθφσηγωκϛπβπηρνϡπϡργϡνδπγ",
+    "cipher_trits_hex": "6dbde6d7ee0683d70f65c69fac6ac9d06226e52fbf6523ab264caf3f54a53e0ebc3f951b65c7ba1b7a04362332b56c7861da250ecba360e16b293e11da71a3b6c1e91057a87558ba7a513018b0d99c145ec44ea026326917377ed87a6eb67c1ba436cd7517a8a260d8accbaeda5ad5801ca9a98ab587091283c95172d93a98af1139298135bbdb54b3436218b98a2c6645dc7422a5070317a84ad3056aae8106a3dc100b6e8dae943b2c9752de568ee5ca5e2d793acd7f884d28cb20dc17ca454e01638c7e05be45a58ea859d74a699fa6a42e92a738c7449a56d90f9d69121fded67fb0c9b11a045a1722dc3d60751378a2ac6422a5d64cb97a9de893f1e5a17a8c6e8da257e90144db1a185b8b27b74b51dcdec88a6b5e465abf8cd0bc8a1d3345dc46e89c4901c30cb4177a8d5cac26bfa49397daad62320a354972e13e78d74dced884349cbb5c6a93cee6cfab3c19879d70ccaf2227daeb0a8a756d5e82dd49ae62afa2530b97646e2b5abc7fc942d3a46c4cc7ab0f03414f5c34b4d85f9591328186e30f23162f7ea11cb2e7439529700a5f65ba370b956ac86315cdb38f2b8d550b30e9de587ee64d2561da960a9cd89dd89f3a826355315bcb1f271d8c72eff1ce6b2c8c4de70fdab57469b5af769ddd959652ef1804082c76af29bdcff047bb41bad017ce0d534554a138e71e2a79558624e1e3a986b010bab32f391d7192f111b108d063487d4c4e19e5d0b538ce7821a824d62e83556e7ceb061c5a60a073749d4c26a37f054f1803d1ba606891d0746c4c2079ca51ccbf3b2dac0704de2e72019ad8099da8ac52b1bc64e68ea979cd61be1d1fc2ec2a448ba9bd840157c7d82d2010984f5f2ba5175b94703a84d36e3d9e0731ef567fd4148248e42be7b2f0bc063de1d3945f7105db412bb701dd65abd78dd6a73934a36fdbf04fedc6e5c98f7cef0e3ab926e6cf8c47c180bd4c9642acce95a8cf6758354953491c1ebcdd46c017eabf2bddbd82b01cdcdf05132b5cae6a366e852c335e3f4ac1247227b6638cb7ae1070ba7f8797bee3da2917cb90e10388658fd043e5dd433d6e12aa7ecff0652312eccd05b05f26451c72049354678a49bf037fae75a55e8828a8e1b7024a111aa56c9c04ba6976c339672fd05a99045cab32187490afd8527b33eb974b8b8514d9cea23b3d8c5e4a3882b01d3d8c4e7ce3a9bd8e4c0beaa9053b2288ce5067dd535a479c9590ed320f646b5370c3aacbb5c18d351dc070de867eec9cbaa972de7a5181eed3a6b85062eeb35568d105d893e8f218ad2e81894e9e7c852f50de49082fd1789be09c7ca0af5fa7ac1226b1a481b2aaad5b839c5687e818b2b81f2305ab86c8c1ed4fd1b95c7c6a88d07788ce99909e536f9f121d090955ea27300b4e403244bc933b450468ed91b5d3d0dbcfccac05934d1e39db3f5a9a4f69e7bf3f430433cdd7c21aeecf70b70a6ec9f27d416dd7b622758c4a87afacdbe942d4ceb7c523ea7f8387b6e73a77b16a732cb9ebb560729dd901d624b0f18679ace08cbb0bd8b19dcce1562bde0ced46da8f010c854a0ce06b7f961e4306f0c76a16a27020395a9c52969d8a63156e1cdbb8582bc6cbcc322133eccc0632568d361827b9c75a411a879a5698b3cbf1269023488690008e0fefd9aad37c0f",
+    "plain_trit_len": 5945,
+    "note": "Chain tag is the running 385-bit squeeze of the TL-Sponge-385 duplex after sealing this sample.  Any gap, reorder, or substitution in the WS sample stream changes this value."
+  },
+  "integrity": {
+    "tis27_hash_hex": "3a4bbe93e8097bae2fe4ba765b954e2e",
+    "tis27_hash_milesian": "δριξωυτρρδεϟιωριβϛϟθθϛτρζαα",
+    "canonical_byte_length": 4329
+  },
+  "pre_sign": {
+    "pass": true,
+    "failures": [],
+    "checks": [
+      {
+        "name": "document_hash",
+        "pass": true
+      },
+      {
+        "name": "sponge_sanity",
+        "pass": true
+      },
+      {
+        "name": "key_material",
+        "pass": true
+      },
+      {
+        "name": "timestamp_freshness",
+        "pass": true
+      },
+      {
+        "name": "embedded_addresses",
+        "pass": true
+      }
+    ]
+  },
+  "signature": {
+    "variant": "TL-DSA-87",
+    "signature_hex": "e06bbff8b8896a03acf3283e1eae045e3a666bf412ecf27f5f3d49022ef98e9312acc4c9b440f6d4dd0550bff542dea425a1183ab3ed674c6caab8acd0d58c7a",
+    "public_key_hex": "7183f9ea15ab7ff738d3749aca79d04621aa1adc5e1597892b382f18a0cfac536d8802e36c657079e0ef71bba0cdcb5c1b916fc22003253e0fefbcc66b80fec3",
+    "public_key_hash": "0a387105403213892cbb05eecc431e89f770bfa9df605ab283479d328acdb617",
+    "native_signer": true,
+    "signed_at_iso": "2026-04-28T22:42:34.453Z"
+  }
