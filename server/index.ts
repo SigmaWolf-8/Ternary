@@ -43,7 +43,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { securityHeaders, additionalSecurityHeaders } from "./middleware/security-headers";
 import { corsMiddleware } from "./middleware/cors-config";
-import { globalLimiter } from "./middleware/rate-limiter";
+import { globalLimiter, computationLimiter } from "./middleware/rate-limiter";
 import { spawn, execSync, type ChildProcess } from "child_process";
 import { existsSync } from "fs";
 import { WebSocketServer, WebSocket } from "ws";
@@ -53,7 +53,7 @@ import { spongeHashTrits } from "./crypto/sponge-hash";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
 import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
-import { keygen, signHex, verifyHex, verifyNative, publicKeyHash, type TlDsaKeyPair } from "./crypto/tl-dsa-bridge";
+import { keygen, signHex, verifyHex, verifyNative, publicKeyHash, isNativeAvailable, type TlDsaKeyPair } from "./crypto/tl-dsa-bridge";
 import * as fs from "fs";
 import {
   computeHealthState, type NodeHealthState,
@@ -2189,6 +2189,76 @@ function startPqtiService(): ChildProcess | null {
   const terminalWss = new WebSocketServer({ noServer: true });
   const hmodalWss = new WebSocketServer({ noServer: true });
 
+  // ──────────────────────────────────────────────────────────────────
+  // ARC Energy Attestation Certificate (EAC) — TM-2026-042 §4.3
+  // The HModal WS handler stashes its latest emitted sample here so
+  // the POST /api/hmodal/issue-eac route can snapshot a coherent set
+  // of fields without racing the tick loop.
+  // ──────────────────────────────────────────────────────────────────
+  let lastHmodalSnapshot: any = null;
+  let arcSignerKeypair: TlDsaKeyPair | null = null;
+  const SALVI_EPOCH_MS = new Date('2025-04-01T00:00:00.000Z').getTime();
+  const FS_PER_MS = 1_000_000_000_000n;
+  function fsSinceSalviEpoch(): bigint {
+    // Anchored at Salvi Epoch.  Lower 12 digits are zero — true sub-ms
+    // precision will be supplied by aasc::hptp once that module lands;
+    // until then this is honestly "millisecond_anchored" precision.
+    return BigInt(Date.now() - SALVI_EPOCH_MS) * FS_PER_MS;
+  }
+  function toBijectiveBase3(n: bigint): string {
+    // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
+    if (n < 0n) throw new Error('toBijectiveBase3: negative');
+    if (n === 0n) return '';
+    const digits: string[] = [];
+    let v = n;
+    while (v > 0n) {
+      let r = v % 3n;
+      v = v / 3n;
+      if (r === 0n) { r = 3n; v -= 1n; }
+      digits.push(r.toString());
+    }
+    return digits.reverse().join('');
+  }
+  // ── Milesian glyph table — Spec v3.3.33 §4.5 ──────────────────────
+  // 27 Greek glyphs (24 modern letters + 3 ghost letters: ϛ, ϟ, ϡ).
+  // Used to render any non-negative integer as a bijective base-27
+  // string of glyphs.  Mirror of GLYPH_TABLE in
+  // algeometric-arc-sigma182-calculi/src/milesian.rs.
+  const MILESIAN_GLYPHS = [
+    "α","β","γ","δ","ε","ϛ","ζ","η","θ","ι","κ","λ","μ","ν","ξ","ο","π","ϟ",
+    "ρ","σ","τ","υ","φ","χ","ψ","ω","ϡ",
+  ] as const;
+  function bigIntToMilesianGlyphs(n: bigint): string {
+    // Strict mirror of aasc::milesian::glyphs_msb — N==0 produces the
+    // empty string (no leading "α"), matching the bijective base-27
+    // contract in algeometric-arc-sigma182-calculi/src/milesian.rs.
+    if (n < 0n) throw new Error("bigIntToMilesianGlyphs: negative");
+    if (n === 0n) return "";
+    let v = n;
+    const out: string[] = [];
+    while (v > 0n) {
+      let r = Number(v % 27n);
+      v = v / 27n;
+      if (r === 0) { r = 27; v -= 1n; }
+      out.push(MILESIAN_GLYPHS[r - 1]);
+    }
+    return out.reverse().join("");
+  }
+  function milesianGlyphHash(hashHex: string): string {
+    const cleaned = hashHex.replace(/^0x/, "");
+    if (!cleaned) return "";
+    return bigIntToMilesianGlyphs(BigInt("0x" + cleaned));
+  }
+
+  function getArcSigner(): TlDsaKeyPair {
+    if (arcSignerKeypair) return arcSignerKeypair;
+    // One TL-DSA-87 keypair per process boot — this is the "node attestation
+    // key" referenced in spec §4.3.  In production it is held in the
+    // NinjaExec encrypted keystore; here it is generated in memory.
+    arcSignerKeypair = keygen('TL-DSA-87');
+    return arcSignerKeypair;
+  }
+
   httpServer.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url || "", `http://${request.headers.host}`);
     if (url.pathname === "/ws/relay") {
@@ -2234,9 +2304,54 @@ function startPqtiService(): ChildProcess | null {
     }
   }
 
-  hmodalWss.on("connection", (ws: WebSocket) => {
+  // Dynamic import once at startup (ESM-safe).  Used by both the HModal
+  // WS sealer and the EAC route — kept in a single resolved object so
+  // there is no per-connection cost.
+  const spongeMod = await import("./crypto/sponge-hash");
+  const {
+    SpongeDuplex,
+    bytesToBalancedTrits,
+    tritsToHex: tritsToHexFn,
+    tis27Hash: tis27HashFn,
+  } = spongeMod;
+
+  hmodalWss.on("connection", async (ws: WebSocket) => {
     const raplAvailable = readRaplUj() !== null;
     const periodMs = 1000;
+
+    // ── Encrypted tunnel + continuous solid-state chain ────────────────
+    // Pure trit-native cipher: TL-Sponge-385 duplex (Phase Encryption v3).
+    // Each sample is sealed in-line at emit time and absorbed back into the
+    // sponge so the next squeeze depends on every prior sample — gaps,
+    // reorders, or substitutions break the running chain tag.  No classical
+    // primitives anywhere on the seal path.
+
+    const sessionId = crypto.randomBytes(16).toString("hex");
+    const sessionKeyBytes = crypto.randomBytes(32);            // 256-bit seed
+    const sessionKeyTrits = bytesToBalancedTrits(sessionKeyBytes); // → balanced trits
+    const sessionKeyTritsHex = tritsToHexFn(sessionKeyTrits);
+    const sessionKeyFingerprint = tis27HashFn(sessionKeyBytes).slice(0, 24);
+
+    const sealDuplex = new SpongeDuplex(2);
+    sealDuplex.absorb(Buffer.from("hmodal|seal|v3", "utf-8"));
+    sealDuplex.absorb(Buffer.from(sessionId, "utf-8"));
+    sealDuplex.absorbTrits(sessionKeyTrits);
+
+    let chainIndex = 0n;
+    const chainSeedTrits = sealDuplex.squeeze(243);            // 385-bit tag
+    const chainSeedHex = tritsToHexFn(chainSeedTrits);
+
+    try {
+      ws.send(JSON.stringify({
+        type: "session",
+        sessionId,
+        sessionKeyTritsHex,
+        chainSeedHex,
+        cipher: "TL-Sponge-385 duplex (Phase Encryption v3, pure GF(3))",
+        chainHash: "TL-Sponge-385 squeeze (385-bit running tag)",
+        note: "session key wrapped in clear over the demo WSS; production deployments wrap via TL-KEM",
+      }));
+    } catch {}
     const sampleMs = 200;
     const stepMs = 50;
     const stepsPerCycle = periodMs / stepMs;     // 20
@@ -2457,8 +2572,7 @@ function startPqtiService(): ChildProcess | null {
           if (workCont > 0) savingsObserved = 1 - (totalOps / workCont);
         }
 
-        try {
-          ws.send(JSON.stringify({
+        const samplePayload = {
             type: "sample",
             t: now, phase: isHigh ? "high" : "low",
             opsPerSec, opsThisWindow,
@@ -2505,8 +2619,58 @@ function startPqtiService(): ChildProcess | null {
             observedRatio, theoreticalRatio: 0.25,
             savingsObserved, theoreticalSavings: 143 / 192,
             stepIdx,
-          }));
-        } catch {}
+          };
+
+        // ── Seal + chain in one duplex pass ─────────────────────────
+        // 1. plaintext bytes → balanced trits
+        // 2. squeeze keystream of equal length
+        // 3. cipher_trits[i] = (plain + ks) mod-balanced  (GF(3) wrap)
+        // 4. absorb cipher_trits → state advances (chaining)
+        // 5. squeeze 243-trit (385-bit) running chain tag
+        // The whole step happens at emit time — no later actor can
+        // substitute a reading without breaking the chain.
+        const plaintextBytes = Buffer.from(JSON.stringify(samplePayload), "utf-8");
+        const plainTrits = bytesToBalancedTrits(plaintextBytes);
+        const ks = sealDuplex.squeeze(plainTrits.length);
+        const cipherTrits = new Int8Array(plainTrits.length);
+        for (let i = 0; i < plainTrits.length; i++) {
+          let v = plainTrits[i] + ks[i];
+          if (v > 1) v -= 3; else if (v < -1) v += 3;
+          cipherTrits[i] = v;
+        }
+        sealDuplex.absorbTrits(cipherTrits);
+        const chainTagTrits = sealDuplex.squeeze(243);
+        const chainTagHex = tritsToHexFn(chainTagTrits);
+        const sealedFrame = {
+          type: "sealed",
+          sessionId,
+          index: chainIndex.toString(),
+          cipherTritsHex: tritsToHexFn(cipherTrits),
+          chainTagHex,
+          chainTagPrev: chainIndex === 0n ? chainSeedHex : undefined,
+          plainTritLen: plainTrits.length,
+        };
+
+        // Stash chain-head + plaintext (preview) — the EAC binds to the
+        // chain tag, NOT to a re-sampled snapshot, so there is no
+        // window for substitution between read and sign.
+        lastHmodalSnapshot = {
+          ...samplePayload,
+          attestation: {
+            sessionId,
+            sessionKeyFingerprint,
+            cipher: "TL-Sponge-385 duplex (Phase Encryption v3)",
+            chainSeedHex,
+            chainIndex: chainIndex.toString(),
+            chainTagHex,
+            cipherTritsHex: sealedFrame.cipherTritsHex,
+            plainTritLen: plainTrits.length,
+          },
+        };
+
+        try { ws.send(JSON.stringify(samplePayload)); } catch {}
+        try { ws.send(JSON.stringify(sealedFrame)); } catch {}
+        chainIndex += 1n;
 
         opsThisWindow = 0;
         lastSampleAt = now;
@@ -2515,6 +2679,158 @@ function startPqtiService(): ChildProcess | null {
 
     ws.on("close", () => { alive = false; clearInterval(tick); });
     ws.on("error", () => { alive = false; clearInterval(tick); });
+  });
+
+  // ──────────────────────────────────────────────────────────────────
+  // POST /api/hmodal/issue-eac
+  // Snapshots the latest HModal sample, builds an Energy Attestation
+  // Certificate per TM-2026-042 §4.3, runs preSignCheck, signs with
+  // TL-DSA-87, and returns the signed cert.  Visible from the
+  // "Issue EAC now" button on /hmodal-demo.
+  // ──────────────────────────────────────────────────────────────────
+  app.post("/api/hmodal/issue-eac", computationLimiter, async (_req, res) => {
+    // computationLimiter caps abusive callers (50 req / IP / minute) so the
+    // process-held TL-DSA-87 signer cannot be turned into an open signing
+    // oracle.  Production deployments should additionally gate this behind
+    // operator RBAC via NinjaExec.
+    try {
+      const snap = lastHmodalSnapshot;
+      if (!snap) {
+        return res.status(409).json({
+          ok: false,
+          error: "no_sample_available",
+          message: "Open /hmodal-demo and let the WS produce at least one sample before requesting an EAC.",
+        });
+      }
+
+      const issuedAtMs = Date.now();
+      const fsInt = fsSinceSalviEpoch();
+      const fsTrit = toBijectiveBase3(fsInt);
+
+      // Build EAC fields per spec §4.3.  All numeric fields are mirrored
+      // in trit (Rep-C bijective base-3) form alongside their decimal form.
+      const measuredWatts = (snap.watts as number | null) ?? snap.wattsHmodalCached;
+      const baselineWatts = snap.wattsContinuous;
+      const savingsRatio = baselineWatts > 0 ? (1 - measuredWatts / baselineWatts) : 0;
+      const windowMs = (snap.timeHighMs ?? 0) + (snap.timeLowMs ?? 0);
+
+      const eacFields = {
+        type: "EAC",
+        version: 1,
+        spec: "TM-2026-042 Rev.2 §4.3",
+        timestamp: {
+          fs_since_salvi_epoch_decimal: fsInt.toString(),
+          fs_since_salvi_epoch_trit: fsTrit,
+          iso_utc: new Date(issuedAtMs).toISOString(),
+          precision: "millisecond_anchored", // upgraded by aasc::hptp later
+        },
+        node: {
+          tdns: "tdns:hmodal-demo:01",     // placeholder until TDNS wired
+          mode: snap.mode,                  // hardware-watts | compute-throughput-proxy
+          demand_mode: snap.demandMode,
+        },
+        measurement: {
+          window_ms: windowMs,
+          measured_watts: measuredWatts,
+          baseline_watts: baselineWatts,
+          watts_saved: snap.wattsSavedVsContinuous,
+          savings_ratio_decimal: savingsRatio,
+          savings_ratio_theoretical: { num: 143, den: 192 },
+          cumulative_ops_decimal: String(snap.cumulativeOps ?? 0),
+          cumulative_ops_trit: toBijectiveBase3(BigInt(snap.cumulativeOps ?? 0)),
+          duty_target: snap.dutyTarget,
+          duty_floor_constant: { num: 1, den: 144, name: "Δ" },
+        },
+        key_isolation: {
+          signature_count: snap.signatureCount,
+          key_touch_count: snap.keyTouchCount,
+          exposure_ratio: snap.keyExposureRatio,
+          isolation_factor: snap.keyIsolationFactor,
+        },
+        attestation_chain: snap.attestation
+          ? {
+              session_id: snap.attestation.sessionId,
+              session_key_fingerprint: snap.attestation.sessionKeyFingerprint,
+              cipher: snap.attestation.cipher,
+              chain_seed_hex: snap.attestation.chainSeedHex,
+              chain_index_decimal: snap.attestation.chainIndex,
+              chain_index_trit: toBijectiveBase3(BigInt(snap.attestation.chainIndex)),
+              chain_tag_hex: snap.attestation.chainTagHex,
+              chain_tag_milesian: milesianGlyphHash(snap.attestation.chainTagHex),
+              cipher_trits_hex: snap.attestation.cipherTritsHex,
+              plain_trit_len: snap.attestation.plainTritLen,
+              note: "Chain tag is the running 385-bit squeeze of the TL-Sponge-385 duplex after sealing this sample.  Any gap, reorder, or substitution in the WS sample stream changes this value.",
+            }
+          : null,
+      };
+
+      const canonicalJson = JSON.stringify(eacFields);
+      const documentBytes = Buffer.from(canonicalJson, "utf-8");
+
+      const { tis27Hash } = await import("./crypto/sponge-hash");
+      const tis27HashHex = tis27Hash(documentBytes);
+      const tis27Milesian = milesianGlyphHash(tis27HashHex);
+
+      const kp = getArcSigner();
+      const pubKeyHash = publicKeyHash(kp.publicKey);
+
+      const { preSignCheck } = await import("../sign-here/src/pre-sign-check");
+      // Inject our own TIS-27 hashFn so pre-sign-check uses the same trit
+      // sponge as the rest of the pipeline — the default in pre-sign-check
+      // falls back to require('crypto') which doesn't exist under ESM.
+      const tritHashFn = (input: Buffer) => tis27HashFn(input);
+      const preSign = preSignCheck({
+        documentBytes,
+        expectedHash: tis27HashHex,
+        signingKey: kp.secretKey,
+        variant: "TL-DSA-87",
+        timestampFs: fsInt,
+        nowFs: fsInt,
+        hashFn: tritHashFn,
+      });
+
+      if (!preSign.pass) {
+        return res.status(500).json({
+          ok: false,
+          error: "pre_sign_check_failed",
+          failures: preSign.failures,
+          eac: eacFields,
+          tis27_hash: tis27HashHex,
+        });
+      }
+
+      const sigResult = signHex(kp.secretKey, canonicalJson, "TL-DSA-87");
+
+      const signedCert = {
+        ...eacFields,
+        integrity: {
+          tis27_hash_hex: tis27HashHex,
+          tis27_hash_milesian: tis27Milesian,
+          canonical_byte_length: documentBytes.length,
+        },
+        pre_sign: {
+          pass: preSign.pass,
+          failures: preSign.failures,
+          checks: preSign.checks?.map((c: any) => ({ name: c.name, pass: c.pass })),
+        },
+        signature: {
+          variant: "TL-DSA-87",
+          signature_hex: sigResult,
+          public_key_hex: kp.publicKey.toString("hex"),
+          public_key_hash: pubKeyHash,
+          native_signer: isNativeAvailable(),
+          signed_at_iso: new Date().toISOString(),
+        },
+      };
+
+      res.json({ ok: true, eac: signedCert });
+    } catch (err: any) {
+      res.status(500).json({
+        ok: false,
+        error: "eac_generation_failed",
+        message: err?.message ?? String(err),
+      });
+    }
   });
 
   const remoteTerminalSessions = new Map<string, WebSocket>();

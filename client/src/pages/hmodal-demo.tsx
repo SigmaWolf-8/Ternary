@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Play, Square, Download, FileText, Zap, AlertCircle, CheckCircle } from "lucide-react";
+import { Activity, Play, Square, Download, FileText, Zap, AlertCircle, CheckCircle, ShieldCheck } from "lucide-react";
 
 interface StatusResponse {
   raplAvailable: boolean;
@@ -77,6 +77,36 @@ export default function HModalDemo() {
   const [lastRaw, setLastRaw] = useState<string>("");
   const [frameCount, setFrameCount] = useState(0);
   const [demandMode, setDemandMode] = useState<DemandMode>("auto");
+  const [eacIssuing, setEacIssuing] = useState(false);
+  const [eacResult, setEacResult] = useState<any>(null);
+  const [eacError, setEacError] = useState<string | null>(null);
+  const [tunnel, setTunnel] = useState<{
+    sessionId?: string;
+    cipher?: string;
+    chainSeedHex?: string;
+    sealedCount: number;
+    chainTagHex?: string;
+    lastIndex?: string;
+  }>({ sealedCount: 0 });
+
+  const issueEac = useCallback(async () => {
+    setEacIssuing(true);
+    setEacError(null);
+    try {
+      const r = await fetch("/api/hmodal/issue-eac", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok || !j.ok) {
+        setEacError(j.message || j.error || `HTTP ${r.status}`);
+        setEacResult(j);
+      } else {
+        setEacResult(j.eac);
+      }
+    } catch (e: any) {
+      setEacError(e?.message ?? String(e));
+    } finally {
+      setEacIssuing(false);
+    }
+  }, []);
   const wsRef = useRef<WebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -121,6 +151,24 @@ export default function HModalDemo() {
       setFrameCount((c) => c + 1);
       try {
         const msg = JSON.parse(raw);
+        if (msg.type === "session") {
+          setTunnel({
+            sessionId: msg.sessionId,
+            cipher: msg.cipher,
+            chainSeedHex: msg.chainSeedHex,
+            sealedCount: 0,
+          });
+          return;
+        }
+        if (msg.type === "sealed") {
+          setTunnel((prev) => ({
+            ...prev,
+            sealedCount: prev.sealedCount + 1,
+            chainTagHex: msg.chainTagHex,
+            lastIndex: msg.index,
+          }));
+          return;
+        }
         if (msg.type !== "sample") return;
         const s: Sample = msg;
         setLatest(s);
@@ -326,7 +374,114 @@ export default function HModalDemo() {
               <FileText className="w-4 h-4 mr-2" /> AASC Map (SVG)
             </a>
           </Button>
+          <Button
+            variant="default"
+            onClick={issueEac}
+            disabled={eacIssuing || !latest}
+            data-testid="button-issue-eac"
+            title={!latest ? "Start the demo first so a sample exists." : "Snapshot the current sample and sign an EAC."}
+          >
+            <ShieldCheck className="w-4 h-4 mr-2" />
+            {eacIssuing ? "Issuing…" : "Issue EAC now"}
+          </Button>
         </div>
+
+        {tunnel.sessionId && (
+          <Card data-testid="card-tunnel-status">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShieldCheck className="w-4 h-4" />
+                Encrypted Tunnel — Continuous Solid-State Chain
+                <Badge variant="secondary" data-testid="badge-tunnel-cipher">
+                  TL-Sponge-385
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs font-mono space-y-1">
+              <div data-testid="text-tunnel-cipher">
+                <span className="text-muted-foreground">cipher: </span>
+                {tunnel.cipher}
+              </div>
+              <div data-testid="text-tunnel-session">
+                <span className="text-muted-foreground">session id: </span>
+                {tunnel.sessionId}
+              </div>
+              <div data-testid="text-tunnel-sealed-count">
+                <span className="text-muted-foreground">sealed samples: </span>
+                {tunnel.sealedCount} (last index = {tunnel.lastIndex ?? "—"})
+              </div>
+              <div className="break-all" data-testid="text-tunnel-chain-tag">
+                <span className="text-muted-foreground">running chain tag: </span>
+                {tunnel.chainTagHex ?? "(awaiting first sealed frame)"}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {(eacResult || eacError) && (
+          <Card data-testid="card-eac-result">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5" />
+                Energy Attestation Certificate
+                {eacError ? (
+                  <Badge variant="destructive" data-testid="badge-eac-error">error</Badge>
+                ) : (
+                  <Badge variant="default" data-testid="badge-eac-ok">signed</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {eacError && (
+                <div className="text-sm text-destructive flex items-center gap-2" data-testid="text-eac-error">
+                  <AlertCircle className="w-4 h-4" /> {eacError}
+                </div>
+              )}
+              {eacResult?.signature && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
+                  <div data-testid="text-eac-variant">
+                    <span className="text-muted-foreground">variant: </span>
+                    {eacResult.signature.variant}
+                  </div>
+                  <div data-testid="text-eac-pubkey-hash">
+                    <span className="text-muted-foreground">pubkey hash: </span>
+                    {eacResult.signature.public_key_hash?.slice(0, 24)}…
+                  </div>
+                  <div data-testid="text-eac-tis27">
+                    <span className="text-muted-foreground">TIS-27: </span>
+                    {eacResult.integrity?.tis27_hash_hex?.slice(0, 24)}…
+                  </div>
+                  <div data-testid="text-eac-fs">
+                    <span className="text-muted-foreground">fs since Salvi epoch: </span>
+                    {eacResult.timestamp?.fs_since_salvi_epoch_decimal}
+                  </div>
+                  <div className="md:col-span-2 break-all" data-testid="text-eac-milesian">
+                    <span className="text-muted-foreground">Milesian glyph hash (TIS-27 → bijective base-27 over Greek register): </span>
+                    <span className="text-base">{eacResult.integrity?.tis27_hash_milesian}</span>
+                  </div>
+                  {eacResult.attestation_chain && (
+                    <div className="md:col-span-2 break-all" data-testid="text-eac-chain-tag">
+                      <span className="text-muted-foreground">tunnel chain tag: </span>
+                      {eacResult.attestation_chain.chain_tag_hex?.slice(0, 32)}… ({eacResult.attestation_chain.cipher})
+                      <div className="mt-1">
+                        <span className="text-muted-foreground">chain tag (Milesian): </span>
+                        <span className="text-base" data-testid="text-eac-chain-milesian">
+                          {eacResult.attestation_chain.chain_tag_milesian}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <pre
+                className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-96"
+                data-testid="text-eac-json"
+              >
+                {JSON.stringify(eacResult, null, 2)}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <ReadoutCard

@@ -280,7 +280,7 @@ function spongePermutationVersioned(state: Int8Array, version: number): void {
   }
 }
 
-function bytesToBalancedTrits(input: Buffer | Uint8Array): Int8Array {
+export function bytesToBalancedTrits(input: Buffer | Uint8Array): Int8Array {
   const trits: number[] = [];
   for (const byte of input) {
     let val = byte;
