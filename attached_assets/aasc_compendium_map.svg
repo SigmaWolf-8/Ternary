@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 2400" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <style>
+      .title    { font-size: 30px; font-weight: 700; fill: #0F0C0A; }
+      .subtitle { font-size: 15px; fill: #4a525b; }
+      .layer    { font-size: 22px; font-weight: 700; fill: #0F0C0A; }
+      .layerhint{ font-size: 13px; fill: #6a727b; font-style: italic; }
+      .mod      { font-size: 14px; font-weight: 600; fill: #0F0C0A; }
+      .modsmall { font-size: 11px; fill: #4a525b; }
+      .badge    { font-size: 11px; font-weight: 700; }
+      .legend   { font-size: 13px; fill: #0F0C0A; }
+      .legendH  { font-size: 15px; font-weight: 700; fill: #0F0C0A; }
+      .stat     { font-size: 36px; font-weight: 800; fill: #2D7DD2; }
+      .statlbl  { font-size: 12px; fill: #4a525b; }
+      .orphan   { font-size: 14px; fill: #0F0C0A; }
+      .orphanH  { font-size: 17px; font-weight: 700; fill: #B8860B; }
+      .arrow    { stroke: #2D7DD2; stroke-width: 2; fill: none; marker-end: url(#arr); }
+      .layerbox { fill: #faf8f6; stroke: #d4cfc8; stroke-width: 1.5; }
+      .modbox-green { fill: #d8f5d0; stroke: #4a9d3e; stroke-width: 1.5; }
+      .modbox-yellow{ fill: #fff4cc; stroke: #d4a017; stroke-width: 1.5; }
+      .modbox-blue  { fill: #d9ecff; stroke: #2D7DD2; stroke-width: 1.5; }
+      .modbox-red   { fill: #ffd9d4; stroke: #c0392b; stroke-width: 2; }
+      .modbox-grey  { fill: #ececec; stroke: #999; stroke-width: 1.2; }
+      .stamp        { font-size: 10px; fill: #4a525b; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#B8860B"/>
+    </marker>
+  </defs>
+
+  <!-- ───── Header ───── -->
+  <rect x="0" y="0" width="1800" height="100" fill="#0F0C0A"/>
+  <text x="40" y="48" class="title" fill="#FAF8F6">AASC — Algeometric Arc Σ-182 Calculi · Compendium §I.A Slot Map</text>
+  <text x="40" y="78" class="subtitle" fill="#a8b4c0">Lab v7.1 verified: 82 checks · 81 PASS · 1 PASS-within-uncertainty · 0 FAIL · Spec v3.3.33 layered architecture · zero new modules proposed</text>
+
+  <!-- ───── Top stats ───── -->
+  <g transform="translate(40, 120)">
+    <rect x="0"   y="0" width="200" height="80" fill="#fff" stroke="#d4cfc8"/>
+    <text x="20"  y="50" class="stat">32</text>
+    <text x="20"  y="68" class="statlbl">existing modules</text>
+
+    <rect x="220" y="0" width="200" height="80" fill="#fff" stroke="#d4cfc8"/>
+    <text x="240" y="50" class="stat">82</text>
+    <text x="240" y="68" class="statlbl">verified compendium identities</text>
+
+    <rect x="440" y="0" width="200" height="80" fill="#fff" stroke="#d4cfc8"/>
+    <text x="460" y="50" class="stat" fill="#4a9d3e">8</text>
+    <text x="460" y="68" class="statlbl">already pinned in code</text>
+
+    <rect x="660" y="0" width="200" height="80" fill="#fff" stroke="#d4cfc8"/>
+    <text x="680" y="50" class="stat" fill="#d4a017">71</text>
+    <text x="680" y="68" class="statlbl">slot into existing modules</text>
+
+    <rect x="880" y="0" width="200" height="80" fill="#fff" stroke="#d4cfc8"/>
+    <text x="900" y="50" class="stat" fill="#c0392b">3</text>
+    <text x="900" y="68" class="statlbl">orphans needing your call</text>
+
+    <rect x="1100" y="0" width="200" height="80" fill="#fff" stroke="#d4cfc8"/>
+    <text x="1120" y="50" class="stat">0</text>
+    <text x="1120" y="68" class="statlbl">new files proposed</text>
+
+    <!-- legend -->
+    <g transform="translate(1340, 0)">
+      <rect x="0" y="0" width="420" height="80" fill="#fff" stroke="#d4cfc8"/>
+      <text x="14" y="20" class="legendH">Module status (slot color)</text>
+      <rect x="14" y="32" width="18" height="14" class="modbox-green"/>
+      <text x="38" y="44" class="legend">already pinned</text>
+      <rect x="160" y="32" width="18" height="14" class="modbox-yellow"/>
+      <text x="184" y="44" class="legend">add numerals + identity</text>
+      <rect x="14" y="55" width="18" height="14" class="modbox-blue"/>
+      <text x="38" y="67" class="legend">add identity only</text>
+      <rect x="160" y="55" width="18" height="14" class="modbox-red"/>
+      <text x="184" y="67" class="legend">ORPHAN — decision needed</text>
+      <rect x="335" y="55" width="18" height="14" class="modbox-grey"/>
+      <text x="359" y="67" class="legend">unaffected</text>
+    </g>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              ATOM LAYER                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 230)">
+    <rect class="layerbox" x="0" y="0" width="1720" height="120" rx="8"/>
+    <text x="20"  y="32" class="layer">ATOM</text>
+    <text x="20"  y="52" class="layerhint">trit alphabet, vectors, pure ternary arithmetic — no numerals here</text>
+
+    <rect class="modbox-grey" x="20"  y="65" width="220" height="40" rx="4"/>
+    <text x="32" y="82" class="mod">trit</text>
+    <text x="32" y="98" class="modsmall">Trit · Rep-A/B/C/D</text>
+
+    <rect class="modbox-grey" x="260" y="65" width="220" height="40" rx="4"/>
+    <text x="272" y="82" class="mod">tritvec</text>
+    <text x="272" y="98" class="modsmall">MSB-first slice + ctors</text>
+
+    <rect class="modbox-grey" x="500" y="65" width="220" height="40" rx="4"/>
+    <text x="512" y="82" class="mod">arithmetic</text>
+    <text x="512" y="98" class="modsmall">add · sub · mul · divmod</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              NOTATION LAYER                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 370)">
+    <rect class="layerbox" x="0" y="0" width="1720" height="190" rx="8"/>
+    <text x="20" y="32" class="layer">NOTATION  ·  the single arithmetic anchor</text>
+    <text x="20" y="52" class="layerhint">All numerals declared here exactly once. Const identity block proves I-8 · I-9 · I-10 · I-11 · I-12 · I-13 · I-14 · I-15 · I-19 · I-22 · I-23 · I-24 · I-29 · I-31 · I-44 · I-46 at compile time.</text>
+
+    <rect class="modbox-yellow" x="20" y="65" width="1680" height="115" rx="6"/>
+    <text x="38" y="92" class="mod">constants.rs   (476 lines today  →  ~520 after this pass)</text>
+
+    <text x="38"   y="115" class="modsmall" font-weight="700">Already pinned (8 of 82):</text>
+    <text x="38"   y="132" class="modsmall">B · R_1..R_7 · b³ · b⁵ · b⁶ · π=14 · 2π=28 · ARC=182 · ARC_COMP=650 · Δ=144 · √Δ=12 · Δ_sponge=729 · p=7 · q=11 · r=13 · p_h · PQR=1001</text>
+    <text x="38"   y="148" class="modsmall">ARC_RED · ARC_BLUE=240 · ARC_COPRIME=286 · ARC_GREEN · √Δ_arc=468 · COPRIME_ARC=143 · COMBINED_VERTICES=23 · UV chain [91,182,286,364] · Z_0=377 · M_sq=12 · α⁻¹=137 · Σ̃=3699</text>
+
+    <text x="38"   y="172" class="modsmall" font-weight="700" fill="#B8860B">To add (~40 numerals):</text>
+    <text x="220"  y="172" class="modsmall">F_5=5 · 36 · 720 · 721 · 1000 · 1089 · 1456 · 2197 · 2366 · 10192 · 861224 · 11195912 · 78371384 · 40080040 · 1000144 · 12013 · 1837989 · 1836 · 1989 · 280908 · 153 · 378 · 242 · 17 · 18 · 25 · 56 · 80 · 104 · 143 · 77 · 1885 · 1892 · 1893 · 15 · 8 · 29 · 377 · 333 · 756 · 1035 · 1080 · 1050</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              ALGEBRAIC LAYER                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 580)">
+    <rect class="layerbox" x="0" y="0" width="1720" height="120" rx="8"/>
+    <text x="20" y="32" class="layer">ALGEBRAIC</text>
+    <text x="20" y="52" class="layerhint">field/ring/group structures over the Notation table</text>
+
+    <rect class="modbox-grey" x="20"   y="65" width="200" height="40" rx="4"/>
+    <text x="32"  y="82" class="mod">gf3</text>
+    <text x="32"  y="98" class="modsmall">GF(3) axioms</text>
+
+    <rect class="modbox-grey" x="240"  y="65" width="200" height="40" rx="4"/>
+    <text x="252" y="82" class="mod">zphi</text>
+    <text x="252" y="98" class="modsmall">ℤ[φ], R²=π+5φ</text>
+
+    <rect class="modbox-grey" x="460"  y="65" width="200" height="40" rx="4"/>
+    <text x="472" y="82" class="mod">borromean</text>
+    <text x="472" y="98" class="modsmall">XOR invariant</text>
+
+    <rect class="modbox-blue" x="680"  y="65" width="200" height="40" rx="4"/>
+    <text x="692" y="82" class="mod">coprime</text>
+    <text x="692" y="98" class="modsmall">+ S10-1 (1 identity)</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              GEOMETRIC LAYER                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 720)">
+    <rect class="layerbox" x="0" y="0" width="1720" height="730" rx="8"/>
+    <text x="20" y="32" class="layer">GEOMETRIC  ·  22 submodules</text>
+    <text x="20" y="52" class="layerhint">Every spec geometric primitive has its own const identity block. Compendium identities slot into the module that already owns the parent object.</text>
+
+    <!-- row 1: circle / generating_system / dual_circle / coprime_polygon_pair -->
+    <g transform="translate(20, 65)">
+      <rect class="modbox-yellow" x="0"   y="0" width="410" height="105" rx="4"/>
+      <text x="14" y="20" class="mod">circle</text>
+      <text x="14" y="36" class="modsmall">canonical ternary circle · π=14 · R₆=364°</text>
+      <text x="14" y="56" class="badge" fill="#B8860B">+ 13 identities</text>
+      <text x="14" y="76" class="modsmall">S2-3 disk area · S2-5 surface · S2-6 vol · S3-1..3 vesica</text>
+      <text x="14" y="92" class="modsmall">S3-4,5 ang pair · S4-2,3 worldline · S37-3,4 disc-id · S8-7..10 π+X</text>
+
+      <rect class="modbox-grey" x="430" y="0" width="200" height="105" rx="4"/>
+      <text x="442" y="20" class="mod">generating_system</text>
+      <text x="442" y="40" class="modsmall">arc² − 832·arc + 118300 = 0</text>
+
+      <rect class="modbox-yellow" x="650" y="0" width="410" height="105" rx="4"/>
+      <text x="664" y="20" class="mod">dual_circle</text>
+      <text x="664" y="36" class="modsmall">Z_756 ≅ Z_27 × Z_28 CRT bijection</text>
+      <text x="664" y="56" class="badge" fill="#B8860B">+ 14 identities</text>
+      <text x="664" y="76" class="modsmall">S2-7 grand circle · S36-1..7 (bq)² anchors</text>
+      <text x="664" y="92" class="modsmall">S36-8..11 partitions · S36-12..14 readings &amp; gaps</text>
+
+      <rect class="modbox-yellow" x="1080" y="0" width="240" height="105" rx="4"/>
+      <text x="1094" y="20" class="mod">coprime_polygon_pair</text>
+      <text x="1094" y="36" class="modsmall">Generator Duality, (11,13)</text>
+      <text x="1094" y="56" class="badge" fill="#B8860B">+ 4 identities</text>
+      <text x="1094" y="76" class="modsmall">S23-1..4 torus knot windings</text>
+
+      <rect class="modbox-grey" x="1340" y="0" width="340" height="105" rx="4"/>
+      <text x="1354" y="20" class="mod">plenum_color_harmonics</text>
+      <text x="1354" y="40" class="modsmall">ARC_RED/BLUE/COPRIME/GREEN — already complete</text>
+    </g>
+
+    <!-- row 2 -->
+    <g transform="translate(20, 185)">
+      <rect class="modbox-yellow" x="0" y="0" width="410" height="105" rx="4"/>
+      <text x="14" y="20" class="mod">repunit_circles</text>
+      <text x="14" y="36" class="modsmall">R_L recurrence circles · R_L^(b) general repunit</text>
+      <text x="14" y="56" class="badge" fill="#B8860B">+ 6 identities</text>
+      <text x="14" y="76" class="modsmall">S24-1 R_4^(12)=1885 · S24-2,3 1892,1893</text>
+      <text x="14" y="92" class="modsmall">S24-5,6,7 alt forms · S24-8 factorisation 5·13·29</text>
+
+      <rect class="modbox-grey" x="430" y="0" width="200" height="105" rx="4"/>
+      <text x="442" y="20" class="mod">tribonacci</text>
+      <text x="442" y="40" class="modsmall">base-b Tribonacci ladder</text>
+
+      <rect class="modbox-yellow" x="650" y="0" width="410" height="105" rx="4"/>
+      <text x="664" y="20" class="mod">triangular_numbers</text>
+      <text x="664" y="36" class="modsmall">T_n = n(n+1)/2 · Triple Identity at R₃</text>
+      <text x="664" y="56" class="badge" fill="#B8860B">+ 6 identities</text>
+      <text x="664" y="76" class="modsmall">S7-3,4 Tri(17)=153 · S8-11 ladder · S8-12 Tri(b³)</text>
+      <text x="664" y="92" class="modsmall">S24-4 Tri(F_5)=15</text>
+
+      <rect class="modbox-yellow" x="1080" y="0" width="280" height="105" rx="4"/>
+      <text x="1094" y="20" class="mod">arc182</text>
+      <text x="1094" y="36" class="modsmall">5 forms of 182 (already pinned)</text>
+      <text x="1094" y="56" class="badge" fill="#B8860B">+ 3 identities</text>
+      <text x="1094" y="76" class="modsmall">S8-3a,3b spectral pair (242)</text>
+      <text x="1094" y="92" class="modsmall">S8-5 sixth form 17+153+12</text>
+
+      <rect class="modbox-grey" x="1380" y="0" width="300" height="105" rx="4"/>
+      <text x="1394" y="20" class="mod">plenum_square</text>
+      <text x="1394" y="40" class="modsmall">3×3 magic square + 4 σ permutations</text>
+    </g>
+
+    <!-- row 3 -->
+    <g transform="translate(20, 305)">
+      <rect class="modbox-yellow" x="0"   y="0" width="320" height="105" rx="4"/>
+      <text x="14" y="20" class="mod">gait</text>
+      <text x="14" y="36" class="modsmall">Greek-Atomic Invariant Tracker</text>
+      <text x="14" y="56" class="badge" fill="#B8860B">+ 2 identities</text>
+      <text x="14" y="76" class="modsmall">S8-1 Δ₁(σ)=200−18=182</text>
+      <text x="14" y="92" class="modsmall">S8-6 Δ₁(μ)=40−12=28</text>
+
+      <rect class="modbox-grey" x="340" y="0" width="200" height="105" rx="4"/>
+      <text x="352" y="20" class="mod">disdyakis_bridge</text>
+      <text x="352" y="40" class="modsmall">R²=π+5φ, ℤ[φ] norm</text>
+
+      <rect class="modbox-grey" x="560" y="0" width="200" height="105" rx="4"/>
+      <text x="572" y="20" class="mod">crystal_2d_3d</text>
+      <text x="572" y="40" class="modsmall">vertex-on-sphere</text>
+
+      <rect class="modbox-yellow" x="780" y="0" width="320" height="105" rx="4"/>
+      <text x="794" y="20" class="mod">uv_spectral</text>
+      <text x="794" y="36" class="modsmall">UV chain [91,182,286,364]</text>
+      <text x="794" y="56" class="badge" fill="#B8860B">+ 1 identity</text>
+      <text x="794" y="76" class="modsmall">S8-4 ozone gap 286=2qr · 104=(b−1)³·r</text>
+
+      <rect class="modbox-red" x="1120" y="0" width="280" height="105" rx="4"/>
+      <text x="1134" y="20" class="mod">hydrogen_spectral</text>
+      <text x="1134" y="36" class="modsmall">Lyman boundary 91=R₆/4 (only)</text>
+      <text x="1134" y="56" class="badge" fill="#c0392b">+ 8 identities  +  ORPHAN #1</text>
+      <text x="1134" y="76" class="modsmall">S7-1 κ_∞=721/720 · S7-2,5,6 mass quad</text>
+      <text x="1134" y="92" class="modsmall">S0-4,5 fine-structure closed form  ←  decide</text>
+
+      <rect class="modbox-yellow" x="1420" y="0" width="260" height="105" rx="4"/>
+      <text x="1434" y="20" class="mod">speed_of_light</text>
+      <text x="1434" y="36" class="modsmall">v²=π=14 (only)</text>
+      <text x="1434" y="56" class="badge" fill="#B8860B">+ 2 identities</text>
+      <text x="1434" y="76" class="modsmall">S2-4 Gabriel's Horn V=14</text>
+      <text x="1434" y="92" class="modsmall">S6-2 (c_S/c)²=56</text>
+    </g>
+
+    <!-- row 4 -->
+    <g transform="translate(20, 425)">
+      <rect class="modbox-grey" x="0"   y="0" width="200" height="105" rx="4"/>
+      <text x="14" y="20" class="mod">saturnian_metatron</text>
+      <text x="14" y="40" class="modsmall">Saturnian shells</text>
+
+      <rect class="modbox-yellow" x="220" y="0" width="320" height="105" rx="4"/>
+      <text x="234" y="20" class="mod">wave_stratum</text>
+      <text x="234" y="36" class="modsmall">Z_0=377 · Δ_wave_sponge=b</text>
+      <text x="234" y="56" class="badge" fill="#B8860B">+ 2 identities</text>
+      <text x="234" y="76" class="modsmall">S24-9 F_14=377=r·(R_2²+r)</text>
+      <text x="234" y="92" class="modsmall">S24-10 F_14=τ+r</text>
+
+      <rect class="modbox-grey" x="560" y="0" width="200" height="105" rx="4"/>
+      <text x="572" y="20" class="mod">conservation_laws</text>
+      <text x="572" y="40" class="modsmall">CL-1..CL-6 enum (complete)</text>
+
+      <rect class="modbox-grey" x="780" y="0" width="200" height="105" rx="4"/>
+      <text x="792" y="20" class="mod">nona_state</text>
+      <text x="792" y="40" class="modsmall">transfer equation</text>
+
+      <rect class="modbox-grey" x="1000" y="0" width="220" height="105" rx="4"/>
+      <text x="1014" y="20" class="mod">wieferich_register</text>
+      <text x="1014" y="40" class="modsmall">first base-3 Wieferich = p_h</text>
+
+      <rect class="modbox-grey" x="1240" y="0" width="220" height="105" rx="4"/>
+      <text x="1254" y="20" class="mod">grh_register</text>
+      <text x="1254" y="40" class="modsmall">Optimus Paraprime 47–52</text>
+
+      <rect class="modbox-grey" x="1480" y="0" width="200" height="105" rx="4"/>
+      <text x="1494" y="20" class="mod">beal_register</text>
+      <text x="1494" y="40" class="modsmall">Five Norm Towers</text>
+    </g>
+
+    <!-- footer note -->
+    <text x="20" y="710" class="layerhint">Total geometric-layer slots: 13+1+14+4+6+6+3+2+1+8+2+2 = 62 identities into 11 existing modules. 11 geometric modules untouched.</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              CALCULI LAYER                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 1470)">
+    <rect class="layerbox" x="0" y="0" width="1720" height="170" rx="8"/>
+    <text x="20" y="32" class="layer">CALCULI</text>
+    <text x="20" y="52" class="layerhint">Engines: bijective base-b, divmod(b³) Milesian glyph table, coprime walks + CRT, four sub-calculi (difference / circular / iteration / series).</text>
+
+    <rect class="modbox-grey" x="20"  y="65" width="220" height="90" rx="4"/>
+    <text x="32" y="84" class="mod">repx</text>
+    <text x="32" y="100" class="modsmall">bijective base-b converter</text>
+
+    <rect class="modbox-grey" x="260" y="65" width="220" height="90" rx="4"/>
+    <text x="272" y="84" class="mod">milesian</text>
+    <text x="272" y="100" class="modsmall">divmod(b³) glyph stringer</text>
+
+    <rect class="modbox-grey" x="500" y="65" width="220" height="90" rx="4"/>
+    <text x="512" y="84" class="mod">walk</text>
+    <text x="512" y="100" class="modsmall">coprime walks · CRT recovery</text>
+
+    <rect class="modbox-red" x="740" y="65" width="940" height="90" rx="4"/>
+    <text x="754" y="84" class="mod">calculus</text>
+    <text x="754" y="100" class="modsmall">four sub-calculi: difference · circular · iteration · series</text>
+    <text x="754" y="120" class="badge" fill="#c0392b">ORPHAN #2  (Calendar/Time block)</text>
+    <text x="754" y="140" class="modsmall">S5-2 SD=87808 · S5-3 ticks=790272 · S5-4 τ=1096822/3003 · S5-5 vs CODATA · S8-13 lunisolar 87/8 · S17-1 unit bridge</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              BOUNDARY LAYER                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 1660)">
+    <rect class="layerbox" x="0" y="0" width="1720" height="80" rx="8"/>
+    <text x="20" y="32" class="layer">BOUNDARY  (feature-gated)</text>
+    <text x="20" y="56" class="layerhint">Bytes ↔ TritVec only here. Compiled out by default (I-3 enforced by static guards).</text>
+
+    <rect class="modbox-grey" x="1500" y="20" width="200" height="40" rx="4"/>
+    <text x="1512" y="38" class="mod">bridge  [feature]</text>
+    <text x="1512" y="54" class="modsmall">no compendium impact</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              ORPHAN DECISION PANEL                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 1770)">
+    <rect x="0" y="0" width="1720" height="490" rx="8" fill="#fff7e6" stroke="#d4a017" stroke-width="2"/>
+    <text x="20" y="36" class="orphanH">THREE ORPHAN DECISIONS  ·  pick once and the entire pass becomes mechanical</text>
+    <text x="20" y="56" class="layerhint">Each has a recommended slot (zero new files) and a fallback (one new file). My recommendation arrows shown in blue.</text>
+
+    <!-- ORPHAN #1 -->
+    <g transform="translate(20, 80)">
+      <rect class="modbox-red" x="0" y="0" width="1680" height="120" rx="6"/>
+      <text x="14" y="22" class="orphanH">ORPHAN #1  ·  Fine-structure constant closed form</text>
+      <text x="14" y="42" class="orphan">Compendium S0-4 · S0-5  →  1/α = (R_2² + q²) + (p−r)²/(pqr−1) − (p−r)²/(R_4·(pqr)²) = 17,163,776,017 / 125,250,125</text>
+      <text x="14" y="62" class="orphan">→ matches CODATA-2018 within ±0.13 ppb · openly outside CODATA-2022 (compendium acknowledges)</text>
+      <text x="14" y="86" class="orphan" font-weight="700">RECOMMENDED:</text>
+      <text x="160" y="86" class="orphan">slot into <tspan font-weight="700">hydrogen_spectral.rs</tspan> as `pub const ALPHA_INV_RATIONAL: (u128, u128) = (17_163_776_017, 125_250_125);` + const-block proof</text>
+      <text x="14" y="106" class="orphan" font-weight="700">FALLBACK:</text>
+      <text x="160" y="106" class="orphan">create new `fine_structure.rs`  (adds one file to the Geometric layer — only if you reject hydrogen_spectral home)</text>
+    </g>
+
+    <!-- ORPHAN #2 -->
+    <g transform="translate(20, 215)">
+      <rect class="modbox-red" x="0" y="0" width="1680" height="120" rx="6"/>
+      <text x="14" y="22" class="orphanH">ORPHAN #2  ·  Salvi Calendar &amp; Tropical Year</text>
+      <text x="14" y="42" class="orphan">Compendium S5-2 · S5-3 · S5-4 · S5-5 · S8-13 · S17-1  →  1 SD = 87,808 = 2⁸·7³ · 1 SD ticks = 790,272 · τ = 364 + 26/(3·7) + 4/1001 = 1,096,822/3003 days</text>
+      <text x="14" y="62" class="orphan">→ proximity match to CODATA mean tropical year (no fitted parameters)</text>
+      <text x="14" y="86" class="orphan" font-weight="700">RECOMMENDED:</text>
+      <text x="160" y="86" class="orphan">slot into <tspan font-weight="700">calculus.rs</tspan> as a fifth `time` sub-calculus block; numerals join constants.rs Notation table</text>
+      <text x="14" y="106" class="orphan" font-weight="700">FALLBACK:</text>
+      <text x="160" y="106" class="orphan">create new `calendar.rs`  (adds one file to the Geometric layer — only if you want time as a first-class layer slot)</text>
+    </g>
+
+    <!-- ORPHAN #3 -->
+    <g transform="translate(20, 350)">
+      <rect class="modbox-red" x="0" y="0" width="1680" height="120" rx="6"/>
+      <text x="14" y="22" class="orphanH">ORPHAN #3  ·  Discriminant Identity</text>
+      <text x="14" y="42" class="orphan">Compendium S37-3 · S37-4  →  (pqr−1)² + 4(p−r)² = 1,000,144 = 2⁴ · 17 · 3677</text>
+      <text x="14" y="62" class="orphan">→ ties the coupling residue 4(p−r)² = Δ to the one-pass denominator (pqr−1)</text>
+      <text x="14" y="86" class="orphan" font-weight="700">RECOMMENDED:</text>
+      <text x="160" y="86" class="orphan">slot into <tspan font-weight="700">circle.rs</tspan>  (already owns Δ=144 and the parent quadratic x² − R_4·x + R_6 = 0 from I-15)</text>
+      <text x="14" y="106" class="orphan" font-weight="700">ALTERNATE:</text>
+      <text x="160" y="106" class="orphan">slot into <tspan font-weight="700">arc182.rs</tspan>  (also defensible — would sit alongside the 5+1 forms of 182).  No new file either way.</text>
+    </g>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <!--                              FOOTER                                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+  <g transform="translate(40, 2290)">
+    <rect x="0" y="0" width="1720" height="80" fill="#0F0C0A" rx="6"/>
+    <text x="20" y="32" class="layer" fill="#FAF8F6">If you say "yes" to my three recommendations:</text>
+    <text x="20" y="56" class="legend" fill="#a8b4c0">→ ZERO new files · ~40 numerals into constants.rs Notation table · identities slotted across 14 of the 32 existing modules · lib.rs module map unchanged · ternary-math/ shims untouched (separate concern).</text>
+  </g>
+
+  <text x="40" y="2392" class="stamp">aasc · Spec v3.3.33 · Lab v7.1 verified · 2026-04-28</text>
+</svg>

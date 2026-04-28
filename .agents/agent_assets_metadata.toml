@@ -642,3 +642,9 @@ id = "cPmQUdTaqIfY0hlpqqaf-"
 uri = "file://docs/CM_Compendium/CM-260422_v0.12_Triadis Orientation.md"
 type = "text"
 title = "Triadis Orientation v0.12 — Wieferich + PCO + Spine Future-Proofing"
+
+[[outputs]]
+id = "Ps5oVfiE4HW5WCtERPnc4"
+uri = "file://attached_assets/aasc_compendium_map.svg"
+type = "image"
+title = "AASC Compendium §I.A Slot Map — full picture"
