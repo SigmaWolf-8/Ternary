@@ -654,3 +654,9 @@ id = "RgNSTCWvVO5zNPadQQspq"
 uri = "file://attached_assets/aasc_atomic_nucleus_map.svg"
 type = "image"
 title = "AASC · Concentric Map (uniformly scaled ×2.5)"
+
+[[outputs]]
+id = "deq9maGOAjrQTxsh6sDiu"
+uri = "file://attached_assets/aasc_atomic_nucleus_map.png"
+type = "image"
+title = "AASC · Concentric Map (6750×7425 PNG — zoomable)"
