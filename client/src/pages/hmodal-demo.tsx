@@ -49,6 +49,8 @@ interface Sample {
   wattsHmodalCached?: number;
   wattsSavedVsContinuous?: number;
   effectiveComputeFrac?: number;
+  logicalOpsPerSecAvg?: number;
+  realCpuOpsPerSecAvg?: number;
 }
 
 const MAX_SAMPLES = 300;
@@ -283,16 +285,18 @@ export default function HModalDemo() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <ReadoutCard
-            label={isHardware ? "Live Watts" : "Live Ops/sec"}
+            label="Logical Throughput"
             value={
-              latest
-                ? isHardware && latest.watts != null
-                  ? `${latest.watts.toFixed(2)} W`
-                  : `${(latest.opsPerSec / 1e6).toFixed(2)} M`
+              latest && (latest.logicalOpsPerSecAvg ?? 0) > 0
+                ? `${((latest.logicalOpsPerSecAvg ?? 0) / 1e6).toFixed(2)} Mops/s`
                 : "—"
             }
-            sub={latest ? `phase: ${latest.phase}` : ""}
-            tone={latest?.phase === "high" ? "primary" : "muted"}
+            sub={
+              latest
+                ? `CPU active only ${((latest.effectiveComputeFrac ?? 0) * 100).toFixed(2)}% of wall time`
+                : ""
+            }
+            tone="primary"
             testid="readout-live"
           />
           <ReadoutCard

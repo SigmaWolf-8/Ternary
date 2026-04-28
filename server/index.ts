@@ -2416,6 +2416,14 @@ function startPqtiService(): ChildProcess | null {
             wattsHmodalCached,
             wattsSavedVsContinuous,
             effectiveComputeFrac,
+            // Throughput split: logical (what the workload SERVED, including
+            // cache hits) vs real (only cache misses that actually burned CPU).
+            logicalOpsPerSecAvg: (timeHighMs + timeLowMs) > 0
+              ? (opsTotalHigh + opsTotalLow) / ((timeHighMs + timeLowMs) / 1000)
+              : 0,
+            realCpuOpsPerSecAvg: realHighWorkMs > 0
+              ? (cacheMisses * TBUF_LEN) / (realHighWorkMs / 1000)
+              : 0,
             mode: raplAvailable ? "hardware-watts" : "compute-throughput-proxy",
             observedRatio, theoreticalRatio: 0.25,
             savingsObserved, theoreticalSavings: 143 / 192,
