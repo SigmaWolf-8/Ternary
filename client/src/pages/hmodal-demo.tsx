@@ -21,44 +21,55 @@ interface StatusResponse {
   };
 }
 
+// Positive integer rational pair — wire format for every "fraction"
+// emitted by the HModal Console.  No JS floats on the wire.
+type Rational = { num: number; den: number };
+
+// Display-only helper: convert a {num, den} rational to a JS number
+// at render time.  Never feed the result back into the wire path.
+const r = (x: Rational | null | undefined): number =>
+  x && x.den > 0 ? x.num / x.den : 0;
+
 interface Sample {
   t: number;
   phase: "high" | "low";
   opsPerSec: number;
-  watts: number | null;
+  // Power, energy, time, ops — all integers (mW, µJ, ms, count).
+  mW: number | null;
   mode: string;
-  observedRatio: number;
-  theoreticalRatio: number;
-  savingsObserved: number | null;
-  theoreticalSavings: number;
+  observedRatio: Rational;
+  theoreticalRatio: Rational;
+  savingsObserved: Rational | null;
+  theoreticalSavings: Rational;
   cumulativeEnergyUj: number;
   cumulativeOps?: number;
   cumulativeOpsHigh?: number;
   cumulativeOpsLow?: number;
   timeHighMs?: number;
   timeLowMs?: number;
+  totalMs?: number;
   cacheHits?: number;
   cacheMisses?: number;
-  cacheHitRate?: number;
+  cacheHitRate?: Rational;
   realHighWorkMs?: number;
   cachedHighMs?: number;
-  compressedSavings?: number;
-  theoreticalCompressedSavings?: number;
-  wattsContinuous?: number;
-  wattsHmodalNoCache?: number;
-  wattsHmodalCached?: number;
-  wattsSavedVsContinuous?: number;
-  effectiveComputeFrac?: number;
+  compressedSavings?: Rational;
+  theoreticalCompressedSavings?: Rational;
+  mWContinuous?: number;
+  mWHmodalNoCache?: number;
+  mWHmodalCached?: number;
+  mWSavedVsContinuous?: number;
+  effectiveCompute?: Rational;
   logicalOpsPerSecAvg?: number;
   realCpuOpsPerSecAvg?: number;
   demandMode?: "idle" | "steady" | "burst" | "auto";
-  queueDepth?: number;
-  cacheFillRatio?: number;
-  dutyTarget?: number;
+  queueDepth?: Rational;
+  cacheFillRatio?: Rational;
+  dutyTarget?: Rational;
   keyTouchCount?: number;
   signatureCount?: number;
-  keyExposureRatio?: number;
-  keyIsolationFactor?: number;
+  keyExposureRatio?: Rational;
+  keyIsolationFactor?: Rational;
 }
 
 type DemandMode = "idle" | "steady" | "burst" | "auto";
@@ -225,8 +236,9 @@ export default function HModalDemo() {
       return;
     }
 
-    const useWatts = samples.some((s) => s.watts != null);
-    const values = samples.map((s) => (useWatts ? (s.watts ?? 0) : s.opsPerSec));
+    // Chart shows mW (integer milliwatts) when available, else opsPerSec.
+    const useWatts = samples.some((s) => s.mW != null);
+    const values = samples.map((s) => (useWatts ? (s.mW ?? 0) : s.opsPerSec));
     const max = Math.max(...values, 1);
     const min = 0;
 
@@ -438,36 +450,64 @@ export default function HModalDemo() {
                 </div>
               )}
               {eacResult?.signature && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
-                  <div data-testid="text-eac-variant">
-                    <span className="text-muted-foreground">variant: </span>
-                    {eacResult.signature.variant}
+                <div className="space-y-4">
+                  {/* Header grid — short scalars */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-xs font-mono">
+                    <div data-testid="text-eac-variant">
+                      <span className="text-muted-foreground">signature variant: </span>
+                      <span className="font-semibold">{eacResult.signature.variant}</span>
+                    </div>
+                    <div data-testid="text-eac-pubkey-hash">
+                      <span className="text-muted-foreground">node pubkey hash: </span>
+                      {eacResult.signature.public_key_hash?.slice(0, 24)}…
+                    </div>
+                    <div data-testid="text-eac-tis27">
+                      <span className="text-muted-foreground">TIS-27 document hash: </span>
+                      {eacResult.integrity?.tis27_hash_hex?.slice(0, 24)}…
+                    </div>
+                    <div data-testid="text-eac-fs">
+                      <span className="text-muted-foreground">fs since Salvi epoch: </span>
+                      {eacResult.timestamp?.fs_since_salvi_epoch_decimal}
+                    </div>
                   </div>
-                  <div data-testid="text-eac-pubkey-hash">
-                    <span className="text-muted-foreground">pubkey hash: </span>
-                    {eacResult.signature.public_key_hash?.slice(0, 24)}…
+
+                  {/* Stand-alone Milesian glyph block — TIS-27 hash */}
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                      Milesian glyph hash · TIS-27 → bijective base-27 over Greek register {"{α..ω + ϛ ϟ ϡ}"}
+                    </div>
+                    <div
+                      data-testid="text-eac-milesian"
+                      className="text-2xl leading-relaxed font-serif tracking-wide break-all"
+                      lang="el"
+                      dir="ltr"
+                    >
+                      {eacResult.integrity?.tis27_hash_milesian || "—"}
+                    </div>
                   </div>
-                  <div data-testid="text-eac-tis27">
-                    <span className="text-muted-foreground">TIS-27: </span>
-                    {eacResult.integrity?.tis27_hash_hex?.slice(0, 24)}…
-                  </div>
-                  <div data-testid="text-eac-fs">
-                    <span className="text-muted-foreground">fs since Salvi epoch: </span>
-                    {eacResult.timestamp?.fs_since_salvi_epoch_decimal}
-                  </div>
-                  <div className="md:col-span-2 break-all" data-testid="text-eac-milesian">
-                    <span className="text-muted-foreground">Milesian glyph hash (TIS-27 → bijective base-27 over Greek register): </span>
-                    <span className="text-base">{eacResult.integrity?.tis27_hash_milesian}</span>
-                  </div>
+
+                  {/* Stand-alone chain-tag glyph block — TL-Sponge-385 chain tag */}
                   {eacResult.attestation_chain && (
-                    <div className="md:col-span-2 break-all" data-testid="text-eac-chain-tag">
-                      <span className="text-muted-foreground">tunnel chain tag: </span>
-                      {eacResult.attestation_chain.chain_tag_hex?.slice(0, 32)}… ({eacResult.attestation_chain.cipher})
-                      <div className="mt-1">
-                        <span className="text-muted-foreground">chain tag (Milesian): </span>
-                        <span className="text-base" data-testid="text-eac-chain-milesian">
-                          {eacResult.attestation_chain.chain_tag_milesian}
-                        </span>
+                    <div className="space-y-2">
+                      <div
+                        className="text-xs font-mono break-all"
+                        data-testid="text-eac-chain-tag"
+                      >
+                        <span className="text-muted-foreground">tunnel chain tag ({eacResult.attestation_chain.cipher}): </span>
+                        {eacResult.attestation_chain.chain_tag_hex?.slice(0, 48)}…
+                      </div>
+                      <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                          Chain tag · Milesian rendering
+                        </div>
+                        <div
+                          data-testid="text-eac-chain-milesian"
+                          className="text-2xl leading-relaxed font-serif tracking-wide break-all"
+                          lang="el"
+                          dir="ltr"
+                        >
+                          {eacResult.attestation_chain.chain_tag_milesian || "—"}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -493,7 +533,7 @@ export default function HModalDemo() {
             }
             sub={
               latest
-                ? `CPU active only ${((latest.effectiveComputeFrac ?? 0) * 100).toFixed(2)}% of wall time`
+                ? `CPU active only ${(r(latest.effectiveCompute) * 100).toFixed(2)}% of wall time`
                 : ""
             }
             tone="primary"
@@ -501,13 +541,13 @@ export default function HModalDemo() {
           />
           <ReadoutCard
             label="Time Duty (high / total)"
-            value={latest ? (latest.observedRatio * 100).toFixed(2) + "%" : "—"}
+            value={latest ? (r(latest.observedRatio) * 100).toFixed(2) + "%" : "—"}
             sub="theoretical: 25.00% (250 ms high / 1000 ms cycle)"
             testid="readout-duty"
           />
           <ReadoutCard
             label="Observed Savings"
-            value={latest && latest.savingsObserved != null ? (latest.savingsObserved * 100).toFixed(2) + "%" : "—"}
+            value={latest && latest.savingsObserved != null ? (r(latest.savingsObserved) * 100).toFixed(2) + "%" : "—"}
             sub="theoretical: 74.48% (143/192)"
             tone="primary"
             testid="readout-savings"
@@ -516,7 +556,7 @@ export default function HModalDemo() {
             label="Cache Hit Rate"
             value={
               latest && (latest.cacheHits ?? 0) + (latest.cacheMisses ?? 0) > 0
-                ? `${((latest.cacheHitRate ?? 0) * 100).toFixed(1)}%`
+                ? `${(r(latest.cacheHitRate) * 100).toFixed(1)}%`
                 : "—"
             }
             sub={
@@ -529,8 +569,8 @@ export default function HModalDemo() {
           <ReadoutCard
             label="Compressed Savings"
             value={
-              latest && (latest.compressedSavings ?? 0) > 0
-                ? `${((latest.compressedSavings ?? 0) * 100).toFixed(2)}%`
+              latest && r(latest.compressedSavings) > 0
+                ? `${(r(latest.compressedSavings) * 100).toFixed(2)}%`
                 : "—"
             }
             sub="asymptote: 99.31% (143/144 = 1 − 1/Δ)"
@@ -556,30 +596,31 @@ export default function HModalDemo() {
             {[
               {
                 label: "Continuous burn (no HModal)",
-                watts: latest?.wattsContinuous ?? 5.0,
+                mW: latest?.mWContinuous ?? 5000,
                 color: "bg-red-500",
                 testid: "bar-continuous",
               },
               {
                 label: "HModal 1:4 duty (no cache)",
-                watts: latest?.wattsHmodalNoCache ?? 2.0,
+                mW: latest?.mWHmodalNoCache ?? 2000,
                 color: "bg-yellow-500",
                 testid: "bar-hmodal-nocache",
               },
               {
                 label: "HModal + Δ-cache (this console)",
-                watts: latest?.wattsHmodalCached ?? 1.0,
+                mW: latest?.mWHmodalCached ?? 1000,
                 color: "bg-green-500",
                 testid: "bar-hmodal-cached",
               },
             ].map((row) => {
-              const pct = Math.max(2, (row.watts / 5.0) * 100);
+              // Bar width is integer mW / 5000 mW × 100, floored — no float in the wire path.
+              const pct = Math.max(2, Math.floor((row.mW * 100) / 5000));
               return (
                 <div key={row.label}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-muted-foreground">{row.label}</span>
                     <span className="font-mono font-semibold" data-testid={row.testid}>
-                      {row.watts.toFixed(3)} W
+                      {row.mW} mW
                     </span>
                   </div>
                   <div className="h-3 bg-muted rounded-full overflow-hidden">
@@ -593,21 +634,22 @@ export default function HModalDemo() {
             })}
             <div className="pt-2 border-t border-border flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <div>
-                <span className="text-muted-foreground">Watts saved vs continuous:</span>{" "}
+                <span className="text-muted-foreground">Saved vs continuous:</span>{" "}
                 <span className="font-mono font-bold text-green-500" data-testid="text-watts-saved">
-                  {(latest?.wattsSavedVsContinuous ?? 4.0).toFixed(3)} W
+                  {latest?.mWSavedVsContinuous ?? 4000} mW
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Per 1000 cores @ 24 h:</span>{" "}
                 <span className="font-mono font-bold text-green-500" data-testid="text-kwh-day">
-                  {(((latest?.wattsSavedVsContinuous ?? 4.0) * 1000 * 24) / 1000).toFixed(1)} kWh/day saved
+                  {/* (mW_saved × 1000 cores × 24 h) / 1_000_000 = Wh; integer arithmetic only */}
+                  {Math.floor(((latest?.mWSavedVsContinuous ?? 4000) * 1000 * 24) / 1000)} Wh/day saved
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Per 1000 cores @ 1 yr:</span>{" "}
                 <span className="font-mono font-bold text-green-500" data-testid="text-mwh-year">
-                  {(((latest?.wattsSavedVsContinuous ?? 4.0) * 1000 * 24 * 365) / 1e6).toFixed(2)} MWh/yr saved
+                  {Math.floor(((latest?.mWSavedVsContinuous ?? 4000) * 1000 * 24 * 365) / 1_000_000)} kWh/yr saved
                 </span>
               </div>
             </div>
@@ -634,34 +676,34 @@ export default function HModalDemo() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Queue depth (Q)</span>
-                <span data-testid="text-ctrl-q">{(latest?.queueDepth ?? 0).toFixed(1)} / 100</span>
+                <span data-testid="text-ctrl-q">{r(latest?.queueDepth).toFixed(1)} / 100</span>
               </div>
               <div className="h-2 bg-muted rounded overflow-hidden">
                 <div
                   className="h-full bg-blue-500 transition-all"
-                  style={{ width: `${Math.min(100, (latest?.queueDepth ?? 0))}%` }}
+                  style={{ width: `${Math.min(100, r(latest?.queueDepth))}%` }}
                 />
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cache fill (F)</span>
-                <span data-testid="text-ctrl-f">{((latest?.cacheFillRatio ?? 0) * 100).toFixed(1)}%</span>
+                <span data-testid="text-ctrl-f">{(r(latest?.cacheFillRatio) * 100).toFixed(1)}%</span>
               </div>
               <div className="h-2 bg-muted rounded overflow-hidden">
                 <div
                   className="h-full bg-green-500 transition-all"
-                  style={{ width: `${(latest?.cacheFillRatio ?? 0) * 100}%` }}
+                  style={{ width: `${r(latest?.cacheFillRatio) * 100}%` }}
                 />
               </div>
               <div className="flex justify-between pt-2 border-t border-border">
                 <span className="text-muted-foreground">Duty target (d)</span>
                 <span className="text-primary font-bold" data-testid="text-ctrl-d">
-                  {((latest?.dutyTarget ?? 0) * 100).toFixed(2)}%
+                  {(r(latest?.dutyTarget) * 100).toFixed(2)}%
                 </span>
               </div>
               <div className="h-3 bg-muted rounded overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all"
-                  style={{ width: `${(latest?.dutyTarget ?? 0) * 100}%` }}
+                  style={{ width: `${r(latest?.dutyTarget) * 100}%` }}
                 />
               </div>
               <div className="text-xs text-muted-foreground pt-1">
@@ -696,19 +738,19 @@ export default function HModalDemo() {
               <div className="flex justify-between pt-2 border-t border-border">
                 <span className="text-muted-foreground">Exposure ratio</span>
                 <span className="text-green-500 font-bold" data-testid="text-exposure">
-                  {((latest?.keyExposureRatio ?? 0) * 100).toFixed(4)}%
+                  {(r(latest?.keyExposureRatio) * 100).toFixed(4)}%
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Isolation factor</span>
                 <span className="text-green-500 font-bold text-lg" data-testid="text-isolation">
-                  {(latest?.keyIsolationFactor ?? 0).toFixed(0)}×
+                  {Math.floor(r(latest?.keyIsolationFactor))}×
                 </span>
               </div>
               <div className="text-xs text-muted-foreground pt-2 border-t border-border space-y-1">
-                <div>• Power-analysis surface: <strong>÷ {(latest?.keyIsolationFactor ?? 0).toFixed(0)}</strong></div>
-                <div>• Timing-attack surface: <strong>÷ {(latest?.keyIsolationFactor ?? 0).toFixed(0)}</strong></div>
-                <div>• Cold-boot residency: <strong>÷ {(latest?.keyIsolationFactor ?? 0).toFixed(0)}</strong></div>
+                <div>• Power-analysis surface: <strong>÷ {Math.floor(r(latest?.keyIsolationFactor))}</strong></div>
+                <div>• Timing-attack surface: <strong>÷ {Math.floor(r(latest?.keyIsolationFactor))}</strong></div>
+                <div>• Cold-boot residency: <strong>÷ {Math.floor(r(latest?.keyIsolationFactor))}</strong></div>
                 <div className="text-green-500/80 pt-1">
                   Theoretical asymptote: ∞ (steady-state hit rate → 100%)
                 </div>

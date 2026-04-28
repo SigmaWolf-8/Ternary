@@ -2538,86 +2538,108 @@ function startPqtiService(): ChildProcess | null {
           lastEnergy = cur;
         }
 
+        // ── Pure-integer sample payload ────────────────────────────
+        // Every numeric field below is either a whole integer or a
+        // {num, den} positive-integer rational.  No JS float literals,
+        // no division at the JSON boundary.  Wattage is emitted in
+        // milliwatts (mW) so 5 W → 5000.  Time is ms, energy is µJ.
         const totalOps = opsTotalHigh + opsTotalLow;
-        // Duty ratio = TIME at high / total wall time (converges to 0.25).
-        const observedRatio = (timeHighMs + timeLowMs) > 0
-          ? timeHighMs / (timeHighMs + timeLowMs)
-          : 0;
-        // Effective compute fraction = REAL CPU work time / total wall time.
-        // After cache warm-up this collapses toward ~1/Δ ≈ 0.0069.
-        const effectiveComputeFrac = (timeHighMs + timeLowMs) > 0
-          ? realHighWorkMs / (timeHighMs + timeLowMs)
-          : 0;
-        // Modeled per-core wattage (1.0 W idle, 5.0 W full load — typical
-        // x86-64 server core).  Honest model, NOT a hardware reading.
-        const W_FULL = 5.0;
-        const W_IDLE = 1.0;
-        const wattsContinuous = W_FULL;
-        const wattsHmodalNoCache = 0.25 * W_FULL + 0.75 * W_IDLE; // 2.0 W
-        const wattsHmodalCached =
-          effectiveComputeFrac * W_FULL +
-          (1 - effectiveComputeFrac) * W_IDLE;
-        const wattsSavedVsContinuous = wattsContinuous - wattsHmodalCached;
-        let savingsObserved: number | null = null;
+        const totalMs = timeHighMs + timeLowMs;
+
+        // Modeled per-core wattage in milliwatts (integer):
+        //   idle   = 1000 mW   (W_IDLE = 1.0 W)
+        //   full   = 5000 mW   (W_FULL = 5.0 W)
+        //   nocache = 0.25*full + 0.75*idle = 2000 mW exactly
+        const MW_IDLE = 1000;
+        const MW_FULL = 5000;
+        const mWContinuous = MW_FULL;
+        const mWHmodalNoCache = 2000;
+        // mWHmodalCached = MW_IDLE + (MW_FULL − MW_IDLE) * realHighWorkMs / totalMs
+        //                = (MW_IDLE * totalMs + 4000 * realHighWorkMs) / totalMs
+        // Pure integer floor division — no float anywhere.
+        const mWHmodalCached = totalMs > 0
+          ? Math.floor((MW_IDLE * totalMs + (MW_FULL - MW_IDLE) * realHighWorkMs) / totalMs)
+          : MW_IDLE;
+        const mWSavedVsContinuous = mWContinuous - mWHmodalCached;
+
+        // Observed savings as an integer rational pair.
+        // RAPL path:  (energyContEquiv − energyActual) / energyContEquiv
+        //          =  ((energyHigh*totalMs/timeHighMs) − (energyHigh+energyLow)) / (energyHigh*totalMs/timeHighMs)
+        // Multiply num & den by timeHighMs to clear the inner division.
+        // Ops path:   (workCont − totalOps) / workCont
+        //          =  (opsHigh*totalMs − totalOps*timeHighMs) / (opsHigh*totalMs)
+        let savingsObservedNum = 0;
+        let savingsObservedDen = 0;
         if (raplAvailable && timeHighMs > 0 && energyHigh_uJ > 0) {
-          const highPerMs = energyHigh_uJ / timeHighMs;
-          const totalMs = timeHighMs + timeLowMs;
-          const energyContEquiv = highPerMs * totalMs;
-          const energyActual = energyHigh_uJ + energyLow_uJ;
-          if (energyContEquiv > 0) savingsObserved = 1 - (energyActual / energyContEquiv);
+          const energyContEquivScaled = energyHigh_uJ * totalMs;          // contEquiv * timeHighMs
+          const energyActualScaled    = (energyHigh_uJ + energyLow_uJ) * timeHighMs;
+          savingsObservedNum = energyContEquivScaled - energyActualScaled;
+          savingsObservedDen = energyContEquivScaled;
         } else if (totalOps > 0 && opsTotalHigh > 0 && timeHighMs > 0) {
-          const highPerMs = opsTotalHigh / timeHighMs;
-          const totalMs = timeHighMs + timeLowMs;
-          const workCont = highPerMs * totalMs;
-          if (workCont > 0) savingsObserved = 1 - (totalOps / workCont);
+          const workContScaled  = opsTotalHigh * totalMs;                  // workCont * timeHighMs
+          const totalOpsScaled  = totalOps * timeHighMs;
+          savingsObservedNum = workContScaled - totalOpsScaled;
+          savingsObservedDen = workContScaled;
         }
+
+        // Throughput as integer ops/sec (floor division on ms→s).
+        const logicalOpsPerSecAvg = totalMs > 0
+          ? Math.floor(totalOps * 1000 / totalMs)
+          : 0;
+        const realCpuOpsPerSecAvg = realHighWorkMs > 0
+          ? Math.floor(cacheMisses * TBUF_LEN * 1000 / realHighWorkMs)
+          : 0;
+
+        // Controller live state — emitted as integer scaled rationals.
+        // Q comes from a sin() in "auto" mode, scaled to per-mille (×1000).
+        // F = cache.size / CACHE_CYCLE — already integer/integer.
+        // d clamped to [1/144, 1], scaled to per-million (×1_000_000).
+        const queueDepthMilli = Math.round(ctrl.Q * 1000);
+        const cacheFillNum = Math.min(CACHE_CYCLE, cache.size);
+        const cacheFillDen = CACHE_CYCLE;
+        const dutyTargetMicro = Math.round(ctrl.d * 1_000_000);
 
         const samplePayload = {
             type: "sample",
             t: now, phase: isHigh ? "high" : "low",
-            opsPerSec, opsThisWindow,
-            watts, deltaUj, cumulativeEnergyUj: cumulativeEnergy_uJ,
-            cumulativeOps: opsTotalHigh + opsTotalLow,
+            opsPerSec, opsThisWindow,                                 // integers
+            mW: watts,                                                // already integer mW
+            deltaUj, cumulativeEnergyUj: cumulativeEnergy_uJ,         // integers (µJ)
+            cumulativeOps: totalOps,
             cumulativeOpsHigh: opsTotalHigh,
             cumulativeOpsLow: opsTotalLow,
-            timeHighMs, timeLowMs,
+            timeHighMs, timeLowMs, totalMs,                           // integers (ms)
             cacheHits, cacheMisses,
-            cacheHitRate: (cacheHits + cacheMisses) > 0 ? cacheHits / (cacheHits + cacheMisses) : 0,
-            realHighWorkMs, cachedHighMs,
-            // Compressed savings: 1 − (real CPU time) / (total time)
-            // After warm-up, realHighWorkMs stops growing, so this asymptotes
-            // to 1 − 1/Δ = 143/144 ≈ 0.99306.
-            compressedSavings: (timeHighMs + timeLowMs) > 0
-              ? 1 - realHighWorkMs / (timeHighMs + timeLowMs)
-              : 0,
-            theoreticalCompressedSavings: 143 / 144,
-            // Modeled wattage (1.0 W idle, 5.0 W full load per core).
-            wattsContinuous,
-            wattsHmodalNoCache,
-            wattsHmodalCached,
-            wattsSavedVsContinuous,
-            effectiveComputeFrac,
-            // Throughput split: logical (what the workload SERVED, including
-            // cache hits) vs real (only cache misses that actually burned CPU).
-            logicalOpsPerSecAvg: (timeHighMs + timeLowMs) > 0
-              ? (opsTotalHigh + opsTotalLow) / ((timeHighMs + timeLowMs) / 1000)
-              : 0,
-            realCpuOpsPerSecAvg: realHighWorkMs > 0
-              ? (cacheMisses * TBUF_LEN) / (realHighWorkMs / 1000)
-              : 0,
-            // Deterministic controller live state.
+            cacheHitRate:    { num: cacheHits, den: Math.max(1, cacheHits + cacheMisses) },
+            realHighWorkMs, cachedHighMs,                             // integers (ms)
+            // Compressed savings as integer rational:
+            //   (totalMs − realHighWorkMs) / totalMs
+            // Asymptotes toward {143, 144} after cache warm-up.
+            compressedSavings: { num: totalMs - realHighWorkMs, den: Math.max(1, totalMs) },
+            theoreticalCompressedSavings: { num: 143, den: 144 },
+            // Modeled wattage in milliwatts (integers).
+            mWContinuous, mWHmodalNoCache, mWHmodalCached, mWSavedVsContinuous,
+            // Effective compute fraction: realHighWorkMs / totalMs
+            effectiveCompute: { num: realHighWorkMs, den: Math.max(1, totalMs) },
+            // Throughput split: logical (cache hits served) vs real CPU.
+            logicalOpsPerSecAvg, realCpuOpsPerSecAvg,                 // integers
+            // Deterministic controller state — integer scaled rationals.
             demandMode,
-            queueDepth: ctrl.Q,
-            cacheFillRatio: ctrl.F,
-            dutyTarget: ctrl.d,
-            // Key-isolation metrics (TL-DSA private key touch tracking).
-            keyTouchCount,
-            signatureCount,
-            keyExposureRatio: signatureCount > 0 ? keyTouchCount / signatureCount : 0,
-            keyIsolationFactor: keyTouchCount > 0 ? signatureCount / keyTouchCount : 0,
+            queueDepth:    { num: queueDepthMilli, den: 1000 },
+            cacheFillRatio:{ num: cacheFillNum,    den: cacheFillDen },
+            dutyTarget:    { num: dutyTargetMicro, den: 1_000_000 },
+            // Key-isolation metrics — pure integer ratios.
+            keyTouchCount, signatureCount,
+            keyExposureRatio:  { num: keyTouchCount,  den: Math.max(1, signatureCount) },
+            keyIsolationFactor:{ num: signatureCount, den: Math.max(1, keyTouchCount)  },
             mode: raplAvailable ? "hardware-watts" : "compute-throughput-proxy",
-            observedRatio, theoreticalRatio: 0.25,
-            savingsObserved, theoreticalSavings: 143 / 192,
+            // Duty / savings rationals.
+            observedRatio:    { num: timeHighMs, den: Math.max(1, totalMs) },
+            theoreticalRatio: { num: 1, den: 4 },
+            savingsObserved:  savingsObservedDen > 0
+              ? { num: savingsObservedNum, den: savingsObservedDen }
+              : null,
+            theoreticalSavings:{ num: 143, den: 192 },
             stepIdx,
           };
 
@@ -2707,17 +2729,18 @@ function startPqtiService(): ChildProcess | null {
       const fsInt = fsSinceSalviEpoch();
       const fsTrit = toBijectiveBase3(fsInt);
 
-      // Build EAC fields per spec §4.3.  All numeric fields are mirrored
-      // in trit (Rep-C bijective base-3) form alongside their decimal form.
-      const measuredWatts = (snap.watts as number | null) ?? snap.wattsHmodalCached;
-      const baselineWatts = snap.wattsContinuous;
-      const savingsRatio = baselineWatts > 0 ? (1 - measuredWatts / baselineWatts) : 0;
-      const windowMs = (snap.timeHighMs ?? 0) + (snap.timeLowMs ?? 0);
+      // Build EAC fields per spec §4.3.  EVERY numeric field is either a
+      // whole integer (µJ, ms, ops, mW) or a positive {num, den} integer
+      // rational.  No JS floats anywhere on the EAC document path.
+      const measuredMW = (snap.mW as number | null) ?? snap.mWHmodalCached;
+      const baselineMW = snap.mWContinuous;
+      const windowMs   = snap.totalMs ?? ((snap.timeHighMs ?? 0) + (snap.timeLowMs ?? 0));
 
       const eacFields = {
         type: "EAC",
         version: 1,
         spec: "TM-2026-042 Rev.2 §4.3",
+        numeric_policy: "all numeric fields are whole integers or positive {num, den} integer rationals; no IEEE-754 floats",
         timestamp: {
           fs_since_salvi_epoch_decimal: fsInt.toString(),
           fs_since_salvi_epoch_trit: fsTrit,
@@ -2731,21 +2754,24 @@ function startPqtiService(): ChildProcess | null {
         },
         measurement: {
           window_ms: windowMs,
-          measured_watts: measuredWatts,
-          baseline_watts: baselineWatts,
-          watts_saved: snap.wattsSavedVsContinuous,
-          savings_ratio_decimal: savingsRatio,
+          measured_mW: measuredMW,
+          baseline_mW: baselineMW,
+          mW_saved:   baselineMW - measuredMW,
+          // savings_ratio = (baseline_mW − measured_mW) / baseline_mW
+          savings_ratio: { num: Math.max(0, baselineMW - measuredMW), den: Math.max(1, baselineMW) },
           savings_ratio_theoretical: { num: 143, den: 192 },
           cumulative_ops_decimal: String(snap.cumulativeOps ?? 0),
-          cumulative_ops_trit: toBijectiveBase3(BigInt(snap.cumulativeOps ?? 0)),
-          duty_target: snap.dutyTarget,
-          duty_floor_constant: { num: 1, den: 144, name: "Δ" },
+          cumulative_ops_trit:    toBijectiveBase3(BigInt(snap.cumulativeOps ?? 0)),
+          cumulative_energy_uJ_decimal: String(snap.cumulativeEnergyUj ?? 0),
+          cumulative_energy_uJ_trit:    toBijectiveBase3(BigInt(snap.cumulativeEnergyUj ?? 0)),
+          duty_target:        snap.dutyTarget,         // {num, den} per-million
+          duty_floor_constant:{ num: 1, den: 144, name: "Δ" },
         },
         key_isolation: {
           signature_count: snap.signatureCount,
           key_touch_count: snap.keyTouchCount,
-          exposure_ratio: snap.keyExposureRatio,
-          isolation_factor: snap.keyIsolationFactor,
+          exposure_ratio:    snap.keyExposureRatio,    // {num, den}
+          isolation_factor:  snap.keyIsolationFactor,  // {num, den}
         },
         attestation_chain: snap.attestation
           ? {
