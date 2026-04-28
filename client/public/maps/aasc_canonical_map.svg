@@ -972,20 +972,20 @@
     <text x="40"   y="304" class="h3" fill="#1a6e7e">L=8 · Group 8 — Milesian key-value store  (27-bucket b³ register)</text>
     <text x="40"   y="336" class="modlist-c" fill="#0F0C0A">8.8.1.UX8.5__milesian_kv.rs  (key-value store keyed by Milesian glyphs · 27 top-level buckets · k-parametric collision-free hashing)</text>
 
-    <text x="40"   y="378" class="h3" fill="#1a6e7e">L=8 · Group 9 — Array3 Triad runtime  (3 daemon instances bound to Rep A · B · C · work-stealing across all 68 modules)</text>
+    <text x="40"   y="378" class="h3" fill="#1a6e7e">L=8 · Group 9 — Array3 Triad runtime  (3 daemon instances α · β · γ (Greek — distinct from Rep A/B/C trit bijection) · work-stealing across all 68 modules)</text>
     <text x="40"   y="410" class="modlist-c" fill="#0F0C0A">8.9.1.UX9.5__query_router.rs  (distributes SELECT/INSERT/UPDATE across Inter-Cube nodes · ≤7 hops for 540 nodes)</text>
     <text x="40"   y="440" class="modlist-c" fill="#0F0C0A">8.9.2.UX4.1__scheduler.rs    (rayon pool over GF(3) ops · in-process trit-native dispatch · zero-copy TritVec batches)</text>
     <text x="40"   y="470" class="modlist-c" fill="#0F0C0A">8.9.3.UX9.5__ipc.rs          (unix-sock / Windows named-pipe listener · trit-framed wire protocol · job-id correlation)</text>
     <text x="40"   y="500" class="modlist-c" fill="#0F0C0A">8.9.4.UX3.3__capability.rs   (TL-DSA-87 gated bearer tokens · Borromean cap-tree · per-token rate limit)</text>
-    <text x="40"   y="530" class="modlist-c" fill="#0F0C0A">8.9.5.UX9.5__service.rs           (systemd unit · Windows Service entry · health-check · graceful shutdown · launches with --instance=A|B|C)</text>
-    <text x="40"   y="560" class="modlist-c" fill="#0F0C0A">8.9.6.UX9.5__triad_coordinator.rs (Rep-A/B/C election · partitions module range across 3 daemons · cross-rep barrier sync · failover when one instance dies)</text>
+    <text x="40"   y="530" class="modlist-c" fill="#0F0C0A">8.9.5.UX9.5__service.rs           (systemd unit · Windows Service entry · health-check · graceful shutdown · launches with --instance=alpha|beta|gamma)</text>
+    <text x="40"   y="560" class="modlist-c" fill="#0F0C0A">8.9.6.UX9.5__triad_coordinator.rs (α/β/γ election · partitions module range across 3 daemons · cross-instance barrier sync · failover when one instance dies)</text>
     <text x="40"   y="590" class="modlist-c" fill="#0F0C0A">8.9.7.UX4.1__work_steal_queue.rs  (lock-free TritVec work queue · any daemon can steal any module's pending compute · O(1) push/pop · MPMC trit-native)</text>
 
     <text x="40"   y="662" class="h3" fill="#1a6e7e">Companion bridge file  (lives in L=4 calculi)</text>
     <text x="40"   y="690" class="modlist-c" fill="#0F0C0A">4.7.2.UX7.5__bridge.rs            (byte ⇄ TritVec adapter behind feature = "bridge" · only opaque-byte boundary in the entire crate)</text>
 
     <text x="40"   y="730" class="small" fill="#0d4651">Triad parallelism: SQL parse @ L=1 (any daemon) → plan @ L=4 (any daemon) → execute @ L=4 with GF(3) batches striped across all 3 daemons → storage I/O @ L=8 (router-pinned). Every module is reachable by every daemon via the work-steal queue.</text>
-    <text x="40"   y="762" class="small" fill="#0d4651">Daemon binary:  cargo build --release --features daemon  →  array3d.exe + libaasc.dll  ·  end-user runs 3 instances:  array3d --instance=A · array3d --instance=B · array3d --instance=C  ·  installer manifest registers all three as Windows services.</text>
+    <text x="40"   y="762" class="small" fill="#0d4651">Daemon binary:  cargo build --release --features daemon  →  array3d.exe + libaasc.dll  ·  end-user runs 3 instances:  array3d --instance=alpha · array3d --instance=beta · array3d --instance=gamma  ·  installer manifest registers all three as Windows services.</text>
   </g>
 
   <!-- ═══════════════ U/M CONVERSION MAPPING ═══════════════ -->
