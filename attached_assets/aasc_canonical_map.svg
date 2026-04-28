@@ -977,7 +977,7 @@
     <text x="56"  y="416" class="h3" fill="#1a6e7e">L=8 · Group 9 — Array3 Triad runtime   T- · T0 · T+   (trit-valued instances · T0 = sole public gateway · work-stealing across all 68 modules)</text>
     <text x="56"  y="452" class="modlist-c" fill="#0F0C0A">8.9.1.UX9.5__query_router.rs       (distributes SELECT/INSERT/UPDATE across Inter-Cube nodes · ≤7 hops for 540 nodes)</text>
     <text x="56"  y="486" class="modlist-c" fill="#0F0C0A">8.9.2.UX4.1__scheduler.rs          (rayon pool over GF(3) ops · in-process trit-native dispatch · zero-copy TritVec batches)</text>
-    <text x="56"  y="520" class="modlist-c" fill="#0F0C0A">8.9.3.UX9.5__ipc.rs                (unix-sock / Windows named-pipe listener · trit-framed wire protocol · job-id correlation · bound only on T0)</text>
+    <text x="56"  y="520" class="modlist-c" fill="#0F0C0A">8.9.3.UX9.5__ipc.rs                (kernel-native ternary socket via Ternary Transport · TDNS-addressed · trit-framed wire end-to-end · NO Unix-sock / NO named-pipe / NO byte stream · bound only on T0)</text>
     <text x="56"  y="554" class="modlist-c" fill="#0F0C0A">8.9.4.UX3.3__capability.rs         (TL-DSA-87 gated bearer tokens · Borromean cap-tree · per-token rate limit)</text>
     <text x="56"  y="588" class="modlist-c" fill="#0F0C0A">8.9.5.UX9.5__service.rs            (systemd unit · Windows Service entry · health-check · graceful shutdown · launches with --instance=T-|T0|T+)</text>
     <text x="56"  y="622" class="modlist-c" fill="#0F0C0A">8.9.6.UX9.5__triad_coordinator.rs  (T-/T0/T+ election · T0 binds public socket as sole gateway · T-/T+ are firewalled compute workers · failover promotes a worker to T0 if gateway dies)</text>
