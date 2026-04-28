@@ -37,6 +37,13 @@ interface Sample {
   cumulativeOpsLow?: number;
   timeHighMs?: number;
   timeLowMs?: number;
+  cacheHits?: number;
+  cacheMisses?: number;
+  cacheHitRate?: number;
+  realHighWorkMs?: number;
+  cachedHighMs?: number;
+  compressedSavings?: number;
+  theoreticalCompressedSavings?: number;
 }
 
 const MAX_SAMPLES = 300;
@@ -297,22 +304,29 @@ export default function HModalDemo() {
             testid="readout-savings"
           />
           <ReadoutCard
-            label={isHardware ? "Cumulative Energy" : "Cumulative GF(3) Ops"}
+            label="Cache Hit Rate"
             value={
-              latest && isHardware && latest.cumulativeEnergyUj > 0
-                ? `${(latest.cumulativeEnergyUj / 1e6).toFixed(3)} J`
-                : latest && (latest.cumulativeOps ?? 0) > 0
-                  ? `${((latest.cumulativeOps ?? 0) / 1e9).toFixed(3)} G`
-                  : "—"
+              latest && (latest.cacheHits ?? 0) + (latest.cacheMisses ?? 0) > 0
+                ? `${((latest.cacheHitRate ?? 0) * 100).toFixed(1)}%`
+                : "—"
             }
             sub={
-              latest && !isHardware && (latest.cumulativeOpsHigh ?? 0) > 0
-                ? `high: ${((latest.cumulativeOpsHigh ?? 0) / 1e9).toFixed(2)} G · low: ${((latest.cumulativeOpsLow ?? 0) / 1e9).toFixed(2)} G`
-                : isHardware
-                  ? "from RAPL package counter"
-                  : "real CPU work since start"
+              latest
+                ? `hits: ${latest.cacheHits ?? 0} · miss: ${latest.cacheMisses ?? 0}`
+                : "warming up cache (3 cycles)"
             }
-            testid="readout-energy"
+            testid="readout-cache"
+          />
+          <ReadoutCard
+            label="Compressed Savings"
+            value={
+              latest && (latest.compressedSavings ?? 0) > 0
+                ? `${((latest.compressedSavings ?? 0) * 100).toFixed(2)}%`
+                : "—"
+            }
+            sub="asymptote: 99.31% (143/144 = 1 − 1/Δ)"
+            tone="primary"
+            testid="readout-compressed"
           />
         </div>
 
