@@ -599,7 +599,7 @@
     <text x="1240" y="238" class="modlist-d">tick_clock.rs</text>
     <text x="1240" y="272" class="modlist-d">milesian.rs</text>
     <text x="1240" y="306" class="modlist-d">constants.rs</text>
-    <text x="20"  y="394" class="addr">5.8.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
+    <text x="20"  y="394" class="addr">5.A.1..5  ←  geometric · discrete · sector A · ord 1..5</text>
     <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)  ·  bridge-feature only</text>
   </g>
 
@@ -613,7 +613,7 @@
     <text x="1240" y="132" class="modhead-d">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">plenum_square.rs  (333 magic + 4 σ permutations)</text>
-    <text x="20"  y="394" class="addr">5.9.1  ←  geometric · discrete · sector B · ord 1</text>
+    <text x="20"  y="394" class="addr">5.B.1  ←  geometric · discrete · sector B · ord 1</text>
     <text x="20"  y="426" class="small">↔ ③  (1089 + 333 anchored to Grand Circle 756)</text>
   </g>
 
@@ -632,7 +632,7 @@
     <text x="1240" y="170" class="modlist-d">polyhedra.rs</text>
     <text x="1240" y="204" class="modlist-d">milesian.rs</text>
     <text x="1240" y="238" class="modlist-d">greek_atomic.rs</text>
-    <text x="20"  y="394" class="addr">5.11.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.C.1..3  ←  geometric · discrete · sector C · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑦  (Disdyakis · ghost letters as missing phases)</text>
   </g>
 
@@ -647,7 +647,7 @@
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">plenum_color.rs</text>
     <text x="1240" y="204" class="modlist-d">plenum_square.rs</text>
-    <text x="20"  y="394" class="addr">5.12.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.D.1..2  ←  geometric · discrete · sector D · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ A  (1089 partitions = lattice + colour symmetry)</text>
   </g>
 
@@ -668,7 +668,7 @@
     <text x="1240" y="204" class="modlist-d">axis_lock.rs</text>
     <text x="1240" y="238" class="modlist-d">lunisolar.rs</text>
     <text x="1240" y="272" class="modlist-d">proton_mass.rs</text>
-    <text x="20"  y="394" class="addr">5.13.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
+    <text x="20"  y="394" class="addr">5.E.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
     <text x="20"  y="426" class="small">↔ ① (Tri arcs)  ·  ② (Phase-Impedance 137 · 377)</text>
   </g>
 
@@ -684,7 +684,7 @@
     <text x="1240" y="170" class="modlist-d">torus_knot.rs</text>
     <text x="1240" y="204" class="modlist-d">kepler_poinsot.rs</text>
     <text x="1240" y="238" class="modlist-d">star_polytope.rs</text>
-    <text x="20"  y="394" class="addr">5.14.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.F.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ⑤  (planar star polygons that lift to 3D antiprisms)</text>
   </g>
 
@@ -702,7 +702,7 @@
     <text x="1240" y="170" class="modlist-d">crystal_2d_3d.rs</text>
     <text x="1240" y="204" class="modlist-d">arc182.rs</text>
     <text x="1240" y="238" class="modlist-d">wave_stratum.rs</text>
-    <text x="20"  y="394" class="addr">5.15.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
+    <text x="20"  y="394" class="addr">5.G.1..3  ←  geometric · discrete · sector G · ord 1..3</text>
     <text x="20"  y="426" class="small">↔ ① (Σ-182 antipode · wave-harmonic continuous spectrum)</text>
   </g>
 
@@ -717,7 +717,7 @@
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-d">cone_point.rs</text>
     <text x="1240" y="204" class="modlist-d">frame_square.rs</text>
-    <text x="20"  y="394" class="addr">5.16.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
+    <text x="20"  y="394" class="addr">5.H.1..2  ←  geometric · discrete · sector H · ord 1..2</text>
     <text x="20"  y="426" class="small">↔ ⑥  (Theta Chord year differences as cone-point lifts)</text>
   </g>
 
@@ -810,10 +810,9 @@
       <text x="2620" y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  11, 12, 13, 14, 15, 16, 17, 18, 19,</text>
       <text x="2620" y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  21, 22, 23, ...   (10, 20, 30 are skipped)</text>
       <text x="2620" y="378" class="addrnote" font-style="italic">Most layers have ≤ 9 groups so G stays a single digit.</text>
-      <text x="2620" y="412" class="addrnote" font-style="italic">Geometric (L=5) has 15 sectors — one shared G axis covers both halves:</text>
-      <text x="2620" y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 1 .. 7    →   curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
-      <text x="2620" y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 8, 9      →   discrete sectors  A , B</text>
-      <text x="2620" y="500" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 11 .. 16  →   discrete sectors  C , D , E , F , G , H</text>
+      <text x="2620" y="412" class="addrnote" font-style="italic">Geometric (L=5) has 15 sectors — curved half uses numbers, discrete half uses letters:</text>
+      <text x="2620" y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 1 .. 7   →   curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
+      <text x="2620" y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = A .. H   →   discrete sectors  A B C D E F G H   (eight wedges, exactly as drawn on the disc)</text>
 
       <!-- O column -->
       <text x="5240" y="244" class="h3" fill="#2a8050">O · Ordinal</text>
@@ -849,9 +848,9 @@
 
         <text x="3900" y="618">5.1.1__circle.rs</text>
         <text x="5550" y="618">→  L=5  Geo · Group 1 = curved sector ①</text>
-        <text x="3900" y="648">5.8.1__frame_square.rs</text>
+        <text x="3900" y="648">5.A.1__frame_square.rs</text>
         <text x="5550" y="648">→  L=5  Geo · Group 8 = discrete sector A</text>
-        <text x="3900" y="678">5.11.1__polyhedra.rs</text>
+        <text x="3900" y="678">5.C.1__polyhedra.rs</text>
         <text x="5550" y="678">→  L=5  Geo · Group 11 = discrete sector C   (10 skipped — has a zero)</text>
         <text x="3900" y="708">6.1.1__wave_stratum.rs</text>
         <text x="5550" y="708">→  L=6  Physics NE  ·  Wave / Field</text>
@@ -869,7 +868,7 @@
     <rect x="0" y="0" width="7240" height="200" rx="12" fill="#ffd9d4" stroke="#c0392b" stroke-width="4"/>
     <text x="24" y="60" class="h2" fill="#c0392b">Orphan Register  ·  cross-classified items requiring an explicit canonical home</text>
     <text x="24" y="106" class="bullet"><tspan font-weight="800">#1</tspan>  hydrogen_spectral.rs · 1/α  →  primary home: NW Spectral Quadrant   (9.1.1)</text>
-    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 4.5.1__calculus.rs;  calendar (13×28=364) anchors in panel A   (5.8.2)</text>
+    <text x="24" y="142" class="bullet"><tspan font-weight="800">#2</tspan>  calendar register  →  Δ ∮ ◯ Σ in 4.5.1__calculus.rs;  calendar (13×28=364) anchors in panel A   (5.A.2)</text>
     <text x="24" y="178" class="bullet"><tspan font-weight="800">#3</tspan>  identity 1,000,144 = (pqr−1)² + 4(p−r)²  →  jointly belongs to ② , ④ , ①   (5.4.2 referencing 5.1.1, 5.2.1)</text>
   </g>
 
