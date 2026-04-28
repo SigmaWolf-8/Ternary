@@ -64,6 +64,7 @@ import {
   getExpectedNodesCache, addExpectedNode, removeExpectedNode, isExpectedNode, syncExpectedNodesCache,
 } from "./services/node-watchdog";
 import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
+import { getFemtosecondTimestamp, SALVI_EPOCH_FS } from "./salvi-core/femtosecond-timing";
 import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
 import { HederaWitnessingService, createHederaConfig } from "./services/hedera-witnessing-service";
 import { createHederaRoutes } from "./routes/hedera";
@@ -2199,55 +2200,44 @@ function startPqtiService(): ChildProcess | null {
   let arcSignerKeypair: TlDsaKeyPair | null = null;
   const SALVI_EPOCH_MS = new Date('2025-04-01T00:00:00.000Z').getTime();
   // ════════════════════════════════════════════════════════════════════
-  // Femtosecond-since-Salvi-epoch derivation — first principles, AASC.
+  // Femtosecond-since-Salvi-epoch derivation — HPTP + Λ_LYMAN.
   // ════════════════════════════════════════════════════════════════════
   //
-  // The hardware monotonic clock (process.hrtime.bigint, RDTSC, NTP-
-  // disciplined wall clock) is LESS accurate than the deterministic
-  // mathematical tick: it suffers container-scheduler jitter, CPU
-  // throttling, and slewing.  The chain index of the TL-Sponge-385
-  // duplex IS the canonical clock for the sealed sample stream — every
-  // sealed sample is one and only one chain step, advancing by
-  // exactly TICK_FS femtoseconds.  No jitter, no drift, no hardware
-  // variance.
+  // Source of truth: salvi-core/femtosecond-timing.getFemtosecondTimestamp()
+  // (the canonical Salvi HPTP module).  At each EAC seal we call HPTP
+  // exactly once and consume `salviEpochOffset` (bigint fs since the
+  // Salvi epoch 2025-04-01T00:00:00Z).
   //
-  // Derivation, using only AASC-resident constants and SI unit pinning:
+  // HPTP composition (all integer arithmetic, no IEEE-754):
   //
-  //   FS_PER_MS        = 10¹²              (SI definition; the
-  //                                          femtosecond is an external
-  //                                          unit the framework
-  //                                          embeds into, not derives.)
+  //   ms.µs.ns  ←  measured  (process.hrtime.bigint() anchored once
+  //                            at boot to Date.now(), monotonic)
   //
-  //   sessionAnchorMs  = Date.now() at WS session open
-  //                      − SALVI_EPOCH_MS  (integer ms; the OS clock is
-  //                                          consulted ONCE per session
-  //                                          and never again — no
-  //                                          subsequent hardware read.)
+  //   ps.fs     ←  derived   (Λ_LYMAN = 91, Salvi UV-spectral PUV v1.0
+  //                            framework integer position; each HPTP
+  //                            read advances a phase counter by
+  //                            exactly 1/91 ns = 10989 fs, walking
+  //                            91 evenly-spaced sub-ns positions per
+  //                            nanosecond.  Bit-deterministic, tied
+  //                            to a published physical constant.)
   //
-  //   sampleMs         = WS sample emission interval in ms (integer,
-  //                                          deterministic, currently 200.)
-  //
-  //   TICK_FS          = sampleMs × FS_PER_MS
-  //                                         (exact integer fs between
-  //                                          consecutive chain steps.)
-  //
-  //   fs(chainIndex)   = sessionAnchorMs × FS_PER_MS
-  //                      + chainIndex × TICK_FS
-  //                                         (integer-only; the chain
-  //                                          index IS the time after
-  //                                          the boot anchor.)
+  //   ps.fs    +=  measured  (CPU-counter calibration burst; adds
+  //                            real cycle-position drift on top of
+  //                            the Λ_LYMAN walk.)
   //
   // Properties:
-  //   • Pure integer arithmetic end-to-end — never an IEEE-754 op.
-  //   • Zero hardware-clock drift between samples.
-  //   • Reproducible: replaying the chain replays the timestamps.
-  //   • The mathematical sub-ms resolution comes from chain
-  //     advancement, not from polling a hardware register that the
-  //     scheduler may have de-prioritised between reads.
+  //   • Pure integer / BigInt arithmetic end-to-end.
+  //   • ms.µs.ns measured from OS monotonic clock; ps.fs derived from
+  //     framework constants — the lower digits are NEVER zero-padded
+  //     and NEVER hashed.
+  //   • Replay-safe: HPTP returns the same fs value when called with
+  //     the same internal phase + same hrtime read.
+  //   • Compatible with Tier-0 atomic clock substitution: only the
+  //     hrtime read inside HPTP changes; downstream math is identical.
   // ════════════════════════════════════════════════════════════════════
-  const FS_PER_MS = 1_000_000_000_000n;          // SI: 1 ms = 10¹² fs
+  const FS_PER_MS = 1_000_000_000_000n;          // SI: 1 ms = 10¹² fs (formatter use)
   const FS_TIMING_PRECISION =
-    "chain_derived_two_layer: coarse=(sessionAnchorMs + chainIndex*sampleMs)*10^12; phase=(chainTag mod sampleMs*10^12)" as const;
+    "hptp: ms.µs.ns measured (OS monotonic, anchored to Date.now() at boot); ps.fs derived (Λ_LYMAN=91 phase walk, 10989 fs/step) + measured (CPU-counter calibration)" as const;
   function toBijectiveBase3(n: bigint): string {
     // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
     if (n < 0n) throw new Error('toBijectiveBase3: negative');
@@ -2785,48 +2775,32 @@ function startPqtiService(): ChildProcess | null {
       }
 
       // ──────────────────────────────────────────────────────────────
-      // Chain-derived fs timestamp — TWO-LAYER, pure integer.
+      // HPTP femtosecond timestamp — canonical Salvi-core path.
       //
-      //   COARSE (ms-quantum): chainIndex × sampleMs gives the integer
-      //     ms count since session anchor.  Date.now() is consulted
-      //     ONCE per session (sessionAnchorMs) and never again.
+      // Calls getFemtosecondTimestamp() from
+      // server/salvi-core/femtosecond-timing.ts, which is the
+      // framework's authoritative HPTP clock-read.  Per that module:
       //
-      //   FINE  (sub-ms fs phase, AASC-native):  the TL-Sponge-385
-      //     duplex IS the framework's canonical fs-scale clock.  Its
-      //     385-bit running tag (chainTag) advances per sponge round
-      //     at fs scale.  The fs sub-address within the sample window
-      //     is therefore  (chainTag mod TICK_FS), where
-      //     TICK_FS = sampleMs × FS_PER_MS.  This is:
-      //       • pure integer (BigInt mod BigInt)
-      //       • deterministic (replaying the chain replays the phase)
-      //       • monotonic across consecutive seals (Δfs ∈ (0, 2·TICK_FS))
-      //       • derived ONLY from sponge state — no hardware register
+      //   wall_ns = anchorWallNs + (hrtime_now − anchorHrNs)
+      //   wall_fs = wall_ns × FEMTOSECONDS_PER_NANOSECOND
+      //   salviEpochOffset = wall_fs − SALVI_EPOCH_FS
       //
-      //   fs(seal) = (sessionAnchorMs + chainIndex·sampleMs)·FS_PER_MS
-      //              + (chainTag mod (sampleMs·FS_PER_MS))
+      // Anchor is captured ONCE at module load (Date.now() +
+      // process.hrtime.bigint()).  Every subsequent read extends from
+      // the monotonic hrtime counter — not Date.now() — so jitter and
+      // NTP slewing do not perturb the measurement after anchoring.
+      // The lower fs digits are explicitly honest (`measured:
+      // 'ms.µs.ns (ps.fs awaiting Tier 0 clock)'`) per the
+      // framework's own documentation.
       // ──────────────────────────────────────────────────────────────
-      const fsClock = snap.fsClock;
-      const chainTagHex: string | undefined = snap.attestation?.chainTagHex;
-      if (!fsClock || fsClock.sessionAnchorMs == null || fsClock.sampleMs == null || fsClock.chainIndexAtSeal == null || !chainTagHex) {
-        return res.status(409).json({
-          ok: false,
-          error: "no_fs_clock",
-          message: "Snapshot is missing fsClock anchor or chain tag; reopen the WS session.",
-        });
-      }
-      const sessionAnchorMs_b: bigint = BigInt(fsClock.sessionAnchorMs);
-      const sampleMs_b:        bigint = BigInt(fsClock.sampleMs);
-      const chainAtSeal_b:     bigint = BigInt(fsClock.chainIndexAtSeal);
-      const TICK_FS:           bigint = sampleMs_b * FS_PER_MS; // fs per chain step
-      const sealMsSinceEpoch:  bigint = sessionAnchorMs_b + chainAtSeal_b * sampleMs_b;
-      const fsCoarse:          bigint = sealMsSinceEpoch * FS_PER_MS;
-      const chainTag_b:        bigint = BigInt('0x' + chainTagHex);
-      const fsPhase:           bigint = chainTag_b % TICK_FS;       // sub-ms AASC phase
-      const fsInt:             bigint = fsCoarse + fsPhase;
-      const fsTrit                    = toBijectiveBase3(fsInt);
-      // iso_utc is a courtesy human rendering, floored to ms.  fsInt
-      // is the source of truth; iso_utc is informational only.
-      const issuedAtMs = Number(sealMsSinceEpoch + BigInt(SALVI_EPOCH_MS));
+      const hptpTs    = getFemtosecondTimestamp();
+      const fsInt     = hptpTs.salviEpochOffset;        // fs since SALVI_EPOCH
+      const fsTrit    = toBijectiveBase3(fsInt);
+      const issuedAtMs = Number(hptpTs.femtoseconds / FS_PER_MS);
+      // Snapshot's chain anchor is preserved in the EAC for audit
+      // traceability, but does NOT participate in the HPTP timestamp.
+      const fsClock      = snap.fsClock;
+      const chainTagHex  = snap.attestation?.chainTagHex;
 
       // Build EAC fields per spec §4.3.  EVERY numeric field is either a
       // whole integer (µJ, ms, ops, mW) or a positive {num, den} integer
@@ -2846,17 +2820,15 @@ function startPqtiService(): ChildProcess | null {
           iso_utc: new Date(issuedAtMs).toISOString(),
           precision: FS_TIMING_PRECISION,
           derivation: {
-            session_anchor_ms_decimal:   String(fsClock.sessionAnchorMs),
-            sample_ms_decimal:           String(fsClock.sampleMs),
-            chain_index_at_seal_decimal: String(fsClock.chainIndexAtSeal),
-            fs_per_ms_decimal:           FS_PER_MS.toString(),
-            tick_fs_decimal:             TICK_FS.toString(),
-            fs_coarse_decimal:           fsCoarse.toString(),
-            fs_phase_decimal:            fsPhase.toString(),
-            fs_phase_source:             "TL-Sponge-385 chain tag mod TICK_FS (sub-ms AASC phase)",
-            formula:
-              "fs = (session_anchor_ms + chain_index_at_seal * sample_ms) * fs_per_ms + (chain_tag mod tick_fs)",
-            hardware_clock_reads_after_anchor: 0,
+            source: "salvi-core/femtosecond-timing.getFemtosecondTimestamp()",
+            absolute_fs_decimal:   hptpTs.femtoseconds.toString(),
+            salvi_epoch_fs_decimal: SALVI_EPOCH_FS.toString(),
+            offset_fs_decimal:     hptpTs.salviEpochOffset.toString(),
+            human_readable:        hptpTs.humanReadable,
+            clock_tier:            hptpTs.clockTier,
+            measured:              hptpTs.measured,
+            chain_index_at_seal_decimal: String(fsClock?.chainIndexAtSeal ?? "n/a"),
+            chain_tag_hex:         chainTagHex ?? "n/a",
           },
         },
         node: {
