@@ -1,0 +1,94 @@
+## Canonical File Address Scheme
+
+### Original `L.G.O` segment
+
+Every module carries a three‑part address before any UX annotation. Zero never appears as a digit anywhere in the address.
+
+| Position | Name   | Rule                                                                 |
+|----------|--------|----------------------------------------------------------------------|
+| `L`      | Layer  | 1–9. Innermost ring to outermost.                                    |
+| `G`      | Group  | Counts 1,2,3,… skipping any number that contains a zero.             |
+| `O`      | Ordinal| Counts within the group, same zero‑skip rule.                        |
+
+**Example:** `1.4.1`  
+Layer 1 (Nucleus), Group 4 (Notation cluster), Module 1.
+
+---
+
+### UX extension
+
+Appended immediately after the original address, before the module stem.
+
+```
+L.G.O.UX{p}.{s1}.{s2}..._name.rs
+```
+
+- `UX` — fixed literal prefix.
+- `{p}` — exactly one primary‑category digit (1–9).
+- `{s1}`, `{s2}`, … — sub‑tag digits, each as its own dot‑separated segment. At least one sub‑tag must appear; use `1` if none apply.
+
+---
+
+## Primary Category Digit Map
+
+| Digit | Category                              |
+|-------|---------------------------------------|
+| 1     | Representation / Encoding             |
+| 2     | Compression / Compact Data            |
+| 3     | Cryptography / Secure Primitives      |
+| 4     | Physics Computation Engine            |
+| 5     | Graphics / Geometry                   |
+| 6     | Calendrics / Time                     |
+| 7     | Data Conversion / Interoperability    |
+| 8     | File Storage / Database Indexing      |
+| 9     | Networking / Routing                  |
+
+---
+
+## Sub‑tag Digit Map
+
+| Digit | Sub‑tag                   |
+|-------|---------------------------|
+| 1     | None                      |
+| 2     | Signal Processing         |
+| 3     | Integrity / Verification  |
+| 4     | Control / Feedback Loops  |
+| 5     | Packing / Serialization   |
+| 6     | Calendar / Clock          |
+| 7     | Hashing / Fingerprinting  |
+| 8     | Unit Conversion           |
+| 9     | Routing / Pathing         |
+
+---
+
+## Worked Examples
+
+**Milesian glyph set.**
+
+```
+1.4.1.UX1.1_milesian.rs
+```
+
+- `1.4.1` — Nucleus, Notation group, first module.
+- `UX1` — Representation / Encoding.
+- `.1` — no sub‑tags.
+
+**Wave stratum.**
+
+```
+6.1.1.UX4.2.9_wave_stratum.rs
+```
+
+- `6.1.1` — Physics NE, Wave group, first module.
+- `UX4` — Physics Computation Engine.
+- `.2.9` — Signal Processing, Routing / Pathing.
+
+**Bijective converter.**
+
+```
+4.7.1.UX7.5.3_bijective_converter.rs
+```
+
+- `4.7.1` — Calculi, Bijective group, first module.
+- `UX7` — Data Conversion / Interoperability.
+- `.5.3` — Packing / Serialization, Integrity / Verification.

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 8720" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 9480" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <defs>
     <radialGradient id="nucGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%"   stop-color="#fff8c2"/>
@@ -872,8 +872,70 @@
       </g>
     </g>
 
-<!-- ═══════════════ MODULE CATALOG EXTENSION ═══════════════ -->
+<!-- ═══════════════ UX EXTENSION SCHEME ═══════════════ -->
   <g transform="translate(80, 6860)">
+    <rect x="0" y="0" width="7240" height="720" rx="12" fill="#f3eef7" stroke="#6a4c93" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#6a4c93">UX Extension  ·  appended after L.G.O  ·  classifies module purpose for tooling, search, and routing</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#6a4c93" stroke-width="3"/>
+
+    <text x="24" y="130" class="addrhead" fill="#0F0C0A">Format:    L . G . O . UX{p} . {s1} . {s2} ... __ &lt;name&gt;.rs           ·  UX is a fixed literal · {p} is one primary digit (1-9) · at least one sub-tag digit must follow (use 1 if none apply)</text>
+
+    <!-- Primary Category Digit Map (left half) -->
+    <text x="24" y="180" class="h3" fill="#6a4c93">Primary Category Digit  ·  UX{p}</text>
+    <line x1="24" y1="196" x2="3580" y2="196" stroke="#6a4c93" stroke-width="2" stroke-opacity="0.5"/>
+    <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A" font-weight="700">
+      <text x="40"   y="226">UX1  →  Representation / Encoding</text>
+      <text x="40"   y="252">UX2  →  Compression / Compact Data</text>
+      <text x="40"   y="278">UX3  →  Cryptography / Secure Primitives</text>
+      <text x="40"   y="304">UX4  →  Physics Computation Engine</text>
+      <text x="40"   y="330">UX5  →  Graphics / Geometry</text>
+      <text x="40"   y="356">UX6  →  Calendrics / Time</text>
+      <text x="40"   y="382">UX7  →  Data Conversion / Interoperability</text>
+      <text x="40"   y="408">UX8  →  File Storage / Database Indexing</text>
+      <text x="40"   y="434">UX9  →  Networking / Routing</text>
+    </g>
+
+    <!-- Sub-tag Digit Map (right half) -->
+    <text x="3660" y="180" class="h3" fill="#6a4c93">Sub-Tag Digit  ·  .{s1}.{s2}...   (one or more, dot-separated)</text>
+    <line x1="3660" y1="196" x2="7216" y2="196" stroke="#6a4c93" stroke-width="2" stroke-opacity="0.5"/>
+    <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A" font-weight="700">
+      <text x="3676" y="226">.1  →  None  (placeholder when no sub-tag applies)</text>
+      <text x="3676" y="252">.2  →  Signal Processing</text>
+      <text x="3676" y="278">.3  →  Integrity / Verification</text>
+      <text x="3676" y="304">.4  →  Control / Feedback Loops</text>
+      <text x="3676" y="330">.5  →  Packing / Serialization</text>
+      <text x="3676" y="356">.6  →  Calendar / Clock</text>
+      <text x="3676" y="382">.7  →  Hashing / Fingerprinting</text>
+      <text x="3676" y="408">.8  →  Unit Conversion</text>
+      <text x="3676" y="434">.9  →  Routing / Pathing</text>
+    </g>
+
+    <!-- Worked Examples -->
+    <line x1="24" y1="478" x2="7216" y2="478" stroke="#6a4c93" stroke-width="2" stroke-dasharray="4 6"/>
+    <text x="24" y="514" class="h3" fill="#6a4c93">Worked Examples  ·  UX tag appended to existing L.G.O address</text>
+
+    <g font-family="Menlo, Consolas, monospace" font-size="24" fill="#2a1f3d" font-weight="700">
+      <text x="40"  y="554">1.4.1.UX1.1__milesian.rs</text>
+      <text x="2620" y="554" fill="#5a3f80">→  Nucleus · Notation group · Encoding · no sub-tag</text>
+
+      <text x="40"  y="586">6.1.1.UX4.2.9__wave_stratum.rs</text>
+      <text x="2620" y="586" fill="#5a3f80">→  Physics NE Wave · Physics Computation · Signal Processing + Routing</text>
+
+      <text x="40"  y="618">4.7.1.UX7.5.3__bijective_converter.rs</text>
+      <text x="2620" y="618" fill="#5a3f80">→  Calculi Bijective · Data Conversion · Packing + Integrity</text>
+
+      <text x="40"  y="650">1.5.1.UX7.8__units.rs</text>
+      <text x="2620" y="650" fill="#5a3f80">→  Nucleus Units · Data Conversion · Unit Conversion sub-tag</text>
+
+      <text x="40"  y="682">3.5.1.UX9.9__walk.rs</text>
+      <text x="2620" y="682" fill="#5a3f80">→  Algebraic Walk · Networking/Routing · Routing/Pathing sub-tag</text>
+    </g>
+
+    <text x="40"   y="708" class="small" fill="#5a3f80">Sub-tags chain in declaration order (most-specific first); each tag is a single digit; the underscore separator ( __ ) sits immediately before the module name.</text>
+  </g>
+
+<!-- ═══════════════ MODULE CATALOG EXTENSION ═══════════════ -->
+  <g transform="translate(80, 7620)">
     <rect x="0" y="0" width="7240" height="460" rx="12" fill="#fef6ed" stroke="#c0392b" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#c0392b">Module Catalog Extension  ·  new addresses landed from Inertissimum Iώτα Nona Codex (§§0-25)</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#c0392b" stroke-width="3"/>
@@ -895,7 +957,7 @@
   </g>
 
   <!-- ═══════════════ U/M CONVERSION MAPPING ═══════════════ -->
-  <g transform="translate(80, 7360)">
+  <g transform="translate(80, 8120)">
     <rect x="0" y="0" width="7240" height="500" rx="12" fill="#eef6fa" stroke="#2D7DD2" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#2D7DD2">U/M Conversion Mapping  ·  Salvi Framework units ⇄ SI  ·  every bridge is a closed-form rational  ·  single home: 1.5.1__units.rs</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#2D7DD2" stroke-width="3"/>
@@ -960,7 +1022,7 @@
   </g>
 
   <!-- ═══════════════ CONSTANTS CATALOG ═══════════════ -->
-  <g transform="translate(80, 7900)">
+  <g transform="translate(80, 8660)">
     <rect x="0" y="0" width="7240" height="600" rx="12" fill="#fff8e8" stroke="#B8860B" stroke-width="2"/>
     <text x="24" y="64" class="h2" fill="#B8860B">Constants Catalog  ·  every numeral declared once in 1.1.1__constants.rs  ·  derived from sole axioms π = 14, b = 3</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
@@ -990,7 +1052,7 @@
   </g>
 
 <!-- ═══════════════ VERDICT STAMP ═══════════════ -->
-  <rect class="verdict-bg" x="0" y="8540" width="7400" height="180"/>
+  <rect class="verdict-bg" x="0" y="9300" width="7400" height="180"/>
   <text x="3700" y="8488" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
   <text x="3700" y="8542" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
 
