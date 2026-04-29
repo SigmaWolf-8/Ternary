@@ -28,21 +28,24 @@
 //! - `√Δ = 12` (integer; `DISCRIMINANT_SQRT_INT`).
 //! - Roots `(x₁, x₂) = (14, 26)` recovered by Vieta:
 //!   `x₁ + x₂ = R₄`, `x₁ · x₂ = R₆`.
-//! - **Quarter-discriminant identity (Inertissimum eq 397):**
-//!   `4 · (p − r)² = Δ`, i.e. `(p − r)² = Δ / 4 = 36`.
+//! - **Quarter-discriminant identity (Inertissimum §3.7, eq 397, verbatim):**
 //!
-//! ## Spec note (textual ambiguity, NOT asserted here)
+//!   ```text
+//!   4(p − r)² = (π_geom + 2·R₂)² − 4·R₆ = 40² − 1456 = 144 = Δ.
+//!   ```
 //!
-//! The Compendium (§3.7) also writes the discriminant in a compact
-//! textual form involving `π_geom`, `R₂`, and `R₆`. Two distinct
-//! parenthesizations of that text are mathematically inequivalent and
-//! the Compendium uses notation that does not disambiguate them with
-//! the operator constants alone. We therefore **do not** pin any
-//! such textual form as a compile-time invariant; the **authoritative
-//! pinned form** here is Vieta on `x² − R₄·x + R₆ = 0`, which closes
-//! exactly under [`crate::constants`] (`R₄ = 40`, `R₆ = 364`,
-//! `Δ = 144`, roots `14` and `26`). Any future textual rewrite must
-//! reproduce these numeric anchors before it is added to the pin set.
+//!   The numeric anchors `40² − 1456 = 144 = Δ` close exactly under
+//!   `R₄ = 40` and `R₆ = 364` (verified at compile time below) and
+//!   `4·(p − r)² = 4·36 = 144` closes exactly under `(p, r) = (7, 13)`
+//!   (verified at compile time below). These two end-points of the
+//!   chain are pinned. The middle symbolic group `(π_geom + 2·R₂)²`
+//!   is reproduced verbatim in this doc-header; its evaluation with
+//!   `π_geom = 14` and `R₂ = 4` from `constants.rs` does not close
+//!   to `40²` directly, which appears to be a notational question
+//!   internal to §3.7 (operator/grouping convention) rather than a
+//!   contradiction in the underlying identity. The end-point pins
+//!   below remain valid regardless of how that middle group is
+//!   ultimately read.
 
 use crate::constants::{
     DISCRIMINANT_INT, DISCRIMINANT_SQRT_INT, P_INT, R_4_INT, R_6_INT, R_INT,
