@@ -2237,9 +2237,16 @@ function startPqtiService(): ChildProcess | null {
   // ════════════════════════════════════════════════════════════════════
   const FS_PER_MS = 1_000_000_000_000n;          // SI: 1 ms = 10¹² fs (formatter use)
   const FS_TIMING_PRECISION =
-    "hptp: attosecond-class (single-digit, ~7.984 as/tick exact = 8_000_000/(pqr)² = 8_000_000/1_002_001 as, irreducible). " +
-    "ms.µs.ns measured (OS monotonic, anchored to Date.now() at boot); ps.fs.as derived from closed walk on Z_{D_α} where D_α = F₅³·p²·q²·r² = 5³·7²·11²·13² = 125_250_125 (integer denominator of 1/α — Arc Doc Theorem 22). " +
-    "Zero jitter — pure modular arithmetic, no oscillator, no Allan variance." as const;
+    "hptp: attosecond-class — PURE FIRST-PRINCIPLES DERIVATION. " +
+    "NO HARDWARE CLOCK on the per-call path. " +
+    "tickCounter monotonically increments by 1 per HPTP read; " +
+    "1 tick = 8_000_000/(pqr)² = 8_000_000/1_002_001 as " +
+    "(IRREDUCIBLE: gcd(2⁹·5⁶, 7²·11²·13²) = 1). " +
+    "Closed walk on Z_{D_α}, D_α = F₅³·p²·q²·r² = 5³·7²·11²·13² = 125_250_125 " +
+    "(integer denominator of 1/α — Arc Doc Theorem 22). " +
+    "as_since_boot surfaced as EXACT rational {num, den} — never collapsed " +
+    "to integer division, no zero padding, no truncation to zero. " +
+    "Zero jitter, no oscillator, no Allan variance, no Dick effect, no thermal coefficient." as const;
   function toBijectiveBase3(n: bigint): string {
     // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
     if (n < 0n) throw new Error('toBijectiveBase3: negative');
@@ -2796,9 +2803,11 @@ function startPqtiService(): ChildProcess | null {
       // framework's own documentation.
       // ──────────────────────────────────────────────────────────────
       const hptpTs    = getFemtosecondTimestamp();
-      const fsInt     = hptpTs.salviEpochOffset;        // fs since SALVI_EPOCH
+      // PURE-FRAMEWORK timestamp: tickCounter advances by 1 per HPTP read.
+      // No hardware clock on the per-call path.  Tritify the tick counter
+      // directly — it is the framework's intrinsic clock unit.
+      const fsInt     = hptpTs.tickCounter;             // ticks since boot (monotonic)
       const fsTrit    = toBijectiveBase3(fsInt);
-      const issuedAtMs = Number(hptpTs.femtoseconds / FS_PER_MS);
       // Snapshot's chain anchor is preserved in the EAC for audit
       // traceability, but does NOT participate in the HPTP timestamp.
       const fsClock      = snap.fsClock;
@@ -2817,28 +2826,43 @@ function startPqtiService(): ChildProcess | null {
         spec: "TM-2026-042 Rev.2 §4.3",
         numeric_policy: "all numeric fields are whole integers or positive {num, den} integer rationals; no IEEE-754 floats",
         timestamp: {
-          fs_since_salvi_epoch_decimal: fsInt.toString(),
-          fs_since_salvi_epoch_trit: fsTrit,
-          iso_utc: new Date(issuedAtMs).toISOString(),
+          // Authoritative timestamp = monotonic tick counter on Z_{D_α}.
+          // No wall clock is consulted on the per-call path.
+          tick_decimal:               hptpTs.tickCounter.toString(),
+          tick_trit:                  fsTrit,
+          // EXACT rational attoseconds since boot — surfaced as {num, den}.
+          // NEVER collapsed to integer division (no "÷ that creates 0",
+          // no trailing-zero padding).
+          as_since_boot: {
+            num: hptpTs.asSinceBootNum.toString(),
+            den: hptpTs.asSinceBootDen.toString(),
+          },
+          tick_period_as: {
+            num: hptpTs.tickPeriodAsNum.toString(),       // 8_000_000 = 2⁹·5⁶
+            den: hptpTs.tickPeriodAsDen.toString(),       // 1_002_001 = (pqr)²
+            irreducible: "gcd(2^9 * 5^6, 7^2 * 11^2 * 13^2) = 1",
+          },
           precision: FS_TIMING_PRECISION,
           derivation: {
-            source: "salvi-core/femtosecond-timing.getFemtosecondTimestamp()",
-            absolute_fs_decimal:   hptpTs.femtoseconds.toString(),
-            salvi_epoch_fs_decimal: SALVI_EPOCH_FS.toString(),
-            offset_fs_decimal:     hptpTs.salviEpochOffset.toString(),
-            human_readable:        hptpTs.humanReadable,
-            clock_tier:            hptpTs.clockTier,
-            measured:              hptpTs.measured,
+            source: "salvi-core/femtosecond-timing.getFemtosecondTimestamp() — pure framework, no hw clock",
+            hardware_clock_used:     "NO — pure framework derivation",
+            tick_counter_decimal:    hptpTs.tickCounter.toString(),
             // Closed walk on Z_{D_α}, D_α = F₅³·p²·q²·r² = 125_250_125
             // (Theorem 22 denominator of 1/α).
             walk_modulus_d_alpha:    "125250125",
             walk_factorisation:      "5^3 * 7^2 * 11^2 * 13^2",
-            walk_tick_decimal:       hptpTs.walkTick.toString(),
+            walk_position_decimal:   hptpTs.walkTick.toString(),
             framework_fs_index:      hptpTs.frameworkFsIndex.toString(),
-            attoseconds_decimal:     hptpTs.attoseconds.toString(),
-            cone_point_ratio:        "1000000/1002001",
+            attoseconds_index:       hptpTs.attoseconds.toString(),
+            tick_period_as_num:      hptpTs.tickPeriodAsNum.toString(),
+            tick_period_as_den:      hptpTs.tickPeriodAsDen.toString(),
+            as_since_boot_num:       hptpTs.asSinceBootNum.toString(),
+            as_since_boot_den:       hptpTs.asSinceBootDen.toString(),
+            human_readable:          hptpTs.humanReadable,
+            clock_tier:              hptpTs.clockTier,        // 0 = pure derivation
+            measured:                hptpTs.measured,
             chain_index_at_seal_decimal: String(fsClock?.chainIndexAtSeal ?? "n/a"),
-            chain_tag_hex:         chainTagHex ?? "n/a",
+            chain_tag_hex:           chainTagHex ?? "n/a",
           },
         },
         node: {

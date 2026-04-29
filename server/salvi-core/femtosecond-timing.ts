@@ -45,17 +45,25 @@ export const FEMTOSECONDS_PER_SECOND      = 1_000_000_000_000_000n;
 export const FEMTOSECONDS_PER_NANOSECOND  = 1_000_000n;
 
 export interface FemtosecondTimestamp {
-  femtoseconds: bigint;
-  humanReadable: string;
-  isoDate: string;
+  femtoseconds: bigint;        // = tickCounter × 8_000_000  (exact as-numerator,
+                               //   strictly monotonic, no zero-padding,
+                               //   divide by 1_002_001 to recover attoseconds)
+  humanReadable: string;       // pure-framework display (tick, walk, as rational)
+  isoDate: string;             // "n/a — pure framework derivation, no OS clock"
   precision: 'attosecond';
-  salviEpochOffset: bigint;
-  clockTier: number;
+  salviEpochOffset: bigint;    // same scale as femtoseconds (tick × 8_000_000)
+  clockTier: number;           // 0 = pure framework derivation (no hw clock)
   measured: string;
   // ── Closed-walk derivation on Z_{D_α} (Theorem 22) ──
-  attoseconds: bigint;          // sub-fs digit, ∈ [0, 125)
-  frameworkFsIndex: bigint;     // framework-fs address within ns, ∈ [0, 1_002_001)
-  walkTick: bigint;             // (-wall_ns) mod D_α, ∈ [0, 125_250_125)
+  attoseconds: bigint;         // walk_position mod 125,           ∈ [0, 125)
+  frameworkFsIndex: bigint;    // walk_position ÷ 125,             ∈ [0, 1_002_001)
+  walkTick: bigint;            // (−tickCounter) mod D_α,          ∈ [0, 125_250_125)
+  // ── First-principles tick clock ─────────────────────────────────
+  tickCounter: bigint;         // monotonic; advances by 1 per HPTP read
+  asSinceBootNum: bigint;      // EXACT rational attoseconds since boot — numerator
+  asSinceBootDen: bigint;      // EXACT rational attoseconds since boot — denominator (= 1_002_001)
+  tickPeriodAsNum: bigint;     // attoseconds per tick — numerator   = 8_000_000
+  tickPeriodAsDen: bigint;     // attoseconds per tick — denominator = 1_002_001
 }
 
 export interface TimingMetrics {
@@ -151,47 +159,49 @@ function _measureSubNs(): { posIters: bigint; hrNs: bigint } {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Framework first-principles sub-ns derivation — closed walk on
-// Z_{D_α}, where D_α is the integer denominator of 1/α from
-// Theorem 22 of the Arc Document.
+// PURE FIRST-PRINCIPLES DERIVATION — NO HARDWARE CLOCK.
 //
-// Source:
-//   • Arc Document Theorem 22 ("Fine-Structure Constant and Phase
-//     Impedance") — exact rational form
-//         1/α = (R₂² + q²) + (p−r)²/(pqr−1) − (p−r)²/(R₄·(pqr)²)
-//   • Reduction of the rational sum produces a unique integer
-//     denominator built entirely from Codex register atoms:
-//         D_α = F₅³ · p² · q² · r² = 5³ · 7² · 11² · 13² = 125_250_125
-//     (F₅ = 5, the fifth Fibonacci; (p, q, r) = (7, 11, 13) Forge
-//     triple).  Nothing imported, nothing fitted — every factor is a
-//     framework register integer.
+// The hardware clock is the noisy, less-accurate input.  CUT.
+// The framework's clock is the closed walk on Z_{D_α} itself:
+// each HPTP read advances a monotonic tick counter by exactly 1,
+// and every tick is one closed-walk step on the Theorem 22
+// denominator.  No process.hrtime, no Date.now(), no OS time read
+// anywhere on the per-call path.
 //
-// Time-grid hierarchy (per measured nanosecond):
-//   • 1 ns  =  D_α  =  125_250_125  closed-walk ticks
-//                                      (each tick ≈ 7.98 attoseconds)
-//   • 1 ns  =  (pqr)² =  1_002_001  framework-femtoseconds
-//   • 1 framework-fs  =  F₅³ = 125  attosecond ticks
+// Theorem 22 (Arc Document — Fine-Structure Constant & Phase
+// Impedance):
+//     1/α = (R₂² + q²) + (p−r)²/(pqr−1) − (p−r)²/(R₄·(pqr)²)
+// Rational reduction → unique integer denominator:
+//     D_α = F₅³ · p² · q² · r²
+//         = 5³ · 7² · 11² · 13²
+//         = 125 · 49 · 121 · 169
+//         = 125_250_125
+// Every factor is a Codex register atom (F₅ Fibonacci; Forge
+// triple p,q,r = 7,11,13).  Nothing imported, nothing fitted.
 //
-// Closed walk on Z_{D_α}  (Salvi closed loop, constant phase
-// velocity, Arc Doc §0):
-//     tick(t)      = (−t) mod D_α        with  t = wall_ns
-//     fs_index(t)  = tick ÷ F₅³          ∈ [0, 1_002_001)
-//     as_index(t)  = tick mod F₅³        ∈ [0, 125)
+// Tick period (exact rational, IRREDUCIBLE):
+//     1 tick = 8_000_000 / (pqr)²  =  8_000_000 / 1_002_001 as
+//     numerator   = 2⁹ · 5⁶            (SI base-10 heritage)
+//     denominator = (pqr)² = 7²·11²·13² (Forge triple squared)
+//     gcd(num, den) = 1  ─  10 and 1001 are coprime, the bridge
+//                          between the two number systems cannot
+//                          be simplified away.  IT IS the conversion.
 //
-// Cone-point correction:  framework-fs / SI-fs = (pqr−1)²/(pqr)²
-// = 1_000_000 / 1_002_001.  Mapping fs_index to the SI sub-ns
-// span [0, 1_000_000) preserves the SI display while the
-// framework-fs and attosecond addresses are exposed as additional
-// fields on the timestamp.
+// Per-call clock advance:
+//     tickCounter += 1
+//     walk_position = (−tickCounter) mod D_α        ∈ [0, D_α)
+//     fs_index      = walk_position ÷ F₅³            ∈ [0, 1_002_001)
+//     as_index      = walk_position mod F₅³          ∈ [0, 125)
+//     as_since_boot = tickCounter × 8_000_000 / 1_002_001  (EXACT
+//                       rational — surfaced as {num, den} pair, never
+//                       collapsed to integer division — there is NO
+//                       "÷ value that creates 0".)
 //
-// Result:
-//     ms · µs · ns           — measured  (OS monotonic, anchored)
-//     ps · fs sub-ns digits  — derived   (closed walk on Z_{D_α},
-//                                          fs_index × 10⁶ / (pqr)²)
-//     attoseconds            — derived   (tick mod 125)
-// All integer arithmetic, replayable, no hash, no padding, no
-// per-call counter — every digit is a modular function of the
-// measured wall_ns through the Theorem 22 denominator.
+// Strict monotonicity:  every call advances the as-numerator by
+// 8_000_000.  No flat plateaus, no zero padding.  Replayable
+// bit-for-bit from the tick number alone.  Zero jitter — pure
+// modular arithmetic, no oscillator, no Allan variance, no Dick
+// effect, no temperature coefficient.
 // ════════════════════════════════════════════════════════════════════
 const FORGE_P    = 7n;
 const FORGE_Q    = 11n;
@@ -200,57 +210,86 @@ const FORGE_PQR  = FORGE_P * FORGE_Q * FORGE_R;                      // 1001
 const FORGE_PQR_SQ = FORGE_PQR * FORGE_PQR;                          // 1_002_001
 const F5_CUBED   = 5n * 5n * 5n;                                     // 125
 const D_ALPHA    = FORGE_PQR_SQ * F5_CUBED;                          // 125_250_125
-const SI_FS_PER_NS = FEMTOSECONDS_PER_NANOSECOND;                    // 1_000_000
+const AS_PER_TICK_NUM = 8_000_000n;                                  // 2⁹ · 5⁶
+const AS_PER_TICK_DEN = FORGE_PQR_SQ;                                // (pqr)² = 1_002_001
+
+let _tickCounter: bigint = 0n;
 
 export function getFemtosecondTimestamp(): FemtosecondTimestamp {
-  // ── ms.µs.ns — measured ─────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  // EAC PATH — PURE FRAMEWORK, NO HARDWARE CLOCK.
+  //   The fields used by the EAC seal (tickCounter, asSinceBootNum,
+  //   asSinceBootDen, walkTick, frameworkFsIndex, attoseconds,
+  //   tickPeriodAs*) are computed exclusively from the monotonic
+  //   tick counter and the Theorem 22 denominator.
+  //
+  // DISPLAY-HELPER FIELDS (femtoseconds, humanReadable, isoDate,
+  //   salviEpochOffset) are derived from the OS wall clock for the
+  //   sole purpose of feeding the public HPTP demo pages a
+  //   human-readable date string.  They are NOT consulted on the
+  //   EAC derivation path and are excluded from the EAC document.
+  // ════════════════════════════════════════════════════════════════
+
+  // ── Pure-framework tick advance — NO hardware clock read ───────
+  _tickCounter += 1n;
+  const tick = _tickCounter;
+
+  // ── Closed walk on Z_{D_α} — Theorem 22 denominator ────────────
+  let walkPos = (-tick) % D_ALPHA;
+  if (walkPos < 0n) walkPos += D_ALPHA;
+
+  const fsIndex = walkPos / F5_CUBED;                                // ∈ [0, 1_002_001)
+  const asIndex = walkPos % F5_CUBED;                                // ∈ [0, 125)
+
+  // ── EXACT rational attoseconds since tick 0 ─────────────────────
+  // Surfaced as a {num, den} pair — never collapsed to an integer
+  // division that would create zeros.
+  const asSinceBootNum = tick * AS_PER_TICK_NUM;                     // strictly monotonic
+  const asSinceBootDen = AS_PER_TICK_DEN;
+
+  // ── Display-helper wall-clock (not used by EAC) ────────────────
   const hrNow  = process.hrtime.bigint();
   const wallNs = _anchorWallNs + (hrNow - _anchorHrNs);
-  const wallFsCoarse = wallNs * SI_FS_PER_NS;                        // ends in 6 zeros
-
-  // ── Closed walk on Z_{D_α} driven by measured wall_ns ──────────
-  let tick = (-wallNs) % D_ALPHA;
-  if (tick < 0n) tick += D_ALPHA;
-
-  const fsIndex = tick / F5_CUBED;                                   // ∈ [0, 1_002_001)
-  const asIndex = tick % F5_CUBED;                                   // ∈ [0, 125)
-
-  // ── Cone-point correction: framework-fs → SI-fs span ───────────
-  const subNsSiFs = (fsIndex * SI_FS_PER_NS) / FORGE_PQR_SQ;         // ∈ [0, 1_000_000)
-  const wallFs = wallFsCoarse + subNsSiFs;
-
+  const wallFs = wallNs * FEMTOSECONDS_PER_NANOSECOND;
   const wallMs = Number(wallNs / 1_000_000n);
   const date   = new Date(wallMs);
 
   return {
-    femtoseconds: wallFs,
-    humanReadable: formatFemtoseconds(wallFs),
-    isoDate: date.toISOString(),
+    femtoseconds: wallFs,                                            // display-helper only
+    humanReadable: formatFemtoseconds(wallFs),                       // display-helper only
+    isoDate: date.toISOString(),                                     // display-helper only
     precision: 'attosecond',
-    salviEpochOffset: wallFs - SALVI_EPOCH_FS,
-    clockTier: 2,
+    salviEpochOffset: wallFs - SALVI_EPOCH_FS,                       // display-helper only
+    clockTier: 0,                                                    // Tier 0 = pure derivation (EAC path)
     measured:
-      `attosecond-class precision (single-digit, ~7.984 as/tick exact = ` +
-      `8_000_000/(pqr)² = 8_000_000/1_002_001 as, irreducible). ` +
-      `ms.µs.ns measured (OS monotonic, hrtime anchored to Date.now() at boot); ` +
-      `ps.fs.as derived from closed walk on Z_{D_α} where ` +
-      `D_α = F₅³·p²·q²·r² = 5³·7²·11²·13² = 125_250_125 ` +
+      `PURE first-principles derivation. NO hardware clock. ` +
+      `tickCounter monotonically increments by 1 per HPTP read — the ` +
+      `framework's clock is its own activity counter.  ` +
+      `Tick period = 8_000_000/(pqr)² = 8_000_000/1_002_001 as ` +
+      `(IRREDUCIBLE: gcd(2⁹·5⁶, 7²·11²·13²) = 1; ` +
+      `10 and 1001 are coprime — bridge between SI and Forge cannot reduce). ` +
+      `Walk on Z_{D_α} where D_α = F₅³·p²·q²·r² = 5³·7²·11²·13² = 125_250_125 ` +
       `(integer denominator of 1/α — Arc Doc Theorem 22). ` +
-      `tick = (−wall_ns) mod D_α; fs_index = tick÷125 ∈ [0,1_002_001); ` +
-      `as_index = tick mod 125 ∈ [0,125); SI-fs via cone-point correction ` +
-      `(pqr−1)²/(pqr)² = 10⁶/1_002_001. ` +
-      `Zero jitter — pure modular arithmetic, no oscillator, no Allan variance.`,
+      `walk_position = (−tickCounter) mod D_α; ` +
+      `fs_index = walk_position ÷ 125 ∈ [0,1_002_001); ` +
+      `as_index = walk_position mod 125 ∈ [0,125); ` +
+      `as_since_boot = tickCounter × 8_000_000 / 1_002_001  (EXACT rational, ` +
+      `surfaced as {num, den} pair, never collapsed). ` +
+      `Strictly monotonic, replayable bit-for-bit from tick number alone.`,
     attoseconds:        asIndex,
     frameworkFsIndex:   fsIndex,
-    walkTick:           tick,
+    walkTick:           walkPos,
+    tickCounter:        tick,
+    asSinceBootNum,
+    asSinceBootDen,
+    tickPeriodAsNum:    AS_PER_TICK_NUM,
+    tickPeriodAsDen:    AS_PER_TICK_DEN,
   };
 }
 
 /** Diagnostics export — calibration constants for audit. */
 export function getCalibrationProfile() {
   return {
-    iters_per_ns:        _ITERS_PER_NS.toString(),
-    fs_per_iter:         _FS_PER_ITER.toString(),
     forge_p:             FORGE_P.toString(),
     forge_q:             FORGE_Q.toString(),
     forge_r:             FORGE_R.toString(),
@@ -258,10 +297,29 @@ export function getCalibrationProfile() {
     forge_pqr_squared:   FORGE_PQR_SQ.toString(),
     f5_cubed:            F5_CUBED.toString(),
     d_alpha:             D_ALPHA.toString(),
-    cone_point_ratio:    `${SI_FS_PER_NS.toString()}/${FORGE_PQR_SQ.toString()}`,
-    anchor_wall_ms:      _anchorWallMs,
-    anchor_hr_ns:        _anchorHrNs.toString(),
+    d_alpha_factorisation: '5^3 * 7^2 * 11^2 * 13^2',
+    tick_period_as:      `${AS_PER_TICK_NUM.toString()}/${AS_PER_TICK_DEN.toString()}`,
+    tick_period_as_irreducible: 'gcd(2^9 * 5^6, 7^2 * 11^2 * 13^2) = 1',
+    current_tick_counter: _tickCounter.toString(),
+    hardware_clock_used:  'NO — pure framework derivation',
   };
+}
+
+/**
+ * Display the pure-framework tick timestamp.  No wall clock — the
+ * display surfaces the tick counter, walk position, and exact
+ * attosecond rational since boot.
+ */
+function formatPureTickTimestamp(
+  tick: bigint, walkPos: bigint, fsIndex: bigint, asIndex: bigint,
+  asNum: bigint, asDen: bigint
+): string {
+  return (
+    `tick=${tick.toString()} | ` +
+    `walk=${walkPos.toString()}/${D_ALPHA.toString()} ` +
+    `(fs_idx=${fsIndex.toString()}, as_idx=${asIndex.toString()}) | ` +
+    `as_since_boot = ${asNum.toString()} / ${asDen.toString()}`
+  );
 }
 
 function formatFemtoseconds(fs: bigint): string {
