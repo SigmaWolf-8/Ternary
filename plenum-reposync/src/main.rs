@@ -2,11 +2,12 @@
 // PlenumNET RepoSync — single-click client launcher.
 //
 // Reads %APPDATA%\PlenumNET-RepoSync\config.toml on startup, then hands off
-// to the kernel `repo_sync` module in Client mode. No protocol logic lives
-// here — everything is in src/kernel/src/repo_sync.rs.
+// to the kernel `repo_sync` module in Client mode. No protocol logic and no
+// crypto lives here — everything is in src/kernel/src/repo_sync.rs which
+// uses the framework's KeyedTernarySponge for encryption.
 
 use anyhow::{Context, Result};
-use plenumnet_kernel::repo_sync::{self, Config, Mode};
+use plenumnet_kernel::repo_sync::{self, Config, Mode, SHARED_KEY_TRITS};
 use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
@@ -23,8 +24,10 @@ struct FileConfig {
     /// Where to drop encrypted bundle backups before each pull
     #[serde(default = "default_backup_dir")]
     backup_dir: String,
-    /// 96-hex-char (48 byte) pre-shared key, generated at first run
-    shared_key_hex: String,
+    /// Pre-shared sponge key as a balanced-ternary string of length
+    /// [`SHARED_KEY_TRITS`] (243). Each character is one trit:
+    /// `-` = -1, `0` = 0, `+` = +1. Whitespace is ignored.
+    shared_key_trits: String,
     /// How often (seconds) to poll for HEAD changes
     #[serde(default = "default_poll")]
     poll_interval_secs: u64,
@@ -51,19 +54,26 @@ fn config_path() -> PathBuf {
         .join("config.toml")
 }
 
-fn parse_hex_key(hex: &str) -> Result<[u8; 48]> {
-    let cleaned: String = hex.chars().filter(|c| !c.is_whitespace()).collect();
-    anyhow::ensure!(
-        cleaned.len() == 96,
-        "shared_key_hex must be 96 hex characters (48 bytes); got {}",
-        cleaned.len()
-    );
-    let mut out = [0u8; 48];
-    for i in 0..48 {
-        let byte = u8::from_str_radix(&cleaned[i * 2..i * 2 + 2], 16)
-            .with_context(|| format!("invalid hex at byte {}", i))?;
-        out[i] = byte;
+fn parse_trit_key(s: &str) -> Result<Vec<i8>> {
+    let mut out = Vec::with_capacity(SHARED_KEY_TRITS);
+    for ch in s.chars() {
+        match ch {
+            '-' => out.push(-1),
+            '0' => out.push(0),
+            '+' => out.push(1),
+            c if c.is_whitespace() => continue,
+            other => anyhow::bail!(
+                "shared_key_trits: invalid character '{}'; only '-', '0', '+', and whitespace allowed",
+                other
+            ),
+        }
     }
+    anyhow::ensure!(
+        out.len() == SHARED_KEY_TRITS,
+        "shared_key_trits must contain exactly {} trits; got {}",
+        SHARED_KEY_TRITS,
+        out.len()
+    );
     Ok(out)
 }
 
@@ -83,9 +93,12 @@ fn main() -> Result<()> {
     cfg.address = file.address;
     cfg.repo_path = PathBuf::from(file.repo_path);
     cfg.backup_dir = PathBuf::from(file.backup_dir);
-    cfg.shared_key = parse_hex_key(&file.shared_key_hex)?;
+    cfg.shared_key = parse_trit_key(&file.shared_key_trits)?;
     cfg.poll_interval_secs = file.poll_interval_secs;
     cfg.heartbeat_interval_secs = file.heartbeat_interval_secs;
+
+    cfg.validate()
+        .map_err(|e| anyhow::anyhow!("invalid sponge key: {:?}", e))?;
 
     eprintln!(
         "PlenumNET RepoSync starting | mode={:?} addr={} repo={}",
