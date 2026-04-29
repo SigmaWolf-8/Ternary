@@ -1,0 +1,32 @@
+name: Trit Purity Gate
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+# This workflow enforces the Salvi Framework's "trits, not bytes" invariant.
+# It is a hard gate: any PR that introduces foreign crypto imports, byte-typed
+# pre-shared keys, hex-encoded secret-key config fields, or hex parsing of key
+# material will fail to merge.
+#
+# See AGENTS.md "Trits, not bytes" for the full rule, rationale, and approved
+# replacement primitives.
+
+jobs:
+  trit-purity:
+    name: lint-trit-purity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Run trit-purity gate
+        run: bash scripts/lint-trit-purity.sh

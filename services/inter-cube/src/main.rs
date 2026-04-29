@@ -949,7 +949,7 @@ async fn run_cube_mode() {
     println!();
 
     let identity = DaemonIdentity::init();
-    let key_hex = identity.pk_hex.clone();
+    let pubkey_hex = identity.pk_hex.clone();
 
     let resolved_endpoint = match tokio::net::lookup_host(&cube_endpoint).await {
         Ok(mut addrs) => match addrs.next() {
@@ -991,7 +991,7 @@ async fn run_cube_mode() {
             .post(&register_url)
             .json(&serde_json::json!({
                 "endpoint": resolved_endpoint,
-                "publicKey": key_hex,
+                "publicKey": pubkey_hex,
             }))
             .send()
             .await;
@@ -1194,7 +1194,7 @@ async fn run_cube_mode() {
     let addr_trits: Vec<u8> = local_address.to_bytes().to_vec();
     let orchestrator_hb = orchestrator.clone();
     let local_addr_hb = local_address.clone();
-    let key_hex_hb = key_hex.clone();
+    let pubkey_hex_hb = pubkey_hex.clone();
 
     tokio::spawn(async move {
         let hb_client = reqwest::Client::builder()
@@ -1295,7 +1295,7 @@ async fn run_cube_mode() {
                 .post(&hb_url_base)
                 .json(&serde_json::json!({
                     "address": addr_str_hb,
-                    "publicKey": key_hex_hb,
+                    "publicKey": pubkey_hex_hb,
                 }))
                 .send()
                 .await;
@@ -1363,7 +1363,7 @@ async fn run_cube_mode() {
     let relay_tl_dsa_pk_hex: String = relay_kp.public_key.iter().map(|b| format!("{:02x}", b)).collect();
     let (peer_msg_tx, peer_msg_rx) = tokio::sync::mpsc::channel::<inter_cube::ws_relay::RelayEnvelope>(64);
     let relay_target_for_discovery = relay_target.clone();
-    spawn_relay_client(relay_target, addr_str_for_relay, key_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx), new_terminal_sessions(), yoda_verifier.clone(), yoda_session_origins.clone(), yoda_relay_tx.clone(), yoda_waiters.clone());
+    spawn_relay_client(relay_target, addr_str_for_relay, pubkey_hex.clone(), relay_kp.secret_key.clone(), relay_tl_dsa_pk_hex, Some(peer_senders.clone()), Some(peer_msg_rx), new_terminal_sessions(), yoda_verifier.clone(), yoda_session_origins.clone(), yoda_relay_tx.clone(), yoda_waiters.clone());
 
     let peer_msg_tx_discovery = peer_msg_tx.clone();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), Some(peer_msg_tx), Some(peer_senders.clone()));

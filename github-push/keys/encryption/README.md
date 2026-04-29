@@ -6,65 +6,105 @@ This directory contains encryption keys for:
 - Session encryption
 - Phase encryption (PQTI-specific)
 
-## Key Formats
+## Key Format — Trits, Not Bytes
 
-- `.key` - Raw symmetric key (hex encoded)
-- `.pem` - PEM format for asymmetric keys
-- `.der` - DER format (binary)
+**Salvi Framework rule:** all operator-supplied symmetric / pre-shared key
+material is stored and consumed as a **balanced ternary trit string**, not
+as hex-encoded bytes. See [`../../../AGENTS.md`](../../../AGENTS.md) for the
+full rule and rationale.
 
-## Algorithms Supported
+| Extension      | Contents                                                      |
+| -------------- | ------------------------------------------------------------- |
+| `.trits`       | Balanced-ternary symmetric key — one character per trit       |
+|                | (`-` = -1, `0` = 0, `+` = +1). Length = 243 (one full sponge   |
+|                | rate block). Whitespace is ignored.                            |
+| `.pem`         | PEM-encoded asymmetric key material (TL-DSA / TL-KEM)         |
+| `.tldsa`       | TL-DSA-87 public / secret key in framework wire format         |
 
-### Symmetric Encryption
-1. **AES-256-GCM** - Recommended for general use
-2. **ChaCha20-Poly1305** - For software-only environments
+Hex-encoded `.key` files are **not accepted** for symmetric key material.
 
-### Asymmetric Encryption
-1. **X25519** - Key exchange
-2. **RSA-OAEP-4096** - Legacy compatibility
+## Algorithms — Framework Primitives Only
 
-### Post-Quantum
-1. **Ternary Bijective Encryption** - PQTI native
-2. **Phase-Split Encryption** - Quantum-resistant
+### Symmetric Encryption / Stream Cipher / KDF
+- **`crypto::keyed_sponge::KeyedTernarySponge`** — TL-Sponge-385 keyed
+  sponge. Absorb the trit key, optionally absorb a per-frame nonce, then
+  squeeze keystream trits and XOR (or `trit_add` over GF(3)) into the
+  message. This is what RepoSync, the relay channel, and every other
+  operator-facing symmetric path uses.
+
+### Hashing / MAC
+- **`crypto::sponge::sponge_hash_bytes`** — TL-Sponge-385 cryptographic
+  hash with framework-native domain separation.
+
+### Asymmetric / Post-Quantum
+- **`crypto::tl_dsa::{sign, verify}`** — TL-DSA-87 lattice signatures.
+- **`crypto::tl_kem::{encapsulate, decapsulate}`** — TL-KEM key
+  encapsulation at NIST L1 / L3 / L5.
+
+The framework deliberately does **not** depend on `aes-gcm`,
+`chacha20-poly1305`, `sha2`, `sha3`, `blake2`, `blake3`, `md5`, `hmac`,
+`ring`, or `openssl`. New code that imports any of these will fail the
+`scripts/lint-trit-purity.sh` gate at PR time.
 
 ## Usage Examples
 
-### Rust
+### Rust — encrypt with `KeyedTernarySponge`
 ```rust
-use aes_gcm::{Aes256Gcm, Key, Nonce};
-use aes_gcm::aead::Aead;
+use plenumnet_kernel::crypto::keyed_sponge::KeyedTernarySponge;
 
-// Load encryption key
-let key_hex = std::fs::read_to_string("keys/encryption/development.key")?;
-let key_bytes = hex::decode(key_hex.trim())?;
-let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
+// Load a 243-trit key from a .trits file ("-/0/+" string).
+let raw = std::fs::read_to_string("keys/encryption/development.trits")?;
+let key: Vec<i8> = raw.chars().filter_map(|c| match c {
+    '-' => Some(-1), '0' => Some(0), '+' => Some(1), _ => None,
+}).collect();
+assert_eq!(key.len(), 243);
 
-// Encrypt data
-let cipher = Aes256Gcm::new(key);
-let nonce = Nonce::from_slice(b"unique_nonce");
-let ciphertext = cipher.encrypt(nonce, plaintext)?;
+// Per-frame nonce (uniqueness — not randomness — is the requirement).
+let nonce_trits: Vec<i8> = /* timestamp+counter, see plenumnet_kernel::repo_sync::next_nonce */;
+
+let mut sponge = KeyedTernarySponge::new(&key);
+sponge.absorb(&nonce_trits);
+let keystream = sponge.squeeze(plaintext.len() * 8).trits;
+// XOR keystream into plaintext using the unbiased trit→byte mapping
+// shown in src/kernel/src/repo_sync.rs::stream_xor_in_place.
 ```
 
-### TypeScript
+### TypeScript — call into the kernel via N-API
 ```typescript
-import { createCipheriv, randomBytes } from 'crypto';
+import { keyedSpongeEncrypt } from "ternary-math-napi";
 
-const key = Buffer.from(fs.readFileSync('keys/encryption/development.key', 'utf8').trim(), 'hex');
-const iv = randomBytes(16);
-const cipher = createCipheriv('aes-256-gcm', key, iv);
+const trits = fs.readFileSync("keys/encryption/development.trits", "utf8");
+const ciphertext = keyedSpongeEncrypt(trits, plaintext);
 ```
+
+The TypeScript side never handles raw key bytes; it forwards the trit
+string straight into the N-API binding which calls into the same Rust
+`KeyedTernarySponge` path.
 
 ## Security Best Practices
 
-1. Use authenticated encryption (GCM, Poly1305)
-2. Never reuse nonces
-3. Derive unique keys for each encryption context
-4. Implement key rotation
-5. Securely delete decrypted data after use
+1. **Never reuse a nonce.** RepoSync derives nonces from
+   `(timestamp_nanos, atomic_counter)`; the relay channel does the same.
+2. **Validate keys at the entrypoint.** Reject wrong-length keys, trits
+   outside `{-1, 0, +1}`, and the all-zero placeholder. See
+   `Config::validate()` in `src/kernel/src/repo_sync.rs`.
+3. **Sign what you encrypt.** TL-DSA-87 signatures must cover
+   `nonce ‖ ciphertext`, not ciphertext alone, to block mix-and-match
+   attacks.
+4. **Rotate keys on the radian-epoch schedule** documented in the
+   Inter-Cube specs.
+5. **Wipe trit buffers on drop.** `Vec<i8>` does not zero on drop; wrap
+   keys in `crypto::secret::TritSecret` for automatic zeroization.
 
-## Development Key
-
-A development key is NOT included for security reasons. Generate one using:
+## Generating a Development Key
 
 ```bash
-openssl rand -hex 32 > development.key
+# 243 random balanced trits (-, 0, +) written as a single line.
+python3 -c "import secrets; print(''.join(secrets.choice('-0+') for _ in range(243)))" \
+  > development.trits
 ```
+
+A development key is **not** committed to the repository. Each operator
+generates their own and configures it in
+`%APPDATA%\PlenumNET-RepoSync\config.toml` (or the equivalent for the
+service that needs it) under the `shared_key_trits` field.

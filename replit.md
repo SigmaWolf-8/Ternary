@@ -6,6 +6,9 @@ PlenumNET is developing post-quantum internet solutions. This project creates a 
 ## User Preferences
 I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
 
+## Hard Rules — Trits, Not Bytes
+The Salvi Framework is trit-native. Operator-supplied symmetric / pre-shared key material, transport ciphers, and high-level cryptographic primitives MUST be expressed in balanced ternary, not bytes and not hex. The full rule and rationale live in [`AGENTS.md`](./AGENTS.md). The rule is enforced by `scripts/lint-trit-purity.sh` and the `Trit Purity Gate` GitHub Actions workflow at `.github/workflows/trit-purity.yml` — PRs that introduce foreign crypto imports (sha2/sha3/blake/md5/hmac/ring/openssl/aes_gcm/chacha20/poly1305/argon2/scrypt), byte-typed pre-shared keys, hex-encoded secret-key config fields, or hex parsing of key material will fail to merge. The reference implementation lives in `src/kernel/src/repo_sync.rs` + `plenum-reposync/src/main.rs`. Run the gate locally with `bash scripts/lint-trit-purity.sh`.
+
 ## System Architecture
 
 ### Frontend
