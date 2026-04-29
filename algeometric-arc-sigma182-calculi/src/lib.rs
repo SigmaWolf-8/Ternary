@@ -119,6 +119,10 @@ pub mod nona_state;
 pub mod wieferich_register;
 pub mod grh_register;
 pub mod beal_register;
+pub mod pqr_asymmetry;
+pub mod discriminant;
+pub mod discriminant_identity;
+pub mod cone_point;
 
 // ════════════════════════════════════════════════════════════════════════
 // Calculi engines
