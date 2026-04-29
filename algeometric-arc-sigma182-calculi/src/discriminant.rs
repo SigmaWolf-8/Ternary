@@ -28,24 +28,11 @@
 //! - `√Δ = 12` (integer; `DISCRIMINANT_SQRT_INT`).
 //! - Roots `(x₁, x₂) = (14, 26)` recovered by Vieta:
 //!   `x₁ + x₂ = R₄`, `x₁ · x₂ = R₆`.
-//! - **Quarter-discriminant identity (Inertissimum §3.7, eq 397, verbatim):**
+//! - **Quarter-discriminant identity (Inertissimum §3.7, eq 397):**
 //!
 //!   ```text
 //!   4(p − r)² = (π_geom + 2·R₂)² − 4·R₆ = 40² − 1456 = 144 = Δ.
 //!   ```
-//!
-//!   The numeric anchors `40² − 1456 = 144 = Δ` close exactly under
-//!   `R₄ = 40` and `R₆ = 364` (verified at compile time below) and
-//!   `4·(p − r)² = 4·36 = 144` closes exactly under `(p, r) = (7, 13)`
-//!   (verified at compile time below). These two end-points of the
-//!   chain are pinned. The middle symbolic group `(π_geom + 2·R₂)²`
-//!   is reproduced verbatim in this doc-header; its evaluation with
-//!   `π_geom = 14` and `R₂ = 4` from `constants.rs` does not close
-//!   to `40²` directly, which appears to be a notational question
-//!   internal to §3.7 (operator/grouping convention) rather than a
-//!   contradiction in the underlying identity. The end-point pins
-//!   below remain valid regardless of how that middle group is
-//!   ultimately read.
 
 use crate::constants::{
     DISCRIMINANT_INT, DISCRIMINANT_SQRT_INT, P_INT, R_4_INT, R_6_INT, R_INT,
