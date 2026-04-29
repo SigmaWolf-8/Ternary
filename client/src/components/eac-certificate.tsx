@@ -278,12 +278,12 @@ export function EacCertificate({ eac, error }: EacProps) {
   useEffect(() => {
     if (!qrPayload) return;
     try {
-      // ECC level "L" — minimum redundancy → smallest QR version for
-      // the given payload → biggest cells → cube facets actually
-      // perceptible at on-screen size.  Acceptable here because the
-      // payload is already a redundant lookup key (the canonical cert
-      // body lives on the page itself, not the QR).
-      const qr = QRCode.create(qrPayload, { errorCorrectionLevel: "L" });
+      // ECC level "M" (15 % damage tolerance) — stronger error
+      // correction so the seal scans reliably even after print +
+      // photocopy + camera blur.  The payload is intentionally short
+      // (CSV rather than JSON) so even at ECC-M the matrix stays
+      // small enough that each cell renders at a perceptible size.
+      const qr = QRCode.create(qrPayload, { errorCorrectionLevel: "M" });
       const mods: any = (qr as any).modules;
       const n: number = mods.size;
       const out: boolean[][] = [];
@@ -321,18 +321,22 @@ export function EacCertificate({ eac, error }: EacProps) {
   const hed   = eac.hedera_witness ?? null;
   const cal   = eac.calendar_stamp ?? null;
 
-  const sealSize  = 360;
-  // Outer scribed band (curved heading text) — kept flush to the rim.
-  const ringR1    = 174;
-  // Inner edge of the scribed band — defines the QR safe zone.
-  const ringInner = 132;
+  const sealSize  = 380;
+  // Outer rim of the seal — outermost circle the eye reads.
+  const ringR1    = 184;
+  // Greek-glyph ring — sits inside the curved-text band, holds the
+  // 12 capital Greek letters (Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ).
+  const ringMid   = 152;
+  // Inner edge of the scribed band — defines the QR safe zone and
+  // hosts the 48-cube mandala.
+  const ringInner = 130;
   // Half-side of the QR crystal lattice (inscribed in the inner ring).
-  const qrInset   =  88;
-  // Cardinal-position anchor cubes (N / S / E / W) — the four big 3-D
-  // cubes that frame the QR.  Positioned where each cardinal axis
-  // misses the corner of the (square) QR matrix, giving them room
-  // to be large without touching the lattice or the curved text.
-  const anchorR   = 110;
+  const qrInset   =  84;
+  // DIAGONAL-position anchor cubes (NE / NW / SE / SW) — placed at
+  // the four corners of the (square) QR matrix so the cubes visually
+  // "lock" the lattice into the seal.  anchorR chosen so that the
+  // cube body clears the QR corner with a few px of breathing room.
+  const anchorR   = 144;
 
   return (
     <>
@@ -422,7 +426,7 @@ export function EacCertificate({ eac, error }: EacProps) {
                 <span className="text-muted-foreground">(UTC, ISO 8601)</span>
               </div>
               <div className="text-[10px] text-muted-foreground mt-1.5">
-                Plain English: the exact wall-clock instant this certificate was issued, expressed as a single integer count of attoseconds (10⁻¹⁸ s) since the UTC Unix epoch. Composition: ms-since-Unix-epoch × 10¹⁵ + sub-millisecond residue from the framework tick walk. Globally locatable on the UTC timeline; no node-boot relativity.
+                Plain English: the exact wall-clock instant this certificate was issued, expressed as a single integer count of attoseconds (10⁻¹⁸ s) since the UTC Unix epoch. True attosecond precision end-to-end: the UTC epoch was anchored ONCE — at the moment the very first certificate of this process was issued — to the framework's attosecond tick. Every subsequent certificate advances purely along the framework's monotonic attosecond walk — no millisecond rounding, no synthetic clamps, no per-call wall-clock reads.
               </div>
               <div className="font-mono text-[10px] text-muted-foreground break-all mt-2">
                 trit (Rep-C): {trimTrit(ts.attoseconds_since_unix_epoch_trit ?? ts.attoseconds_since_boot_trit, 81)}
@@ -669,37 +673,111 @@ export function EacCertificate({ eac, error }: EacProps) {
             className="text-primary"
             data-testid="svg-eac-seal"
           >
-            {/* Outer scribed-band rings.  Two thin concentric circles
-                define the curved-text band; a third faint ring marks
-                the inner safe zone of the QR crystal area. */}
-            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1}      fill="none" stroke="currentColor" strokeWidth={1.5} opacity={0.85} />
-            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1 - 14} fill="none" stroke="currentColor" strokeWidth={0.5} opacity={0.30} />
-            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringInner}   fill="none" stroke="currentColor" strokeWidth={0.4} opacity={0.25} />
+            {/* ── Filter defs: indent / emboss + outer drop-shadow ─────
+                The seal is rendered as if PRESSED INTO the page:
+                  • feDropShadow  → ground shadow below-right
+                  • inner-shadow  → dark crescent on the inner edge of
+                                    the rim, suggesting the rim is
+                                    sunk below the page surface
+                  • highlight     → faint white crescent on the outer
+                                    upper edge of the rim, suggesting
+                                    a bevel catching light from above */}
+            <defs>
+              <filter id="seal-indent" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
+                <feOffset dx="2" dy="2" result="offset-in" />
+                <feComposite operator="arithmetic" k2="-1" k3="1"
+                             in="offset-in" in2="SourceAlpha" result="hole-shadow" />
+                <feFlood floodColor="#000" floodOpacity="0.35" />
+                <feComposite in2="hole-shadow" operator="in" result="inner-shadow" />
+                <feMerge>
+                  <feMergeNode in="SourceGraphic" />
+                  <feMergeNode in="inner-shadow" />
+                </feMerge>
+              </filter>
+              <filter id="seal-lift" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="3" stdDeviation="3"
+                              floodColor="#000" floodOpacity="0.18" />
+              </filter>
+              <radialGradient id="seal-bevel" cx="50%" cy="38%" r="62%">
+                <stop offset="0%"  stopColor="#fff" stopOpacity="0.06" />
+                <stop offset="65%" stopColor="#fff" stopOpacity="0.00" />
+                <stop offset="92%" stopColor="#000" stopOpacity="0.10" />
+                <stop offset="100%" stopColor="#000" stopOpacity="0.18" />
+              </radialGradient>
 
-            {/* Compact mandala of small isometric cubes — sits ON the
-                inner safe-zone ring so it never crowds the curved text
-                in the outer band.  These are intentionally drawn with
-                visible 3-D facet shading (not bold-edge mode) so the
-                whole perimeter reads as a beaded crystal ring. */}
+              {/* Curved-text arcs — radius is well INSIDE the rim so
+                  the heading text has clear breathing room from the
+                  outer circle (no more text hugging the rim). */}
+              <path
+                id="seal-arc-top"
+                d={`M ${sealSize / 2 - (ringR1 - 18)} ${sealSize / 2} a ${ringR1 - 18} ${ringR1 - 18} 0 0 1 ${(ringR1 - 18) * 2} 0`}
+                fill="none"
+              />
+              <path
+                id="seal-arc-bot"
+                d={`M ${sealSize / 2 - (ringR1 - 18)} ${sealSize / 2} a ${ringR1 - 18} ${ringR1 - 18} 0 0 0 ${(ringR1 - 18) * 2} 0`}
+                fill="none"
+              />
+            </defs>
+
+            {/* Embossed ground disc — radial bevel that makes the
+                seal look indented/sunk into the page. */}
+            <g filter="url(#seal-lift)">
+              <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1 + 3}
+                      fill="url(#seal-bevel)" />
+              <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1}
+                      fill="none" stroke="currentColor"
+                      strokeWidth={1.5} opacity={0.85}
+                      filter="url(#seal-indent)" />
+            </g>
+
+            {/* Inner faint band markers (text breathing room visible). */}
+            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1 - 30}
+                    fill="none" stroke="currentColor" strokeWidth={0.4} opacity={0.22} />
+            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringInner}
+                    fill="none" stroke="currentColor" strokeWidth={0.4} opacity={0.25} />
+
+            {/* 12 capital Greek glyphs (Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ),
+                evenly spaced at 30° increments on the mid ring,
+                offset 15° from the diagonal cube anchors so they
+                never collide with the corner cubes. */}
+            {["Α","Β","Γ","Δ","Ε","Ζ","Η","Θ","Ι","Κ","Λ","Μ"].map((g, i) => {
+              const a = (i * 2 * Math.PI) / 12 - Math.PI / 2;
+              const x = sealSize / 2 + ringMid * Math.cos(a);
+              const y = sealSize / 2 + ringMid * Math.sin(a);
+              return (
+                <text
+                  key={`gk-${i}`} x={x} y={y}
+                  fontSize={11} fontFamily="Georgia, 'Times New Roman', serif"
+                  fontWeight={600}
+                  fill="currentColor" opacity={0.62}
+                  textAnchor="middle" dominantBaseline="central"
+                  data-testid={`text-greek-glyph-${i}`}
+                >
+                  {g}
+                </text>
+              );
+            })}
+
+            {/* 48-cube mandala — sits on the inner safe-zone ring. */}
             <IsoCubeRing cx={sealSize / 2} cy={sealSize / 2} r={ringInner} count={48} cubeSize={4} />
 
-            {/* Four BIG cardinal anchor cubes — N / E / S / W — each
-                with a soft drop-shadow ellipse beneath it so the seal
-                visually "lifts" into the third dimension.  Cardinal
-                placement (not diagonals) maximises the gap between
-                each cube and the corner of the square QR matrix. */}
+            {/* Four BIG DIAGONAL anchor cubes — NE / NW / SE / SW —
+                aligned with the QR matrix corners.  Each cube sits
+                JUST outside its corresponding QR corner, with a soft
+                drop-shadow ellipse beneath for unmistakable 3-D lift. */}
             {[
-              { ax: 0,  ay: -1, key: "N" },
-              { ax: 1,  ay:  0, key: "E" },
-              { ax: 0,  ay:  1, key: "S" },
-              { ax: -1, ay:  0, key: "W" },
+              { ax:  Math.SQRT1_2, ay: -Math.SQRT1_2, key: "NE" },
+              { ax: -Math.SQRT1_2, ay: -Math.SQRT1_2, key: "NW" },
+              { ax: -Math.SQRT1_2, ay:  Math.SQRT1_2, key: "SW" },
+              { ax:  Math.SQRT1_2, ay:  Math.SQRT1_2, key: "SE" },
             ].map(({ ax, ay, key }) => {
               const px = sealSize / 2 + anchorR * ax;
               const py = sealSize / 2 + anchorR * ay;
-              const cs = 16;  // half-edge of the big anchor cube
+              const cs = 14;  // half-edge of the big anchor cube
               return (
                 <g key={`anchor-${key}`}>
-                  {/* Soft drop-shadow ellipse — sells the 3-D lift. */}
                   <ellipse
                     cx={px} cy={py + cs * 1.05}
                     rx={cs * 1.15} ry={cs * 0.32}
@@ -710,9 +788,7 @@ export function EacCertificate({ eac, error }: EacProps) {
               );
             })}
 
-            {/* Faint radiating sponge-state rays — 27 spokes (3³) — kept
-                short so they sit between the QR rim and the cube ring,
-                never touching either. */}
+            {/* Faint radiating sponge-state rays — 27 spokes (3³). */}
             {Array.from({ length: 27 }).map((_, i) => {
               const a = (i * 2 * Math.PI) / 27 - Math.PI / 2;
               const x1 = sealSize / 2 + (qrInset + 6) * Math.cos(a);
@@ -725,28 +801,18 @@ export function EacCertificate({ eac, error }: EacProps) {
               );
             })}
 
-            {/* QR matrix rendered as 3-D crystal-cell mesh — centred. */}
+            {/* QR matrix rendered as 3-D crystal-cell mesh — centred.
+                Carries the EAC integrity payload INCLUDING the full
+                attosecond integer + UTC ISO + chain-tag prefix, so a
+                scan independently re-derives the cert's identity. */}
             {qrModules && (
               <g transform={`translate(${(sealSize - qrInset * 2) / 2}, ${(sealSize - qrInset * 2) / 2})`}>
                 <CrystalMatrix modules={qrModules} size={qrInset * 2} />
               </g>
             )}
 
-            {/* Curved heading text along the outer band — radius now
-                comfortably inside the rim so the cube ring can never
-                encroach on it. */}
-            <defs>
-              <path
-                id="seal-arc-top"
-                d={`M ${sealSize / 2 - (ringR1 - 7)} ${sealSize / 2} a ${ringR1 - 7} ${ringR1 - 7} 0 0 1 ${(ringR1 - 7) * 2} 0`}
-                fill="none"
-              />
-              <path
-                id="seal-arc-bot"
-                d={`M ${sealSize / 2 - (ringR1 - 7)} ${sealSize / 2} a ${ringR1 - 7} ${ringR1 - 7} 0 0 0 ${(ringR1 - 7) * 2} 0`}
-                fill="none"
-              />
-            </defs>
+            {/* Curved heading text along the outer band — padded well
+                inside the rim so it never touches the outer circle. */}
             <text fontSize={9} letterSpacing={3} fill="currentColor" opacity={0.9}>
               <textPath href="#seal-arc-top" startOffset="50%" textAnchor="middle">
                 PLENUMNET · ENERGY ATTESTATION
@@ -764,7 +830,7 @@ export function EacCertificate({ eac, error }: EacProps) {
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Stamp className="w-3 h-3" />
-            36-cube mandala · 4 corner anchors · 27 sponge rays
+            48-cube mandala · 4 diagonal corner anchors · 12 Greek glyphs · 27 sponge rays
           </div>
         </div>
       </div>

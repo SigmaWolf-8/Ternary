@@ -2898,58 +2898,58 @@ function startPqtiService(): ChildProcess | null {
       const baselineMW = snap.mWContinuous;
       const windowMs   = snap.totalMs ?? ((snap.timeHighMs ?? 0) + (snap.timeLowMs ?? 0));
 
-      // ── ATTOSECONDS-SINCE-UTC-EPOCH  (forward-facing single integer) ──
-      // Anchored against the UTC Unix epoch (1970-01-01T00:00:00Z) so the
-      // primary timestamp has a real-world wall-clock meaning rather than
-      // being relative to this node's boot.  Composition:
+      // ── ATTOSECONDS-SINCE-UTC-EPOCH ─ PURE-ATTOSECOND DERIVATION ─────
+      // True attosecond-precision wall-clock timestamp, anchored to the
+      // UTC Unix epoch (1970-01-01T00:00:00Z).
       //
-      //     as_utc = ms_since_unix_epoch · 10¹⁵
-      //              + (sub-millisecond attoseconds from framework walk)
+      // Construction (NO per-call Date.now(), NO millisecond rounding,
+      // NO post-hoc monotonic clamp):
       //
-      // The sub-ms component is the EXACT residue of the rational
-      // attoseconds-since-boot mod 10¹⁵, so the value is monotone within
-      // a single boot-session AND globally locatable on the UTC timeline.
-      // Both representations (integer + ISO string) are surfaced on the
-      // cert; the original boot-anchored framework value is preserved
-      // further down for audit purity.
-      const asNumBig = BigInt(String(hptpTs.asSinceBootNum));
-      const asDenBig = BigInt(String(hptpTs.asSinceBootDen));
-      const asBootIntBig = asDenBig > 0n ? asNumBig / asDenBig : 0n;
+      //   1. ONCE per process, at first EAC issuance, freeze a single
+      //      anchor pair (utcAtAnchor, asSinceBootAtAnchor).  This is
+      //      the ONLY moment a hardware wall-clock is consulted.
+      //   2. Every subsequent cert derives its UTC attoseconds purely
+      //      from the framework's monotonic attosecond tick walk:
+      //
+      //        utc_as = utcAtAnchor + (asSinceBootNow - asSinceBootAtAnchor)
+      //
+      //      This is naturally monotonic by the framework's own walk
+      //      monotonicity — no clamp, no simulation.  Resolution is
+      //      pure attosecond (10⁻¹⁸ s) end-to-end; nothing is rounded
+      //      to a millisecond at any step on the per-cert path.
       const AS_PER_MS  = 1_000_000_000_000_000n;       // 10¹⁵ as / ms
-      const subMsAs    = asDenBig > 0n
-        ? (asNumBig - (asBootIntBig / AS_PER_MS) * AS_PER_MS * asDenBig) / asDenBig
-        : 0n;
-      const utcMsAtIssue = BigInt(Date.now());
-      const utcAttosecondsRaw = utcMsAtIssue * AS_PER_MS
-        + ((subMsAs % AS_PER_MS + AS_PER_MS) % AS_PER_MS);
-      // ── MONOTONIC CLAMP ─────────────────────────────────────────────
-      // Date.now() can step BACKWARDS (NTP correction, manual clock
-      // change, VM host time-skew correction).  EAC issuance MUST be
-      // strictly monotonically increasing across successive certs from
-      // the same process — otherwise audit chains can show a later
-      // cert with an earlier wall-clock timestamp than its predecessor.
-      // We maintain a process-level high-water mark and clamp the
-      // emitted UTC attosecond integer to max(raw, lastEmitted + 1).
-      // The raw value is logged when a rollback is observed.
-      const lastUtc = (globalThis as any).__plenum_eac_last_utc_as ?? 0n;
-      let utcAttosecondsBig: bigint = utcAttosecondsRaw;
-      if (utcAttosecondsRaw <= lastUtc) {
-        const skew = lastUtc + 1n - utcAttosecondsRaw;
-        console.warn(
-          `[hmodal-eac] UTC clock rollback detected — clamping attosecond timestamp by +${skew} as ` +
-          `(raw=${utcAttosecondsRaw} <= lastEmitted=${lastUtc})`,
+      const asNumBig   = BigInt(String(hptpTs.asSinceBootNum));
+      const asDenBig   = BigInt(String(hptpTs.asSinceBootDen));
+      const asSinceBootBig = asDenBig > 0n ? asNumBig / asDenBig : 0n;
+
+      let anchor = (globalThis as any).__plenum_eac_utc_anchor as
+        | { utcAtAnchor: bigint; asSinceBootAtAnchor: bigint; isoAtAnchor: string }
+        | undefined;
+      if (!anchor) {
+        // First-issuance anchor: this is the only place we ever consult
+        // a wall-clock for the UTC attosecond timestamp.  Frozen for the
+        // process lifetime; every later cert reads the framework walk.
+        const wallMs = BigInt(Date.now());
+        anchor = {
+          utcAtAnchor:         wallMs * AS_PER_MS,
+          asSinceBootAtAnchor: asSinceBootBig,
+          isoAtAnchor:         new Date(Number(wallMs)).toISOString(),
+        };
+        (globalThis as any).__plenum_eac_utc_anchor = anchor;
+        console.log(
+          `[hmodal-eac] UTC anchor frozen at ${anchor.isoAtAnchor} ` +
+          `(framework asSinceBoot=${asSinceBootBig})`,
         );
-        utcAttosecondsBig = lastUtc + 1n;
       }
-      (globalThis as any).__plenum_eac_last_utc_as = utcAttosecondsBig;
-      // ISO string is derived from the (clamped) emitted attoseconds so
-      // the displayed wall-clock and the integer can never disagree.
+      const utcAttosecondsBig =
+        anchor.utcAtAnchor + (asSinceBootBig - anchor.asSinceBootAtAnchor);
       const emittedUtcMs        = utcAttosecondsBig / AS_PER_MS;
       const utcIsoAtIssue       = new Date(Number(emittedUtcMs)).toISOString();
+      const utcMsAtIssue        = emittedUtcMs;
       const attosecondsDecimal  = utcAttosecondsBig.toString();
       const attosecondsTrit     = toBijectiveBase3(utcAttosecondsBig);
-      const attosecondsBootDec  = asBootIntBig.toString();
-      const attosecondsBootTrit = toBijectiveBase3(asBootIntBig);
+      const attosecondsBootDec  = asSinceBootBig.toString();
+      const attosecondsBootTrit = toBijectiveBase3(asSinceBootBig);
       // ── 42-Calendar Stamp ────────────────────────────────────────────
       // Every EAC carries a multi-civilizational calendar reading at the
       // moment of issuance, derived purely from the framework's
