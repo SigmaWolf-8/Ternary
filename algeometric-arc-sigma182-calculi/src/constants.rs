@@ -274,6 +274,52 @@ pub const ALPHA_INV_INT: u128 = 137;
 /// `Σ̃ = b³ · α⁻¹_int = 27 · 137 = 3699` — the cumulative delta.
 pub const SIGMA_TILDE_INT: u128 = (B3_INT as u128) * ALPHA_INV_INT;
 
+// ── Walk asymmetry / Forge triple derivatives ──────────────────────────
+
+/// Walk-clock: `pqr − 1 = 1000`. Inertissimum §3.7.
+pub const WALK_CLOCK_INT: u64 = PQR_INT - 1;
+
+/// Forge-triple full asymmetry: `r − p = 6`.
+pub const PQR_ASYMMETRY_INT: u64 = R_INT - P_INT;
+
+/// Forge-triple lower asymmetry: `q − p = 4 = R₂`.
+pub const PQR_ASYMMETRY_LOWER_INT: u64 = Q_INT - P_INT;
+
+/// Forge-triple upper asymmetry: `r − q = 2`.
+pub const PQR_ASYMMETRY_UPPER_INT: u64 = R_INT - Q_INT;
+
+/// Squared full asymmetry: `(r − p)² = 36 = Δ / 4`. Inertissimum §3.7.
+pub const PQR_ASYMMETRY_SQ_INT: u64 = (R_INT - P_INT) * (R_INT - P_INT);
+
+/// Quarter-discriminant: `Δ / 4 = 36 = (r − p)²`. Inertissimum §3.7 eq 397.
+pub const QUARTER_DISCRIMINANT_INT: u64 = DISCRIMINANT_INT / 4;
+
+// ── Discriminant identity (Inertissimum §3.7) ──────────────────────────
+
+/// Discriminant-identity constant:
+/// `K = (pqr − 1)² + 4·(p − r)² = 1 000 144`. Inertissimum §3.7 eq 403.
+pub const K_DISCRIMINANT_IDENTITY_INT: u64 =
+    WALK_CLOCK_INT * WALK_CLOCK_INT + 4 * PQR_ASYMMETRY_SQ_INT;
+
+/// Mass-axis primitive: `17 = π_geom + b = R₃ + R₂`. Inertissimum §9.4.
+pub const MASS_AXIS_PRIMITIVE_INT: u64 = PI_INT + B_INT;
+
+/// Residual structural prime of the discriminant identity: `3677`.
+/// Inertissimum §3.7 eq 408 — `K = 2⁴ · 17 · 3677`.
+pub const RESIDUAL_PRIME_INT: u64 = 3677;
+
+// ── Cone-point lifts (Inertissimum §3.6) ───────────────────────────────
+
+/// Unit cone-point lift: `+1` — bijective-numeration shift.
+pub const LIFT_UNIT_INT: u64 = 1;
+
+/// Fine-structure cone-point lift: `+(p − r)² = +36` — algebraic register.
+/// Alias of [`QUARTER_DISCRIMINANT_INT`] and [`PQR_ASYMMETRY_SQ_INT`].
+pub const LIFT_FINE_STRUCTURE_INT: u64 = PQR_ASYMMETRY_SQ_INT;
+
+/// Trit-boundary cone-point lift: `+(b − 1)³ = +8` — ghost-letter register.
+pub const LIFT_TRIT_BOUNDARY_INT: u64 = (B_INT - 1) * (B_INT - 1) * (B_INT - 1);
+
 // ════════════════════════════════════════════════════════════════════════
 // Runtime constructors (heap allocation)
 // ════════════════════════════════════════════════════════════════════════
