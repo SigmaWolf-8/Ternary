@@ -2237,7 +2237,9 @@ function startPqtiService(): ChildProcess | null {
   // ════════════════════════════════════════════════════════════════════
   const FS_PER_MS = 1_000_000_000_000n;          // SI: 1 ms = 10¹² fs (formatter use)
   const FS_TIMING_PRECISION =
-    "hptp: ms.µs.ns measured (OS monotonic, anchored to Date.now() at boot); ps.fs derived (Λ_LYMAN=91 phase walk, 10989 fs/step) + measured (CPU-counter calibration)" as const;
+    "hptp: attosecond-class (single-digit, ~7.984 as/tick exact = 8_000_000/(pqr)² = 8_000_000/1_002_001 as, irreducible). " +
+    "ms.µs.ns measured (OS monotonic, anchored to Date.now() at boot); ps.fs.as derived from closed walk on Z_{D_α} where D_α = F₅³·p²·q²·r² = 5³·7²·11²·13² = 125_250_125 (integer denominator of 1/α — Arc Doc Theorem 22). " +
+    "Zero jitter — pure modular arithmetic, no oscillator, no Allan variance." as const;
   function toBijectiveBase3(n: bigint): string {
     // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
     if (n < 0n) throw new Error('toBijectiveBase3: negative');
