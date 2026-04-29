@@ -5,64 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AASC Canonical Map</title>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; background: #0F0C0A; color: #E8E4DE; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; overflow: hidden; }
-  #toolbar {
-    position: fixed; top: 12px; left: 12px; z-index: 10;
-    display: flex; gap: 6px; align-items: center;
-    padding: 8px 10px; background: rgba(20, 18, 16, 0.85);
-    border: 1px solid #3D444B; border-radius: 8px;
-    backdrop-filter: blur(6px);
-    font-size: 13px;
-  }
-  #toolbar button {
-    background: #1a1715; color: #E8E4DE; border: 1px solid #3D444B;
-    padding: 6px 10px; border-radius: 5px; cursor: pointer; font-size: 13px;
-    min-width: 36px;
-  }
-  #toolbar button:hover { background: #2a2520; border-color: #4A9EF5; }
-  #toolbar .label { opacity: 0.7; padding: 0 6px; }
-  #toolbar #zoomLabel { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #0F0C0A; overflow: hidden; }
   #stage { position: absolute; inset: 0; overflow: hidden; cursor: grab; }
   #stage.dragging { cursor: grabbing; }
   #stage svg { display: block; transform-origin: 0 0; user-select: none; }
-  #hint { position: fixed; bottom: 12px; right: 12px; padding: 8px 12px; background: rgba(20, 18, 16, 0.7); border: 1px solid #3D444B; border-radius: 6px; font-size: 12px; color: #78828C; }
 </style>
 </head>
 <body>
-  <div id="toolbar">
-    <button id="zoomOut" title="Zoom out (−)">−</button>
-    <span id="zoomLabel">100%</span>
-    <button id="zoomIn" title="Zoom in (+)">+</button>
-    <span class="label">|</span>
-    <button id="fit" title="Fit to window">Fit</button>
-    <button id="actual" title="Actual size (1:1)">1:1</button>
-    <span class="label">|</span>
-    <a href="/aasc_canonical_map.svg" download style="text-decoration: none;">
-      <button title="Download SVG">Download</button>
-    </a>
-  </div>
-  <div id="stage"><div id="content"></div></div>
-  <div id="hint">scroll = zoom · drag = pan · double-click = fit</div>
-
+<div id="stage"><div id="content"></div></div>
 <script>
 (async function () {
   const stage = document.getElementById('stage');
   const content = document.getElementById('content');
-  const zoomLabel = document.getElementById('zoomLabel');
-
   const res = await fetch('/aasc_canonical_map.svg', { cache: 'no-store' });
-  if (!res.ok) {
-    content.innerHTML = '<div style="padding:24px;color:#ff6b6b">Failed to load map: HTTP ' + res.status + '</div>';
-    return;
-  }
   content.innerHTML = await res.text();
-
   const svg = content.querySelector('svg');
-  if (!svg) {
-    content.innerHTML = '<div style="padding:24px;color:#ff6b6b">SVG element not found in response</div>';
-    return;
-  }
-
+  if (!svg) return;
   const vb = svg.viewBox.baseVal;
   const svgW = vb && vb.width  ? vb.width  : (svg.width.baseVal.value  || 1000);
   const svgH = vb && vb.height ? vb.height : (svg.height.baseVal.value || 1000);
@@ -72,70 +30,37 @@
   svg.style.height = svgH + 'px';
 
   let scale = 1, tx = 0, ty = 0;
-  function apply() {
-    svg.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
-    zoomLabel.textContent = Math.round(scale * 100) + '%';
-  }
+  function apply() { svg.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')'; }
   function fit() {
     const sw = stage.clientWidth, sh = stage.clientHeight;
-    const pad = 40;
-    scale = Math.min((sw - pad) / svgW, (sh - pad) / svgH);
+    scale = Math.min(sw / svgW, sh / svgH);
     tx = (sw - svgW * scale) / 2;
     ty = (sh - svgH * scale) / 2;
     apply();
   }
-  function actual() {
-    const sw = stage.clientWidth, sh = stage.clientHeight;
-    scale = 1;
-    tx = (sw - svgW) / 2;
-    ty = (sh - svgH) / 2;
-    apply();
-  }
   function zoomAt(cx, cy, factor) {
-    const next = Math.max(0.05, Math.min(40, scale * factor));
-    const real = next / scale;
-    tx = cx - (cx - tx) * real;
-    ty = cy - (cy - ty) * real;
+    const next = Math.max(0.02, Math.min(60, scale * factor));
+    const r = next / scale;
+    tx = cx - (cx - tx) * r;
+    ty = cy - (cy - ty) * r;
     scale = next;
     apply();
   }
-
-  document.getElementById('zoomIn').onclick  = () => zoomAt(stage.clientWidth/2, stage.clientHeight/2, 1.25);
-  document.getElementById('zoomOut').onclick = () => zoomAt(stage.clientWidth/2, stage.clientHeight/2, 0.8);
-  document.getElementById('fit').onclick    = fit;
-  document.getElementById('actual').onclick = actual;
-
   stage.addEventListener('wheel', (e) => {
     e.preventDefault();
-    const rect = stage.getBoundingClientRect();
-    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-    zoomAt(cx, cy, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+    const r = stage.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.2 : 1 / 1.2);
   }, { passive: false });
-
   stage.addEventListener('dblclick', fit);
-
-  let dragging = false, lastX = 0, lastY = 0;
-  stage.addEventListener('mousedown', (e) => {
-    dragging = true; stage.classList.add('dragging');
-    lastX = e.clientX; lastY = e.clientY;
-  });
-  window.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    tx += e.clientX - lastX;
-    ty += e.clientY - lastY;
-    lastX = e.clientX; lastY = e.clientY;
-    apply();
-  });
-  window.addEventListener('mouseup', () => { dragging = false; stage.classList.remove('dragging'); });
-
+  let drag = false, lx = 0, ly = 0;
+  stage.addEventListener('mousedown', (e) => { drag = true; stage.classList.add('dragging'); lx = e.clientX; ly = e.clientY; });
+  window.addEventListener('mousemove', (e) => { if (!drag) return; tx += e.clientX - lx; ty += e.clientY - ly; lx = e.clientX; ly = e.clientY; apply(); });
+  window.addEventListener('mouseup', () => { drag = false; stage.classList.remove('dragging'); });
   window.addEventListener('keydown', (e) => {
+    if (e.key === '0') fit();
     if (e.key === '+' || e.key === '=') zoomAt(stage.clientWidth/2, stage.clientHeight/2, 1.25);
     if (e.key === '-' || e.key === '_') zoomAt(stage.clientWidth/2, stage.clientHeight/2, 0.8);
-    if (e.key === '0') fit();
-    if (e.key === '1') actual();
   });
-
-  window.addEventListener('resize', () => {/* keep current pan/zoom */});
   fit();
 })();
 </script>
