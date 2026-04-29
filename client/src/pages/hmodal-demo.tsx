@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Play, Square, Download, FileText, Zap, AlertCircle, CheckCircle, ShieldCheck } from "lucide-react";
+import { EacCertificate } from "@/components/eac-certificate";
 
 interface StatusResponse {
   raplAvailable: boolean;
@@ -29,6 +30,17 @@ type Rational = { num: number; den: number };
 // at render time.  Never feed the result back into the wire path.
 const r = (x: Rational | null | undefined): number =>
   x && x.den > 0 ? x.num / x.den : 0;
+
+// Format an integer count of µJ as a human-readable energy with the
+// appropriate SI prefix (µJ → mJ → J → kJ).  All inputs/outputs remain
+// integer-derived; the final formatting is purely cosmetic.
+function formatJoules(uj: number): string {
+  const v = Math.max(0, Math.floor(uj));
+  if (v < 1_000)            return `${v} µJ`;
+  if (v < 1_000_000)        return `${(v / 1_000).toFixed(2)} mJ`;
+  if (v < 1_000_000_000)    return `${(v / 1_000_000).toFixed(3)} J`;
+  return `${(v / 1_000_000_000).toFixed(3)} kJ`;
+}
 
 interface Sample {
   t: number;
@@ -92,11 +104,13 @@ export default function HModalDemo() {
   const [eacResult, setEacResult] = useState<any>(null);
   const [eacError, setEacError] = useState<string | null>(null);
   const [tunnel, setTunnel] = useState<{
-    sessionId?: string;
+    sessionId?: string;        // trit-native (Rep-C bijective base-3)
     cipher?: string;
-    chainSeedHex?: string;
+    chainSeedTrit?: string;
+    chainSeedHex?: string;     // legacy hex (audit only)
     sealedCount: number;
-    chainTagHex?: string;
+    chainTagTrit?: string;
+    chainTagHex?: string;      // legacy hex (audit only)
     lastIndex?: string;
   }>({ sealedCount: 0 });
 
@@ -164,19 +178,21 @@ export default function HModalDemo() {
         const msg = JSON.parse(raw);
         if (msg.type === "session") {
           setTunnel({
-            sessionId: msg.sessionId,
-            cipher: msg.cipher,
-            chainSeedHex: msg.chainSeedHex,
-            sealedCount: 0,
+            sessionId:     msg.sessionId,        // already trit-native
+            cipher:        msg.cipher,
+            chainSeedTrit: msg.chainSeedTrit,
+            chainSeedHex:  msg.chainSeedHex,     // legacy
+            sealedCount:   0,
           });
           return;
         }
         if (msg.type === "sealed") {
           setTunnel((prev) => ({
             ...prev,
-            sealedCount: prev.sealedCount + 1,
-            chainTagHex: msg.chainTagHex,
-            lastIndex: msg.index,
+            sealedCount:  prev.sealedCount + 1,
+            chainTagTrit: msg.chainTag      ?? prev.chainTagTrit,
+            chainTagHex:  msg.chainTagHex   ?? prev.chainTagHex,
+            lastIndex:    msg.index,
           }));
           return;
         }
@@ -414,8 +430,8 @@ export default function HModalDemo() {
                 <span className="text-muted-foreground">cipher: </span>
                 {tunnel.cipher}
               </div>
-              <div data-testid="text-tunnel-session">
-                <span className="text-muted-foreground">session id: </span>
+              <div className="break-all" data-testid="text-tunnel-session">
+                <span className="text-muted-foreground">session id (trit): </span>
                 {tunnel.sessionId}
               </div>
               <div data-testid="text-tunnel-sealed-count">
@@ -423,121 +439,64 @@ export default function HModalDemo() {
                 {tunnel.sealedCount} (last index = {tunnel.lastIndex ?? "—"})
               </div>
               <div className="break-all" data-testid="text-tunnel-chain-tag">
-                <span className="text-muted-foreground">running chain tag: </span>
-                {tunnel.chainTagHex ?? "(awaiting first sealed frame)"}
+                <span className="text-muted-foreground">running chain tag (trit, head): </span>
+                {tunnel.chainTagTrit
+                  ? tunnel.chainTagTrit.slice(0, 96) + (tunnel.chainTagTrit.length > 96 ? "…" : "")
+                  : "(awaiting first sealed frame)"}
               </div>
             </CardContent>
           </Card>
         )}
 
         {(eacResult || eacError) && (
-          <Card data-testid="card-eac-result">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5" />
-                Energy Attestation Certificate
-                {eacError ? (
-                  <Badge variant="destructive" data-testid="badge-eac-error">error</Badge>
-                ) : (
-                  <Badge variant="default" data-testid="badge-eac-ok">signed</Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {eacError && (
-                <div className="text-sm text-destructive flex items-center gap-2" data-testid="text-eac-error">
-                  <AlertCircle className="w-4 h-4" /> {eacError}
-                </div>
-              )}
-              {eacResult?.signature && (
-                <div className="space-y-4">
-                  {/* Header grid — short scalars */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-xs font-mono">
-                    <div data-testid="text-eac-variant">
-                      <span className="text-muted-foreground">signature variant: </span>
-                      <span className="font-semibold">{eacResult.signature.variant}</span>
-                    </div>
-                    <div data-testid="text-eac-pubkey-hash">
-                      <span className="text-muted-foreground">node pubkey hash: </span>
-                      {eacResult.signature.public_key_hash?.slice(0, 24)}…
-                    </div>
-                    <div data-testid="text-eac-tis27">
-                      <span className="text-muted-foreground">TIS-27 document hash: </span>
-                      {eacResult.integrity?.tis27_hash_hex?.slice(0, 24)}…
-                    </div>
-                    <div data-testid="text-eac-fs">
-                      <span className="text-muted-foreground">fs since Salvi epoch: </span>
-                      {eacResult.timestamp?.fs_since_salvi_epoch_decimal}
-                    </div>
-                  </div>
-
-                  {/* Stand-alone Milesian glyph block — TIS-27 hash */}
-                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                      Milesian glyph hash · TIS-27 → bijective base-27 over Greek register {"{α..ω + ϛ ϟ ϡ}"}
-                    </div>
-                    <div
-                      data-testid="text-eac-milesian"
-                      className="text-2xl leading-relaxed font-serif tracking-wide break-all"
-                      lang="el"
-                      dir="ltr"
-                    >
-                      {eacResult.integrity?.tis27_hash_milesian || "—"}
-                    </div>
-                  </div>
-
-                  {/* Stand-alone chain-tag glyph block — TL-Sponge-385 chain tag */}
-                  {eacResult.attestation_chain && (
-                    <div className="space-y-2">
-                      <div
-                        className="text-xs font-mono break-all"
-                        data-testid="text-eac-chain-tag"
-                      >
-                        <span className="text-muted-foreground">tunnel chain tag ({eacResult.attestation_chain.cipher}): </span>
-                        {eacResult.attestation_chain.chain_tag_hex?.slice(0, 48)}…
-                      </div>
-                      <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                          Chain tag · Milesian rendering
-                        </div>
-                        <div
-                          data-testid="text-eac-chain-milesian"
-                          className="text-2xl leading-relaxed font-serif tracking-wide break-all"
-                          lang="el"
-                          dir="ltr"
-                        >
-                          {eacResult.attestation_chain.chain_tag_milesian || "—"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <pre
-                className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-96"
-                data-testid="text-eac-json"
-              >
-                {JSON.stringify(eacResult, null, 2)}
-              </pre>
-            </CardContent>
-          </Card>
+          <div data-testid="card-eac-result" className="space-y-3">
+            <EacCertificate eac={eacResult} error={eacError} />
+            {eacResult && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                  Canonical EAC payload (JSON)
+                </summary>
+                <pre
+                  className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-96 mt-2"
+                  data-testid="text-eac-json"
+                >
+                  {JSON.stringify(eacResult, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <ReadoutCard
-            label="Logical Throughput"
+            label="Live Power Draw"
             value={
-              latest && (latest.logicalOpsPerSecAvg ?? 0) > 0
-                ? `${((latest.logicalOpsPerSecAvg ?? 0) / 1e6).toFixed(2)} Mops/s`
+              latest
+                ? `${(latest.mWHmodalCached ?? latest.mW ?? 0)} mW`
                 : "—"
             }
             sub={
               latest
-                ? `CPU active only ${(r(latest.effectiveCompute) * 100).toFixed(2)}% of wall time`
-                : ""
+                ? `saved vs continuous: ${latest.mWSavedVsContinuous ?? 0} mW`
+                : "live mW under HModal + Δ-cache"
             }
             tone="primary"
             testid="readout-live"
+          />
+          <ReadoutCard
+            label="Cumulative Energy Saved"
+            value={
+              latest
+                ? formatJoules(latest.cumulativeEnergyUj)
+                : "—"
+            }
+            sub={
+              latest
+                ? `${latest.cumulativeEnergyUj.toLocaleString()} µJ raw`
+                : "integral over the live window"
+            }
+            tone="primary"
+            testid="readout-energy-saved"
           />
           <ReadoutCard
             label="Time Duty (high / total)"

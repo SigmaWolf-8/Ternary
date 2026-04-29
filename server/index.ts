@@ -2261,6 +2261,28 @@ function startPqtiService(): ChildProcess | null {
     }
     return digits.reverse().join('');
   }
+  // Hex string → Rep-C bijective base-3 string.  Treats the hex as a
+  // big-endian non-negative integer.  Used to expose every "*_hex"
+  // wire field as the equivalent trit-native Rep-C string so the UI
+  // never has to render hex.
+  function hexToBijectiveBase3(hex: string): string {
+    const clean = (hex || '').replace(/^0x/i, '');
+    if (clean.length === 0) return '';
+    return toBijectiveBase3(BigInt('0x' + clean));
+  }
+  // Balanced-trit array (Int8Array of {-1,0,1}) → Rep-C bijective base-3
+  // string.  Map balanced {-1,0,1} → Rep-C glyph {2,3,1} (the standard
+  // Rep-A↔Rep-C bijection used across the framework — Spec v3.3.33 §3.2),
+  // taken in MSB-first order so the result reads left-to-right with the
+  // most significant trit first.
+  function balancedTritsToRepC(trits: ArrayLike<number>): string {
+    const out = new Array<string>(trits.length);
+    for (let i = 0; i < trits.length; i++) {
+      const t = trits[i];
+      out[i] = t === 1 ? '1' : t === -1 ? '2' : '3';
+    }
+    return out.join('');
+  }
   // ── Milesian glyph table — Spec v3.3.33 §4.5 ──────────────────────
   // 27 Greek glyphs (24 modern letters + 3 ghost letters: ϛ, ϟ, ϡ).
   // Used to render any non-negative integer as a bijective base-27
@@ -2368,11 +2390,18 @@ function startPqtiService(): ChildProcess | null {
     // reorders, or substitutions break the running chain tag.  No classical
     // primitives anywhere on the seal path.
 
-    const sessionId = crypto.randomBytes(16).toString("hex");
+    // Session ID is generated in TRIT-NATIVE form: pure Rep-C bijective
+    // base-3 over the digit set {1,2,3}, sourced from a 128-bit
+    // cryptographic random.  No hex anywhere on the wire.
+    const sessionRandBytes = crypto.randomBytes(16);
+    const sessionRandBig   = BigInt('0x' + sessionRandBytes.toString('hex'));
+    const sessionId        = toBijectiveBase3(sessionRandBig);     // trit-native ID
     const sessionKeyBytes = crypto.randomBytes(32);            // 256-bit seed
     const sessionKeyTrits = bytesToBalancedTrits(sessionKeyBytes); // → balanced trits
     const sessionKeyTritsHex = tritsToHexFn(sessionKeyTrits);
+    const sessionKeyTritsBijective = balancedTritsToRepC(sessionKeyTrits);
     const sessionKeyFingerprint = tis27HashFn(sessionKeyBytes).slice(0, 24);
+    const sessionKeyFingerprintTrit = hexToBijectiveBase3(sessionKeyFingerprint);
 
     const sealDuplex = new SpongeDuplex(2);
     sealDuplex.absorb(Buffer.from("hmodal|seal|v3", "utf-8"));
@@ -2382,11 +2411,16 @@ function startPqtiService(): ChildProcess | null {
     let chainIndex = 0n;
     const chainSeedTrits = sealDuplex.squeeze(243);            // 385-bit tag
     const chainSeedHex = tritsToHexFn(chainSeedTrits);
+    const chainSeedTrit = balancedTritsToRepC(chainSeedTrits);
 
     try {
       ws.send(JSON.stringify({
         type: "session",
-        sessionId,
+        sessionId,                                              // trit-native
+        sessionKeyTritsBijective,                               // Rep-C trit
+        sessionKeyFingerprintTrit,                              // trit
+        chainSeedTrit,                                          // trit
+        // hex copies kept for audit/debug consumers
         sessionKeyTritsHex,
         chainSeedHex,
         cipher: "TL-Sponge-385 duplex (Phase Encryption v3, pure GF(3))",
@@ -2712,13 +2746,20 @@ function startPqtiService(): ChildProcess | null {
         sealDuplex.absorbTrits(cipherTrits);
         const chainTagTrits = sealDuplex.squeeze(243);
         const chainTagHex = tritsToHexFn(chainTagTrits);
+        const chainTagTrit  = balancedTritsToRepC(chainTagTrits);
+        const cipherTritsTrit = balancedTritsToRepC(cipherTrits);
         const sealedFrame = {
           type: "sealed",
           sessionId,
           index: chainIndex.toString(),
+          // ── trit-native (Rep-C bijective base-3) — primary wire form ──
+          cipherTrits: cipherTritsTrit,
+          chainTag:    chainTagTrit,
+          chainTagPrev: chainIndex === 0n ? chainSeedTrit : undefined,
+          // hex copies kept only for legacy audit consumers
           cipherTritsHex: tritsToHexFn(cipherTrits),
           chainTagHex,
-          chainTagPrev: chainIndex === 0n ? chainSeedHex : undefined,
+          chainTagPrevHex: chainIndex === 0n ? chainSeedHex : undefined,
           plainTritLen: plainTrits.length,
         };
 
@@ -2739,11 +2780,17 @@ function startPqtiService(): ChildProcess | null {
           attestation: {
             sessionId,
             sessionKeyFingerprint,
+            sessionKeyFingerprintTrit,
             cipher: "TL-Sponge-385 duplex (Phase Encryption v3)",
+            // primary trit-native form
+            chainSeed:   chainSeedTrit,
+            chainTag:    chainTagTrit,
+            cipherTrits: cipherTritsTrit,
+            // hex copies kept for legacy audit consumers
             chainSeedHex,
-            chainIndex: chainIndex.toString(),
             chainTagHex,
             cipherTritsHex: sealedFrame.cipherTritsHex,
+            chainIndex: chainIndex.toString(),
             plainTritLen: plainTrits.length,
           },
         };
@@ -2862,6 +2909,10 @@ function startPqtiService(): ChildProcess | null {
             clock_tier:              hptpTs.clockTier,        // 0 = pure derivation
             measured:                hptpTs.measured,
             chain_index_at_seal_decimal: String(fsClock?.chainIndexAtSeal ?? "n/a"),
+            chain_index_at_seal_trit:    fsClock?.chainIndexAtSeal != null
+              ? toBijectiveBase3(BigInt(fsClock.chainIndexAtSeal))
+              : "n/a",
+            chain_tag_trit:          chainTagHex ? hexToBijectiveBase3(chainTagHex) : "n/a",
             chain_tag_hex:           chainTagHex ?? "n/a",
           },
         },
@@ -2893,17 +2944,27 @@ function startPqtiService(): ChildProcess | null {
         },
         attestation_chain: snap.attestation
           ? {
-              session_id: snap.attestation.sessionId,
-              session_key_fingerprint: snap.attestation.sessionKeyFingerprint,
-              cipher: snap.attestation.cipher,
-              chain_seed_hex: snap.attestation.chainSeedHex,
-              chain_index_decimal: snap.attestation.chainIndex,
-              chain_index_trit: toBijectiveBase3(BigInt(snap.attestation.chainIndex)),
-              chain_tag_hex: snap.attestation.chainTagHex,
-              chain_tag_milesian: milesianGlyphHash(snap.attestation.chainTagHex),
-              cipher_trits_hex: snap.attestation.cipherTritsHex,
-              plain_trit_len: snap.attestation.plainTritLen,
-              note: "Chain tag is the running 385-bit squeeze of the TL-Sponge-385 duplex after sealing this sample.  Any gap, reorder, or substitution in the WS sample stream changes this value.",
+              // ── trit-native primary form (Rep-C bijective base-3) ──
+              session_id:                       snap.attestation.sessionId,            // already trit-native (digits {1,2,3})
+              session_key_fingerprint_trit:     snap.attestation.sessionKeyFingerprintTrit
+                ?? hexToBijectiveBase3(snap.attestation.sessionKeyFingerprint),
+              chain_seed_trit:                  snap.attestation.chainSeed
+                ?? hexToBijectiveBase3(snap.attestation.chainSeedHex),
+              chain_tag_trit:                   snap.attestation.chainTag
+                ?? hexToBijectiveBase3(snap.attestation.chainTagHex),
+              cipher_trits_trit:                snap.attestation.cipherTrits
+                ?? hexToBijectiveBase3(snap.attestation.cipherTritsHex),
+              chain_index_decimal:              snap.attestation.chainIndex,
+              chain_index_trit:                 toBijectiveBase3(BigInt(snap.attestation.chainIndex)),
+              cipher:                           snap.attestation.cipher,
+              plain_trit_len:                   snap.attestation.plainTritLen,
+              // ── hex copies kept ONLY for legacy audit consumers ──
+              session_key_fingerprint_hex:      snap.attestation.sessionKeyFingerprint,
+              chain_seed_hex:                   snap.attestation.chainSeedHex,
+              chain_tag_hex:                    snap.attestation.chainTagHex,
+              chain_tag_milesian:               milesianGlyphHash(snap.attestation.chainTagHex),
+              cipher_trits_hex:                 snap.attestation.cipherTritsHex,
+              note: "Chain tag is the running 385-bit squeeze of the TL-Sponge-385 duplex after sealing this sample.  Any gap, reorder, or substitution in the WS sample stream changes this value.  All hashes are surfaced trit-native in Rep-C bijective base-3 (digit set {1,2,3}); hex copies are retained only for legacy audit interop.",
             }
           : null,
       };
