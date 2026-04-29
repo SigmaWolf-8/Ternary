@@ -128,6 +128,7 @@ pub mod repx;
 pub mod milesian;
 pub mod walk;
 pub mod calculus;
+pub mod eac_ledger;
 
 // ════════════════════════════════════════════════════════════════════════
 // Boundary (gated)
