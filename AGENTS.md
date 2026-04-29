@@ -19,7 +19,11 @@ hand-rolled byte permutation over it. **That mistake is now structurally
 impossible to repeat**, because every PR runs through `scripts/lint-trit-purity.sh`
 in CI.
 
-### The five enforced rules
+### Five sub-checks of the Trits-Not-Bytes invariant
+
+This is **one** invariant ("operator-supplied symmetric key material is
+balanced ternary, not bytes and not hex"). The gate enforces it via five
+distinct checks that catch different ways the invariant can be violated:
 
 | # | Forbidden                                                                                          | Required                                                                                  |
 |---|----------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
