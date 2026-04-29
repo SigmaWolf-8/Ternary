@@ -138,7 +138,7 @@ impl Default for Config {
 pub enum Event {
     /// Server → Client: new commit on the canonical repo.
     HeadChanged {
-        sha: String,
+        commit_id: String,
         short: String,
         message: String,
         timestamp_unix: u64,
@@ -146,13 +146,13 @@ pub enum Event {
     /// Client → Server: backup bundle written.
     BackupAck {
         backup_file: String,
-        sha: String,
+        commit_id: String,
         timestamp_unix: u64,
     },
-    /// Client → Server: local repo successfully fast-forwarded to `sha`.
-    PullDone { sha: String },
+    /// Client → Server: local repo successfully fast-forwarded to `commit_id`.
+    PullDone { commit_id: String },
     /// Client → Server: local commits pushed to origin.
-    PushDone { sha: String },
+    PushDone { commit_id: String },
     /// Either side: still alive.
     Heartbeat { timestamp_unix: u64 },
 }
@@ -204,7 +204,7 @@ fn run_server(config: Config) -> Result<()> {
     let listener = TcpListener::bind(&config.address)?;
     eprintln!("[reposync:server] listening on {}", config.address);
 
-    let last_sha: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let last_commit: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
 
     for incoming in listener.incoming() {
         let stream = match incoming {
@@ -212,9 +212,9 @@ fn run_server(config: Config) -> Result<()> {
             Err(e) => { eprintln!("[reposync:server] accept error: {}", e); continue; }
         };
         let cfg = config.clone();
-        let sha_ref = Arc::clone(&last_sha);
+        let commit_ref = Arc::clone(&last_commit);
         thread::spawn(move || {
-            if let Err(e) = serve_one(stream, cfg, sha_ref) {
+            if let Err(e) = serve_one(stream, cfg, commit_ref) {
                 eprintln!("[reposync:server] client session ended: {}", e);
             }
         });
@@ -222,7 +222,7 @@ fn run_server(config: Config) -> Result<()> {
     Ok(())
 }
 
-fn serve_one(mut stream: TcpStream, config: Config, last_sha: Arc<Mutex<String>>) -> Result<()> {
+fn serve_one(mut stream: TcpStream, config: Config, last_commit: Arc<Mutex<String>>) -> Result<()> {
     stream.set_write_timeout(Some(Duration::from_secs(10)))?;
     let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".to_string());
     eprintln!("[reposync:server] tunnel up: {}", peer);
@@ -230,14 +230,14 @@ fn serve_one(mut stream: TcpStream, config: Config, last_sha: Arc<Mutex<String>>
     let mut last_heartbeat = SystemTime::now();
 
     loop {
-        let current = git_head_sha(&config.repo_path).unwrap_or_default();
-        let mut last = last_sha.lock().unwrap();
+        let current = git_head_commit(&config.repo_path).unwrap_or_default();
+        let mut last = last_commit.lock().unwrap();
 
         if !current.is_empty() && *last != current {
             let short = current.chars().take(7).collect::<String>();
             let message = git_head_message(&config.repo_path).unwrap_or_default();
             let event = Event::HeadChanged {
-                sha: current.clone(),
+                commit_id: current.clone(),
                 short: short.clone(),
                 message,
                 timestamp_unix: now_unix(),
@@ -290,12 +290,12 @@ fn client_session(stream: &mut TcpStream, config: &Config) -> Result<()> {
     loop {
         let event = read_frame(stream, config)?;
         match event {
-            Event::HeadChanged { sha, short, message, .. } => {
+            Event::HeadChanged { commit_id, short, message, .. } => {
                 eprintln!("[reposync:client] ← HeadChanged {} {:?}", short, message);
-                match create_backup(&config.repo_path, &config.backup_dir, &sha) {
+                match create_backup(&config.repo_path, &config.backup_dir, &commit_id) {
                     Ok(name) => {
                         eprintln!("[reposync:client]   backup: {}", name);
-                        let ack = Event::BackupAck { backup_file: name, sha: sha.clone(), timestamp_unix: now_unix() };
+                        let ack = Event::BackupAck { backup_file: name, commit_id: commit_id.clone(), timestamp_unix: now_unix() };
                         let frame = pack_frame(&ack, config);
                         let _ = stream.write_all(&frame);
                     }
@@ -304,7 +304,7 @@ fn client_session(stream: &mut TcpStream, config: &Config) -> Result<()> {
                 match git_pull_ff(&config.repo_path) {
                     Ok(()) => {
                         eprintln!("[reposync:client]   pulled to {}", short);
-                        let frame = pack_frame(&Event::PullDone { sha: sha.clone() }, config);
+                        let frame = pack_frame(&Event::PullDone { commit_id: commit_id.clone() }, config);
                         let _ = stream.write_all(&frame);
                     }
                     Err(e) => eprintln!("[reposync:client]   pull failed: {}", e),
@@ -312,7 +312,7 @@ fn client_session(stream: &mut TcpStream, config: &Config) -> Result<()> {
                 match git_push(&config.repo_path) {
                     Ok(()) => {
                         eprintln!("[reposync:client]   pushed");
-                        let frame = pack_frame(&Event::PushDone { sha: sha.clone() }, config);
+                        let frame = pack_frame(&Event::PushDone { commit_id: commit_id.clone() }, config);
                         let _ = stream.write_all(&frame);
                     }
                     Err(e) => eprintln!("[reposync:client]   push: {}", e),
@@ -394,21 +394,21 @@ const TAG_HEARTBEAT:    u8 = 5;
 fn encode_event(event: &Event) -> Vec<u8> {
     let mut v = Vec::new();
     match event {
-        Event::HeadChanged { sha, short, message, timestamp_unix } => {
+        Event::HeadChanged { commit_id, short, message, timestamp_unix } => {
             v.push(TAG_HEAD_CHANGED);
             v.extend_from_slice(&timestamp_unix.to_be_bytes());
-            push_str(&mut v, sha);
+            push_str(&mut v, commit_id);
             push_str(&mut v, short);
             push_str(&mut v, message);
         }
-        Event::BackupAck { backup_file, sha, timestamp_unix } => {
+        Event::BackupAck { backup_file, commit_id, timestamp_unix } => {
             v.push(TAG_BACKUP_ACK);
             v.extend_from_slice(&timestamp_unix.to_be_bytes());
-            push_str(&mut v, sha);
+            push_str(&mut v, commit_id);
             push_str(&mut v, backup_file);
         }
-        Event::PullDone { sha } => { v.push(TAG_PULL_DONE); push_str(&mut v, sha); }
-        Event::PushDone { sha } => { v.push(TAG_PUSH_DONE); push_str(&mut v, sha); }
+        Event::PullDone { commit_id } => { v.push(TAG_PULL_DONE); push_str(&mut v, commit_id); }
+        Event::PushDone { commit_id } => { v.push(TAG_PUSH_DONE); push_str(&mut v, commit_id); }
         Event::Heartbeat { timestamp_unix } => {
             v.push(TAG_HEARTBEAT);
             v.extend_from_slice(&timestamp_unix.to_be_bytes());
@@ -423,19 +423,19 @@ fn decode_event(buf: &[u8]) -> Option<Event> {
     match kind {
         TAG_HEAD_CHANGED => {
             let ts = read_u64(buf, &mut p)?;
-            let sha = read_str(buf, &mut p)?;
+            let commit_id = read_str(buf, &mut p)?;
             let short = read_str(buf, &mut p)?;
             let message = read_str(buf, &mut p)?;
-            Some(Event::HeadChanged { sha, short, message, timestamp_unix: ts })
+            Some(Event::HeadChanged { commit_id, short, message, timestamp_unix: ts })
         }
         TAG_BACKUP_ACK => {
             let ts = read_u64(buf, &mut p)?;
-            let sha = read_str(buf, &mut p)?;
+            let commit_id = read_str(buf, &mut p)?;
             let backup_file = read_str(buf, &mut p)?;
-            Some(Event::BackupAck { backup_file, sha, timestamp_unix: ts })
+            Some(Event::BackupAck { backup_file, commit_id, timestamp_unix: ts })
         }
-        TAG_PULL_DONE => Some(Event::PullDone { sha: read_str(buf, &mut p)? }),
-        TAG_PUSH_DONE => Some(Event::PushDone { sha: read_str(buf, &mut p)? }),
+        TAG_PULL_DONE => Some(Event::PullDone { commit_id: read_str(buf, &mut p)? }),
+        TAG_PUSH_DONE => Some(Event::PushDone { commit_id: read_str(buf, &mut p)? }),
         TAG_HEARTBEAT => Some(Event::Heartbeat { timestamp_unix: read_u64(buf, &mut p)? }),
         _ => None,
     }
@@ -513,7 +513,7 @@ fn deserialize_signature(bytes: &[u8], _variant: TlDsaVariant) -> Option<TlDsaSi
 // Git subprocess helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn git_head_sha(repo: &PathBuf) -> Result<String> {
+fn git_head_commit(repo: &PathBuf) -> Result<String> {
     let out = Command::new("git").arg("-C").arg(repo).args(["rev-parse", "HEAD"]).output()?;
     if !out.status.success() {
         return Err(SyncError::GitFailed(String::from_utf8_lossy(&out.stderr).into_owned()));
@@ -529,10 +529,10 @@ fn git_head_message(repo: &PathBuf) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
-fn create_backup(repo: &PathBuf, backup_dir: &PathBuf, sha: &str) -> Result<String> {
+fn create_backup(repo: &PathBuf, backup_dir: &PathBuf, commit_id: &str) -> Result<String> {
     std::fs::create_dir_all(backup_dir)?;
     let ts = now_unix();
-    let short = sha.chars().take(8).collect::<String>();
+    let short = commit_id.chars().take(8).collect::<String>();
     let name = format!("repo-{}-{}.bundle", ts, short);
     let path = backup_dir.join(&name);
     let status = Command::new("git").arg("-C").arg(repo)
@@ -573,7 +573,7 @@ mod tests {
     #[test]
     fn round_trip_head_changed() {
         let event = Event::HeadChanged {
-            sha: "abc1234567890".to_string(),
+            commit_id: "abc1234567890".to_string(),
             short: "abc1234".to_string(),
             message: "fix license headers".to_string(),
             timestamp_unix: 1714421234,
@@ -581,8 +581,8 @@ mod tests {
         let bytes = encode_event(&event);
         let decoded = decode_event(&bytes).expect("decode");
         match decoded {
-            Event::HeadChanged { sha, short, message, timestamp_unix } => {
-                assert_eq!(sha, "abc1234567890");
+            Event::HeadChanged { commit_id, short, message, timestamp_unix } => {
+                assert_eq!(commit_id, "abc1234567890");
                 assert_eq!(short, "abc1234");
                 assert_eq!(message, "fix license headers");
                 assert_eq!(timestamp_unix, 1714421234);

@@ -80,6 +80,9 @@ A manifest-driven MSI build system for packaging all PlenumNET Windows applicati
 ### NinjaExec — PlenumNET Local Signing Agent
 A standalone Rust binary that holds the operator's TL-DSA-87 private key in an encrypted keystore and exposes a localhost-only HTTP signing API. It includes a signing engine, encrypted keystore, HTTP API server, confirmation system, audit log, and CLI interface.
 
+### RepoSync — Encrypted Local Repository Mirror
+A single-file kernel module (`src/kernel/src/repo_sync.rs`, ~600 lines, Server/Client modes) that watches the Replit `git HEAD`, signs change events with TL-DSA-87, encrypts them with a 48-byte keyed-sponge stream cipher, and ships them down a TCP tunnel to a local client that creates a git-bundle backup before fast-forwarding the local clone and pushing back. No SHA-2/BLAKE/MD5 imports — Framework-native primitives only. Wire schema uses `commit_id` (not "sha") for git revisions. Packaged as a single-click MSI installer via `tools/plenum-reposync/` (manifest + binary that loads `%APPDATA%\PlenumNET-RepoSync\config.toml` and runs the kernel module in Client mode).
+
 ### Yoda Global Command
 A universal `y` command prefix for operator-to-Yoda communication through a relay, implementing message types with signing context, verification, replay protection, rate limiting, and confidentiality-preserving audit trails. It supports a standalone CLI, Node Terminal integration, and a desktop chat widget.
 

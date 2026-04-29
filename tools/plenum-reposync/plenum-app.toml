@@ -1,0 +1,40 @@
+[app]
+name = "PlenumNET-RepoSync"
+display_name = "PlenumNET RepoSync -- Local Repository Sync"
+description = "Encrypted, signature-verified one-way repository mirror from a Replit endpoint to your local clone."
+version = "1.0.0"
+publisher = "Capomastro Holdings Ltd."
+publisher_url = "https://capomastro.com"
+help_url = "https://plenumnet.replit.app/support"
+update_url = "https://plenumnet.replit.app/api/install-msi"
+binary = "plenum-reposync.exe"
+icon = "assets/plenum-reposync.ico"
+license = "Proprietary"
+upgrade_code = "8B5C9E2A-4D7F-4F11-9B3E-7A1C2D6E8F94"
+
+[install]
+directory = "Capomastro\\PlenumNET-RepoSync"
+data_directory = "PlenumNET-RepoSync"
+add_to_path = false
+architecture = ["x86_64", "aarch64"]
+extra_binaries = []
+
+[app_type]
+kind = "tray_agent"
+autostart = true
+tray_icon = "assets/plenum-reposync-tray.ico"
+tray_tooltip = "PlenumNET RepoSync -- watching for upstream commits"
+
+[shortcuts]
+start_menu = [
+    { name = "PlenumNET RepoSync", target = "plenum-reposync.exe", icon = "assets/plenum-reposync.ico" },
+]
+
+[first_run]
+actions = [
+    { type = "launch", command = "[INSTALLFOLDER]plenum-reposync.exe" },
+]
+
+[uninstall]
+preserve_data = true
+preserve_message = "Your RepoSync config and bundle backups have been preserved in %APPDATA%\\PlenumNET-RepoSync."
