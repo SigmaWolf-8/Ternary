@@ -77,6 +77,32 @@ const app = express();
 const serverStartTime = Date.now();
 const httpServer = createServer(app);
 
+// ── EAC UTC ANCHOR ─ FROZEN AT BOOT ───────────────────────────────────
+// Capture the (Date.now, hrtime, framework-attosecond-walk) triple ONCE
+// at module load, BEFORE any cert is ever issued.  Anchoring at boot
+// (not at first issuance) ensures that when any cert is later emitted
+// the (hrNow − hrAtAnchor) elapsed-nanosecond term is already large,
+// so the emitted attosecond integer is NEVER ms-padded with trailing
+// zeros.  The anchor is the only place a wall-clock is ever consulted
+// for the EAC timestamp.
+{
+  const _bootHptp   = getFemtosecondTimestamp();
+  const _bootAsNum  = BigInt(String(_bootHptp.asSinceBootNum));
+  const _bootAsDen  = BigInt(String(_bootHptp.asSinceBootDen));
+  const _bootAsInt  = _bootAsDen > 0n ? _bootAsNum / _bootAsDen : 0n;
+  const _bootWallMs = BigInt(Date.now());
+  (globalThis as any).__plenum_eac_utc_anchor = {
+    utcAtAnchor:         _bootWallMs * 1_000_000_000_000_000n,  // ms × 10¹⁵
+    hrAtAnchor:          process.hrtime.bigint(),                // monotonic ns
+    asSinceBootAtAnchor: _bootAsInt,                             // framework as
+    isoAtAnchor:         new Date(Number(_bootWallMs)).toISOString(),
+  };
+  console.log(
+    `[hmodal-eac] UTC anchor frozen at BOOT: ` +
+    `${(globalThis as any).__plenum_eac_utc_anchor.isoAtAnchor}`,
+  );
+}
+
 app.get("/install.ps1", (_req, res) => {
   const filePath = path.resolve("services/tdns-v2/install.ps1");
   if (existsSync(filePath)) {
@@ -2898,51 +2924,41 @@ function startPqtiService(): ChildProcess | null {
       const baselineMW = snap.mWContinuous;
       const windowMs   = snap.totalMs ?? ((snap.timeHighMs ?? 0) + (snap.timeLowMs ?? 0));
 
-      // ── ATTOSECONDS-SINCE-UTC-EPOCH ─ PURE-ATTOSECOND DERIVATION ─────
-      // True attosecond-precision wall-clock timestamp, anchored to the
-      // UTC Unix epoch (1970-01-01T00:00:00Z).
+      // ── ATTOSECONDS-SINCE-UTC-EPOCH ─ BOOT-ANCHORED DERIVATION ───────
+      // The (Date.now, hrtime.bigint, framework-attosecond-walk) triple
+      // was frozen ONCE at module load — see `__plenum_eac_utc_anchor`
+      // initialisation block at the top of this file.  Every cert
+      // advances the anchored UTC instant strictly monotonically using
+      // ONLY two pure monotonic clocks (no per-cert wall-clock reads,
+      // no clamps):
       //
-      // Construction (NO per-call Date.now(), NO millisecond rounding,
-      // NO post-hoc monotonic clamp):
+      //   utc_as = utcAtAnchor                                  // ms × 10¹⁵
+      //          + (hrtime.bigint() − hrAtAnchor) · 10⁶         // ns → as, wall-clock-locked
+      //          + (asSinceBootNow − asSinceBootAtAnchor)       // sub-ns framework entropy
       //
-      //   1. ONCE per process, at first EAC issuance, freeze a single
-      //      anchor pair (utcAtAnchor, asSinceBootAtAnchor).  This is
-      //      the ONLY moment a hardware wall-clock is consulted.
-      //   2. Every subsequent cert derives its UTC attoseconds purely
-      //      from the framework's monotonic attosecond tick walk:
-      //
-      //        utc_as = utcAtAnchor + (asSinceBootNow - asSinceBootAtAnchor)
-      //
-      //      This is naturally monotonic by the framework's own walk
-      //      monotonicity — no clamp, no simulation.  Resolution is
-      //      pure attosecond (10⁻¹⁸ s) end-to-end; nothing is rounded
-      //      to a millisecond at any step on the per-cert path.
+      // Because the boot anchor was captured BEFORE this handler ever
+      // runs, (hrNow − hrAtAnchor) is already large by the time any
+      // cert is issued, so the emitted integer is always populated
+      // through its sub-millisecond / sub-microsecond / sub-nanosecond
+      // digits — never ms × 10¹⁵ with trailing zeros.  Both delta
+      // terms are strictly monotonic, so the sum is strictly monotonic.
       const AS_PER_MS  = 1_000_000_000_000_000n;       // 10¹⁵ as / ms
+      const AS_PER_NS  = 1_000_000n;                   // 10⁶  as / ns
       const asNumBig   = BigInt(String(hptpTs.asSinceBootNum));
       const asDenBig   = BigInt(String(hptpTs.asSinceBootDen));
       const asSinceBootBig = asDenBig > 0n ? asNumBig / asDenBig : 0n;
+      const hrNow      = process.hrtime.bigint();      // monotonic ns
 
-      let anchor = (globalThis as any).__plenum_eac_utc_anchor as
-        | { utcAtAnchor: bigint; asSinceBootAtAnchor: bigint; isoAtAnchor: string }
-        | undefined;
-      if (!anchor) {
-        // First-issuance anchor: this is the only place we ever consult
-        // a wall-clock for the UTC attosecond timestamp.  Frozen for the
-        // process lifetime; every later cert reads the framework walk.
-        const wallMs = BigInt(Date.now());
-        anchor = {
-          utcAtAnchor:         wallMs * AS_PER_MS,
-          asSinceBootAtAnchor: asSinceBootBig,
-          isoAtAnchor:         new Date(Number(wallMs)).toISOString(),
-        };
-        (globalThis as any).__plenum_eac_utc_anchor = anchor;
-        console.log(
-          `[hmodal-eac] UTC anchor frozen at ${anchor.isoAtAnchor} ` +
-          `(framework asSinceBoot=${asSinceBootBig})`,
-        );
-      }
+      const anchor = (globalThis as any).__plenum_eac_utc_anchor as {
+        utcAtAnchor:         bigint;
+        hrAtAnchor:          bigint;
+        asSinceBootAtAnchor: bigint;
+        isoAtAnchor:         string;
+      };
+      const hrDelta  = hrNow - anchor.hrAtAnchor;                  // ns
+      const fwDelta  = asSinceBootBig - anchor.asSinceBootAtAnchor; // as
       const utcAttosecondsBig =
-        anchor.utcAtAnchor + (asSinceBootBig - anchor.asSinceBootAtAnchor);
+        anchor.utcAtAnchor + hrDelta * AS_PER_NS + fwDelta;
       const emittedUtcMs        = utcAttosecondsBig / AS_PER_MS;
       const utcIsoAtIssue       = new Date(Number(emittedUtcMs)).toISOString();
       const utcMsAtIssue        = emittedUtcMs;

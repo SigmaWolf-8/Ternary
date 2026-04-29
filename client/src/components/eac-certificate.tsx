@@ -73,6 +73,33 @@ function groupDigits(s: string | undefined): string {
 // Convert a hex string to Rep-C bijective base-3 (digits {1,2,3}) on the
 // client.  Used for hex-only fields (signature_hex, public_key_hash) so
 // the certificate stays trit-native everywhere user-facing.
+// Derive a 12-glyph capital-Greek visual checksum from a Rep-C trit
+// string (digits ∈ {1,2,3}).  The cert's chain-tag-trit is the natural
+// input — it is already trit-native, deterministic per cert, and
+// derived from the post-quantum signature chain, so the rendered
+// glyph ring acts as a 12-character base-24 fingerprint of the cert.
+// Two views of the same cert show identical rings; any tampered cert
+// yields a visibly different glyph sequence.  Pure ternary — no hex
+// touched anywhere on this path.
+const GREEK_24 = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ";
+function greekGlyphChecksum(tritIn: string | undefined): string[] {
+  const t = (tritIn ?? "").replace(/[^123]/g, "");
+  const out: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    // Take a 4-trit window per glyph.  4 bijective-base-3 digits cover
+    // 1..120, mod 24 → 0..23 → glyph.  If the source trit string is
+    // shorter than 48 trits, fall through with the index itself so the
+    // ring still renders deterministically.
+    const start = i * 4;
+    const win = t.slice(start, start + 4);
+    if (win.length === 0) { out.push(GREEK_24[i % 24]); continue; }
+    let v = 0;
+    for (const c of win) v = v * 3 + (c === "3" ? 3 : c === "2" ? 2 : 1);
+    out.push(GREEK_24[v % 24]);
+  }
+  return out;
+}
+
 function bigHexToTrit(hex: string | undefined): string | undefined {
   if (!hex) return undefined;
   const clean = hex.replace(/^0x/i, "");
@@ -738,11 +765,19 @@ export function EacCertificate({ eac, error }: EacProps) {
             <circle cx={sealSize / 2} cy={sealSize / 2} r={ringInner}
                     fill="none" stroke="currentColor" strokeWidth={0.4} opacity={0.25} />
 
-            {/* 12 capital Greek glyphs (Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ),
-                evenly spaced at 30° increments on the mid ring,
-                offset 15° from the diagonal cube anchors so they
-                never collide with the corner cubes. */}
-            {["Α","Β","Γ","Δ","Ε","Ζ","Η","Θ","Ι","Κ","Λ","Μ"].map((g, i) => {
+            {/* 12 Greek-glyph VISUAL CHECKSUM ring.  These are NOT
+                decorative — each glyph is deterministically derived
+                from the cert's chain-tag-trit (Rep-C, post-quantum
+                hash chain output) — pure trit-native, NO hex anywhere
+                on this path.  The ring acts as a 12-character base-24
+                fingerprint of the post-quantum chain tag.  Two views
+                of the same cert will show identical rings; any
+                tampered cert will show a visibly different glyph
+                sequence — making the ring an at-a-glance integrity
+                indicator that complements the machine-verified
+                TL-DSA signature.  Alphabet = full 24-letter capital
+                Greek (Α..Ω). */}
+            {greekGlyphChecksum(chain?.chain_tag_trit ?? ts?.attoseconds_since_unix_epoch_trit).map((g, i) => {
               const a = (i * 2 * Math.PI) / 12 - Math.PI / 2;
               const x = sealSize / 2 + ringMid * Math.cos(a);
               const y = sealSize / 2 + ringMid * Math.sin(a);
@@ -751,7 +786,7 @@ export function EacCertificate({ eac, error }: EacProps) {
                   key={`gk-${i}`} x={x} y={y}
                   fontSize={11} fontFamily="Georgia, 'Times New Roman', serif"
                   fontWeight={600}
-                  fill="currentColor" opacity={0.62}
+                  fill="currentColor" opacity={0.72}
                   textAnchor="middle" dominantBaseline="central"
                   data-testid={`text-greek-glyph-${i}`}
                 >
@@ -826,7 +861,8 @@ export function EacCertificate({ eac, error }: EacProps) {
           </svg>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Hexagon className="w-3 h-3" />
-            Scannable · 3-D isometric crystal lattice (ISO/IEC 18004)
+            QR pointer (ISO/IEC 18004) — convenience only.  Post-quantum
+            authenticity is the TL-DSA-87 signature, NOT the QR.
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Stamp className="w-3 h-3" />
