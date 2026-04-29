@@ -29,13 +29,22 @@
 //!   open to the server, verifies each frame's signature, and on `HeadChanged`
 //!   produces a backup bundle then runs the git ops.
 //!
-//! ## Encryption
+//! ## Encryption (trit-native, framework-native)
 //!
-//! Each frame is encrypted with a keyed-sponge stream cipher. The default
-//! implementation is a self-contained 64-byte permutation suitable for the
-//! single-file footprint; for production deployments, swap
-//! [`stream_xor_in_place`] for `crate::crypto::keyed_sponge::KeyedTernarySponge`
-//! to inherit the full TL-Sponge-385 PQ-security profile.
+//! Each frame is encrypted with the framework's
+//! [`crate::crypto::keyed_sponge::KeyedTernarySponge`] (TL-Sponge-385 with a
+//! key-dependent permutation drawn from the automorphism group of the ternary
+//! 6-cube). The cipher operates entirely in trit space:
+//!
+//! 1. Plaintext bytes are unpacked to balanced ternary trits (6 trits / byte
+//!    via base-3, value space 0..729 ⊃ 0..256).
+//! 2. The sponge is keyed with `Config::shared_key` (a `Vec<i8>` of trits)
+//!    and squeezed for an equal number of keystream trits.
+//! 3. `ciphertext_trit[i] = trit_add(plain_trit[i], key_trit[i])` over GF(3).
+//! 4. The trit ciphertext is shipped on the wire one trit per byte
+//!    (`{-1, 0, +1}` stored as `i8` cast to `u8`).
+//!
+//! No SHA-2/SHA-3/BLAKE/HMAC or other foreign primitives are used.
 //!
 //! Frames are authenticated with [`crate::crypto::tl_dsa`] (PQ post-quantum
 //! signatures) when [`Config::signing_key`] is provided.
@@ -76,6 +85,11 @@ use std::format;
 
 #[cfg(feature = "std")]
 use crate::crypto::tl_dsa::{self, TlDsaPublicKey, TlDsaSecretKey, TlDsaSignature, TlDsaVariant};
+#[cfg(feature = "std")]
+use crate::crypto::keyed_sponge::KeyedTernarySponge;
+
+/// Recommended key length for the keyed sponge: one full rate block.
+pub const SHARED_KEY_TRITS: usize = 243;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
