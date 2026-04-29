@@ -1,0 +1,1136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7400 11960" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <radialGradient id="nucGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#fff8c2"/>
+      <stop offset="55%"  stop-color="#ffd966"/>
+      <stop offset="100%" stop-color="#d4a017"/>
+    </radialGradient>
+    <radialGradient id="circHalf" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#e8f1ff"/>
+      <stop offset="100%" stop-color="#cfe2fa"/>
+    </radialGradient>
+    <radialGradient id="sqHalf" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#fff0e6"/>
+      <stop offset="100%" stop-color="#ffd9c2"/>
+    </radialGradient>
+    <style>
+      .title    { font-size: 100px; font-weight: 800; fill: #FAF8F6; }
+      .subtitle { font-size: 46px; fill: #a8b4c0; }
+      .h1       { font-size: 72px; font-weight: 800; fill: #0F0C0A; }
+      .h2       { font-size: 62px; font-weight: 800; fill: #0F0C0A; }
+      .h3       { font-size: 48px; font-weight: 800; fill: #0F0C0A; }
+      .body     { font-size: 30px; fill: #0F0C0A; }
+      .bullet   { font-size: 40px; fill: #0F0C0A; }
+      .small    { font-size: 34px; fill: #4a525b; }
+      .smallb   { font-size: 26px; font-weight: 700; fill: #0F0C0A; }
+      .italic   { font-size: 24px; font-style: italic; fill: #6a727b; }
+
+      .badgetxt  { font-size: 38px; font-weight: 800; fill: #FAF8F6; }
+      .discbadge { font-size: 56px; font-weight: 800; fill: #FAF8F6; }
+      .badge-c   { fill: #2D7DD2; }
+      .badge-d   { fill: #c0392b; }
+
+      .panel-c  { fill: #f3f8ff; stroke: #2D7DD2; stroke-width: 5; }
+      .panel-d  { fill: #fff5f3; stroke: #c0392b; stroke-width: 5; }
+      .panel-x  { fill: #fff7e6; stroke: #B8860B; stroke-width: 5; }
+      .panel-n  { fill: #fcf6df; stroke: #B8860B; stroke-width: 5; }
+      .panel-i  { fill: #f0fff4; stroke: #2a8050; stroke-width: 5; }
+
+      .pill-c   { fill: #2D7DD2; }
+      .pill-d   { fill: #c0392b; }
+      .pilltxt  { font-size: 36px; font-weight: 800; fill: #FAF8F6; }
+
+      .header-bg  { fill: #0F0C0A; }
+      .row-alt    { fill: #fff7e6; }
+      .row-norm   { fill: #ffffff; }
+      .verdict-bg { fill: #0F0C0A; }
+
+      .modgreek { font-size: 32px; font-weight: 800; fill: #0F0C0A; }
+      .modfile  { font-size: 30px; fill: #6a727b; font-style: italic; }
+      .modbox-grey   { fill: #ffffff; stroke: #888;    stroke-width: 2.5; }
+      .modbox-yellow { fill: #fff4cc; stroke: #d4a017; stroke-width: 3; }
+      .modbox-red    { fill: #ffd9d4; stroke: #c0392b; stroke-width: 4; }
+      .modbox-blue   { fill: #d9ecff; stroke: #2D7DD2; stroke-width: 3; }
+        .modlist-c { font-size: 34px; font-weight: 700; fill: #2D7DD2; font-family: Menlo, Consolas, monospace; }
+        .modlist-d { font-size: 34px; font-weight: 700; fill: #c0392b; font-family: Menlo, Consolas, monospace; }
+        .modhead-c { font-size: 36px; font-weight: 800; fill: #2D7DD2; }
+        .modhead-d { font-size: 36px; font-weight: 800; fill: #c0392b; }
+        .ringlabel { font-size: 30px; font-weight: 800; fill: #2a8050; font-family: Menlo, Consolas, monospace; letter-spacing: 1px; }
+        .calcbanner { font-size: 36px; font-weight: 800; fill: #B8860B; font-family: Menlo, Consolas, monospace; letter-spacing: 3px; }
+
+      .nuctitle   { font-size: 56px; font-weight: 800; fill: #0F0C0A; letter-spacing: 4px; }
+      .axiom      { font-size: 50px; font-weight: 800; fill: #0F0C0A; }
+      .axiomnote  { font-size: 22px; fill: #4a525b; font-style: italic; }
+      .invsect    { font-size: 26px; font-weight: 800; fill: #B8860B; letter-spacing: 1px; }
+      .invitem    { font-size: 28px; font-weight: 700; fill: #0F0C0A; font-family: 'Menlo', 'Consolas', monospace; }
+      .invnote    { font-size: 22px; fill: #4a525b; }
+      .nucsub     { font-size: 24px; font-weight: 700; fill: #0F0C0A; }
+      .nucfooter  { font-size: 22px; font-style: italic; fill: #4a525b; }
+
+      .half     { font-size: 60px; font-weight: 800; letter-spacing: 4px; }
+      .halfhint { font-size: 28px; font-style: italic; }
+      .calcsub  { font-size: 44px; font-weight: 800; fill: #0F0C0A; }
+      .calcname { font-size: 26px; fill: #4a525b; }
+
+      .quadtitle { font-size: 44px; font-weight: 800; letter-spacing: 2px; }
+      .quadsub   { font-size: 26px; font-weight: 700; font-style: italic; }
+      .quadmod   { font-size: 36px; font-weight: 800; fill: #0F0C0A; }
+      .quadfile  { font-size: 22px; fill: #555; font-style: italic; }
+      .quadaddr  { font-size: 28px; fill: #2a8050; font-family: 'Menlo', 'Consolas', monospace; font-weight: 700; }
+
+      .phys-nw  { fill: #efe6ff; stroke: none; }
+      .phys-ne  { fill: #e0f4ff; stroke: none; }
+      .phys-sw  { fill: #ecf5d9; stroke: none; }
+      .phys-se  { fill: #ffe4e1; stroke: none; }
+
+      .addr     { font-family: 'Menlo', 'Consolas', monospace; font-size: 34px; fill: #2a8050; font-weight: 700; }
+      .addrhead { font-family: 'Menlo', 'Consolas', monospace; font-size: 38px; fill: #0F0C0A; font-weight: 800; }
+      .addrnote { font-size: 30px; fill: #4a525b; }
+    </style>
+  </defs>
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <rect class="header-bg" x="0" y="0" width="7400" height="240"/>
+  <text x="100" y="130" class="title">Complete Mapping: Compendium → Geometric Ring</text>
+  <text x="100" y="190" class="subtitle">Algeometric Arc Σ-182 Calculi (aasc) · Inertissimum Iώτα Nona compendium woven with the Pythagorean / Archimedean archetype · Curved ①–⑦  ◖  ◗  Discrete A–H</text>
+
+  <!-- ═══════════════ FOUNDATIONAL ARCHETYPE TABLE ═══════════════ -->
+  <g transform="translate(80, 270)">
+    <rect x="0" y="0" width="7240" height="800" rx="12" class="panel-x"/>
+    <text x="24" y="64" class="h2" fill="#B8860B">Foundational Archetype  (Pythagoras &amp; Archimedes)</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
+    <text x="40"   y="138" class="h3">Archetype</text>
+    <text x="2900" y="138" class="h3">Where It Lives in the Diagram</text>
+    <line x1="24" y1="156" x2="7216" y2="156" stroke="#B8860B" stroke-width="2"/>
+
+    <rect x="24" y="166" width="7192" height="80" class="row-alt"/>
+    <text x="40"   y="216" class="bullet"><tspan font-weight="800">Circle / Sphere</tspan> — primordial perfect form, infinite symmetry</text>
+    <text x="2900" y="216" class="bullet">The entire circular disc (poloidal cross-section); the geometric ring’s “Curved” half is its direct emanation.</text>
+
+    <rect x="24" y="246" width="7192" height="80" class="row-norm"/>
+    <text x="40"   y="296" class="bullet"><tspan font-weight="800">Dimensional Ladder</tspan> — 0D Point → 1D Line → 2D Surface → 3D Solid</text>
+    <text x="2900" y="296" class="bullet">Concentric rings: Nucleus (0D), Atom (1D), Algebraic (2D), Geometric disc + Physics Quadrants (3D).</text>
+
+    <rect x="24" y="326" width="7192" height="80" class="row-alt"/>
+    <text x="40"   y="376" class="bullet"><tspan font-weight="800">Solids of Revolution</tspan> — cylinder, cone, sphere, spheroid, paraboloid</text>
+    <text x="2900" y="376" class="bullet">Sub-category within  ② Conic &amp; Quadratic Curves  (rotated conics produce solids).</text>
+
+    <rect x="24" y="406" width="7192" height="80" class="row-norm"/>
+    <text x="40"   y="456" class="bullet"><tspan font-weight="800">Polygon as “Circle broken into harmony”</tspan></text>
+    <text x="2900" y="456" class="bullet">The “Discrete” half  (A–H)  — regular polygons inscribed in the circumscribed circle.</text>
+
+    <rect x="24" y="486" width="7192" height="80" class="row-alt"/>
+    <text x="40"   y="536" class="bullet"><tspan font-weight="800">Regular &amp; semi-regular polyhedra as “Sphere crystallised”</tspan></text>
+    <text x="2900" y="536" class="bullet">Category  C  (Regular &amp; Semi-Regular Polyhedra) — Platonic, Archimedean, prisms, antiprisms.</text>
+
+    <rect x="24" y="566" width="7192" height="80" class="row-norm"/>
+    <text x="40"   y="616" class="bullet"><tspan font-weight="800">All shapes are deviations of circle / sphere</tspan></text>
+    <text x="2900" y="616" class="bullet">The entire ring — further from centre = more specific / “deviated” geometric category.</text>
+
+    <rect x="24" y="646" width="7192" height="130" class="row-alt"/>
+    <text x="40"   y="696" class="bullet"><tspan font-weight="800">Musical intervals</tspan>  (side-ratio harmony)</text>
+    <text x="2900" y="696" class="bullet">Implicit in figurate numbers ( E ) and the wave-harmonic branches;</text>
+    <text x="2900" y="734" class="bullet">the “musical chord of primes” is a harmonic series on the circle  ( category ① ).</text>
+  </g>
+
+  <!-- ═══════════════ NOTE ON CONSTANTS ═══════════════ -->
+  <g transform="translate(80, 1100)">
+    <rect x="0" y="0" width="7240" height="240" rx="12" class="panel-n"/>
+    <text x="24" y="60" class="h2" fill="#B8860B">Note on Constants</text>
+    <text x="24" y="118" class="body">The nucleus contains  <tspan font-weight="800">π = 14</tspan>  and  <tspan font-weight="800">b = 3</tspan>  as the sole fixed axioms (derived from base-3 uniqueness).</text>
+    <text x="24" y="160" class="body">The triple  <tspan font-weight="800">(p, q, r) = (7, 11, 13)</tspan>  is a canonical worked example only — any pairwise distinct primes could serve.</text>
+    <text x="24" y="202" class="body">The framework does <tspan font-weight="800">not</tspan> hard-code 7, 11, 13 — they appear throughout the mapping only as an instance.</text>
+  </g>
+
+  <!-- ═══════════════ HALF PILLS ═══════════════ -->
+  <g transform="translate(80, 1370)">
+    <rect x="0" y="0" width="1970" height="86" rx="6" class="pill-c"/>
+    <text x="24" y="62" class="pilltxt">◖  Curved / Continuous Half</text>
+
+    <rect x="5270" y="0" width="1970" height="86" rx="6" class="pill-d"/>
+    <text x="5294" y="62" class="pilltxt">Discrete / Lattice Half  ◗</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+  <!-- CENTRAL TOROIDAL MAP — square 2080..5320 × 1470..4710 (3240 × 3240)   -->
+  <!-- centre = (3700, 3090); rings: nuc 540, atom 760, alg 1020, calc 1320 -->
+  <!-- geo 1620;  badge ring at r=1490                                       -->
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+
+  <!-- Physics quadrant tints -->
+  <path class="phys-nw" d="M 2080 1470 L 3700 1470 A 1620 1620 0 0 0 2080 3090 Z"/>
+  <path class="phys-ne" d="M 3700 1470 L 5320 1470 L 5320 3090 A 1620 1620 0 0 0 3700 1470 Z"/>
+  <path class="phys-sw" d="M 3700 4710 L 2080 4710 L 2080 3090 A 1620 1620 0 0 0 3700 4710 Z"/>
+  <path class="phys-se" d="M 5320 3090 L 5320 4710 L 3700 4710 A 1620 1620 0 0 0 5320 3090 Z"/>
+
+  <!-- Outer square frame -->
+  <rect x="2080" y="1470" width="3240" height="3240" fill="none" stroke="#0F0C0A" stroke-width="9"/>
+
+  <!-- Quadrant cross dividers -->
+  <line x1="2080" y1="3090" x2="5320" y2="3090" stroke="#0F0C0A" stroke-width="3" stroke-dasharray="22 14" stroke-opacity="0.45"/>
+  <line x1="3700" y1="1470" x2="3700" y2="4710" stroke="#0F0C0A" stroke-width="3" stroke-dasharray="22 14" stroke-opacity="0.45"/>
+
+  <!-- Geometric disc split halves -->
+  <path d="M 3700 1470 A 1620 1620 0 0 0 3700 4710 L 3700 3090 Z" fill="url(#circHalf)" stroke="none"/>
+  <path d="M 3700 1470 A 1620 1620 0 0 1 3700 4710 L 3700 3090 Z" fill="url(#sqHalf)"   stroke="none"/>
+  <circle cx="3700" cy="3090" r="1620" fill="none" stroke="#0F0C0A" stroke-width="7"/>
+
+  <!-- Inner rings -->
+  <circle cx="3700" cy="3090" r="1320" fill="#f5e9c8" stroke="#bcb19b" stroke-width="3"/>
+  <circle cx="3700" cy="3090" r="1020" fill="#ebe4d6" stroke="#c8c0b3" stroke-width="3"/>
+  <circle cx="3700" cy="3090" r="760"  fill="#f3eee5" stroke="#d4cfc8" stroke-width="3"/>
+  <circle cx="3700" cy="3090" r="540"  fill="url(#nucGrad)" stroke="#B8860B" stroke-width="7"/>
+
+  <!-- ═════════════ Wedge dividers — clean radial lines from r=1320 to r=1620 ═════════════ -->
+  <!-- Curved (left half): θ = 90, 115.71, 141.43, 167.14, 192.86, 218.57, 244.29, 270 -->
+  <g stroke="#2D7DD2" stroke-width="2.5" stroke-dasharray="7 5" stroke-opacity="0.6">
+    <line x1="3700" y1="1770" x2="3700" y2="1470"/>
+    <line x1="3127" y1="1901" x2="2997" y2="1631"/>
+    <line x1="2668" y1="2267" x2="2433" y2="2080"/>
+    <line x1="2413" y1="2796" x2="2121" y2="2730"/>
+    <line x1="2413" y1="3384" x2="2121" y2="3450"/>
+    <line x1="2668" y1="3913" x2="2433" y2="4100"/>
+    <line x1="3127" y1="4279" x2="2997" y2="4549"/>
+    <line x1="3700" y1="4410" x2="3700" y2="4710"/>
+  </g>
+  <!-- Discrete (right half): θ = 90, 67.5, 45, 22.5, 0, -22.5, -45, -67.5, -90 -->
+  <g stroke="#c0392b" stroke-width="2.5" stroke-dasharray="7 5" stroke-opacity="0.6">
+    <line x1="3700" y1="1770" x2="3700" y2="1470"/>
+    <line x1="4205" y1="1871" x2="4320" y2="1593"/>
+    <line x1="4633" y1="2157" x2="4846" y2="1944"/>
+    <line x1="4919" y1="2585" x2="5197" y2="2470"/>
+    <line x1="5020" y1="3090" x2="5320" y2="3090"/>
+    <line x1="4919" y1="3595" x2="5197" y2="3710"/>
+    <line x1="4633" y1="4023" x2="4846" y2="4236"/>
+    <line x1="4205" y1="4309" x2="4320" y2="4587"/>
+    <line x1="3700" y1="4410" x2="3700" y2="4710"/>
+  </g>
+
+  <!-- ═════════════ CURVED CATEGORY BADGES ON DISC (left half, r=1490) ═════════════ -->
+  <g><circle cx="3366" cy="1637" r="72" class="badge-c" stroke="#FAF8F6" stroke-width="6"/><text x="3366" y="1656" class="discbadge" text-anchor="middle">①</text></g>
+  <g><circle cx="2771" cy="1925" r="72" class="badge-c" stroke="#FAF8F6" stroke-width="6"/><text x="2771" y="1944" class="discbadge" text-anchor="middle">②</text></g>
+  <g><circle cx="2358" cy="2443" r="72" class="badge-c" stroke="#FAF8F6" stroke-width="6"/><text x="2358" y="2462" class="discbadge" text-anchor="middle">③</text></g>
+  <g><circle cx="2210" cy="3090" r="72" class="badge-c" stroke="#FAF8F6" stroke-width="6"/><text x="2210" y="3109" class="discbadge" text-anchor="middle">④</text></g>
+  <g><circle cx="2358" cy="3737" r="72" class="badge-c" stroke="#FAF8F6" stroke-width="6"/><text x="2358" y="3756" class="discbadge" text-anchor="middle">⑤</text></g>
+  <g><circle cx="2771" cy="4255" r="72" class="badge-c" stroke="#FAF8F6" stroke-width="6"/><text x="2771" y="4274" class="discbadge" text-anchor="middle">⑥</text></g>
+  <g><circle cx="3366" cy="4543" r="72" class="badge-c" stroke="#FAF8F6" stroke-width="6"/><text x="3366" y="4562" class="discbadge" text-anchor="middle">⑦</text></g>
+
+  <!-- ═════════════ DISCRETE CATEGORY BADGES ON DISC (right half, r=1490) ═════════════ -->
+  <g><circle cx="3991" cy="1629" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="3991" y="1648" class="discbadge" text-anchor="middle">A</text></g>
+  <g><circle cx="4528" cy="1851" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="4528" y="1870" class="discbadge" text-anchor="middle">B</text></g>
+  <g><circle cx="4939" cy="2262" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="4939" y="2281" class="discbadge" text-anchor="middle">C</text></g>
+  <g><circle cx="5161" cy="2799" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="5161" y="2818" class="discbadge" text-anchor="middle">D</text></g>
+  <g><circle cx="5161" cy="3381" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="5161" y="3400" class="discbadge" text-anchor="middle">E</text></g>
+  <g><circle cx="4939" cy="3918" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="4939" y="3937" class="discbadge" text-anchor="middle">F</text></g>
+  <g><circle cx="4528" cy="4329" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="4528" y="4348" class="discbadge" text-anchor="middle">G</text></g>
+  <g><circle cx="3991" cy="4551" r="72" class="badge-d" stroke="#FAF8F6" stroke-width="6"/><text x="3991" y="4570" class="discbadge" text-anchor="middle">H</text></g>
+
+  <!-- ═════════════ Half labels ═════════════ -->
+  <text x="3380" y="1545" class="half" fill="#2D7DD2" text-anchor="middle">◖ CURVED</text>
+  <text x="3380" y="1590" class="halfhint" fill="#2D7DD2" text-anchor="middle">①–⑦  Continuous</text>
+  <text x="4020" y="1545" class="half" fill="#c0392b" text-anchor="middle">DISCRETE ◗</text>
+  <text x="4020" y="1590" class="halfhint" fill="#c0392b" text-anchor="middle">A–H  Lattice</text>
+
+  <!-- ═════════════ NUCLEUS — Layer 1 — CONSTANTS FILE 3-TIER + INVARIANT REGISTER ═════════════ -->
+  <g>
+    <text x="3700" y="2655" class="nuctitle" text-anchor="middle" font-size="46">ATOMIC NUCLEUS  ·  L = 1</text>
+    <text x="3700" y="2687" class="invnote" text-anchor="middle" font-style="italic">1.1.1.UX1.1__constants.rs  ·  the single source of every numeral in the crate</text>
+
+    <!-- ───────── CONSTANTS FILE · 3-TIER STRUCTURE ───────── -->
+    <rect x="3110" y="2702" width="1180" height="36" rx="6" fill="#B8860B"/>
+    <text x="3700" y="2728" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">CONSTANTS FILE  ·  3 TIERS  ·  every numeral lives here exactly once</text>
+
+    <!-- TIER A · sole axioms -->
+    <text x="3700" y="2766" class="invsect" text-anchor="middle">TIER A  ·  SOLE AXIOMS  (frozen · no derivation)</text>
+    <text x="3550" y="2806" class="axiom" text-anchor="middle" font-size="40">π = 14</text>
+    <text x="3850" y="2806" class="axiom" text-anchor="middle" font-size="40">b = 3</text>
+    <text x="3700" y="2832" class="axiomnote" text-anchor="middle">derived from base-3 uniqueness  ·  every other constant in the crate descends from these two</text>
+
+    <!-- TIER B · derived constants -->
+    <text x="3700" y="2870" class="invsect" text-anchor="middle">TIER B  ·  DERIVED CONSTANTS  (const · computed at compile time from Tier A)</text>
+    <text x="3700" y="2900" class="invnote" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-weight="700">b² = 9   ·   b³ = 27   ·   π+b = 17   ·   b·π = 42   ·   2π = 28   ·   π·b² = 126   ·   π·b³ = 378</text>
+
+    <!-- TIER C · worked-example constants -->
+    <text x="3700" y="2932" class="invsect" text-anchor="middle">TIER C  ·  WORKED-EXAMPLE CONSTANTS  (const · illustrative · not axiomatic)</text>
+    <text x="3700" y="2962" class="invnote" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-weight="700">Forge triple (p,q,r) = (7,11,13)  ·  Σ-182 = 2·p·r  ·  Grand Circle = 756  ·  Disc identity = 1,000,144</text>
+
+    <!-- separator -->
+    <line x1="3120" y1="2986" x2="4280" y2="2986" stroke="#B8860B" stroke-width="2"/>
+
+    <!-- ───────── INVARIANT REGISTER ───────── -->
+    <rect x="3110" y="2998" width="1180" height="36" rx="6" fill="#B8860B"/>
+    <text x="3700" y="3024" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">INVARIANT REGISTER  ·  tests/invariants.rs  ·  17 LANDED IDs</text>
+
+    <g font-family="Menlo, Consolas, monospace" font-size="24" font-weight="700" fill="#0F0C0A">
+      <text x="3225" y="3066">I-1</text>
+      <text x="3355" y="3066">I-2</text>
+      <text x="3485" y="3066">I-5</text>
+      <text x="3615" y="3066">I-6</text>
+      <text x="3745" y="3066">I-7</text>
+      <text x="3875" y="3066">I-8</text>
+      <text x="4005" y="3066">I-9</text>
+      <text x="4135" y="3066">I-11</text>
+      <text x="3225" y="3094">I-12</text>
+      <text x="3355" y="3094">I-14</text>
+      <text x="3485" y="3094">I-22</text>
+      <text x="3615" y="3094">I-24</text>
+      <text x="3745" y="3094">I-31</text>
+      <text x="3875" y="3094">I-37</text>
+      <text x="4005" y="3094">I-44</text>
+      <text x="4135" y="3094">I-45</text>
+      <text x="3225" y="3122">I-46</text>
+      <text x="3355" y="3122" font-style="italic">+ dual-zero contract pin</text>
+    </g>
+
+    <!-- enforcement tiers -->
+    <text x="3700" y="3158" class="invsect" text-anchor="middle">ENFORCEMENT TIERS  ·  how each invariant is checked</text>
+    <text x="3700" y="3186" class="invnote" text-anchor="middle">I · compile-time const blocks  in 1.1.1.UX1.1__constants.rs</text>
+    <text x="3700" y="3210" class="invnote" text-anchor="middle">II · runtime named tests  in tests/invariants.rs   (also: tri-ladder · circle quadratic Δ=144 · grand circle 756)</text>
+    <text x="3700" y="3234" class="invnote" text-anchor="middle">III · CI/static grep guards  ·  no_std-clean  ·  NO byte boundary anywhere  ·  pure trit end-to-end  ·  numerals only in 1.1.1</text>
+
+    <!-- separator -->
+    <line x1="3120" y1="3252" x2="4280" y2="3252" stroke="#B8860B" stroke-width="2"/>
+
+    <!-- ───────── PURE-TRIT CONFORMANCE FIXTURE ───────── -->
+    <text x="3700" y="3282" class="invsect" text-anchor="middle">PURE-TRIT CONFORMANCE FIXTURE  ·  tests/pure_trit_conformance.rs</text>
+    <text x="3700" y="3308" class="invnote" text-anchor="middle">static grep guard asserts NO byte/u8 type appears anywhere in src/  ·  TritVec is the sole storage primitive  ·  IPC/wire/disk all use base-3 packing without semantic byte boundary</text>
+    <text x="3700" y="3332" class="invnote" text-anchor="middle">AASC is trit-pure end-to-end · no opaque-byte adapter exists · no feature flag toggles a byte boundary</text>
+
+    <!-- separator -->
+    <line x1="3120" y1="3350" x2="4280" y2="3350" stroke="#B8860B" stroke-width="2"/>
+
+    <!-- Notation modules -->
+    <text x="3700" y="3380" class="nucsub" text-anchor="middle">Notation Modules  (Layer 1)</text>
+    <text x="3700" y="3408" class="invnote" text-anchor="middle">1.1.1.UX1.1__constants.rs  ·  1.4.1.UX1.1__milesian.rs  ·  1.4.2.UX1.1__greek_atomic.rs  ·  1.4.3.UX1.1__upiid.rs</text>
+
+    <!-- footer -->
+    <text x="3700" y="3450" class="nucfooter" text-anchor="middle">Salvi Standard of Scrutiny · UPIID V1.1 · π and b are the SOLE fixed axioms — every other constant derives</text>
+  </g>
+
+  <!-- ═════════════ ATOM ring modules (1D — Trit) ═════════════ -->
+  <!-- North strip (above nucleus, inside atom ring r=540..760)              -->
+  <!-- South strip (below nucleus, three small boxes side-by-side)           -->
+  <g>
+    <rect class="modbox-red" x="3360" y="2380" width="680" height="130" rx="8"/>
+    <text x="3700" y="2422" class="modgreek" text-anchor="middle">τ · the Trit (Rep-C canonical)</text>
+    <text x="3700" y="2456" class="modfile" text-anchor="middle">2.1.1.UX1.5__trit.rs · {−, +} only · 0 forbidden by default</text>
+    <text x="3700" y="2492" class="quadaddr" text-anchor="middle">2.1.1.UX1.5__trit.rs</text>
+
+    <rect class="modbox-grey" x="3260" y="3690" width="280" height="100" rx="8"/>
+    <text x="3400" y="3728" class="modgreek" text-anchor="middle">⃗τ · TritVec</text>
+    <text x="3400" y="3758" class="modfile" text-anchor="middle">2.2.1.UX1.5__tritvec.rs · MSB-first</text>
+    <text x="3400" y="3782" class="quadaddr" text-anchor="middle">2.2.1.UX1.5__tritvec.rs</text>
+
+    <rect class="modbox-grey" x="3560" y="3690" width="280" height="100" rx="8"/>
+    <text x="3700" y="3728" class="modgreek" text-anchor="middle">⊕ ⊗ Arithmetic</text>
+    <text x="3700" y="3758" class="modfile" text-anchor="middle">2.3.1.UX4.1__arithmetic.rs · pure trit</text>
+    <text x="3700" y="3782" class="quadaddr" text-anchor="middle">2.3.1.UX4.1__arithmetic.rs</text>
+
+    <rect class="modbox-yellow" x="3860" y="3690" width="280" height="100" rx="8"/>
+    <text x="4000" y="3728" class="modgreek" text-anchor="middle">R_L^(b) · Repunit</text>
+    <text x="4000" y="3758" class="modfile" text-anchor="middle">4.6.1.UX1.5__repx.rs · base-b bijective</text>
+    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">4.6.1.UX1.5__repx.rs</text>
+  </g>
+
+  <!-- ═════════════ ALGEBRAIC ring modules (2D) ═════════════ -->
+  <!-- North strip (above atom ring, inside algebraic ring r=760..1020)      -->
+  <!-- South strip (below atom ring, three boxes)                            -->
+  <g>
+    <rect class="modbox-grey" x="3220" y="2210" width="380" height="100" rx="8"/>
+    <text x="3410" y="2248" class="modgreek" text-anchor="middle">GF(3)</text>
+    <text x="3410" y="2278" class="modfile" text-anchor="middle">3.1.1.UX4.1__gf3.rs · field {0, 1, 2}</text>
+    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">3.1.1.UX4.1__gf3.rs</text>
+
+    <rect class="modbox-grey" x="3800" y="2210" width="380" height="100" rx="8"/>
+    <text x="3990" y="2248" class="modgreek" text-anchor="middle">ℤ[φ]</text>
+    <text x="3990" y="2278" class="modfile" text-anchor="middle">3.2.1.UX4.1__zphi.rs · R² = π + 5φ</text>
+    <text x="3990" y="2302" class="quadaddr" text-anchor="middle">3.2.1.UX4.1__zphi.rs</text>
+
+    <rect class="modbox-grey" x="3140" y="3870" width="320" height="100" rx="8"/>
+    <text x="3300" y="3908" class="modgreek" text-anchor="middle">∇ · Walk + CRT</text>
+    <text x="3300" y="3938" class="modfile" text-anchor="middle">3.5.1.UX9.9__walk.rs · coprime walks</text>
+    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.5.1.UX9.9__walk.rs</text>
+
+    <rect class="modbox-blue" x="3490" y="3870" width="420" height="100" rx="8"/>
+    <text x="3700" y="3908" class="modgreek" text-anchor="middle">⟨p, q⟩ · Coprime + Bezout</text>
+    <text x="3700" y="3938" class="modfile" text-anchor="middle">3.4.1.UX4.1__coprime.rs · S10-1 identity</text>
+    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.4.1.UX4.1__coprime.rs</text>
+
+    <rect class="modbox-grey" x="3940" y="3870" width="320" height="100" rx="8"/>
+    <text x="4100" y="3908" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
+    <text x="4100" y="3938" class="modfile" text-anchor="middle">3.3.1.UX3.3__borromean.rs · ternary link</text>
+    <text x="4100" y="3962" class="quadaddr" text-anchor="middle">3.3.1.UX3.3__borromean.rs</text>
+
+      <rect class="modbox-grey" x="3220" y="2330" width="380" height="100" rx="8"/>
+      <text x="3410" y="2368" class="modgreek" text-anchor="middle">≡ mod · CRT</text>
+      <text x="3410" y="2398" class="modfile" text-anchor="middle">3.6.1.UX4.1__crt.rs · Chinese Remainder</text>
+      <text x="3410" y="2422" class="quadaddr" text-anchor="middle">3.6.1.UX4.1__crt.rs</text>
+
+      <rect class="modbox-grey" x="3800" y="2330" width="380" height="100" rx="8"/>
+      <text x="3990" y="2368" class="modgreek" text-anchor="middle">α x + β y · Bezout</text>
+      <text x="3990" y="2398" class="modfile" text-anchor="middle">3.4.2.UX4.1__bezout.rs · gcd coefficients</text>
+      <text x="3990" y="2422" class="quadaddr" text-anchor="middle">3.4.2.UX4.1__bezout.rs</text>
+  </g>
+
+  <!-- ═════════════ CALCULI ring (L=4) — operators properly inside ring ═════════════ -->
+    <g>
+      <!-- L=4 ring banner — top of calculi ring, inside band r=1020..1320 -->
+      <rect x="3220" y="1815" width="960" height="44" rx="8" fill="#B8860B" fill-opacity="0.92"/>
+      <text x="3700" y="1846" class="calcbanner" text-anchor="middle" fill="#FAF8F6">L = 4   ·   CALCULI   ·   Δ ∮ ◯ Σ</text>
+      <text x="3700" y="1888" class="quadaddr" text-anchor="middle">all four sub-calculi unified in  4.5.1.UX4.1__calculus.rs</text>
+
+      <!-- Δ Difference — north position, properly inside calculi ring (r≈1170) -->
+      <text x="3700" y="1944" class="calcsub" text-anchor="middle">Δ · Difference</text>
+      <text x="3700" y="1980" class="calcname" text-anchor="middle">divided differences · Δ_n recurrences</text>
+      <text x="3700" y="2008" class="quadaddr" text-anchor="middle">4.1.1.UX4.1__delta.rs</text>
+
+      <!-- ∮ Circular — east position, properly inside calculi ring -->
+      <text x="4870" y="3090" class="calcsub" text-anchor="middle">∮ · Circular</text>
+      <text x="4870" y="3126" class="calcname" text-anchor="middle">closed-loop sums on R₆ = 364°</text>
+      <text x="4870" y="3154" class="quadaddr" text-anchor="middle">4.2.1.UX4.1__circular.rs</text>
+
+      <!-- ◯ Iteration — south position, properly inside calculi ring -->
+      <text x="3700" y="4256" class="calcsub" text-anchor="middle">◯ · Iteration</text>
+      <text x="3700" y="4292" class="calcname" text-anchor="middle">fixed-point · ladder maps</text>
+      <text x="3700" y="4320" class="quadaddr" text-anchor="middle">4.3.1.UX4.1__iteration.rs</text>
+
+      <!-- Σ Series — west position, properly inside calculi ring -->
+      <text x="2530" y="3090" class="calcsub" text-anchor="middle">Σ · Series</text>
+      <text x="2530" y="3126" class="calcname" text-anchor="middle">Σ-182 partial sums</text>
+      <text x="2530" y="3154" class="quadaddr" text-anchor="middle">4.4.1.UX4.1__series.rs</text>
+    </g>
+
+    <!-- ═════════════ Concentric ring identifiers L=2 / L=3 / L=4 ═════════════ -->
+    <!-- Placed at angle ≈ 30° below east axis where there are no module boxes -->
+    <g>
+      <text x="4263" y="3415" class="ringlabel" text-anchor="middle">L=2 ATOM</text>
+      <text x="4471" y="3548" class="ringlabel" text-anchor="middle">L=3 ALGEBRAIC</text>
+      <text x="4713" y="3692" class="ringlabel" text-anchor="middle">L=4 CALCULI</text>
+    </g>
+  
+  <!-- ═════════════ PHYSICS QUADRANTS (corners) ═════════════ -->
+  <g>
+    <text x="2110" y="1540" class="quadtitle" fill="#5b3aa8">NW</text>
+    <text x="2110" y="1580" class="quadsub" fill="#5b3aa8">Spectral / Atomic</text>
+    <text x="2110" y="1640" class="quadmod">hydrogen_spectral · 1/α</text>
+    <text x="2110" y="1672" class="quadaddr">9.1.1.UX4.2__hydrogen_spectral.rs</text>
+    <text x="2110" y="1716" class="quadmod">uv_hydrogen_spectral</text>
+    <text x="2110" y="1748" class="quadaddr">9.2.1.UX4.2__uv_hydrogen_spectral.rs</text>
+    <text x="2110" y="1792" class="quadmod">spectral_offset · κ bridge</text>
+    <text x="2110" y="1824" class="quadaddr">9.3.1.UX4.2__spectral_offset.rs</text>
+    <text x="2110" y="1868" class="quadmod">phase_impedance · cone-point α</text>
+    <text x="2110" y="1900" class="quadaddr">9.4.1.UX4.1__phase_impedance.rs</text>
+  </g>
+  <g>
+    <text x="5290" y="1540" class="quadtitle" fill="#1f5fa8" text-anchor="end">NE</text>
+    <text x="5290" y="1580" class="quadsub" fill="#1f5fa8" text-anchor="end">Wave / Field</text>
+    <text x="5290" y="1640" class="quadmod" text-anchor="end">wave_stratum · §13 synthesis</text>
+    <text x="5290" y="1672" class="quadaddr" text-anchor="end">6.1.1.UX4.2.9__wave_stratum.rs</text>
+    <text x="5290" y="1716" class="quadmod" text-anchor="end">conservation_laws</text>
+    <text x="5290" y="1748" class="quadaddr" text-anchor="end">6.2.1.UX4.1__conservation_laws.rs</text>
+    <text x="5290" y="1792" class="quadmod" text-anchor="end">field_modes · TE / TM duality</text>
+    <text x="5290" y="1824" class="quadaddr" text-anchor="end">6.3.1.UX4.2__field_modes.rs</text>
+    <text x="5290" y="1868" class="quadmod" text-anchor="end">poynting_flux · energy current</text>
+    <text x="5290" y="1900" class="quadaddr" text-anchor="end">6.4.1.UX4.1__poynting_flux.rs</text>
+  </g>
+  <g>
+    <text x="2110" y="4360" class="quadtitle" fill="#4d6a1a">SW</text>
+    <text x="2110" y="4400" class="quadsub" fill="#4d6a1a">Crystal / Lattice</text>
+    <text x="2110" y="4460" class="quadmod">crystal_2d_3d</text>
+    <text x="2110" y="4496" class="quadaddr">8.1.1.UX5.1__crystal_2d_3d.rs</text>
+    <text x="2110" y="4544" class="quadmod">lattice_modes · Bravais classes</text>
+    <text x="2110" y="4576" class="quadaddr">8.2.1.UX5.1__lattice_modes.rs</text>
+    <text x="2110" y="4620" class="quadmod">nona_state · 9-fold register</text>
+    <text x="2110" y="4652" class="quadaddr">8.3.1.UX5.1__nona_state.rs</text>
+    <text x="2110" y="4696" class="quadmod">schumann_runge · O₂ wall</text>
+    <text x="2110" y="4728" class="quadaddr">8.4.1.UX4.1__schumann_runge.rs</text>
+  </g>
+  <g>
+    <text x="5290" y="4360" class="quadtitle" fill="#a02040" text-anchor="end">SE</text>
+    <text x="5290" y="4400" class="quadsub" fill="#a02040" text-anchor="end">Number-Theoretic</text>
+    <text x="5290" y="4460" class="quadmod" text-anchor="end">wieferich_grh_beal</text>
+    <text x="5290" y="4496" class="quadaddr" text-anchor="end">7.1.1.UX4.1__wieferich_grh_beal.rs</text>
+    <text x="5290" y="4544" class="quadmod" text-anchor="end">arithmetic_progressions · AP rings</text>
+    <text x="5290" y="4576" class="quadaddr" text-anchor="end">7.2.1.UX4.1__arithmetic_progressions.rs</text>
+    <text x="5290" y="4620" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
+    <text x="5290" y="4652" class="quadaddr" text-anchor="end">7.3.1.UX4.1__tribonacci.rs</text>
+    <text x="5290" y="4696" class="quadmod" text-anchor="end">primes_residues · ζ register</text>
+    <text x="5290" y="4728" class="quadaddr" text-anchor="end">7.4.1.UX4.1__primes_residues.rs</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+  <!-- 7 CURVED PANELS (LEFT, x=80..2050, w=1970)                            -->
+  <!-- y starts 1480.  height 510, gap 14  →  7 panels = 7*510+6*14 = 3654  -->
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+
+  <g transform="translate(80, 1480)">
+    <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
+    <circle cx="60" cy="60" r="40" class="badge-c"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">①</text>
+    <text x="118" y="60" class="h2">Circular Arcs &amp; Cycles</text>
+    <text x="20"  y="148" class="bullet">• Torus geometry  (𝒞• = 28, 𝒞○ = 364)</text>
+    <text x="20"  y="186" class="bullet">• Velocity constants  (c = √14, c_S = 28)</text>
+    <text x="20"  y="224" class="bullet">• Wave-harmonic series  (λ_n = 364/n)</text>
+    <text x="20"  y="262" class="bullet">• Vesica angular pair  (52°, 28°)</text>
+    <text x="20"  y="300" class="bullet">• Σ-182 Bridge as antipode &amp; half-circle</text>
+    <text x="20"  y="338" class="bullet">• Triangular ladder arcs:</text>
+    <text x="20"  y="370" class="bullet"><tspan x="40">Tri(7)=28, Tri(13)=91, Tri(17)=153</tspan></text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">5.1.1.UX5.1__circle.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.1.2.UX4.1__speed_of_light.rs</text>
+    <text x="20"  y="458" class="addr">5.1.1..2  ←  geometric · curved · sector ① · ord 1..2</text>
+    <text x="20"  y="490" class="small">↔ G (Wave-harmonic dual grids · Σ-182 O₂ wall)  ·  E (Tri ladder figurates)</text>
+  </g>
+
+  <g transform="translate(80, 2004)">
+    <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
+    <circle cx="60" cy="60" r="40" class="badge-c"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">②</text>
+    <text x="118" y="60" class="h2">Conic &amp; Quadratic Curves</text>
+    <text x="20"  y="150" class="bullet">• Circle quadratic  (x² − R_4·x + R_6 = 0,  Δ = 144)</text>
+    <text x="20"  y="190" class="bullet">• Generating quadratic  (arc² − 832·arc + 118300 = 0)</text>
+    <text x="20"  y="230" class="bullet">• Gabriel’s Horn  y = 1/x  rotated → conic-derived solid</text>
+    <text x="20"  y="282" class="bullet">• <tspan font-weight="800">Solids of revolution</tspan>  (cylinder, cone, sphere,</text>
+    <text x="20"  y="316" class="bullet"><tspan x="40">spheroid, paraboloid, hyperboloid)</tspan></text>
+    <text x="20"  y="350" class="bullet"><tspan x="40">— Archimedes’ generating method</tspan></text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">5.2.1.UX5.1__discriminant.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.2.2.UX5.1__solids_of_revolution.rs</text>
+    <text x="1240" y="238" class="modlist-c">5.2.3.UX5.1__gabriels_horn.rs</text>
+    <text x="20"  y="458" class="addr">5.2.1..3  ←  geometric · curved · sector ② · ord 1..3</text>
+    <text x="20"  y="490" class="small">↔ E  (Phase-Impedance integer companions 137 / 377)</text>
+  </g>
+
+  <g transform="translate(80, 2528)">
+    <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
+    <circle cx="60" cy="60" r="40" class="badge-c"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">③</text>
+    <text x="118" y="60" class="h2">Circular Measures &amp; Grand Cycles</text>
+    <text x="20"  y="170" class="bullet">• Grand Circle  (C_Grand = 756)</text>
+    <text x="20"  y="216" class="bullet">• Frame square partitions containing 756</text>
+    <text x="20"  y="262" class="bullet">• π + X quadruple  (17, 18, 27, 25)</text>
+    <text x="20"  y="308" class="bullet">• Σ-182 bridge as cycle midpoint</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">5.3.1.UX5.1__grand_circle.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.3.2.UX5.1__pi_quadruple.rs</text>
+    <text x="20"  y="458" class="addr">5.3.1..3  ←  geometric · curved · sector ③ · ord 1..3</text>
+    <text x="20"  y="490" class="small">↔ A , B  ((bq)² Frame Square 1089 · Plenum 333 magic)</text>
+  </g>
+
+  <g transform="translate(80, 3052)">
+    <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
+    <circle cx="60" cy="60" r="40" class="badge-c"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">④</text>
+    <text x="118" y="60" class="h2">Quadratic Transformations</text>
+    <text x="20"  y="170" class="bullet">• Vesica chord squared  (ℓ² = r³ / p)  — quadratic relation</text>
+    <text x="20"  y="216" class="bullet">• Discriminant identity</text>
+    <text x="20"  y="252" class="bullet"><tspan x="40">((pqr − 1)² + 4(p − r)² = 1,000,144)</tspan></text>
+    <text x="20"  y="298" class="bullet">• Volumetric ceiling identity  (V = ℓ² · π_geom³)</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">5.4.1.UX5.1__vesica.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.4.2.UX5.1__volumetric_ceiling.rs</text>
+    <text x="1240" y="238" class="modlist-c">5.4.3.UX5.1__arc182.rs</text>
+    <text x="20"  y="458" class="addr">5.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
+</g>
+
+  <g transform="translate(80, 3576)">
+    <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
+    <circle cx="60" cy="60" r="40" class="badge-c"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">⑤</text>
+    <text x="118" y="60" class="h2">Star Polygons &amp; Coprime Knots</text>
+    <text x="20"  y="170" class="bullet">• Coprime polygon pair  (exemplar 11, 13)</text>
+    <text x="20"  y="200" class="bullet"><tspan x="40">— star polygons from skipping vertices on circumcircle</tspan></text>
+    <text x="20"  y="246" class="bullet">• Theta chord’s repunit base 12 yields star patterns</text>
+    <text x="20"  y="292" class="bullet">• Torus knot windings  (143, 91, 77)  define a star knot</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">5.5.1.UX5.1__coprime_polygon_pair.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.5.2.UX5.1__star_polygon.rs</text>
+    <text x="20"  y="458" class="addr">5.5.1..2  ←  geometric · curved · sector ⑤ · ord 1..2</text>
+    <text x="20"  y="490" class="small">↔ F  (Torus Knot Crown lifts to 3D star polytope)</text>
+  </g>
+
+  <g transform="translate(80, 4100)">
+    <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
+    <circle cx="60" cy="60" r="40" class="badge-c"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">⑥</text>
+    <text x="118" y="60" class="h2">Repunit Rosettes &amp; θ Chords</text>
+    <text x="20"  y="148" class="bullet">• Repunit circles module</text>
+    <text x="20"  y="194" class="bullet">• Theta Chord:  1892 = R_4^(12) + p</text>
+    <text x="20"  y="226" class="bullet"><tspan x="40">1893 = R_4^(12) + (b−1)³</tspan></text>
+    <text x="20"  y="270" class="bullet">• Repunit factors  R_4^(12) = 5 · 13 · 29</text>
+    <text x="20"  y="314" class="bullet">• Fibonacci 377 in rosette forms</text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">5.6.1.UX5.1__repunit_circles.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.6.2.UX5.1__theta_chord.rs</text>
+    <text x="1240" y="238" class="modlist-c">5.6.3.UX5.1__fibonacci.rs</text>
+    <text x="20"  y="458" class="addr">5.6.1..3  ←  geometric · curved · sector ⑥ · ord 1..3</text>
+    <text x="20"  y="490" class="small">↔ H  (Theta Chord year differences as cone-point lifts)</text>
+  </g>
+
+  <g transform="translate(80, 4624)">
+    <rect x="0" y="0" width="1970" height="510" rx="12" class="panel-c"/>
+    <circle cx="60" cy="60" r="40" class="badge-c"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">⑦</text>
+    <text x="118" y="60" class="h2">Metatronic Disdyakis Bridge</text>
+    <text x="20"  y="220" class="bullet">• Disdyakis bridge:   R² = π + 5φ</text>
+    <text x="20"  y="262" class="bullet"><tspan x="40">— connects golden ring to circle geometry</tspan></text>
+    <text x="1240" y="132" class="modhead-c">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-c">5.7.1.UX5.1__disdyakis_bridge.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.7.2.UX5.1__saturnian_metatron.rs</text>
+    <text x="20"  y="458" class="addr">5.7.1..2  ←  geometric · curved · sector ⑦ · ord 1..2</text>
+    <text x="20"  y="490" class="small">↔ C  (Milesian glyph polyhedral symmetry)</text>
+  </g>
+
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+  <!-- 8 DISCRETE PANELS (RIGHT, x=5350..7320, w=1970)                       -->
+  <!-- y starts 1480.  height 446, gap 12  →  8 panels = 8*446+7*12 = 3652  -->
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+
+  <g transform="translate(5350, 1480)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">A</text>
+    <text x="118" y="60" class="h2">Lattice Frames &amp; Square Grids</text>
+    <text x="20"  y="148" class="bullet">• (bq)² = 1089 Frame Square</text>
+    <text x="20"  y="184" class="bullet">• Calendar grid  (28 × 13 = 364 days)</text>
+    <text x="20"  y="220" class="bullet">• Tick &amp; clock register</text>
+    <text x="20"  y="256" class="bullet">• Circle-and-Square bijection (b³=27 register ↔ 3-trit ↔ Milesian glyph)</text>
+    <text x="20"  y="292" class="bullet">• Milesian Δ_1(μ) = 28 — fundamental spacing</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.A.1.UX5.2__frame_square.rs</text>
+    <text x="1240" y="204" class="modlist-d">5.A.2.UX6.6__calendar.rs</text>
+    <text x="1240" y="238" class="modlist-d">5.A.3.UX6.6__tick_clock.rs</text>
+    <text x="20"  y="394" class="addr">5.A.1..3  ←  geometric · discrete · sector A · ord 1..3</text>
+    <text x="20"  y="426" class="small">↔ ③ (756 lives in (bq)² partitions)</text>
+  </g>
+
+  <g transform="translate(5350, 1938)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">B</text>
+    <text x="118" y="60" class="h2">Magic Squares &amp; Permutohedra</text>
+    <text x="20"  y="200" class="bullet">• Plenum magic constant 333  (explicit magic square)</text>
+    <text x="20"  y="244" class="bullet">• 4 σ permutations  (from 5.B.1.UX5.2__plenum_square.rs)</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.B.1.UX5.2__plenum_square.rs  (333 magic + 4 σ permutations)</text>
+    <text x="20"  y="394" class="addr">5.B.1  ←  geometric · discrete · sector B · ord 1</text>
+    <text x="20"  y="426" class="small">↔ ③  (1089 + 333 anchored to Grand Circle 756)</text>
+  </g>
+
+  <g transform="translate(5350, 2396)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">C</text>
+    <text x="118" y="60" class="h2">Regular &amp; Semi-Regular Polyhedra</text>
+    <text x="20"  y="160" class="bullet">• Platonic solids (5),  Archimedean solids (13),</text>
+    <text x="20"  y="190" class="bullet"><tspan x="40">prisms,  antiprisms</tspan></text>
+    <text x="20"  y="234" class="bullet">• Milesian 27-glyph set as completed polyhedron</text>
+    <text x="20"  y="262" class="bullet"><tspan x="40">(ghosts = missing vertices)</tspan></text>
+    <text x="20"  y="304" class="bullet">• Elemental decomposition maps elements to vertices</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.C.1.UX5.2__polyhedra.rs</text>
+    <text x="20"  y="394" class="addr">5.C.1  ←  geometric · discrete · sector C · ord 1</text>
+    <text x="20"  y="426" class="small">↔ ⑦  (Disdyakis · ghost letters as missing phases)</text>
+  </g>
+
+  <g transform="translate(5350, 2854)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">D</text>
+    <text x="118" y="60" class="h2">Color Symmetry &amp; Crystal Groups</text>
+    <text x="20"  y="200" class="bullet">• Plenum color harmonics  (RED / BLUE / CO / GREEN)</text>
+    <text x="20"  y="244" class="bullet">• 1089 partition color-coding as symmetry operations</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.D.1.UX5.4__plenum_color.rs</text>
+    <text x="20"  y="394" class="addr">5.D.1  ←  geometric · discrete · sector D · ord 1</text>
+    <text x="20"  y="426" class="small">↔ A  (1089 partitions = lattice + colour symmetry)</text>
+  </g>
+
+  <g transform="translate(5350, 3312)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">E</text>
+    <text x="118" y="60" class="h2">Figurate Numbers &amp; Ladders</text>
+    <text x="20"  y="148" class="bullet">• Triangular ladder:  Tri(7)=28, Tri(10)=55,</text>
+    <text x="20"  y="180" class="bullet"><tspan x="40">Tri(13)=91, Tri(14)=105, Tri(17)=153,</tspan></text>
+    <text x="20"  y="210" class="bullet"><tspan x="40">Tri(25)=325, Tri(27)=378, Tri(45)=1035</tspan></text>
+    <text x="20"  y="250" class="bullet">• Proton mass:  153 = Tri(17)</text>
+    <text x="20"  y="284" class="bullet">• Axis 17 lock  (17 = π + b)</text>
+    <text x="20"  y="318" class="bullet">• Lunisolar drift  (10.875 days / yr)</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.E.1.UX5.2__tri_ladder.rs</text>
+    <text x="1240" y="204" class="modlist-d">5.E.2.UX5.2__axis_lock.rs</text>
+    <text x="1240" y="238" class="modlist-d">5.E.3.UX6.6__lunisolar.rs</text>
+    <text x="1240" y="272" class="modlist-d">5.E.4.UX4.1__proton_mass.rs</text>
+    <text x="20"  y="394" class="addr">5.E.1..4  ←  geometric · discrete · sector E · ord 1..4</text>
+    <text x="20"  y="426" class="small">↔ ① (Tri arcs)  ·  ② (Phase-Impedance 137 · 377)</text>
+  </g>
+
+  <g transform="translate(5350, 3770)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">F</text>
+    <text x="118" y="60" class="h2">Star Polytopes &amp; Antiprisms</text>
+    <text x="20"  y="200" class="bullet">• Torus knot  (143, 91, 77)  as self-defining star polytope</text>
+    <text x="20"  y="244" class="bullet">• Kepler–Poinsot solids,  uniform star forms</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.F.1.UX5.2__torus_knot.rs</text>
+    <text x="1240" y="204" class="modlist-d">5.F.2.UX5.2__kepler_poinsot.rs</text>
+    <text x="1240" y="238" class="modlist-d">5.F.3.UX5.2__star_polytope.rs</text>
+    <text x="20"  y="394" class="addr">5.F.1..3  ←  geometric · discrete · sector F · ord 1..3</text>
+    <text x="20"  y="426" class="small">↔ ⑤  (planar star polygons that lift to 3D antiprisms)</text>
+  </g>
+
+  <g transform="translate(5350, 4228)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">G</text>
+    <text x="118" y="60" class="h2">Crystal Systems &amp; Bravais Lattices</text>
+    <text x="20"  y="160" class="bullet">• Σ-182 bridge’s O₂ dissociation wall  (Schumann–Runge)</text>
+    <text x="20"  y="190" class="bullet"><tspan x="40">— molecular lattice property</tspan></text>
+    <text x="20"  y="234" class="bullet">• Crystal 2D / 3D physics modules</text>
+    <text x="20"  y="276" class="bullet">• Wave dual grids as Bravais basis</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.G.1.UX5.2__bravais_view.rs</text>
+    <text x="20"  y="394" class="addr">5.G.1  ←  geometric · discrete · sector G · ord 1</text>
+    <text x="20"  y="426" class="small">↔ ① (Σ-182 antipode · wave-harmonic continuous spectrum)</text>
+  </g>
+
+  <g transform="translate(5350, 4686)">
+    <rect x="0" y="0" width="1970" height="446" rx="12" class="panel-d"/>
+    <circle cx="60" cy="60" r="40" class="badge-d"/>
+    <text x="60" y="74" class="badgetxt" text-anchor="middle">H</text>
+    <text x="118" y="60" class="h2">Convex / Concave Polygon Taxonomy</text>
+    <text x="20"  y="200" class="bullet">• Cone-point lifts  (+1, +8, +36)  classify convex vs star</text>
+    <text x="20"  y="244" class="bullet">• Frame square lifts as convex-hull increments</text>
+    <text x="1240" y="132" class="modhead-d">Modules</text>
+    <line x1="1240" y1="144" x2="1920" y2="144" stroke="#c0392b" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="1240" y="170" class="modlist-d">5.H.1.UX5.2__cone_point.rs</text>
+    <text x="20"  y="394" class="addr">5.H.1  ←  geometric · discrete · sector H · ord 1</text>
+    <text x="20"  y="426" class="small">↔ ⑥  (Theta Chord year differences as cone-point lifts)</text>
+  </g>
+
+  <!-- ═══════════════ CROSS-CUTTING ITEMS ═══════════════ -->
+    <g transform="translate(80, 5180)">
+      <rect x="0" y="0" width="7240" height="640" rx="12" class="panel-x"/>
+      <text x="24" y="64" class="h2" fill="#B8860B">Cross-Cutting Items  ·  with explicit *.rs filename references</text>
+      <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
+
+      <text x="40"   y="138" class="h3">Item</text>
+      <text x="1700" y="138" class="h3">Curved Side</text>
+      <text x="3500" y="138" class="h3">Discrete Side</text>
+      <text x="5320" y="138" class="h3" fill="#B8860B">Files (*.rs)</text>
+      <line x1="24" y1="156" x2="7216" y2="156" stroke="#B8860B" stroke-width="2"/>
+
+      <rect x="24" y="166" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="206" class="bullet"><tspan font-weight="800">Torus Manifold</tspan></text>
+      <text x="1700" y="206" class="bullet">Poloidal disc  (curved)</text>
+      <text x="3500" y="206" class="bullet">Square corners  (discrete quadrants)</text>
+      <text x="5320" y="206" class="modlist-c" fill="#B8860B">5.F.1.UX5.2__torus_knot.rs · 5.A.1.UX5.2__frame_square.rs</text>
+
+      <rect x="24" y="222" width="7192" height="56" class="row-alt"/>
+      <text x="40"   y="262" class="bullet"><tspan font-weight="800">(bq)² Frame Square</tspan></text>
+      <text x="1700" y="262" class="bullet">756 in Grand Circle  ( ③ )</text>
+      <text x="3500" y="262" class="bullet">1089 lattice  ( A )</text>
+      <text x="5320" y="262" class="modlist-c" fill="#B8860B">5.A.1.UX5.2__frame_square.rs · 5.3.1.UX5.1__grand_circle.rs</text>
+
+      <rect x="24" y="278" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="318" class="bullet"><tspan font-weight="800">Σ-182 Bridge</tspan></text>
+      <text x="1700" y="318" class="bullet">182 as half-circle  ( ① )</text>
+      <text x="3500" y="318" class="bullet">182 nm O₂ Schumann-Runge dissociation wall  ( G )</text>
+      <text x="5320" y="318" class="modlist-c" fill="#B8860B">5.4.3.UX5.1__arc182.rs · 8.1.1.UX5.1__crystal_2d_3d.rs · 6.1.1.UX4.2.9__wave_stratum.rs</text>
+
+      <rect x="24" y="334" width="7192" height="56" class="row-alt"/>
+      <text x="40"   y="374" class="bullet"><tspan font-weight="800">Triangular Ladder</tspan></text>
+      <text x="1700" y="374" class="bullet">Tri(7)=28, Tri(13)=91 as arcs  ( ① )</text>
+      <text x="3500" y="374" class="bullet">Tri(17)=153, Tri(45)=1035 as figurate  ( E )</text>
+      <text x="5320" y="374" class="modlist-c" fill="#B8860B">5.E.1.UX5.2__tri_ladder.rs · 5.E.4.UX4.1__proton_mass.rs · 5.E.2.UX5.2__axis_lock.rs</text>
+
+      <rect x="24" y="390" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="430" class="bullet"><tspan font-weight="800">Phase-Impedance</tspan></text>
+      <text x="1700" y="430" class="bullet">Circle quadratic terms  ( ② )</text>
+      <text x="3500" y="430" class="bullet">Integer coefficients 137 / 377  ( E )</text>
+      <text x="5320" y="430" class="modlist-c" fill="#B8860B">9.4.1.UX4.1__phase_impedance.rs · 5.2.1.UX5.1__discriminant.rs · 5.6.3.UX5.1__fibonacci.rs</text>
+
+      <rect x="24" y="446" width="7192" height="56" class="row-alt"/>
+      <text x="40"   y="486" class="bullet"><tspan font-weight="800">Milesian Glyphs</tspan></text>
+      <text x="1700" y="486" class="bullet">Ghost letters as missing phases  ( ⑦ )</text>
+      <text x="3500" y="486" class="bullet">27-fold polyhedral symmetry  ( C )</text>
+      <text x="5320" y="486" class="modlist-c" fill="#B8860B">1.4.1.UX1.1__milesian.rs · 1.4.2.UX1.1__greek_atomic.rs · 5.C.1.UX5.2__polyhedra.rs</text>
+
+      <rect x="24" y="502" width="7192" height="56" class="row-norm"/>
+      <text x="40"   y="542" class="bullet"><tspan font-weight="800">Wave-Harmonic</tspan></text>
+      <text x="1700" y="542" class="bullet">Continuous spectrum  ( ① )</text>
+      <text x="3500" y="542" class="bullet">Dual radian grids as discrete array  ( G )</text>
+      <text x="5320" y="542" class="modlist-c" fill="#B8860B">6.1.1.UX4.2.9__wave_stratum.rs · 5.4.3.UX5.1__arc182.rs · 8.1.1.UX5.1__crystal_2d_3d.rs</text>
+
+      <rect x="24" y="558" width="7192" height="70" class="row-alt"/>
+      <text x="40"   y="600" class="bullet"><tspan font-weight="800">Theta Chord</tspan></text>
+      <text x="1700" y="600" class="bullet">Repunit rosettes  ( ⑥ )</text>
+      <text x="3500" y="600" class="bullet">Year differences as cone-point lifts  ( H )</text>
+      <text x="5320" y="600" class="modlist-c" fill="#B8860B">5.6.2.UX5.1__theta_chord.rs · 4.6.1.UX1.5__repx.rs · 5.H.1.UX5.2__cone_point.rs</text>
+    </g>
+
+    <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
+    <g transform="translate(80, 5860)">
+      <rect x="0" y="0" width="7240" height="960" rx="12" class="panel-i"/>
+      <text x="24" y="64" class="h2" fill="#2a8050">Canonical File Address Scheme  ·  plain decimal counting  ·  zero is never used as a digit</text>
+      <line x1="24" y1="84" x2="7216" y2="84" stroke="#2a8050" stroke-width="3"/>
+
+      <text x="24" y="134" class="addrhead">Format:    &lt;L&gt; . &lt;G&gt; . &lt;O&gt; __ &lt;name&gt;.rs           ·  three positions, every one is a positive integer, zero never appears anywhere</text>
+      <text x="24" y="172" class="addrnote">L = Layer number (1..9)   ·   G = Group within layer (counts up, skips any number containing a 0)   ·   O = Ordinal within group (same skip-zero counting)</text>
+      <text x="24" y="200" class="addrnote" font-weight="700" fill="#2a8050">Files sharing the same  L.G  prefix are siblings — adjacent on disk, loaded together, related by purpose.</text>
+
+      <!-- L column · 9 layers, single digit, just count them -->
+      <text x="24"   y="244" class="h3" fill="#2a8050">L · Layer number  (just count 1..9)</text>
+      <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 1   →   Nucleus       ·  axioms · constants · invariant register</text>
+      <text x="24"   y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 2   →   Atom           ·  Trit · TritVec · Arithmetic</text>
+      <text x="24"   y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 3   →   Algebraic      ·  GF(3) · ℤ[φ] · Borromean · Coprime + Bezout · Walk · CRT</text>
+      <text x="24"   y="360" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 4   →   Calculi          ·  Δ · ∮ · ◯ · Σ · unified · repx · bijective_converter · SQL planner/executor</text>
+      <text x="24"   y="388" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 5   →   Geometric    ·  ring of figures (curved + discrete sectors share one G axis)</text>
+      <text x="24"   y="416" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 6   →   Physics NE   ·  Wave / Field</text>
+      <text x="24"   y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 7   →   Physics SE    ·  Number-Theoretic</text>
+      <text x="24"   y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 8   →   Physics SW   ·  Crystal / Lattice</text>
+      <text x="24"   y="500" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 9   →   Physics NW   ·  Spectral / Atomic</text>
+
+      <!-- G column · zero-skipped counting sequence -->
+      <text x="2620" y="244" class="h3" fill="#2a8050">G · Group  (count up, skip any number with a 0)</text>
+      <text x="2620" y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1, 2, 3, 4, 5, 6, 7, 8, 9,  11, 12, ...  (10/20/30 skipped)</text>
+      <text x="2620" y="308" class="addrnote">For L=5 Geometric the group axis splits in two:</text>
+      <text x="2620" y="340" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 1 .. 7   →  curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
+      <text x="2620" y="372" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = A .. H   →  discrete sectors  A B C D E F G H</text>
+      <text x="2620" y="412" class="addrnote" font-weight="700" fill="#2a8050">Every other layer (1,2,3,4,6,7,8,9) uses plain numeric G.</text>
+      <text x="2620" y="444" class="addrnote">See the full Per-Layer Group Atlas below — every occupied (L.G) prefix in the codex.</text>
+
+      <!-- O column -->
+      <text x="5240" y="244" class="h3" fill="#2a8050">O · Ordinal</text>
+      <text x="5240" y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  1, 2, 3, ..., 9, 11, 12, ...</text>
+      <text x="5240" y="304" class="addrnote">module position within its group</text>
+      <text x="5240" y="332" class="addrnote">order is canonical (declared</text>
+      <text x="5240" y="360" class="addrnote">in 1.1.1.UX1.1__constants.rs)</text>
+
+      <text x="5240" y="412" class="addrnote" font-weight="700" fill="#2a8050">Locality rule:</text>
+      <text x="5240" y="440" class="addrnote">files sharing the same  L.G  prefix</text>
+      <text x="5240" y="468" class="addrnote">are stored adjacent on disk and load</text>
+      <text x="5240" y="496" class="addrnote">together — related functions cluster.</text>
+
+      <!-- Per-Layer Group Atlas -->
+      <line x1="24" y1="544" x2="7216" y2="544" stroke="#2a8050" stroke-width="2" stroke-dasharray="4 6"/>
+      <text x="24" y="582" class="h3" fill="#2a8050">Per-Layer Group Atlas  ·  every (L.G) prefix actually populated  ·  9 layers · 64 occupied groups · 67 modules</text>
+
+      <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A" font-weight="700">
+        <!-- LEFT column: L=1..4 -->
+        <text x="24"   y="616" fill="#2a8050">L=1 Nucleus  (6 groups)</text>
+        <text x="24"   y="640">  1.1 axioms (constants)  ·  1.4 notation (milesian + greek_atomic + upiid)</text>
+        <text x="24"   y="662">  1.5 units (single canonical home)  ·  1.6 axes  ·  1.7 cone-point taxonomy  ·  1.8 SQL frontend (ast + types)</text>
+
+        <text x="24"   y="694" fill="#2a8050">L=2 Atom  (1 group)</text>
+        <text x="24"   y="718">  2.1 trit  ·  2.2 tritvec  ·  2.3 arithmetic</text>
+
+        <text x="24"   y="750" fill="#2a8050">L=3 Algebraic  (6 groups)</text>
+        <text x="24"   y="774">  3.1 GF(3)  ·  3.2 ℤ[φ] (zphi)  ·  3.3 Borromean  ·  3.4 Coprime + Bezout  ·  3.5 Walk  ·  3.6 CRT</text>
+
+        <text x="24"   y="806" fill="#2a8050">L=4 Calculi  (4 groups)</text>
+        <text x="24"   y="830">  4.5 unified Δ∮◯Σ harness  ·  4.6 repx (bijective base-b)  ·  4.7 bijective_converter (§25 v3.3.33)  ·  4.8 SQL planner + executor (calculi-native)</text>
+
+        <text x="24"   y="862" fill="#2a8050">L=5 Geometric  (15 groups · curved 7 + discrete 8)</text>
+        <text x="24"   y="886">  5.1 circle/c  ·  5.2 conics  ·  5.3 grand cycles  ·  5.4 quadratic xforms  ·  5.5 star polygons  ·  5.6 repunit/θ  ·  5.7 disdyakis</text>
+        <text x="24"   y="908">  5.A frame square  ·  5.B magic squares  ·  5.C polyhedra  ·  5.D color  ·  5.E figurate  ·  5.F star polytopes  ·  5.G crystal  ·  5.H cone-point</text>
+
+        <!-- RIGHT column: L=6..9 -->
+        <text x="3760" y="616" fill="#2a8050">L=6 Physics NE  Wave / Field  (5 groups)</text>
+        <text x="3760" y="640">  6.1 wave_stratum  ·  6.2 conservation_laws</text>
+        <text x="3760" y="662">  6.5 η-branch  ·  6.6 ν-branch  ·  6.7 combined branch</text>
+
+        <text x="3760" y="694" fill="#2a8050">L=7 Physics SE  Number-Theoretic  (2 groups)</text>
+        <text x="3760" y="718">  7.1 wieferich_grh_beal  ·  7.5 pqr_asymmetry</text>
+
+        <text x="3760" y="750" fill="#2a8050">L=8 Physics SW  Crystal · Lattice · Storage · Index  (6 groups)</text>
+        <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state  ·  8.5 mass_quadratic  ·  8.7 SQL engine (parser+table+index)  ·  8.8 milesian_kv  ·  8.9 Array3 daemon (router · scheduler · ipc · capability · service · triad_coordinator · work_steal_queue)</text>
+
+        <text x="3760" y="806" fill="#2a8050">L=9 Physics NW  Spectral / Atomic  (5 groups)</text>
+        <text x="3760" y="830">  9.1 hydrogen_spectral  ·  9.2 uv_hydrogen_spectral  ·  9.4 phase_impedance</text>
+        <text x="3760" y="852">  9.5 fine_structure (1/α)  ·  9.8 discriminant_identity (1 000 144)</text>
+
+        <text x="3760" y="892" fill="#7a3019" font-style="italic">Read any address as plain decimal: L · G · O — three positive integers, zero never appears.</text>
+        <text x="3760" y="916" fill="#7a3019" font-style="italic">Empty G slots in physics layers are reserved future bands; the addressing is sparse, not faked.</text>
+      </g>
+    </g>
+
+<!-- ═══════════════ UX EXTENSION SCHEME ═══════════════ -->
+  <g transform="translate(80, 6860)">
+    <rect x="0" y="0" width="7240" height="720" rx="12" fill="#f3eef7" stroke="#6a4c93" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#6a4c93">UX Extension  ·  appended after L.G.O  ·  classifies module purpose for tooling, search, and routing</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#6a4c93" stroke-width="3"/>
+
+    <text x="24" y="130" class="addrhead" fill="#0F0C0A">Format:    L . G . O . UX{p} . {s1} . {s2} ... __ &lt;name&gt;.rs           ·  UX is a fixed literal · {p} is one primary digit (1-9) · at least one sub-tag digit must follow (use 1 if none apply)</text>
+
+    <!-- Primary Category Digit Map (left half) -->
+    <text x="24" y="180" class="h3" fill="#6a4c93">Primary Category Digit  ·  UX{p}</text>
+    <line x1="24" y1="196" x2="3580" y2="196" stroke="#6a4c93" stroke-width="2" stroke-opacity="0.5"/>
+    <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A" font-weight="700">
+      <text x="40"   y="226">UX1  →  Representation / Encoding</text>
+      <text x="40"   y="252">UX2  →  Compression / Compact Data</text>
+      <text x="40"   y="278">UX3  →  Cryptography / Secure Primitives</text>
+      <text x="40"   y="304">UX4  →  Physics Computation Engine</text>
+      <text x="40"   y="330">UX5  →  Graphics / Geometry</text>
+      <text x="40"   y="356">UX6  →  Calendrics / Time</text>
+      <text x="40"   y="382">UX7  →  Data Conversion / Interoperability</text>
+      <text x="40"   y="408">UX8  →  File Storage / Database Indexing</text>
+      <text x="40"   y="434">UX9  →  Networking / Routing</text>
+    </g>
+
+    <!-- Sub-tag Digit Map (right half) -->
+    <text x="3660" y="180" class="h3" fill="#6a4c93">Sub-Tag Digit  ·  .{s1}.{s2}...   (one or more, dot-separated)</text>
+    <line x1="3660" y1="196" x2="7216" y2="196" stroke="#6a4c93" stroke-width="2" stroke-opacity="0.5"/>
+    <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A" font-weight="700">
+      <text x="3676" y="226">.1  →  None  (placeholder when no sub-tag applies)</text>
+      <text x="3676" y="252">.2  →  Signal Processing</text>
+      <text x="3676" y="278">.3  →  Integrity / Verification</text>
+      <text x="3676" y="304">.4  →  Control / Feedback Loops</text>
+      <text x="3676" y="330">.5  →  Packing / Serialization</text>
+      <text x="3676" y="356">.6  →  Calendar / Clock</text>
+      <text x="3676" y="382">.7  →  Hashing / Fingerprinting</text>
+      <text x="3676" y="408">.8  →  Unit Conversion</text>
+      <text x="3676" y="434">.9  →  Routing / Pathing</text>
+    </g>
+
+    <!-- Worked Examples -->
+    <line x1="24" y1="478" x2="7216" y2="478" stroke="#6a4c93" stroke-width="2" stroke-dasharray="4 6"/>
+    <text x="24" y="514" class="h3" fill="#6a4c93">Worked Examples  ·  UX tag appended to existing L.G.O address</text>
+
+    <g font-family="Menlo, Consolas, monospace" font-size="24" fill="#2a1f3d" font-weight="700">
+      <text x="40"  y="554">1.4.1.UX1.1__milesian.rs</text>
+      <text x="2620" y="554" fill="#5a3f80">→  Nucleus · Notation group · Encoding · no sub-tag</text>
+
+      <text x="40"  y="586">6.1.1.UX4.2.9__wave_stratum.rs</text>
+      <text x="2620" y="586" fill="#5a3f80">→  Physics NE Wave · Physics Computation · Signal Processing + Routing</text>
+
+      <text x="40"  y="618">4.7.1.UX7.5.3__bijective_converter.rs</text>
+      <text x="2620" y="618" fill="#5a3f80">→  Calculi Bijective · Data Conversion · Packing + Integrity</text>
+
+      <text x="40"  y="650">1.5.1.UX7.8__units.rs</text>
+      <text x="2620" y="650" fill="#5a3f80">→  Nucleus Units · Data Conversion · Unit Conversion sub-tag</text>
+
+      <text x="40"  y="682">3.5.1.UX9.9__walk.rs</text>
+      <text x="2620" y="682" fill="#5a3f80">→  Algebraic Walk · Networking/Routing · Routing/Pathing sub-tag</text>
+    </g>
+
+    <text x="40"   y="708" class="small" fill="#5a3f80">Sub-tags chain in declaration order (most-specific first); each tag is a single digit; the underscore separator ( __ ) sits immediately before the module name.</text>
+  </g>
+
+<!-- ═══════════════ MODULE CATALOG EXTENSION ═══════════════ -->
+  <g transform="translate(80, 7620)">
+    <rect x="0" y="0" width="7240" height="600" rx="12" fill="#fef6ed" stroke="#c0392b" stroke-width="2"/>
+    <text x="56" y="68" class="h2" fill="#c0392b">Module Catalog Extension  ·  new addresses landed from Inertissimum Iώτα Nona Codex (§§0-25)</text>
+    <line x1="56" y1="92" x2="7184" y2="92" stroke="#c0392b" stroke-width="3"/>
+
+    <text x="56"  y="138" class="h3" fill="#c0392b">L=1 Nucleus  ·  units · axes · cone-points · SQL frontend</text>
+    <text x="56"  y="172" class="modlist-c" fill="#0F0C0A">1.5.1.UX7.8__units.rs  ·  1.6.1.UX1.1__axes.rs  ·  1.7.1.UX1.1__cone_point_taxonomy.rs</text>
+    <text x="56"  y="204" class="modlist-c" fill="#0F0C0A">1.8.1.UX1.1__sql_ast.rs  (typed AST · column refs · WHERE/JOIN nodes)  ·  1.8.2.UX1.1__sql_types.rs  (column type system: Trit · TritVec&lt;N&gt; · Milesian27)</text>
+
+    <text x="56"  y="248" class="h3" fill="#c0392b">L=4 Calculi  ·  bijective converter · SQL planner/executor</text>
+    <text x="56"  y="282" class="modlist-c" fill="#0F0C0A">4.7.1.UX7.5.3__bijective_converter.rs   (pure-trit Rep A ⇄ Rep B ⇄ Rep C bijection · zero byte conversion)</text>
+    <text x="56"  y="314" class="modlist-c" fill="#0F0C0A">4.8.1.UX4.1__sql_planner.rs  (logical → physical plan · uses 4.1 delta + 4.6 repx natively)  ·  4.8.2.UX4.1__sql_executor.rs  (runs plan via GF(3) ops · zero-copy TritVec)</text>
+
+    <text x="56"  y="358" class="h3" fill="#c0392b">L=5 Geometric  ·  curved sectors ③ ④</text>
+    <text x="56"  y="392" class="modlist-c" fill="#0F0C0A">5.3.3.UX5.1__earth_circumference.rs  (§4.1 C⊕)  ·  5.4.4.UX6.6__tropical_year.rs  (§5.2 τ = 1 096 822 / 3 003)</text>
+
+    <text x="56"  y="436" class="h3" fill="#c0392b">Physics quadrants — second ring of derivations</text>
+    <text x="56"  y="470" class="modlist-c" fill="#0F0C0A">NE  6.5.1.UX4.1__eta_branch.rs  ·  6.6.1.UX4.1__nu_branch.rs  ·  6.7.1.UX4.1__combined_branch.rs    ·    SE  7.5.1.UX4.1__pqr_asymmetry.rs</text>
+    <text x="56"  y="502" class="modlist-c" fill="#0F0C0A">SW  8.5.1.UX4.1__mass_quadratic.rs (roots {1836, 153})    ·    NW  9.5.1.UX4.1__fine_structure.rs  ·  9.8.1.UX4.1__discriminant_identity.rs (1 000 144 = 2⁴·17·3677)</text>
+
+    <text x="56"  y="556" class="small" fill="#7a3019">Total file count: 39 prior + 13 Codex + 5 SQL/Storage + 4 Array3 daemon + 4 SQL split + 2 triad runtime = <tspan font-weight="800">67 canonical modules</tspan>  ·  pure trit end-to-end · no byte adapter  ·  every file has exactly one address  ·  no duplicates  ·  ALL unit conversions live at 1.5.1.UX7.8__units.rs</text>
+  </g>
+
+  <!-- ═══════════════ SQL / STORAGE / DAEMON LAYER ═══════════════ -->
+  <g transform="translate(80, 8280)">
+    <rect x="0" y="0" width="7240" height="980" rx="12" fill="#e8f4f6" stroke="#1a6e7e" stroke-width="2"/>
+    <text x="56" y="68" class="h2" fill="#1a6e7e">SQL / Storage / Array3 Daemon Layer  ·  embedded relational query + engine daemon in pure ternary  ·  L=8 quadrant: Crystal · Lattice · Storage · Index · Engine</text>
+    <line x1="56" y1="92" x2="7184" y2="92" stroke="#1a6e7e" stroke-width="3"/>
+
+    <text x="56" y="132" class="addrnote" fill="#0F0C0A" font-style="italic">Every row is a TritVec  ·  every WHERE compiles to GF(3)  ·  every JOIN uses CRT  ·  no byte-level rows ever  ·  storage format = wire format = crypto format  ·  daemon binary built from same crate via feature = "daemon".</text>
+
+    <text x="56"  y="184" class="h3" fill="#1a6e7e">L=8 · Group 7 — SQL engine cluster  (parser · planner · ternary execution)</text>
+    <text x="56"  y="220" class="modlist-c" fill="#0F0C0A">8.7.1.UX8.5__sql_engine.rs    (storage-side facade · binds 1.8.x AST + 4.8.x planner/executor to L=8 tables)</text>
+    <text x="56"  y="252" class="modlist-c" fill="#0F0C0A">8.7.2.UX8.3__trit_table.rs    (column-oriented tables · each column is a TritVec · base-3 packed · O(1) access via repx)</text>
+    <text x="56"  y="284" class="modlist-c" fill="#0F0C0A">8.7.3.UX8.7__plenum_index.rs  (index built on (7,11,13) coprime walk · O(1) lookup via CRT bridge over 540 z=0 nodes)</text>
+
+    <text x="56"  y="332" class="h3" fill="#1a6e7e">L=8 · Group 8 — Milesian key-value store  (27-bucket b³ register)</text>
+    <text x="56"  y="368" class="modlist-c" fill="#0F0C0A">8.8.1.UX8.5__milesian_kv.rs   (key-value store keyed by Milesian glyphs · 27 top-level buckets · k-parametric collision-free hashing)</text>
+
+    <text x="56"  y="416" class="h3" fill="#1a6e7e">L=8 · Group 9 — Array3 Triad runtime   T- · T0 · T+   (trit-valued instances · T0 = sole public gateway · work-stealing across all 68 modules)</text>
+    <text x="56"  y="452" class="modlist-c" fill="#0F0C0A">8.9.1.UX9.5__query_router.rs       (distributes SELECT/INSERT/UPDATE across Inter-Cube nodes · ≤7 hops for 540 nodes)</text>
+    <text x="56"  y="486" class="modlist-c" fill="#0F0C0A">8.9.2.UX4.1__scheduler.rs          (rayon pool over GF(3) ops · in-process trit-native dispatch · zero-copy TritVec batches)</text>
+    <text x="56"  y="520" class="modlist-c" fill="#0F0C0A">8.9.3.UX9.5__ipc.rs                (kernel-native ternary socket via Ternary Transport · TDNS-addressed · trit-framed wire end-to-end · NO Unix-sock / NO named-pipe / NO byte stream · bound only on T0)</text>
+    <text x="56"  y="554" class="modlist-c" fill="#0F0C0A">8.9.4.UX3.3__capability.rs         (TL-DSA-87 gated bearer tokens · Borromean cap-tree · per-token rate limit)</text>
+    <text x="56"  y="588" class="modlist-c" fill="#0F0C0A">8.9.5.UX9.5__service.rs            (systemd unit · Windows Service entry · health-check · graceful shutdown · launches with --instance=T-|T0|T+)</text>
+    <text x="56"  y="622" class="modlist-c" fill="#0F0C0A">8.9.6.UX9.5__triad_coordinator.rs  (T-/T0/T+ election · T0 binds public socket as sole gateway · T-/T+ are firewalled compute workers · failover promotes a worker to T0 if gateway dies)</text>
+    <text x="56"  y="656" class="modlist-c" fill="#0F0C0A">8.9.7.UX4.1__work_steal_queue.rs   (lock-free TritVec work queue · any daemon can steal any module's pending compute · O(1) push/pop · MPMC trit-native)</text>
+
+
+    <text x="56"  y="800" class="small" fill="#0d4651">Triad parallelism: SQL parse @ L=1 (any daemon) → plan @ L=4 (any daemon) → execute @ L=4 with GF(3) batches striped across T-/T0/T+ → storage I/O @ L=8 (router-pinned). Clients only ever speak to T0. T0 dispatches to T-/T+ via the work-steal queue. Every module is reachable by every daemon.</text>
+    <text x="56"  y="836" class="small" fill="#0d4651">Daemon binary:   cargo build --release --features daemon   →   array3d.exe + libaasc.dll</text>
+    <text x="56"  y="868" class="small" fill="#0d4651">End-user runs 3 instances:    array3d --instance=T-       array3d --instance=T0  (gateway · public IPC bound here)       array3d --instance=T+    ·  installer registers all three as Windows services.</text>
+  </g>
+
+  <!-- ═══════════════ U/M CONVERSION MAPPING ═══════════════ -->
+  <g transform="translate(80, 9320)">
+    <rect x="0" y="0" width="7240" height="500" rx="12" fill="#eef6fa" stroke="#2D7DD2" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#2D7DD2">U/M Conversion Mapping  ·  Salvi Framework units ⇄ SI  ·  every bridge is a closed-form rational  ·  single home: 1.5.1.UX7.8__units.rs</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#2D7DD2" stroke-width="3"/>
+
+    <text x="40"   y="120" class="h3" fill="#2D7DD2">Quantity</text>
+    <text x="1100" y="120" class="h3" fill="#2D7DD2">Salvi unit</text>
+    <text x="2900" y="120" class="h3" fill="#2D7DD2">Internal identity</text>
+    <text x="4900" y="120" class="h3" fill="#2D7DD2">SI bridge  (exact)</text>
+    <line x1="24" y1="134" x2="7216" y2="134" stroke="#2D7DD2" stroke-width="2"/>
+
+    <g font-family="Menlo, Consolas, monospace" font-size="20" fill="#0F0C0A">
+      <text x="40" y="166" font-weight="700">Length</text>
+      <text x="1100" y="166">SFK″  (SFK inch)</text>
+      <text x="2900" y="166">𝒞• = 28 SFK″ ;   𝒞∘ = 364 SFK″ ;   Grand = 756 SFK″</text>
+      <text x="4900" y="166">1 SFK″ = 0.0254 m  exactly  (via 1 SFK foot = R₃ = 13 in)</text>
+
+      <text x="40" y="200" font-weight="700">Length (wave)</text>
+      <text x="1100" y="200">Ss  (Salvi span)</text>
+      <text x="2900" y="200">1 Ss ≡ 1 SFK″</text>
+      <text x="4900" y="200">1 Ss = 0.0254 m  exactly</text>
+
+      <text x="40" y="234" font-weight="700">Time</text>
+      <text x="1100" y="234">SS  (Salvi second)</text>
+      <text x="2900" y="234">1 SS = 9 spectral ticks = b² ticks</text>
+      <text x="4900" y="234">1 SS = (1 096 822 × 86 400) / (3 003 × 31 962 112) s   ≈ 0.9873 s</text>
+
+      <text x="40" y="268" font-weight="700">Time (sub)</text>
+      <text x="1100" y="268">st  (spectral tick)</text>
+      <text x="2900" y="268">1 st = 1/9 SS</text>
+      <text x="4900" y="268">≈ 0.1097 s</text>
+
+      <text x="40" y="302" font-weight="700">Time (wave)</text>
+      <text x="1100" y="302">St  (Salvi tick)</text>
+      <text x="2900" y="302">1 St = 13 st = 13/9 SS</text>
+      <text x="4900" y="302">≈ 1.426 s</text>
+
+      <text x="40" y="336" font-weight="700">Time (day)</text>
+      <text x="1100" y="336">SD  (Salvi day)</text>
+      <text x="2900" y="336">1 SD = 28 h = 28·56·56 SS = 87 808 SS = 790 272 ticks</text>
+      <text x="4900" y="336">τ = 1 096 822 / 3 003 SD ≈ 365.242 09  SI days   (CODATA: 0.27 ppm)</text>
+
+      <text x="40" y="370" font-weight="700">Angle</text>
+      <text x="1100" y="370">framework °  (degree)</text>
+      <text x="2900" y="370">1° = 1/364 turn ;   full = 364°  ;   1 hour = 1 radian = 13°</text>
+      <text x="4900" y="370">1° (Salvi) = (360/364)° (SI)  ;  conversion is rational</text>
+
+      <text x="40" y="404" font-weight="700">Angle (wave)</text>
+      <text x="1100" y="404">η-rad  ·  ν-rad</text>
+      <text x="2900" y="404">1 η-rad = 28° ;  13 η-rad/circle    |   1 ν-rad = 13° ;  28 ν-rad/circle</text>
+      <text x="4900" y="404">π_Nu = 364/(2·28) = 13/2  (exact rational)</text>
+
+      <text x="40" y="438" font-weight="700">Frequency</text>
+      <text x="1100" y="438">Hz_S</text>
+      <text x="2900" y="438">1 Hz_S = 1 cycle/St ;  c_S = 364 Ss/St</text>
+      <text x="4900" y="438">c = √14 SFK″/st ;  c_SI = 299 792 458 m/s  (defined)</text>
+
+      <text x="40" y="472" font-weight="700">EM</text>
+      <text x="1100" y="472">Aₛ  ·  PIU</text>
+      <text x="2900" y="472">Aₛ ≡ A (SI ampere) ;  μ₀ = 4π×10⁻⁷ N/A² ;  Z₀ = 377 Ω = bulk wave imp.</text>
+      <text x="4900" y="472">PIU ≡ Ω ;  Z_φ = 1/α ≈ 137.036  (phase impedance, §24.3)</text>
+    </g>
+  </g>
+
+  <!-- ═══════════════ CONSTANTS CATALOG ═══════════════ -->
+  <g transform="translate(80, 9880)">
+    <rect x="0" y="0" width="7240" height="600" rx="12" fill="#fff8e8" stroke="#B8860B" stroke-width="2"/>
+    <text x="24" y="64" class="h2" fill="#B8860B">Constants Catalog  ·  every numeral declared once in 1.1.1.UX1.1__constants.rs  ·  derived from sole axioms π = 14, b = 3</text>
+    <line x1="24" y1="84" x2="7216" y2="84" stroke="#B8860B" stroke-width="3"/>
+
+    <text x="40"   y="118" class="h3" fill="#B8860B">Tier A — sole axioms</text>
+    <text x="40"   y="148" class="modlist-c" fill="#0F0C0A">π_geom = 14   ·   b = 3   ·   from base-3 uniqueness</text>
+
+    <text x="40"   y="186" class="h3" fill="#B8860B">Tier B — derived integers (compile-time const blocks)</text>
+    <text x="40"   y="214" class="modlist-c" fill="#0F0C0A">b² = 9 · b³ = 27 · 2π = 28 · π+b = 17 · π+R₂ = 18 · π+r = 27 · π+q = 25 · π·b² = 126 · π·b³ = 378 · 2π·r = 364 · 4π·r² = 2 366 · π³ = 2 744 · pqr = 1 001 · pqr−1 = 1 000 · Λ_EUV = pr = 91 · 2pr = 182 · 2q² = 242 · (p−r)² = 36 · 4(p−r)² = Δ_circle = 144</text>
+
+    <text x="40"   y="252" class="h3" fill="#B8860B">Tier B — repunit ladder (base 3)</text>
+    <text x="40"   y="280" class="modlist-c" fill="#0F0C0A">R₁ = 1 · R₂ = 4 · R₃ = 13 · R₄ = 40 · R₅ = 121 · R₆ = 364 · R_L = (3^L − 1)/2  for any L ≥ 1   ·   alt-base bridge: R₂^(12) = 13 = r = R₃ · R₄^(12) = 1 885 = 5·13·29</text>
+
+    <text x="40"   y="318" class="h3" fill="#B8860B">Tier B — torus / worldline measures</text>
+    <text x="40"   y="346" class="modlist-c" fill="#0F0C0A">𝒞• = 28 · 𝒞∘ = 364 · Grand = 756 · ℓ²_Vesica = 2 197/7 · S_torus = 10 192 · V_torus = 861 224 · W = 11 195 912 = 2³·p²·r⁴ · p·V = 6 028 568 = r³·π³ · p·W = 78 371 384 = r⁴·π³</text>
+
+    <text x="40"   y="384" class="h3" fill="#B8860B">Tier B — calendar / time</text>
+    <text x="40"   y="412" class="modlist-c" fill="#0F0C0A">SD = 87 808 SS = 790 272 ticks · τ = 1 096 822 / 3 003 ≈ 365.242 09 days · lunisolar drift = q − 1/(b−1)³ = 87/8 = 10.875 d/yr · 1 hour = 13°</text>
+
+    <text x="40"   y="450" class="h3" fill="#B8860B">Tier C — worked-example derived constants  (Forge triple p=7, q=11, r=13)</text>
+    <text x="40"   y="478" class="modlist-c" fill="#0F0C0A">137 = R₂² + q²   ·   1/α = 137 + 36/1 000 − 36/40 080 040 ≈ 137.035 999 101 8  (CODATA-2018 +0.13 ppb)   ·   discriminant identity:  (pqr−1)² + 4(p−r)² = 1 000 144 = 2⁴·17·3 677</text>
+    <text x="40"   y="506" class="modlist-c" fill="#0F0C0A">m_p,F = b²·(π+b)·(R₂·b·pqr + 1) = 153·12 013 = 1 837 989   ·   m_p/m_e = 1 836 + 153/1 001  (CODATA 0.0946 ppm)   ·   mass quadratic roots {1 836, 153}   ·   Tri(17) = 153</text>
+    <text x="40"   y="534" class="modlist-c" fill="#0F0C0A">Σ-182 bridge  Δ₁(σ) = 200 − 18 = 182 = 2pr = R₆/2   ·   333 Plenum magic = b²·37 = Λ_EUV + 2q²  (91 + 242)   ·   (bq)² = 1 089 = 756 + 333 = 1 035 + 54 = 1 080 + 9 = 1 050 + 39</text>
+    <text x="40"   y="562" class="modlist-c" fill="#0F0C0A">κ_∞ = 721/720   ·   κ_H = (721·1 838 990)/(720·1 837 989)   ·   λ_∞ = Λ_EUV·κ_∞ ≈ 91.126 nm   ·   λ_H ≈ 91.176 nm   ·   F₁₄ = 377 = r·(R₂² + r) = 13·29 = τ + r  ·  Theta Chord 1 892 = 1 885 + p ; 1 893 = 1 885 + (b−1)³</text>
+
+    <text x="40"   y="592" class="small" fill="#7a5a06">Enforcement: every Tier B numeral lives only in 1.1.1.UX1.1__constants.rs (CI grep guard)  ·  Tier C lives in tests/invariants.rs  ·  no byte boundary anywhere — TritVec is sole storage primitive</text>
+  </g>
+
+
+  <!-- ═══════════════ CRATE LAYOUT + ENFORCEMENT + DISTRIBUTION ═══════════════ -->
+  <g transform="translate(80, 10540)">
+    <rect x="0" y="0" width="7240" height="1180" rx="12" fill="#fff0f0" stroke="#922" stroke-width="2"/>
+    <text x="56" y="68" class="h2" fill="#922">Crate Layout  ·  Enforcement  ·  Distribution  —  one crate, flat layer dirs, local-disk repo, no GitHub required</text>
+    <line x1="56" y1="92" x2="7184" y2="92" stroke="#922" stroke-width="3"/>
+
+    <text x="56" y="138" class="h3" fill="#922">1. Single crate · flat layer folders · folder code = file's leading L digit</text>
+    <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A">
+      <text x="56" y="174">algeometric-arc-sigma182-calculi/        (one crate · one Cargo.toml · one canonical map)</text>
+      <text x="56" y="206">├── Cargo.toml              features = { default = [], daemon = ["std","tokio","rayon"] }   (no "bridge" feature — crate is trit-pure)</text>
+      <text x="56" y="238">├── scripts/check_ux_tags.sh           enforces L.G.O.UX file rule + folder-code rule</text>
+      <text x="56" y="270">├── docs/aasc_canonical_map.{svg,png}  ← THIS DOCUMENT (ships with every release)</text>
+      <text x="56" y="302">├── src/lib.rs                pub mod L1__nucleus; pub mod L2__atom; ... pub mod L9__physics_nw;</text>
+      <text x="56" y="334">└── src/                      flat — no group subfolders (use SQL on Tier-4 GUI for grouping views)</text>
+      <text x="56" y="366">    ├── L1__nucleus/          1.x.x.UXp.s__*.rs    (constants · milesian · greek_atomic · upiid · units · axes · cone_point · sql_ast · sql_types)</text>
+      <text x="56" y="398">    ├── L2__atom/             2.x.x.UXp.s__*.rs    (trit · tritvec · arithmetic)</text>
+      <text x="56" y="430">    ├── L3__algebraic/        3.x.x.UXp.s__*.rs    (gf3 · zphi · borromean · coprime · walk · crt · bezout)</text>
+      <text x="56" y="462">    ├── L4__calculi/          4.x.x.UXp.s__*.rs    (delta · circular · iteration · series · calculus · repx · bijective_converter · sql_planner · sql_executor)</text>
+      <text x="56" y="494">    ├── L5__geometric/        5.x.x.UXp.s__*.rs    (~22 modules)</text>
+      <text x="56" y="526">    ├── L6__physics_ne/       6.x.x.UXp.s__*.rs    (wave / EM)</text>
+      <text x="56" y="558">    ├── L7__physics_se/       7.x.x.UXp.s__*.rs    (number theory)</text>
+      <text x="56" y="590">    ├── L8__physics_sw/       8.x.x.UXp.s__*.rs    (crystal · lattice · SQL storage · KV · Array3 daemon at 8.7 / 8.8 / 8.9)</text>
+      <text x="56" y="622">    └── L9__physics_nw/       9.x.x.UXp.s__*.rs    (spectral)</text>
+    </g>
+
+    <text x="56" y="676" class="h3" fill="#922">2. Three-layer guard  (commit · build · CI)  —  scripts/check_ux_tags.sh asserts BOTH rules</text>
+    <text x="56" y="712" class="modlist-c" fill="#0F0C0A">RULE A (file basename):    ^[1-9]\.[1-9]\.[1-9]\.UX[1-9](\.[1-9])+__[a-z][a-z0-9_]*\.rs$</text>
+    <text x="56" y="744" class="modlist-c" fill="#0F0C0A">RULE B (folder ⇄ file):    parent_dir = L{X}__*    ⇒    basename MUST start with X.</text>
+    <text x="56" y="776" class="modlist-c" fill="#0F0C0A">a) .git/hooks/pre-commit   blocks commit on violation       b) build.rs   emits cargo:warning= at the start of every cargo build       c) local CI (act / woodpecker) runs the guard on push</text>
+
+    <text x="56" y="828" class="h3" fill="#922">3. Distribution  —  three pull paths, all keyed off your local disk, NONE require GitHub</text>
+    <text x="56" y="864" class="modlist-c" fill="#0F0C0A">Path 1 — Bake-into-MSI (offline):    cargo build --release --features daemon  →  array3d.exe + libaasc.dll  →  Installer Framework manifest bundles them  →  end-user installs MSI  →  T-/T0/T+ registered as 3 Windows services.</text>
+    <text x="56" y="896" class="modlist-c" fill="#0F0C0A">Path 2 — Pull-over-Relay (live signed update):    your dev box acts as origin via existing WebSocket relay (same channel that already does GGUF chunked transfer)  →  end-user daemon polls, fetches, verifies TL-DSA-87 signature, hot-swaps.</text>
+    <text x="56" y="928" class="modlist-c" fill="#0F0C0A">Path 3 — Local cargo registry (Tier-3 dev consumers):    run kellnr or static-file registry on your box  →  domain crates declare  aasc = { registry = "plenumnet", version = "..." }  →  no GitHub anywhere in dependency chain.</text>
+
+    <text x="56" y="980" class="h3" fill="#922">4. Tier stack  —  daemon binary is the SAME crate built with --features daemon</text>
+    <text x="56" y="1016" class="modlist-c" fill="#0F0C0A">Tier 1 = aasc engine (this crate, this map)    ←    Tier 2 = Salvi domain crates (tdns · tl-dsa · tl-kem · sponge-385 · tis-27 · plenumdb · ttc · ninjaexec · ops-relay · watchdog) link aasc with daemon feature</text>
+    <text x="56" y="1048" class="modlist-c" fill="#0F0C0A">Tier 3 = JS/React GUI apps talk over HTTP/WS to the Tier-2 binaries; SQL queries on Tier-4 GUI replace any need for group-level subfolders   (e.g. SELECT * FROM modules WHERE layer=8 AND group=9).</text>
+
+    <text x="56" y="1100" class="small" fill="#5a1818">Net effect: address scheme is mechanically enforced at three independent layers (commit · build · CI); folder names carry the L code so every path is greppable; daemon ships from same source tree under feature flag; T0 is the sole public attack surface; T- and T+ are firewalled internal workers.</text>
+    <text x="56" y="1140" class="small" fill="#5a1818">Distribution to end-user machines runs entirely off your disk through the Installer + Relay you already have.    NO GitHub anywhere in the build, ship, or update chain.</text>
+  </g>
+
+<!-- ═══════════════ VERDICT STAMP ═══════════════ -->
+  <rect class="verdict-bg" x="0" y="11780" width="7400" height="180"/>
+  <text x="3700" y="11888" class="title" fill="#FAF8F6" text-anchor="middle" font-size="74">Verdict: No Formula Left Behind</text>
+  <text x="3700" y="11942" class="subtitle" fill="#a8b4c0" text-anchor="middle">every constant, every theorem, every identity, every module of the compendium has a specific, logical place in the 9-layer geometric ring</text>
+
+</svg>
