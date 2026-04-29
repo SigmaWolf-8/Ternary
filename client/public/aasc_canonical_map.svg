@@ -793,17 +793,8 @@
       <text x="24" y="172" class="addrnote">L = Layer number (1..9)   ·   G = Group within layer (counts up, skips any number containing a 0)   ·   O = Ordinal within group (same skip-zero counting)</text>
       <text x="24" y="200" class="addrnote" font-weight="700" fill="#2a8050">Files sharing the same  L.G  prefix are siblings — adjacent on disk, loaded together, related by purpose.</text>
 
-      <!-- L column · 9 layers, single digit, just count them -->
-      <text x="24"   y="244" class="h3" fill="#2a8050">L · Layer number  (just count 1..9)</text>
-      <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 1   →   Nucleus       ·  axioms · constants · invariant register</text>
-      <text x="24"   y="304" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 2   →   Atom           ·  Trit · TritVec · Arithmetic</text>
-      <text x="24"   y="332" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 3   →   Algebraic      ·  GF(3) · ℤ[φ] · Borromean · Coprime + Bezout · Walk · CRT</text>
-      <text x="24"   y="360" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 4   →   Calculi          ·  Δ · ∮ · ◯ · Σ · unified · repx · bijective_converter · SQL planner/executor</text>
-      <text x="24"   y="388" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 5   →   Geometric    ·  ring of figures (curved + discrete sectors share one G axis)</text>
-      <text x="24"   y="416" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 6   →   Physics NE   ·  Wave / Field</text>
-      <text x="24"   y="444" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 7   →   Physics SE    ·  Number-Theoretic</text>
-      <text x="24"   y="472" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 8   →   Physics SW   ·  Crystal / Lattice</text>
-      <text x="24"   y="500" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L = 9   →   Physics NW   ·  Spectral / Atomic</text>
+      <text x="24"   y="244" class="h3" fill="#2a8050">L · Layer number  (1..9)  —  full layer→group→module breakdown lives in the Atlas below</text>
+      <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L=1 Nucleus  ·  L=2 Atom  ·  L=3 Algebraic  ·  L=4 Calculi  ·  L=5 Geometric  ·  L=6 Wave/Field  ·  L=7 Number-Theoretic  ·  L=8 Crystal/Lattice  ·  L=9 Spectral/Atomic</text>
 
       <!-- G column · zero-skipped counting sequence -->
       <text x="2620" y="244" class="h3" fill="#2a8050">G · Group  (count up, skip any number with a 0)</text>
@@ -812,7 +803,7 @@
       <text x="2620" y="340" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = 1 .. 7   →  curved sectors  ① ② ③ ④ ⑤ ⑥ ⑦</text>
       <text x="2620" y="372" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">  G = A .. H   →  discrete sectors  A B C D E F G H</text>
       <text x="2620" y="412" class="addrnote" font-weight="700" fill="#2a8050">Every other layer (1,2,3,4,6,7,8,9) uses plain numeric G.</text>
-      <text x="2620" y="444" class="addrnote">See the full Per-Layer Group Atlas below — every occupied (L.G) prefix in the codex.</text>
+      <text x="2620" y="444" class="addrnote">Atlas below shows every occupied (L.G) prefix and the modules they hold.</text>
 
       <!-- O column -->
       <text x="5240" y="244" class="h3" fill="#2a8050">O · Ordinal</text>
