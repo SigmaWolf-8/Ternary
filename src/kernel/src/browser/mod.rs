@@ -32,7 +32,7 @@ use alloc::vec::Vec;
 use alloc::boxed::Box;
 use tabs::{TabManager, TabError};
 use render_cpu::{CpuRenderer, CpuFramebuffer};
-use render::{RenderBackendType, RenderScene, RenderPrimitive, RenderColor};
+use render::{RenderScene};
 use script::ScriptExecutor;
 use net::NetworkLayer;
 use crate::distributor::{RequestInterface, RequestResult};
@@ -283,7 +283,7 @@ impl Browser {
                 if let Some(text) = n.children.iter().find_map(|c| {
                     if let parse::NodeType::Text(t) = &c.node_type { Some(t.clone()) } else { None }
                 }) {
-                    bridge.set_text_content(n.node_id, text);
+                    let _ = bridge.set_text_content(n.node_id, text);
                 }
             }
             for child in n.children.iter().rev() {

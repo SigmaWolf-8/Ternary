@@ -11,7 +11,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
 use crate::distributor::{RequestInterface, RequestResult};
-use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
+use crate::distributor::z_router::{RequestType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceType {

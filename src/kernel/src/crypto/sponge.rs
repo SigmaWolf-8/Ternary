@@ -485,6 +485,7 @@ unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
+#[allow(dead_code)]
 unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::x86_64::*;
 
@@ -731,6 +732,7 @@ fn sponge_permutation_v2_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     }
 }
 
+#[allow(dead_code)]
 fn sponge_permutation_v1_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
     let w = SPONGE_STATE_SIZE;
@@ -778,6 +780,7 @@ fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
     sponge_permutation_v2_scalar(state);
 }
 
+#[allow(dead_code)]
 fn sponge_permutation_v1(state: &mut [i8; SPONGE_STATE_SIZE]) {
     #[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
     {

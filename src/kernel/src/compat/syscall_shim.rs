@@ -12,7 +12,7 @@
 //
 // See LICENSE in the repository root for full terms.
 
-use alloc::string::String;
+
 use alloc::vec::Vec;
 use core::fmt;
 

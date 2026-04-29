@@ -342,8 +342,11 @@ pub struct MeshColorLut {
     r_forward: Vec<MeshAddress>,
     g_forward: Vec<MeshAddress>,
     b_forward: Vec<MeshAddress>,
+    #[allow(dead_code)]
     r_inverse: Vec<u8>,
+    #[allow(dead_code)]
     g_inverse: Vec<u8>,
+    #[allow(dead_code)]
     b_inverse: Vec<u8>,
     depth: usize,
 }

@@ -13,6 +13,7 @@ pub const TIS27_SECURITY_BITS: usize = 43;
 #[derive(Debug, Clone)]
 pub struct Tis27State {
     state: [u8; TIS27_TRITS],
+    #[allow(dead_code)]
     session_key: [u8; 32],
 }
 

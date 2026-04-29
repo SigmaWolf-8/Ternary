@@ -15,7 +15,7 @@ pub mod fileserver;
 pub mod snapshots;
 
 use alloc::string::String;
-use core::fmt;
+
 use crate::distributor::z_router::ZLevel;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

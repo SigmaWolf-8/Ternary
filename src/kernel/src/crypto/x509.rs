@@ -36,7 +36,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
-use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+use super::{TERNARY_HASH_TRITS};
 use super::sponge::TernarySponge;
 
 const CERT_VERSION_V3: u8 = 2;

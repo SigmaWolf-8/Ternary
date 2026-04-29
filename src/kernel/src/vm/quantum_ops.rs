@@ -33,6 +33,7 @@
 
 use super::{VmError, VmResult};
 
+#[allow(dead_code)]
 const PI: f64 = core::f64::consts::PI;
 const OMEGA_RE: f64 = -0.5;
 const OMEGA_IM: f64 = 0.866_025_403_784_438_6;
@@ -64,6 +65,7 @@ fn ct_gt_i64(a: i64, b: i64) -> i64 {
 }
 
 #[inline(always)]
+#[allow(dead_code)]
 fn ct_select_i64(condition: i64, if_true: i64, if_false: i64) -> i64 {
     let mask = 0i64.wrapping_sub(condition & 1);
     (mask & if_true) | (!mask & if_false)
@@ -91,6 +93,7 @@ impl Complex64 {
         self.re * self.re + self.im * self.im
     }
 
+    #[allow(dead_code)]
     fn norm(self) -> f64 {
         libm::sqrt(self.norm_sq())
     }

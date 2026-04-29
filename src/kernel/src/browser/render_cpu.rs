@@ -21,8 +21,7 @@ use alloc::vec::Vec;
 use crate::browser::render::{
     RenderBackend, RenderBackendType, RenderScene, RenderPrimitive,
     RenderColor, DirtyRect, PaintStyle, LinearGradient, RadialGradient,
-    GradientStop, TextRun, FontFamily, ImageData, SvgData,
-    TARGET_FPS, FRAME_BUDGET_US,
+    GradientStop, TextRun, ImageData, SvgData,
 };
 use crate::browser::layout::Rect;
 
@@ -516,6 +515,7 @@ fn interpolate_gradient_stops(stops: &[GradientStop], t: f32) -> RenderColor {
 pub struct CpuRenderer {
     command_queue: Vec<RenderCommand>,
     frames_rendered: u64,
+    #[allow(dead_code)]
     last_frame_us: u64,
     partial_update_count: u64,
     full_update_count: u64,

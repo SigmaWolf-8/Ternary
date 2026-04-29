@@ -48,8 +48,10 @@ const REPETITION_COUNT_CUTOFF: usize = 21;
 const APT_WINDOW_SIZE: usize = 512;
 const APT_CUTOFF: usize = 325;
 
+#[allow(dead_code)]
 const ESTIMATED_MIN_ENTROPY_PER_SAMPLE: f64 = 4.0;
 const SAMPLE_SYMBOL_SPACE: usize = 256;
+#[allow(dead_code)]
 const OVERSAMPLING_RATIO: usize = 2;
 
 pub struct EntropyEstimation {
@@ -259,6 +261,7 @@ impl NoiseSource for TestNoise {
 pub struct HealthTestState {
     rct_last_sample: u64,
     rct_count: usize,
+    #[allow(dead_code)]
     apt_window: Vec<u64>,
     apt_reference: u64,
     apt_count: usize,

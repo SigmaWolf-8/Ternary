@@ -54,6 +54,7 @@ pub const FULL_CIRCLE_DEG: u32 = 364;
 // Compile-time helper
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+#[allow(dead_code)]
 const fn gcd(mut a: u32, mut b: u32) -> u32 {
     while b != 0 { let t = b; b = a % b; a = t; } a
 }

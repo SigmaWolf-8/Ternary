@@ -32,10 +32,10 @@
 //! # Copyright
 //! Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved.
 
-use alloc::string::String;
+
 use alloc::vec::Vec;
 
-use super::module_state::{ModuleState, ModuleStateMachine, ModeIndicator};
+use super::module_state::{ModuleState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CryptoService {

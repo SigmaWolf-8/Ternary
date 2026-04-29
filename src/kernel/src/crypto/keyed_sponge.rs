@@ -68,9 +68,9 @@
 //! Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved.
 
 use alloc::vec::Vec;
-use alloc::vec;
+
 use super::{TernaryDigest, TERNARY_HASH_TRITS};
-use super::sponge::{sponge_hash, TernarySponge as UnkeyedSponge};
+use super::sponge::{TernarySponge as UnkeyedSponge};
 use super::ternary_cube_perm::TernaryCubeAutomorphism;
 
 const SPONGE_STATE_SIZE: usize = 729;  // 3^6

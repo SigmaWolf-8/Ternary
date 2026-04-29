@@ -279,6 +279,7 @@ pub struct CooperativeWatchdog {
     elapsed_ms: AtomicU64,
     should_terminate: AtomicBool,
     instruction_count: AtomicU64,
+    #[allow(dead_code)]
     check_interval: u64,
 }
 

@@ -12,7 +12,7 @@
 //       decode to Unicode inside Boa's DOM event handler
 
 use crate::input::keyboard::{EncodedKey, Tis27State};
-use alloc::string::String;
+
 use alloc::vec::Vec;
 
 pub const MAX_EVENT_QUEUE_SIZE: usize = 256;

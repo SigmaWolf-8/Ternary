@@ -34,7 +34,7 @@
 //! ```
 
 extern crate alloc;
-use alloc::vec;
+
 use alloc::vec::Vec;
 
 // These imports reference the existing kernel modules.

@@ -51,7 +51,7 @@
 //! Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved.
 
 use alloc::vec::Vec;
-use alloc::vec;
+
 use alloc::string::String;
 use alloc::format;
 

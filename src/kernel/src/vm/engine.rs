@@ -18,7 +18,7 @@ use super::instruction::*;
 use super::gc::GcHeap;
 use super::cache::ConstantTimeTernary;
 use crate::ternary::{Trit, KernelTritExt, Representation, convert_representation, scalar_to_trit, pack_trits, unpack_trits, packed_map, packed_zip, packed_shift_left, packed_shift_right, packed_rotate_left, packed_reduce, packed_convert};
-use crate::timing::{FemtosecondTimestamp, HptpProvider, SimulatedHptp};
+use crate::timing::{FemtosecondTimestamp, HptpProvider};
 use alloc::boxed::Box;
 
 pub struct VmMemory {

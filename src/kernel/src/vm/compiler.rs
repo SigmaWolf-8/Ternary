@@ -14,7 +14,7 @@
 
 use alloc::vec::Vec;
 use alloc::string::String;
-use alloc::format;
+
 use super::instruction::*;
 use super::{VmError, VmResult};
 

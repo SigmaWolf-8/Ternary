@@ -6,7 +6,7 @@
 // Above ground (+z) = presentation. Below ground (−z) = processing.
 // z=0 = distributor plane (never blocks, routes only).
 
-use alloc::string::String;
+
 use core::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
