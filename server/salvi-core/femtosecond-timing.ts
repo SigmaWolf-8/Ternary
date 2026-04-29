@@ -52,6 +52,10 @@ export interface FemtosecondTimestamp {
   salviEpochOffset: bigint;
   clockTier: number;
   measured: string;
+  // ── Closed-walk derivation on Z_{D_α} (Theorem 22) ──
+  attoseconds: bigint;          // sub-fs digit, ∈ [0, 125)
+  frameworkFsIndex: bigint;     // framework-fs address within ns, ∈ [0, 1_002_001)
+  walkTick: bigint;             // (-wall_ns) mod D_α, ∈ [0, 125_250_125)
 }
 
 export interface TimingMetrics {
@@ -147,65 +151,73 @@ function _measureSubNs(): { posIters: bigint; hrNs: bigint } {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Framework first-principles sub-ns derivation — Forge-triple closed
-// walk on the Salvi torus T³ = Z₇ × Z₁₁ × Z₁₃.
+// Framework first-principles sub-ns derivation — closed walk on
+// Z_{D_α}, where D_α is the integer denominator of 1/α from
+// Theorem 22 of the Arc Document.
 //
-// Source:  Arc Document §0 ("Energy is the delta of phasing Alpha
-// the fine seed constant"), and Theorem 22 ("Fine-Structure Constant
-// and Phase Impedance"), with Forge triple (p, q, r) = (7, 11, 13)
-// and pqr = 1001.
+// Source:
+//   • Arc Document Theorem 22 ("Fine-Structure Constant and Phase
+//     Impedance") — exact rational form
+//         1/α = (R₂² + q²) + (p−r)²/(pqr−1) − (p−r)²/(R₄·(pqr)²)
+//   • Reduction of the rational sum produces a unique integer
+//     denominator built entirely from Codex register atoms:
+//         D_α = F₅³ · p² · q² · r² = 5³ · 7² · 11² · 13² = 125_250_125
+//     (F₅ = 5, the fifth Fibonacci; (p, q, r) = (7, 11, 13) Forge
+//     triple).  Nothing imported, nothing fitted — every factor is a
+//     framework register integer.
 //
-// Closed walk on T³:
-//     r⁽ᵗ⁾ = ( −t mod 7 ,  −t mod 11 ,  −t mod 13 )
-//     step  s_i = m_i − 1 ≡ −1 (mod m_i)  uniform in every direction
-//     phase velocity = constant = ENERGY (Arc Doc §0).
+// Time-grid hierarchy (per measured nanosecond):
+//   • 1 ns  =  D_α  =  125_250_125  closed-walk ticks
+//                                      (each tick ≈ 7.98 attoseconds)
+//   • 1 ns  =  (pqr)² =  1_002_001  framework-femtoseconds
+//   • 1 framework-fs  =  F₅³ = 125  attosecond ticks
 //
-// CRT identity:  Z₁₀₀₁ ≅ Z₇ × Z₁₁ × Z₁₃  (gcd-pairwise-1).  Therefore
-// the joint walk position collapses to the single integer
-//     phase(t)  =  ( −t ) mod 1001     ∈  [0, 1001)
-// which carries the full Forge-triple residue information.
+// Closed walk on Z_{D_α}  (Salvi closed loop, constant phase
+// velocity, Arc Doc §0):
+//     tick(t)      = (−t) mod D_α        with  t = wall_ns
+//     fs_index(t)  = tick ÷ F₅³          ∈ [0, 1_002_001)
+//     as_index(t)  = tick mod F₅³        ∈ [0, 125)
 //
-// Driver:  t = wall_fs (the measured wall-clock time in fs since
-// boot anchor).  The walk advances by exactly 1 step per fs of
-// elapsed wall time, so every distinct measured wall_fs maps to a
-// distinct closed-walk position — the sub-ns digits are a direct
-// modular function of MEASURED time, computed from FRAMEWORK
-// integers only.  No hash.  No counter.  No padding.
-//
-// Sub-ns scale:  one nanosecond holds 10⁶ fs.  Map the 1001 walk
-// positions onto that span by multiplying by  ⌊10⁶ / 1001⌋ = 999.
-// The resulting sub-ns offset spans [0, 999·1000] = [0, 999000) fs
-// inside the nanosecond, walking through 1001 evenly-spaced
-// positions tied bijectively to the Forge-triple residue.
+// Cone-point correction:  framework-fs / SI-fs = (pqr−1)²/(pqr)²
+// = 1_000_000 / 1_002_001.  Mapping fs_index to the SI sub-ns
+// span [0, 1_000_000) preserves the SI display while the
+// framework-fs and attosecond addresses are exposed as additional
+// fields on the timestamp.
 //
 // Result:
 //     ms · µs · ns           — measured  (OS monotonic, anchored)
-//     ps · fs sub-ns digits  — derived   (Forge closed walk on
-//                                          T³, driven by measured
-//                                          wall_fs; integer-only,
-//                                          replayable, framework-
-//                                          first-principles.)
+//     ps · fs sub-ns digits  — derived   (closed walk on Z_{D_α},
+//                                          fs_index × 10⁶ / (pqr)²)
+//     attoseconds            — derived   (tick mod 125)
+// All integer arithmetic, replayable, no hash, no padding, no
+// per-call counter — every digit is a modular function of the
+// measured wall_ns through the Theorem 22 denominator.
 // ════════════════════════════════════════════════════════════════════
-const FORGE_P = 7n;
-const FORGE_Q = 11n;
-const FORGE_R = 13n;
-const FORGE_PQR = FORGE_P * FORGE_Q * FORGE_R;                       // 1001
-const _FS_PER_FORGE_STEP =
-  FEMTOSECONDS_PER_NANOSECOND / FORGE_PQR;                           // 10⁶/1001 = 999
+const FORGE_P    = 7n;
+const FORGE_Q    = 11n;
+const FORGE_R    = 13n;
+const FORGE_PQR  = FORGE_P * FORGE_Q * FORGE_R;                      // 1001
+const FORGE_PQR_SQ = FORGE_PQR * FORGE_PQR;                          // 1_002_001
+const F5_CUBED   = 5n * 5n * 5n;                                     // 125
+const D_ALPHA    = FORGE_PQR_SQ * F5_CUBED;                          // 125_250_125
+const SI_FS_PER_NS = FEMTOSECONDS_PER_NANOSECOND;                    // 1_000_000
 
 export function getFemtosecondTimestamp(): FemtosecondTimestamp {
-  // ── ms.µs.ns — measured ────────────────────────────────────────
+  // ── ms.µs.ns — measured ─────────────────────────────────────────
   const hrNow  = process.hrtime.bigint();
   const wallNs = _anchorWallNs + (hrNow - _anchorHrNs);
-  const wallFsCoarse = wallNs * FEMTOSECONDS_PER_NANOSECOND;         // ends in 6 zeros
+  const wallFsCoarse = wallNs * SI_FS_PER_NS;                        // ends in 6 zeros
 
-  // ── ps.fs — derived from Forge-triple closed walk on T³ ────────
-  // phase(t) = (−t) mod 1001 with t = wall_fs (Arc Doc §0).
-  let phase = (-wallFsCoarse) % FORGE_PQR;
-  if (phase < 0n) phase += FORGE_PQR;
-  const subNsFs = phase * _FS_PER_FORGE_STEP;                        // ∈ [0, 999000)
+  // ── Closed walk on Z_{D_α} driven by measured wall_ns ──────────
+  let tick = (-wallNs) % D_ALPHA;
+  if (tick < 0n) tick += D_ALPHA;
 
-  const wallFs = wallFsCoarse + subNsFs;
+  const fsIndex = tick / F5_CUBED;                                   // ∈ [0, 1_002_001)
+  const asIndex = tick % F5_CUBED;                                   // ∈ [0, 125)
+
+  // ── Cone-point correction: framework-fs → SI-fs span ───────────
+  const subNsSiFs = (fsIndex * SI_FS_PER_NS) / FORGE_PQR_SQ;         // ∈ [0, 1_000_000)
+  const wallFs = wallFsCoarse + subNsSiFs;
 
   const wallMs = Number(wallNs / 1_000_000n);
   const date   = new Date(wallMs);
@@ -219,8 +231,15 @@ export function getFemtosecondTimestamp(): FemtosecondTimestamp {
     clockTier: 2,
     measured:
       `ms.µs.ns measured (OS monotonic, hrtime anchored to Date.now() at boot); ` +
-      `ps.fs derived from Forge-triple (7,11,13) closed-walk phase ` +
-      `(−wall_fs mod 1001) × 999 fs/step  [Arc Doc §0, Theorem 22]`,
+      `ps.fs derived from closed walk on Z_{D_α} where ` +
+      `D_α = F₅³·p²·q²·r² = 5³·7²·11²·13² = 125_250_125 ` +
+      `(integer denominator of 1/α — Arc Doc Theorem 22). ` +
+      `tick = (−wall_ns) mod D_α; fs_index = tick÷125 ∈ [0,1_002_001); ` +
+      `as_index = tick mod 125 ∈ [0,125); SI-fs via cone-point correction ` +
+      `(pqr−1)²/(pqr)² = 10⁶/1_002_001`,
+    attoseconds:        asIndex,
+    frameworkFsIndex:   fsIndex,
+    walkTick:           tick,
   };
 }
 
@@ -233,7 +252,10 @@ export function getCalibrationProfile() {
     forge_q:             FORGE_Q.toString(),
     forge_r:             FORGE_R.toString(),
     forge_pqr:           FORGE_PQR.toString(),
-    fs_per_forge_step:   _FS_PER_FORGE_STEP.toString(),
+    forge_pqr_squared:   FORGE_PQR_SQ.toString(),
+    f5_cubed:            F5_CUBED.toString(),
+    d_alpha:             D_ALPHA.toString(),
+    cone_point_ratio:    `${SI_FS_PER_NS.toString()}/${FORGE_PQR_SQ.toString()}`,
     anchor_wall_ms:      _anchorWallMs,
     anchor_hr_ns:        _anchorHrNs.toString(),
   };

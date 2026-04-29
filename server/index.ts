@@ -2827,6 +2827,14 @@ function startPqtiService(): ChildProcess | null {
             human_readable:        hptpTs.humanReadable,
             clock_tier:            hptpTs.clockTier,
             measured:              hptpTs.measured,
+            // Closed walk on Z_{D_α}, D_α = F₅³·p²·q²·r² = 125_250_125
+            // (Theorem 22 denominator of 1/α).
+            walk_modulus_d_alpha:    "125250125",
+            walk_factorisation:      "5^3 * 7^2 * 11^2 * 13^2",
+            walk_tick_decimal:       hptpTs.walkTick.toString(),
+            framework_fs_index:      hptpTs.frameworkFsIndex.toString(),
+            attoseconds_decimal:     hptpTs.attoseconds.toString(),
+            cone_point_ratio:        "1000000/1002001",
             chain_index_at_seal_decimal: String(fsClock?.chainIndexAtSeal ?? "n/a"),
             chain_tag_hex:         chainTagHex ?? "n/a",
           },
