@@ -239,7 +239,7 @@
 
     <!-- ───────── CONSTANTS FILE · 3-TIER STRUCTURE ───────── -->
     <rect x="3110" y="2702" width="1180" height="36" rx="6" fill="#B8860B"/>
-    <text x="3700" y="2728" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">CONSTANTS FILE  ·  3 TIERS  ·  every numeral lives here exactly once</text>
+    <text x="3700" y="2728" text-anchor="middle" font-size="24" font-weight="800" fill="#FAF8F6" letter-spacing="2">CONSTANTS FILE  ·  2 TIERS  ·  every numeral lives here exactly once</text>
 
     <!-- TIER A · sole axioms -->
     <text x="3700" y="2766" class="invsect" text-anchor="middle">TIER A  ·  SOLE AXIOMS  (frozen · no derivation)</text>
@@ -251,9 +251,6 @@
     <text x="3700" y="2870" class="invsect" text-anchor="middle">TIER B  ·  DERIVED CONSTANTS  (const · computed at compile time from Tier A)</text>
     <text x="3700" y="2900" class="invnote" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-weight="700">b² = 9   ·   b³ = 27   ·   π+b = 17   ·   b·π = 42   ·   2π = 28   ·   π·b² = 126   ·   π·b³ = 378</text>
 
-    <!-- TIER C · worked-example constants -->
-    <text x="3700" y="2932" class="invsect" text-anchor="middle">TIER C  ·  WORKED-EXAMPLE CONSTANTS  (const · illustrative · not axiomatic)</text>
-    <text x="3700" y="2962" class="invnote" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-weight="700">Forge triple (p,q,r) = (7,11,13)  ·  Σ-182 = 2·p·r  ·  Grand Circle = 756  ·  Disc identity = 1,000,144</text>
 
     <!-- separator -->
     <line x1="3120" y1="2986" x2="4280" y2="2986" stroke="#B8860B" stroke-width="2"/>
@@ -301,8 +298,8 @@
     <line x1="3120" y1="3350" x2="4280" y2="3350" stroke="#B8860B" stroke-width="2"/>
 
     <!-- Notation modules -->
-    <text x="3700" y="3380" class="nucsub" text-anchor="middle">Notation Modules  (Layer 1)</text>
-    <text x="3700" y="3408" class="invnote" text-anchor="middle">1.1.1.UX1.1__constants.rs  ·  1.4.1.UX1.1+2.5__milesian.rs  ·  1.4.2.UX1.1__greek_atomic.rs  ·  1.4.3.UX1.1__upiid.rs</text>
+    <text x="3700" y="3380" class="nucsub" text-anchor="middle">Identity &amp; Numeral Systems  ·  L=1</text>
+    <text x="3700" y="3408" class="invnote" text-anchor="middle">1.1.1.UX1.1__constants.rs  ·  1.4.1.UX1.1(2.5)__milesian.rs  ·  1.4.2.UX1.1__greek_atomic.rs  ·  1.4.3.UX1.1__upiid.rs</text>
 
     <!-- footer -->
     <text x="3700" y="3450" class="nucfooter" text-anchor="middle">Salvi Standard of Scrutiny · UPIID V1.1 · π and b are the SOLE fixed axioms — every other constant derives</text>
@@ -314,23 +311,23 @@
   <g>
     <rect class="modbox-red" x="3360" y="2380" width="680" height="130" rx="8"/>
     <text x="3700" y="2422" class="modgreek" text-anchor="middle">τ · the Trit (Rep-C canonical)</text>
-    <text x="3700" y="2456" class="modfile" text-anchor="middle">2.1.1.UX1.5__trit.rs · {−, +} only · 0 forbidden by default</text>
+    <text x="3700" y="2456" class="modfile" text-anchor="middle">{−, +} only · 0 forbidden by default</text>
     <text x="3700" y="2492" class="quadaddr" text-anchor="middle">2.1.1.UX1.5__trit.rs</text>
 
     <rect class="modbox-grey" x="3260" y="3690" width="280" height="100" rx="8"/>
     <text x="3400" y="3728" class="modgreek" text-anchor="middle">⃗τ · TritVec</text>
-    <text x="3400" y="3758" class="modfile" text-anchor="middle">2.2.1.UX1.5__tritvec.rs · MSB-first</text>
+    <text x="3400" y="3758" class="modfile" text-anchor="middle">MSB-first</text>
     <text x="3400" y="3782" class="quadaddr" text-anchor="middle">2.2.1.UX1.5__tritvec.rs</text>
 
     <rect class="modbox-grey" x="3560" y="3690" width="280" height="100" rx="8"/>
     <text x="3700" y="3728" class="modgreek" text-anchor="middle">⊕ ⊗ Arithmetic</text>
-    <text x="3700" y="3758" class="modfile" text-anchor="middle">2.3.1.UX4.1+2.1__arithmetic.rs · pure trit</text>
-    <text x="3700" y="3782" class="quadaddr" text-anchor="middle">2.3.1.UX4.1+2.1__arithmetic.rs</text>
+    <text x="3700" y="3758" class="modfile" text-anchor="middle">pure trit</text>
+    <text x="3700" y="3782" class="quadaddr" text-anchor="middle">2.3.1.UX4.1(2.1)__arithmetic.rs</text>
 
     <rect class="modbox-yellow" x="3860" y="3690" width="280" height="100" rx="8"/>
     <text x="4000" y="3728" class="modgreek" text-anchor="middle">R_L^(b) · Repunit</text>
-    <text x="4000" y="3758" class="modfile" text-anchor="middle">4.6.1.UX1.5+2.5__repx.rs · base-b bijective</text>
-    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">4.6.1.UX1.5+2.5__repx.rs</text>
+    <text x="4000" y="3758" class="modfile" text-anchor="middle">base-b bijective</text>
+    <text x="4000" y="3782" class="quadaddr" text-anchor="middle">4.6.1.UX1.5(2.5)__repx.rs</text>
   </g>
 
   <!-- ═════════════ ALGEBRAIC ring modules (2D) ═════════════ -->
@@ -339,37 +336,37 @@
   <g>
     <rect class="modbox-grey" x="3220" y="2210" width="380" height="100" rx="8"/>
     <text x="3410" y="2248" class="modgreek" text-anchor="middle">GF(3)</text>
-    <text x="3410" y="2278" class="modfile" text-anchor="middle">3.1.1.UX4.1+2.7__gf3.rs · field {0, 1, 2}</text>
-    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">3.1.1.UX4.1+2.7__gf3.rs</text>
+    <text x="3410" y="2278" class="modfile" text-anchor="middle">field {0, 1, 2}</text>
+    <text x="3410" y="2302" class="quadaddr" text-anchor="middle">3.1.1.UX4.1(2.7)__gf3.rs</text>
 
     <rect class="modbox-grey" x="3800" y="2210" width="380" height="100" rx="8"/>
     <text x="3990" y="2248" class="modgreek" text-anchor="middle">ℤ[φ]</text>
-    <text x="3990" y="2278" class="modfile" text-anchor="middle">3.2.1.UX4.1__zphi.rs · R² = π + 5φ</text>
+    <text x="3990" y="2278" class="modfile" text-anchor="middle">R² = π + 5φ</text>
     <text x="3990" y="2302" class="quadaddr" text-anchor="middle">3.2.1.UX4.1__zphi.rs</text>
 
     <rect class="modbox-grey" x="3140" y="3870" width="320" height="100" rx="8"/>
     <text x="3300" y="3908" class="modgreek" text-anchor="middle">∇ · Walk + CRT</text>
-    <text x="3300" y="3938" class="modfile" text-anchor="middle">3.5.1.UX9.9+2.4__walk.rs · coprime walks</text>
-    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.5.1.UX9.9+2.4__walk.rs</text>
+    <text x="3300" y="3938" class="modfile" text-anchor="middle">coprime walks</text>
+    <text x="3300" y="3962" class="quadaddr" text-anchor="middle">3.5.1.UX9.9(2.4)__walk.rs</text>
 
     <rect class="modbox-blue" x="3490" y="3870" width="420" height="100" rx="8"/>
     <text x="3700" y="3908" class="modgreek" text-anchor="middle">⟨p, q⟩ · Coprime + Bezout</text>
-    <text x="3700" y="3938" class="modfile" text-anchor="middle">3.4.1.UX4.1+2.4__coprime.rs · S10-1 identity</text>
-    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.4.1.UX4.1+2.4__coprime.rs</text>
+    <text x="3700" y="3938" class="modfile" text-anchor="middle">S10-1 identity</text>
+    <text x="3700" y="3962" class="quadaddr" text-anchor="middle">3.4.1.UX4.1(2.4)__coprime.rs</text>
 
     <rect class="modbox-grey" x="3940" y="3870" width="320" height="100" rx="8"/>
     <text x="4100" y="3908" class="modgreek" text-anchor="middle">⊕₃ · Borromean</text>
-    <text x="4100" y="3938" class="modfile" text-anchor="middle">3.3.1.UX3.3__borromean.rs · ternary link</text>
+    <text x="4100" y="3938" class="modfile" text-anchor="middle">ternary link</text>
     <text x="4100" y="3962" class="quadaddr" text-anchor="middle">3.3.1.UX3.3__borromean.rs</text>
 
       <rect class="modbox-grey" x="3220" y="2330" width="380" height="100" rx="8"/>
       <text x="3410" y="2368" class="modgreek" text-anchor="middle">≡ mod · CRT</text>
-      <text x="3410" y="2398" class="modfile" text-anchor="middle">3.6.1.UX4.1+2.4__crt.rs · Chinese Remainder</text>
-      <text x="3410" y="2422" class="quadaddr" text-anchor="middle">3.6.1.UX4.1+2.4__crt.rs</text>
+      <text x="3410" y="2398" class="modfile" text-anchor="middle">Chinese Remainder</text>
+      <text x="3410" y="2422" class="quadaddr" text-anchor="middle">3.6.1.UX4.1(2.4)__crt.rs</text>
 
       <rect class="modbox-grey" x="3800" y="2330" width="380" height="100" rx="8"/>
       <text x="3990" y="2368" class="modgreek" text-anchor="middle">α x + β y · Bezout</text>
-      <text x="3990" y="2398" class="modfile" text-anchor="middle">3.4.2.UX4.1__bezout.rs · gcd coefficients</text>
+      <text x="3990" y="2398" class="modfile" text-anchor="middle">gcd coefficients</text>
       <text x="3990" y="2422" class="quadaddr" text-anchor="middle">3.4.2.UX4.1__bezout.rs</text>
   </g>
 
@@ -442,7 +439,7 @@
     <text x="2110" y="4544" class="quadmod">lattice_modes · Bravais classes</text>
     <text x="2110" y="4576" class="quadaddr">8.2.1.UX4.1__lattice_modes.rs</text>
     <text x="2110" y="4620" class="quadmod">nona_state · 9-fold register</text>
-    <text x="2110" y="4652" class="quadaddr">8.3.1.UX1.5+2.4__nona_state.rs</text>
+    <text x="2110" y="4652" class="quadaddr">8.3.1.UX1.5(2.4)__nona_state.rs</text>
     <text x="2110" y="4696" class="quadmod">schumann_runge · O₂ wall</text>
     <text x="2110" y="4728" class="quadaddr">8.4.1.UX4.1__schumann_runge.rs</text>
   </g>
@@ -454,7 +451,7 @@
     <text x="5290" y="4544" class="quadmod" text-anchor="end">arithmetic_progressions · AP rings</text>
     <text x="5290" y="4576" class="quadaddr" text-anchor="end">7.2.1.UX4.1__arithmetic_progressions.rs</text>
     <text x="5290" y="4620" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
-    <text x="5290" y="4652" class="quadaddr" text-anchor="end">7.3.1.UX4.1+2.3__tribonacci.rs</text>
+    <text x="5290" y="4652" class="quadaddr" text-anchor="end">7.3.1.UX4.1(2.3)__tribonacci.rs</text>
     <text x="5290" y="4696" class="quadmod" text-anchor="end">primes_residues · ζ register</text>
     <text x="5290" y="4728" class="quadaddr" text-anchor="end">7.4.1.UX4.1__primes_residues.rs</text>
   </g>
@@ -567,9 +564,9 @@
     <text x="20"  y="314" class="bullet">• Fibonacci 377 in rosette forms</text>
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-c">5.6.1.UX5.1+2.6__repunit_circles.rs</text>
+    <text x="1240" y="170" class="modlist-c">5.6.1.UX5.1(2.6)__repunit_circles.rs</text>
     <text x="1240" y="204" class="modlist-c">5.6.2.UX5.1__theta_chord.rs</text>
-    <text x="1240" y="238" class="modlist-c">5.6.3.UX5.1+2.3__fibonacci.rs</text>
+    <text x="1240" y="238" class="modlist-c">5.6.3.UX5.1(2.3)__fibonacci.rs</text>
     <text x="20"  y="458" class="addr">5.6.1..3  ←  geometric · curved · sector ⑥ · ord 1..3</text>
     <text x="20"  y="490" class="small">↔ H  (Theta Chord year differences as cone-point lifts)</text>
   </g>
@@ -765,13 +762,13 @@
       <text x="40"   y="430" class="bullet"><tspan font-weight="800">Phase-Impedance</tspan></text>
       <text x="1700" y="430" class="bullet">Circle quadratic terms  ( ② )</text>
       <text x="3500" y="430" class="bullet">Integer coefficients 137 / 377  ( E )</text>
-      <text x="5320" y="430" class="modlist-c" fill="#B8860B">9.4.1.UX4.1__phase_impedance.rs · 5.2.1.UX5.1__discriminant.rs · 5.6.3.UX5.1+2.3__fibonacci.rs</text>
+      <text x="5320" y="430" class="modlist-c" fill="#B8860B">9.4.1.UX4.1__phase_impedance.rs · 5.2.1.UX5.1__discriminant.rs · 5.6.3.UX5.1(2.3)__fibonacci.rs</text>
 
       <rect x="24" y="446" width="7192" height="56" class="row-alt"/>
       <text x="40"   y="486" class="bullet"><tspan font-weight="800">Milesian Glyphs</tspan></text>
       <text x="1700" y="486" class="bullet">Ghost letters as missing phases  ( ⑦ )</text>
       <text x="3500" y="486" class="bullet">27-fold polyhedral symmetry  ( C )</text>
-      <text x="5320" y="486" class="modlist-c" fill="#B8860B">1.4.1.UX1.1+2.5__milesian.rs · 1.4.2.UX1.1__greek_atomic.rs · 5.C.1.UX5.2__polyhedra.rs</text>
+      <text x="5320" y="486" class="modlist-c" fill="#B8860B">1.4.1.UX1.1(2.5)__milesian.rs · 1.4.2.UX1.1__greek_atomic.rs · 5.C.1.UX5.2__polyhedra.rs</text>
 
       <rect x="24" y="502" width="7192" height="56" class="row-norm"/>
       <text x="40"   y="542" class="bullet"><tspan font-weight="800">Wave-Harmonic</tspan></text>
@@ -783,7 +780,7 @@
       <text x="40"   y="600" class="bullet"><tspan font-weight="800">Theta Chord</tspan></text>
       <text x="1700" y="600" class="bullet">Repunit rosettes  ( ⑥ )</text>
       <text x="3500" y="600" class="bullet">Year differences as cone-point lifts  ( H )</text>
-      <text x="5320" y="600" class="modlist-c" fill="#B8860B">5.6.2.UX5.1__theta_chord.rs · 4.6.1.UX1.5+2.5__repx.rs · 5.H.1.UX5.2__cone_point.rs</text>
+      <text x="5320" y="600" class="modlist-c" fill="#B8860B">5.6.2.UX5.1__theta_chord.rs · 4.6.1.UX1.5(2.5)__repx.rs · 5.H.1.UX5.2__cone_point.rs</text>
     </g>
 
     <!-- ═══════════════ CANONICAL FILE ADDRESS SCHEME ═══════════════ -->
@@ -878,7 +875,7 @@
     <text x="24" y="64" class="h2" fill="#6a4c93">UX Extension  ·  appended after L.G.O  ·  classifies module purpose for tooling, search, and routing</text>
     <line x1="24" y1="84" x2="7216" y2="84" stroke="#6a4c93" stroke-width="3"/>
 
-    <text x="24" y="130" class="addrhead" fill="#0F0C0A">Format:    L . G . O . UX{p} . {s1} . {s2} … [+{p2}.{s}] __ &lt;name&gt;.rs           ·  UX is a fixed literal · {p} is one primary digit (1-9) · at least one sub-tag digit must follow (use 1 if none apply) · optional +{p2}.{s} declares a secondary application (e.g. compression primitive used outside its primary domain)</text>
+    <text x="24" y="130" class="addrhead" fill="#0F0C0A">Format:    L . G . O . UX{p} . {s1} . {s2} … ({s2}.{s3}…) __ &lt;name&gt;.rs           ·  UX is a fixed literal · {p} is one primary digit (1-9) · at least one sub-tag digit must follow (use 1 if none apply) · optional (·) bracket carries one or more comma-separated secondary sub-tags that apply to the primary tag (e.g. compression primitive used outside its primary domain)</text>
 
     <!-- Primary Category Digit Map (left half) -->
     <text x="24" y="180" class="h3" fill="#6a4c93">Primary Category Digit  ·  UX{p}</text>
@@ -915,8 +912,8 @@
     <text x="24" y="514" class="h3" fill="#6a4c93">Worked Examples  ·  UX tag appended to existing L.G.O address</text>
 
     <g font-family="Menlo, Consolas, monospace" font-size="24" fill="#2a1f3d" font-weight="700">
-      <text x="40"  y="554">1.4.1.UX1.1+2.5__milesian.rs</text>
-      <text x="2620" y="554" fill="#5a3f80">→  Nucleus · Notation group · Encoding · no sub-tag</text>
+      <text x="40"  y="554">1.4.1.UX1.1(2.5)__milesian.rs</text>
+      <text x="2620" y="554" fill="#5a3f80">→  Nucleus · Numeral group · Encoding · no sub-tag</text>
 
       <text x="40"  y="586">6.1.1.UX4.2.9__wave_stratum.rs</text>
       <text x="2620" y="586" fill="#5a3f80">→  Physics NE Wave · Physics Computation · Signal Processing + Routing</text>
@@ -927,7 +924,7 @@
       <text x="40"  y="650">1.5.1.UX7.8__units.rs</text>
       <text x="2620" y="650" fill="#5a3f80">→  Nucleus Units · Data Conversion · Unit Conversion sub-tag</text>
 
-      <text x="40"  y="682">3.5.1.UX9.9+2.4__walk.rs</text>
+      <text x="40"  y="682">3.5.1.UX9.9(2.4)__walk.rs</text>
       <text x="2620" y="682" fill="#5a3f80">→  Algebraic Walk · Networking/Routing · Routing/Pathing sub-tag</text>
     </g>
 
@@ -935,14 +932,14 @@
 
     <!-- UX2 Compression Sub-Tag Override Legend -->
     <line x1="24" y1="730" x2="7216" y2="730" stroke="#6a4c93" stroke-width="1" stroke-dasharray="2 4"/>
-    <text x="24" y="754" class="h3" fill="#6a4c93">Secondary Compression Sub-Tags  ·  meanings of +2.{s} when secondary tag is compression</text>
+    <text x="24" y="754" class="h3" fill="#6a4c93">Secondary-Tag Sub-Codes when Primary = UX2 (Compression)  ·  appear inside (·) brackets</text>
     <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A" font-weight="700">
-      <text x="40"   y="784">+2.1  →  Entropy coding (range / arithmetic / ANS)</text>
-      <text x="40"   y="810">+2.3  →  Variable-length codes (Fibonacci / Tribonacci / Elias)</text>
-      <text x="40"   y="836">+2.4  →  Permutation / transform coding (BWT · CRT · walks)</text>
-      <text x="3676" y="784">+2.5  →  Bijective-numeration coding (Rep-A/B/C base systems)</text>
-      <text x="3676" y="810">+2.6  →  Run-length / repunit coding</text>
-      <text x="3676" y="836">+2.7  →  Linear / algebraic codes (GF(3) Hamming / Reed-Solomon basis)</text>
+      <text x="40"   y="784">(2.1)  →  Entropy coding (range / arithmetic / ANS)</text>
+      <text x="40"   y="810">(2.3)  →  Variable-length codes (Fibonacci / Tribonacci / Elias)</text>
+      <text x="40"   y="836">(2.4)  →  Permutation / transform coding (BWT · CRT · walks)</text>
+      <text x="3676" y="784">(2.5)  →  Bijective-numeration coding (Rep-A/B/C base systems)</text>
+      <text x="3676" y="810">(2.6)  →  Run-length / repunit coding</text>
+      <text x="3676" y="836">(2.7)  →  Linear / algebraic codes (GF(3) Hamming / Reed-Solomon basis)</text>
     </g>
   </g>
 
@@ -1087,13 +1084,13 @@
     <text x="40"   y="384" class="h3" fill="#B8860B">Tier B — calendar / time</text>
     <text x="40"   y="412" class="modlist-c" fill="#0F0C0A">SD = 87 808 SS = 790 272 ticks · τ = 1 096 822 / 3 003 ≈ 365.242 09 days · lunisolar drift = q − 1/(b−1)³ = 87/8 = 10.875 d/yr · 1 hour = 13°</text>
 
-    <text x="40"   y="450" class="h3" fill="#B8860B">Tier C — worked-example derived constants  (Forge triple p=7, q=11, r=13)</text>
+    <text x="40"   y="450" class="h3" fill="#B8860B">Tier B — fine-structure · mass · spectral · magic · Σ-182 (Forge triple p=7, q=11, r=13)</text>
     <text x="40"   y="478" class="modlist-c" fill="#0F0C0A">137 = R₂² + q²   ·   1/α = 137 + 36/1 000 − 36/40 080 040 ≈ 137.035 999 101 8  (CODATA-2018 +0.13 ppb)   ·   discriminant identity:  (pqr−1)² + 4(p−r)² = 1 000 144 = 2⁴·17·3 677</text>
     <text x="40"   y="506" class="modlist-c" fill="#0F0C0A">m_p,F = b²·(π+b)·(R₂·b·pqr + 1) = 153·12 013 = 1 837 989   ·   m_p/m_e = 1 836 + 153/1 001  (CODATA 0.0946 ppm)   ·   mass quadratic roots {1 836, 153}   ·   Tri(17) = 153</text>
     <text x="40"   y="534" class="modlist-c" fill="#0F0C0A">Σ-182 bridge  Δ₁(σ) = 200 − 18 = 182 = 2pr = R₆/2   ·   333 Plenum magic = b²·37 = Λ_EUV + 2q²  (91 + 242)   ·   (bq)² = 1 089 = 756 + 333 = 1 035 + 54 = 1 080 + 9 = 1 050 + 39</text>
     <text x="40"   y="562" class="modlist-c" fill="#0F0C0A">κ_∞ = 721/720   ·   κ_H = (721·1 838 990)/(720·1 837 989)   ·   λ_∞ = Λ_EUV·κ_∞ ≈ 91.126 nm   ·   λ_H ≈ 91.176 nm   ·   F₁₄ = 377 = r·(R₂² + r) = 13·29 = τ + r  ·  Theta Chord 1 892 = 1 885 + p ; 1 893 = 1 885 + (b−1)³</text>
 
-    <text x="40"   y="592" class="small" fill="#7a5a06">Enforcement: every Tier B numeral lives only in 1.1.1.UX1.1__constants.rs (CI grep guard)  ·  Tier C lives in tests/invariants.rs  ·  no byte boundary anywhere — TritVec is sole storage primitive</text>
+    <text x="40"   y="592" class="small" fill="#7a5a06">Enforcement: every Tier B numeral lives only in 1.1.1.UX1.1__constants.rs (CI grep guard)  ·  no byte boundary anywhere — TritVec is sole storage primitive</text>
   </g>
 
 
