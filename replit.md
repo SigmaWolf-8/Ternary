@@ -56,6 +56,15 @@ TL-KEM is a ternary-native equivalent of ML-KEM, providing IND-CCA2 secure key e
 ### Sponge Architecture
 TL-Sponge-385 provides 385-bit post-quantum security for signing, key derivation, FIPS validation, and document hashing, with implementations in TypeScript, Rust kernel, and Rust ternary-math. TL-Sponge-43 is used for TDNS identity derivation and TIS-27 for fast integrity checks.
 
+### HModal Power Console & Energy Attestation Certificate (EAC)
+Browser-accessible square-wave workload demo at `/hmodal-demo` showing trit-native compute throughput with cumulative energy savings. The Energy Attestation Certificate (EAC) is a TL-DSA-87 signed JSON document with:
+- **UTC-grounded attosecond timestamp** as a single integer = `utc_ms × 10¹⁵ + sub-ms walk residue` (anchored to the Unix epoch — globally locatable, not boot-relative); legacy boot-anchored value preserved as audit metadata.
+- **42-system calendar stamp** (Gregorian, Julian, Hebrew, Islamic, Mayan, Discordian, etc.) for cross-civilization verifiability.
+- **Hedera Consensus Service witness** (gated behind `HMODAL_EAC_HEDERA_WITNESS=on`) for blockchain non-repudiation.
+- **Crystal-lattice notarization seal** (SVG): outer scribed band with curved heading text, four bold cardinal isometric-cube anchors with drop shadows, 48-cube beaded mandala ring, 27 sponge-state rays, and an isometric-cube QR matrix (ECC-L, ultra-compact CSV payload). Replaces the earlier polygon-based design that crowded the curved text.
+- **Print / Save-as-PDF** export via dedicated print stylesheet.
+- **Plain-English subtitles** under every Field row.
+
 ### TTC v4.2 Compression Pipeline
 File compression uses the TTC v4.2 native Rust engine via N-API, including domain analysis, ternary rANS, and GURFT fast-path, with frontend display of TTC metadata badges and round-trip verification using CRC32.
 

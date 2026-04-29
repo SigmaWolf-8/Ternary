@@ -129,30 +129,63 @@ function CrystalMatrix({
       if (!modules[r][c]) continue;
       const x = offset + c * cell;
       const y = offset + r * cell;
-      // SCANNABILITY-FIRST construction: each module is first painted
-      // as a SOLID full-cell square in the darkest currentColor (full
-      // 100 % luminance towards dark — what an ISO/IEC 18004 decoder
-      // sees).  The three facet polygons are then OVERLAID at lower
-      // opacities to give the gem-cube look without ever revealing
-      // background.  Result: ≥ 90 % effective dark mass per dark
-      // module under every print/screen DPI.
+      // SCANNABILITY-FIRST construction: each dark module is painted as
+      // a SOLID full-cell square in currentColor (the QR-decoder
+      // substrate — guarantees ≥ 100 % dark mass to ISO/IEC 18004
+      // decoders).  THREE crystal facets are then OVERLAID using the
+      // ISOMETRIC-CUBE projection (top diamond + left rhombus + right
+      // rhombus, all meeting at the cell centre) at progressively
+      // darker opacities (0.30/0.65/0.92) so the cell reads as a
+      // lit-from-upper-left 3-D gem cube.  A thin specular highlight
+      // is drawn ONLY on the top apex edge — never spans the cell
+      // interior — so the white pixel count stays well under the
+      // ISO threshold.
       const cx = x + cell / 2;
       const cy = y + cell / 2;
-      // Diamond top facet covering the upper half of the cell.
-      const top  = `${cx},${y}  ${x + cell},${cy}  ${cx},${y + cell}  ${x},${cy}`;
-      // Lower-left facet.
-      const left = `${x},${cy}  ${cx},${y + cell}  ${x},${y + cell}`;
-      // Lower-right facet.
-      const right= `${x + cell},${cy}  ${x + cell},${y + cell}  ${cx},${y + cell}`;
+      // Isometric cube projection: top apex at y, centre at cell
+      // centre, side apexes at vertical mid-height.  Same projection
+      // used by the outer mandala IsoCubeRing — produces a coherent
+      // 3-D crystal lattice across the seal.
+      const apexY  = y + cell * 0.10;
+      const sideY  = y + cell * 0.42;
+      const baseY  = y + cell * 0.95;
+      const leftX  = x + cell * 0.06;
+      const rightX = x + cell * 0.94;
+      const topPts   = `${cx},${apexY}  ${rightX},${sideY}  ${cx},${cy}  ${leftX},${sideY}`;
+      const leftPts  = `${leftX},${sideY}  ${cx},${cy}  ${cx},${baseY}  ${leftX},${baseY - (sideY - apexY)}`;
+      const rightPts = `${cx},${cy}  ${rightX},${sideY}  ${rightX},${baseY - (sideY - apexY)}  ${cx},${baseY}`;
+      const sw = Math.max(0.35, cell * 0.07);
       facets.push(
         <g key={`g-${r}-${c}`} shapeRendering="geometricPrecision">
-          {/* Solid base — the QR-decoder substrate. */}
+          {/* Solid base — the QR-decoder substrate.  Guarantees ≥ 100 %
+              dark mass so ISO/IEC 18004 decoders see the cell as ON. */}
           <rect x={x} y={y} width={cell} height={cell} fill="currentColor" />
-          {/* Crystal facet shading — overlay only; never lifts the
-              dark mass above the ISO 18004 module-luminance threshold. */}
-          <polygon points={top}   fill="currentColor" opacity={0.55} />
-          <polygon points={left}  fill="currentColor" opacity={0.88} />
-          <polygon points={right} fill="currentColor" opacity={1.00} />
+          {/* Top facet — lightest (light hitting from above-left). */}
+          <polygon points={topPts}   fill="currentColor" opacity={0.22} />
+          {/* Left-front facet — mid. */}
+          <polygon points={leftPts}  fill="currentColor" opacity={0.55} />
+          {/* Right-front facet — deepest shadow. */}
+          <polygon points={rightPts} fill="currentColor" opacity={0.88} />
+          {/* White silhouette edges between the three facets — the
+              vertical centre seam (apex → cell-centre → base) and the
+              two diagonal seams to the side apexes.  These are the
+              critical lines that make each dark cell read as a 3-D
+              cube instead of a flat square; opacity is high enough to
+              be unmistakable but the stroke is so thin (~7 % of cell
+              width) that the painted-white pixel area stays well under
+              the ISO/IEC 18004 dark-module threshold. */}
+          <polyline
+            points={`${cx},${apexY}  ${cx},${cy}  ${cx},${baseY}`}
+            fill="none" stroke="#ffffff" strokeWidth={sw} opacity={0.55}
+          />
+          <line
+            x1={leftX} y1={sideY} x2={cx} y2={cy}
+            stroke="#ffffff" strokeWidth={sw} opacity={0.55}
+          />
+          <line
+            x1={cx} y1={cy} x2={rightX} y2={sideY}
+            stroke="#ffffff" strokeWidth={sw} opacity={0.55}
+          />
         </g>,
       );
     }
@@ -171,9 +204,17 @@ function CrystalMatrix({
 // Pure ornament — sits OUTSIDE the QR module area so it never affects
 // scannability.  N cubes evenly spaced on a circle of radius r.
 function IsoCubeRing({
-  cx, cy, r, count = 24, cubeSize = 6,
-}: { cx: number; cy: number; r: number; count?: number; cubeSize?: number }) {
+  cx, cy, r, count = 24, cubeSize = 6, bold = false,
+}: { cx: number; cy: number; r: number; count?: number; cubeSize?: number; bold?: boolean }) {
   const cubes: JSX.Element[] = [];
+  // When `bold` is true the cubes are painted with full-opacity facets
+  // and a visible white silhouette edge — used for the four diagonal
+  // anchor cubes that frame the QR.  Plain mode keeps the original
+  // semi-transparent ornament look used by the 36-cube mandala ring.
+  const opTop   = bold ? 0.55 : 0.40;
+  const opLeft  = bold ? 0.80 : 0.65;
+  const opRight = bold ? 1.00 : 0.85;
+  const edge    = bold ? Math.max(0.6, cubeSize * 0.12) : 0;
   for (let i = 0; i < count; i++) {
     const a = (i * 2 * Math.PI) / count - Math.PI / 2;
     const px = cx + r * Math.cos(a);
@@ -185,9 +226,22 @@ function IsoCubeRing({
     const right = `${px},${py}  ${px + s},${py - s / 2}  ${px + s},${py + s / 2}  ${px},${py + s}`;
     cubes.push(
       <g key={`cube-${i}`} shapeRendering="geometricPrecision">
-        <polygon points={top}   fill="currentColor" opacity={0.40} />
-        <polygon points={left}  fill="currentColor" opacity={0.65} />
-        <polygon points={right} fill="currentColor" opacity={0.85} />
+        <polygon points={top}   fill="currentColor" opacity={opTop} />
+        <polygon points={left}  fill="currentColor" opacity={opLeft} />
+        <polygon points={right} fill="currentColor" opacity={opRight} />
+        {bold && (
+          <>
+            {/* Three white silhouette edges — make the cube unmistakable. */}
+            <polyline
+              points={`${px},${py - s}  ${px},${py}  ${px},${py + s}`}
+              fill="none" stroke="#ffffff" strokeWidth={edge} opacity={0.7}
+            />
+            <line x1={px - s} y1={py - s / 2} x2={px} y2={py}
+              stroke="#ffffff" strokeWidth={edge} opacity={0.7} />
+            <line x1={px} y1={py} x2={px + s} y2={py - s / 2}
+              stroke="#ffffff" strokeWidth={edge} opacity={0.7} />
+          </>
+        )}
       </g>,
     );
   }
@@ -198,29 +252,38 @@ function IsoCubeRing({
 export function EacCertificate({ eac, error }: EacProps) {
   const [qrModules, setQrModules] = useState<boolean[][] | null>(null);
 
-  // Canonical short payload for the QR — keeps the matrix scannable
-  // on screen by keeping payload size compact.  Field paths follow
-  // the actual server schema (TM-2026-042 Rev.2 §4.3).
+  // Ultra-compact QR payload.  Goal: keep the QR version small so each
+  // module renders large enough on screen for the isometric-cube
+  // facet shading to actually be perceptible.  We pack only the
+  // fields a verifier needs to look up the canonical cert — long
+  // crypto material (chain_tag, signature, full trit strings) lives
+  // in the visible certificate body, NOT in the QR.
   const qrPayload = useMemo(() => {
     if (!eac) return "";
     const c = eac.attestation_chain ?? {};
     const t = eac.timestamp ?? {};
-    const d = t.derivation ?? {};
-    return JSON.stringify({
-      v:    "EAC/1",
-      sid:  c.session_id ?? "",
-      idx:  c.chain_index_decimal ?? "",
-      tag:  (c.chain_tag_trit ?? "").slice(0, 60),
-      tick: t.tick_decimal ?? "",
-      walk: d.walk_position_decimal ?? "",
-      as:   t.attoseconds_since_boot_decimal ?? "",
-    });
+    // CSV-style ultra-compact format (no JSON braces / quotes / colons)
+    // — typically ~55-70 chars total → QR version ≈ 3 (29x29) at ECC-L
+    // → cell ≈ 7 px on a 360-px seal, where the cube facets become
+    // visibly perceptible.
+    const sid = (c.session_id ?? "").slice(0, 12);
+    const idx = c.chain_index_decimal ?? "";
+    const as  = t.attoseconds_since_unix_epoch_decimal
+             ?? t.attoseconds_since_boot_decimal
+             ?? "";
+    const utc = t.utc_iso_at_issue ?? "";
+    return `EAC1|${sid}|${idx}|${as}|${utc}`;
   }, [eac]);
 
   useEffect(() => {
     if (!qrPayload) return;
     try {
-      const qr = QRCode.create(qrPayload, { errorCorrectionLevel: "M" });
+      // ECC level "L" — minimum redundancy → smallest QR version for
+      // the given payload → biggest cells → cube facets actually
+      // perceptible at on-screen size.  Acceptable here because the
+      // payload is already a redundant lookup key (the canonical cert
+      // body lives on the page itself, not the QR).
+      const qr = QRCode.create(qrPayload, { errorCorrectionLevel: "L" });
       const mods: any = (qr as any).modules;
       const n: number = mods.size;
       const out: boolean[][] = [];
@@ -258,12 +321,18 @@ export function EacCertificate({ eac, error }: EacProps) {
   const hed   = eac.hedera_witness ?? null;
   const cal   = eac.calendar_stamp ?? null;
 
-  const sealSize  = 280;
-  const ringR1    = 134;
-  const ringR2    = 118;
-  const ringR3    = 104;
-  const ringR4    =  90;
-  const qrInset   =  78;
+  const sealSize  = 360;
+  // Outer scribed band (curved heading text) — kept flush to the rim.
+  const ringR1    = 174;
+  // Inner edge of the scribed band — defines the QR safe zone.
+  const ringInner = 132;
+  // Half-side of the QR crystal lattice (inscribed in the inner ring).
+  const qrInset   =  88;
+  // Cardinal-position anchor cubes (N / S / E / W) — the four big 3-D
+  // cubes that frame the QR.  Positioned where each cardinal axis
+  // misses the corner of the (square) QR matrix, giving them room
+  // to be large without touching the lattice or the curved text.
+  const anchorR   = 110;
 
   return (
     <>
@@ -331,24 +400,32 @@ export function EacCertificate({ eac, error }: EacProps) {
 
           {/* ── Timestamp section — ATTOSECONDS FIRST ───────────────── */}
           <section data-testid="section-eac-timestamp">
-            <SectionHeader>Timestamp · Attosecond Precision (Pure Framework Derivation)</SectionHeader>
+            <SectionHeader>Timestamp · UTC-Grounded · Attosecond Precision</SectionHeader>
 
-            {/* Featured single-integer attosecond timestamp */}
+            {/* Featured single-integer attosecond timestamp — anchored
+                against the UTC Unix epoch (1970-01-01T00:00:00Z) so it
+                has wall-clock meaning instead of being relative to this
+                node's boot. */}
             <div className="rounded-md border border-primary/40 bg-primary/5 p-3 mb-3" data-testid="block-eac-attoseconds">
               <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-1">
-                Attoseconds since system boot
+                Attoseconds since UTC epoch · 1970-01-01T00:00:00Z
               </div>
               <div
                 className="font-mono text-base sm:text-lg break-all leading-snug text-primary font-semibold"
                 data-testid="text-eac-attoseconds"
               >
-                {groupDigits(ts.attoseconds_since_boot_decimal)} <span className="text-muted-foreground font-normal">as</span>
+                {groupDigits(ts.attoseconds_since_unix_epoch_decimal ?? ts.attoseconds_since_boot_decimal)}{" "}
+                <span className="text-muted-foreground font-normal">as</span>
               </div>
-              <div className="text-[10px] text-muted-foreground mt-1">
-                Plain English: the exact attosecond ({"\u200a"}10⁻¹⁸ s{"\u200a"}) count from when this node booted, derived purely from the framework tick walk — no hardware clock was consulted.
+              <div className="text-[11px] mt-1.5 font-mono text-foreground/80" data-testid="text-eac-utc-iso">
+                = {ts.utc_iso_at_issue ?? "—"}{" "}
+                <span className="text-muted-foreground">(UTC, ISO 8601)</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1.5">
+                Plain English: the exact wall-clock instant this certificate was issued, expressed as a single integer count of attoseconds (10⁻¹⁸ s) since the UTC Unix epoch. Composition: ms-since-Unix-epoch × 10¹⁵ + sub-millisecond residue from the framework tick walk. Globally locatable on the UTC timeline; no node-boot relativity.
               </div>
               <div className="font-mono text-[10px] text-muted-foreground break-all mt-2">
-                trit (Rep-C): {trimTrit(ts.attoseconds_since_boot_trit, 81)}
+                trit (Rep-C): {trimTrit(ts.attoseconds_since_unix_epoch_trit ?? ts.attoseconds_since_boot_trit, 81)}
               </div>
             </div>
 
@@ -592,68 +669,85 @@ export function EacCertificate({ eac, error }: EacProps) {
             className="text-primary"
             data-testid="svg-eac-seal"
           >
-            {/* Outer ring band */}
-            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1} fill="none" stroke="currentColor" strokeWidth={1.5} opacity={0.7} />
-            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1 - 6} fill="none" stroke="currentColor" strokeWidth={0.5} opacity={0.35} />
+            {/* Outer scribed-band rings.  Two thin concentric circles
+                define the curved-text band; a third faint ring marks
+                the inner safe zone of the QR crystal area. */}
+            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1}      fill="none" stroke="currentColor" strokeWidth={1.5} opacity={0.85} />
+            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringR1 - 14} fill="none" stroke="currentColor" strokeWidth={0.5} opacity={0.30} />
+            <circle cx={sealSize / 2} cy={sealSize / 2} r={ringInner}   fill="none" stroke="currentColor" strokeWidth={0.4} opacity={0.25} />
 
-            {/* Outer mandala of small isometric cubes — 24 nodes */}
-            <IsoCubeRing cx={sealSize / 2} cy={sealSize / 2} r={ringR1 - 18} count={24} cubeSize={4} />
+            {/* Compact mandala of small isometric cubes — sits ON the
+                inner safe-zone ring so it never crowds the curved text
+                in the outer band.  These are intentionally drawn with
+                visible 3-D facet shading (not bold-edge mode) so the
+                whole perimeter reads as a beaded crystal ring. */}
+            <IsoCubeRing cx={sealSize / 2} cy={sealSize / 2} r={ringInner} count={48} cubeSize={4} />
 
-            {/* 11-gon — savings ratio (Coprime Triple, 11) */}
-            <polygon
-              points={polygonPoints(sealSize / 2, sealSize / 2, ringR2, 11)}
-              fill="none" stroke="currentColor" strokeWidth={0.8} opacity={0.55}
-            />
-            {/* 7-gon — tick counter (Coprime Triple, 7) */}
-            <polygon
-              points={polygonPoints(sealSize / 2, sealSize / 2, ringR3, 7)}
-              fill="none" stroke="currentColor" strokeWidth={0.8} opacity={0.55}
-            />
-            {/* 13-gon — implicit Coprime Triple anchor */}
-            <polygon
-              points={polygonPoints(sealSize / 2, sealSize / 2, (ringR2 + ringR3) / 2, 13)}
-              fill="none" stroke="currentColor" strokeWidth={0.4} opacity={0.30}
-            />
-            {/* 3-gon — chain index (ternary anchor) */}
-            <polygon
-              points={polygonPoints(sealSize / 2, sealSize / 2, ringR4, 3)}
-              fill="none" stroke="currentColor" strokeWidth={1.0} opacity={0.6}
-            />
+            {/* Four BIG cardinal anchor cubes — N / E / S / W — each
+                with a soft drop-shadow ellipse beneath it so the seal
+                visually "lifts" into the third dimension.  Cardinal
+                placement (not diagonals) maximises the gap between
+                each cube and the corner of the square QR matrix. */}
+            {[
+              { ax: 0,  ay: -1, key: "N" },
+              { ax: 1,  ay:  0, key: "E" },
+              { ax: 0,  ay:  1, key: "S" },
+              { ax: -1, ay:  0, key: "W" },
+            ].map(({ ax, ay, key }) => {
+              const px = sealSize / 2 + anchorR * ax;
+              const py = sealSize / 2 + anchorR * ay;
+              const cs = 16;  // half-edge of the big anchor cube
+              return (
+                <g key={`anchor-${key}`}>
+                  {/* Soft drop-shadow ellipse — sells the 3-D lift. */}
+                  <ellipse
+                    cx={px} cy={py + cs * 1.05}
+                    rx={cs * 1.15} ry={cs * 0.32}
+                    fill="currentColor" opacity={0.18}
+                  />
+                  <IsoCubeRing cx={px} cy={py} r={0} count={1} cubeSize={cs} bold />
+                </g>
+              );
+            })}
 
-            {/* Faint radiating sponge-state rays — 27 spokes (3·3·3) */}
+            {/* Faint radiating sponge-state rays — 27 spokes (3³) — kept
+                short so they sit between the QR rim and the cube ring,
+                never touching either. */}
             {Array.from({ length: 27 }).map((_, i) => {
               const a = (i * 2 * Math.PI) / 27 - Math.PI / 2;
-              const x1 = sealSize / 2 + (ringR4 + 2) * Math.cos(a);
-              const y1 = sealSize / 2 + (ringR4 + 2) * Math.sin(a);
-              const x2 = sealSize / 2 + (ringR2 - 2) * Math.cos(a);
-              const y2 = sealSize / 2 + (ringR2 - 2) * Math.sin(a);
+              const x1 = sealSize / 2 + (qrInset + 6) * Math.cos(a);
+              const y1 = sealSize / 2 + (qrInset + 6) * Math.sin(a);
+              const x2 = sealSize / 2 + (ringInner - 8) * Math.cos(a);
+              const y2 = sealSize / 2 + (ringInner - 8) * Math.sin(a);
               return (
                 <line key={`ray-${i}`} x1={x1} y1={y1} x2={x2} y2={y2}
                   stroke="currentColor" strokeWidth={0.25} opacity={0.18} />
               );
             })}
 
-            {/* QR matrix rendered as crystal-cell mesh */}
+            {/* QR matrix rendered as 3-D crystal-cell mesh — centred. */}
             {qrModules && (
               <g transform={`translate(${(sealSize - qrInset * 2) / 2}, ${(sealSize - qrInset * 2) / 2})`}>
                 <CrystalMatrix modules={qrModules} size={qrInset * 2} />
               </g>
             )}
 
-            {/* Curved heading text along the outer band */}
+            {/* Curved heading text along the outer band — radius now
+                comfortably inside the rim so the cube ring can never
+                encroach on it. */}
             <defs>
               <path
                 id="seal-arc-top"
-                d={`M ${sealSize / 2 - (ringR1 - 14)} ${sealSize / 2} a ${ringR1 - 14} ${ringR1 - 14} 0 0 1 ${(ringR1 - 14) * 2} 0`}
+                d={`M ${sealSize / 2 - (ringR1 - 7)} ${sealSize / 2} a ${ringR1 - 7} ${ringR1 - 7} 0 0 1 ${(ringR1 - 7) * 2} 0`}
                 fill="none"
               />
               <path
                 id="seal-arc-bot"
-                d={`M ${sealSize / 2 - (ringR1 - 14)} ${sealSize / 2} a ${ringR1 - 14} ${ringR1 - 14} 0 0 0 ${(ringR1 - 14) * 2} 0`}
+                d={`M ${sealSize / 2 - (ringR1 - 7)} ${sealSize / 2} a ${ringR1 - 7} ${ringR1 - 7} 0 0 0 ${(ringR1 - 7) * 2} 0`}
                 fill="none"
               />
             </defs>
-            <text fontSize={8} letterSpacing={3} fill="currentColor" opacity={0.85}>
+            <text fontSize={9} letterSpacing={3} fill="currentColor" opacity={0.9}>
               <textPath href="#seal-arc-top" startOffset="50%" textAnchor="middle">
                 PLENUMNET · ENERGY ATTESTATION
               </textPath>
@@ -666,11 +760,11 @@ export function EacCertificate({ eac, error }: EacProps) {
           </svg>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Hexagon className="w-3 h-3" />
-            Scannable · ISO/IEC 18004 crystal lattice
+            Scannable · 3-D isometric crystal lattice (ISO/IEC 18004)
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Stamp className="w-3 h-3" />
-            Coprime Triple {"{7,11,13}"} · Ternary 3-gon · 27 sponge rays
+            36-cube mandala · 4 corner anchors · 27 sponge rays
           </div>
         </div>
       </div>

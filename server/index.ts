@@ -2898,16 +2898,58 @@ function startPqtiService(): ChildProcess | null {
       const baselineMW = snap.mWContinuous;
       const windowMs   = snap.totalMs ?? ((snap.timeHighMs ?? 0) + (snap.timeLowMs ?? 0));
 
-      // ── ATTOSECONDS-SINCE-BOOT  (forward-facing single integer) ───────
-      // The framework derives an exact rational `as_since_boot = num/den`.
-      // For the human-readable cert we surface the floored integer value
-      // alongside the trit form; the rational is preserved deeper down
-      // for purity-checkers but is no longer the primary timestamp.
+      // ── ATTOSECONDS-SINCE-UTC-EPOCH  (forward-facing single integer) ──
+      // Anchored against the UTC Unix epoch (1970-01-01T00:00:00Z) so the
+      // primary timestamp has a real-world wall-clock meaning rather than
+      // being relative to this node's boot.  Composition:
+      //
+      //     as_utc = ms_since_unix_epoch · 10¹⁵
+      //              + (sub-millisecond attoseconds from framework walk)
+      //
+      // The sub-ms component is the EXACT residue of the rational
+      // attoseconds-since-boot mod 10¹⁵, so the value is monotone within
+      // a single boot-session AND globally locatable on the UTC timeline.
+      // Both representations (integer + ISO string) are surfaced on the
+      // cert; the original boot-anchored framework value is preserved
+      // further down for audit purity.
       const asNumBig = BigInt(String(hptpTs.asSinceBootNum));
       const asDenBig = BigInt(String(hptpTs.asSinceBootDen));
-      const asIntBig = asDenBig > 0n ? asNumBig / asDenBig : 0n;
-      const attosecondsDecimal = asIntBig.toString();
-      const attosecondsTrit    = toBijectiveBase3(asIntBig);
+      const asBootIntBig = asDenBig > 0n ? asNumBig / asDenBig : 0n;
+      const AS_PER_MS  = 1_000_000_000_000_000n;       // 10¹⁵ as / ms
+      const subMsAs    = asDenBig > 0n
+        ? (asNumBig - (asBootIntBig / AS_PER_MS) * AS_PER_MS * asDenBig) / asDenBig
+        : 0n;
+      const utcMsAtIssue = BigInt(Date.now());
+      const utcAttosecondsRaw = utcMsAtIssue * AS_PER_MS
+        + ((subMsAs % AS_PER_MS + AS_PER_MS) % AS_PER_MS);
+      // ── MONOTONIC CLAMP ─────────────────────────────────────────────
+      // Date.now() can step BACKWARDS (NTP correction, manual clock
+      // change, VM host time-skew correction).  EAC issuance MUST be
+      // strictly monotonically increasing across successive certs from
+      // the same process — otherwise audit chains can show a later
+      // cert with an earlier wall-clock timestamp than its predecessor.
+      // We maintain a process-level high-water mark and clamp the
+      // emitted UTC attosecond integer to max(raw, lastEmitted + 1).
+      // The raw value is logged when a rollback is observed.
+      const lastUtc = (globalThis as any).__plenum_eac_last_utc_as ?? 0n;
+      let utcAttosecondsBig: bigint = utcAttosecondsRaw;
+      if (utcAttosecondsRaw <= lastUtc) {
+        const skew = lastUtc + 1n - utcAttosecondsRaw;
+        console.warn(
+          `[hmodal-eac] UTC clock rollback detected — clamping attosecond timestamp by +${skew} as ` +
+          `(raw=${utcAttosecondsRaw} <= lastEmitted=${lastUtc})`,
+        );
+        utcAttosecondsBig = lastUtc + 1n;
+      }
+      (globalThis as any).__plenum_eac_last_utc_as = utcAttosecondsBig;
+      // ISO string is derived from the (clamped) emitted attoseconds so
+      // the displayed wall-clock and the integer can never disagree.
+      const emittedUtcMs        = utcAttosecondsBig / AS_PER_MS;
+      const utcIsoAtIssue       = new Date(Number(emittedUtcMs)).toISOString();
+      const attosecondsDecimal  = utcAttosecondsBig.toString();
+      const attosecondsTrit     = toBijectiveBase3(utcAttosecondsBig);
+      const attosecondsBootDec  = asBootIntBig.toString();
+      const attosecondsBootTrit = toBijectiveBase3(asBootIntBig);
       // ── 42-Calendar Stamp ────────────────────────────────────────────
       // Every EAC carries a multi-civilizational calendar reading at the
       // moment of issuance, derived purely from the framework's
@@ -2944,14 +2986,25 @@ function startPqtiService(): ChildProcess | null {
         spec: "TM-2026-042 Rev.2 §4.3",
         numeric_policy: "all numeric fields are whole integers or positive {num, den} integer rationals; no IEEE-754 floats",
         timestamp: {
-          // ── FORWARD-FACING ATTOSECOND TIMESTAMP ───────────────────────
-          // Single-integer attoseconds since boot — this is the cert's
-          // primary, human-consumable "when".  Derived from the framework
-          // tick walk (no hardware clock).  The exact rational and the
-          // walk-formula are preserved further down for audit, but the
-          // displayed value is this single integer.
-          attoseconds_since_boot_decimal: attosecondsDecimal,
-          attoseconds_since_boot_trit:    attosecondsTrit,
+          // ── FORWARD-FACING UTC ATTOSECOND TIMESTAMP ───────────────────
+          // Single integer = attoseconds since the UTC Unix epoch
+          // (1970-01-01T00:00:00Z).  This is the cert's primary,
+          // wall-clock-grounded "when".  Composition:
+          //
+          //     as_utc = (Date.now() ms · 10¹⁵)
+          //              + (sub-millisecond residue from framework walk)
+          //
+          // The boot-anchored framework value is preserved below for
+          // audit purity — it never participates in the displayed
+          // wall-clock timestamp on its own.
+          attoseconds_since_unix_epoch_decimal: attosecondsDecimal,
+          attoseconds_since_unix_epoch_trit:    attosecondsTrit,
+          utc_iso_at_issue:                     utcIsoAtIssue,
+          utc_ms_at_issue_decimal:              utcMsAtIssue.toString(),
+          // Boot-anchored values kept for traceability with the
+          // framework tick walk — never the headline timestamp.
+          attoseconds_since_boot_decimal: attosecondsBootDec,
+          attoseconds_since_boot_trit:    attosecondsBootTrit,
           // Authoritative monotonic tick counter on Z_{D_α} (D_α = 125_250_125).
           // No wall clock is consulted on the per-call path.
           tick_decimal:               hptpTs.tickCounter.toString(),
