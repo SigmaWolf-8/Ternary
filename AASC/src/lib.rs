@@ -85,55 +85,95 @@ extern crate alloc;
 // Foundation — algebra
 // ════════════════════════════════════════════════════════════════════════
 
+#[path = "2.1.1.UX1.5__trit.rs"]
 pub mod trit;
+#[path = "2.2.1.UX1.5__tritvec.rs"]
 pub mod tritvec;
+#[path = "2.3.1.UX4.1(2.1)__arithmetic.rs"]
 pub mod arithmetic;
+#[path = "1.1.1.UX1.1__constants.rs"]
 pub mod constants;
+#[path = "3.1.1.UX4.1(2.7)__gf3.rs"]
 pub mod gf3;
+#[path = "3.2.1.UX4.1__zphi.rs"]
 pub mod zphi;
+#[path = "3.3.1.UX3.3__borromean.rs"]
 pub mod borromean;
+#[path = "3.4.1.UX4.1(2.4)__coprime.rs"]
 pub mod coprime;
 
 // ════════════════════════════════════════════════════════════════════════
 // Geometric layer
 // ════════════════════════════════════════════════════════════════════════
 
+#[path = "5.1.1.UX5.1__circle.rs"]
 pub mod circle;
+#[path = "5.3.1.UX5.1__generating_system.rs"]
 pub mod generating_system;
+#[path = "5.2.2.UX5.1__dual_circle.rs"]
 pub mod dual_circle;
+#[path = "5.5.1.UX5.1__coprime_polygon_pair.rs"]
 pub mod coprime_polygon_pair;
+#[path = "5.1.3.UX5.1__plenum_color_harmonics.rs"]
 pub mod plenum_color_harmonics;
+#[path = "5.6.1.UX5.1(2.6)__repunit_circles.rs"]
 pub mod repunit_circles;
+#[path = "7.3.1.UX4.1(2.3)__tribonacci.rs"]
 pub mod tribonacci;
+#[path = "7.1.1.UX4.1__triangular_numbers.rs"]
 pub mod triangular_numbers;
+#[path = "5.4.3.UX5.1__arc182.rs"]
 pub mod arc182;
+#[path = "1.UX5.2__plenum_square.rs"]
 pub mod plenum_square;
+#[path = "5.4.1.UX5.1__gait.rs"]
 pub mod gait;
+#[path = "5.7.1.UX5.1__disdyakis_bridge.rs"]
 pub mod disdyakis_bridge;
+#[path = "8.1.1.UX4.1__crystal_2d_3d.rs"]
 pub mod crystal_2d_3d;
+#[path = "9.5.1.UX4.2__uv_spectral.rs"]
 pub mod uv_spectral;
+#[path = "9.1.1.UX4.2__hydrogen_spectral.rs"]
 pub mod hydrogen_spectral;
+#[path = "5.1.2.UX4.1__speed_of_light.rs"]
 pub mod speed_of_light;
+#[path = "5.7.2.UX5.1__saturnian_metatron.rs"]
 pub mod saturnian_metatron;
+#[path = "6.1.1.UX4.2.9__wave_stratum.rs"]
 pub mod wave_stratum;
+#[path = "6.2.1.UX4.1__conservation_laws.rs"]
 pub mod conservation_laws;
+#[path = "8.3.1.UX1.5(2.4)__nona_state.rs"]
 pub mod nona_state;
+#[path = "7.4.2.UX4.1__wieferich_register.rs"]
 pub mod wieferich_register;
+#[path = "7.4.3.UX4.1__grh_register.rs"]
 pub mod grh_register;
+#[path = "7.4.4.UX4.1__beal_register.rs"]
 pub mod beal_register;
+#[path = "7.5.1.UX4.1__pqr_asymmetry.rs"]
 pub mod pqr_asymmetry;
+#[path = "5.2.1.UX5.1__discriminant.rs"]
 pub mod discriminant;
+#[path = "9.8.1.UX4.1__discriminant_identity.rs"]
 pub mod discriminant_identity;
+#[path = "1.UX5.2__cone_point.rs"]
 pub mod cone_point;
 
 // ════════════════════════════════════════════════════════════════════════
 // Calculi engines
 // ════════════════════════════════════════════════════════════════════════
 
+#[path = "4.6.1.UX1.5(2.5)__repx.rs"]
 pub mod repx;
+#[path = "1.4.1.UX1.1(2.5)__milesian.rs"]
 pub mod milesian;
+#[path = "3.5.1.UX9.9(2.4)__walk.rs"]
 pub mod walk;
+#[path = "4.5.1.UX4.1__calculus.rs"]
 pub mod calculus;
+#[path = "4.7.1.UX4.1__attestation_ledger.rs"]
 pub mod attestation_ledger;
 
 // ════════════════════════════════════════════════════════════════════════
@@ -141,6 +181,7 @@ pub mod attestation_ledger;
 // ════════════════════════════════════════════════════════════════════════
 
 #[cfg(feature = "bridge")]
+#[path = "2.4.1.UX1.5__bridge.rs"]
 pub mod bridge;
 
 // ════════════════════════════════════════════════════════════════════════
