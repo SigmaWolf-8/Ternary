@@ -24,9 +24,9 @@
 #         crypto::tl_dsa::{sign,verify}              (signing)
 #         crypto::tl_kem::{encapsulate,decapsulate}  (key exchange)
 #
-#   R1b: Cargo.toml deps must not pull in forbidden crates outside allowlist.
+#   R2: Cargo.toml deps must not pull in forbidden crates outside allowlist.
 #
-#   R2: Symmetric / pre-shared keys MUST be balanced trits.
+#   R3: Symmetric / pre-shared keys MUST be balanced trits.
 #       Forbidden: any field named shared_key / pre_shared_key / psk /
 #       sym_key / symmetric_key typed as a byte container in any common
 #       form (`[u8; …]`, `Vec<u8>`, `&[u8]`, `Box<[u8]>`, `Cow<…, [u8]>`,
@@ -34,7 +34,7 @@
 #       Required:  `Vec<i8>` of length SHARED_KEY_TRITS (243), every
 #                  entry in {-1, 0, +1}, validated at the entrypoint.
 #
-#   R3: No hex-encoded SECRET key fields in operator-facing config.
+#   R4: No hex-encoded SECRET key fields in operator-facing config.
 #       Forbidden:  shared_key_hex, pre_shared_key_hex, psk_hex,
 #                   secret_key_hex, sym_key_hex, key_hex — in Rust struct
 #                   fields, JSON config keys, TOML keys, env var names.
@@ -43,7 +43,7 @@
 #       (Public-key hex fields — public_key_hex, pubkey_hex — are
 #        intentionally NOT flagged: public keys are not secrets.)
 #
-#   R4: hex / base64 decode MUST NOT be used to parse key material.
+#   R5: hex / base64 decode MUST NOT be used to parse key material.
 #       Triggered when hex::decode / FromHex / from_hex_string /
 #       base64::decode appears in any function whose body mentions a
 #       symmetric-key identifier (block-scoped, not line-local).
@@ -144,8 +144,8 @@ if [ -n "$hits" ]; then
   fail
 fi
 
-# ─── R1b: forbidden crates declared as Cargo dependencies ────────────────────
-section "R1b — Forbidden crates declared as Cargo dependencies"
+# ─── R2: forbidden crates declared as Cargo dependencies ─────────────────────
+section "R2 — Forbidden crates declared as Cargo dependencies"
 # Match `cratename = …` or `cratename.workspace = …` at start of TOML key,
 # and `<cratename> = { … }` table form.
 hits=$(rg -n --no-heading \
@@ -160,8 +160,8 @@ if [ -n "$hits" ]; then
   fail
 fi
 
-# ─── R2: symmetric / pre-shared keys typed as bytes ──────────────────────────
-section "R2 — Symmetric pre-shared keys typed as bytes / hex / String"
+# ─── R3: symmetric / pre-shared keys typed as bytes ──────────────────────────
+section "R3 — Symmetric pre-shared keys typed as bytes / hex / String"
 # Any byte-container form on a key field. The combined regex covers:
 #   [u8; N]          fixed array
 #   Vec<u8>          owned
@@ -184,8 +184,8 @@ if [ -n "$hits" ]; then
   fail
 fi
 
-# ─── R3: hex-encoded SECRET key fields in operator-facing config ─────────────
-section "R3 — Hex-encoded SECRET key fields (Rust struct / JSON / TOML / env)"
+# ─── R4: hex-encoded SECRET key fields in operator-facing config ─────────────
+section "R4 — Hex-encoded SECRET key fields (Rust struct / JSON / TOML / env)"
 hits=$(rg -n --no-heading \
   '("?\b(shared_key_hex|pre_shared_key_hex|psk_hex|secret_key_hex|sym_key_hex|symmetric_key_hex|key_hex)\b"?)[[:space:]]*[:=]' \
   "${GLOBS[@]}" 2>/dev/null \
@@ -206,8 +206,8 @@ if [ -n "$hits" ]; then
   fail
 fi
 
-# ─── R4: hex/base64 decode used inside a function that mentions key material ─
-section "R4 — hex / base64 decode used near key material (block-scoped)"
+# ─── R5: hex/base64 decode used inside a function that mentions key material ─
+section "R5 — hex / base64 decode used near key material (block-scoped)"
 KEY_TOKENS='shared_key|pre_shared_key|\bpsk\b|secret_key|sym_key|symmetric_key'
 DECODE_TOKENS='hex::decode|FromHex|from_hex_string|base64::decode|BASE64_STANDARD\.decode'
 # Block-scoped check: for every Rust file, look at each function body and
