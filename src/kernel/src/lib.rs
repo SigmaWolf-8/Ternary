@@ -53,6 +53,9 @@ pub mod input;
 pub mod layers;
 pub mod allocator;
 
+#[cfg(feature = "std")]
+pub mod repo_sync;
+
 #[cfg(kani)]
 mod kani_proofs;
 
