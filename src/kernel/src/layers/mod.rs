@@ -15,7 +15,15 @@ pub mod fileserver;
 pub mod snapshots;
 
 use alloc::string::String;
+use core::fmt;
 
+/// Layer designator suitable for log lines and operator status output.
+/// Implementing `core::fmt::Display` here keeps the format string in
+/// one place so the layer overview, telemetry tail, and audit log all
+/// agree on the canonical layer name.
+pub fn format_layer_name<W: fmt::Write>(writer: &mut W, layer: &str) -> fmt::Result {
+    write!(writer, "[layer:{}]", layer)
+}
 use crate::distributor::z_router::ZLevel;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

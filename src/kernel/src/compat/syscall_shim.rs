@@ -12,9 +12,24 @@
 //
 // See LICENSE in the repository root for full terms.
 
+use alloc::string::String;
+  use alloc::vec::Vec;
 
-use alloc::vec::Vec;
-use core::fmt;
+  /// Tiny no_std u64-to-String helper used by SyscallShim::describe().
+  fn u64_to_string(mut n: u64) -> String {
+      if n == 0 { return String::from("0"); }
+      let mut buf = [0u8; 20];
+      let mut i = buf.len();
+      while n > 0 {
+          i -= 1;
+          buf[i] = b'0' + (n % 10) as u8;
+          n /= 10;
+      }
+      let mut out = String::new();
+      for &b in &buf[i..] { out.push(b as char); }
+      out
+  }
+  use core::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
@@ -186,7 +201,21 @@ impl SyscallShim {
         }
     }
 
-    pub fn stats(&self) -> (u64, u64, u64) {
+    /// Operator-facing description of the shim's current policy and
+      /// counters. Returns an owned `String` so the layered output can be
+      /// concatenated with other module status sections.
+      pub fn describe(&self) -> String {
+          let mut out = String::new();
+          out.push_str("[syscall_shim] intercepts=");
+          out.push_str(&u64_to_string(self.stats().0));
+          out.push_str(" redirects=");
+          out.push_str(&u64_to_string(self.stats().1));
+          out.push_str(" denials=");
+          out.push_str(&u64_to_string(self.stats().2));
+          out
+      }
+
+      pub fn stats(&self) -> (u64, u64, u64) {
         (self.interception_count, self.blocked_count, self.redirected_count)
     }
 }

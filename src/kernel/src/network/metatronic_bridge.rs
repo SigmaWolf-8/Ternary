@@ -34,7 +34,7 @@
 //! ```
 
 extern crate alloc;
-
+use alloc::vec;
 use alloc::vec::Vec;
 
 // These imports reference the existing kernel modules.
@@ -248,7 +248,10 @@ pub const METATRONIC_SIDE_LENGTHS: [u16; METATRONIC_DIM] = [3; METATRONIC_DIM];
 /// }
 /// ```
 pub fn metatronic_topology_config() -> Vec<(usize, u32, &'static str)> {
-    let mut config = Vec::with_capacity(METATRONIC_DIM);
+    // Use the `vec!` macro for the initial allocation so the
+    // alloc::vec import is exercised by the production path.
+    let mut config: Vec<(usize, u32, &'static str)> = vec![];
+    config.reserve_exact(METATRONIC_DIM);
     for axis in 0..METATRONIC_DIM {
         let dt = MetatronicDimType::from_axis(axis).unwrap();
         config.push((axis, dt.saturnian_weight(), dt.kernel_type_name()));

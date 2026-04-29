@@ -1085,9 +1085,15 @@ pub fn ntt_inverse_lifted(ntt_vals: &[i16], q: i16, n: usize) -> TernaryPolynomi
 }
 
 pub fn ntt_pointwise_mul(a: &[i16], b: &[i16], q: i16) -> Vec<i16> {
-    let _q32 = q as i32;
+    let q32 = q as i32;
+    let half = q32 / 2;
     a.iter().zip(b.iter())
-        .map(|(&ai, &bi)| mod_reduce(ai as i32 * bi as i32, q))
+        .map(|(&ai, &bi)| {
+            let mut v = (ai as i32 * bi as i32) % q32;
+            if v < 0 { v += q32; }
+            if v > half { v -= q32; }
+            v as i16
+        })
         .collect()
 }
 

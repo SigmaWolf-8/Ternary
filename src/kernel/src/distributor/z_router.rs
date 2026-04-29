@@ -6,9 +6,24 @@
 // Above ground (+z) = presentation. Below ground (−z) = processing.
 // z=0 = distributor plane (never blocks, routes only).
 
-
+use alloc::string::String;
 use core::fmt;
 
+  /// Tiny no_std u8-to-String helper used by ZLevel::label().
+  fn itoa_u8(mut n: u8) -> String {
+      if n == 0 { return String::from("0"); }
+      let mut buf = [0u8; 3];
+      let mut i = buf.len();
+      while n > 0 {
+          i -= 1;
+          buf[i] = b'0' + (n % 10);
+          n /= 10;
+      }
+      let mut out = String::new();
+      for &b in &buf[i..] { out.push(b as char); }
+      out
+  }
+  
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZLevel(i8);
 
@@ -52,7 +67,37 @@ impl ZLevel {
         self.0 < 0
     }
 
-    pub fn hops_from_zero(&self) -> u8 {
+    /// Owned operator-readable label for this Z-level. Returned as a
+      /// `String` so callers can concatenate diagnostic context without
+      /// reaching for a separate formatter.
+      pub fn label(&self) -> String {
+          let name = match self.0 {
+              1 => "UI",
+              2 => "FILE_SERVER",
+              3 => "SNAPSHOT_BASE",
+              0 => "DISTRIBUTOR",
+              -1 => "API_GATEWAY",
+              -2 => "APP_SERVICES",
+              -3 => "CONVENTIONAL",
+              -4 => "TERNARY_NATIVE",
+              -5 => "DATA_LAYER",
+              -6 => "INFRASTRUCTURE",
+              _ => "CUSTOM",
+          };
+          let mut out = String::new();
+          out.push_str("z=");
+          if self.0 < 0 {
+              out.push('-');
+              out.push_str(&itoa_u8((-self.0) as u8));
+          } else {
+              out.push_str(&itoa_u8(self.0 as u8));
+          }
+          out.push(' ');
+          out.push_str(name);
+          out
+      }
+
+      pub fn hops_from_zero(&self) -> u8 {
         self.0.unsigned_abs()
     }
 }

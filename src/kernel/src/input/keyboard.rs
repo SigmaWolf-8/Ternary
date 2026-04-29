@@ -13,7 +13,6 @@ pub const TIS27_SECURITY_BITS: usize = 43;
 #[derive(Debug, Clone)]
 pub struct Tis27State {
     state: [u8; TIS27_TRITS],
-    #[allow(dead_code)]
     session_key: [u8; 32],
 }
 
@@ -66,6 +65,14 @@ impl Tis27State {
                 let b = self.state[(i + 1) % TIS27_TRITS];
                 let c = self.state[(i + 2) % TIS27_TRITS];
                 self.state[i] = (a + b * 2 + c + round as u8) % 3;
+            }
+
+            // Re-mix the per-session key into the state once per round so a
+            // captured wire-encoded scancode cannot be replayed across
+            // sessions even if an attacker observes a long stream of taps.
+            let key_byte = self.session_key[round % self.session_key.len()];
+            for i in 0..TIS27_TRITS {
+                self.state[i] = (self.state[i] + (key_byte.wrapping_add(i as u8)) % 3) % 3;
             }
 
             let rot = (round * 7 + 1) % TIS27_TRITS;

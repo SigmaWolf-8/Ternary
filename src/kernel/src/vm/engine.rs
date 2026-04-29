@@ -18,7 +18,7 @@ use super::instruction::*;
 use super::gc::GcHeap;
 use super::cache::ConstantTimeTernary;
 use crate::ternary::{Trit, KernelTritExt, Representation, convert_representation, scalar_to_trit, pack_trits, unpack_trits, packed_map, packed_zip, packed_shift_left, packed_shift_right, packed_rotate_left, packed_reduce, packed_convert};
-use crate::timing::{FemtosecondTimestamp, HptpProvider};
+use crate::timing::{FemtosecondTimestamp, HptpProvider, SimulatedHptp};
 use alloc::boxed::Box;
 
 pub struct VmMemory {
@@ -161,6 +161,15 @@ impl TernaryVm {
 
     pub fn set_hptp_provider(&mut self, provider: Box<dyn HptpProvider>) {
         self.hptp_provider = provider;
+    }
+
+    /// Construct a VM wired to a fresh `SimulatedHptp` provider. Useful
+    /// for benchmarks, fixtures, and short-lived diagnostic VMs that
+    /// don't need a real femtosecond clock — keeps the simulated
+    /// timing source as a documented, callable production constructor
+    /// rather than an internal-only test helper.
+    pub fn with_simulated_hptp(memory_size: usize) -> Self {
+        Self::new(memory_size, Box::new(SimulatedHptp::new()))
     }
 
     pub fn current_hptp_timestamp(&self) -> FemtosecondTimestamp {

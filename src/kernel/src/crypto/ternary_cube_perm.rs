@@ -71,8 +71,10 @@
 //! # Copyright
 //! Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved.
 
-
-
+#[cfg(test)]
+use alloc::vec::Vec;
+#[cfg(test)]
+use alloc::vec;
 
 /// Maximum supported cube dimension.
 pub const MAX_CUBE_DIM: usize = 13;

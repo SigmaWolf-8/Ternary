@@ -12,9 +12,27 @@
 //       decode to Unicode inside Boa's DOM event handler
 
 use crate::input::keyboard::{EncodedKey, Tis27State};
+use alloc::string::String;
+  use alloc::vec::Vec;
 
-use alloc::vec::Vec;
+  /// Tiny no_std usize-to-String helper used by BrowserInputHandler::describe_state().
+  fn usize_to_string(n: usize) -> String { u64_to_string_input(n as u64) }
 
+  /// Tiny no_std u64-to-String helper used by BrowserInputHandler::describe_state().
+  fn u64_to_string_input(mut n: u64) -> String {
+      if n == 0 { return String::from("0"); }
+      let mut buf = [0u8; 20];
+      let mut i = buf.len();
+      while n > 0 {
+          i -= 1;
+          buf[i] = b'0' + (n % 10) as u8;
+          n /= 10;
+      }
+      let mut out = String::new();
+      for &b in &buf[i..] { out.push(b as char); }
+      out
+  }
+  
 pub const MAX_EVENT_QUEUE_SIZE: usize = 256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -190,7 +208,25 @@ impl BrowserInputHandler {
         self.events_processed += 1;
     }
 
-    pub fn decode_key(&mut self, encoded: &EncodedKey) -> Option<u8> {
+    /// Operator-facing summary of the input handler's queue and
+      /// counters. Returns an owned `String` so it can be concatenated
+      /// with other browser-subsystem status sections.
+      pub fn describe_state(&self) -> String {
+          let mut out = String::new();
+          out.push_str("[input] queued=");
+          out.push_str(&usize_to_string(self.event_queue.len()));
+          out.push_str(" processed=");
+          out.push_str(&u64_to_string_input(self.events_processed));
+          out.push_str(" dropped=");
+          out.push_str(&u64_to_string_input(self.events_dropped));
+          if let Some(tab) = self.active_tab_id {
+              out.push_str(" active_tab=");
+              out.push_str(&u64_to_string_input(tab as u64));
+          }
+          out
+      }
+
+      pub fn decode_key(&mut self, encoded: &EncodedKey) -> Option<u8> {
         self.decoder.decode(encoded)
     }
 

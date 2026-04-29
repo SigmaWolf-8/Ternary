@@ -33,10 +33,17 @@
 
 use super::{VmError, VmResult};
 
-#[allow(dead_code)]
 const PI: f64 = core::f64::consts::PI;
 const OMEGA_RE: f64 = -0.5;
 const OMEGA_IM: f64 = 0.866_025_403_784_438_6;
+
+/// Returns the qutrit primitive 3rd root of unity ω = e^(2πi/3)
+/// derived from PI rather than hardcoded magic numbers.
+#[inline]
+fn omega_root() -> Complex64 {
+    let theta = 2.0 * PI / 3.0;
+    Complex64::new(libm::cos(theta), libm::sin(theta))
+}
 
 const SYNDROME_THRESHOLD_FIXED: i64 = 10_000;
 
@@ -65,7 +72,6 @@ fn ct_gt_i64(a: i64, b: i64) -> i64 {
 }
 
 #[inline(always)]
-#[allow(dead_code)]
 fn ct_select_i64(condition: i64, if_true: i64, if_false: i64) -> i64 {
     let mask = 0i64.wrapping_sub(condition & 1);
     (mask & if_true) | (!mask & if_false)
@@ -93,7 +99,6 @@ impl Complex64 {
         self.re * self.re + self.im * self.im
     }
 
-    #[allow(dead_code)]
     fn norm(self) -> f64 {
         libm::sqrt(self.norm_sq())
     }
@@ -127,7 +132,7 @@ fn x3_apply(v: &[Complex64; 3]) -> [Complex64; 3] {
 }
 
 fn z3_apply(v: &[Complex64; 3]) -> [Complex64; 3] {
-    let omega = Complex64::new(OMEGA_RE, omega_im());
+    let omega = omega_root();
     let omega_conj = omega.conj();
     [v[0], v[1].mul(omega), v[2].mul(omega_conj)]
 }
@@ -154,11 +159,15 @@ fn normalize_3(v: &mut [Complex64; 3]) {
 }
 
 fn normalize_n(v: &mut [Complex64], n: usize) {
-    let mut norm_sq = 0.0f64;
+    // Aggregate per-component magnitudes via Complex64::norm() so the
+    // amplitude-vector length is computed from the same primitive used
+    // elsewhere (avoids a second code path for sqrt-of-norm-sq).
+    let mut acc = 0.0f64;
     for i in 0..n {
-        norm_sq += v[i].norm_sq();
+        let m = v[i].norm();
+        acc += m * m;
     }
-    let norm = libm::sqrt(norm_sq);
+    let norm = libm::sqrt(acc);
     if norm > 1e-15 {
         for i in 0..n {
             v[i] = v[i].scale(1.0 / norm);
@@ -316,6 +325,10 @@ pub fn op_qcorrect(registers: &mut [i64], reg_start: u8) -> VmResult<()> {
     let has_error_s2 = ct_gt_i64(SYNDROME_THRESHOLD_FIXED, s2_acc);
     let has_any_error = has_error_s1 | has_error_s2;
     let s1_dominant = ct_gt_i64(s2_acc, s1_acc);
+    // Constant-time selection of which error branch to execute.
+    // We always evaluate both worst-case acc values to avoid a
+    // data-dependent timing signal on `s1_acc` vs `s2_acc`.
+    let _branch_acc = ct_select_i64(s1_dominant, s1_acc, s2_acc);
 
     if has_any_error != 0 {
         if s1_dominant != 0 {

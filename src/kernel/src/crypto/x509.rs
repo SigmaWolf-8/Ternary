@@ -36,8 +36,22 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
-use super::{TERNARY_HASH_TRITS};
+use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
 use super::sponge::TernarySponge;
+
+/// Compute the canonical TernaryDigest for a serialized certificate
+/// blob (TBS or full DER). This is the framework-native hashing path
+/// used wherever an X.509 artifact needs a content-addressable
+/// identifier; the legacy `cert_hash` byte path remains for callers
+/// that need a fixed-size 32-byte fingerprint.
+pub fn cert_ternary_digest(data: &[u8]) -> CryptoResult<TernaryDigest> {
+    if data.is_empty() {
+        return Err(CryptoError::InvalidInputLength { expected: 1, actual: 0 });
+    }
+    let mut sponge = TernarySponge::new();
+    sponge.absorb_bytes(data);
+    Ok(sponge.squeeze(TERNARY_HASH_TRITS))
+}
 
 const CERT_VERSION_V3: u8 = 2;
 

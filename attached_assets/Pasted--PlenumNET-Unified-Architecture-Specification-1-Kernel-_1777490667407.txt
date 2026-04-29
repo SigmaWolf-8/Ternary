@@ -1,0 +1,177 @@
+# PlenumNET Unified Architecture Specification
+
+## 1. Kernel IPC & Sockets
+
+**IPC** (Inter‑Process Communication) is the kernel’s mechanism for safe data exchange between processes. The kernel provides pipes, message queues, shared memory, semaphores, signals, and sockets.
+
+**Sockets in Rust** wrap the OS network stack. `std::net` offers synchronous `TcpStream`, `TcpListener`, `UdpSocket`. Asynchronous runtimes (`tokio`, `mio`) enable high concurrency on a single thread. Rust’s ownership and type system guarantee memory safety and data‑race freedom.
+
+All IPC in PlenumNET – between daemons, user programs, and the kernel – uses **memory‑mapped shared memory rings** and **capability‑based ports**.
+
+---
+
+## 2. Memory Mapping & Walks
+
+Every document (Forma Codex file, log, configuration) is **memory‑mapped** into the address space of the process that accesses it – or directly into the kernel’s space for high‑performance components. The kernel (`mmap` subsystem) handles sparse allocation and page faults.
+
+A **coprime walk** traverses all cells of an X×Y grid exactly once when `gcd(X,Y)=1`. The walk step is:
+```
+(col, row) = (step mod X, step mod Y)
+```
+This walk is used for deterministic I/O, network addressing (no routing tables), and query execution. Memory mapping + coprime walk eliminates per‑step syscall overhead.
+
+---
+
+## 3. SQLT – SQL Ternary
+
+**SQLT** is a ternary‑native, read‑only query language. It executes directly on memory‑mapped ternary data. Supported operations:
+
+- `SELECT`, `FROM` one or more memory‑mapped documents (tables)
+- `CROSS JOIN`, `INNER JOIN` (on classification trits or key‑value tags)
+- `WHERE` with `AND`/`OR` over the 27 classification dimensions
+- `GROUP BY`, `DISTINCT`, `UNION`, `ORDER BY` (with mandatory `LIMIT`)
+
+**No bytecode.** Queries are submitted as string literals. The parser uses `TritInt::from_string()` – each character maps to a trit stream. The parser is recursive‑descent with a fixed stack depth; memory is taken from pre‑allocated per‑query pools bounded by the user’s `LIMIT`.
+
+### Virtual tables exposed by every memory‑mapped document
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `doc_id` | `TritInt` (string) | Unique identifier |
+| `x`, `y` | `TritInt` | Grid coordinates |
+| `face` | `Trit` (1,2,3) | Active face |
+| `z1` … `z13` | `BLOB` | Z‑stack layers |
+| `class_1` … `class_27` | `Trit` | Classification dimensions (Who/What/Where/When/Why/How/Peace) |
+| `tags_key`, `tags_value` | key‑value pairs | For joins |
+
+### Safety constraints (enforced by SQLT engine)
+
+- Every query must specify `LIMIT` (default 10,000).
+- No subqueries deeper than one level.
+- No variable‑length columns in join keys.
+- Cross‑join estimated cardinality ≤ 10 million.
+- Parser uses fixed stack depth (max 128).
+
+---
+
+## 4. The Three Fixed Daemons
+
+Daemons are system‑level processes. They can run in **userspace** (with appropriate capabilities) or be compiled into the kernel for embedded or high‑performance deployments – this is a **deployment choice**, not a fixed property.
+
+Three daemons are **fixed identities** loaded at boot. They are **agnostic**: their role is determined by a configuration file and a shared feature library.
+
+| Daemon | Fixed ID | Abstract Role |
+|--------|----------|----------------|
+| **Daemon 1** | 1 | Real‑time message & data routing (zero‑copy rings, capability enforcement) |
+| **Daemon 2** | 2 | Memory & storage coordinator (mmap, page faults, walk scheduling) |
+| **Daemon 3** | 3 | Query & computation engine (executes declarative requests on mapped data) |
+
+The three daemons are **identical across all deployments** – embedded, workstation, server, BIM, network OS. Only the feature library and configuration change.
+
+---
+
+## 5. Feature Library (`plenum_features.so` or built‑in)
+
+A single, versioned library contains **all possible implementations** of:
+
+- IPC transporters (local ring, TCP, UDP, Unix socket)
+- Memory mapping backends (sparse file, anonymous, huge pages, DAX)
+- Walk algorithms (coprime 2D, 3D, n‑dimensional, deterministic address walk for networking)
+- SQLT parsers & executors (different dialects, safety profiles)
+- Domain‑specific extensions (BIM mesh walk, packet walk without routing tables)
+
+The library is installed once on the system (or embedded in the kernel image). It is **not** per‑program. Each daemon, at boot, reads a configuration file that tells it *which features* to load from the library.
+
+### Example configuration (`/etc/plenum/daemons.toml`)
+
+```toml
+[daemon1]
+features = ["local_ring", "tcp_forward", "capability_audit"]
+
+[daemon2]
+features = ["sparse_mmap", "coprime_2d_walk", "huge_pages"]
+
+[daemon3]
+features = ["sqlt_parser_v2", "group_by", "join_limit_10M"]
+```
+
+The daemon loads only the requested symbols. Unused features are not mapped into memory.
+
+### Benefits
+
+- **Same three daemons** for every PlenumNET system.
+- **Configuration, not code** – update the feature library and reboot; daemons remain unchanged.
+- **Minimal footprint** – only required features are loaded.
+- **Upgradable** – the feature library can be updated without recompiling the kernel.
+- **Agnostic** – the daemons do not know what "BIM" or "routing" means; they only execute loaded features.
+
+---
+
+## 6. Deterministic Addressing (No Routing Tables)
+
+Network traffic uses **deterministic addresses** derived from coprime walks over coordinates. No routing tables exist. A packet’s destination is computed as:
+
+```
+next_address = walk_next(current_address, step_parameters)
+```
+
+The walk is stateful and guaranteed to be collision‑free. The feature library provides the concrete implementation (e.g., `coprime_3d_walk`). This mechanism is used by `daemon‑packet‑walk` (an optional user‑space daemon) which communicates with Daemon 2 via IPC.
+
+---
+
+## 7. Optional Per‑Program Daemons
+
+Large applications (BIM, Network OS) may ship with their own **user‑space daemons** (e.g., `daemon‑mesh`, `daemon‑packet‑walk`). These are **optional** and not part of the base system. They communicate exclusively with the three fixed daemons via Daemon 1 (IPC). They may use the feature library or link against `libsqlt` (a user‑space wrapper around the SQLT syscall interface).
+
+---
+
+## 8. Walk + SQLT Integration Example
+
+**Goal:** Find all log entries where `What:Outcome = Failure` and `Where:Layer = Kernel`, walk them in coprime order, display each message.
+
+**Step 1 – SQLT query (executed by Daemon 3):**
+```sql
+SELECT x, y FROM logs WHERE class_7 = 3 AND class_9 = 1 ORDER BY x, y LIMIT 100000;
+```
+Daemon 3 scans the 27‑trit classification columns (fast, small) and returns a list of `(x,y)` pairs to the caller.
+
+**Step 2 – Walk in coprime order:**  
+The caller (user process) invokes Daemon 2’s `walk_next` syscall to get the next cell in the diagonal walk. Daemon 2 uses the loaded walk algorithm from the feature library.
+
+**Step 3 – Read cell content:**  
+The caller accesses the cell’s face 1 (message) via the existing memory mapping – no further kernel or daemon call.
+
+---
+
+## 9. Build Order
+
+```
+Phase 0:  trit_int.rs (TritInt, Trit, four views) – shared kernel/user crate.
+Phase 1:  coprime.rs, sparse.rs, ZStack (no‑std, kernel‑ready).
+Phase 2:  Feature library – implement all IPC, mmap, walk, SQLT variants.
+Phase 3:  Daemon 1, Daemon 2, Daemon 3 – each is a shell that loads features from the library.
+Phase 4:  Configuration system – /etc/plenum/daemons.toml parsing.
+Phase 5:  Integration – daemons start at boot, read config, load symbols.
+Phase 6:  User‑space libsqlt – wrapper for SQLT syscalls.
+Phase 7:  Optional per‑program daemons (BIM, netos) using libsqlt and IPC.
+Phase 8:  WASM frontend (browser) – calls libsqlt via wasm‑bindgen shims.
+```
+
+**Hard gate:** All components must pass `cargo test` (kernel test harness for kernel‑resident deployments; user‑space test suite for user‑space daemons).
+
+---
+
+## 10. Summary
+
+| Component | Deployment | Mandatory? | Role |
+|-----------|------------|------------|------|
+| **Daemon 1** | Kernel or userspace | Yes | Message routing, IPC |
+| **Daemon 2** | Kernel or userspace | Yes | Memory mapping, walks |
+| **Daemon 3** | Kernel or userspace | Yes | SQLT query execution |
+| **Feature library** | System‑wide | Yes | All implementations |
+| **Per‑program daemons** | User space | No | Domain‑specific extensions |
+| **User program** | User space | No | Uses libsqlt + IPC |
+
+**The three daemons are fixed.** Their behavior is configured via the feature library. The kernel / userspace deployment boundary is a choice, not a fixed property. No routing tables – network walks are deterministic. SQLT runs on memory‑mapped ternary data, parsing string literals with `TritInt::from_string()`.
+
+*Lo Sono Capomastro. Build.*

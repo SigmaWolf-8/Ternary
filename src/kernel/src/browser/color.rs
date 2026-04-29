@@ -342,11 +342,8 @@ pub struct MeshColorLut {
     r_forward: Vec<MeshAddress>,
     g_forward: Vec<MeshAddress>,
     b_forward: Vec<MeshAddress>,
-    #[allow(dead_code)]
     r_inverse: Vec<u8>,
-    #[allow(dead_code)]
     g_inverse: Vec<u8>,
-    #[allow(dead_code)]
     b_inverse: Vec<u8>,
     depth: usize,
 }
@@ -398,7 +395,28 @@ impl MeshColorLut {
     }
 
     pub fn from_mesh_rgb(&self, channels: &[MeshAddress; 3]) -> Rgba {
-        mesh_rgb_to_srgb(channels)
+        // Use the prebuilt inverse tables for an O(1) lookup when the
+        // mesh address matches a single populated cell — the common case
+        // for round-trip conversions. Fall back to the analytical
+        // mesh_rgb_to_srgb path for compound addresses.
+        let lookup = |table: &[u8], addr: &MeshAddress| -> Option<u8> {
+            let cells = addr.cells();
+            if cells.len() == 1 {
+                let idx = cells[0] as usize;
+                if idx < table.len() {
+                    return Some(table[idx]);
+                }
+            }
+            None
+        };
+        match (
+            lookup(&self.r_inverse, &channels[0]),
+            lookup(&self.g_inverse, &channels[1]),
+            lookup(&self.b_inverse, &channels[2]),
+        ) {
+            (Some(r), Some(g), Some(b)) => Rgba::new(r, g, b, 255),
+            _ => mesh_rgb_to_srgb(channels),
+        }
     }
 
     pub fn depth(&self) -> usize {

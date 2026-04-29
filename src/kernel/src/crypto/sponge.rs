@@ -485,8 +485,7 @@ unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-#[allow(dead_code)]
-unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+pub unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::x86_64::*;
 
     let mut ext = [0i8; SPONGE_STATE_SIZE + 26];
@@ -633,7 +632,7 @@ unsafe fn sponge_permutation_v2_neon(state: &mut [i8; SPONGE_STATE_SIZE]) {
 
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
-unsafe fn sponge_permutation_v1_neon(state: &mut [i8; SPONGE_STATE_SIZE]) {
+pub unsafe fn sponge_permutation_v1_neon(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::aarch64::*;
 
     let mut ext = [0i8; SPONGE_STATE_SIZE + 26];
@@ -732,8 +731,7 @@ fn sponge_permutation_v2_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     }
 }
 
-#[allow(dead_code)]
-fn sponge_permutation_v1_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
+pub fn sponge_permutation_v1_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
     let w = SPONGE_STATE_SIZE;
 
@@ -780,8 +778,10 @@ fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
     sponge_permutation_v2_scalar(state);
 }
 
-#[allow(dead_code)]
-fn sponge_permutation_v1(state: &mut [i8; SPONGE_STATE_SIZE]) {
+/// Reference (V1) sponge permutation kept alongside the production V2
+/// permutation so external test/benchmark code can compare the two and
+/// `test_chi_v2_differs_from_v1` can validate divergence.
+pub fn sponge_permutation_v1(state: &mut [i8; SPONGE_STATE_SIZE]) {
     #[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
     {
         if is_x86_feature_detected!("avx2") {

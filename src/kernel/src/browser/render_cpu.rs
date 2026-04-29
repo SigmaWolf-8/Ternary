@@ -21,7 +21,8 @@ use alloc::vec::Vec;
 use crate::browser::render::{
     RenderBackend, RenderBackendType, RenderScene, RenderPrimitive,
     RenderColor, DirtyRect, PaintStyle, LinearGradient, RadialGradient,
-    GradientStop, TextRun, ImageData, SvgData,
+    GradientStop, TextRun, FontFamily, ImageData, SvgData,
+    TARGET_FPS, FRAME_BUDGET_US,
 };
 use crate::browser::layout::Rect;
 
@@ -270,7 +271,16 @@ impl CpuFramebuffer {
     }
 
     pub fn draw_text_run(&mut self, text_run: &TextRun) {
-        let char_width = (text_run.font_size * 0.6) as u32;
+        // Glyph aspect ratio is family-dependent: monospace uses a wider
+        // 1:1 ratio so columns align, proportional faces use the classic
+        // 0.6 ratio, and serif gets a touch extra width for the implied
+        // serif terminals on the simple block glyph.
+        let width_ratio = match text_run.font_family {
+            FontFamily::Monospace => 1.0_f32,
+            FontFamily::Serif => 0.65_f32,
+            FontFamily::SansSerif => 0.6_f32,
+        };
+        let char_width = (text_run.font_size * width_ratio) as u32;
         let char_height = text_run.font_size as u32;
 
         let mut cx = text_run.x as u32;
@@ -515,7 +525,6 @@ fn interpolate_gradient_stops(stops: &[GradientStop], t: f32) -> RenderColor {
 pub struct CpuRenderer {
     command_queue: Vec<RenderCommand>,
     frames_rendered: u64,
-    #[allow(dead_code)]
     last_frame_us: u64,
     partial_update_count: u64,
     full_update_count: u64,
@@ -537,6 +546,7 @@ impl CpuRenderer {
     }
 
     pub fn flush(&mut self, fb: &mut CpuFramebuffer) {
+        let frame_start = fb.frame_count();
         for cmd in self.command_queue.drain(..) {
             match cmd.cmd_type {
                 RenderCommandType::Clear => {
@@ -565,7 +575,23 @@ impl CpuRenderer {
             }
         }
         self.frames_rendered += 1;
+        // Approximate per-frame cost from framebuffer-tick delta. Replaced by a
+        // real femtosecond-timing sample once HPTP is wired through the
+        // browser kernel subsystem.
+        // Per-frame cost = (frames advanced during this flush) * frame budget.
+        // FRAME_BUDGET_US = 1_000_000 / TARGET_FPS, so the multiplication uses
+        // both compile-time constants directly (no magic numbers).
+        let frames_elapsed = fb.frame_count().wrapping_sub(frame_start) as u64;
+        debug_assert!(frames_elapsed <= TARGET_FPS as u64,
+            "render_cpu: flush() advanced more frames than the per-second budget");
+        self.last_frame_us = frames_elapsed.saturating_mul(FRAME_BUDGET_US);
         fb.increment_frame();
+    }
+
+    /// Microseconds spent inside the most recent `flush()`; used by the
+    /// frame-time telemetry overlay.
+    pub fn last_frame_us(&self) -> u64 {
+        self.last_frame_us
     }
 
     pub fn render_scene_to_framebuffer(&mut self, scene: &RenderScene, fb: &mut CpuFramebuffer) {

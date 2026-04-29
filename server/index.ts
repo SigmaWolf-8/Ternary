@@ -2019,7 +2019,7 @@ function startPqtiService(): ChildProcess | null {
 
       activeProxyRequests++;
 
-      const nodeResults: Array<{ node_id: string; status: string; slots?: any; summary?: any; node_id_num?: number; error?: string; health?: any }> = [];
+      const nodeResults: Array<{ node_id: string; status: string; slots?: any; summary?: any; node_id_num?: number; error?: string }> = [];
       let responsesReceived = 0;
       const totalExpected = connectedDaemons.length;
       let resolved = false;
@@ -2272,7 +2272,7 @@ function startPqtiService(): ChildProcess | null {
     "(integer denominator of 1/α — Arc Doc Theorem 22). " +
     "as_since_boot surfaced as EXACT rational {num, den} — never collapsed " +
     "to integer division, no zero padding, no truncation to zero. " +
-    "Zero jitter, no oscillator, no Allan variance, no Dick effect, no thermal coefficient.";
+    "Zero jitter, no oscillator, no Allan variance, no Dick effect, no thermal coefficient." as const;
   function toBijectiveBase3(n: bigint): string {
     // Rep-C bijective base-3 with digit set {1,2,3} — per Appendix A.
     if (n < 0n) throw new Error('toBijectiveBase3: negative');

@@ -54,8 +54,10 @@ pub const FULL_CIRCLE_DEG: u32 = 364;
 // Compile-time helper
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-#[allow(dead_code)]
-const fn gcd(mut a: u32, mut b: u32) -> u32 {
+/// Standard Euclidean greatest-common-divisor, available as a `const fn`
+/// for compile-time coprimality assertions and exposed as `pub` for
+/// downstream callers that need the same primitive.
+pub const fn gcd(mut a: u32, mut b: u32) -> u32 {
     while b != 0 { let t = b; b = a % b; a = t; } a
 }
 

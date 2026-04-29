@@ -32,7 +32,7 @@ use alloc::vec::Vec;
 use alloc::boxed::Box;
 use tabs::{TabManager, TabError};
 use render_cpu::{CpuRenderer, CpuFramebuffer};
-use render::{RenderScene};
+use render::{RenderBackendType, RenderScene, RenderPrimitive, RenderColor};
 use script::ScriptExecutor;
 use net::NetworkLayer;
 use crate::distributor::{RequestInterface, RequestResult};
@@ -103,6 +103,40 @@ impl Browser {
 
     pub fn render_backend(&self) -> RenderBackendSelection {
         RenderBackendSelection::Cpu
+    }
+
+    /// Concrete render backend the browser is currently driving — the
+    /// CPU path always reports `RenderBackendType::Cpu`. The dedicated
+    /// type lets callers branch on capabilities without having to know
+    /// about `RenderBackendSelection`.
+    pub fn render_backend_type(&self) -> RenderBackendType {
+        match self.render_backend() {
+            RenderBackendSelection::Cpu => RenderBackendType::Cpu,
+            RenderBackendSelection::Gpu => RenderBackendType::Gpu,
+        }
+    }
+
+    /// Build an empty render scene at the framebuffer's current size,
+    /// pre-cleared to the supplied background color. Useful for the
+    /// `Idle` pipeline state where no layout exists yet but the
+    /// framebuffer still needs a defined paint.
+    pub fn empty_scene(&self, background: RenderColor) -> RenderScene {
+        let w = self.framebuffer.width();
+        let h = self.framebuffer.height();
+        RenderScene {
+            viewport_width: w,
+            viewport_height: h,
+            primitives: alloc::vec![RenderPrimitive::FillRect {
+                rect: layout::Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    width: w as f32,
+                    height: h as f32,
+                },
+                paint: render::PaintStyle::Solid(background),
+            }],
+            dirty_regions: alloc::vec::Vec::new(),
+        }
     }
 
     pub fn framebuffer(&self) -> &CpuFramebuffer {
@@ -283,7 +317,9 @@ impl Browser {
                 if let Some(text) = n.children.iter().find_map(|c| {
                     if let parse::NodeType::Text(t) = &c.node_type { Some(t.clone()) } else { None }
                 }) {
-                    let _ = bridge.set_text_content(n.node_id, text);
+                    bridge
+                        .set_text_content(n.node_id, text)
+                        .expect("invariant: element registered immediately prior to set_text_content");
                 }
             }
             for child in n.children.iter().rev() {

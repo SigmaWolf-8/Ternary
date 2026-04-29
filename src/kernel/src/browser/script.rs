@@ -279,7 +279,6 @@ pub struct CooperativeWatchdog {
     elapsed_ms: AtomicU64,
     should_terminate: AtomicBool,
     instruction_count: AtomicU64,
-    #[allow(dead_code)]
     check_interval: u64,
 }
 
@@ -300,11 +299,24 @@ impl CooperativeWatchdog {
 
     pub fn tick(&self, elapsed_us: u64) {
         let elapsed = self.elapsed_ms.fetch_add(elapsed_us / 1000, Ordering::Relaxed) + elapsed_us / 1000;
-        self.instruction_count.fetch_add(1, Ordering::Relaxed);
+        let count = self.instruction_count.fetch_add(1, Ordering::Relaxed) + 1;
 
-        if elapsed >= self.budget_ms {
+        // Only consult the budget every `check_interval` instructions to amortise
+        // the atomic load and keep the hot script-execution path inexpensive.
+        if count % self.check_interval == 0 && elapsed >= self.budget_ms {
             self.should_terminate.store(true, Ordering::Release);
         }
+    }
+
+    /// Sets how often, in instructions, `tick` consults the budget.
+    /// Defaults to 1000; lower values increase overhead but tighten
+    /// the budget-enforcement window.
+    pub fn set_check_interval(&mut self, interval: u64) {
+        self.check_interval = interval.max(1);
+    }
+
+    pub fn check_interval(&self) -> u64 {
+        self.check_interval
     }
 
     pub fn terminate(&self) {

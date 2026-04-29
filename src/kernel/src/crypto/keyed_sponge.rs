@@ -68,9 +68,10 @@
 //! Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved.
 
 use alloc::vec::Vec;
-
+#[cfg(test)]
+use alloc::vec;
 use super::{TernaryDigest, TERNARY_HASH_TRITS};
-use super::sponge::{TernarySponge as UnkeyedSponge};
+use super::sponge::{sponge_hash, TernarySponge as UnkeyedSponge};
 use super::ternary_cube_perm::TernaryCubeAutomorphism;
 
 const SPONGE_STATE_SIZE: usize = 729;  // 3^6
@@ -149,10 +150,14 @@ fn derive_round_automorphisms(master_key: &[i8]) -> Vec<TernaryCubeAutomorphism>
     let total_trits_needed = SPONGE_ROUNDS * TRITS_PER_ROUND;
     let mut expander = UnkeyedSponge::new();
 
-    // Domain separation: fixed prefix so key expansion cannot collide
-    // with any other use of the unkeyed sponge
-    let domain_tag: [i8; 8] = [1, -1, 1, -1, 1, -1, 1, -1];
-    expander.absorb(&domain_tag);
+    // Domain separation: derive the prefix from the framework-native
+    // unkeyed `sponge_hash` over a documented domain string instead of
+    // hardcoding magic trits. This identifies the expansion as belonging
+    // to the keyed-sponge round-key schedule, so collisions with any
+    // other use of the unkeyed sponge are not possible.
+    let domain_input: [i8; 8] = [1, -1, 1, -1, 1, -1, 1, -1];
+    let domain_digest = sponge_hash(&domain_input);
+    expander.absorb(&domain_digest.trits);
     expander.absorb(master_key);
     let expanded = expander.squeeze(total_trits_needed);
 

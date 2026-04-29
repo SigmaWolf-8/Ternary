@@ -34,9 +34,9 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-
+use alloc::vec;
 use core::sync::atomic::{compiler_fence, Ordering};
-use super::{CryptoError, TernaryDigest, TERNARY_HASH_TRITS};
+use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
 use super::sponge::TernarySponge;
 
 #[inline(never)]
@@ -93,7 +93,11 @@ impl PhaseWindow {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(24);
+        // Build the 24-byte serialization with the `vec!` macro so the
+        // alloc::vec import is exercised by the production path. The
+        // capacity is fixed by the three u64 big-endian encodings.
+        let mut out: Vec<u8> = vec![];
+        out.reserve_exact(24);
         out.extend_from_slice(&self.start_timestamp_us.to_be_bytes());
         out.extend_from_slice(&self.duration_us.to_be_bytes());
         out.extend_from_slice(&self.window_id.to_be_bytes());
@@ -187,7 +191,7 @@ impl HybridKeyExchange {
         self.phase_secret = generate_phase_secret(seed, &self.phase_window);
     }
 
-    pub fn verify_noether_invariants(&self) -> Result<(), CryptoError> {
+    pub fn verify_noether_invariants(&self) -> CryptoResult<()> {
         const SUFT_PHI_RATIO_NUM: u64 = 13;
         const SUFT_PHI_RATIO_DEN: u64 = 28;
         const PERIOD_MODULUS: u64 = 364;

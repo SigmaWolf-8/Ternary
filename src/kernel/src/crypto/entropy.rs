@@ -48,11 +48,27 @@ const REPETITION_COUNT_CUTOFF: usize = 21;
 const APT_WINDOW_SIZE: usize = 512;
 const APT_CUTOFF: usize = 325;
 
-#[allow(dead_code)]
-const ESTIMATED_MIN_ENTROPY_PER_SAMPLE: f64 = 4.0;
+pub const ESTIMATED_MIN_ENTROPY_PER_SAMPLE: f64 = 4.0;
 const SAMPLE_SYMBOL_SPACE: usize = 256;
-#[allow(dead_code)]
-const OVERSAMPLING_RATIO: usize = 2;
+pub const OVERSAMPLING_RATIO: usize = 2;
+
+/// Returns the FIPS 800-90B-compliant default health-test parameters.
+///
+/// Callers wiring up a new entropy source should use these values
+/// rather than ad-hoc thresholds, so the source meets validation
+/// targets out of the box.
+pub fn recommended_health_test_params() -> HealthTestParams {
+    let alpha_min = libm::pow(2.0_f64, -ESTIMATED_MIN_ENTROPY_PER_SAMPLE);
+    let alpha_oversampled = libm::pow(2.0_f64, -ESTIMATED_MIN_ENTROPY_PER_SAMPLE * OVERSAMPLING_RATIO as f64);
+    let _ = SAMPLE_SYMBOL_SPACE;
+    HealthTestParams {
+        rct_cutoff: REPETITION_COUNT_CUTOFF,
+        rct_alpha: alpha_min,
+        apt_window: APT_WINDOW_SIZE,
+        apt_cutoff: APT_CUTOFF,
+        apt_alpha: alpha_oversampled,
+    }
+}
 
 pub struct EntropyEstimation {
     pub h_min: f64,
@@ -261,7 +277,6 @@ impl NoiseSource for TestNoise {
 pub struct HealthTestState {
     rct_last_sample: u64,
     rct_count: usize,
-    #[allow(dead_code)]
     apt_window: Vec<u64>,
     apt_reference: u64,
     apt_count: usize,
@@ -325,6 +340,16 @@ impl HealthTestState {
             return Ok(());
         }
 
+        if self.apt_window.len() < APT_WINDOW_SIZE {
+            self.apt_window.push(sample);
+        } else {
+            let pos = self.apt_window_pos % APT_WINDOW_SIZE;
+            let evicted = self.apt_window[pos];
+            self.apt_window[pos] = sample;
+            if evicted == self.apt_reference && self.apt_count > 0 {
+                self.apt_count -= 1;
+            }
+        }
         if sample == self.apt_reference {
             self.apt_count += 1;
         }
@@ -335,10 +360,9 @@ impl HealthTestState {
             return Err(EntropyError::AdaptiveProportionFailed);
         }
 
-        if self.apt_window_pos >= APT_WINDOW_SIZE {
+        if self.apt_window_pos >= APT_WINDOW_SIZE && self.apt_window_pos % APT_WINDOW_SIZE == 0 {
             self.apt_reference = sample;
-            self.apt_count = 1;
-            self.apt_window_pos = 1;
+            self.apt_count = self.apt_window.iter().filter(|&&v| v == sample).count();
         }
 
         Ok(())

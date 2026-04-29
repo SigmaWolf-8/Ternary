@@ -32,10 +32,10 @@
 //! # Copyright
 //! Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved.
 
-
+use alloc::string::String;
 use alloc::vec::Vec;
 
-use super::module_state::{ModuleState};
+use super::module_state::{ModuleState, ModuleStateMachine, ModeIndicator};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CryptoService {
@@ -133,6 +133,23 @@ impl CryptoService {
         }
     }
 
+    /// Operator-facing one-line summary that combines the FIPS reference,
+    /// the human description, and the approved/non-approved flag into
+    /// one owned `String` suitable for logging or status displays.
+    pub fn full_label(&self) -> String {
+        let mut out = String::new();
+        out.push('[');
+        out.push_str(self.fips_reference());
+        out.push_str("] ");
+        out.push_str(self.description());
+        if self.is_approved() {
+            out.push_str(" (FIPS-approved)");
+        } else {
+            out.push_str(" (non-approved)");
+        }
+        out
+    }
+
     pub fn description(&self) -> &str {
         match self {
             CryptoService::Aes256GcmEncrypt => "AES-256-GCM authenticated encryption",
@@ -205,6 +222,18 @@ pub fn is_service_available(
             matches!(service, CryptoService::StatusShow | CryptoService::SelfTestRun)
         }
     }
+}
+
+/// Combined availability + mode check using the live module state
+/// machine. Returns the mode indicator the operator should be shown
+/// alongside the service result, satisfying SP 800-140B's
+/// "show status" requirement (FIPS-approved vs not, current state).
+pub fn service_availability_with_mode(
+    service: CryptoService,
+    machine: &ModuleStateMachine,
+) -> (bool, ModeIndicator) {
+    let available = is_service_available(service, machine.current_state());
+    (available, machine.get_mode_indicator())
 }
 
 pub fn required_role(service: CryptoService) -> ModuleRole {

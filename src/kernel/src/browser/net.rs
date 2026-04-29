@@ -11,7 +11,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
 use crate::distributor::{RequestInterface, RequestResult};
-use crate::distributor::z_router::{RequestType};
+use crate::distributor::z_router::{ZLevel, ZRequest, RequestType, RouteDirection};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceType {
@@ -27,6 +27,30 @@ pub enum ResourceType {
 }
 
 impl ResourceType {
+    /// Build a fully-formed Z-router request for this resource. The
+    /// origin is always the UI level (the browser kernel subsystem
+    /// runs at `ZLevel::UI`), the target is derived from the request
+    /// type's natural service layer, and the direction is inferred
+    /// from whether the target sits below (Falling) or above
+    /// (Bubbling) the UI layer in the Z stack.
+    pub fn to_z_request(&self, id: u64, ring_position: u32) -> ZRequest {
+        let payload_type = self.to_z_request_type();
+        let target = payload_type.target_z();
+        let direction = if target.value() < ZLevel::UI.value() {
+            RouteDirection::Falling
+        } else {
+            RouteDirection::Bubbling
+        };
+        ZRequest {
+            id,
+            origin: ZLevel::UI,
+            target,
+            ring_position,
+            direction,
+            payload_type,
+        }
+    }
+
     pub fn to_z_request_type(&self) -> RequestType {
         match self {
             ResourceType::Document => RequestType::HttpRequest,
@@ -88,8 +112,12 @@ impl NetworkLayer {
     pub fn fetch(&mut self, url: String, resource_type: ResourceType) -> ResourceRequest {
         self.request_counter += 1;
 
-        let z_payload = resource_type.to_z_request_type();
-        let result = self.distributor.submit_request(z_payload);
+        // Construct the full Z-router request — origin/target/direction
+        // are derived from the resource type so the distributor can route
+        // it without re-deriving the layer mapping. We then forward the
+        // payload type to the distributor's narrower API.
+        let z_request = resource_type.to_z_request(self.request_counter, 0);
+        let result = self.distributor.submit_request(z_request.payload_type);
 
         let req = ResourceRequest {
             id: self.request_counter,

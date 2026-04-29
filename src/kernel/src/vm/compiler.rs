@@ -14,7 +14,7 @@
 
 use alloc::vec::Vec;
 use alloc::string::String;
-
+use alloc::format;
 use super::instruction::*;
 use super::{VmError, VmResult};
 
@@ -69,7 +69,10 @@ impl ThdlCompiler {
 
     fn alloc_reg(&mut self) -> VmResult<u8> {
         if self.next_reg >= 27 {
-            return Err(VmError::InvalidProgram(String::from("THDL compiler: out of registers")));
+            return Err(VmError::InvalidProgram(format!(
+                "THDL compiler: out of registers (allocator high-water mark = {})",
+                self.next_reg
+            )));
         }
         let reg = self.next_reg;
         self.next_reg += 1;
