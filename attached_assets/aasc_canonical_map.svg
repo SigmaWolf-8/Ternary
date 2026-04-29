@@ -445,9 +445,9 @@
   </g>
   <g>
     <text x="5290" y="4360" class="quadtitle" fill="#a02040" text-anchor="end">SE</text>
-    <text x="5290" y="4400" class="quadsub" fill="#a02040" text-anchor="end">Number-Theoretic</text>
-    <text x="5290" y="4460" class="quadmod" text-anchor="end">wieferich_grh_beal</text>
-    <text x="5290" y="4496" class="quadaddr" text-anchor="end">7.1.1.UX4.1__wieferich_grh_beal.rs</text>
+    <text x="5290" y="4400" class="quadsub" fill="#a02040" text-anchor="end">Mass / Particle Asymmetry</text>
+    <text x="5290" y="4460" class="quadmod" text-anchor="end">pqr_asymmetry</text>
+    <text x="5290" y="4496" class="quadaddr" text-anchor="end">7.5.1.UX4.1__pqr_asymmetry.rs</text>
     <text x="5290" y="4544" class="quadmod" text-anchor="end">arithmetic_progressions · AP rings</text>
     <text x="5290" y="4576" class="quadaddr" text-anchor="end">7.2.1.UX4.1__arithmetic_progressions.rs</text>
     <text x="5290" y="4620" class="quadmod" text-anchor="end">tribonacci · ternary recurrence</text>
@@ -794,7 +794,7 @@
       <text x="24" y="200" class="addrnote" font-weight="700" fill="#2a8050">Files sharing the same  L.G  prefix are siblings — adjacent on disk, loaded together, related by purpose.</text>
 
       <text x="24"   y="244" class="h3" fill="#2a8050">L · Layer number  (1..9)  —  full layer→group→module breakdown lives in the Atlas below</text>
-      <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L=1 Nucleus  ·  L=2 Atom  ·  L=3 Algebraic  ·  L=4 Calculi  ·  L=5 Geometric  ·  L=6 Wave/Field  ·  L=7 Number-Theoretic  ·  L=8 Crystal/Lattice  ·  L=9 Spectral/Atomic</text>
+      <text x="24"   y="276" class="addrnote" font-family="Menlo, Consolas, monospace" font-weight="700">L=1 Nucleus  ·  L=2 Atom  ·  L=3 Algebraic  ·  L=4 Calculi  ·  L=5 Geometric  ·  L=6 Wave/Field  ·  L=7 Mass / Particle Asymmetry  ·  L=8 Crystal/Lattice  ·  L=9 Spectral/Atomic</text>
 
       <!-- G column · zero-skipped counting sequence -->
       <text x="2620" y="244" class="h3" fill="#2a8050">G · Group  (count up, skip any number with a 0)</text>
@@ -830,8 +830,8 @@
         <text x="24"   y="694" fill="#2a8050">L=2 Atom  (1 group)</text>
         <text x="24"   y="718">  2.1 trit  ·  2.2 tritvec  ·  2.3 arithmetic</text>
 
-        <text x="24"   y="750" fill="#2a8050">L=3 Algebraic  (6 groups)</text>
-        <text x="24"   y="774">  3.1 GF(3)  ·  3.2 ℤ[φ] (zphi)  ·  3.3 Borromean  ·  3.4 Coprime + Bezout  ·  3.5 Walk  ·  3.6 CRT</text>
+        <text x="24"   y="750" fill="#2a8050">L=3 Algebraic  (7 groups)</text>
+        <text x="24"   y="774">  3.1 GF(3)  ·  3.2 ℤ[φ] (zphi)  ·  3.3 Borromean  ·  3.4 Coprime + Bezout  ·  3.5 Walk  ·  3.6 CRT  ·  3.7 Number-Theoretic Conjectures (wieferich · grh · beal)</text>
 
         <text x="24"   y="806" fill="#2a8050">L=4 Calculi  (4 groups)</text>
         <text x="24"   y="830">  4.5 unified Δ∮◯Σ harness  ·  4.6 repx (bijective base-b)  ·  4.7 bijective_converter (§25 v3.3.33)  ·  4.8 SQL planner + executor (calculi-native)</text>
@@ -845,8 +845,8 @@
         <text x="3760" y="640">  6.1 wave_stratum  ·  6.2 conservation_laws</text>
         <text x="3760" y="662">  6.5 η-branch  ·  6.6 ν-branch  ·  6.7 combined branch</text>
 
-        <text x="3760" y="694" fill="#2a8050">L=7 Physics SE  Number-Theoretic  (2 groups)</text>
-        <text x="3760" y="718">  7.1 wieferich_grh_beal  ·  7.5 pqr_asymmetry</text>
+        <text x="3760" y="694" fill="#2a8050">L=7 Physics SE  Mass / Particle Asymmetry  (1 group)</text>
+        <text x="3760" y="718">  7.5 pqr_asymmetry  (Σ-182 bridge · discriminant identity 1 000 144 · mass-quadratic seed)</text>
 
         <text x="3760" y="750" fill="#2a8050">L=8 Physics SW  Crystal · Lattice · Storage · Index  (6 groups)</text>
         <text x="3760" y="774">  8.1 crystal_2d_3d  ·  8.3 nona_state  ·  8.5 mass_quadratic  ·  8.7 SQL engine (parser+table+index)  ·  8.8 milesian_kv  ·  8.9 Array3 daemon (router · scheduler · ipc · capability · service · triad_coordinator · work_steal_queue)</text>
@@ -919,7 +919,7 @@
       <text x="2620" y="682" fill="#5a3f80">→  Algebraic Walk · Networking/Routing · Routing/Pathing sub-tag</text>
     </g>
 
-    <text x="40"   y="708" class="small" fill="#5a3f80">Sub-tags chain in declaration order (most-specific first); each tag is a single digit; the underscore separator ( __ ) sits immediately before the module name.  ·  Secondary tag +{p2}.{s} marks foundation primitives that serve a second domain (e.g. number-theory modules used as compression primitives).</text>
+    <text x="40"   y="708" class="small" fill="#5a3f80">Sub-tags chain in declaration order (most-specific first); each tag is a single digit; the underscore separator ( __ ) sits immediately before the module name.  ·  Secondary tag +{p2}.{s} marks foundation primitives that serve a second domain (e.g. algebraic-ring number-theory modules used as compression primitives).</text>
 
     <!-- UX2 Compression Sub-Tag Override Legend -->
     <line x1="24" y1="730" x2="7216" y2="730" stroke="#6a4c93" stroke-width="1" stroke-dasharray="2 4"/>
@@ -1105,7 +1105,7 @@
       <text x="56" y="462">    ├── L4__calculi/          4.x.x.UXp.s__*.rs    (delta · circular · iteration · series · calculus · repx · bijective_converter · sql_planner · sql_executor)</text>
       <text x="56" y="494">    ├── L5__geometric/        5.x.x.UXp.s__*.rs    (~22 modules)</text>
       <text x="56" y="526">    ├── L6__physics_ne/       6.x.x.UXp.s__*.rs    (wave / EM)</text>
-      <text x="56" y="558">    ├── L7__physics_se/       7.x.x.UXp.s__*.rs    (number theory)</text>
+      <text x="56" y="558">    ├── L7__physics_se/       7.x.x.UXp.s__*.rs    (mass · particle asymmetry · physical constants from p,q,r)</text>
       <text x="56" y="590">    ├── L8__physics_sw/       8.x.x.UXp.s__*.rs    (crystal · lattice · SQL storage · KV · Array3 daemon at 8.7 / 8.8 / 8.9)</text>
       <text x="56" y="622">    └── L9__physics_nw/       9.x.x.UXp.s__*.rs    (spectral)</text>
     </g>
