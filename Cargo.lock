@@ -3,6 +3,10 @@
 version = 3
 
 [[package]]
+name = "AASC"
+version = "0.1.0"
+
+[[package]]
 name = "addr2line"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -72,10 +76,6 @@ checksum = "ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301"
 dependencies = [
  "memchr",
 ]
-
-[[package]]
-name = "algeometric-arc-sigma182-calculi"
-version = "0.1.0"
 
 [[package]]
 name = "aligned-vec"
@@ -3993,7 +3993,7 @@ dependencies = [
 name = "plenumnet-kernel"
 version = "0.1.0"
 dependencies = [
- "algeometric-arc-sigma182-calculi",
+ "AASC",
  "boa_engine",
  "criterion",
  "cssparser 0.33.0",
@@ -5557,8 +5557,8 @@ dependencies = [
 name = "ternary-math"
 version = "0.1.0"
 dependencies = [
+ "AASC",
  "aes-gcm",
- "algeometric-arc-sigma182-calculi",
  "criterion",
  "flate2",
  "getrandom 0.2.17",

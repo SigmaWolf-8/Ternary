@@ -21,7 +21,7 @@
 #      `bare-metal` label and the operator-provided token.
 #   5. Installs the runner as a systemd service (`actions.runner.*`)
 #      and starts it. The next push that touches `src/kernel/**`,
-#      `algeometric-arc-sigma182-calculi/**`, `ternary-math/**`, or
+#      `AASC/**`, `ternary-math/**`, or
 #      the workflow itself will route to this runner.
 #
 # Required env vars (operator obtains these from the repo's GitHub

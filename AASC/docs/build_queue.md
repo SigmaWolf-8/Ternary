@@ -2,7 +2,7 @@
 
 This file is the **persistent reconciliation ledger** between
 `client/public/aasc_canonical_map.svg` (the published canonical map)
-and `algeometric-arc-sigma182-calculi/src/lib.rs` (the ground truth).
+and `AASC/src/lib.rs` (the ground truth).
 
 When a module name appears on the map but does not exist as a `.rs`
 file, it is queued here with a pointer to the user-delivered
@@ -154,7 +154,7 @@ under a clear service-plane heading.
 ## Reconciliation rule
 
 Whenever a module ships:
-1. Add `pub mod <name>;` to `algeometric-arc-sigma182-calculi/src/lib.rs`.
+1. Add `pub mod <name>;` to `AASC/src/lib.rs`.
 2. Update its row in this file from `queued` to `shipped`.
 3. The map already lists it; no map edit needed for shipping.
 

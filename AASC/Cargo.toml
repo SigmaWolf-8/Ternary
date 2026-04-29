@@ -4,7 +4,7 @@
 # PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
 
 [package]
-name = "algeometric-arc-sigma182-calculi"
+name = "AASC"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.77"

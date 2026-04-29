@@ -31,7 +31,7 @@ serde = { version = "1", optional = true }
 # `pub use … as aasc;` so downstream consumers (`plenumlan`, the kernel,
 # bare-metal) reach `aasc` through the existing `ternary-math` import
 # path while the per-module shim rewrites land. (Task #158 I-48 anchor.)
-algeometric-arc-sigma182-calculi = { path = "../algeometric-arc-sigma182-calculi", default-features = false }
+AASC = { path = "../AASC", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 getrandom = "=0.2.17"

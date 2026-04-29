@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "algeometric-arc-sigma182-calculi",
+    "AASC",
     "ternary-math",
     "ternary-math/napi",
     "src/kernel",

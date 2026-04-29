@@ -16,7 +16,7 @@
 //!
 //! Task #170 retired the kernel-local `Trit { value: i8 }` struct.
 //! The canonical pure-ternary engine
-//! [`algeometric_arc_sigma182_calculi`] supplies every `Trit`,
+//! [`AASC`] supplies every `Trit`,
 //! `TritVec`, and `Representation` type the kernel uses. The legacy
 //! `AascTrit` / `AascRepresentation` aliases are kept as transitional
 //! handles for downstream code that imported them through Task #162.

@@ -3,7 +3,9 @@
 // Applied Physics Division — Salvi Framework
 // PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
 
-//! # Algeometric Arc Sigma182 Calculi (`aasc`)
+#![allow(non_snake_case)]
+
+//! # Algeometric Arc Sigma182 Calculi (`AASC`)
 //!
 //! The single canonical pure-ternary computation crate of the Salvi Framework /
 //! PlenumNET platform. Consolidates every ternary primitive in the workspace
@@ -152,4 +154,4 @@ pub use tritvec::TritVec;
 pub const AASC_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Crate name (for telemetry and audit).
-pub const AASC_NAME: &str = "algeometric-arc-sigma182-calculi";
+pub const AASC_NAME: &str = "AASC";

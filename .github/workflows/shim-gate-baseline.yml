@@ -25,7 +25,7 @@ on:
     paths:
       - 'src/kernel/**'
       - 'ternary-math/**'
-      - 'algeometric-arc-sigma182-calculi/**'
+      - 'AASC/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'scripts/capture-shim-baseline.sh'
@@ -35,7 +35,7 @@ on:
     paths:
       - 'src/kernel/**'
       - 'ternary-math/**'
-      - 'algeometric-arc-sigma182-calculi/**'
+      - 'AASC/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'scripts/capture-shim-baseline.sh'

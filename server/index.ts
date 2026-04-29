@@ -2313,7 +2313,7 @@ function startPqtiService(): ChildProcess | null {
   // 27 Greek glyphs (24 modern letters + 3 ghost letters: ϛ, ϟ, ϡ).
   // Used to render any non-negative integer as a bijective base-27
   // string of glyphs.  Mirror of GLYPH_TABLE in
-  // algeometric-arc-sigma182-calculi/src/milesian.rs.
+  // AASC/src/milesian.rs.
   const MILESIAN_GLYPHS = [
     "α","β","γ","δ","ε","ϛ","ζ","η","θ","ι","κ","λ","μ","ν","ξ","ο","π","ϟ",
     "ρ","σ","τ","υ","φ","χ","ψ","ω","ϡ",
@@ -2321,7 +2321,7 @@ function startPqtiService(): ChildProcess | null {
   function bigIntToMilesianGlyphs(n: bigint): string {
     // Strict mirror of aasc::milesian::glyphs_msb — N==0 produces the
     // empty string (no leading "α"), matching the bijective base-27
-    // contract in algeometric-arc-sigma182-calculi/src/milesian.rs.
+    // contract in AASC/src/milesian.rs.
     if (n < 0n) throw new Error("bigIntToMilesianGlyphs: negative");
     if (n === 0n) return "";
     let v = n;

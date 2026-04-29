@@ -83,13 +83,13 @@ required by I-3.
 
 ```bash
 # default no_std + alloc build
-cargo build -p algeometric-arc-sigma182-calculi --no-default-features
+cargo build -p AASC --no-default-features
 
 # with the bridge feature
-cargo build -p algeometric-arc-sigma182-calculi --features bridge
+cargo build -p AASC --features bridge
 
 # all tests
-cargo test  -p algeometric-arc-sigma182-calculi
+cargo test  -p AASC
 ```
 
 ## Forks retired by this crate

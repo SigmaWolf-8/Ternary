@@ -1093,7 +1093,7 @@
 
     <text x="56" y="138" class="h3" fill="#922">1. Single crate · flat layer folders · folder code = file's leading L digit</text>
     <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#0F0C0A">
-      <text x="56" y="174">algeometric-arc-sigma182-calculi/        (one crate · one Cargo.toml · one canonical map)</text>
+      <text x="56" y="174">AASC/        (one crate · one Cargo.toml · one canonical map)</text>
       <text x="56" y="206">├── Cargo.toml              features = { default = [], daemon = ["std","tokio","rayon"] }   (no "bridge" feature — crate is trit-pure)</text>
       <text x="56" y="238">├── scripts/check_ux_tags.sh           enforces L.G.O.UX file rule + folder-code rule</text>
       <text x="56" y="270">├── docs/aasc_canonical_map.{svg,png}  ← THIS DOCUMENT (ships with every release)</text>

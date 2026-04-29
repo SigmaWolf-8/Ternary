@@ -21,7 +21,7 @@ prevents `proc-macro` host-only crates from being pulled into the
 freestanding build graph.
 
 `aasc` is `no_std + alloc` clean on its default feature set (verified
-by `cargo build -p algeometric-arc-sigma182-calculi --no-default-features`).
+by `cargo build -p AASC --no-default-features`).
 That is the minimum precondition for bare-metal use; with the kernel
 shim landed, the bare-metal target now reaches `aasc` transitively
 through the `plenumnet-kernel = { …, features = ["no_std"], default-features = false }`
@@ -44,7 +44,7 @@ dependency.
 The kernel ternary core lives at `src/kernel/src/ternary.rs`. The file
 is now a documented **`aasc` compatibility shim**:
 
-- `algeometric-arc-sigma182-calculi` is added as a kernel dependency
+- `AASC` is added as a kernel dependency
   with `default-features = false` so the freestanding build remains
   `no_std`-clean.
 - The canonical engine symbols are re-exported under the names
@@ -78,7 +78,7 @@ crates evolve in lock-step.
 ## Math-crate shim — re-export anchor only
 
 `ternary-math/src/lib.rs` now exposes `pub use
-algeometric_arc_sigma182_calculi as aasc;` so callers who reach into
+AASC as aasc;` so callers who reach into
 `ternary_math::aasc::…` flow straight through to the canonical engine
 while the per-module rewrites land. The full `TritInt` body
 replacement (Task #158 step 14, I-48) is the responsibility of Task
@@ -365,7 +365,7 @@ After the script returns:
 2. Trigger the workflow on demand:
    `gh workflow run bare-metal-qemu.yml --ref main` (or just push
    any change touching `src/kernel/**`,
-   `algeometric-arc-sigma182-calculi/**`, `ternary-math/**`, or
+   `AASC/**`, `ternary-math/**`, or
    `.github/workflows/bare-metal-qemu.yml`).
 3. The first run downloads the actions cache and the pinned
    nightly toolchain (~3–5 minutes); subsequent runs land in

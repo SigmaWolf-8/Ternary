@@ -30,7 +30,7 @@
 //! ## Canonical engine re-export (Task #158 I-48 anchor)
 //!
 //! The single source of pure-ternary mathematical truth for the
-//! workspace lives in [`algeometric_arc_sigma182_calculi`] (re-exported
+//! workspace lives in [`AASC`] (re-exported
 //! here as [`aasc`]). Per-module shims that route `TritInt`, `repx`,
 //! `tri182`, `borromean`, `plenum_square`, `ternary_circle`,
 //! `coprime`, `repunit_circles`, `tribonacci`, `gf3` over the canonical

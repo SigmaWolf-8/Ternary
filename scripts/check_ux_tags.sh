@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # check_ux_tags.sh — enforces L.G.O.UX{p}.{s1}[.{s2}...]__name.rs canonical naming
-# for every module under the algeometric-arc-sigma182-calculi (aasc) crate.
+# for every module under the AASC (aasc) crate.
 #
 # Exit codes:
 #   0 = all files conform

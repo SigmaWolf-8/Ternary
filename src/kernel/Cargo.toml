@@ -37,7 +37,7 @@ plenum-std = { path = "../plenum-std", optional = true }
 # symbols (`Trit`, `TritVec`, `Representation`) so downstream consumers —
 # including the bare-metal target via the `no_std` feature — can migrate
 # off the kernel-local types onto the canonical engine. (Task #158 I-47.)
-algeometric-arc-sigma182-calculi = { path = "../../algeometric-arc-sigma182-calculi", default-features = false }
+AASC = { path = "../../AASC", default-features = false }
 
 [dependencies.html5ever]
 version = "0.27"
