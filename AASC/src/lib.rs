@@ -124,7 +124,7 @@ pub mod tribonacci;
 pub mod triangular_numbers;
 #[path = "5.4.3.UX5.1__arc182.rs"]
 pub mod arc182;
-#[path = "1.UX5.2__plenum_square.rs"]
+#[path = "5.A.1.UX5.2__plenum_square.rs"]
 pub mod plenum_square;
 #[path = "5.4.1.UX5.1__gait.rs"]
 pub mod gait;
@@ -158,7 +158,7 @@ pub mod pqr_asymmetry;
 pub mod discriminant;
 #[path = "9.8.1.UX4.1__discriminant_identity.rs"]
 pub mod discriminant_identity;
-#[path = "1.UX5.2__cone_point.rs"]
+#[path = "5.B.1.UX5.2__cone_point.rs"]
 pub mod cone_point;
 
 // ════════════════════════════════════════════════════════════════════════
