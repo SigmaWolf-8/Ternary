@@ -497,7 +497,7 @@
     <text x="20"  y="350" class="bullet"><tspan x="40">— Archimedes’ generating method</tspan></text>
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-c">5.2.1.UX4.1__discriminant.rs</text>
+    <text x="1240" y="170" class="modlist-c">5.2.1.UX5.1__discriminant.rs</text>
     <text x="1240" y="204" class="modlist-c">5.2.2.UX5.1__solids_of_revolution.rs</text>
     <text x="1240" y="238" class="modlist-c">5.2.3.UX5.1__gabriels_horn.rs</text>
     <text x="20"  y="458" class="addr">5.2.1..3  ←  geometric · curved · sector ② · ord 1..3</text>
@@ -534,7 +534,7 @@
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">5.4.1.UX5.1__vesica.rs</text>
     <text x="1240" y="204" class="modlist-c">5.4.2.UX5.1__volumetric_ceiling.rs</text>
-    <text x="1240" y="238" class="modlist-c">5.4.3.UX4.1__arc182.rs</text>
+    <text x="1240" y="238" class="modlist-c">5.4.3.UX5.1__arc182.rs</text>
     <text x="20"  y="458" class="addr">5.4.1..3  ←  geometric · curved · sector ④ · ord 1..3</text>
 </g>
 
@@ -569,7 +569,7 @@
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
     <text x="1240" y="170" class="modlist-c">5.6.1.UX5.1__repunit_circles.rs</text>
     <text x="1240" y="204" class="modlist-c">5.6.2.UX5.1__theta_chord.rs</text>
-    <text x="1240" y="238" class="modlist-c">5.6.3.UX4.1__fibonacci.rs</text>
+    <text x="1240" y="238" class="modlist-c">5.6.3.UX5.1__fibonacci.rs</text>
     <text x="20"  y="458" class="addr">5.6.1..3  ←  geometric · curved · sector ⑥ · ord 1..3</text>
     <text x="20"  y="490" class="small">↔ H  (Theta Chord year differences as cone-point lifts)</text>
   </g>
@@ -583,8 +583,8 @@
     <text x="20"  y="262" class="bullet"><tspan x="40">— connects golden ring to circle geometry</tspan></text>
     <text x="1240" y="132" class="modhead-c">Modules</text>
     <line x1="1240" y1="144" x2="1920" y2="144" stroke="#2D7DD2" stroke-width="2" stroke-opacity="0.5"/>
-    <text x="1240" y="170" class="modlist-c">5.7.1.UX4.1__disdyakis_bridge.rs</text>
-    <text x="1240" y="204" class="modlist-c">5.7.2.UX4.1__saturnian_metatron.rs</text>
+    <text x="1240" y="170" class="modlist-c">5.7.1.UX5.1__disdyakis_bridge.rs</text>
+    <text x="1240" y="204" class="modlist-c">5.7.2.UX5.1__saturnian_metatron.rs</text>
     <text x="20"  y="458" class="addr">5.7.1..2  ←  geometric · curved · sector ⑦ · ord 1..2</text>
     <text x="20"  y="490" class="small">↔ C  (Milesian glyph polyhedral symmetry)</text>
   </g>
@@ -753,7 +753,7 @@
       <text x="40"   y="318" class="bullet"><tspan font-weight="800">Σ-182 Bridge</tspan></text>
       <text x="1700" y="318" class="bullet">182 as half-circle  ( ① )</text>
       <text x="3500" y="318" class="bullet">182 nm O₂ Schumann-Runge dissociation wall  ( G )</text>
-      <text x="5320" y="318" class="modlist-c" fill="#B8860B">5.4.3.UX4.1__arc182.rs · 8.1.1.UX4.1__crystal_2d_3d.rs · 6.1.1.UX4.2.9__wave_stratum.rs</text>
+      <text x="5320" y="318" class="modlist-c" fill="#B8860B">5.4.3.UX5.1__arc182.rs · 8.1.1.UX4.1__crystal_2d_3d.rs · 6.1.1.UX4.2.9__wave_stratum.rs</text>
 
       <rect x="24" y="334" width="7192" height="56" class="row-alt"/>
       <text x="40"   y="374" class="bullet"><tspan font-weight="800">Triangular Ladder</tspan></text>
@@ -765,7 +765,7 @@
       <text x="40"   y="430" class="bullet"><tspan font-weight="800">Phase-Impedance</tspan></text>
       <text x="1700" y="430" class="bullet">Circle quadratic terms  ( ② )</text>
       <text x="3500" y="430" class="bullet">Integer coefficients 137 / 377  ( E )</text>
-      <text x="5320" y="430" class="modlist-c" fill="#B8860B">9.4.1.UX4.1__phase_impedance.rs · 5.2.1.UX4.1__discriminant.rs · 5.6.3.UX4.1__fibonacci.rs</text>
+      <text x="5320" y="430" class="modlist-c" fill="#B8860B">9.4.1.UX4.1__phase_impedance.rs · 5.2.1.UX5.1__discriminant.rs · 5.6.3.UX5.1__fibonacci.rs</text>
 
       <rect x="24" y="446" width="7192" height="56" class="row-alt"/>
       <text x="40"   y="486" class="bullet"><tspan font-weight="800">Milesian Glyphs</tspan></text>
@@ -777,7 +777,7 @@
       <text x="40"   y="542" class="bullet"><tspan font-weight="800">Wave-Harmonic</tspan></text>
       <text x="1700" y="542" class="bullet">Continuous spectrum  ( ① )</text>
       <text x="3500" y="542" class="bullet">Dual radian grids as discrete array  ( G )</text>
-      <text x="5320" y="542" class="modlist-c" fill="#B8860B">6.1.1.UX4.2.9__wave_stratum.rs · 5.4.3.UX4.1__arc182.rs · 8.1.1.UX4.1__crystal_2d_3d.rs</text>
+      <text x="5320" y="542" class="modlist-c" fill="#B8860B">6.1.1.UX4.2.9__wave_stratum.rs · 5.4.3.UX5.1__arc182.rs · 8.1.1.UX4.1__crystal_2d_3d.rs</text>
 
       <rect x="24" y="558" width="7192" height="70" class="row-alt"/>
       <text x="40"   y="600" class="bullet"><tspan font-weight="800">Theta Chord</tspan></text>
