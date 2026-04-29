@@ -2444,6 +2444,11 @@ function startPqtiService(): ChildProcess | null {
     let energyHigh_uJ = 0;
     let energyLow_uJ = 0;
     let cumulativeEnergy_uJ = 0;
+    // Energy SAVED versus a hypothetical continuous-on baseline.
+    // Always tracked from the modeled wattage delta (mW · ms = µJ exactly),
+    // so the readout works even when RAPL is not exposed in the
+    // container.  Pure integer math — no floats on the wire.
+    let cumulativeEnergySaved_uJ = 0;
     let alive = true;
 
     const TBUF_LEN = 4096;
@@ -2608,18 +2613,27 @@ function startPqtiService(): ChildProcess | null {
         const dtSec = (now - lastSampleAt) / 1000;
         const opsPerSec = opsThisWindow / dtSec;
 
-        let watts: number | null = null;
+        // `mW` is the public field name on the wire and MUST always be an
+        // integer milliwatt count.  When RAPL is exposed we derive it
+        // purely from the integer µJ delta and integer ms window:
+        //     mW = (deltaUj * 1000) / dtMs        (integer floor div)
+        // No floating-point watts ever cross the EAC boundary.
+        let mWmeasured: number | null = null;
         let deltaUj = 0;
         if (raplAvailable) {
           const cur = readRaplUj();
           if (cur !== null && lastEnergy !== null) {
             deltaUj = cur >= lastEnergy ? cur - lastEnergy : cur;
-            watts = (deltaUj / 1e6) / dtSec;
+            const dtMs = Math.max(1, Math.round(dtSec * 1000));
+            mWmeasured = Math.floor((deltaUj * 1000) / dtMs);
             cumulativeEnergy_uJ += deltaUj;
             if (isHigh) energyHigh_uJ += deltaUj; else energyLow_uJ += deltaUj;
           }
           lastEnergy = cur;
         }
+        // Legacy alias kept for the JSON field name `mW` in the sample
+        // payload — preserved as an integer-or-null value.
+        const watts: number | null = mWmeasured;
 
         // ── Pure-integer sample payload ────────────────────────────
         // Every numeric field below is either a whole integer or a
@@ -2644,6 +2658,21 @@ function startPqtiService(): ChildProcess | null {
           ? Math.floor((MW_IDLE * totalMs + (MW_FULL - MW_IDLE) * realHighWorkMs) / totalMs)
           : MW_IDLE;
         const mWSavedVsContinuous = mWContinuous - mWHmodalCached;
+
+        // ── Cumulative energy accounting (pure-integer µJ) ─────────────
+        // mW × ms = µJ exactly.  Always tracked from the modeled wattage
+        // so the Console works even when /sys/class/powercap/ (RAPL) is
+        // not exposed in the container.  When RAPL *is* available, the
+        // CONSUMED counter is fed from real CPU energy counters (above).
+        const dtMs = Math.max(0, now - lastSampleAt);
+        const energyConsumedThisWindowUj = mWHmodalCached * dtMs;
+        const energySavedThisWindowUj    = Math.max(0, mWSavedVsContinuous) * dtMs;
+        cumulativeEnergySaved_uJ += energySavedThisWindowUj;
+        if (!raplAvailable) {
+          // No hardware counter — fall back to the modeled integral so
+          // the "Cumulative Energy" tile is never stuck at zero.
+          cumulativeEnergy_uJ += energyConsumedThisWindowUj;
+        }
 
         // Observed savings as an integer rational pair.
         // RAPL path:  (energyContEquiv − energyActual) / energyContEquiv
@@ -2688,6 +2717,8 @@ function startPqtiService(): ChildProcess | null {
             opsPerSec, opsThisWindow,                                 // integers
             mW: watts,                                                // already integer mW
             deltaUj, cumulativeEnergyUj: cumulativeEnergy_uJ,         // integers (µJ)
+            cumulativeEnergySavedUj: cumulativeEnergySaved_uJ,        // integers (µJ saved vs continuous-on)
+            energySavedThisWindowUj,                                  // µJ saved in this sample window
             cumulativeOps: totalOps,
             cumulativeOpsHigh: opsTotalHigh,
             cumulativeOpsLow: opsTotalLow,
@@ -2867,19 +2898,67 @@ function startPqtiService(): ChildProcess | null {
       const baselineMW = snap.mWContinuous;
       const windowMs   = snap.totalMs ?? ((snap.timeHighMs ?? 0) + (snap.timeLowMs ?? 0));
 
+      // ── ATTOSECONDS-SINCE-BOOT  (forward-facing single integer) ───────
+      // The framework derives an exact rational `as_since_boot = num/den`.
+      // For the human-readable cert we surface the floored integer value
+      // alongside the trit form; the rational is preserved deeper down
+      // for purity-checkers but is no longer the primary timestamp.
+      const asNumBig = BigInt(String(hptpTs.asSinceBootNum));
+      const asDenBig = BigInt(String(hptpTs.asSinceBootDen));
+      const asIntBig = asDenBig > 0n ? asNumBig / asDenBig : 0n;
+      const attosecondsDecimal = asIntBig.toString();
+      const attosecondsTrit    = toBijectiveBase3(asIntBig);
+      // ── 42-Calendar Stamp ────────────────────────────────────────────
+      // Every EAC carries a multi-civilizational calendar reading at the
+      // moment of issuance, derived purely from the framework's
+      // ancient-calendar-sync module (JDN-based, deterministic).  We pick
+      // a curated 12-system spread spanning the major civilizations.
+      let calendarStamp: any = null;
+      try {
+        const cal = await import("./salvi-core/ancient-calendar-sync");
+        const nowDate = new Date();
+        const safe = (fn: () => any) => { try { return fn(); } catch { return null; } };
+        calendarStamp = {
+          gregorian_iso:        nowDate.toISOString(),
+          julian_day_number:    safe(() => cal.toJulianDayNumber(nowDate)),
+          mayan_long_count:     safe(() => cal.toMayanLongCount(nowDate)),
+          hebrew:               safe(() => cal.toHebrewDate(nowDate)),
+          islamic_hijri:        safe(() => cal.toIslamicHijri(nowDate)),
+          chinese_sexagenary:   safe(() => cal.toChineseSexagenary(nowDate)),
+          vedic_kali_yuga:      safe(() => cal.toVedicKaliYuga(nowDate)),
+          persian_solar_hijri:  safe(() => cal.toPersianDate(nowDate)),
+          ethiopian_geez:       safe(() => cal.toEthiopianDate(nowDate)),
+          coptic:               safe(() => cal.toCopticDate(nowDate)),
+          egyptian_civil:       safe(() => cal.toEgyptianCivil(nowDate)),
+          thirteen_moon:        safe(() => cal.toThirteenMoonDate(nowDate)),
+          byzantine_anno_mundi: safe(() => cal.toByzantineAnnoMundi(nowDate)),
+          source: "salvi-core/ancient-calendar-sync (42 systems, JDN-anchored)",
+        };
+      } catch (e: any) {
+        calendarStamp = { error: "calendar_sync_unavailable", message: e?.message ?? String(e) };
+      }
+
       const eacFields = {
         type: "EAC",
         version: 1,
         spec: "TM-2026-042 Rev.2 §4.3",
         numeric_policy: "all numeric fields are whole integers or positive {num, den} integer rationals; no IEEE-754 floats",
         timestamp: {
-          // Authoritative timestamp = monotonic tick counter on Z_{D_α}.
+          // ── FORWARD-FACING ATTOSECOND TIMESTAMP ───────────────────────
+          // Single-integer attoseconds since boot — this is the cert's
+          // primary, human-consumable "when".  Derived from the framework
+          // tick walk (no hardware clock).  The exact rational and the
+          // walk-formula are preserved further down for audit, but the
+          // displayed value is this single integer.
+          attoseconds_since_boot_decimal: attosecondsDecimal,
+          attoseconds_since_boot_trit:    attosecondsTrit,
+          // Authoritative monotonic tick counter on Z_{D_α} (D_α = 125_250_125).
           // No wall clock is consulted on the per-call path.
           tick_decimal:               hptpTs.tickCounter.toString(),
           tick_trit:                  fsTrit,
           // EXACT rational attoseconds since boot — surfaced as {num, den}.
           // NEVER collapsed to integer division (no "÷ that creates 0",
-          // no trailing-zero padding).
+          // no trailing-zero padding).  Kept for audit purity.
           as_since_boot: {
             num: hptpTs.asSinceBootNum.toString(),
             den: hptpTs.asSinceBootDen.toString(),
@@ -2933,9 +3012,15 @@ function startPqtiService(): ChildProcess | null {
           cumulative_ops_trit:    toBijectiveBase3(BigInt(snap.cumulativeOps ?? 0)),
           cumulative_energy_uJ_decimal: String(snap.cumulativeEnergyUj ?? 0),
           cumulative_energy_uJ_trit:    toBijectiveBase3(BigInt(snap.cumulativeEnergyUj ?? 0)),
+          // Energy SAVED versus a hypothetical continuous-on baseline.
+          // Always populated from the modeled wattage delta — works
+          // even when /sys/class/powercap/ (RAPL) is not exposed.
+          cumulative_energy_saved_uJ_decimal: String(snap.cumulativeEnergySavedUj ?? 0),
+          cumulative_energy_saved_uJ_trit:    toBijectiveBase3(BigInt(snap.cumulativeEnergySavedUj ?? 0)),
           duty_target:        snap.dutyTarget,         // {num, den} per-million
           duty_floor_constant:{ num: 1, den: 144, name: "Δ" },
         },
+        calendar_stamp: calendarStamp,
         key_isolation: {
           signature_count: snap.signatureCount,
           key_touch_count: snap.keyTouchCount,
@@ -3006,7 +3091,7 @@ function startPqtiService(): ChildProcess | null {
 
       const sigResult = signHex(kp.secretKey, canonicalJson, "TL-DSA-87");
 
-      const signedCert = {
+      const signedCert: any = {
         ...eacFields,
         integrity: {
           tis27_hash_hex: tis27HashHex,
@@ -3027,6 +3112,78 @@ function startPqtiService(): ChildProcess | null {
           signed_at_iso: new Date().toISOString(),
         },
       };
+
+      // ── HEDERA HCS WITNESS ───────────────────────────────────────────
+      // Submit the signed-cert hash to the Hedera Consensus Service so the
+      // EAC carries blockchain-anchored, timestamp-ordered, immutable
+      // proof-of-existence.  When the service is not configured (no
+      // HEDERA_ACCOUNT_ID / HEDERA_PRIVATE_KEY), we still emit the block
+      // with status="not_configured" so the certificate UI shows the
+      // section explicitly instead of silently omitting it.
+      //
+      // SECURITY: Hedera submissions cost real ℏ (HBAR), and this
+      // endpoint is reachable without authentication (rate-limited only).
+      // To prevent paid-spend abuse via mass EAC issuance, the Hedera
+      // call is OPT-IN per env var `HMODAL_EAC_HEDERA_WITNESS=on`.
+      // When the flag is off we still emit a status block on the cert
+      // so operators know witnessing is available but disabled.
+      const hederaOptedIn = process.env.HMODAL_EAC_HEDERA_WITNESS === "on";
+      let hederaWitness: any = {
+        enabled: false,
+        status: "not_configured",
+        message: "Hedera HCS witnessing is not configured for this node (set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY to enable).",
+      };
+      if (hederaService && !hederaOptedIn) {
+        hederaWitness = {
+          enabled: false,
+          status: "disabled_by_policy",
+          message: "Hedera HCS service is configured on this node but EAC-witnessing is OFF by policy (set HMODAL_EAC_HEDERA_WITNESS=on to enable; this prevents unauthenticated paid-spend abuse via the public EAC endpoint).",
+        };
+      }
+      if (hederaService && hederaOptedIn) {
+        try {
+          const witnessResp = await hederaService.submitWitness({
+            operation_id: `eac-${Date.now()}`,
+            witness_type: "SINGLE_HASH",
+            payload: {
+              hash: tis27HashHex,
+              hash_algorithm: "TIS-27",
+            },
+            metadata: {
+              ternary_context: { security_mode: "TL-Sponge-385" },
+              kernel_op_id:    `hmodal-eac-${snap.attestation?.chainIndex ?? "0"}`,
+              salvi_batch_ref: snap.attestation?.sessionId ?? "hmodal-demo",
+            } as any,
+          } as any);
+          hederaWitness = {
+            enabled: true,
+            status: "witnessed",
+            network:              (witnessResp as any)?.transaction?.topic_id
+              ? "configured"
+              : "configured",
+            topic_id:             (witnessResp as any)?.transaction?.topic_id ?? null,
+            transaction_id:       (witnessResp as any)?.transaction?.id ?? null,
+            consensus_timestamp:  (witnessResp as any)?.transaction?.consensus_timestamp ?? null,
+            sequence_number:      (witnessResp as any)?.transaction?.sequence_number ?? null,
+            running_hash:         (witnessResp as any)?.transaction?.running_hash ?? null,
+            witnessed_hash:       tis27HashHex,
+            note: "Blockchain-anchored proof of existence via Hedera Consensus Service.",
+          };
+        } catch (e: any) {
+          // Log the raw error server-side for debugging, but only ever
+          // expose a generic, fixed string in the cert payload — Hedera
+          // SDK errors can echo back internal account IDs, key parts, or
+          // network endpoints.
+          console.error("[hmodal-eac] Hedera witness submission failed:", e?.message ?? e);
+          hederaWitness = {
+            enabled: true,
+            status: "submission_failed",
+            error: "Hedera HCS submission did not complete (see server logs for details).",
+            witnessed_hash: tis27HashHex,
+          };
+        }
+      }
+      signedCert.hedera_witness = hederaWitness;
 
       res.json({ ok: true, eac: signedCert });
     } catch (err: any) {

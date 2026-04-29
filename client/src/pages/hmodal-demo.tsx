@@ -54,6 +54,8 @@ interface Sample {
   savingsObserved: Rational | null;
   theoreticalSavings: Rational;
   cumulativeEnergyUj: number;
+  cumulativeEnergySavedUj?: number;     // µJ saved versus continuous-on baseline
+  energySavedThisWindowUj?: number;     // µJ saved in the latest sample window
   cumulativeOps?: number;
   cumulativeOpsHigh?: number;
   cumulativeOpsLow?: number;
@@ -477,8 +479,8 @@ export default function HModalDemo() {
             }
             sub={
               latest
-                ? `saved vs continuous: ${latest.mWSavedVsContinuous ?? 0} mW`
-                : "live mW under HModal + Δ-cache"
+                ? `Plain English: how many milliwatts this CPU core is drawing right now under HModal duty-cycle. Saved vs always-on baseline: ${latest.mWSavedVsContinuous ?? 0} mW.`
+                : "Plain English: instantaneous core power draw under HModal + Δ-cache."
             }
             tone="primary"
             testid="readout-live"
@@ -487,13 +489,13 @@ export default function HModalDemo() {
             label="Cumulative Energy Saved"
             value={
               latest
-                ? formatJoules(latest.cumulativeEnergyUj)
+                ? formatJoules(latest.cumulativeEnergySavedUj ?? 0)
                 : "—"
             }
             sub={
               latest
-                ? `${latest.cumulativeEnergyUj.toLocaleString()} µJ raw`
-                : "integral over the live window"
+                ? `Plain English: total electricity NOT burned vs. running flat-out the whole time. ${(latest.cumulativeEnergySavedUj ?? 0).toLocaleString()} µJ saved · this window: +${(latest.energySavedThisWindowUj ?? 0).toLocaleString()} µJ.`
+                : "Plain English: total joules avoided vs. always-on baseline since this session opened."
             }
             tone="primary"
             testid="readout-energy-saved"
@@ -501,13 +503,13 @@ export default function HModalDemo() {
           <ReadoutCard
             label="Time Duty (high / total)"
             value={latest ? (r(latest.observedRatio) * 100).toFixed(2) + "%" : "—"}
-            sub="theoretical: 25.00% (250 ms high / 1000 ms cycle)"
+            sub="Plain English: percentage of each second spent in the high-power 'work' phase. Theoretical schedule: 25.00% (250 ms work, 750 ms cool-down per cycle)."
             testid="readout-duty"
           />
           <ReadoutCard
             label="Observed Savings"
             value={latest && latest.savingsObserved != null ? (r(latest.savingsObserved) * 100).toFixed(2) + "%" : "—"}
-            sub="theoretical: 74.48% (143/192)"
+            sub="Plain English: fraction of always-on power eliminated by duty-cycling. Theoretical best case: 74.48% (143/192)."
             tone="primary"
             testid="readout-savings"
           />
@@ -520,8 +522,8 @@ export default function HModalDemo() {
             }
             sub={
               latest
-                ? `hits: ${latest.cacheHits ?? 0} · miss: ${latest.cacheMisses ?? 0}`
-                : "warming up cache (3 cycles)"
+                ? `Plain English: how often the Δ-cache served a result instead of re-computing. hits: ${latest.cacheHits ?? 0} · misses: ${latest.cacheMisses ?? 0}.`
+                : "Plain English: cache is warming up — needs three full cycles before it produces hits."
             }
             testid="readout-cache"
           />
@@ -532,7 +534,7 @@ export default function HModalDemo() {
                 ? `${(r(latest.compressedSavings) * 100).toFixed(2)}%`
                 : "—"
             }
-            sub="asymptote: 99.31% (143/144 = 1 − 1/Δ)"
+            sub="Plain English: total savings when the Δ-cache is fully warm. Asymptote: 99.31% (143/144 = 1 − 1/Δ)."
             tone="primary"
             testid="readout-compressed"
           />
