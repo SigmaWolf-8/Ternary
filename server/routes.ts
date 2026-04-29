@@ -186,6 +186,49 @@ export async function registerRoutes(
     }
   };
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // /api/sync/status — lightweight metadata feed for the local replit-sync
+  // Rust client (tools/replit-sync). Returns the current HEAD commit so the
+  // local poller can detect new work and trigger a backup + git pull/push.
+  // No auth; safe because it only exposes commit metadata that's already
+  // public on origin (GitHub).
+  // ──────────────────────────────────────────────────────────────────────────
+  app.get("/api/sync/status", (_req, res) => {
+    const { execFile } = require("child_process");
+    execFile(
+      "git",
+      ["log", "-1", "--format=%H%n%h%n%ct%n%s", "HEAD"],
+      { cwd: process.cwd(), timeout: 5000 },
+      (err: Error | null, stdout: string) => {
+        if (err) {
+          return res.status(500).json({
+            ok: false,
+            error: "git log failed",
+            detail: String(err.message || err),
+          });
+        }
+        const [sha, short, ts, ...rest] = stdout.trim().split("\n");
+        execFile(
+          "git",
+          ["rev-parse", "--abbrev-ref", "HEAD"],
+          { cwd: process.cwd(), timeout: 5000 },
+          (err2: Error | null, branchOut: string) => {
+            const branch = err2 ? "main" : branchOut.trim();
+            res.json({
+              ok: true,
+              head_sha: sha,
+              head_short: short,
+              head_timestamp: parseInt(ts, 10),
+              head_message: rest.join("\n"),
+              branch,
+              server_time: Math.floor(Date.now() / 1000),
+            });
+          },
+        );
+      },
+    );
+  });
+
   app.get("/api/hmodal/status", (_req, res) => {
     const sample = readRapl();
     res.json({
