@@ -672,3 +672,9 @@ id = "FScyWyJ7S7ghLNU7NUt11"
 uri = "file://docs/hmodal_power_trit_native.md"
 type = "text"
 title = "HModal Power — Trit-Native Spec"
+
+[[outputs]]
+id = "WICyviY05aDCJOWbnYy0-"
+uri = "file://attached_assets/aasc_canonical_map.svg"
+type = "image"
+title = "AASC Canonical Map"
