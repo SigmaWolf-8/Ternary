@@ -1,0 +1,47 @@
+Five new concerns introduced by this draft
+1 — step() and coords_at_step() use stride_s, not stride_u. This contradicts the v1.7 monograph.
+The monograph defines the walk's stride as u = 2X + 1 (Definition §2.3.2, Lemma 53 establishing universal coprimality with L), and Theorem 59 proves visit-completeness using (\gcd(u, N) = 1). The stride-companion invariant S = 3X² − 3X + 1 plays a different role (Definition 2.3.3, Theorem 58): it is the multiplicative-independence partner of B, not the walk's step.
+In this code:
+rustpub fn step(&mut self) {
+    let sum = arithmetic::add(&self.address, &self.footprint.stride_s);  // ← stride_s
+    ...
+}
+
+pub fn coords_at_step(&self, k: &TritVec) -> Vec<TritVec> {
+    let ks = arithmetic::mul(k, &self.footprint.stride_s);  // ← stride_s
+    ...
+}
+This is not the walk that Theorem 59 proves complete. Using S as the step rule means visit-completeness depends on (\gcd(S, N) = 1), which fails at X = 6, 13, 20, … (where S = 91 = 7·13 shares a factor with L = 84 = 4·3·7 — the exact failure mode that motivated introducing u in the first place).
+At X = 8, (\gcd(169, 144) = 1), so the walk happens to work. But the universal completeness claim does not hold under this code.
+The fix: every stride_s reference inside step() and coords_at_step() and the internal address_at_step() helper must be stride_u. The field stride_s should remain in the footprint (it carries the multiplicative-independence invariant from Definition 2.3.3 and is genuinely load-bearing in its own right), but it is not the step rule.
+This is the most important issue in the review. The fix is mechanical (three identifier substitutions) but the semantic distinction is the difference between a universally-complete walk and a walk that fails at infinitely many X.
+2 — from_stream discards the step counter and starts the receiver at the seed cell, regardless of where the stream's address actually sits.
+rustpub fn from_stream(stream: &[Trit]) -> Result<Self, ParseError> {
+    ...
+    let mut walk = Self::from_trinomial_x(NonZeroX::new(x).unwrap());
+    walk.address = address;
+    // t remains zero – the stream carries no time state
+    Ok(walk)
+}
+The receiver is told the address but the step counter t reads zero. After deserialization, is_origin() will return false (since address ≠ b_core in general) but the walk's meaning of t — "how many steps from the seed" — is now a lie if the deserialized address is mid-orbit. Two consequences:
+
+Calling current_coords() works correctly (it reads address directly).
+Calling coords_at_step(k) after from_stream returns coordinates relative to the original seed, not relative to the deserialized address. A caller assuming coords_at_step(0) returns "where I am now" would be wrong.
+
+The contract needs documenting: either from_stream reconstructs t from address (by solving (t = (address - B) \cdot u^{-1} \bmod N) — possible since (\gcd(u, N) = 1)), or t should be removed from the deserialized state and coords_at_step should be marked unavailable until a new walk is started fresh. The cleaner option is to compute t at deserialization, since the math supports it.
+3 — from_stream hardcodes the portal X = 8 via LIFT_TRIT_BOUNDARY_ARR.
+The constant LIFT_TRIT_BOUNDARY_ARR is imported but its semantic meaning isn't transparent from the call site. The comment says "Reconstruct the walk at the framework portal X = 8" but the constant name (LIFT_TRIT_BOUNDARY) suggests something else — perhaps the GF(3)-to-TritVec lift boundary at value 8. Two issues:
+
+A reader of from_stream shouldn't need to know that LIFT_TRIT_BOUNDARY_ARR happens to equal X = 8. If the portal value is what's meant, name it PORTAL_X_ARR (or R_8_ARR if that's the framework convention) and make the intent explicit at the call site.
+from_stream is single-purpose — it only deserializes portal-X recordsets. If that's intentional, the function name should reflect it (from_portal_stream). If it's meant to deserialize arbitrary X, the stream needs to carry X somehow — which the current grammar doesn't support.
+
+The current implementation conflates "the only stream format we support" with "the stream format for the portal." Those are different commitments; the API should pick one and name accordingly.
+4 — address_at_step is fn but never called.
+rustfn address_at_step(&self, t: &TritVec) -> TritVec {
+    ...
+}
+Marked private, not used by any public method (the comment "used internally by from_stream" is stale — from_stream does not call it). Dead code. Either delete it, or wire it into from_stream to compute the step counter from the deserialized address (which is what would solve issue #2 above).
+5 — NonZeroX::new(x).unwrap() inside from_stream.
+rustlet x = TritVec::from_trits(LIFT_TRIT_BOUNDARY_ARR);
+let mut walk = Self::from_trinomial_x(NonZeroX::new(x).unwrap());
+The unwrap() is fine if LIFT_TRIT_BOUNDARY_ARR is statically known to be non-empty — which it is, since X = 8 has a non-empty TritVec representation. But the type system doesn't know that; the compiler still emits the panic path. A cleaner pattern: provide a NonZeroX::from_constant(arr: &[Trit]) constructor that's const-evaluable for the framework's static portal value, with the invariant proved at the constant declaration site rather than at every call

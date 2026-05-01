@@ -1,0 +1,23 @@
+No — the file I presented is v1.3, **not v1.4**. I have not yet applied any of the ten edits in your revision brief. Let me apply them now, surgically and in order, with no other changes.Now Edit 10 — add §0.4. Let me find the end of §0:Now apply the Repercussion-6 sentence at end of §0.2 (CD section). Let me find it:Edits 4 and 5 — §3 title and opening framing:Edit 6 — §6 title and Theorem 6.2 wording:Edit 7 — §6.6 opening:Edit 8 — §6.7 closing reframe:Edits 3 and 9 — §10 summary box:All ten edits applied. Verification pass:All ten edits verified in place. Note one item: my Edit 5 verification only showed the title — the new framing paragraph is there but the grep with `-A1` only captured the blank line. Let me confirm Edit 5 directly:All eleven items confirmed (ten edits + Repercussion-6 sentence inside §0.2). v1.4 complete.**v1.4 delivered, Fratello.** All ten edits from the revision brief, applied surgically and in order. Confirmed in place:
+
+| # | Edit | Location | Status |
+|:---:|:---|:---|:---:|
+| 1 | Title → *The Trinomial Recordset and its Eisenstein Continuation* | line 1 | ✓ |
+| 2 | Abstract opening — trinomial does the forcing, Eisenstein as continuation | line 10 | ✓ |
+| 3 | §10 closing line — *One portal at X = 8. Eisenstein continuation inherent throughout.* | end | ✓ |
+| 4 | §3 title → *The Eisenstein Continuation* | §3 head | ✓ |
+| 5 | §3 opening framing paragraph (foundation/continuation/portal directional priority) | before §3.1 | ✓ |
+| 6 | §6 title → *The Portal at X = 8 — Cyclotomic Opening and the Framework Footprint*; Theorem 6.2 portal sentence appended | §6 head, Thm 6.2 | ✓ |
+| 7 | §6.6 opening — portal language replacing static-classification language | §6.6 | ✓ |
+| 8 | §6.7 closing — *trinomial-foundation continuation* replaces *Eisenstein-closed structure* | §6.7 | ✓ |
+| 9 | §10 box line 2 — polynomial in ℤ[X], Eisenstein continuation in ℤ[ω][X] | §10 box | ✓ |
+| 10 | New §0.4 — Foundation, Continuation, Portal three compendial roles | end of §0 | ✓ |
+| **R6** | §0.2 closing italic — *CD detects the Eisenstein continuation; does not establish an Eisenstein closure* | end §0.2 | ✓ |
+
+**What did not change:** every theorem statement (1.2 → 6.7), every proof, every numerical value, the §9.2 listing, the §9.3 reference table with full-integer values and units, the §8 closed-form box, units of measure, Pell recurrence Theorem 6.3a, the §9.1 synthesis paragraph, all sign-offs.
+
+**Net mathematical content: zero change. Net framing change: ten edits + one Repercussion-6 sentence.**
+
+The file is now 515 lines (was 499; the +16 are §0.4 + §3 framing paragraph + Theorem 6.2 portal sentence + Repercussion-6 sentence + §6.6 portal opening). Version stamp is now visible in the subtitle on line 2: *A Unified Monograph (v1.4)*.
+
+*Foundation → Portal → Continuation inherent everywhere. Patet Codex Omnibus.*

@@ -1,0 +1,163 @@
+```rust
+extern crate alloc;
+use alloc::vec::Vec;
+use alloc::vec;
+use crate::trit::Trit;
+use crate::tritvec::TritVec;
+use crate::arithmetic;
+use crate::constants::{R_1_ARR, R_3_ARR, LIFT_TRIT_BOUNDARY_ARR};
+
+// ---------------------------------------------------------------------------
+// NonZeroX – compile‑time witness that X ≥ 1
+// ---------------------------------------------------------------------------
+pub struct NonZeroX(TritVec);
+
+impl NonZeroX {
+    pub fn new(x: TritVec) -> Option<Self> {
+        if x.is_empty() { None } else { Some(Self(x)) }
+    }
+    pub fn as_tritvec(&self) -> &TritVec { &self.0 }
+}
+
+// ---------------------------------------------------------------------------
+// TrinomialFootprint – cached once, immutable
+// ---------------------------------------------------------------------------
+pub struct TrinomialFootprint {
+    pub x:        TritVec,
+    pub a:        TritVec,
+    pub b:        TritVec,
+    pub c:        TritVec,
+    pub l:        TritVec,
+    pub b_core:   TritVec,
+    pub stride_u: TritVec,
+    pub stride_s: TritVec,
+    pub n:        TritVec,
+    pub radian:   TritVec,
+}
+
+// ---------------------------------------------------------------------------
+// ArcUniverseWalk – linear‑address walk using stride_s as step
+// ---------------------------------------------------------------------------
+pub struct ArcUniverseWalk {
+    footprint: TrinomialFootprint,
+    address:   TritVec,   // current linear address in [0, N)
+    t:         TritVec,   // step counter (empty = 0)
+}
+
+impl ArcUniverseWalk {
+    pub fn from_trinomial_x(x: NonZeroX) -> Self {
+        let x = x.as_tritvec();
+        let one = TritVec::from_trits(R_1_ARR);
+
+        let x_minus_1 = arithmetic::sub(x, &one).expect("X≥1");
+        let a = arithmetic::mul(x, &x_minus_1);
+        let b = arithmetic::add(x, x);
+        let x_plus_1 = arithmetic::add(x, &one);
+        let c = arithmetic::mul(x, &x_plus_1);
+        let l = arithmetic::add(&a, &b);
+        let l = arithmetic::add(&l, &c);
+
+        let x_sq = arithmetic::mul(x, x);
+        let b_core = arithmetic::add(&x_sq, &x_sq);
+
+        let stride_u = arithmetic::add(&b, &one);
+
+        let three_x_sq = arithmetic::add(&x_sq, &x_sq);
+        let three_x_sq = arithmetic::add(&three_x_sq, &x_sq);
+        let three_x = arithmetic::add(x, x);
+        let three_x = arithmetic::add(&three_x, x);
+        let s_minus_3x = arithmetic::sub(&three_x_sq, &three_x).expect("3X²≥3X");
+        let stride_s = arithmetic::add(&s_minus_3x, &one);
+
+        let l_sq = arithmetic::mul(&l, &l);
+        let n = arithmetic::mul(&l_sq, &l);
+
+        debug_assert!(
+            arithmetic::cmp(&b_core, &n).is_lt(),
+            "invariant failure: B < N"
+        );
+
+        let radian = TritVec::from_trits(R_3_ARR);
+
+        ArcUniverseWalk {
+            footprint: TrinomialFootprint {
+                x: x.clone(),
+                a, b, c, l,
+                b_core: b_core.clone(),
+                stride_u,
+                stride_s,
+                n,
+                radian,
+            },
+            address: b_core,
+            t: TritVec::new(),
+        }
+    }
+
+    pub fn step(&mut self) {
+        let sum = arithmetic::add(&self.address, &self.footprint.stride_s);
+        self.address = arithmetic::divmod(&sum, &self.footprint.n)
+            .expect("N>0").1;
+        self.t = arithmetic::inc(&self.t);
+    }
+
+    pub fn is_origin(&self) -> bool {
+        arithmetic::cmp(&self.address, &self.footprint.b_core).is_eq()
+            && !self.t.is_empty()
+    }
+
+    /// Coordinates of the walk at a given step index k.
+    pub fn coords_at_step(&self, k: &TritVec) -> Vec<TritVec> {
+        let ks = arithmetic::mul(k, &self.footprint.stride_s);
+        let m_raw = arithmetic::add(&self.footprint.b_core, &ks);
+        let (_, m) = arithmetic::divmod(&m_raw, &self.footprint.n).expect("N>0");
+        decompose_into_coordinates(&m, &self.footprint.l)
+    }
+
+    /// Coordinates of the current state (address).
+    pub fn current_coords(&self) -> Vec<TritVec> {
+        decompose_into_coordinates(&self.address, &self.footprint.l)
+    }
+
+    // -----------------------------------------------------------------------
+    // Serialisation – pure ternary, emits only the address payload
+    // -----------------------------------------------------------------------
+    pub fn to_stream(&self) -> Vec<Trit> {
+        self.address.trits.clone()
+    }
+
+    pub fn from_stream(stream: &[Trit]) -> Result<Self, ParseError> {
+        if stream.is_empty() { return Err(ParseError::UnexpectedEnd); }
+        let address = TritVec::from_trits(stream);
+        // Reconstruct the walk at the framework portal X = 8
+        let x = TritVec::from_trits(LIFT_TRIT_BOUNDARY_ARR);
+        let mut walk = Self::from_trinomial_x(NonZeroX::new(x).unwrap());
+        walk.address = address;
+        // t remains zero – the stream carries no time state
+        Ok(walk)
+    }
+
+    // Helper used internally by from_stream
+    fn address_at_step(&self, t: &TritVec) -> TritVec {
+        let ks = arithmetic::mul(t, &self.footprint.stride_s);
+        let m_raw = arithmetic::add(&self.footprint.b_core, &ks);
+        arithmetic::divmod(&m_raw, &self.footprint.n).expect("N>0").1
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Coordinate decomposition helper
+// ---------------------------------------------------------------------------
+fn decompose_into_coordinates(m: &TritVec, l: &TritVec) -> Vec<TritVec> {
+    let (q1, x) = arithmetic::divmod(m, l).expect("L>0");
+    let (q2, y) = arithmetic::divmod(&q1, l).expect("L>0");
+    let (_, z)  = arithmetic::divmod(&q2, l).expect("L>0");
+    vec![x, y, z]
+}
+
+// ---------------------------------------------------------------------------
+// Parse error – only for stream completeness
+// ---------------------------------------------------------------------------
+#[derive(Debug)]
+pub enum ParseError { UnexpectedEnd }
+```

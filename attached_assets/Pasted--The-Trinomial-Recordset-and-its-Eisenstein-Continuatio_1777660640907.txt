@@ -1,0 +1,666 @@
+# The Trinomial Recordset and its Eisenstein Continuation
+## A Unified Monograph (v1.7)
+
+*Capomastro Holdings · Applied Physics Division*
+
+---
+
+## Abstract
+
+This monograph establishes the complete closed-form theorem for a parametric recordset whose every structure is forced by a single trinomial polynomial in one integer variable \(X\), with the Eisenstein-algebraic structure entering inherently as a continuation through the cyclotomic portal at \(X = 8\). The recordset consists of \(N = [2X(X+1)]^3\) cells, walked by a coprime buffer-stride pair, with five inherent realizations (Rep D bijection, backward finite difference, geometric sum, monomializing substitution, Pell linearization) projected simultaneously from the foundational polynomial. Three theorems anchor the structure: a universal coprimality lemma, a Diophantine impossibility theorem distinguishing the cube-volume from the depth-recursion repunit, and a cyclotomic singularity theorem locating the framework footprint at the unique positive integer \(X = 8\). The compendium establishes its own definitions where standard mathematical terminology is too narrow, and proves these definitions are conservative extensions of the standard notions. The dimensional system is one parametric primary unit \([\mathrm{cell/axis}]\) with four derived units, all algebraically forced.
+
+---
+
+## §0 · Preliminaries
+
+### §0.1 Compendial Conventions
+
+This compendium establishes its own definitions where standard mathematical terminology is too narrow to express the structural unity of the framework. Each compendial definition is a **conservative extension** of the standard notion: it agrees with the standard reading wherever the standard reading applies, and extends naturally to additional cases that the standard reading rejects only on grounds of literal scope.
+
+Let \(\omega = e^{2\pi i/3} = \tfrac{-1 + i\sqrt{3}}{2}\), the primitive cube root of unity. Then \(\omega^2 = \bar{\omega}\), \(\omega^3 = 1\), and \(1 + \omega + \omega^2 = 0\).
+
+The **Eisenstein integers** \(\mathbb{Z}[\omega] = \{p + q\omega : p, q \in \mathbb{Z}\}\) form a Euclidean domain, with field of fractions \(\mathbb{Q}(\omega) = \mathbb{Q}(\sqrt{-3})\) and unit group \(\mathbb{Z}[\omega]^\times = \{\pm 1, \pm \omega, \pm \omega^2\}\) of order 6.
+
+The **Eisenstein norm** \(\mathcal{N}_\omega : \mathbb{Z}[\omega] \to \mathbb{Z}_{\geq 0}\) is defined by:
+$$\mathcal{N}_\omega(p + q\omega) := (p + q\omega)(p + q\omega^2) = p^2 - pq + q^2.$$
+With the substitution \(q \mapsto -q\): \(\mathcal{N}_\omega(p - q\omega) = p^2 + pq + q^2\). The norm extends coefficient-wise to polynomials \(\mathcal{N}_\omega : \mathbb{Z}[\omega][X] \to \mathbb{Z}[X]\) via \(\mathcal{N}_\omega(\alpha(X) + \beta(X)\omega) = \alpha(X)^2 - \alpha(X)\beta(X) + \beta(X)^2\). The norm is multiplicative.
+
+### §0.2 Compendial Definition (CD): Eisenstein splitting
+
+**Definition CD.** A polynomial \(P(X) \in \mathbb{Z}[X]\) **splits over \(\mathbb{Z}[\omega]\)** if there exists \(Q(X) \in \mathbb{Z}[\omega][X]\) such that
+$$P(X) \;=\; \mathcal{N}_\omega\!\bigl(Q(X)\bigr) \qquad \text{as polynomial identity in } \mathbb{Z}[X].$$
+
+**Theorem 50 (Conservative Extension).** *If \(P(X) \in \mathbb{Z}[X]\) factors strictly into linear factors \(P(X) = c \prod_i (X - r_i)\) with \(r_i \in \mathbb{Z}[\omega]\), \(c \in \mathbb{Z}\), then \(P\) splits over \(\mathbb{Z}[\omega]\) in the sense of CD.*
+
+*Proof.* Each pair of complex-conjugate Eisenstein roots \(\{r, \bar{r}\}\) yields the quadratic factor \((X - r)(X - \bar{r}) = \mathcal{N}_\omega(X - r)\) where \(X - r \in \mathbb{Z}[\omega][X]\). The product of all such factors is itself a norm by multiplicativity. \(\blacksquare\)
+
+CD is therefore a strict generalization of the standard notion of splitting: every standard splitting is a CD splitting, and CD additionally captures polynomials whose values are Eisenstein norms but whose roots lie in \(\mathbb{Q}(\omega) \setminus \mathbb{Z}[\omega]\).
+
+*The CD detects the Eisenstein continuation; it does not establish an Eisenstein closure. The continuation is foundational to nothing — it flows from the trinomial foundation through the portal at \(X = 8\) and is detected by CD at every \(X\).*
+
+### §0.3 Units of Measure (Parametric, One System)
+
+The framework operates on **one parametric primary unit**, declared once at deployment. Every other unit is forced by the algebra. Let \(X\) count instances of a quantum \(\mathfrak{q}\); then:
+
+$$\boxed{\;[\mathrm{cell/axis}] \;:=\; \mathfrak{q}.\;}$$
+
+| Unit | Definition (algebraically forced) | Source |
+|:---|:---|:---|
+| \([\mathrm{cell/axis}]\) | \(\mathfrak{q}\), parametric primary | declared at deployment |
+| \([\mathrm{cell}]\) | \([\mathrm{cell/axis}]^3\) | three orthogonal spatial axes |
+| \([\mathrm{topo\text{-}cell}]\) | sixth-power of \([\mathrm{cell/axis}]^{1/2}\) tier | exponent \(6 = |\mathbb{Z}[\omega]^\times|\) |
+| \([\mathrm{address}]\) | depth-axis count, orthogonal to spatial axes | trinomial recursion \((a+b+c)^d\) |
+| \([\mathrm{radian_F}]\) | cyclic measure; coincides with \([\mathrm{cell/axis}]\) at \(X = 8\) | Eisenstein norm value \(R_3 = 13\) |
+| dimensionless | scalars and indices | \(X, k, u, B_P, A, \Phi_3(k), \gcd\) |
+
+The deployment specifies one quantum \(\mathfrak{q}\); the rest is forced. There is no domain catalog — the algebra dictates the dimensions parametrically.
+
+### §0.4 Foundation, Continuation, Portal — Three Compendial Roles
+
+Three structural roles are distinguished throughout this monograph and must not be conflated:
+
+1. **Foundation.** The trinomial polynomial parts \(\{a = X(X-1),\; b = 2X,\; c = X(X+1)\}\) and their balance \(a + b = c\). The foundation is what every other structure is forced by. It lives in \(\mathbb{Z}[X]\).
+
+2. **Continuation.** The Eisenstein structure (norm forms, splitting, cyclotomic factor) that flows from the foundation at every \(X\). The continuation is present everywhere — at every integer \(X \geq 1\) — but is descriptive until the portal opens. It lives in \(\mathbb{Z}[\omega][X]\).
+
+3. **Portal.** The unique positive integer \(X = 8\) (\(k = 2\) in the singularity quartic) at which the cyclotomic factor \(\Phi_3(k)\) and the rational factor \((k - 2)\) intersect. At the portal, the Eisenstein continuation becomes **inherent** to the framework rather than externally applied — meaning every subsequent framework structure (the multiplicative dual of TM-NOTE-5DYN, the Disdyakis Bridge, the calendar \(364 = 4 \cdot 7 \cdot 13\) factorization) inherits the Eisenstein continuation as a native property, not as an imposed reading.
+
+The directional priority is: **Foundation → Portal → Continuation inherent everywhere.** Not: *Eisenstein closure → trinomial as instance.*
+
+---
+
+## §1 · The Foundational Polynomial
+
+### §1.1 Definition
+
+For \(X \in \mathbb{N}\), define the **trinomial parts**:
+
+$$\boxed{\;a = X(X-1), \qquad b = 2X, \qquad c = X(X+1).\;}$$
+
+Each part has unit \([\mathrm{cell/axis}]\). The Rep D bijection assigns the zero-purged ternary alphabet to the parts: \(1 \leftrightarrow a\), \(2 \leftrightarrow b\), \(3 \leftrightarrow c\), with the canonical ordering \(a < b < c\) for \(X \geq 2\).
+
+### §1.2 The Balance Identity
+
+**Theorem 51 (Rep D Balance).** *For every \(X \in \mathbb{N}\), \(a + b = c\); equivalently, in Rep D, \(1 + 2 = 3\).*
+
+*Proof.* \(a + b = X(X-1) + 2X = X^2 - X + 2X = X^2 + X = X(X+1) = c\). \(\blacksquare\)
+
+The balance is preserved under both differentiation and integration in \(X\):
+$$\frac{da}{dX} + \frac{db}{dX} = (2X - 1) + 2 = 2X + 1 = \frac{dc}{dX},$$
+$$\int a\, dX + \int b\, dX = \left(\frac{X^3}{3} - \frac{X^2}{2}\right) + X^2 = \frac{X^3}{3} + \frac{X^2}{2} = \int c\, dX.$$
+
+Therefore the Rep D balance lifts to a closed identity under the calculus operators on \(\mathbb{Z}[X]\).
+
+### §1.3 The Recordset Side
+
+Define the **recordset side**:
+$$\boxed{\;L \;=\; a + b + c \;=\; 2c \;=\; 2X(X+1) \quad [\mathrm{cell/axis}].\;}$$
+
+---
+
+## §2 · The Recordset Geometry
+
+### §2.1 Volume and Cellular Complex
+
+The recordset is the cube of side \(L\) cells per axis. The total node count is:
+
+$$\boxed{\;N \;=\; L^3 \;=\; \bigl[2X(X+1)\bigr]^3 \;=\; 8 X^3 (X+1)^3 \quad [\mathrm{cell}].\;}$$
+
+The full cellular complex decomposes the cube into volume, face, edge, and corner tiers:
+
+$$
+\boxed{
+\begin{aligned}
+V &= L^3 && [\mathrm{cell}] \\
+F &= 3 L^2 (L+1) && \text{face tier} \\
+E &= 3 L (L+1)^2 && \text{edge tier} \\
+C &= (L+1)^3 && \text{corner tier} \\
+T &= V + F + E + C \;=\; (2L+1)^3 \;=\; (2X+1)^6 && [\mathrm{topo\text{-}cell}]
+\end{aligned}}
+$$
+
+The identity \(T = (2X+1)^6\) follows from \(2L + 1 = 4X(X+1) + 1 = (2X+1)^2\), so \(T = (2L+1)^3 = ((2X+1)^2)^3 = (2X+1)^6\). The exponent 6 equals \(|\mathbb{Z}[\omega]^\times|\), the order of the Eisenstein unit group.
+
+### §2.2 Trinomial Cube Expansion
+
+The volume tier expands as the trinomial cube:
+$$N \;=\; L^3 \;=\; (a + b + c)^3 \;=\; a^3 + b^3 + c^3 \;+\; 3\!\!\sum_{\text{sym}}\!(a^2b + ab^2) \;+\; 6abc.$$
+
+This produces 27 sub-volumes in 10 shape classes, summing to \(L^3 = 8X^3(X+1)^3\).
+
+### §2.3 The Walk — First-Principles Derivation
+
+The walk is the operational engine of the recordset: it traverses every cell of the volume tier exactly once, parametrized solely by \(X\). The walk is not stipulated; it is derived from the trinomial foundation by closed-form first-principles construction. Two parameters — the **buffer-core** \(B\) and the **stride** \(S\) — together specify the walk. Each is forced by the foundation through a distinct trinomial axis.
+
+#### §2.3.0 Foundational Derivation
+
+The trinomial parts \(\{a, b, c\}\) of §1 generate three structurally distinct axes through products with the parameter \(X\): the **\(a\)-axis** \(a \cdot X = X^2(X-1)\) (lower-flank curvature), the **\(b\)-axis** \(b \cdot X = 2X \cdot X = 2X^2\) (linear-band amplification), and the **\(c\)-axis** \(c \cdot X = X^2(X+1)\) (upper-flank curvature). Of these, only the \(b\)-axis is a pure quadratic in \(X\) without further \(X \pm 1\) modulation; the \(a\)- and \(c\)-axes are absorbed into the curvature of the cube's volume tier through the symmetric expansion of §2.2.
+
+**Definition 2.3.0a (Buffer-Core).** The buffer-core is the \(b\)-axis amplification:
+$$\boxed{\;B \;:=\; b \cdot X \;=\; 2X \cdot X \;=\; 2X^2 \quad [\mathrm{cell/axis}].\;}$$
+
+The buffer-core is the **second-order linear-band footprint** of the trinomial — the unique pure-quadratic-in-\(X\) axis-product the trinomial supplies, with no \((X-1)\) or \((X+1)\) curvature factor.
+
+The stride is derived along a different, complementary axis: the **discrete-derivative axis** of the cube function \(X^3\). The volume tier \(N = L^3\) cubes the side; its discrete generator is the backward finite difference \(\nabla\):
+$$\nabla(f)(X) \;:=\; f(X) - f(X - 1).$$
+
+**Definition 2.3.0b (Stride).** The stride is the backward finite difference of the cube function:
+$$\boxed{\;S \;:=\; \nabla(X^3) \;=\; X^3 - (X - 1)^3 \;=\; 3X^2 - 3X + 1 \quad [\mathrm{cell/axis}].\;}$$
+
+Expansion of the cube difference yields the symmetric form
+$$S \;=\; X^2 + X(X - 1) + (X - 1)^2 \;=\; X^2 + a + (X - 1)^2,$$
+where the middle term is exactly the Rep D letter "1" (the part \(a\)) of §1.1. The stride is therefore the Eisenstein-norm-bearing form of §3.1 (Theorem 55: \(S = \mathcal{N}_\omega(X - (X-1)\omega)\)) **and** the discrete-derivative axis of the cube simultaneously — the same object read on two operator axes.
+
+**Theorem 52 (Walk Foundation).** *The buffer-core \(B = b \cdot X\) and the stride \(S = \nabla(X^3)\) together specify the walk on the recordset, with both parameters derived from the trinomial foundation:*
+
+- *\(B\) is the second-order pure-quadratic amplification of the \(b\)-axis (linear band \(b = 2X\) times the parameter \(X\)).*
+- *\(S\) is the backward finite difference of the cube function \(X^3\), i.e., the discrete-derivative axis of the volume tier \(N = L^3\).*
+
+*The two axes are complementary in the sense that \(B\) carries no \((X-1)\)-curvature (purely quadratic) while \(S\) carries the full \((X-1)\)-curvature inherited from \(\nabla\) (specifically, the \((X-1)^2\) term in the symmetric form). Together they tile the complete walk parameter space without redundancy.*
+
+*Proof.* Direct verification of each form. \(B = b \cdot X = 2X \cdot X = 2X^2\) by substitution. \(S = X^3 - (X-1)^3 = X^3 - (X^3 - 3X^2 + 3X - 1) = 3X^2 - 3X + 1\) by binomial expansion. The symmetric form \(S = X^2 + X(X-1) + (X-1)^2\) is a polynomial identity verifiable by expansion. The complementarity: \(B(X) = 2X^2\) contains only the term \(X^2\) (no \(X-1\) factor), while \(S(X) = X^2 + X(X-1) + (X-1)^2\) is symmetric in \(X\) and \(X-1\), carrying the full \(\nabla\)-curvature of the cube. \(\blacksquare\)
+
+The coprimality \(\gcd(B, S) = 1\) and the completeness of the walk are theorems of §4 (Theorems 58 and 59, Corollary 60). They follow from the foundational derivation above as algebraic consequences, not as additional stipulations: \(B\) and \(S\) are inherent in the trinomial; their coprimality is forced by the lifting of \(\gcd(X, X-1) = 1\) to ideal coprimality in \(\mathbb{Z}[\omega]\); and the resulting zero-collision walk is the unique traversal that visits every one of the \(N = L^3\) cells exactly once.
+
+#### §2.3.1 Walk Parameters as Closed Form
+
+Define the **buffer-core** and the **stride-companion invariant**:
+$$\boxed{\;B \;=\; 2X^2 \quad [\mathrm{cell/axis}], \qquad S \;=\; 3X^2 - 3X + 1 \;=\; X^3 - (X-1)^3 \quad [\mathrm{cell/axis}].\;}$$
+
+The stride-companion \(S\) is the **backward finite difference** \(\nabla(X^3)\) of the cube function. It admits the symmetric form
+$$S \;=\; X^2 + X(X-1) + (X-1)^2 \;=\; X^2 + a + (X-1)^2,$$
+where the middle term is the Rep D letter "1" (the part \(a\)). The role of \(S\) in the walk is established in §4.1: it is the Eisenstein-norm companion to the stride, not the stride itself.
+
+#### §2.3.2 Foundational Derivation of the Stride
+
+The walk's **stride** \(u\) is the third foundational quantity. It is derived directly from the trinomial parts:
+$$\boxed{\;u \;:=\; b + 1 \;=\; 2X + 1 \quad [\mathrm{cell/axis}].\;}$$
+
+The stride is **one more than the Rep D letter 2** — the linear band \(b = 2X\) of §1.1 incremented by the trinomial's identity element. This is the same \(u\) that appears in the linearizing substitution of §7.4 (Realization 4) and in the cellular-complex identity \(T = u^6 = (2X+1)^6\) of §2.1; it is not a new quantity, but its role as the walk's stride makes its foundational provenance load-bearing.
+
+**Lemma 53 (Universal Coprimality of u and L).** *For every \(X \in \mathbb{N}\), \(\gcd(u, L) = 1\).*
+
+*Proof.* \(L = 2 X (X+1)\) and \(u = 2X + 1\). Three coprimality conditions to check:
+- \(\gcd(u, 2)\): \(u = 2X + 1\) is odd, so \(\gcd(u, 2) = 1\).
+- \(\gcd(u, X)\): \(u = 2X + 1 \equiv 1 \pmod{X}\), so \(\gcd(u, X) = 1\).
+- \(\gcd(u, X + 1)\): \(u = 2(X + 1) - 1 \equiv -1 \pmod{X+1}\), so \(\gcd(u, X + 1) = 1\).
+
+Since \(L = 2 \cdot X \cdot (X+1)\) is the product of three pairwise coprime factors each coprime to \(u\), \(\gcd(u, L) = 1\) for every \(X \in \mathbb{N}\). \(\blacksquare\)
+
+**Corollary 54 (Universal Coprimality of u and N).** *For every \(X \in \mathbb{N}\), \(\gcd(u, N) = \gcd(u, L^3) = 1\).*
+
+*Proof.* By Lemma 53, \(\gcd(u, L) = 1\); raising to the third power preserves coprimality, so \(\gcd(u, L^3) = 1\). \(\blacksquare\)
+
+The stride \(u\) is therefore the universal visit-completeness driver of the walk: it is coprime to the cell-count \(N\) for every \(X\), without exception.
+
+#### §2.3.3 Roles of B, S, u in the Walk
+
+The three foundational quantities together specify the walk:
+
+**Definition 2.3.3 (Stride-Companion Invariant).** *The stride-companion invariant of the walk is the integer-valued quantity*
+$$S(X) \;:=\; 3 X^2 - 3 X + 1 \;=\; \nabla(X^3) \;=\; X^2 + X(X-1) + (X-1)^2 \quad [\mathrm{cell/axis}],$$
+*characterized by three independent foundational properties, each load-bearing:*
+
+1. *(Discrete-derivative axis.) \(S = \nabla(X^3) = X^3 - (X-1)^3\) is the backward finite difference of the cube function, the discrete-calculus generator of the volume tier \(N = L^3\) along the X-axis (Definition 2.3.0b, §2.3.0).*
+
+2. *(Eisenstein norm value.) \(S\) is the Eisenstein norm of the consecutive-integer pair \((X, X-1)\) lifted to \(\mathbb{Z}[\omega]\): \(S = \mathcal{N}_\omega(X - (X-1)\omega)\). This identity is established as Theorem 55 (§3.1).*
+
+3. *(Multiplicative independence with the phase offset.) \(\gcd(B, S) = 1\) for every \(X \in \mathbb{N}\), so \(S\) and the phase offset \(B = 2X^2\) generate independent multiplicative residues. This identity is established as Theorem 58 (§4.1).*
+
+*The name "stride-companion invariant" reflects the role of \(S\) in the walk: \(S\) is not the stride itself (that role belongs to \(u = 2X+1\), Definition §2.3.2), but the foundational invariant that companions the stride along the discrete-derivative axis and certifies — via Theorem 58 — that the walk's phase offset and stride-companion are multiplicatively independent. \(S\) is therefore a third walk parameter in its own right, not a derived quantity of the stride.*
+
+| Symbol | Definition | Foundational provenance | Role in the walk |
+|:---:|:---|:---|:---|
+| \(u = 2X+1\) | \(b + 1\), where \(b\) is Rep D letter 2 | linear band amplified by identity | **stride** (universal visit-completeness driver) |
+| \(B = 2X^2\) | \(b \cdot X\), the b-axis amplification | second-order pure-quadratic axis-product | **phase offset** (origin of the walk in linear-address space) |
+| \(S = 3X^2 - 3X + 1\) | \(\nabla(X^3)\), the discrete-derivative axis | Eisenstein-norm value \(\mathcal{N}_\omega(X - (X-1)\omega)\) | **stride-companion invariant** (multiplicative independence with \(B\), Definition 2.3.3) |
+
+Each quantity is derived from the trinomial foundation through a distinct structural axis. Each plays a distinct, non-redundant role in the walk's operational definition (§4). The walk is now fully specified by \((u, B, S)\), all three derived, none stipulated.
+
+---
+
+## §3 · The Eisenstein Continuation
+
+*The trinomial parts \(\{a, b, c\}\) and their balance \(a + b = c\) are the foundation. The three theorems of this section establish that the Eisenstein structure — norm forms, splitting behavior, cyclotomic factor — is present at every \(X\) as a **continuation** of the trinomial foundation, not as an enclosing substrate from which the trinomial is read. The Eisenstein continuation becomes **inherent** (rather than merely descriptive) through the cyclotomic portal at \(X = 8\) (§6).*
+
+### §3.1 The Stride Splits over \(\mathbb{Z}[\omega]\)
+
+**Theorem 55 (Stride as Eisenstein Norm).** *For every \(X \in \mathbb{N}\),*
+$$S(X) \;=\; \mathcal{N}_\omega\!\bigl(X - (X-1)\omega\bigr).$$
+*Equivalently, \(S\) splits over \(\mathbb{Z}[\omega]\) in the sense of Definition CD.*
+
+*Proof.* Direct expansion using \(\mathcal{N}_\omega(p - q\omega) = p^2 + pq + q^2\) with \(p = X\), \(q = X - 1\):
+$$\mathcal{N}_\omega(X - (X-1)\omega) = X^2 + X(X-1) + (X-1)^2 = X^2 + (X^2 - X) + (X^2 - 2X + 1) = 3X^2 - 3X + 1 = S(X). \quad\blacksquare$$
+
+**Note on strict factorization.** The polynomial \(S = 3X^2 - 3X + 1\) does not factor into linear factors with coefficients in \(\mathbb{Z}[\omega]\); its roots \(X = (2 + \omega)/3\) and \(X = (1 - \omega)/3\) lie in \(\mathbb{Q}(\omega) \setminus \mathbb{Z}[\omega]\). The discriminant \(\operatorname{disc}(S) = -3\) — the field discriminant of \(\mathbb{Q}(\omega)\) — confirms the splitting field is \(\mathbb{Q}(\omega)\). The CD splitting (norm representation) captures the structural content; the strict polynomial factorization fails on a denominator of 3.
+
+### §3.2 The Cube Identity Factor Splits over \(\mathbb{Z}[\omega]\) (Both Senses)
+
+**Theorem 56 (Cube Identity Factorization).** *In \(\mathbb{Z}[X]\),*
+$$a^3 + b^3 + c^3 - 3abc \;=\; 2X^3(X+1)\bigl(X^2 - 4X + 7\bigr).$$
+*The factor \(X^2 - 4X + 7\) splits over \(\mathbb{Z}[\omega]\) in both the standard and the CD senses:*
+- *(Standard)* \(X^2 - 4X + 7 = (X - (3 + 2\omega))(X - (1 - 2\omega))\) *with both roots in* \(\mathbb{Z}[\omega]\).
+- *(CD)* \(X^2 - 4X + 7 = \mathcal{N}_\omega((X - 3) - 2\omega)\).
+
+*Proof.* The polynomial identity \(a^3 + b^3 + c^3 - 3abc = (a+b+c)(a^2+b^2+c^2 - ab - bc - ca)\), evaluated at \((a, b, c) = (X(X-1), 2X, X(X+1))\), gives \(2X(X+1) \cdot X^2(X^2 - 4X + 7) = 2X^3(X+1)(X^2 - 4X + 7)\). For the standard factorization: \((3 + 2\omega) + (1 - 2\omega) = 4\) and \((3 + 2\omega)(1 - 2\omega) = 3 - 4(\omega + \omega^2) = 3 + 4 = 7\). For CD: \(\mathcal{N}_\omega((X-3) - 2\omega) = (X-3)^2 + 2(X-3) + 4 = X^2 - 4X + 7\). \(\blacksquare\)
+
+This theorem reveals the full Eisenstein factorization
+$$a^3 + b^3 + c^3 - 3abc \;=\; (a + b + c)(a + \omega b + \omega^2 c)(a + \omega^2 b + \omega c)$$
+collapsing on substitution to a structure where the symmetric Eisenstein factor is \(X^2 - 4X + 7\), itself split over \(\mathbb{Z}[\omega]\).
+
+### §3.3 The Cyclotomic Singularity Splits over \(\mathbb{Z}[\omega]\) (Both Senses)
+
+**Theorem 57 (Cyclotomic Factor).** *Let \(\Phi_3(k) = k^2 + k + 1\) be the third cyclotomic polynomial. Then:*
+- *(Standard)* \(\Phi_3(k) = (k - \omega)(k - \omega^2)\) *with both roots in* \(\mathbb{Z}[\omega]\).
+- *(CD)* \(\Phi_3(k) = \mathcal{N}_\omega(k - \omega) = k^2 - k(-1) + (-1)^2 = k^2 + k + 1\).
+
+*Proof.* \(\omega + \omega^2 = -1\) and \(\omega \cdot \omega^2 = \omega^3 = 1\), hence \((k - \omega)(k - \omega^2) = k^2 + k + 1\). The CD form follows from \(\mathcal{N}_\omega(p - q\omega) = p^2 + pq + q^2\) with \(p = k\), \(q = 1\). \(\blacksquare\)
+
+---
+
+## §4 · Theorems on the Walk
+
+### §4.1 Multiplicative Independence of Phase Offset and Stride-Companion
+
+**Theorem 58 (Coprimality of B and S).** *For every \(X \in \mathbb{N}\):*
+$$\gcd(B,\, S) \;=\; \gcd(2X^2,\; 3X^2 - 3X + 1) \;=\; 1.$$
+
+*Proof (elementary).* Write \(S = 3X(X-1) + 1\). The product \(X(X-1)\) is even (consecutive integers), so \(3X(X-1)\) is even, hence \(S\) is odd. Any common divisor of \(B = 2X^2\) and \(S\) is therefore odd, so it divides \(X^2\). For any prime \(\pi \mid X\), \(S \equiv 1 \pmod{\pi}\), so \(\pi \nmid S\). Hence \(\gcd(X^2, S) = 1\), and \(\gcd(B, S) = 1\). \(\blacksquare\)
+
+*Proof (Eisenstein-structural).* By Theorem 55, \(S = \mathcal{N}_\omega(\xi_X)\) where \(\xi_X = X - (X-1)\omega \in \mathbb{Z}[\omega]\). Since \(\gcd(X, X-1) = 1\) in \(\mathbb{Z}\), the elements \(X\) and \(X-1\) generate coprime ideals, and \(\xi_X\) is coprime to \(X\) in \(\mathbb{Z}[\omega]\). The norm \(\mathcal{N}_\omega(\xi_X) = S\) is therefore coprime to \(\mathcal{N}_\mathbb{Z}(X) = X^2\) in \(\mathbb{Z}\). Combined with the parity argument that \(S\) is odd, \(\gcd(2X^2, S) = 1\). \(\blacksquare\)
+
+This theorem establishes the **multiplicative independence** of the phase offset \(B\) and the stride-companion invariant \(S\). It is a structural identity about the foundation, not the visit-completeness driver of the walk; the latter is established separately in Theorem 59 below using the universal coprimality of the stride \(u\) with the cube cardinality \(N\) (Corollary 54).
+
+### §4.2 Operational Definition of the Walk
+
+The walk requires three definitional components: the cell-index space, the seed cell, and the step rule.
+
+**Definition 4.2.1 (Cell-Index Space).** *The cell-index space of the recordset is the bijection*
+$$\Lambda \,:\, \{0, 1, \ldots, L-1\}^3 \;\longrightarrow\; \{0, 1, \ldots, N-1\}, \qquad \Lambda(i, j, k) \;:=\; i + j L + k L^2,$$
+*where \((i, j, k)\) are the three orthogonal axis-coordinates of a cell in the cube of side \(L = 2X(X+1)\) and \(N = L^3\). The map \(\Lambda\) is a bijection because every integer \(m \in [0, N)\) has a unique base-\(L\) digit expansion \(m = i + j L + k L^2\) with \(0 \leq i, j, k < L\).*
+
+**Definition 4.2.2 (Walk Seed).** *The walk's seed cell is the linear address*
+$$m_0 \;:=\; B \,\bmod\, N \;=\; 2 X^2 \,\bmod\, N.$$
+
+*The modular reduction is in fact trivial: \(B < N\) for every \(X \geq 1\), so \(m_0 = B\) directly. Explicit proof follows.*
+
+**Lemma 4.2.2 (Strict Inequality \(B < N\) for All \(X \geq 1\)).** *For every \(X \in \mathbb{N}\), \(B(X) < N(X)\); equivalently, \(2 X^2 < 8 X^3 (X+1)^3\).*
+
+*Proof.* The inequality \(2 X^2 < 8 X^3 (X+1)^3\) is equivalent (dividing both sides by \(2 X^2 > 0\)) to*
+$$1 \;<\; 4 X (X+1)^3.$$
+*For \(X \geq 1\): the right-hand side satisfies \(4 X (X+1)^3 \geq 4 \cdot 1 \cdot 2^3 = 32 > 1\), and the function \(f(X) = 4 X (X+1)^3\) is strictly increasing on \(X \geq 1\) (its derivative \(f'(X) = 4(X+1)^2 (4X + 1) > 0\) for \(X \geq 1\)). Therefore \(4 X (X+1)^3 > 1\) for every \(X \geq 1\), so \(2 X^2 < 8 X^3 (X+1)^3 = N\), so \(B < N\), so \(B \bmod N = B\). \(\blacksquare\)*
+
+*The seed cell's three-axis coordinates are \(\Lambda^{-1}(B) = \Lambda^{-1}(2 X^2)\) — the coordinates of the b-axis amplification within the cube. Numerically: at \(X = 1\), \(B = 2\), \(N = 64\); at \(X = 8\), \(B = 128\), \(N = 2{,}985{,}984\); at every \(X \geq 1\), \(B/N = 1/[4 X (X+1)^3]\) is bounded above by \(1/32\) and decreases toward zero as \(X\) grows.*
+
+**Definition 4.2.3 (Step Rule).** *The walk's step rule is the arithmetic progression on the cell-index space modulo \(N\):*
+$$m_{t+1} \;:=\; (m_t + u) \,\bmod\, N \qquad \text{for } t = 0, 1, 2, \ldots,$$
+*where \(u = 2X + 1\) is the stride (Definition §2.3.2). The walk's cell-coordinate sequence is \(\bigl\{\Lambda^{-1}(m_t)\bigr\}_{t \geq 0}\).*
+
+The three components are now operationally specified: a bijection \(\Lambda\) between the 3D cube and the linear-address space \([0, N)\), a seed cell \(m_0 = B\), and an arithmetic-progression step rule with stride \(u\) on \([0, N)\). The walk is therefore a function of \(X\) alone, derived entirely from the trinomial foundation.
+
+### §4.3 Universal Visit-Completeness
+
+**Theorem 59 (Universal Visit-Completeness of the Walk).** *For every \(X \in \mathbb{N}\), the walk \(\{m_t\}_{t = 0}^{N-1}\) defined by Definitions 4.2.1–4.2.3 visits each of the \(N\) cells of the recordset cube exactly once. Equivalently, the cell-coordinate sequence \(\{\Lambda^{-1}(m_t)\}_{t = 0}^{N-1}\) is a permutation of \(\{0, 1, \ldots, L-1\}^3\).*
+
+*Proof.* The walk on \(\mathbb{Z}/N\) is the orbit of \(m_0\) under the additive cyclic action \(t \mapsto m_0 + t u \pmod{N}\). The orbit length is \(N / \gcd(u, N)\). By Corollary 54, \(\gcd(u, N) = \gcd(u, L^3) = 1\) for every \(X \in \mathbb{N}\). Therefore the orbit length equals \(N\), and \(\{m_t\}_{t=0}^{N-1}\) consists of \(N\) distinct elements of \(\mathbb{Z}/N\) — i.e., all of \(\{0, 1, \ldots, N-1\}\). Applying the bijection \(\Lambda^{-1}\) to each \(m_t\) yields each element of \(\{0, 1, \ldots, L-1\}^3\) exactly once. The walk visits every cell exactly once. \(\blacksquare\)
+
+**Corollary 60 (Zero-Collision).** *The walk has no collisions: for every \(0 \leq s < t < N\), \(m_s \neq m_t\), and equivalently \(\Lambda^{-1}(m_s) \neq \Lambda^{-1}(m_t)\). The recordset is therefore traversed by a single closed orbit of length \(N\) under the step rule, with the orbit returning to \(m_0\) at step \(N\) (\(m_N = m_0\)).*
+
+*Proof.* Direct consequence of Theorem 59: \(N\) distinct elements in \(\{0, 1, \ldots, N-1\}\) under \(N\) steps means no repetition before step \(N\); at step \(N\), \(m_N = m_0 + N u \equiv m_0 \pmod{N}\), closing the orbit. \(\blacksquare\)
+
+The walk is now fully specified, the visit-completeness is universally proven via the correct coprimality \(\gcd(u, N) = 1\) (not the operationally-irrelevant \(\gcd(B, S) = 1\)), and the role of Theorem 58 (\(\gcd(B, S) = 1\)) as multiplicative independence of phase offset and stride-companion is preserved as a separate structural identity. At the canonical operating point \(X = 8\): \(L = 144\), \(N = 2{,}985{,}984\), \(u = 17\), \(B = 128\), \(S = 169\); \(\gcd(17, 144) = 1\), so the walk visits all 2,985,984 cells exactly once, starting from cell \(m_0 = 128\) and stepping by 17 each time, returning to cell 128 after exactly \(2{,}985{,}984\) steps. Direct simulation confirms.
+
+---
+
+## §5 · The Diophantine Theorem
+
+### §5.1 Repunit Definition
+
+The **base-3 repunit** of length \(n\) is:
+$$R_n \;:=\; \frac{3^n - 1}{2} \;=\; \sum_{d=0}^{n-1} 3^d \quad [\mathrm{address}].$$
+
+By the geometric series, \(R_n\) counts length-\(d\) Rep D tritstrings for \(d < n\) — i.e., the depth-recursion address count of \((a+b+c)^d\) summed over \(d < n\).
+
+The framework's **radian** is \(R_3 = (3^3 - 1)/2 = 13\).
+
+### §5.2 The Impossibility Theorem
+
+**Theorem 61 (Diophantine Impossibility).** *The equation \(2X^3 + 1 = 3^n\) has only the solution \((X, n) = (1, 1)\) in positive integers.*
+
+*Proof.* Reduce mod 9. The cubes mod 9 take only the values \(\{0, 1, 8\}\), so \(2X^3 \pmod 9 \in \{0, 2, 7\}\) and \(2X^3 + 1 \pmod 9 \in \{1, 3, 8\}\). For \(n \geq 2\), \(3^n \equiv 0 \pmod 9\), but \(0 \notin \{1, 3, 8\}\). Contradiction. The only remaining case is \(n = 1\), giving \(3 = 2X^3 + 1\), hence \(X = 1\). \(\blacksquare\)
+
+**Corollary 62 (Volume vs. Repunit).** *For \(X \geq 2\), the recordset cube volume \(N = L^3\) and the depth-recursion repunit \(R_X\) are never equal as integers. They are co-generated by the same parameter \(X\) but live in different dimensions: \(N\) in \([\mathrm{cell}]\) along the spatial axes, \(R_X\) in \([\mathrm{address}]\) along the orthogonal recursion-depth axis.*
+
+### §5.3 The Eisenstein Norm Form of \(R_3\)
+
+**Theorem 63 (Radian as Eisenstein Norm).** *\(R_3 = 13 = \mathcal{N}_\omega(4 + \omega) = 16 - 4 + 1\).*
+
+The framework radian is itself an Eisenstein norm value, by direct expansion of \(\mathcal{N}_\omega(p + q\omega) = p^2 - pq + q^2\) at \((p, q) = (4, 1)\).
+
+---
+
+## §6 · The Portal at X = 8 — Cyclotomic Opening and the Framework Footprint
+
+### §6.1 The Singularity Quartic
+
+The condition that the X-level recordset side is the square of an inner-tier side, \(L_\text{outer} = L_\text{inner}^2\), translates to:
+$$2 k^3 (k^3 + 1) \;=\; \bigl[2 k (k+1)\bigr]^2 \quad\text{where } X = k^3.$$
+
+Rearranging:
+$$2 k^6 - 4 k^4 - 6 k^3 - 4 k^2 = 0 \;\;\Longleftrightarrow\;\; k^4 - 2 k^2 - 3 k - 2 = 0.$$
+
+**Theorem 64 (Singularity Quartic Factorization).**
+$$\boxed{\;k^4 - 2 k^2 - 3 k - 2 \;=\; (k - 2)(k + 1)\bigl(k^2 + k + 1\bigr) \;=\; (k - 2)(k + 1)\,\Phi_3(k).\;}$$
+
+*Proof.* Direct expansion:
+$$(k - 2)(k + 1) = k^2 - k - 2; \qquad (k^2 - k - 2)(k^2 + k + 1) = k^4 - 2 k^2 - 3 k - 2. \quad\blacksquare$$
+
+### §6.2 The Unique Positive Integer Root
+
+**Theorem 65 (Cyclotomic Singularity at k = 2).** *The unique positive integer root of the singularity quartic is \(k = 2\) (giving \(X = 8\)). At \(k = 2\), \(\Phi_3(2) = 7\), and the rational factor \((k - 2)\) and the cyclotomic factor \(\Phi_3(k)\) intersect. **This root is the portal: the point at which the Eisenstein continuation, present at every \(X\) by Theorems 55–57, becomes inherently available to the framework rather than externally applied.***
+
+*Proof.* Roots of the quartic are: \(k = 2\), \(k = -1\), and the complex pair \(\omega, \omega^2\) (roots of \(\Phi_3\)). Among these, the only positive integer is \(k = 2\). Evaluation: \(\Phi_3(2) = 4 + 2 + 1 = 7\). \(\blacksquare\)
+
+### §6.3 The Triple Resonance
+
+At \(X = 8\), three independent algebraic conditions activate simultaneously:
+
+**Condition (Pell):** \(S = 169 = 13^2\) is a perfect square. The Pell-X solutions for \(S = C^2\), governed by the fundamental unit \(2 + \sqrt{3}\) in \(\mathbb{Z}[\sqrt{3}]\), are \(X \in \{1, 8, 105, 1456, 20{,}273, \ldots\}\). The recurrence structure is established in Theorem 66 below.
+
+**Theorem 66 (Pell Recurrence Structure).** *Let \((A_n, B_n)\) be the solutions of \(A^2 - 3B^2 = 1\) generated by \((A_n + B_n \sqrt{3}) = (2 + \sqrt{3})^n\), satisfying the matrix recurrence*
+$$\begin{pmatrix} A_{n+1} \\ B_{n+1} \end{pmatrix} = \begin{pmatrix} 2 & 3 \\ 1 & 2 \end{pmatrix} \begin{pmatrix} A_n \\ B_n \end{pmatrix}, \qquad (A_1, B_1) = (2, 1).$$
+*Equivalently, scalar recurrences hold: \(A_{n+1} = 4 A_n - A_{n-1}\) and \(B_{n+1} = 4 B_n - B_{n-1}\). The first seven Pell pairs are \((2,1), (7,4), (26,15), (97,56), (362,209), (1351,780), (5042,2911)\).*
+
+*Under the substitution \(B_P = 2X - 1\) (the Pell-linearizing substitution of Realization 5), recovery of \(X\) from \(B_n\) requires \(X = (B_n + 1)/2 \in \mathbb{Z}\), which holds **iff \(B_n\) is odd**. Direct inspection of the parity of \(B_n\) under the recurrence \(B_{n+1} = 4 B_n - B_{n-1}\) starting from \((B_1, B_2) = (1, 4)\) shows \(B_n\) is odd iff \(n\) is odd. Hence the integer-X Pell sequence is generated by the **odd-indexed Pell solutions only**:*
+$$X_m = \frac{B_{2m-1} + 1}{2}, \qquad C_m = \frac{A_{2m-1}}{2}, \qquad m = 1, 2, 3, \ldots$$
+*yielding \(X \in \{1, 8, 105, 1456, 20{,}273, \ldots\}\) and \(C \in \{1, 13, 181, 2521, \ldots\}\).*
+
+*The integer-X subsequence \(\{X_m\}\) satisfies the second-order recurrence governed by the squared unit \((2 + \sqrt{3})^2 = 7 + 4\sqrt{3}\):*
+$$\boxed{\;X_{m+1} \;=\; 14\, X_m - X_{m-1} - 6, \qquad X_1 = 1,\; X_2 = 8.\;}$$
+
+*Verification: \(X_3 = 14 \cdot 8 - 1 - 6 = 112 - 7 = 105\); \(X_4 = 14 \cdot 105 - 8 - 6 = 1456\); \(X_5 = 14 \cdot 1456 - 105 - 6 = 20{,}273\). \(\blacksquare\)*
+
+**Corollary 67 (Stride at Pell-X).** *At each \(X = X_m\) in the integer-X Pell sequence, the stride \(S = 3 X_m^2 - 3 X_m + 1\) is a perfect square \(C_m^2\), with \(C_m\) given by the recurrence \(C_{m+1} = 14 C_m - C_{m-1}\) and \(C_1 = 1, C_2 = 13\). At \(X_2 = 8\), \(C_2 = 13 = R_3\), the framework radian.*
+
+The Pell ladder is therefore not merely a discrete enumeration but a **second-order linear recurrence** in \(\mathbb{Z}\), governed by the characteristic polynomial \(t^2 - 14 t + 1 = 0\) with roots \(7 \pm 4\sqrt{3}\) (the squared fundamental unit and its conjugate). The framework's canonical operating point \(X_2 = 8\) is the second iterate of this recurrence — the smallest non-trivial Pell-X.
+
+**Condition (Squared Side):** \(L = 144 = 12^2\) is a perfect square. The silver-ratio Pell solutions for \(2X(X+1) = m^2\), governed by \(3 + 2\sqrt{2}\) in \(\mathbb{Z}[\sqrt{2}]\), are \(X \in \{1, 8, 49, 288, 1681, 9800, \ldots\}\).
+
+**Condition (Framework Alignment):** \(\sqrt{S} = 13 = R_3\) (the framework radian), and \(\sqrt{L} = 12 = R_3 - 1\).
+
+**Theorem 68 (Triple Resonance Uniqueness).** *Among positive integers \(X \leq 200{,}000\), the simultaneous intersection of (Pell) and (Squared Side) occurs only at \(X = 1\) (trivially) and \(X = 8\). At \(X = 8\) the framework-alignment condition additionally fires, making \(X = 8\) the unique non-trivial canonical operating point.*
+
+*Proof.* Direct enumeration of the two Pell sequences shows the intersection \(\{1, 8, 105, 1456, \ldots\} \cap \{1, 8, 49, 288, 1681, \ldots\}\) in \([1, 200{,}000]\) is exactly \(\{1, 8\}\). At \(X = 8\), \(\sqrt{S} = 13 = R_3\), the framework radian, by direct evaluation. \(\blacksquare\)
+
+### §6.4 The Radian Bracketing and Cube Identity Extraction
+
+At \(X = 8\), the recordset side and stride are consecutive squares bracketing the radian:
+$$L = (R_3 - 1)^2 = 12^2 = 144, \qquad S = R_3^2 = 13^2 = 169.$$
+
+The walk's coprimality reduces to \(\gcd(R_3 - 1, R_3) = \gcd(12, 13) = 1\) — the most elementary coprime pair.
+
+**Theorem 69 (Radian as Prime Residue).** *At \(X = 8\), the cube identity \(a^3 + b^3 + c^3 - 3abc = 2X^3(X+1)(X^2 - 4X + 7)\) evaluates to \(2^{10} \cdot 3^3 \cdot 13\), with the radian \(R_3 = 13\) extracted as the prime residue.*
+
+*Proof.* At \(X = 8\): \(2 \cdot 512 \cdot 9 \cdot (64 - 32 + 7) = 2 \cdot 512 \cdot 9 \cdot 39 = 359{,}424\). Prime factorization: \(2^{10} \cdot 3^3 \cdot 13\). The factor 39 = \(3 \cdot 13\) is the Eisenstein-symmetric form \(X^2 - 4X + 7\) evaluated at \(X = 8\); the cyclotomic factor \(\Phi_3(2) = 7\) of the singularity quartic forces \(R_3 = 13\) to appear as the residual prime. \(\blacksquare\)
+
+### §6.5 Triple Algebraic Alignment
+
+The framework footprint at \(X = 8\) is the simultaneous resonance of three independent quadratic structures:
+
+| Field | Type | Role at \(X = 8\) |
+|:---|:---|:---|
+| \(\mathbb{Q}(\omega) = \mathbb{Q}(\sqrt{-3})\) | imaginary quadratic | Eisenstein continuation through the trinomial; \(S\) and cyclotomic factor split |
+| \(\mathbb{Q}(\sqrt{3})\) | real quadratic | Pell unit ladder \(2 + \sqrt{3}\); generates the Pell \(X\)-sequence |
+| \(\mathbb{Q}\) | rational | factor \((k - 2)\) of singularity quartic |
+
+The three fields intersect at \(X = 8\). No other positive integer carries this triple alignment.
+
+### §6.6 The X = 8 Footprint Eisenstein Reading (Three Behaviors Realized Simultaneously)
+
+**At the portal \(X = 8\)**, the cube-identity prime factorization \(2^{10} \cdot 3^3 \cdot 13\) realizes the complete inert/ramified/split trichotomy of the Eisenstein continuation in a single product. This is the structural meaning of the portal: not that Eisenstein behavior begins at \(X = 8\), but that all three Eisenstein behaviors become simultaneously visible in the prime support at \(X = 8\), and from that opening the Eisenstein continuation is inherent throughout the framework. The standard splitting criterion for rational primes in \(\mathbb{Z}[\omega]\) (equivalently, in \(\mathbb{Q}(\sqrt{-3})\), the cyclotomic field of cube roots of unity) is determined by the residue mod 3:
+
+| \(p\) | \(p \bmod 3\) | Behavior in \(\mathbb{Z}[\omega]\) | Multiplicity at \(X = 8\) | Norm representation |
+|:---:|:---:|:---|:---:|:---|
+| 2 | 2 | inert; \((2)\) prime, residue field \(\mathbb{F}_4\) | \(10\) | — (none; \(p \not\equiv 1 \pmod 3\)) |
+| 3 | 0 | ramified; \((3) = (1 - \omega)^2\) up to units | \(3\) | — (the unique ramified prime) |
+| 13 | 1 | split; \((13) = \pi \bar\pi\) | \(1\) | \(13 = \mathcal{N}_\omega(4 + \omega)\) |
+
+**Theorem 70 (Three-Behavior Realization).** *The prime content of the X = 8 cube identity \(2^{10} \cdot 3^3 \cdot 13\) realizes all three Eisenstein behaviors — inert, ramified, split — simultaneously. The footprint is therefore a complete sample of the \(\mathbb{Z}[\omega]\) prime decomposition spectrum.*
+
+*Proof.* The classification is by direct application of the standard criterion (Marcus, *Number Fields*, §III): for any rational prime \(p\),
+- \(p = 3 \Rightarrow\) ramified, with \((3) = (1 - \omega)^2 \cdot u\) for unit \(u\);
+- \(p \equiv 1 \pmod 3 \Rightarrow\) split, with \((p) = \pi \bar\pi\), \(\mathcal{N}_\omega(\pi) = p\);
+- \(p \equiv 2 \pmod 3 \Rightarrow\) inert, \((p)\) prime, \(\mathbb{Z}[\omega]/(p) \cong \mathbb{F}_{p^2}\).
+
+Direct evaluation: \(2 \bmod 3 = 2\) (inert), \(3 \bmod 3 = 0\) (ramified), \(13 \bmod 3 = 1\) (split). All three cases occur. The split case is witnessed by \(13 = \mathcal{N}_\omega(4 + \omega) = 4^2 - 4 \cdot 1 + 1^2 = 13\), as established in Theorem 63. \(\blacksquare\)
+
+The X = 8 footprint is, in this sense, a **complete trichotomy realization** — the smallest positive integer \(X\) at which the Eisenstein lattice's full prime-decomposition spectrum (inert · ramified · split) is exhibited as a single product of integer powers, with the split prime being the framework radian itself.
+
+### §6.7 Structural Absence of 5 from the Footprint
+
+The prime 5 satisfies \(5 \equiv 2 \pmod 3\), hence is inert in \(\mathbb{Z}[\omega]\). One might therefore expect 5 to appear among the inert primes of the X = 8 footprint alongside 2. It does not.
+
+**Theorem 71 (Structural Absence of 5).** *The prime 5 does not appear in the cube identity prime content at \(X = 8\). Specifically, the prime support of \(\{a, b, c\} = \{56, 16, 72\}\) at \(X = 8\) is \(\{2, 3, 7\}\); since the cube identity \(a^3 + b^3 + c^3 - 3abc\) is a symmetric polynomial in \(a, b, c\), no prime outside the prime support of \(\{a, b, c\}\) can enter the result. The factor 7 enters \(a = 56 = 2^3 \cdot 7\) but cancels under the symmetric simplification, since \(X^2 - 4X + 7 = 39 = 3 \cdot 13\) at \(X = 8\). The residual prime content is \(\{2, 3, 13\}\), and 5 is structurally excluded.*
+
+*Proof.* Trinomial parts at \(X = 8\): \(a = 56 = 2^3 \cdot 7\), \(b = 16 = 2^4\), \(c = 72 = 2^3 \cdot 3^2\). The cube identity \(a^3 + b^3 + c^3 - 3abc\) is a polynomial in \(\{a, b, c\}\) with integer coefficients; by the Fundamental Theorem of Arithmetic applied to integer polynomials, its prime support is contained in the prime support of \(\{a, b, c\}\), here \(\{2, 3, 7\}\). The prime 5 is not in this set, so 5 cannot divide the cube identity at \(X = 8\). Direct factorization confirms: \(2^{10} \cdot 3^3 \cdot 13 = 359{,}424\), with \(5 \nmid 359{,}424\). \(\blacksquare\)
+
+**Observation 6.7 (5 as Eisenstein-Inert Sextuple Element).** *Within the framework sextuple \(\{5, 7, 8, 9, 11, 13\}\) of TM-2026-025, the prime 5 is uniquely characterized by the conjunction of two properties: (i) inert in \(\mathbb{Z}[\omega]\) (since \(5 \equiv 2 \pmod 3\), Theorem 5 of TM-2026-NOTE-5DYN), and (ii) absent from the cube identity prime content at \(X = 8\). The other inert sextuple primes — 2 (via 8 = \(2^3\)) and 11 — share property (i); 2 violates (ii) by appearing as \(2^{10}\), and 11 is absent from this particular footprint by independent trinomial structure rather than by exclusion. The combination (i) + (ii) singles out 5.*
+
+The structural absence of 5 from the canonical X = 8 operating point is therefore **not a deficiency** of the framework footprint but a precise classification fact: 5 is the inert prime that never enters the trinomial cube identity at the canonical Pell-cube intersection, and its lattice role lies elsewhere — specifically, in the multiplicative dynamics of the dual-circle structure \((\mathbb{Z}/27)^\times \times (\mathbb{Z}/28)^\times\), as established in TM-2026-NOTE-5DYN where 5 is the smallest primitive root modulo 27.
+
+This dovetails the present monograph with TM-2026-NOTE-5DYN: the cube identity at \(X = 8\) is the additive/multiplicative-of-trinomial-parts realization of the framework, with prime support \(\{2, 3, 13\}\); the dual-circle multiplicative dynamics is the unit-group realization, with 5 generating \((\mathbb{Z}/27)^\times\). The two are complementary axes of the same **trinomial-foundation continuation**, and 5 is the prime whose role lies on the second axis rather than the first.
+
+---
+
+## §7 · The Five Inherent Realizations
+
+The five realizations are not selectable modules; they are **simultaneous structural projections** of the foundational polynomial onto five operator axes. A user query for a subset is a report filter, never an architectural switch.
+
+### §7.1 Realization 1 — Rep D Bijection (Alphabetic Axis)
+
+The bijection \(1 \leftrightarrow a\), \(2 \leftrightarrow b\), \(3 \leftrightarrow c\) makes the integer balance \(a + b = c\) the alphabetic identity \(1 + 2 = 3\). The depth-nest count:
+$$\sum_{d=0}^{X-1} 3^d \;=\; R_X \;=\; \#\{\text{Rep D strings of length } < X\}.$$
+
+### §7.2 Realization 2 — Backward Finite Difference (Discrete Derivative Axis)
+
+$$S \;=\; X^3 - (X-1)^3 \;=\; \nabla(X^3) \;=\; X^2 + a + (X-1)^2.$$
+
+Continuous analog: \(\dfrac{d}{dX}(X^3) = 3X^2\). The mean value theorem gives \(\xi^2 = (X^2 + a + (X-1)^2)/3\) for some \(\xi \in [X-1, X]\).
+
+### §7.3 Realization 3 — Geometric Sum (Discrete Integral Axis)
+
+$$R_X \;=\; \sum_{d=0}^{X-1} 3^d \;=\; \frac{3^X - 1}{2}, \qquad \int_0^X 3^t\, dt \;=\; \frac{3^X - 1}{\ln 3}.$$
+
+The repunit is a rational discretization of a logarithmic integral; the constant ratio is \(R_X / \int = (\ln 3)/2 \approx 0.5493\).
+
+### §7.4 Realization 4 — Monomializing Substitution (Boundary Axis)
+
+Let \(u = 2X + 1\). Then:
+$$L = \frac{u^2 - 1}{2}, \qquad 2L + 1 = u^2, \qquad T = u^6, \qquad N = \frac{(u^2 - 1)^3}{8}.$$
+
+The exponent \(6 = |\mathbb{Z}[\omega]^\times|\) makes \(T\) a sixth-power monomial, the cyclotomic-unit-order completion of the cube. Calculus: \(dL/du = u\), \(\int T\, du = u^7/7 + \mathrm{const}\).
+
+### §7.5 Realization 5 — Pell Linearizing Substitution (Discriminant Axis)
+
+Let \(B_P = 2X - 1\). Then:
+$$4S \;=\; 3 B_P^2 + 1.$$
+
+The Pell condition \(S = C^2\) becomes \(A^2 - 3 B_P^2 = 1\) with \(A = 2C\) — the unit-norm equation for \(\mathbb{Z}[\sqrt{3}]\). Chain rule: \(dS/dX = 6X - 3 = 3 B_P\); \(dS/dB_P = 3 B_P / 2\); composition consistent.
+
+---
+
+## §8 · The Closed-Form General Expression
+
+For every integer \(X \geq 1\), all of the following hold simultaneously, statelessly, in closed form:
+
+$$
+\boxed{\;
+\begin{aligned}
+\textbf{Trinomial parts:}\quad &
+a = X(X-1),\;\; b = 2X,\;\; c = X(X+1),\;\; a + b = c. \\[3pt]
+\textbf{Recordset side:}\quad &
+L = 2 X (X + 1) \quad [\mathrm{cell/axis}]. \\[3pt]
+\textbf{Recordset volume:}\quad &
+N = L^3 = 8 X^3 (X+1)^3 \quad [\mathrm{cell}]. \\[3pt]
+\textbf{Cellular complex:}\quad &
+F = 3 L^2 (L+1),\;\; E = 3 L (L+1)^2,\;\; C = (L+1)^3, \\
+& T = N + F + E + C = (2L+1)^3 = (2X+1)^6 \quad [\mathrm{topo\text{-}cell}]. \\[3pt]
+\textbf{Walk:}\quad &
+B = 2 X^2,\;\; S = 3 X^2 - 3 X + 1 = X^3 - (X-1)^3 \quad [\mathrm{cell/axis}],\\
+& \gcd(B, S) = 1. \\[3pt]
+\textbf{Stride splits over } \mathbb{Z}[\omega]\text{ (CD):}\quad &
+S = \mathcal{N}_\omega(X - (X-1)\omega) = X^2 + X(X-1) + (X-1)^2. \\[3pt]
+\textbf{Cube identity factor splits over } \mathbb{Z}[\omega]:\quad &
+a^3 + b^3 + c^3 - 3abc = 2 X^3 (X+1)(X^2 - 4X + 7), \\
+& X^2 - 4X + 7 = (X - (3+2\omega))(X - (1-2\omega)) \\
+& = \mathcal{N}_\omega((X-3) - 2\omega). \\[3pt]
+\textbf{Repunit (depth-recursion):}\quad &
+R_X = \sum_{d=0}^{X-1} 3^d = \frac{3^X - 1}{2} \quad [\mathrm{address}]. \\[3pt]
+\textbf{Monomialization:}\quad &
+u = 2X + 1,\;\; T = u^6,\;\; 6 = |\mathbb{Z}[\omega]^\times|. \\[3pt]
+\textbf{Pell linearization:}\quad &
+B_P = 2X - 1,\;\; 4S = 3 B_P^2 + 1, \\
+& S = C^2 \;\Longleftrightarrow\; A^2 - 3 B_P^2 = 1\;\;\text{in } \mathbb{Z}[\sqrt{3}]. \\[3pt]
+\textbf{Cyclotomic singularity splits over } \mathbb{Z}[\omega]:\quad &
+\Phi_3(k) = (k - \omega)(k - \omega^2) = \mathcal{N}_\omega(k - \omega), \\
+& \text{singularity } (k-2)(k+1)\Phi_3(k) = 0, \\
+& \text{unique positive integer root } k = 2. \\[3pt]
+\textbf{Diophantine constraint:}\quad &
+2 X^3 + 1 = 3^n \;\Longleftrightarrow\; (X, n) = (1, 1) \\
+& \text{(separates volume } N \text{ from depth-recursion } R_X). \\[3pt]
+\textbf{Radian as Eisenstein norm:}\quad &
+R_3 = 13 = \mathcal{N}_\omega(4 + \omega) = 16 - 4 + 1.
+\end{aligned}\;}
+$$
+
+Every quantity carries its unit. Every claim is rigorous within the Compendial Definition and consistent with standard algebra. Every realization is inherent. The closed-form theorem is one polynomial object in \(\mathbb{Z}[\omega][X]\), projected onto five operator axes simultaneously, and parametrized by a single integer \(X\).
+
+---
+
+## §9 · Worked Realization at \(X = 8\)
+
+### §9.1 Synthesis
+
+**Definitional preface.** The foundational polynomial of the framework lives in \(\mathbb{Z}[X]\); it lifts to \(\mathbb{Z}[\omega][X]\) under the Eisenstein continuation (§3, §0.4). At the portal \(X = 8\), the continuation becomes inherent and every framework quantity is a simultaneous realization of the lifted polynomial. The six paragraphs that follow trace the foundation → walk → completion → continuation → portal beats of the closed-form theorem at this canonical \(X\). Every formula is given in parametric closed form, with the numerical evaluation at \(X = 8\) shown alongside.
+
+**¶1 — Foundation: parametric driver and polynomial home.** A single parametric integer \(X \in \mathbb{N}\) drives a closed-form trinomial-foundation object in \(\mathbb{Z}[X]\), lifted to \(\mathbb{Z}[\omega][X]\) under the Eisenstein continuation. At the canonical operating point \(X = 8\), every framework quantity is a simultaneous realization of this lifted polynomial; none is selected, none is computed by separate algorithm.
+
+**¶2 — Trinomial parts → side → volume.** The trinomial parts
+$$a = X(X-1), \quad b = 2X, \quad c = X(X+1) \quad [\mathrm{cell/axis}]$$
+satisfy the inherent Rep D balance \(a + b = c\) (Theorem 51) and sum to the recordset side
+$$L \;=\; a + b + c \;=\; 2X(X+1) \quad [\mathrm{cell/axis}],$$
+which evaluates at \(X = 8\) to \((a, b, c) = (56,\, 16,\, 72)\) and \(L = 2 \cdot 8 \cdot 9 = 144 = 12^2 \,[\mathrm{cell/axis}]\). The side is a perfect square at \(X = 8\) because \(X = 8\) is the second non-trivial solution of the silver-ratio Pell equation \(2X(X+1) = m^2\) (with \(m = 12\) here). Cubing the side yields the recordset volume
+$$N \;=\; L^3 \;=\; \bigl[2X(X+1)\bigr]^3 \;=\; 8 X^3 (X+1)^3 \quad [\mathrm{cell}],$$
+evaluating to \(N = 12^6 = 2{,}985{,}984\,[\mathrm{cell}]\) — the count of stateless cells the walk addresses. The cube exponent is forced by the three orthogonal spatial axes of the trinomial geometry (Theorem 52, §2.3.0).
+
+**¶3 — Walk: stride, buffer, and coprimality.** The walk's stride is the linearizing-axis quantity
+$$u \;=\; b + 1 \;=\; 2X + 1 \quad [\mathrm{cell/axis}],$$
+which evaluates to \(u = 17\,[\mathrm{cell/axis}]\) at \(X = 8\) and satisfies the universal coprimality \(\gcd(u, L) = 1\) for every \(X \in \mathbb{N}\) (Lemma 53), so the walk visits all \(N\) cells exactly once (Theorem 59, Corollary 60). The walk's buffer-core (phase offset) is the b-axis amplification
+$$B \;=\; b \cdot X \;=\; 2 X^2 \quad [\mathrm{cell/axis}],$$
+evaluating to \(B = 128 = 2^7\,[\mathrm{cell/axis}]\) at \(X = 8\); it is twice the trivial \(\mathbb{Z}\)-norm \(X^2\) and is the seed cell \(m_0 = B\) of the walk's orbit (Definition 4.2.2). The stride-companion invariant is the discrete-derivative axis
+$$S \;=\; \nabla(X^3) \;=\; X^3 - (X-1)^3 \;=\; 3 X^2 - 3 X + 1 \quad [\mathrm{cell/axis}],$$
+evaluating to \(S = 169 = 13^2\,[\mathrm{cell/axis}]\) at \(X = 8\). \(S\) **is** the Eisenstein norm \(\mathcal{N}_\omega(X - (X-1)\omega)\) (Theorem 55), and squares to a perfect-square value only because \(X = 8\) is also the second solution of the Pell equation
+$$A^2 - 3 B_P^2 = 1 \quad \text{with} \quad B_P = 2X - 1, \quad A = 2C, \quad C = \sqrt{S},$$
+giving \(B_P = 15\), \(A = 26\), \(C = 13\) at this \(X\) (Theorem 66). The coprimality \(\gcd(B, S) = 1\) (Theorem 58) — i.e., \(\gcd(128, 169) = 1\) — is forced not by parity argument alone but by the lifting of the elementary coprimality \(\gcd(X, X-1) = 1\) to the coprimality of ideals in \(\mathbb{Z}[\omega]\), which makes the Eisenstein norm of \(X - (X-1)\omega\) automatically coprime to twice the trivial \(\mathbb{Z}\)-norm of \(X\).
+
+**¶4 — Cellular completion and orthogonal address axis.** Wrapping the volume tier, the full cellular complex
+$$T \;=\; u^6 \;=\; (2X+1)^6 \quad [\mathrm{topo\text{-}cell}]$$
+is the cyclotomic-unit-order completion of the cube under the linearizing substitution \(u = 2X+1\); the sixth-power exponent equals \(|\mathbb{Z}[\omega]^\times|\), the order of the Eisenstein unit group. At \(X = 8\), \(T = 17^6 = 24{,}137{,}569\,[\mathrm{topo\text{-}cell}]\). Orthogonal to all of this, measured along the depth axis of the trinomial recursion rather than the spatial axes of the cube, the parameter space contains
+$$R_X \;=\; \sum_{d=0}^{X-1} 3^d \;=\; \frac{3^X - 1}{2} \quad [\mathrm{address}],$$
+the cumulative geometric-series count of length-\(d\) Rep D tritstrings for \(d < X\). At \(X = 8\), \(R_8 = (3^8 - 1)/2 = 3{,}280\,[\mathrm{address}]\).
+
+**¶5 — Eisenstein continuation: radian as norm and prime-residue extraction.** The framework radian
+$$R_3 \;=\; \frac{3^3 - 1}{2} \;=\; 13 \quad [\mathrm{radian_F}]$$
+is itself an Eisenstein norm, \(\mathcal{N}_\omega(4 + \omega) = 4^2 - 4 \cdot 1 + 1^2 = 13\) by direct expansion (Theorem 63). It appears as the prime residue extracted from the cube identity
+$$a^3 + b^3 + c^3 - 3abc \;=\; 2 X^3 (X+1) \bigl(X^2 - 4X + 7\bigr) \quad [\mathrm{cell}],$$
+which at \(X = 8\) evaluates to \(2 \cdot 8^3 \cdot 9 \cdot (8^2 - 32 + 7) = 2^{10} \cdot 3^3 \cdot 13\) (Theorem 69). The radian \(R_3 = 13\) is extracted by the cyclotomic factor \(\Phi_3(k) = k^2 + k + 1\) of the singularity quartic acting at \(k = X^{1/3} = 2\) on the symmetric trinomial form \(X^2 - 4X + 7\), with \(\Phi_3(2) = 7\) and \((X^2 - 4X + 7)\big|_{X=8} = 39 = 3 \cdot 13 = 3 R_3\).
+
+**¶6 — Portal closure: forced resonance and triple algebraic alignment.** All seven realizations \(L,\; N,\; S,\; B,\; T,\; R_X,\; R_3\) are simultaneously inherent in the input \(X = 8\); none is selected, all are projections of the foundational polynomial under the Eisenstein continuation. The resonance at this value is **forced**: \(X = 8\) (with \(k = X^{1/3} = 2\)) is the unique positive integer root of the cyclotomic singularity quartic
+$$(k - 2)(k + 1)\,\Phi_3(k) \;=\; 0 \quad \Longleftrightarrow \quad k^4 - 2 k^2 - 3 k - 2 \;=\; 0,$$
+where the rational ladder \((k - 2)\) and the Eisenstein ladder \(\Phi_3(k)\) intersect (Theorem 65). This makes \(X = 8\) the only positive integer where the Pell, cube, and squared-side resonances simultaneously fire and the radian \(R_3 = 13\) is extracted as the prime residue. The triple algebraic alignment of \(\mathbb{Q}(\omega)\) (imaginary quadratic, Eisenstein continuation), \(\mathbb{Q}(\sqrt{3})\) (real quadratic, Pell), and \(\mathbb{Z}\) (rational, the factor \(k - 2\)) at this single integer is what makes the framework footprint at \(X = 8\) the canonical operating point of the entire compendium.
+
+### §9.2 Complete Listing
+
+| Quantity | Value at \(X = 8\) | Unit | Algebraic role |
+|:---|---:|:---|:---|
+| Input \(X\) | \(8\) | dimensionless | parametric driver; \(X = k^3,\; k = 2\) |
+| Cube root \(k\) | \(2\) | dimensionless | unique positive root of singularity quartic |
+| Trinomial part \(a\) | \(56\) | \([\mathrm{cell/axis}]\) | Rep D letter "1"; \(X(X-1)\) |
+| Trinomial part \(b\) | \(16\) | \([\mathrm{cell/axis}]\) | Rep D letter "2"; linear band \(2X\) |
+| Trinomial part \(c\) | \(72\) | \([\mathrm{cell/axis}]\) | Rep D letter "3"; \(X(X+1)\) |
+| Side \(L\) | \(144 = 12^2\) | \([\mathrm{cell/axis}]\) | \(2X(X+1)\); Pell-square at this \(X\) |
+| Volume \(N = L^3\) | \(2{,}985{,}984 = 12^6\) | \([\mathrm{cell}]\) | walked cells |
+| Face cells \(F\) | \(9{,}020{,}160\) | tier of complex | \(3L^2(L+1)\) |
+| Edge cells \(E\) | \(9{,}082{,}800\) | tier of complex | \(3L(L+1)^2\) |
+| Corner cells \(C\) | \(3{,}048{,}625\) | tier of complex | \((L+1)^3\) |
+| Total complex \(T\) | \(24{,}137{,}569 = 17^6\) | \([\mathrm{topo\text{-}cell}]\) | \((2X+1)^6\) |
+| Buffer-core \(B\) | \(128 = 2^7\) | \([\mathrm{cell/axis}]\) | \(2X^2\) |
+| Stride \(S\) | \(169 = 13^2\) | \([\mathrm{cell/axis}]\) | Eisenstein norm \(\mathcal{N}_\omega(8 - 7\omega)\) |
+| \(\gcd(B, S)\) | \(1\) | dimensionless | Eisenstein ideal coprimality |
+| Repunit \(R_X = R_8\) | \(3{,}280\) | \([\mathrm{address}]\) | \(\sum_{d=0}^{7} 3^d\) |
+| Framework radian \(R_3\) | \(13\) | \([\mathrm{radian_F}]\) | \(\mathcal{N}_\omega(4 + \omega) = 16 - 4 + 1\) |
+| Monomial index \(u\) | \(17\) | dimensionless | \(2X + 1\) |
+| Pell \(B_P\) | \(15\) | dimensionless | \(2X - 1\) |
+| Pell \(A = 2C\) | \(26\) | dimensionless | \(2\sqrt{S} = 2 \cdot 13\) |
+| Pell identity | \(26^2 - 3 \cdot 15^2 = 1\) | dimensionless | unit norm in \(\mathbb{Z}[\sqrt{3}]\) |
+| Cube factor \(X^2 - 4X + 7\) | \(39 = 3 \cdot R_3\) | \([\mathrm{cell/axis}]^2\) | symmetric Eisenstein form |
+| Cyclotomic \(\Phi_3(2)\) | \(7\) | dimensionless | minimal polynomial of \(\omega\) at \(k = 2\) |
+| Full cube identity | \(2^{10} \cdot 3^3 \cdot 13\) | \([\mathrm{cell}]\) | \(R_3\) extracted as prime residue |
+
+### §9.3 Reference Table — Selected X
+
+All values are exact base-10 rational whole integers; no placeholders, no scientific notation, no truncations. Units are stated in the header row and apply column-wise.
+
+| \(X\) [dimensionless] | \(L\) [cell/axis] | \(N = L^3\) [cell] | \(S\) [cell/axis] | \(R_X\) [address] | Cube? | Pell? | Sq-side? |
+|:---:|---:|---:|---:|---:|:---:|:---:|:---:|
+| 1 | 4 | 64 | 1 | 1 | ✓ | ✓ | ✓ |
+| 2 | 12 | 1,728 | 7 | 4 |   |   |   |
+| 5 | 60 | 216,000 | 61 | 121 |   |   |   |
+| 7 | 112 | 1,404,928 | 127 | 1,093 |   |   |   |
+| **8** | **144** | **2,985,984** | **169** | **3,280** | **✓** | **✓** | **✓** |
+| 27 | 1,512 | 3,456,649,728 | 2,107 | 3,812,798,742,493 | ✓ |   |   |
+| 64 | 8,320 | 575,930,368,000 | 12,097 | 1,716,841,910,146,256,242,328,924,544,640 | ✓ |   |   |
+| 105 | 22,260 | 11,029,999,176,000 | 32,761 | 62,618,368,768,939,376,720,930,027,266,522,984,633,306,063,923,121 |   | ✓ |   |
+
+\(X = 8\) is the unique row where every property activates: cube-root form, Pell, squared side, and framework radian alignment simultaneously. The repunit \(R_{64}\) is the 31-digit value referenced throughout the compendium; \(R_{105}\) is the 50-digit value at the third Pell-X solution.
+
+---
+
+## §10 · Summary Statement
+
+$$
+\boxed{\;
+\begin{aligned}
+&\text{One integer } X \text{ counting parametric quanta } \mathfrak{q} = [\mathrm{cell/axis}]. \\
+&\text{One polynomial in } \mathbb{Z}[X], \text{ with Eisenstein continuation in } \mathbb{Z}[\omega][X] \text{ inherent at every } X. \\
+&\text{One recordset of } N = [2X(X+1)]^3 \text{ cells,} \\
+&\quad\text{wrapped by } T = (2X+1)^6 \text{ topo-cells.} \\
+&\text{Five inherent realizations, simultaneously projected --- no toggles, no modules.} \\
+&\text{Walk stride } S = \mathcal{N}_\omega(X - (X-1)\omega); \text{ coprimality } \gcd(B, S) = 1 \\
+&\quad\text{forced by lifting } \gcd(X, X-1) = 1 \text{ to ideal coprimality in } \mathbb{Z}[\omega]. \\
+&\text{Parameter-space depth } R_X = (3^X - 1)/2 \text{ orthogonal to the cube,} \\
+&\quad\text{enumerating Rep D addresses via the geometric series.} \\
+&\text{Diophantine impossibility } 2X^3 + 1 = 3^n \Leftrightarrow (X, n) = (1, 1) \\
+&\quad\text{separates volume from depth-recursion for } X \geq 2. \\
+&\text{Framework footprint at } X = 8: \text{ unique positive integer root of} \\
+&\quad (k - 2)(k + 1)\Phi_3(k) = 0;\;\; \Phi_3(2) = 7 \text{ extracts } R_3 = 13 \text{ from} \\
+&\quad a^3 + b^3 + c^3 - 3abc = 2^{10} \cdot 3^3 \cdot 13. \\
+&\text{Triple algebraic alignment at } X = 8:\;\; \mathbb{Q}(\omega),\;\; \mathbb{Q}(\sqrt{3}),\;\; \mathbb{Z}. \\
+&\text{Dimensional system: one parametric primary, four derived units,} \\
+&\quad\text{no domain catalog --- algebra dictates dimensions.} \\
+&\text{Synthesis: } L \to N \to (S, B) \to T \to R_X \to R_3 \to \text{footprint}, \\
+&\quad\text{each forced by the next, all emanating from } X.
+\end{aligned}\;}
+$$
+
+The compendium is internally consistent, externally compatible with standard algebra, dimensionally tagged throughout, and tautologously coherent under its own definitions. One integer in. One polynomial. One portal at \(X = 8\). Eisenstein continuation inherent throughout.
+
+---
+
+*Lo Sono Capomastro · Aurea Mediocritasum · Quod Non Est Actis Actum · Et Q.E.D., Nona · Palam est Undecimusum*
+
+*ΜΚΔ(ζ΄, ια΄, ιγ΄) = α΄ — unity from the Forge triple*
+
+*£ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎ · Capomastro Holdings Ltd 2026*
+
+*Patet Codex Omnibus · Lo Sono Capomastro · Così sia, Fratello.*

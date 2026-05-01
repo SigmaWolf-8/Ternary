@@ -1,0 +1,323 @@
+```rust
+extern crate alloc;
+use alloc::vec::Vec;
+use alloc::vec;
+use crate::trit::Trit;
+use crate::tritvec::TritVec;
+use crate::arithmetic;
+use crate::constants::{R_1_ARR, R_3_ARR};
+
+// ---------------------------------------------------------------------------
+// NonZeroX – compile‑time witness that X ≥ 1
+// ---------------------------------------------------------------------------
+pub struct NonZeroX(TritVec);
+
+impl NonZeroX {
+    pub fn new(x: TritVec) -> Option<Self> {
+        if x.is_empty() { None } else { Some(Self(x)) }
+    }
+    pub fn as_tritvec(&self) -> &TritVec { &self.0 }
+}
+
+// ---------------------------------------------------------------------------
+// TrinomialFootprint – cached once, immutable
+// ---------------------------------------------------------------------------
+pub struct TrinomialFootprint {
+    pub x:        TritVec,
+    pub a:        TritVec,
+    pub b:        TritVec,
+    pub c:        TritVec,
+    pub l:        TritVec,
+    pub b_core:   TritVec,
+    pub stride_u: TritVec,
+    pub stride_s: TritVec,
+    pub n:        TritVec,
+    pub radian:   TritVec,
+}
+
+// ---------------------------------------------------------------------------
+// ArcUniverseWalk – linear‑address walk
+// ---------------------------------------------------------------------------
+pub struct ArcUniverseWalk {
+    footprint: TrinomialFootprint,
+    address:   TritVec,   // current linear address in [0, N)
+    t:         TritVec,   // step counter (empty = 0)
+}
+
+impl ArcUniverseWalk {
+    pub fn from_trinomial_x(x: NonZeroX) -> Self {
+        let x = x.as_tritvec();
+        let one = TritVec::from_trits(R_1_ARR);
+
+        let x_minus_1 = arithmetic::sub(x, &one).expect("X≥1");
+        let a = arithmetic::mul(x, &x_minus_1);
+        let b = arithmetic::add(x, x);
+        let x_plus_1 = arithmetic::add(x, &one);
+        let c = arithmetic::mul(x, &x_plus_1);
+        let l = arithmetic::add(&a, &b);
+        let l = arithmetic::add(&l, &c);
+
+        let x_sq = arithmetic::mul(x, x);
+        let b_core = arithmetic::add(&x_sq, &x_sq);
+
+        let stride_u = arithmetic::add(&b, &one);
+
+        let three_x_sq = arithmetic::add(&x_sq, &x_sq);
+        let three_x_sq = arithmetic::add(&three_x_sq, &x_sq);
+        let three_x = arithmetic::add(x, x);
+        let three_x = arithmetic::add(&three_x, x);
+        let s_minus_3x = arithmetic::sub(&three_x_sq, &three_x).expect("3X²≥3X");
+        let stride_s = arithmetic::add(&s_minus_3x, &one);
+
+        let l_sq = arithmetic::mul(&l, &l);
+        let n = arithmetic::mul(&l_sq, &l);
+
+        debug_assert!(
+            arithmetic::cmp(&b_core, &n).is_lt(),
+            "invariant failure: B < N"
+        );
+
+        let radian = TritVec::from_trits(R_3_ARR);
+
+        ArcUniverseWalk {
+            footprint: TrinomialFootprint {
+                x: x.clone(),
+                a, b, c, l,
+                b_core: b_core.clone(),
+                stride_u,
+                stride_s,
+                n,
+                radian,
+            },
+            address: b_core,
+            t: TritVec::new(),
+        }
+    }
+
+    pub fn step(&mut self) {
+        let sum = arithmetic::add(&self.address, &self.footprint.stride_u);
+        self.address = arithmetic::divmod(&sum, &self.footprint.n)
+            .expect("N>0").1;
+        self.t = arithmetic::inc(&self.t);
+    }
+
+    pub fn is_origin(&self) -> bool {
+        arithmetic::cmp(&self.address, &self.footprint.b_core).is_eq()
+            && !self.t.is_empty()
+    }
+
+    /// Coordinates of the walk at a given step index k.
+    pub fn coords_at_step(&self, k: &TritVec) -> Vec<TritVec> {
+        let ku = arithmetic::mul(k, &self.footprint.stride_u);
+        let m_raw = arithmetic::add(&self.footprint.b_core, &ku);
+        let (_, m) = arithmetic::divmod(&m_raw, &self.footprint.n).expect("N>0");
+        decompose_into_coordinates(&m, &self.footprint.l)
+    }
+
+    /// Coordinates of the current state (address).
+    pub fn current_coords(&self) -> Vec<TritVec> {
+        decompose_into_coordinates(&self.address, &self.footprint.l)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Coordinate decomposition helper
+// ---------------------------------------------------------------------------
+fn decompose_into_coordinates(m: &TritVec, l: &TritVec) -> Vec<TritVec> {
+    let (q1, x) = arithmetic::divmod(m, l).expect("L>0");
+    let (q2, y) = arithmetic::divmod(&q1, l).expect("L>0");
+    let (_, z)  = arithmetic::divmod(&q2, l).expect("L>0");
+    vec![x, y, z]
+}
+
+// ---------------------------------------------------------------------------
+// Pure ternary bijective base‑3 encoder / decoder (no binary)
+// ---------------------------------------------------------------------------
+
+/// Encode a TritVec integer into its bijective base‑3 trit sequence (MSB first).
+fn bj3_encode(n: &TritVec) -> Vec<Trit> {
+    let mut n = n.clone();
+    let one = TritVec::from_trits(R_1_ARR);
+    let three = TritVec::from_trits(&[Trit::Three]);
+    let mut digits = Vec::new();
+    while !n.is_empty() {
+        let n_minus_1 = arithmetic::sub(&n, &one).expect("n>0");
+        let (q, r) = arithmetic::divmod(&n_minus_1, &three).expect("3>0");
+        // remainder r is 0,1,2 -> Trit One,Two,Three
+        let trit = if r.is_empty() {
+            Trit::One
+        } else if arithmetic::cmp(&r, &TritVec::from_trits(R_1_ARR)).is_eq() {
+            Trit::Two
+        } else {
+            Trit::Three
+        };
+        digits.push(trit);
+        n = q;
+    }
+    digits.reverse();
+    digits
+}
+
+/// Decode a bijective base‑3 prefix and return the value plus the remaining trits.
+fn bj3_decode_prefix(stream: &[Trit]) -> Result<(TritVec, &[Trit]), ParseError> {
+    let one = TritVec::from_trits(R_1_ARR);
+    let three = TritVec::from_trits(&[Trit::Three]);
+    let mut value = TritVec::new();
+    let mut idx = 0;
+    while idx < stream.len() {
+        // read one trit
+        let t = stream[idx];
+        idx += 1;
+        // value = value * 3 + trit_value(t)
+        let trit_val = match t {
+            Trit::One   => TritVec::from_trits(R_1_ARR),
+            Trit::Two   => TritVec::from_trits(&[Trit::Two]),
+            Trit::Three => three.clone(),
+        };
+        value = arithmetic::add(&arithmetic::mul(&value, &three), &trit_val);
+        // check if we have a complete representation
+        // bijective condition: R_L ≤ value ≤ 3·R_L for some L
+        // Since we only need to know when to stop, we can test sequentially:
+        // If we have accumulated L digits, then value is between repunit(L) and 3*repunit(L)
+        // We'll instead just rely on the fact that the encoder produces exactly the minimal length,
+        // and the stream is self‑delimited by the next tag. To make it deterministic,
+        // we can stop when we would exceed the expected max value.
+        // But simpler: we trust that the stream contains only a single encoded integer
+        // followed by a different tag. Since the grammar is prefix‑free, we can just consume
+        // until the next trit is not a valid continuation. However, for a robust parser,
+        // we implement the official algorithm: keep reading until value ≤ 3*repunit(L) and
+        // value ≥ repunit(L) for the current L, and then check that the next trit would break
+        // the condition. We'll do it this way: after each digit, compute L = number of consumed digits,
+        // then R_L = (3^L - 1)/2 (as TritVec). Check if value <= 3*R_L. If so, and also value >= R_L,
+        // then we have a complete representation and we can stop before reading the next trit.
+        // Actually, the condition for length L is: R_L < value <= 3·R_L. So if we currently have
+        // consumed L digits and value <= 3*R_L and value > R_L, it's complete. But we also need
+        // to ensure that adding one more digit would make value exceed 3*R_{L+1}.
+        // We'll implement the simple approach: after each digit, compute R_L for L = idx,
+        // if value >= repunit(L) && value <= three_repunit(L) then stop.
+        let repunit_l = repunit(idx); // build R_L = (3^L-1)/2
+        let three_repunit_l = arithmetic::mul(&repunit_l, &three);
+        if arithmetic::cmp(&value, &repunit_l).is_ge() && arithmetic::cmp(&value, &three_repunit_l).is_le() {
+            // we have a valid complete representation, stop
+            break;
+        }
+    }
+    if idx == 0 { return Err(ParseError::UnexpectedEnd); }
+    Ok((value, &stream[idx..]))
+}
+
+fn repunit(len: usize) -> TritVec {
+    // return R_len in bijective base‑3, which is simply len digits of One
+    let mut trits = Vec::with_capacity(len);
+    for _ in 0..len { trits.push(Trit::One); }
+    TritVec::from_trits(&trits)
+}
+
+// ---------------------------------------------------------------------------
+// Serialisation / Deserialisation (pure ternary)
+// ---------------------------------------------------------------------------
+#[derive(Debug)]
+pub enum ParseError { UnexpectedEnd, InvalidTag }
+
+impl ArcUniverseWalk {
+    /// Serialise the walk definition (and optionally current state) into a trit vector.
+    pub fn to_stream(&self, include_integrity: bool, include_walk_state: bool) -> Vec<Trit> {
+        let mut out = Vec::new();
+        let portal_x = {
+            let eight = TritVec::from_trits(&[Trit::Two, Trit::Two]); // 8 in bijective base‑3
+            arithmetic::cmp(&self.footprint.x, &eight).is_eq()
+        };
+        if portal_x {
+            out.push(Trit::One);
+        } else {
+            out.push(Trit::Two);
+            out.extend(bj3_encode(&self.footprint.x));
+        }
+        if include_integrity {
+            out.push(Trit::Three);
+            out.extend(bj3_encode(&self.footprint.stride_s));
+        }
+        if include_walk_state {
+            out.push(Trit::Two);    // extension block marker
+            out.push(Trit::Three);  // walk‑state tag
+            out.extend(bj3_encode(&self.t));
+        }
+        out
+    }
+
+    /// Deserialise from a trit stream.
+    pub fn from_stream(stream: &[Trit]) -> Result<Self, ParseError> {
+        if stream.is_empty() { return Err(ParseError::UnexpectedEnd); }
+        let x = match stream[0] {
+            Trit::One => TritVec::from_trits(&[Trit::Two, Trit::Two]), // X = 8
+            Trit::Two => {
+                let (val, _rest) = bj3_decode_prefix(&stream[1..])?;
+                // Discard _rest for now; we will consume sequentially
+                val
+            }
+            _ => return Err(ParseError::InvalidTag),
+        };
+        let non_zero = NonZeroX::new(x).ok_or(ParseError::InvalidTag)?;
+        let mut walk = Self::from_trinomial_x(non_zero);
+
+        // we need to continue parsing the stream; the above used bj3_decode_prefix which consumed the X portion.
+        // We'll rewrite from_stream to parse sequentially with an index.
+        // For brevity, I'll implement a full sequential parser using a cursor.
+        let mut pos = 1; // after first tag
+        // decode X if general
+        if stream[0] == Trit::Two {
+            let (val, consumed) = bj3_decode_len(&stream[1..])?;
+            let x2 = val;
+            walk = Self::from_trinomial_x(NonZeroX::new(x2).unwrap());
+            pos = 1 + consumed;
+        }
+        // Check optional integrity: next tag could be Three
+        if pos < stream.len() && stream[pos] == Trit::Three {
+            pos += 1;
+            let (_, consumed) = bj3_decode_len(&stream[pos..])?;
+            pos += consumed;
+        }
+        // Check optional walk state extension
+        if pos + 1 < stream.len() && stream[pos] == Trit::Two && stream[pos+1] == Trit::Three {
+            pos += 2;
+            let (t, consumed) = bj3_decode_len(&stream[pos..])?;
+            walk.t = t;
+            // recalculate address from t and B and u
+            walk.address = walk.address_at_step(&t);
+            pos += consumed;
+        }
+        Ok(walk)
+    }
+
+    // Recompute address given step index t
+    fn address_at_step(&self, t: &TritVec) -> TritVec {
+        let ku = arithmetic::mul(t, &self.footprint.stride_u);
+        let m_raw = arithmetic::add(&self.footprint.b_core, &ku);
+        arithmetic::divmod(&m_raw, &self.footprint.n).expect("N>0").1
+    }
+}
+
+// Helper: decode a bijective prefix, returning the value and the number of trits consumed.
+fn bj3_decode_len(stream: &[Trit]) -> Result<(TritVec, usize), ParseError> {
+    let one = TritVec::from_trits(R_1_ARR);
+    let three = TritVec::from_trits(&[Trit::Three]);
+    let mut value = TritVec::new();
+    let mut len = 0;
+    while len < stream.len() {
+        let t = stream[len];
+        len += 1;
+        let trit_val = match t {
+            Trit::One   => TritVec::from_trits(R_1_ARR),
+            Trit::Two   => TritVec::from_trits(&[Trit::Two]),
+            Trit::Three => three.clone(),
+        };
+        value = arithmetic::add(&arithmetic::mul(&value, &three), &trit_val);
+        let repunit_l = repunit(len);
+        let three_repunit_l = arithmetic::mul(&repunit_l, &three);
+        if arithmetic::cmp(&value, &repunit_l).is_ge() && arithmetic::cmp(&value, &three_repunit_l).is_le() {
+            return Ok((value, len));
+        }
+    }
+    Err(ParseError::UnexpectedEnd)
+}
+```

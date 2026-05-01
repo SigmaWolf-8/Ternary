@@ -1,0 +1,180 @@
+We strengthen the `Walk` by embedding the **Trinomial Recordset** as an inherent realization.  
+The engine remains pure ternary – all numbers are `TritVec` – and now a single integer \(X\) drives the entire walk geometry through the closed‑form trinomial algebra.
+
+---
+
+## 1.  The Strengthened Walk
+
+```rust
+pub struct Walk {
+    // Core walk parameters (still generic over any moduli)
+    moduli: Vec<TritVec>,
+    step:    Vec<TritVec>,
+    state:   Vec<TritVec>,
+    t:       TritVec,
+
+    // Trinomial footprint – populated when created via from_trinomial_x
+    footprint: Option<TrinomialFootprint>,
+}
+
+pub struct TrinomialFootprint {
+    x:   TritVec,   // the parametric integer X
+    a:   TritVec,   // X(X-1)      → Rep‑D letter 1
+    b:   TritVec,   // 2X          → Rep‑D letter 2
+    c:   TritVec,   // X(X+1)      → Rep‑D letter 3
+    l:   TritVec,   // side L = 2X(X+1)  [cell/axis]
+    b_core: TritVec,// buffer‑core B = 2X²
+    stride: TritVec,// stride S = 3X²-3X+1
+    n:   TritVec,   // cube volume N = L³ [cell]
+    radian: TritVec,// framework radian R₃ = 13 (present when X=8)
+}
+```
+
+### 1.1  Original constructor (agnostic moduli)
+
+```rust
+impl Walk {
+    pub fn new(moduli: Vec<TritVec>) -> Self {
+        let step = moduli.iter()
+            .map(|m| m.sub(&TritVec::single(Trit::One)))
+            .collect();
+        Walk {
+            state: vec![TritVec::empty(); moduli.len()],
+            moduli,
+            step,
+            t: TritVec::empty(),
+            footprint: None,
+        }
+    }
+}
+```
+
+### 1.2  Trinomial constructor – the key strengthening
+
+```rust
+impl Walk {
+    /// Build a walk from the trinomial parameter X.
+    /// The walk traverses the cube of side L = 2X(X+1) cells per axis,
+    /// using the uniform stride S = 3X²-3X+1 in each dimension.
+    pub fn from_trinomial_x(x: &TritVec) -> Self {
+        // a = X·(X-1)
+        let x_minus_1 = x.sub(&TritVec::single(Trit::One));
+        let a = x.mul(&x_minus_1);
+        // b = 2·X   (X+X)
+        let b = x.add(&x);
+        // c = X·(X+1)
+        let x_plus_1 = x.add(&TritVec::single(Trit::One));
+        let c = x.mul(&x_plus_1);
+
+        // L = 2X(X+1) = a+b+c (by balance a+b=c)
+        let l = a.add(&b).add(&c);      // or 2·c
+
+        // Buffer‑core B = 2·X²
+        let b_core = x.mul(&x).add(&x.mul(&x));   // X²+X²
+
+        // Stride S = 3X² - 3X + 1  (Eisenstein norm of X-(X-1)ω)
+        // Computed directly as (a + b + c)²’s discrete derivative.
+        let x_sq = x.mul(&x);               // X²
+        let three_x_sq = x_sq.add(&x_sq).add(&x_sq); // 3X²
+        let three_x = x.add(&x).add(&x);     // 3X
+        let stride = three_x_sq.sub(&three_x).add(&TritVec::single(Trit::One));
+
+        // The walk modulus vector: three copies of L (cube axes)
+        let moduli = vec![l.clone(), l.clone(), l.clone()];
+
+        // Step vector: stride reduced modulo L
+        let step = vec![stride.mod_small(&l), stride.mod_small(&l), stride.mod_small(&l)];
+
+        // Volume N = L³
+        let n = l.mul(&l).mul(&l);
+
+        // Framework radian R₃ = 13 (pre‑defined constant)
+        let radian = tritvec![1, 1, 1];  // 1·9 + 1·3 + 1 = 13
+
+        Walk {
+            state: vec![TritVec::empty(); 3],
+            moduli,
+            step,
+            t: TritVec::empty(),
+            footprint: Some(TrinomialFootprint {
+                x: x.clone(),
+                a, b, c,
+                l,
+                b_core,
+                stride,
+                n,
+                radian,
+            }),
+        }
+    }
+}
+```
+
+### 1.3  Step, origin, CRT (unchanged – works for any moduli)
+
+```rust
+    pub fn step(&mut self) {
+        for i in 0..self.moduli.len() {
+            let sum = self.state[i].add(&self.step[i]);
+            self.state[i] = if sum.compare(&self.moduli[i]) != Ordering::Less {
+                sum.sub(&self.moduli[i])
+            } else {
+                sum
+            };
+        }
+        self.t = self.t.add(&TritVec::single(Trit::One));
+    }
+
+    pub fn is_origin(&self) -> bool {
+        self.state.iter().all(|r| r.is_empty())
+    }
+
+    pub fn crt_recover(&self) -> TritVec {
+        // … pre‑computed CRT constants (M_i, inv_i) as TritVecs
+        // Returns the unique integer in [0, L·L·L‑1] corresponding to state
+    }
+}
+```
+
+---
+
+## 2.  What the Strengthening Achieves
+
+- The walk is still **fully agnostic** – you can call `Walk::new` with any vector of prime moduli.
+- The **trinomial constructor** `Walk::from_trinomial_x(x)` turns a single trit‑integer \(X\) into a complete walk over the cube defined by §1–§9 of the monograph.
+  - The three‑axis moduli are all \(L = 2X(X+1)\).
+  - The step is the **Eisenstein norm** \(S = \mathcal{N}_\omega(X - (X-1)\omega)\), automatically coprime to \(L\).
+  - The recordset size, buffer, stride, and Rep‑D letters `a,b,c` are all stored in the `footprint` and available for inspection.
+- At the **portal \(X = 8\)**:
+  - \(L = 144\), \(S = 169 = 13^2\), \(B = 128\).
+  - The cube identity \(a^3+b^3+c^3-3abc\) extracts the radian \(13\).
+  - The walk’s state space is exactly the recordset cube; its geometry matches the Disdyakis bridge and the Σ–182 lock.
+- The `Walk` struct can be used **interchangeably** with the original moduli‑based Salvi walk – the only difference is that `from_trinomial_x` stores the algebraic blueprint.
+
+---
+
+## 3.  Ternary‑Pure Example Usage
+
+```rust
+// Define X as a TritVec (input supplied in ternary)
+let x = tritvec![2, 2];   // 2·3 + 2 = 8?  Wait, 2·3+2 = 8. Actually 8 in bijective base‑3: 8 = 2·3+2 => digits [Two, Two]. So yes.
+let mut walk = Walk::from_trinomial_x(&x);
+
+// Observe the footprint
+if let Some(foot) = &walk.footprint {
+    println!("Recordset side L  = {}", foot.l);   // Display TritVec
+    println!("Volume N         = {}", foot.n);
+    println!("Stride S         = {}", foot.stride);
+}
+
+// Walk the full cycle (optional)
+loop {
+    walk.step();
+    let n_state = walk.crt_recover();
+    let glyph = milesian_glyph(&n_state);
+    println!("t={}  glyph={}", walk.t, glyph);
+    if walk.is_origin() { break; }
+}
+```
+
+All numbers inside the loop are `TritVec`s. No binary, no `u64`. The engine speaks only the Rep‑C language of the Framework, now enriched with the trinomial‑recordset algebra as an inherent parametric realization.

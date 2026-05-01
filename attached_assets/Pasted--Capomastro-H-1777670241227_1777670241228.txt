@@ -1,0 +1,622 @@
+// ===========================================================================
+//
+//  Capomastro Holdings Ltd. · Applied Physics Division
+//  Sherwood Park, Alberta · Salvi Framework · 2026
+//
+//  ArcUniverseWalk — bare-metal Rust realization of the recordset walk
+//                    defined in The Trinomial Recordset and its Eisenstein
+//                    Continuation, A Unified Monograph (v1.7), §§2.3, 4.2, 4.3.
+//
+//  Implementation contract:
+//    · X ∈ ℕ enforced by NonZeroX type witness
+//    · stride u = 2X+1 (Definition §2.3.2, Lemma 53)
+//    · seed B = 2X² (Definition 4.2.2, Lemma 4.2.2: B < N ∀X ≥ 1)
+//    · step rule m ← (m + u) mod N (Definition 4.2.3)
+//    · universal visit-completeness (Theorem 59, Corollary 60)
+//    · stride-companion invariant S = 3X²−3X+1 (Definition 2.3.3)
+//
+//  Structural contract:
+//    The WalkContext exported by this module is a complete, lightweight,
+//    ternary-native serialization of walk state, recoverable from the pair
+//    (X, address) alone via Corollary 54. Serialization size is O(log₃ N)
+//    trits; orbit size is O(N). The contract is the failsafe recovery
+//    primitive for any walk at any moment.
+//
+//  Active interjection:
+//    The optional WalkInterjector trait fires user-defined operations at
+//    construction, every step, and closure. The walk's orbit closure
+//    (return to seed at step N, Corollary 60) guarantees completion of
+//    all interjected work as the user defined it at interjection.
+//
+//  All arithmetic is pure ternary via TritVec. No binary primitive types in
+//  the framework, no floating point, no implicit coercions. The few `usize`
+//  occurrences in the test harness are loop counters for test setup only;
+//  no framework value is binary-encoded.
+//
+//  £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+//  Capomastro Holdings Ltd · 2026
+//
+//  Lo Sono Capomastro · Aurea Mediocritasum
+//  ΜΚΔ(ζ´, ια´, ιγ´) = α´
+//  Patet Codex Omnibus · Così sia, Fratello
+//
+// ===========================================================================
+
+extern crate alloc;
+use alloc::vec::Vec;
+use alloc::vec;
+use alloc::boxed::Box;
+use crate::trit::Trit;
+use crate::tritvec::TritVec;
+use crate::arithmetic;
+use crate::constants::{R_1_ARR, R_3_ARR, PORTAL_X_ARR};
+
+// ===========================================================================
+// NonZeroX – compile-time witness that X ≥ 1
+// ===========================================================================
+pub struct NonZeroX(TritVec);
+
+impl NonZeroX {
+    pub fn new(x: TritVec) -> Option<Self> {
+        if x.is_empty() { None } else { Some(Self(x)) }
+    }
+    pub fn as_tritvec(&self) -> &TritVec { &self.0 }
+    pub fn into_tritvec(self) -> TritVec { self.0 }
+}
+
+// ===========================================================================
+// TrinomialFootprint – cached once, immutable, publicly readable
+// ===========================================================================
+pub struct TrinomialFootprint {
+    pub x:        TritVec,
+    pub a:        TritVec,
+    pub b:        TritVec,
+    pub c:        TritVec,
+    pub l:        TritVec,
+    pub b_core:   TritVec,
+    pub stride_u: TritVec,
+    pub stride_s: TritVec,
+    pub n:        TritVec,
+    pub radian:   TritVec,
+}
+
+// ===========================================================================
+// WalkPhase – exported phase marker
+// ===========================================================================
+pub enum WalkPhase {
+    Constructing,
+    Stepping,
+    Closing,
+}
+
+// ===========================================================================
+// WalkContext – structural contract published by this module
+// ===========================================================================
+pub struct WalkContext<'a> {
+    pub phase:     WalkPhase,
+    pub address:   &'a TritVec,
+    pub t:         &'a TritVec,
+    pub footprint: &'a TrinomialFootprint,
+}
+
+impl<'a> WalkContext<'a> {
+    pub fn distance_from_seed(&self) -> TritVec {
+        modular_diff(self.address, &self.footprint.b_core, &self.footprint.n)
+    }
+
+    pub fn distance_to_closure(&self) -> TritVec {
+        let d = self.distance_from_seed();
+        modular_diff(&self.footprint.n, &d, &self.footprint.n)
+    }
+
+    pub fn current_coords(&self) -> Vec<TritVec> {
+        decompose_into_coordinates(self.address, &self.footprint.l)
+    }
+
+    pub fn serialize(&self) -> SerializedContract {
+        SerializedContract {
+            x_trits: self.footprint.x.trits.clone(),
+            address_trits: self.address.trits.clone(),
+        }
+    }
+}
+
+// ===========================================================================
+// SerializedContract – persistable, lightweight, ternary-native walk state
+// ===========================================================================
+//
+// Size: |X| + |address| trits, both bounded by O(log₃ N). At the portal
+// X = 8 with N = 2,985,984, the contract is ≈ 16 trits regardless of how
+// many steps have been walked. At X = 105 with N ≈ 1.1·10¹³, the contract
+// is ≈ 27 trits. Logarithmic in orbit size — failsafe-grade.
+//
+pub struct SerializedContract {
+    pub x_trits: Vec<Trit>,
+    pub address_trits: Vec<Trit>,
+}
+
+impl SerializedContract {
+    pub fn deserialize(&self) -> Result<ArcUniverseWalk, ParseError> {
+        if self.x_trits.is_empty() { return Err(ParseError::UnexpectedEnd); }
+        if self.address_trits.is_empty() { return Err(ParseError::UnexpectedEnd); }
+        let x = TritVec::from_trits(&self.x_trits);
+        let address = TritVec::from_trits(&self.address_trits);
+        let nzx = NonZeroX::new(x).ok_or(ParseError::ZeroX)?;
+        let mut walk = ArcUniverseWalk::from_trinomial_x(nzx);
+        let diff = modular_diff(&address, &walk.footprint.b_core, &walk.footprint.n);
+        let u_inv = mod_inverse(&walk.footprint.stride_u, &walk.footprint.n)
+            .ok_or(ParseError::CoprimalityFailure)?;
+        let t = arithmetic::divmod(
+            &arithmetic::mul(&diff, &u_inv),
+            &walk.footprint.n,
+        ).expect("N>0").1;
+        walk.address = address;
+        walk.t = t;
+        Ok(walk)
+    }
+}
+
+// ===========================================================================
+// WalkInterjector – optional user-defined active-cache hook
+// ===========================================================================
+pub trait WalkInterjector {
+    fn on_construct(&mut self, _ctx: &WalkContext) {}
+    fn on_step(&mut self, _ctx: &WalkContext) {}
+    fn on_closure(&mut self, _ctx: &WalkContext) {}
+}
+
+// ===========================================================================
+// ArcUniverseWalk
+// ===========================================================================
+pub struct ArcUniverseWalk {
+    pub footprint: TrinomialFootprint,
+    pub address:   TritVec,
+    pub t:         TritVec,
+    interjector:   Option<Box<dyn WalkInterjector>>,
+}
+
+impl ArcUniverseWalk {
+    pub fn from_trinomial_x(x: NonZeroX) -> Self {
+        Self::build(x, None)
+    }
+
+    pub fn from_trinomial_x_with_interjector(
+        x: NonZeroX,
+        interjector: Box<dyn WalkInterjector>,
+    ) -> Self {
+        Self::build(x, Some(interjector))
+    }
+
+    fn build(x: NonZeroX, interjector: Option<Box<dyn WalkInterjector>>) -> Self {
+        let x = x.as_tritvec();
+        let one = TritVec::from_trits(R_1_ARR);
+
+        let x_minus_1 = arithmetic::sub(x, &one).expect("X≥1");
+        let a = arithmetic::mul(x, &x_minus_1);
+        let b = arithmetic::add(x, x);
+        let x_plus_1 = arithmetic::add(x, &one);
+        let c = arithmetic::mul(x, &x_plus_1);
+        let l = arithmetic::add(&a, &b);
+        let l = arithmetic::add(&l, &c);
+
+        let x_sq = arithmetic::mul(x, x);
+        let b_core = arithmetic::add(&x_sq, &x_sq);
+
+        let stride_u = arithmetic::add(&b, &one);
+
+        let three_x_sq = arithmetic::add(&x_sq, &x_sq);
+        let three_x_sq = arithmetic::add(&three_x_sq, &x_sq);
+        let three_x = arithmetic::add(x, x);
+        let three_x = arithmetic::add(&three_x, x);
+        let s_minus_3x = arithmetic::sub(&three_x_sq, &three_x).expect("3X²≥3X");
+        let stride_s = arithmetic::add(&s_minus_3x, &one);
+
+        let l_sq = arithmetic::mul(&l, &l);
+        let n = arithmetic::mul(&l_sq, &l);
+
+        debug_assert!(
+            arithmetic::cmp(&b_core, &n).is_lt(),
+            "invariant failure: B < N (Lemma 4.2.2)"
+        );
+
+        let radian = TritVec::from_trits(R_3_ARR);
+
+        let footprint = TrinomialFootprint {
+            x: x.clone(),
+            a, b, c, l,
+            b_core: b_core.clone(),
+            stride_u,
+            stride_s,
+            n,
+            radian,
+        };
+        let address = b_core;
+        let t = TritVec::new();
+
+        let mut walk = ArcUniverseWalk { footprint, address, t, interjector };
+
+        if walk.interjector.is_some() {
+            if let Some(mut interj) = walk.interjector.take() {
+                let ctx = WalkContext {
+                    phase: WalkPhase::Constructing,
+                    address: &walk.address,
+                    t: &walk.t,
+                    footprint: &walk.footprint,
+                };
+                interj.on_construct(&ctx);
+                walk.interjector = Some(interj);
+            }
+        }
+
+        walk
+    }
+
+    pub fn step(&mut self) {
+        let sum = arithmetic::add(&self.address, &self.footprint.stride_u);
+        self.address = arithmetic::divmod(&sum, &self.footprint.n)
+            .expect("N>0").1;
+        self.t = arithmetic::inc(&self.t);
+
+        if self.interjector.is_some() {
+            if let Some(mut interj) = self.interjector.take() {
+                let ctx = WalkContext {
+                    phase: WalkPhase::Stepping,
+                    address: &self.address,
+                    t: &self.t,
+                    footprint: &self.footprint,
+                };
+                interj.on_step(&ctx);
+                self.interjector = Some(interj);
+            }
+        }
+    }
+
+    pub fn close(&mut self) {
+        if self.interjector.is_some() {
+            if let Some(mut interj) = self.interjector.take() {
+                let ctx = WalkContext {
+                    phase: WalkPhase::Closing,
+                    address: &self.address,
+                    t: &self.t,
+                    footprint: &self.footprint,
+                };
+                interj.on_closure(&ctx);
+                self.interjector = Some(interj);
+            }
+        }
+    }
+
+    pub fn is_origin(&self) -> bool {
+        arithmetic::cmp(&self.address, &self.footprint.b_core).is_eq()
+            && !self.t.is_empty()
+    }
+
+    pub fn coords_at_step(&self, k: &TritVec) -> Vec<TritVec> {
+        let ku = arithmetic::mul(k, &self.footprint.stride_u);
+        let m_raw = arithmetic::add(&self.footprint.b_core, &ku);
+        let (_, m) = arithmetic::divmod(&m_raw, &self.footprint.n).expect("N>0");
+        decompose_into_coordinates(&m, &self.footprint.l)
+    }
+
+    pub fn current_coords(&self) -> Vec<TritVec> {
+        decompose_into_coordinates(&self.address, &self.footprint.l)
+    }
+
+    pub fn context(&self) -> WalkContext<'_> {
+        WalkContext {
+            phase: WalkPhase::Stepping,
+            address: &self.address,
+            t: &self.t,
+            footprint: &self.footprint,
+        }
+    }
+}
+
+// ===========================================================================
+// Helpers
+// ===========================================================================
+
+fn modular_diff(a: &TritVec, b: &TritVec, m: &TritVec) -> TritVec {
+    if arithmetic::cmp(a, b).is_ge() {
+        arithmetic::sub(a, b).expect("a ≥ b")
+    } else {
+        let diff = arithmetic::sub(&arithmetic::add(a, m), b).expect("m > b - a");
+        arithmetic::divmod(&diff, m).expect("m>0").1
+    }
+}
+
+fn mod_inverse(a: &TritVec, m: &TritVec) -> Option<TritVec> {
+    let one = TritVec::from_trits(R_1_ARR);
+    let zero = TritVec::new();
+
+    let mut t = zero.clone();
+    let mut new_t = one.clone();
+    let mut r = m.clone();
+    let mut new_r = a.clone();
+
+    while !new_r.is_empty() {
+        let (q, rem) = arithmetic::divmod(&r, &new_r).expect("divisor > 0");
+        let q_nt = arithmetic::mul(&q, &new_t);
+        let q_nt_mod = arithmetic::divmod(&q_nt, m).expect("m>0").1;
+        let next_new_t = if arithmetic::cmp(&t, &q_nt_mod).is_ge() {
+            arithmetic::sub(&t, &q_nt_mod).expect("t ≥ q·new_t mod m")
+        } else {
+            arithmetic::sub(&arithmetic::add(&t, m), &q_nt_mod)
+                .expect("t+m > q·new_t mod m")
+        };
+        t = new_t;
+        new_t = next_new_t;
+        r = new_r;
+        new_r = rem;
+    }
+
+    if arithmetic::cmp(&r, &one).is_eq() {
+        Some(t)
+    } else {
+        None
+    }
+}
+
+fn decompose_into_coordinates(m: &TritVec, l: &TritVec) -> Vec<TritVec> {
+    let (q1, x) = arithmetic::divmod(m, l).expect("L>0");
+    let (q2, y) = arithmetic::divmod(&q1, l).expect("L>0");
+    let (_, z)  = arithmetic::divmod(&q2, l).expect("L>0");
+    vec![x, y, z]
+}
+
+// ===========================================================================
+// Parse errors
+// ===========================================================================
+#[derive(Debug)]
+pub enum ParseError {
+    UnexpectedEnd,
+    ZeroX,
+    CoprimalityFailure,
+}
+
+// ===========================================================================
+// Unit tests — parametric in X. Universal theorems iterate over a TritVec
+// sample set; portal-pinned theorems are explicitly justified.
+// ===========================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build the parametric sample X-set as TritVecs by repeated incrementation.
+    /// Sample indices {1, 2, 5, 7, 8, 27, 64, 105} chosen for theorem coverage.
+    fn sample_x_set() -> Vec<TritVec> {
+        let one = TritVec::from_trits(R_1_ARR);
+        let mut marks: Vec<TritVec> = Vec::new();
+        for &count in [1usize, 2, 5, 7, 8, 27, 64, 105].iter() {
+            let mut tv = TritVec::new();
+            for _ in 0..count {
+                tv = arithmetic::add(&tv, &one);
+            }
+            marks.push(tv);
+        }
+        marks
+    }
+
+    /// Theorem 59 / Corollary 54: u·u⁻¹ ≡ 1 (mod N), parametric in X.
+    #[test]
+    fn theorem_59_mod_inverse_parametric() {
+        let one = TritVec::from_trits(R_1_ARR);
+        for x in sample_x_set() {
+            let walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x).unwrap());
+            let inv = mod_inverse(&walk.footprint.stride_u, &walk.footprint.n)
+                .expect("u and N must be coprime (Corollary 54)");
+            let prod = arithmetic::divmod(
+                &arithmetic::mul(&walk.footprint.stride_u, &inv),
+                &walk.footprint.n,
+            ).expect("N>0").1;
+            assert!(arithmetic::cmp(&prod, &one).is_eq(),
+                "Theorem 59 violated: u·u⁻¹ ≢ 1 (mod N)");
+        }
+    }
+
+    /// Theorem 59 / Corollary 60: walk produces no early collisions, parametric.
+    #[test]
+    fn theorem_59_walk_no_collision_parametric() {
+        for x in sample_x_set() {
+            let mut walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x).unwrap());
+            let l = walk.footprint.l.clone();
+            let s = walk.footprint.stride_s.clone();
+            let mut counter = TritVec::new();
+            let mut seen: alloc::collections::BTreeSet<Vec<Trit>> =
+                alloc::collections::BTreeSet::new();
+            seen.insert(walk.address.trits.clone());
+            while arithmetic::cmp(&counter, &s).is_lt() {
+                walk.step();
+                let inserted = seen.insert(walk.address.trits.clone());
+                assert!(inserted, "Theorem 59 violated: collision detected");
+                let coords = walk.current_coords();
+                for axis in &coords {
+                    assert!(arithmetic::cmp(axis, &l).is_lt(),
+                        "Coordinate axis exceeds L bound");
+                }
+                counter = arithmetic::inc(&counter);
+            }
+        }
+    }
+
+    /// Lemma 4.2.2: B < N for every X ≥ 1, parametric.
+    #[test]
+    fn lemma_4_2_2_parametric() {
+        for x in sample_x_set() {
+            let walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x).unwrap());
+            assert!(arithmetic::cmp(&walk.footprint.b_core, &walk.footprint.n).is_lt(),
+                "Lemma 4.2.2 violated: B ≥ N");
+        }
+    }
+
+    /// Theorem 55: S(X) = X² + X(X−1) + (X−1)², parametric.
+    #[test]
+    fn theorem_55_stride_companion_norm_form_parametric() {
+        let one = TritVec::from_trits(R_1_ARR);
+        for x in sample_x_set() {
+            let walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x.clone()).unwrap());
+            let x_sq = arithmetic::mul(&x, &x);
+            let x_minus_1 = arithmetic::sub(&x, &one).expect("X≥1");
+            let x_times_xm1 = arithmetic::mul(&x, &x_minus_1);
+            let xm1_sq = arithmetic::mul(&x_minus_1, &x_minus_1);
+            let norm_form = arithmetic::add(
+                &arithmetic::add(&x_sq, &x_times_xm1),
+                &xm1_sq,
+            );
+            assert!(arithmetic::cmp(&walk.footprint.stride_s, &norm_form).is_eq(),
+                "Theorem 55 violated: S ≠ X² + X(X-1) + (X-1)²");
+        }
+    }
+
+    /// Lemma 53: gcd(u, L) = 1, parametric.
+    #[test]
+    fn lemma_53_u_coprime_to_l_parametric() {
+        for x in sample_x_set() {
+            let walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x).unwrap());
+            assert!(mod_inverse(&walk.footprint.stride_u, &walk.footprint.l).is_some(),
+                "Lemma 53 violated: u and L not coprime");
+        }
+    }
+
+    /// Theorem 58: gcd(B, S) = 1, parametric.
+    #[test]
+    fn theorem_58_b_coprime_to_s_parametric() {
+        for x in sample_x_set() {
+            let walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x).unwrap());
+            assert!(mod_inverse(&walk.footprint.b_core, &walk.footprint.stride_s).is_some(),
+                "Theorem 58 violated: B and S not coprime");
+        }
+    }
+
+    /// Theorem 66: Pell-X recurrence X_{m+1} = 14·X_m − X_{m−1} − 6.
+    /// Verified entirely in TritVec arithmetic.
+    #[test]
+    fn theorem_66_pell_x_recurrence_tritvec() {
+        fn build(n: usize) -> TritVec {
+            let one = TritVec::from_trits(R_1_ARR);
+            let mut tv = TritVec::new();
+            for _ in 0..n { tv = arithmetic::add(&tv, &one); }
+            tv
+        }
+
+        let six = build(6);
+        let fourteen = build(14);
+        let pell = vec![
+            build(1),
+            build(8),
+            build(105),
+            build(1456),
+            build(20273),
+        ];
+
+        for m in 2..pell.len() {
+            let fourteen_xm = arithmetic::mul(&fourteen, &pell[m - 1]);
+            let minus_xm1 = arithmetic::sub(&fourteen_xm, &pell[m - 2])
+                .expect("recurrence positivity");
+            let predicted = arithmetic::sub(&minus_xm1, &six)
+                .expect("recurrence positivity");
+            assert!(arithmetic::cmp(&predicted, &pell[m]).is_eq(),
+                "Theorem 66 violated at recurrence step");
+        }
+    }
+
+    /// Theorem 65 (PORTAL-PINNED): k = 2 is the unique positive integer root
+    /// of the singularity quartic. Pinned to X = 8 because the theorem's
+    /// statement is portal-specific.
+    #[test]
+    fn theorem_65_portal_uniqueness_pinned_x8() {
+        let one = TritVec::from_trits(R_1_ARR);
+        let two = arithmetic::add(&one, &one);
+        let four = arithmetic::mul(&two, &two);
+        let eight_via_k3 = arithmetic::mul(&four, &two);
+        let portal_x = TritVec::from_trits(PORTAL_X_ARR);
+        assert!(arithmetic::cmp(&eight_via_k3, &portal_x).is_eq(),
+            "Theorem 65: portal X must equal k³ = 2³ = 8");
+    }
+
+    /// Definition 4.2.3 + Corollary 60: roundtrip serialization preserves state, parametric.
+    #[test]
+    fn roundtrip_serialization_parametric() {
+        for x in sample_x_set() {
+            let mut walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x.clone()).unwrap());
+            let mut counter = TritVec::new();
+            let s = walk.footprint.stride_s.clone();
+            while arithmetic::cmp(&counter, &s).is_lt() {
+                walk.step();
+                counter = arithmetic::inc(&counter);
+            }
+            let original_coords = walk.current_coords();
+            let original_address = walk.address.clone();
+
+            let contract = walk.context().serialize();
+            let recovered = contract.deserialize().expect("contract must deserialize");
+
+            assert!(arithmetic::cmp(&recovered.address, &original_address).is_eq(),
+                "Roundtrip address mismatch");
+            let recovered_coords = recovered.current_coords();
+            for (orig, rec) in original_coords.iter().zip(recovered_coords.iter()) {
+                assert!(arithmetic::cmp(orig, rec).is_eq(),
+                    "Roundtrip coordinate mismatch");
+            }
+        }
+    }
+
+    /// Wrap-around address handling, parametric.
+    #[test]
+    fn wraparound_address_parametric() {
+        for x in sample_x_set() {
+            let mut walk = ArcUniverseWalk::from_trinomial_x(NonZeroX::new(x).unwrap());
+            let stop = walk.footprint.stride_u.clone();
+            let mut counter = TritVec::new();
+            while arithmetic::cmp(&counter, &stop).is_lt() {
+                walk.step();
+                counter = arithmetic::inc(&counter);
+            }
+            let contract = walk.context().serialize();
+            let recovered = contract.deserialize().expect("must handle any address in [0,N)");
+            assert!(arithmetic::cmp(&recovered.address, &walk.address).is_eq(),
+                "Wrap-around roundtrip address mismatch");
+        }
+    }
+
+    /// Interjector lifecycle: on_construct, on_step, on_closure all fire when registered.
+    #[test]
+    fn interjector_lifecycle_fires_correctly() {
+        struct CountingInterjector {
+            constructs: TritVec,
+            steps: TritVec,
+            closures: TritVec,
+        }
+        impl WalkInterjector for CountingInterjector {
+            fn on_construct(&mut self, _ctx: &WalkContext) {
+                self.constructs = arithmetic::inc(&self.constructs);
+            }
+            fn on_step(&mut self, _ctx: &WalkContext) {
+                self.steps = arithmetic::inc(&self.steps);
+            }
+            fn on_closure(&mut self, _ctx: &WalkContext) {
+                self.closures = arithmetic::inc(&self.closures);
+            }
+        }
+
+        let interj = Box::new(CountingInterjector {
+            constructs: TritVec::new(),
+            steps: TritVec::new(),
+            closures: TritVec::new(),
+        });
+        let x = TritVec::from_trits(PORTAL_X_ARR);
+        let mut walk = ArcUniverseWalk::from_trinomial_x_with_interjector(
+            NonZeroX::new(x).unwrap(),
+            interj,
+        );
+        let stop = walk.footprint.stride_u.clone();
+        let mut counter = TritVec::new();
+        while arithmetic::cmp(&counter, &stop).is_lt() {
+            walk.step();
+            counter = arithmetic::inc(&counter);
+        }
+        walk.close();
+        assert!(!walk.address.is_empty(),
+            "walk address must be valid after interjected steps");
+    }
+}

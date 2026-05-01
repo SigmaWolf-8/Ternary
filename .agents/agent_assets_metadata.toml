@@ -678,3 +678,9 @@ id = "WICyviY05aDCJOWbnYy0-"
 uri = "file://attached_assets/aasc_canonical_map.svg"
 type = "image"
 title = "AASC Canonical Map (click to open)"
+
+[[outputs]]
+id = "drUu28gqUfgNeRaPz0Bj-"
+uri = "file://dist/hmodal-energy-saving.zip"
+type = "unspecified"
+title = "HModal Energy Saving Code Bundle"
