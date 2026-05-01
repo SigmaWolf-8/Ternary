@@ -43,7 +43,6 @@ import {
   SALVI_EPOCH,
   FEMTOSECONDS_PER_SECOND
 } from "../salvi-core/femtosecond-timing";
-import { toBijectiveBase3 } from "../util/trit-radix";
 import {
   phaseSplit,
   phaseRecombine,
