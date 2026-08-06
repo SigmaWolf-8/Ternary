@@ -599,7 +599,7 @@ pub fn sample_uniform_ternary(seed: &[i8], n: usize, nonce: u16) -> TernaryPolyn
 // _mm256_add_epi8 + _mm256_cmpgt_epi8 + _mm256_blendv_epi8.
 // ---------------------------------------------------------------------------
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
 #[target_feature(enable = "avx2")]
 unsafe fn cbd_eta2_avx2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
     use core::arch::x86_64::*;

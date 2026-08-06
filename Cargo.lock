@@ -4040,6 +4040,7 @@ dependencies = [
  "rand 0.8.5",
  "resvg",
  "rustybuzz",
+ "serde",
  "spin 0.9.8",
  "taffy",
  "tiny-skia 0.11.4",

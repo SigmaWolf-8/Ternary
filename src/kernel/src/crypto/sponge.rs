@@ -44,6 +44,7 @@ const SPONGE_STATE_SIZE: usize = 729;  // 3⁶
 const SPONGE_RATE: usize = 243;        // 3⁵
 const SPONGE_ROUNDS: usize = 9;        // 3² — 3× safety margin over 3-round full diffusion
 const SPONGE_LANES: usize = 27;        // round constant injection points
+#[cfg(any(all(target_arch = "x86_64", not(feature = "no_std")), target_arch = "aarch64"))]
 const CHI_BLOCKS: usize = 243;         // 729 / 3 — blocks for chi layer
 
 pub const SPONGE_VERSION: u8 = 2;
@@ -184,18 +185,21 @@ fn chi_layer(state: &mut [i8; SPONGE_STATE_SIZE]) {
     }
 }
 
+#[cfg(any(all(target_arch = "x86_64", not(feature = "no_std")), target_arch = "aarch64"))]
 static CHI_MAP_T0: [i8; 32] = {
     let mut t = [0i8; 32];
     let mut i = 0usize;
     while i < 27 { t[i] = CHI_MAP[i][0]; i += 1; }
     t
 };
+#[cfg(any(all(target_arch = "x86_64", not(feature = "no_std")), target_arch = "aarch64"))]
 static CHI_MAP_T1: [i8; 32] = {
     let mut t = [0i8; 32];
     let mut i = 0usize;
     while i < 27 { t[i] = CHI_MAP[i][1]; i += 1; }
     t
 };
+#[cfg(any(all(target_arch = "x86_64", not(feature = "no_std")), target_arch = "aarch64"))]
 static CHI_MAP_T2: [i8; 32] = {
     let mut t = [0i8; 32];
     let mut i = 0usize;
@@ -203,7 +207,7 @@ static CHI_MAP_T2: [i8; 32] = {
     t
 };
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
 #[target_feature(enable = "avx2")]
 unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::x86_64::*;
@@ -404,7 +408,7 @@ const RC_TABLE: [[i8; SPONGE_LANES]; SPONGE_ROUNDS] = {
 //   Without it, the substitution would be linear over GF(3).
 // ---------------------------------------------------------------------------
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
 #[target_feature(enable = "avx2")]
 unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::x86_64::*;
