@@ -424,7 +424,7 @@ pub extern "C" fn kernel_main() -> ! {
     puts("[distributor] Initializing z=0 distributor...\n");
     let mut dist = plenumnet_kernel::distributor::Distributor::new();
     use plenumnet_kernel::distributor::RequestInterface;
-    use plenumnet_kernel::distributor::z_router::{RequestType, ZLevel};
+    use plenumnet_kernel::distributor::z_router::RequestType;
 
     let _req1 = dist.submit_request(RequestType::HttpRequest);
     let _req2 = dist.submit_request(RequestType::DataQuery);

@@ -793,6 +793,7 @@ pub struct TernaryTetrahedron {
 
 /// Whether a tetrahedron is polarized (has a fixed axis) or twisted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TetrahedronPolarization {
     /// One specific axis has the same value across all 4 vertices.
     /// `fixed_axis` is in **internal** (0-indexed) representation.

@@ -53,7 +53,13 @@ pub mod input;
 pub mod layers;
 pub mod allocator;
 
-#[cfg(feature = "std")]
+// `no_std` wins over `std`. Cargo features are additive, so building with
+// `--features no_std` and the default `std` still leaves `std` switched on —
+// which used to put the crate in `#![no_std]` (line 28 reacts to `no_std`)
+// while still compiling modules that call `eprintln!` and `vec!`. Deferring to
+// `no_std` here means the bare-metal build is correct whether or not the
+// caller also remembered `--no-default-features`.
+#[cfg(all(feature = "std", not(feature = "no_std")))]
 pub mod repo_sync;
 
 #[cfg(kani)]

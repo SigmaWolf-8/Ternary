@@ -23,6 +23,13 @@ no_std = []
 fpga = ["no_std"]
 asic = ["no_std"]
 finra-613 = []
+# Gates the AddressDiagnostic type, which reports *why* an address failed
+# validation. Always on under debug_assertions and test; this feature is how a
+# release build opts into it.
+diagnostics = []
+# Serialization for the crypto address and cube types. Optional, and off by
+# default: a kernel build should not carry serde unless something asks for it.
+serde = ["dep:serde"]
 bench-tools = ["nalgebra", "rand"]
 browser-crates = ["plenum-std", "html5ever", "cssparser", "taffy", "rustybuzz", "fontdue", "boa_engine", "tiny-skia", "resvg"]
 
@@ -38,6 +45,9 @@ plenum-std = { path = "../plenum-std", optional = true }
 # including the bare-metal target via the `no_std` feature — can migrate
 # off the kernel-local types onto the canonical engine. (Task #158 I-47.)
 AASC = { path = "../../AASC", default-features = false }
+# Only pulled in when the `serde` feature asks for it. default-features = false
+# keeps it `no_std`-clean, matching every other dependency here.
+serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
 
 [dependencies.html5ever]
 version = "0.27"
@@ -127,3 +137,9 @@ harness = false
 [[bench]]
 name = "tldsa_bench"
 harness = false
+
+# `kani` is set by the Kani verifier when it compiles this crate, not by Cargo.
+# Declaring it here is what stops rustc reporting it as an unknown cfg — which,
+# under the CI job's RUSTFLAGS="-D warnings", is a hard build failure.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
