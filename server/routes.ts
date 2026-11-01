@@ -598,7 +598,7 @@ export async function registerRoutes(
     try {
       const parsed = demoRunSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { datasetName, rowCount } = parsed.data;
       const startTime = Date.now();
@@ -751,7 +751,7 @@ export async function registerRoutes(
       
       const parsed = uploadSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       
       const { fileName, fileType, content } = parsed.data;
@@ -971,7 +971,7 @@ export async function registerRoutes(
 
         const parsed = schema.safeParse(req.body);
         if (!parsed.success) {
-          return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+          return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
         }
 
         fileName = parsed.data.fileName;
@@ -1067,7 +1067,7 @@ export async function registerRoutes(
 
         const parsed = schema.safeParse(req.body);
         if (!parsed.success) {
-          return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+          return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
         }
 
         ternBuffer = Buffer.from(parsed.data.content, 'base64');
@@ -1234,7 +1234,7 @@ export async function registerRoutes(
       
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       
       const { title, content, compress, encrypt, encryptionMode } = parsed.data;
@@ -1444,7 +1444,7 @@ export async function registerRoutes(
     try {
       const parsed = insertWhitepaperSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { version, title, content, summary, author } = parsed.data;
       const whitepaper = await storage.createWhitepaper({
@@ -1543,7 +1543,7 @@ export async function registerRoutes(
 
       const parsed = signupSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid email address", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid email address", details: parsed.error.issues });
       }
 
       const existing = await storage.getDeveloperSignupByEmail(parsed.data.email);

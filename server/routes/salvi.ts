@@ -306,7 +306,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { value, from, to } = parsed.data;
       
@@ -334,7 +334,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { a, b, mode } = parsed.data;
       
@@ -357,7 +357,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { a, b } = parsed.data;
       
@@ -377,7 +377,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { value, steps } = parsed.data;
       
@@ -396,7 +396,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { value } = parsed.data;
       
@@ -416,7 +416,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { a, b } = parsed.data;
       
@@ -438,7 +438,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       
       const results = batchTernaryAdd(parsed.data.pairs as Array<{ a: TritA; b: TritA }>);
@@ -1143,7 +1143,7 @@ export function registerSalviRoutes(app: Express): void {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
       const { data, mode } = parsed.data;
       
@@ -1331,7 +1331,7 @@ export function registerSalviRoutes(app: Express): void {
         return res.status(400).json({
           success: false,
           error: "Invalid request",
-          details: parsed.error.errors,
+          details: parsed.error.issues,
         });
       }
 
@@ -1449,7 +1449,7 @@ export function registerSalviRoutes(app: Express): void {
         return res.status(400).json({
           success: false,
           error: "Invalid request",
-          details: parsed.error.errors,
+          details: parsed.error.issues,
         });
       }
 

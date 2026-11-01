@@ -51,7 +51,7 @@ export function registerEphemerisRoutes(app: Express) {
       if (!parsed.success) {
         return res.status(400).json({
           error: "Invalid request",
-          details: parsed.error.errors,
+          details: parsed.error.issues,
           expected: { type: "std_deg | std_rad | ternary_deg", value: "number", return_resonance: "boolean (optional)" }
         });
       }
@@ -84,7 +84,7 @@ export function registerEphemerisRoutes(app: Express) {
       if (!parsed.success) {
         return res.status(400).json({
           error: "Invalid request",
-          details: parsed.error.errors,
+          details: parsed.error.issues,
           supported_planets: SUPPORTED_PLANETS,
           jd_range: [2400000, 2500000]
         });
@@ -138,7 +138,7 @@ export function registerEphemerisRoutes(app: Express) {
       if (!parsed.success) {
         return res.status(400).json({
           error: "Invalid request",
-          details: parsed.error.errors
+          details: parsed.error.issues
         });
       }
 

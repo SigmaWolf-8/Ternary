@@ -193,7 +193,7 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
       
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
 
       const { path: rawPath, content, message, sha, branch } = parsed.data;
@@ -260,7 +260,7 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
       
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
 
       const { path: rawPath, message, sha, branch } = parsed.data;
@@ -543,7 +543,7 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
 
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
 
       const { files, message } = parsed.data;

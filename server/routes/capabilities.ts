@@ -193,7 +193,7 @@ const meshRegisterSchema = z.object({
   service_name: z.string().min(1),
   capabilities: z.array(z.string().min(1)).min(1),
   endpoint: z.string().min(1),
-  metadata: z.record(z.string()).optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
 });
 
 const meshIssueSchema = z.object({
