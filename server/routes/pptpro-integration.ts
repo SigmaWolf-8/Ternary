@@ -122,11 +122,11 @@ const entrainAdviseSchema = z.object({
 const coherenceLogSchema = z.object({
   report: z.object({
     cvp: z.number().min(0).max(1),
-    sub_indices: z.record(z.union([
+    sub_indices: z.record(z.string(), z.union([
       z.object({ value: z.number(), source: z.string() }),
       z.number(),
     ])),
-    module_outputs: z.record(z.unknown()).optional(),
+    module_outputs: z.record(z.string(), z.unknown()).optional(),
   }),
   timestamp: z.string().optional(),
 });

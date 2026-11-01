@@ -47,7 +47,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     actor: z.string().max(255).optional(),
     description: z.string().min(1).max(5000),
     affectedComponent: z.string().max(255).optional(),
-    evidence: z.record(z.unknown()).optional(),
+    evidence: z.record(z.string(), z.unknown()).optional(),
     ipAddress: z.string().max(45).optional(),
     userId: z.string().max(255).optional(),
   });
@@ -58,7 +58,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       const entry = await securityAuditService.logEvent(body);
       res.status(201).json(entry);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.issues });
       log.error("Failed to create audit event", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -144,7 +144,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       if (!updated) return res.status(404).json({ error: "Event not found" });
       res.json(updated);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.issues });
       log.error("Failed to resolve audit event", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -169,7 +169,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       const event = await hptpAnomalyService.reportAnomaly(body);
       res.status(201).json(event);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.issues });
       log.error("Failed to log HPTP anomaly", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -260,7 +260,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       const entry = await threatModelService.create(body);
       res.status(201).json(entry);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.issues });
       log.error("Failed to create threat entry", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -389,7 +389,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       const entry = await implementationStatusService.create(body);
       res.status(201).json(entry);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.issues });
       log.error("Failed to create impl status entry", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }

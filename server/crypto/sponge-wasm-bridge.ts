@@ -25,13 +25,20 @@ import {
   SPONGE_VERSION,
 } from './sponge-hash';
 
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+
 let wasmModule: any = null;
 let useWasm = false;
 
 export async function initWasmSponge(): Promise<boolean> {
   if (useWasm) return true;
   try {
-    wasmModule = await import('../../ternary-math/pkg/ternary_math');
+    // wasm-pack output is an optional runtime artifact, not committed TypeScript.
+    // Use Node's file URL resolution so the genuine module is loaded when built;
+    // a missing build still takes the existing explicit unavailability path.
+    const moduleUrl = pathToFileURL(resolve(process.cwd(), 'ternary-math/pkg/ternary_math.js'));
+    wasmModule = await import(moduleUrl.href);
     useWasm = true;
     console.log('[sponge] WASM backend loaded — TL-Sponge-385');
     return true;

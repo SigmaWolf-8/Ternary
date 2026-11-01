@@ -64,7 +64,7 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
     try {
       const parsed = generateKeySchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
 
       const { name, scopes, expiresDays, rateLimitTier, enableRotation, entityType, entityName, project, department, tags, notes } = parsed.data;
@@ -233,7 +233,7 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
       const { id } = req.params;
       const parsed = updateRateLimitSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
 
       const keys = await apiKeyService.listAll();
@@ -280,7 +280,7 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
       const { id } = req.params;
       const parsed = updateKeyMetadataSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
       }
 
       const result = await apiKeyService.updateKeyMetadata(id, parsed.data);
