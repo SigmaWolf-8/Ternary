@@ -1,0 +1,59 @@
+name: Array3 Windows Daemon
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/inter-cube/**'
+      - '.github/workflows/array3-windows-daemon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-daemon:
+    name: Compile and test real Windows daemon
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Test inventory reporter in the complete daemon
+        shell: cmd
+        run: cargo test --locked -p inter-cube --bin inter-cube-daemon --target x86_64-pc-windows-msvc slot_reporter::tests
+      - name: Build real Windows executable
+        shell: cmd
+        run: cargo build --locked --release -p inter-cube --bin inter-cube-daemon --target x86_64-pc-windows-msvc
+      - name: Verify binary and write provenance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'target/x86_64-pc-windows-msvc/release/inter-cube-daemon.exe'
+          if (!(Test-Path -LiteralPath $exe)) { throw 'Daemon executable missing' }
+          $env:CUBE_MODE = 'version'
+          $version = & $exe
+          if ($LASTEXITCODE -ne 0) { throw 'Daemon version smoke test failed' }
+          New-Item -ItemType Directory -Path daemon-artifact -Force | Out-Null
+          Copy-Item -LiteralPath $exe -Destination daemon-artifact
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  inter-cube-daemon.exe" | Set-Content daemon-artifact/SHA256SUMS.txt -Encoding ascii
+          $commit = git rev-parse HEAD
+          @{
+            commit = $commit
+            target = 'x86_64-pc-windows-msvc'
+            sha256 = $hash
+            versionOutput = @($version)
+            authenticodeSigned = $false
+            validation = 'Reporter tests, full daemon compile and version smoke test on Windows; not proof of a live installation or 81 active slots.'
+          } | ConvertTo-Json -Depth 4 | Set-Content daemon-artifact/build-info.json -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: array3-windows-daemon-x86_64
+          path: daemon-artifact/
+          if-no-files-found: error
+          retention-days: 14
