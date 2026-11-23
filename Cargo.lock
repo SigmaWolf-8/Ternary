@@ -2398,7 +2398,7 @@ dependencies = [
 
 [[package]]
 name = "inter-cube"
-version = "2.4.13"
+version = "2.4.14"
 dependencies = [
  "axum",
  "bincode",

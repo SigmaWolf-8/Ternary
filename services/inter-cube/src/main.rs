@@ -65,6 +65,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 mod slot_reporter;
+mod query_channels;
+mod query_channel_runtime;
 
 struct TerminalSession {
     writer: Arc<tokio::sync::Mutex<Box<dyn std::io::Write + Send>>>,
@@ -1427,6 +1429,11 @@ fn spawn_relay_client(
 ) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| format!("{}", api_port() + 1));
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
+    let query_capacity = env::var("PLENUM_QUERY_CONCURRENCY").ok()
+        .map(|v|v.parse::<usize>().expect("PLENUM_QUERY_CONCURRENCY must be an integer"))
+        .unwrap_or(1);
+    let query_runtime = query_channel_runtime::Runtime::new(cube_node_id(), llm_base_url.clone(), query_capacity)
+        .expect("invalid query-channel configuration");
     let api_port_val = api_port();
     let endpoint_str = format!("0.0.0.0:{}", api_port_val);
     let ops_address = address.clone();
@@ -2351,6 +2358,27 @@ fn spawn_relay_client(
                             continue;
                         }
 
+                        if msg_type == "query_channels_request" || msg_type == "channel_inference_request" {
+                            let runtime=query_runtime.clone();
+                            let reply_tx=client.outgoing_tx.clone();
+                            let target=from.clone();
+                            let kind=msg_type.to_owned();
+                            let parsed=serde_json::from_str::<serde_json::Value>(&payload_str);
+                            tokio::spawn(async move {
+                                let Ok(request)=parsed else {return;};
+                                let (response_kind,payload)=runtime.handle(&kind,request).await;
+                                let reply=inter_cube::ws_relay::RelayEnvelope {
+                                    msg_type:"relay".into(),to:Some(target),
+                                    relay_msg_type:Some(response_kind.into()),payload:Some(payload.to_string()),
+                                    address:None,public_key:None,nonce:None,signature:None,from:None,
+                                    error:None,delivered:None,connected_peers:None,ts:None,connected:None,
+                                };
+                                if reply_tx.send(reply).await.is_err() {
+                                    eprintln!("[query-channels] Response delivery failed; do not infer successful receipt");
+                                }
+                            });
+                            continue;
+                        }
                         if msg_type == "inference_request" {
                             let llm_url = format!("{}/v1/chat/completions", llm_base_url);
                             let http = inference_client.clone();
