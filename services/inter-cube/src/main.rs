@@ -64,6 +64,10 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+mod slot_reporter;
+mod query_channels;
+mod query_channel_runtime;
+
 struct TerminalSession {
     writer: Arc<tokio::sync::Mutex<Box<dyn std::io::Write + Send>>>,
     master: Arc<tokio::sync::Mutex<Box<dyn portable_pty::MasterPty + Send>>>,
@@ -838,38 +842,8 @@ async fn run_crs_mode() {
     let peers = new_peer_registry();
     spawn_peer_listener(p_port, local_address.to_dotted(), peers.clone(), None, None);
 
-    {
-        let relay_base = relay_url(None).unwrap_or_else(|| "https://plenumnet.replit.app".to_string());
-        let crs_api_port = port;
-        tokio::spawn(async move {
-            let client = reqwest::Client::builder()
-                .user_agent(format!("PlenumNET-InterCube/{}", env!("CARGO_PKG_VERSION")))
-                .build()
-                .expect("slot-report HTTP client");
-            let node_id: u8 = std::env::var("CUBE_NODE_ID")
-                .ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-            let slots_url = format!("http://127.0.0.1:{}/api/salvi/inter-cube/slots", crs_api_port);
-            let health_url = format!("http://127.0.0.1:{}/health", crs_api_port);
-            let report_url = format!("{}/api/salvi/inter-cube/relay/slot-report", relay_base);
-            tokio::time::sleep(Duration::from_secs(5)).await;
-            loop {
-                let slots_resp = client.get(&slots_url).send().await;
-                let health_resp = client.get(&health_url).send().await;
-                if let (Ok(sr), Ok(hr)) = (slots_resp, health_resp) {
-                    if sr.status().is_success() && hr.status().is_success() {
-                        if let (Ok(sj), Ok(hj)) = (
-                            sr.json::<serde_json::Value>().await,
-                            hr.json::<serde_json::Value>().await,
-                        ) {
-                            let _ = client.post(&report_url)
-                                .json(&serde_json::json!({"nodeId": node_id, "slots": sj, "health": hj}))
-                                .send().await;
-                        }
-                    }
-                }
-                tokio::time::sleep(Duration::from_secs(30)).await;
-            }
-        });
+    if let Some(target) = relay_url(None) {
+        slot_reporter::spawn(cube_node_id(), port, &target);
     }
 
     let terminal_mux = pty_mux::new_shared_mux(16);
@@ -1309,41 +1283,12 @@ async fn run_cube_mode() {
                     println!("[HEARTBEAT] Failed: {}", e);
                 }
             }
-
-            let node_id: u8 = std::env::var("CUBE_NODE_ID")
-                .ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-            let api_port: u16 = std::env::var("CUBE_API_PORT")
-                .or_else(|_| std::env::var("API_PORT"))
-                .ok().and_then(|v| v.parse().ok()).unwrap_or(11124);
-            let slots_url = format!("http://127.0.0.1:{}/api/salvi/inter-cube/slots", api_port);
-            let health_url = format!("http://127.0.0.1:{}/health", api_port);
-            let report_url = format!("{}/api/salvi/inter-cube/relay/slot-report", crs_url_for_heartbeat);
-
-            let slots_resp = hb_client.get(&slots_url).send().await;
-            let health_resp = hb_client.get(&health_url).send().await;
-
-            if let (Ok(sr), Ok(hr)) = (slots_resp, health_resp) {
-                if sr.status().is_success() && hr.status().is_success() {
-                    if let (Ok(slots_json), Ok(health_json)) = (
-                        sr.json::<serde_json::Value>().await,
-                        hr.json::<serde_json::Value>().await,
-                    ) {
-                        let _ = hb_client.post(&report_url)
-                            .json(&serde_json::json!({
-                                "nodeId": node_id,
-                                "slots": slots_json,
-                                "health": health_json,
-                            }))
-                            .send()
-                            .await;
-                    }
-                }
-            }
         }
     });
 
     let addr_str_for_relay: String = local_address.to_bytes().iter().map(|t| t.to_string()).collect();
     let relay_target = relay_url(Some(&crs_url)).unwrap_or_else(|| crs_url.clone());
+    slot_reporter::spawn(cube_node_id(), api_port(), &relay_target);
     let p_port = peer_port();
     let peers = new_peer_registry();
     let peer_senders = new_peer_senders();
@@ -1484,6 +1429,11 @@ fn spawn_relay_client(
 ) {
     let llm_port = env::var("LLM_PORT").unwrap_or_else(|_| format!("{}", api_port() + 1));
     let llm_base_url = format!("http://127.0.0.1:{}", llm_port);
+    let query_capacity = env::var("PLENUM_QUERY_CONCURRENCY").ok()
+        .map(|v|v.parse::<usize>().expect("PLENUM_QUERY_CONCURRENCY must be an integer"))
+        .unwrap_or(1);
+    let query_runtime = query_channel_runtime::Runtime::new(cube_node_id(), llm_base_url.clone(), query_capacity)
+        .expect("invalid query-channel configuration");
     let api_port_val = api_port();
     let endpoint_str = format!("0.0.0.0:{}", api_port_val);
     let ops_address = address.clone();
@@ -2408,6 +2358,27 @@ fn spawn_relay_client(
                             continue;
                         }
 
+                        if msg_type == "query_channels_request" || msg_type == "channel_inference_request" {
+                            let runtime=query_runtime.clone();
+                            let reply_tx=client.outgoing_tx.clone();
+                            let target=from.clone();
+                            let kind=msg_type.to_owned();
+                            let parsed=serde_json::from_str::<serde_json::Value>(&payload_str);
+                            tokio::spawn(async move {
+                                let Ok(request)=parsed else {return;};
+                                let (response_kind,payload)=runtime.handle(&kind,request).await;
+                                let reply=inter_cube::ws_relay::RelayEnvelope {
+                                    msg_type:"relay".into(),to:Some(target),
+                                    relay_msg_type:Some(response_kind.into()),payload:Some(payload.to_string()),
+                                    address:None,public_key:None,nonce:None,signature:None,from:None,
+                                    error:None,delivered:None,connected_peers:None,ts:None,connected:None,
+                                };
+                                if reply_tx.send(reply).await.is_err() {
+                                    eprintln!("[query-channels] Response delivery failed; do not infer successful receipt");
+                                }
+                            });
+                            continue;
+                        }
                         if msg_type == "inference_request" {
                             let llm_url = format!("{}/v1/chat/completions", llm_base_url);
                             let http = inference_client.clone();
